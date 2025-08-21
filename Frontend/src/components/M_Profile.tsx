@@ -25,13 +25,13 @@ function loadProfile(): MentorProfile {
   }
 }
 
-function saveProfile(p: MentorProfile){
+function saveProfile(p: MentorProfile) {
   localStorage.setItem(KEY, JSON.stringify(p));
-  const display = `${p.firstName||""} ${p.lastName||""}`.trim() || "พี่เลี้ยง";
+  const display = `${p.firstName || ""} ${p.lastName || ""}`.trim() || "พี่เลี้ยง";
   localStorage.setItem("coop.mentor.displayName", display);
 }
 
-export default function M_Profile(){
+export default function M_Profile() {
   const initial = loadProfile();
   const [p, setP] = useState<MentorProfile>(() => ({
     firstName: "", lastName: "", email: "", phone: "",
@@ -48,7 +48,7 @@ export default function M_Profile(){
     setP(prev => ({ ...prev, [k]: v }));
   }
 
-  function onSave(e: React.FormEvent){
+  function onSave(e: React.FormEvent) {
     e.preventDefault();
     saveProfile(p);
     alert("บันทึกโปรไฟล์แล้ว");
@@ -56,13 +56,13 @@ export default function M_Profile(){
   }
 
   const full = useMemo(
-    () => `${p.firstName||""} ${p.lastName||""}`.trim() || "—",
+    () => `${p.firstName || ""} ${p.lastName || ""}`.trim() || "—",
     [p.firstName, p.lastName]
   );
 
   const initialLetter = useMemo(() => {
     const source = (p.firstName?.trim() || p.lastName?.trim())
-      ? `${p.firstName||""} ${p.lastName||""}`.trim()
+      ? `${p.firstName || ""} ${p.lastName || ""}`.trim()
       : (p.email || "M");
     return source.trim().charAt(0).toUpperCase() || "M";
   }, [p.firstName, p.lastName, p.email]);
@@ -70,10 +70,10 @@ export default function M_Profile(){
   return (
     <div className="page" style={{ padding: 4, margin: 28, marginLeft: 65 }}>
       {/* ===== การ์ดโปรไฟล์ (รวมข้อมูลที่บันทึกทั้งหมด) ===== */}
-      <section className="card" style={{padding: 24, marginBottom: 28}}>
-        <h2 style={{marginTop:8, marginLeft:18}}>โปรไฟล์ของฉัน</h2>
+      <section className="card" style={{ padding: 24, marginBottom: 28 }}>
+        <h2 style={{ marginTop: 8, marginLeft: 18 }}>โปรไฟล์ของฉัน</h2>
 
-        <div className="profile-grid" style={{marginTop:8, marginLeft:18}}>
+        <div className="profile-grid" style={{ marginTop: 8, marginLeft: 18 }}>
           {/* Avatar ตัวอักษร */}
           <div role="img" aria-label={`avatar ${initialLetter}`} className="avatar">
             {initialLetter}
@@ -94,7 +94,7 @@ export default function M_Profile(){
 
             {!editing && (
               <div style={{ marginTop: 12 }}>
-                <button className="btn" type="button" onClick={()=>setEditing(true)}>แก้ไขข้อมูล</button>
+                <button className="btn" type="button" onClick={() => setEditing(true)}>แก้ไขข้อมูล</button>
               </div>
             )}
           </div>
@@ -152,7 +152,7 @@ export default function M_Profile(){
 
             <div style={{ display: "flex", gap: 10, marginTop: 22 }}>
               <button className="btn" type="submit">บันทึก</button>
-              <button className="btn ghost" type="button" onClick={()=>setEditing(false)}>ยกเลิก</button>
+              <button className="btn ghost" type="button" onClick={() => setEditing(false)}>ยกเลิก</button>
             </div>
           </section>
         </form>
