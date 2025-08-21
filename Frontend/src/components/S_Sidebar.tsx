@@ -4,7 +4,15 @@ import { NavLink } from "react-router-dom";
 export default function Sidebar() {
   return (
     <aside className="sidebar">
-      <div className="brand-text">Co-operative:</div>
+      {/* Brand: Co-operative: (บน) / Student (ล่าง) */}
+      <div className="brand">
+        <div className="brand-sub">Co-operative:</div>
+        <div className="brand-main">
+          <span className="brand-bullet" aria-hidden />
+          <span>Student</span>
+        </div>
+        <div className="brand-underline" aria-hidden />
+      </div>
 
       <nav className="nav" aria-label="Student Navigation">
         <NavLink
@@ -41,17 +49,40 @@ export default function Sidebar() {
         </NavLink>
       </nav>
 
-      {/* ทำให้ไอคอน+คำอยู่ "บรรทัดเดียวกันเสมอ" + ellipsis */}
       <style>{`
-        .sidebar .brand-text{
-          font-weight: 900;
-          margin: 24px 0;
-          text-transform: uppercase;
-          font-size: 20px;
+        /* ===== Brand header (เหมือนตัวอย่างรูป) ===== */
+        .brand{ margin:20px 0 24px; }
+        .brand-sub{
+          font-weight:900;
+          font-size:26px;        /* ใหญ่กว่าบรรทัดล่าง */
+          line-height:1.1;
+          letter-spacing:.01em;
+          color:#0f172a;
         }
-        .sidebar .nav { display: grid; gap: 6px; }
-      }
-        .sidebar .nav { display: grid; gap: 6px; }
+        .brand-main{
+          margin-top:6px;
+          display:flex; align-items:center; gap:10px;
+          font-weight:800;
+          font-size:16px;        /* เล็กกว่า ตามภาพ */
+          line-height:1;
+          color:#334155;
+        }
+        .brand-bullet{
+          width:10px; height:10px; border-radius:50%;
+          background: linear-gradient(135deg,#93C5FD,#3B82F6);
+          box-shadow:0 0 0 4px rgba(59,130,246,.12);
+        }
+        .brand-main > span:last-child{
+          background: linear-gradient(90deg,#0074B7 0%, #60A5FA 50%, #22D3EE 100%);
+          -webkit-background-clip:text; background-clip:text; color:transparent;
+        }
+        .brand-underline{
+          margin-top:10px; height:3px; width:64px; border-radius:999px;
+          background: linear-gradient(90deg,#E6F0FF,#BFD7ED);
+        }
+
+        /* ===== Nav ===== */
+        .sidebar .nav { display:grid; gap:6px; }
 
         .sidebar .item{
           display:flex; align-items:center; gap:10px;
@@ -69,14 +100,11 @@ export default function Sidebar() {
         .sidebar .item.active .icon svg{ color:#0074B7; }
 
         .sidebar .text{
-          flex:1 1 auto;
-          min-width:0;                
-          font-weight:700;
-          white-space:nowrap;         
-          overflow:hidden;             
-          text-overflow:ellipsis;  
-          margin-left:10px;   
+          flex:1 1 auto; min-width:0;
+          font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+          margin-left:10px;
         }
+        .sidebar .text{ flex:1 1 auto; min-width:0; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-left:10px; }
       `}</style>
     </aside>
   );
