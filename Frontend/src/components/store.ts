@@ -1,13 +1,41 @@
 export type DocStatus = "waiting" | "under-review" | "approved" | "rejected";
-export interface DocumentItem { id: string; title: string; dueDate: string; status: DocStatus; fileName?: string; lastUpdated?: string; }
-export interface CompanyInfo { name: string; address: string; hrName: string; hrEmail: string; }
-export interface MentorInfo { firstName: string; lastName: string; phone: string; email: string; title: string; }
-export interface StudentProfile {
-  email: string; studentId: string; firstName: string; lastName: string; phone: string; gpa: string;
-  major: string; curriculum: string; nationality: string; religion: string;
-  company?: CompanyInfo; mentor?: MentorInfo; docs: DocumentItem[];
+export interface DocumentItem {
+  id: string;
+  title: string;
+  dueDate: string;
+  status: DocStatus;
+  fileName?: string;
+  lastUpdated?: string;
 }
-export interface DailyLog { 
+export interface CompanyInfo {
+  name: string;
+  address: string;
+  hrName: string;
+  hrEmail: string;
+}
+export interface MentorInfo {
+  firstName: string;
+  lastName: string;
+  phone: string;
+  email: string;
+  title: string;
+}
+export interface StudentProfile {
+  email: string;
+  studentId: string;
+  firstName: string;
+  lastName: string;
+  phone: string;
+  gpa: string;
+  major: string;
+  curriculum: string;
+  nationality: string;
+  religion: string;
+  company?: CompanyInfo;
+  mentor?: MentorInfo;
+  docs: DocumentItem[];
+}
+export interface DailyLog {
   id: string;
   date: string;
   studentName: string;
@@ -15,20 +43,44 @@ export interface DailyLog {
   checkOut: string;
   note?: string;
   createdAt: string;
-  signature?: string; 
+  signature?: string;
 }
 
 const PROF_KEY = "coop.student.profile.v1";
 const DAILY_KEY = "coop.student.daily.v1";
 
 const isoDate = (d = new Date()) => d.toISOString().slice(0, 10);
-const addDays = (n: number) => { const d = new Date(); d.setDate(d.getDate() + n); return d; };
+const addDays = (n: number) => {
+  const d = new Date();
+  d.setDate(d.getDate() + n);
+  return d;
+};
 
 const defaultDocs = (): DocumentItem[] => [
-  { id: "req",   title: "แบบคำร้องขอฝึกสหกิจ",            dueDate: isoDate(addDays(7)),  status: "waiting" },
-  { id: "mou",   title: "บันทึกข้อตกลง (MOU)",            dueDate: isoDate(addDays(14)), status: "waiting" },
-  { id: "prog",  title: "รายงานความก้าวหน้า (Progress)", dueDate: isoDate(addDays(45)), status: "waiting" },
-  { id: "final", title: "รายงานฉบับสมบูรณ์ (Final)",     dueDate: isoDate(addDays(90)), status: "waiting" },
+  {
+    id: "req",
+    title: "แบบคำร้องขอฝึกสหกิจ",
+    dueDate: isoDate(addDays(7)),
+    status: "waiting",
+  },
+  {
+    id: "mou",
+    title: "บันทึกข้อตกลง (MOU)",
+    dueDate: isoDate(addDays(14)),
+    status: "waiting",
+  },
+  {
+    id: "prog",
+    title: "รายงานความก้าวหน้า (Progress)",
+    dueDate: isoDate(addDays(45)),
+    status: "waiting",
+  },
+  {
+    id: "final",
+    title: "รายงานฉบับสมบูรณ์ (Final)",
+    dueDate: isoDate(addDays(90)),
+    status: "waiting",
+  },
 ];
 
 export function loadProfile(): StudentProfile {
@@ -40,8 +92,16 @@ export function loadProfile(): StudentProfile {
     void _err;
   }
   return {
-    email: "", studentId: "", firstName: "", lastName: "", phone: "", gpa: "",
-    major: "", curriculum: "", nationality: "", religion: "",
+    email: "",
+    studentId: "",
+    firstName: "",
+    lastName: "",
+    phone: "",
+    gpa: "",
+    major: "",
+    curriculum: "",
+    nationality: "",
+    religion: "",
     docs: defaultDocs(),
   };
 }
