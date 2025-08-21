@@ -1,11 +1,11 @@
 // src/components/S_App.tsx
 import { useEffect, useState } from "react";
 import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
-import Sidebar from "./Sidebar";
-import DashboardPage from "./Dashboard";
-import ProfilePage from "./ProfilePage";
-import CoopPage from "./CoopPage";
-import DailyPage from "./DailyPage";
+import Sidebar from "./S_Sidebar";
+import DashboardPage from "./S_Dashboard";
+import ProfilePage from "./S_ProfilePage";
+import CoopPage from "./S_CoopPage";
+import DailyPage from "./S_DailyPage";
 import { loadProfile, saveProfile, type StudentProfile } from "./store";
 import StudentTheme from "./S_Theme";
 import coopLogo from "../assets/COOP_Logo.png";

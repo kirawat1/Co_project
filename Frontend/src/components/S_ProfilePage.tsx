@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import type { StudentProfile, DocumentItem } from "./store";
-import DocTable from "./DocTable";
+import DocTable from "./S_DocTable";
 
 /* ---------- ฟอร์มฝั่งซ้าย (เอาศาสนาออกแล้ว) ---------- */
 type FormState = {
