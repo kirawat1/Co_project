@@ -1,6 +1,4 @@
-// src/components/api.ts (ตัวอย่างโครงสำหรับ mock/fallback)
-import type { Role } from "./api"; // ถ้ามี type แยก
-
+// import type { Role } from "./api"; // ถ้ามี type แยก
 const USE_MOCK = import.meta.env.VITE_USE_MOCK === "true";
 
 type AuthRes = {

@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import { useMemo } from "react";
 
 function useMentorData(){
   type S = { studentId:string, firstName:string, lastName:string };

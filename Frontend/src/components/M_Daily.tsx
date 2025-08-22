@@ -2,6 +2,13 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import type { DailyLog } from "./store";
 
+type MentorSignature = { name: string; role?: string; dataUrl: string };
+type MentorDailyLog = Omit<DailyLog, "checkIn" | "checkOut"> & {
+  studentName: string;
+  signatures: MentorSignature[];
+  checkIn?: string;   // ให้เป็น optional เพื่อให้โค้ดฝั่งแอดมินอ่านได้
+  checkOut?: string;  // เช่น แสดงค่าว่างแทน
+};
 type StudentLite = {
   studentId: string;
   firstName: string;
@@ -131,14 +138,16 @@ export default function MentorDaily(){
     const isBlank = dataUrl === blankDataUrlRef.current;
     if(isBlank){ alert("กรุณาเซ็นในช่องลายเซ็นก่อนบันทึก"); return; }
 
-    const item: any = {
+    const item: MentorDailyLog = {
       id: crypto.randomUUID(),
       date,
       studentName: name,
-      note,
+      note: note.trim(),
+      checkIn: "",           // ให้ค่าว่างไว้ เพื่อไม่ให้ฝั่ง A_Daily แตกเวลา map
+      checkOut: "",          // ให้ค่าว่างเหมือนกัน
       signatures: [{ name: signerName, role: "พี่เลี้ยง", dataUrl }],
       createdAt: new Date().toISOString(),
-    } as DailyLog;
+    };
 
     setLogs([item, ...logs]);
     setNote("");
@@ -187,7 +196,7 @@ export default function MentorDaily(){
 
             <div className="sign-stack card" style={{padding:12}}>
               {/* บน: ชื่อผู้เซ็น*/}
-              <div className="sign-info">
+              <div className="sign-info" style={{marginTop:18}}>
                 <label className="label" style={{marginLeft:18}}>ชื่อผู้เซ็น</label>
 
                 <input
@@ -201,7 +210,7 @@ export default function MentorDaily(){
                 />
 
                 {/* ย้ายบทบาทมาไว้ใต้ช่องชื่อ */}
-                <small className="role-under-input">บทบาท: พี่เลี้ยง</small>
+                <small className="role-under-input" style={{marginLeft:90}}>บทบาท: พี่เลี้ยง</small>
               </div>
 
               {/* ล่าง: ลายเซ็น */}
@@ -209,9 +218,29 @@ export default function MentorDaily(){
                 <div className="pad-wrap" ref={wrapRef} style={{ marginLeft: 10}}>
                   <canvas
                     ref={canvasRef}
-                    onMouseDown={startDraw} onMouseMove={moveDraw} onMouseUp={endDraw} onMouseLeave={endDraw}
-                    onTouchStart={startDraw} onTouchMove={moveDraw} onTouchEnd={endDraw}
-                    style={{display:"block", background:"#fff", borderRadius:8, touchAction:"none"}}
+                    /* Mouse */
+                    onMouseDown={(e) => { e.preventDefault(); startDraw(e.nativeEvent); }}
+                    onMouseMove={(e) => moveDraw(e.nativeEvent)}
+                    onMouseUp={() => endDraw()}
+                    onMouseLeave={() => endDraw()}
+                    /* Touch */
+                    onTouchStart={(e) => { e.preventDefault(); startDraw(e.nativeEvent as any); }}
+                    onTouchMove={(e) => { e.preventDefault(); moveDraw(e.nativeEvent as any); }}
+                    onTouchEnd={() => endDraw()}
+                    /* กันคลิกขวา/กดค้าง */
+                    onContextMenu={(e) => e.preventDefault()}
+                    /* a11y */
+                    role="img"
+                    aria-label="พื้นที่เซ็นลายเซ็น"
+                    tabIndex={0}
+                    /* style */
+                    style={{
+                      display: "block",
+                      background: "#fff",
+                      borderRadius: 8,
+                      touchAction: "none",
+                      outline: "none"
+                    }}
                   />
                   <button
                     type="button"
@@ -231,7 +260,7 @@ export default function MentorDaily(){
           </div>
 
           {/* ปุ่มบันทึก */}
-          <div><button className="btn" type="submit" disabled={!studentId}>บันทึก</button></div>
+          <div><button className="btn" type="submit" disabled={!studentId} >บันทึก</button></div>
         </form>
 
         <p style={{color:"#6b7280", fontSize:12, marginTop:8, marginLeft:20}}>* บันทึกแล้วแก้ไขไม่ได้ — เก็บตามนักศึกษาแต่ละคน</p>
