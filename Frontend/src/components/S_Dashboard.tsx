@@ -1,6 +1,14 @@
 import { useMemo } from "react";
 import type { StudentProfile } from "./store";
 
+// ✅ อ่านประกาศจากแอดมินที่ key นี้ ถ้าไม่มีจะ fallback เป็นรายการตัวอย่างเดิม
+function loadAdminAnns(){
+  try{ return JSON.parse(localStorage.getItem("coop.shared.announcements") || "[]"); }
+  catch{ return []; }
+}
+
+type Ann = { id:string; title:string; date:string; body?:string };
+
 export default function DashboardPage({ profile }: { profile: StudentProfile }) {
   const todayISO = new Date().toISOString().slice(0, 10);
 
@@ -21,17 +29,18 @@ export default function DashboardPage({ profile }: { profile: StudentProfile }) 
       .map((d) => ({ ...d, days: toDays(d.dueDate) }));
   }, [profile.docs]);
 
-  // ประกาศ (ซ่อนอันที่หมดเวลา)
-  const announcements = useMemo(
-    () =>
-      [
-        { id: "a1", title: "กำหนดส่งแบบคำร้องสหกิจ 1/2568", date: "2025-09-05", body: "ส่งผ่านระบบภายใน 23:59 น." },
-        { id: "a2", title: "อบรมเตรียมความพร้อมก่อนออกฝึก", date: "2025-09-10", body: "ห้อง CC-201 เวลา 09:00-12:00 น." },
-      ]
-        .filter((a) => a.date >= todayISO) // ⬅️ ลบประกาศที่หมดเวลาออก
-        .sort((a, b) => a.date.localeCompare(b.date)),
-    [todayISO]
-  );
+  // ✅ ประกาศ: โหลดจากแอดมิน → ถ้าไม่มี ใช้รายการเดิม → ซ่อนเกินกำหนด → เรียงตามวัน
+  const announcements = useMemo(() => {
+    const fromAdmin: Ann[] = loadAdminAnns();
+    const fallback: Ann[] = [
+      { id: "a1", title: "กำหนดส่งแบบคำร้องสหกิจ 1/2568", date: "2025-09-05", body: "ส่งผ่านระบบภายใน 23:59 น." },
+      { id: "a2", title: "อบรมเตรียมความพร้อมก่อนออกฝึก", date: "2025-09-10", body: "ห้อง CC-201 เวลา 09:00-12:00 น." },
+    ];
+    const base = (fromAdmin && fromAdmin.length) ? fromAdmin : fallback;
+    return base
+      .filter((a) => a.date >= todayISO)
+      .sort((a, b) => a.date.localeCompare(b.date));
+  }, [todayISO]);
 
   return (
     <div className="page" style={{ padding: 4, margin: 28 }}>
@@ -63,7 +72,7 @@ export default function DashboardPage({ profile }: { profile: StudentProfile }) 
             <li key={a.id} style={{ padding: "10px 0", borderBottom: "1px dashed #e5e7eb" }}>
               <div style={{ fontWeight: 800 }}>{a.title}</div>
               <div style={{ color: "#6b7280", fontSize: 14 }}>
-                {fmtDate(a.date)} · {a.body}
+                {fmtDate(a.date)} · {a.body || "-"}
               </div>
             </li>
           ))}

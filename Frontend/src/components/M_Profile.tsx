@@ -12,6 +12,7 @@ type MentorProfile = {
 
 const KEY = "coop.mentor.profile";
 
+/* ===== utils: โหลด/บันทึกแบบปลอดภัย ===== */
 function loadProfile(): MentorProfile {
   try {
     const raw = JSON.parse(localStorage.getItem(KEY) || "{}");
@@ -31,17 +32,29 @@ function saveProfile(p: MentorProfile){
   localStorage.setItem("coop.mentor.displayName", display);
 }
 
+/* ===== ค่าพื้นฐาน & ตัวช่วยอ่านค่าเริ่มต้น (กัน SSR/ไม่มี localStorage) ===== */
+const DEFAULT_PROFILE: MentorProfile = {
+  firstName: "", lastName: "", email: "",
+  phone: "", title: "", department: "", companyName: ""
+};
+
+function getInitialProfile(): MentorProfile {
+  try {
+    if (typeof window === "undefined") return DEFAULT_PROFILE; // กัน SSR
+    const fromStorage = loadProfile();
+    return { ...DEFAULT_PROFILE, ...fromStorage };
+  } catch {
+    return DEFAULT_PROFILE;
+  }
+}
+
 export default function M_Profile(){
-  const initial = loadProfile();
-  const [p, setP] = useState<MentorProfile>(() => ({
-    firstName: "", lastName: "", email: "", phone: "",
-    title: "", department: "", companyName: "",
-    ...initial,
-  }));
+  /* ใช้ lazy initializer เพื่อไม่ไปแตะ localStorage ตอน SSR */
+  const [p, setP] = useState<MentorProfile>(getInitialProfile);
 
   // ถ้าไม่มีข้อมูลเดิมเลย → เข้าสู่โหมดแก้ไข, ถ้ามีแล้ว → โหมดดูอย่างเดียว
   const [editing, setEditing] = useState<boolean>(() =>
-    !(initial.firstName || initial.lastName || initial.email || initial.phone || initial.title || initial.department || initial.companyName)
+    !(p.firstName || p.lastName || p.email || p.phone || p.title || p.department || p.companyName)
   );
 
   function up<K extends keyof MentorProfile>(k: K, v: MentorProfile[K]) {
@@ -104,13 +117,13 @@ export default function M_Profile(){
       {/* ===== ฟอร์มแก้ไข (โชว์เฉพาะตอน editing) ===== */}
       {editing && (
         <form onSubmit={onSave}>
-          <section className="card">
-            <h3 style={{ marginTop: 0 }}>แก้ไขข้อมูลส่วนตัว & บริษัท</h3>
+          <section className="card" style={{ padding: 24, marginBottom: 28 }}>
+            <h3 style={{ marginTop: 8, marginLeft: 18 }}>แก้ไขข้อมูลส่วนตัว & บริษัท</h3>
 
             {/* กลุ่ม: ข้อมูลส่วนตัว */}
-            <div className="form-grid">
+            <div className="form-grid" style={{ marginLeft: 18 }}>
               <div className="field">
-                <label className="label">ชื่อ</label>
+                <label className="label" style={{ marginLeft: 18 }}>ชื่อ</label>
                 <input className="input" value={p.firstName} onChange={e => up("firstName", e.target.value)} />
               </div>
               <div className="field">
@@ -143,7 +156,7 @@ export default function M_Profile(){
             <div className="section-divider" />
 
             {/* กลุ่ม: บริษัท (เหลือเฉพาะชื่อบริษัท) */}
-            <div className="form-grid form-grid--company">
+            <div className="form-grid form-grid--company" style={{ marginLeft: 18 }}>
               <div className="field" style={{ gridColumn: "1 / -1" }}>
                 <label className="label">ชื่อบริษัท</label>
                 <input className="input" value={p.companyName || ""} onChange={e => up("companyName", e.target.value)} />
@@ -151,7 +164,7 @@ export default function M_Profile(){
             </div>
 
             <div style={{ display: "flex", gap: 10, marginTop: 22 }}>
-              <button className="btn" type="submit">บันทึก</button>
+              <button className="btn" type="submit" style={{ marginLeft: 18 }}>บันทึก</button>
               <button className="btn ghost" type="button" onClick={()=>setEditing(false)}>ยกเลิก</button>
             </div>
           </section>
@@ -206,7 +219,7 @@ export default function M_Profile(){
         }
         .form-grid--company{ margin-top: 6px; } /* ดันห่างจากเส้นคั่นเล็กน้อย */
 
-        /* iPad/จอเล็ก = 1 คอลัมน์ + ช่องเต็มกว้างเพื่อใช้งานง่าย */
+        /* iPad/จอเล็ก = 1 คอลัมน์ */
         @media (max-width: 1024px){
           .profile-grid{ grid-template-columns: 1fr; }
           .avatar{ width:120px; height:120px; font-size:48px; }

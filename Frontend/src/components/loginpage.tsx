@@ -1,4 +1,3 @@
-// src/components/LoginPage.tsx
 import React, { useEffect, useMemo, useState } from "react";
 import { AuthAPI } from "./api";
 import { loadProfile, saveProfile } from "./store";
@@ -21,10 +20,11 @@ function validateByRole(role: Role, email: string, password: string): string | n
 const IOS_BLUE = "#0074B7";
 const ROLE_LABEL: Record<Role, string> = { student: "นักศึกษา", staff: "เจ้าหน้าที่", mentor: "พี่เลี้ยง" };
 const ALL_ROLES: Role[] = ["student", "staff", "mentor"];
+// ✅ อัปเดตปลายทางหลังล็อกอินให้ตรงกับ Route ใหม่ (/admin/*)
 const HOME_BY_ROLE: Record<Role, string> = {
-  student: "/student/dashboard",
-  staff: "/staff/dashboard",
-  mentor: "/mentor/dashboard",
+  student: "/student",
+  staff: "/admin",
+  mentor: "/mentor",
 };
 // ✅ คำนำหน้าชื่อให้เลือก
 const PREFIXES = ["นาย", "นางสาว", "นาง"] as const;
@@ -108,6 +108,9 @@ export default function LoginPage() {
         const res = await AuthAPI.signin({ role, email: email.trim(), password });
         if (!res.ok) throw new Error(res.message || "เข้าสู่ระบบไม่สำเร็จ");
         if (remember && res.token) localStorage.setItem("coop.token", res.token);
+        // ✅ เก็บบทบาทไว้ใช้ในแอปส่วนอื่น
+        localStorage.setItem("coop.role", role);
+        // ✅ ส่งไปยัง portal ตามบทบาทใหม่
         navigate(HOME_BY_ROLE[role] || "/", { replace: true });
         setNotice(`เข้าสู่ระบบสำเร็จ: ${res.user?.email} (${res.user?.role})`);
       } else {
