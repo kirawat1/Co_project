@@ -39,10 +39,10 @@ export default function DocTable({ items, onChange, allowStatusChange = false }:
   }
 
   const today = new Date();
-  today.setHours(0,0,0,0);
+  today.setHours(0, 0, 0, 0);
 
   return (
-    <div className="doc-table-wrap" style={{ overflowX: "auto", marginLeft:20, width:830 }}>
+    <div className="doc-table-wrap" style={{ overflowX: "auto", marginLeft: 20, width: 830 }}>
       <table className="doc-table">
         {/* ล็อกความกว้างแต่ละคอลัมน์ */}
         <colgroup>
@@ -68,7 +68,7 @@ export default function DocTable({ items, onChange, allowStatusChange = false }:
             const isExpired = daysLeft < 0;
 
             // สีเวลาที่เหลือ: ≤7 แดง, 8–20 เหลือง, ≥21 เขียว
-            let dueClass: "due-red"|"due-yellow"|"due-green"|"expired";
+            let dueClass: "due-red" | "due-yellow" | "due-green" | "expired";
             if (isExpired) dueClass = "expired";
             else if (daysLeft <= 7) dueClass = "due-red";
             else if (daysLeft <= 20) dueClass = "due-yellow";
@@ -103,7 +103,7 @@ export default function DocTable({ items, onChange, allowStatusChange = false }:
                         title="ลบไฟล์"
                       >
                         <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden>
-                          <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                          <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                         </svg>
                       </button>
                     </div>

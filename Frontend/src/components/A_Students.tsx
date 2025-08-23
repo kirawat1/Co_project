@@ -2,7 +2,7 @@
 import { useMemo, useState } from "react";
 import type { StudentProfile, DocumentItem } from "./store";
 
-const KS = "coop.admin.students";
+const KS = "coop.student.profile.v1";
 function loadStudents(): StudentProfile[] {
   try { return JSON.parse(localStorage.getItem(KS) || "[]"); }
   catch { return []; }
@@ -138,11 +138,11 @@ export default function A_Students() {
                     <td className="col-email"><span className="email" title={s.email || "-"}>{s.email || "-"}</span></td>
                     <td className="cell-actions">
                       {!isActive && (
-                        <button className="btn" onClick={() => setActiveId(s.studentId!)} type="button">
+                        <button className="btn small" onClick={() => setActiveId(s.studentId!)} type="button">
                           ดูรายละเอียด
                         </button>
                       )}
-                      <button className="btn ghost" onClick={() => remove(s.studentId!)} type="button" title="ลบ">ลบ</button>
+                      <button className="btn ghost small" onClick={() => remove(s.studentId!)} type="button" title="ลบ">ลบ</button>
                     </td>
                   </tr>
                 );
@@ -202,6 +202,12 @@ export default function A_Students() {
       <style>{`
         .btn.ghost{ background:#fff; color:#0f172a; border:1px solid rgba(0,0,0,.08); border-radius:10px; padding:10px 14px; font-weight:700 }
         .btn.ghost:hover{ background:#f8fafc; border-color:#c7d2fe; box-shadow:0 1px 0 rgba(0,0,0,.02), 0 6px 14px rgba(0,116,183,.14) }
+        .btn.small {
+          font-size: 12px;
+          padding: 4px 8px;
+          min-width: auto;   /* ไม่บังคับความกว้าง */
+          border-radius: 6px; /* มุมเล็กลง (option) */
+        }
         .icon-btn{
           display:inline-flex; align-items:center; justify-content:center;
           width:32px; height:32px; border-radius:8px;
@@ -264,7 +270,7 @@ function StudentDocs({
   const isOverdue = (d: any): boolean => {
     const due = getDue(d);
     if (!due) return false;
-    const end = new Date(due); end.setHours(23,59,59,999); // สิ้นวันกำหนดส่ง (local time)
+    const end = new Date(due); end.setHours(23, 59, 59, 999); // สิ้นวันกำหนดส่ง (local time)
     return Date.now() > +end;
   };
 
@@ -312,9 +318,9 @@ function StudentDocs({
                 {getName(d)}{" "}
                 {overdue && (
                   <span style={{
-                    marginLeft:8, padding:"2px 8px", borderRadius:999,
-                    background:"rgba(239,68,68,.10)", color:"#ef4444",
-                    fontSize:12, fontWeight:800
+                    marginLeft: 8, padding: "2px 8px", borderRadius: 999,
+                    background: "rgba(239,68,68,.10)", color: "#ef4444",
+                    fontSize: 12, fontWeight: 800
                   }}>
                     เกินกำหนด
                   </span>
