@@ -5,24 +5,21 @@ import type { StudentProfile, DocumentItem } from "./store";
 
 const IOS_BLUE = "#0074B7";
 
-const KS = "coop.admin.students";
+const KS = "coop.student.profile.v1";
 const KM = "coop.admin.mentors";
 const KA = "coop.shared.announcements";
 
 function loadStudents(): StudentProfile[] { try { return JSON.parse(localStorage.getItem(KS) || "[]"); } catch { return []; } }
 function loadMentors(): any[] { try { return JSON.parse(localStorage.getItem(KM) || "[]"); } catch { return []; } }
 function loadAnns(): any[] { try { return JSON.parse(localStorage.getItem(KA) || "[]"); } catch { return []; } }
-function loadStudentDaily(): number { try { return (JSON.parse(localStorage.getItem("coop.daily") || "[]") || []).length; } catch { return 0; } }
-function loadMentorDaily(): number {
+function loadStudentDaily(): number {
   try {
-    const studs = JSON.parse(localStorage.getItem("coop.mentor.students") || "[]") as { studentId: string }[];
-    let n = 0;
-    for (const s of studs) {
-      const k = `coop.mentor.logs.${s.studentId}`;
-      n += (JSON.parse(localStorage.getItem(k) || "[]") || []).length;
-    }
-    return n;
-  } catch { return 0; }
+    const raw = localStorage.getItem("coop.student.daily.v1");
+    const list = raw ? JSON.parse(raw) : [];
+    return Array.isArray(list) ? list.length : 0;
+  } catch {
+    return 0;
+  }
 }
 
 /* ---------- Inline Icons (ไม่พึ่ง lib ภายนอก) ---------- */
@@ -49,7 +46,7 @@ function IconWrap({ children }: { children: React.ReactNode }) {
 
 const StudentsIcon = () => (
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-       strokeLinecap="round" strokeLinejoin="round">
+    strokeLinecap="round" strokeLinejoin="round">
     <path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"></path>
     <circle cx="9" cy="7" r="4"></circle>
     <path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
@@ -59,7 +56,7 @@ const StudentsIcon = () => (
 
 const MentorsIcon = () => (
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-       strokeLinecap="round" strokeLinejoin="round">
+    strokeLinecap="round" strokeLinejoin="round">
     <circle cx="12" cy="7" r="4"></circle>
     <path d="M6 21v-2a6 6 0 0 1 12 0v2"></path>
     <path d="M16 3l2 2"></path>
@@ -69,7 +66,7 @@ const MentorsIcon = () => (
 
 const AnnounceIcon = () => (
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-       strokeLinecap="round" strokeLinejoin="round">
+    strokeLinecap="round" strokeLinejoin="round">
     <path d="M3 11v2"></path>
     <path d="M7 11v2"></path>
     <path d="M21 8v8l-7-3H8a4 4 0 0 1-4-4V7a1 1 0 0 1 1-1h3l7-3v0"></path>
@@ -78,7 +75,7 @@ const AnnounceIcon = () => (
 
 const DailyStuIcon = () => (
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-       strokeLinecap="round" strokeLinejoin="round">
+    strokeLinecap="round" strokeLinejoin="round">
     <path d="M8 2v4"></path><path d="M16 2v4"></path>
     <rect x="3" y="4" width="18" height="18" rx="2"></rect>
     <path d="M3 10h18"></path>
@@ -88,7 +85,7 @@ const DailyStuIcon = () => (
 
 const DailyMenIcon = () => (
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-       strokeLinecap="round" strokeLinejoin="round">
+    strokeLinecap="round" strokeLinejoin="round">
     <rect x="3" y="3" width="18" height="14" rx="2"></rect>
     <path d="M7 21h10"></path><path d="M12 17v4"></path>
     <path d="M7 7h10v6H7z"></path>
@@ -269,7 +266,7 @@ export default function A_Dashboard() {
   const mentors = loadMentors();
   const anns = loadAnns();
   const studentDaily = loadStudentDaily();
-  const mentorDaily = loadMentorDaily();
+
 
   const docStats = useMemo(() => {
     const counters = { waiting: 0, under: 0, approved: 0, rejected: 0 } as Record<string, number>;
@@ -283,23 +280,21 @@ export default function A_Dashboard() {
     c2: "/admin/mentors",
     c3: "/admin/announcements",
     c4: "/admin/daily?role=student",
-    c5: "/admin/daily?role=mentor",
   };
 
   const cards = [
-    { id: "c1", title: "จำนวนนักศึกษา", value: String(students.length), icon: <StudentsIcon/> },
-    { id: "c2", title: "จำนวนพี่เลี้ยง", value: String(mentors.length), icon: <MentorsIcon/> },
-    { id: "c3", title: "ประกาศ", value: String(anns.length), icon: <AnnounceIcon/> },
-    { id: "c4", title: "บันทึกนักศึกษา (รายการ)", value: String(studentDaily), icon: <DailyStuIcon/> },
-    { id: "c5", title: "บันทึกพี่เลี้ยง (รายการ)", value: String(mentorDaily), icon: <DailyMenIcon/> },
+    { id: "c1", title: "จำนวนนักศึกษา", value: String(students.length), icon: <StudentsIcon /> },
+    { id: "c2", title: "จำนวนพี่เลี้ยง", value: String(mentors.length), icon: <MentorsIcon /> },
+    { id: "c3", title: "ประกาศ", value: String(anns.length), icon: <AnnounceIcon /> },
+    { id: "c4", title: "บันทึกนักศึกษา (รายการ)", value: String(studentDaily), icon: <DailyStuIcon /> },
   ];
 
   // ข้อมูลกราฟเส้น + ใช้ร่วมกับ Legend
   const chartData = [
-    { key: "waiting",  label: "รอส่ง",      value: docStats.waiting,  color: "#9CA3AF" }, // gray-400
-    { key: "under",    label: "รอพิจารณา",  value: docStats.under,    color: IOS_BLUE },  // theme
-    { key: "approved", label: "ผ่าน",        value: docStats.approved, color: "#10B981" }, // emerald-500
-    { key: "rejected", label: "ไม่ผ่าน",     value: docStats.rejected, color: "#EF4444" }, // red-500
+    { key: "waiting", label: "รอส่ง", value: docStats.waiting, color: "#9CA3AF" }, // gray-400
+    { key: "under", label: "รอพิจารณา", value: docStats.under, color: IOS_BLUE },  // theme
+    { key: "approved", label: "ผ่าน", value: docStats.approved, color: "#10B981" }, // emerald-500
+    { key: "rejected", label: "ไม่ผ่าน", value: docStats.rejected, color: "#EF4444" }, // red-500
   ];
 
   return (
@@ -364,16 +359,16 @@ export default function A_Dashboard() {
             alignItems: "start",
             marginTop: 10,
             marginLeft: 70,
-            marginBottom:10
+            marginBottom: 10
           }}
         >
           {/* ซ้าย: ข้อมูลสถานะ/จำนวน/เปอร์เซ็นต์ */}
           <div >
-            <ChartLegend data={chartData}  />
+            <ChartLegend data={chartData} />
           </div>
 
           {/* ขวา: กราฟเส้น */}
-          <div className="chart-box" style={{ minWidth: 0, marginTop:40 }}>
+          <div className="chart-box" style={{ minWidth: 0, marginTop: 40 }}>
             <LineChart data={chartData} />
           </div>
         </div>

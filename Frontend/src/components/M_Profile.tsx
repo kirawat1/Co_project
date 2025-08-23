@@ -11,7 +11,32 @@ type MentorProfile = {
 };
 
 const KEY = "coop.mentor.profile";
+const ADMIN_KEY = "coop.admin.mentors";
 
+function loadMentors(): MentorProfile[] {
+  try {
+    return JSON.parse(localStorage.getItem(ADMIN_KEY) || "[]");
+  } catch {
+    return [];
+  }
+}
+
+function saveMentors(list: MentorProfile[]) {
+  localStorage.setItem(ADMIN_KEY, JSON.stringify(list));
+}
+
+function addMentor(p: MentorProfile) {
+  const list = loadMentors();
+  const exists = list.find(m => m.email === p.email);
+  if (!exists) {        // กันซ้ำ
+    list.push(p);
+    saveMentors(list);
+  } else {
+    // ถ้ามีอยู่แล้ว อัปเดตแทน
+    const updated = list.map(m => m.email === p.email ? p : m);
+    saveMentors(updated);
+  }
+}
 /* ===== utils: โหลด/บันทึกแบบปลอดภัย ===== */
 function loadProfile(): MentorProfile {
   try {
@@ -64,9 +89,10 @@ export default function M_Profile() {
 
   function onSave(e: React.FormEvent) {
     e.preventDefault();
-    saveProfile(p);
+    saveProfile(p);   // เดิม: เซฟโปรไฟล์ของตัวเอง
+    addMentor(p);     // ✅ เพิ่ม: ดันเข้า coop.admin.mentors
     alert("บันทึกโปรไฟล์แล้ว");
-    setEditing(false); // ✅ ซ่อนฟอร์ม กลับไปดูการ์ดโปรไฟล์ที่อัปเดตแล้ว
+    setEditing(false);
   }
 
   const full = useMemo(

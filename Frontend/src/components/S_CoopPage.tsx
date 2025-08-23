@@ -4,6 +4,24 @@ import type { StudentProfile, CompanyInfo, MentorInfo } from "./store";
 // ขยาย CompanyInfo ให้รองรับช่วงวัน (เริ่ม/สิ้นสุด)
 type CompanyWithPeriod = CompanyInfo & { startDate?: string; endDate?: string };
 
+// defaults
+const emptyCompany: CompanyInfo = {
+  id: "", // ใส่ค่า default
+  name: "",
+  address: "",
+  hrName: "",
+  hrEmail: ""
+};
+const emptyMentor: MentorInfo = {
+  id: "",
+  firstName: "",
+  lastName: "",
+  email: "",
+  title: "",
+  phone: "",
+  companyId: ""
+};
+
 export default function CoopPage({
   profile,
   setProfile,
@@ -11,24 +29,11 @@ export default function CoopPage({
   profile: StudentProfile;
   setProfile: (p: StudentProfile) => void;
 }) {
-  const emptyCompany: CompanyInfo = { name: "", address: "", hrName: "", hrEmail: "" };
-  const emptyMentor: MentorInfo = { firstName: "", lastName: "", email: "", title: "" } as MentorInfo;
-
   // state ฟอร์ม
-  const [company, setCompany] = useState<CompanyWithPeriod>({
-    name: profile.company?.name || "",
-    address: profile.company?.address || "",
-    hrName: profile.company?.hrName || "",
-    hrEmail: profile.company?.hrEmail || "",
-    startDate: (profile.company as CompanyWithPeriod | undefined)?.startDate || "",
-    endDate:   (profile.company as CompanyWithPeriod | undefined)?.endDate || "",
-  });
-  const [mentor, setMentor] = useState<MentorInfo>({
-    firstName: profile.mentor?.firstName || "",
-    lastName: profile.mentor?.lastName || "",
-    email: profile.mentor?.email || "",
-    title: profile.mentor?.title || "",
-  } as MentorInfo);
+  const [company, setCompany] = useState<CompanyWithPeriod>(
+    (profile.company as CompanyWithPeriod) || { ...emptyCompany }
+  );
+  const [mentor, setMentor] = useState<MentorInfo>(profile.mentor || { ...emptyMentor });
 
   // flags
   const hasCompany = useMemo(() => {
@@ -44,15 +49,14 @@ export default function CoopPage({
   const [showCompanyForm, setShowCompanyForm] = useState(false);
   const [showMentorForm, setShowMentorForm] = useState(false);
   const [banner, setBanner] = useState("");
-
-  // dropdown เฉพาะปุ่ม "แก้ไข"
   const [showEditMenu, setShowEditMenu] = useState(false);
 
   // refs
   const companyFormRef = useRef<HTMLFormElement | null>(null);
-  const mentorFormRef   = useRef<HTMLFormElement | null>(null);
+  const mentorFormRef = useRef<HTMLFormElement | null>(null);
   const companyFirstRef = useRef<HTMLInputElement | null>(null);
-  const mentorFirstRef  = useRef<HTMLInputElement | null>(null);
+  const mentorFirstRef = useRef<HTMLInputElement | null>(null);
+
 
   // ระยะเวลาในสรุป
   const companyDurationText = useMemo(() => {
@@ -81,49 +85,36 @@ export default function CoopPage({
 
   // ===== Actions =====
   function handleAddCompany() {
-    setCompany({
-      name: profile.company?.name || "",
-      address: profile.company?.address || "",
-      hrName: profile.company?.hrName || "",
-      hrEmail: profile.company?.hrEmail || "",
-      startDate: (profile.company as CompanyWithPeriod | undefined)?.startDate || "",
-      endDate:   (profile.company as CompanyWithPeriod | undefined)?.endDate || "",
-    });
+    setCompany(profile.company ? (profile.company as CompanyWithPeriod) : { ...emptyCompany });
     setShowCompanyForm(true);
     setTimeout(() => {
-      companyFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      companyFormRef.current?.scrollIntoView({ behavior: "smooth" });
       companyFirstRef.current?.focus();
     }, 50);
   }
+
   function handleAddMentor() {
     if (!hasCompany) {
       setBanner("กรุณาเพิ่มข้อมูลบริษัทก่อนจึงจะเพิ่มข้อมูลพี่เลี้ยงได้");
       setTimeout(() => setBanner(""), 2200);
-      companyFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      companyFormRef.current?.scrollIntoView({ behavior: "smooth" });
       return;
     }
     setMentor(profile.mentor ?? { ...emptyMentor });
     setShowMentorForm(true);
     setTimeout(() => {
-      mentorFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      mentorFormRef.current?.scrollIntoView({ behavior: "smooth" });
       mentorFirstRef.current?.focus();
     }, 50);
   }
+
   function handleEditCompany() {
-    setCompany({ ...(profile.company as CompanyWithPeriod | undefined) ?? { ...emptyCompany, startDate: "", endDate: "" } });
+    setCompany((profile.company as CompanyWithPeriod) || { ...emptyCompany });
     setShowCompanyForm(true);
-    setTimeout(() => {
-      companyFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-      companyFirstRef.current?.focus();
-    }, 50);
   }
   function handleEditMentor() {
     setMentor(profile.mentor ?? { ...emptyMentor });
     setShowMentorForm(true);
-    setTimeout(() => {
-      mentorFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-      mentorFirstRef.current?.focus();
-    }, 50);
   }
 
   function onSaveCompany(e: React.FormEvent) {
@@ -144,8 +135,8 @@ export default function CoopPage({
   // ❗ ลบทุกอย่างพร้อมกัน
   function handleDeleteAll() {
     if (!window.confirm("ยืนยันลบข้อมูลบริษัทและพี่เลี้ยงทั้งหมด?")) return;
-    setProfile({ ...profile, company: { ...emptyCompany }, mentor: { ...emptyMentor } });
-    setCompany({ ...emptyCompany, startDate: "", endDate: "" });
+    setProfile({ ...profile, company: undefined, mentor: undefined });
+    setCompany({ ...emptyCompany });
     setMentor({ ...emptyMentor });
     setShowCompanyForm(false);
     setShowMentorForm(false);
@@ -167,9 +158,9 @@ export default function CoopPage({
 
       {/* การ์ดสรุป (บริษัทอยู่บน, พี่เลี้ยงอยู่ล่าง) + ปุ่มลบรวม */}
       {(hasCompany || hasMentor) && (
-        <section className="card summary-card" style={{ marginBottom: 16, padding: 24, marginTop:8 }}>
+        <section className="card summary-card" style={{ marginBottom: 16, padding: 24, marginTop: 8 }}>
           <div className="summary-titlebar">
-            <h2 style={{ margin: 0, paddingLeft:8, marginTop:0}}>ข้อมูลฝึกสหกิจศึกษา</h2>
+            <h2 style={{ margin: 0, paddingLeft: 8, marginTop: 0 }}>ข้อมูลฝึกสหกิจศึกษา</h2>
             <div className="summary-actions">
               {/* ปุ่มแก้ไข (เมนูเลือกว่าจะแก้ไขอะไร) */}
               <div className="menu-wrap">
@@ -219,9 +210,9 @@ export default function CoopPage({
           {/* สรุปแนวตั้ง: บริษัท (บน) → พี่เลี้ยง (ล่าง) */}
           <div className="summary-vertical">
             <div className="summary-block">
-              <h3 className="summary-subtitle" style={{paddingLeft:24}}>ข้อมูลบริษัท</h3>
+              <h3 className="summary-subtitle" style={{ paddingLeft: 24 }}>ข้อมูลบริษัท</h3>
               {hasCompany && profile.company ? (
-                <ul className="summary-list" style={{fontWeight:350}}>
+                <ul className="summary-list" style={{ fontWeight: 350 }}>
                   <li><b>ชื่อบริษัท:</b> {(profile.company as CompanyWithPeriod).name}</li>
                   <li><b>ที่อยู่:</b> {(profile.company as CompanyWithPeriod).address}</li>
                   <li><b>ชื่อ HR:</b> {(profile.company as CompanyWithPeriod).hrName}</li>
@@ -239,15 +230,15 @@ export default function CoopPage({
             </div>
 
             <div className="summary-block">
-              <h3 className="summary-subtitle" style={{paddingLeft:24}}>ข้อมูลพี่เลี้ยง</h3>
+              <h3 className="summary-subtitle" style={{ paddingLeft: 24 }}>ข้อมูลพี่เลี้ยง</h3>
               {hasMentor && profile.mentor ? (
-                <ul className="summary-list" style={{fontWeight:350}}>
+                <ul className="summary-list" style={{ fontWeight: 350 }}>
                   <li><b>ชื่อ-นามสกุล:</b> {profile.mentor.firstName} {profile.mentor.lastName}</li>
                   <li><b>ตำแหน่ง:</b> {profile.mentor.title}</li>
                   <li><b>Email:</b> {profile.mentor.email}</li>
                 </ul>
               ) : (
-                <div className="summary-empty" style={{ marginLeft:18,paddingLeft:24, width:150}}>
+                <div className="summary-empty" style={{ marginLeft: 18, paddingLeft: 24, width: 150 }}>
                   ยังไม่มีข้อมูลพี่เลี้ยง
                 </div>
               )}
