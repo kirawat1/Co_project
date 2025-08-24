@@ -1,31 +1,31 @@
 import { useMemo, useState } from "react";
 import type { StudentProfile, DocumentItem, DocStatus } from "./store";
 
-const KS = "coop.admin.students";
-function loadStudents(): StudentProfile[]{ try{ return JSON.parse(localStorage.getItem(KS)||"[]"); }catch{return []} }
-function saveStudents(list: StudentProfile[]){ localStorage.setItem(KS, JSON.stringify(list)); }
+const KS = "coop.student.profile.v1";
+function loadStudents(): StudentProfile[] { try { return JSON.parse(localStorage.getItem(KS) || "[]"); } catch { return [] } }
+function saveStudents(list: StudentProfile[]) { localStorage.setItem(KS, JSON.stringify(list)); }
 
-export default function A_Docs(){
-  const [students, setStudents] = useState<StudentProfile[]>(()=> loadStudents());
-  const [st, setSt] = useState<"all"|DocStatus>("all");
+export default function A_Docs() {
+  const [students, setStudents] = useState<StudentProfile[]>(() => loadStudents());
+  const [st, setSt] = useState<"all" | DocStatus>("all");
   const [q, setQ] = useState("");
 
-  const rows = useMemo(()=>{
-    const out: { studentId:string; name:string; item:DocumentItem }[] = [];
-    students.forEach(s=> (s.docs||[]).forEach(d=> out.push({
-      studentId: s.studentId||"-",
-      name: `${s.firstName||""} ${s.lastName||""}`.trim(),
+  const rows = useMemo(() => {
+    const out: { studentId: string; name: string; item: DocumentItem }[] = [];
+    students.forEach(s => (s.docs || []).forEach(d => out.push({
+      studentId: s.studentId || "-",
+      name: `${s.firstName || ""} ${s.lastName || ""}`.trim(),
       item: d
     })));
     return out.filter(r =>
-      (st==="all" || r.item.status===st) &&
+      (st === "all" || r.item.status === st) &&
       `${r.studentId} ${r.name} ${r.item.title}`.toLowerCase().includes(q.toLowerCase())
     );
   }, [students, st, q]);
 
-  function updateStatus(studentId:string, id:string, v: DocStatus){
-    const next = students.map(s=> s.studentId===studentId
-      ? ({...s, docs:(s.docs||[]).map(d=> d.id===id? {...d, status:v, lastUpdated:new Date().toISOString()} : d)})
+  function updateStatus(studentId: string, id: string, v: DocStatus) {
+    const next = students.map(s => s.studentId === studentId
+      ? ({ ...s, docs: (s.docs || []).map(d => d.id === id ? { ...d, status: v, lastUpdated: new Date().toISOString() } : d) })
       : s
     );
     setStudents(next); saveStudents(next);
@@ -51,13 +51,13 @@ export default function A_Docs(){
             className="input"
             placeholder="ค้นหา: ชื่อ/รหัส/ชื่อเอกสาร"
             value={q}
-            onChange={e=>setQ(e.target.value)}
+            onChange={e => setQ(e.target.value)}
             style={{ flex: "1 1 480px", minWidth: 240 }}
           />
           <select
             className="input"
             value={st}
-            onChange={e=>setSt(e.target.value as any)}
+            onChange={e => setSt(e.target.value as any)}
             style={{ flex: "0 0 220px" }}
           >
             <option value="all">ทุกสถานะ</option>
@@ -71,7 +71,7 @@ export default function A_Docs(){
       </section>
 
       <section className="card" style={{ paddingBottom: 12 }}>
-        <table className="doc-table" style={{ width:"100%", marginTop: 8, marginLeft: 18, marginBottom: 15 }}>
+        <table className="doc-table" style={{ width: "100%", marginTop: 8, marginLeft: 18, marginBottom: 15 }}>
           {/* คุมความกว้างคอลัมน์ให้พอดีข้อมูล และป้องกันการล้น */}
           <colgroup>
             <col style={{ width: "10ch" }} />  {/* รหัส */}
@@ -94,17 +94,17 @@ export default function A_Docs(){
           </thead>
 
           <tbody>
-            {rows.map(r=> (
+            {rows.map(r => (
               <tr key={`${r.studentId}.${r.item.id}`} className="row">
                 <td>{r.studentId}</td>
-                <td className="cell-ellipsis" title={r.name}>{r.name||"-"}</td>
+                <td className="cell-ellipsis" title={r.name}>{r.name || "-"}</td>
                 <td className="cell-ellipsis" title={r.item.title}>{r.item.title}</td>
-                <td className="cell-ellipsis" title={r.item.fileName||"-"}>{r.item.fileName||"-"}</td>
+                <td className="cell-ellipsis" title={r.item.fileName || "-"}>{r.item.fileName || "-"}</td>
                 <td>
                   <select
                     className="input"
                     value={r.item.status}
-                    onChange={e=>updateStatus(r.studentId, r.item.id, e.target.value as DocStatus)}
+                    onChange={e => updateStatus(r.studentId, r.item.id, e.target.value as DocStatus)}
                     style={{ minWidth: 140, maxWidth: 180 }}
                   >
                     <option value="waiting">รอส่ง</option>
@@ -113,10 +113,10 @@ export default function A_Docs(){
                     <option value="rejected">ไม่ผ่าน</option>
                   </select>
                 </td>
-                <td>{r.item.lastUpdated? new Date(r.item.lastUpdated).toLocaleString() : "-"}</td>
+                <td>{r.item.lastUpdated ? new Date(r.item.lastUpdated).toLocaleString() : "-"}</td>
               </tr>
             ))}
-            {rows.length===0 && <tr><td colSpan={6} style={{color:"#6b7280"}}>— ไม่มีข้อมูล —</td></tr>}
+            {rows.length === 0 && <tr><td colSpan={6} style={{ color: "#6b7280" }}>— ไม่มีข้อมูล —</td></tr>}
           </tbody>
         </table>
       </section>
@@ -146,17 +146,17 @@ export default function A_Docs(){
   );
 }
 
-function Export({rows}:{rows:{studentId:string; name:string; item:DocumentItem}[]}){
-  function onClick(){
-    const data = rows.map(r=>({
-      studentId:r.studentId,
-      name:r.name,
-      title:r.item.title,
-      status:r.item.status,
-      file:r.item.fileName||"",
-      lastUpdated:r.item.lastUpdated||""
+function Export({ rows }: { rows: { studentId: string; name: string; item: DocumentItem }[] }) {
+  function onClick() {
+    const data = rows.map(r => ({
+      studentId: r.studentId,
+      name: r.name,
+      title: r.item.title,
+      status: r.item.status,
+      file: r.item.fileName || "",
+      lastUpdated: r.item.lastUpdated || ""
     }));
-    const blob = new Blob([JSON.stringify(data, null, 2)], {type:"application/json"});
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
     a.download = "docs_export.json";

@@ -164,6 +164,7 @@ export default function DailyPage({ profile }: { profile: StudentProfile }) {
       note,
       createdAt: new Date().toISOString(),
       signature: signature || undefined,
+      mentorName: profile.mentor ? `${profile.mentor.firstName} ${profile.mentor.lastName}`.trim() : undefined,
     };
 
     const next = [...logs, newItem].sort(compareLogs);
@@ -233,6 +234,7 @@ export default function DailyPage({ profile }: { profile: StudentProfile }) {
               <th>สรุปงาน/สิ่งที่ทำ</th>
               <th>ลายเซ็นนักศึกษา</th>
               <th>วันที่เพิ่มข้อมูล</th>
+              <th>พี่เลี้ยง</th>
               <th>ลายเซ็นพี่เลี้ยง</th>
             </tr>
           </thead>
@@ -250,6 +252,7 @@ export default function DailyPage({ profile }: { profile: StudentProfile }) {
                   ) : <span style={{ color: "#6b7280" }}>-</span>}
                 </td>
                 <td>{new Date(l.createdAt).toLocaleString()}</td>
+                <td>{l.mentorName || "-"}</td>   {/* ✅ แสดงชื่อพี่เลี้ยง */}
                 <td>
                   {l.mentorSignature ? (
                     <img src={l.mentorSignature} alt="ลายเซ็นพี่เลี้ยง" style={{ height: 36, maxWidth: 200 }} />
@@ -262,6 +265,15 @@ export default function DailyPage({ profile }: { profile: StudentProfile }) {
             {logs.length === 0 && <tr><td colSpan={8} style={{ color: "#6b7280" }}>ยังไม่มีรายการ</td></tr>}
           </tbody>
         </table>
+        <style>{`
+        .tbl{ width:100%; border-collapse:separate; border-spacing:0 8px }
+        th{ text-align:left; font-size:13px; color:#6b7280; font-weight:700; padding:4px }
+        td{ background:#fff; border:1px solid #e5e7eb; padding:8px; vertical-align:top }
+        td:first-child{ border-radius:12px 0 0 12px }
+        td:last-child{ border-radius:0 12px 12px 0 }
+        .btn{ background:#0074B7; color:#fff; border-radius:8px; padding:6px 12px; font-weight:600; }
+      `}</style>
+
       </section>
     </div>
   );
