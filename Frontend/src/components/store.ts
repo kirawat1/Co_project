@@ -62,6 +62,7 @@ export interface DailyLog {
   createdAt: string;
   signature?: string;
   mentorSignature?: string;
+  mentorName?: string;
 }
 
 const PROF_KEY = "coop.student.profile.v1";

@@ -18,7 +18,7 @@ export default function A_Daily() {
     const all: DailyLog[] = loadDaily();
     const needle = q.trim().toLowerCase();
     return all.filter((l) =>
-      `${l.studentId} ${l.studentName || ""}`
+      `${l.studentId} ${l.studentName || ""} ${l.mentorName || ""}`
         .toLowerCase()
         .includes(needle)
     );
@@ -49,11 +49,11 @@ export default function A_Daily() {
               <th>วันที่ทำงาน</th>
               <th>รหัส</th>
               <th>ชื่อนักศึกษา</th>
-              <th>พี่เลี้ยง</th>
               <th>เข้า</th>
               <th>ออก</th>
               <th>สรุปงาน</th>
               <th>ลายเซ็น นศ.</th>
+              <th>พี่เลี้ยง</th>
               <th>ลายเซ็น พี่เลี้ยง</th>
               <th>วันที่เพิ่ม</th>
             </tr>
@@ -67,6 +67,7 @@ export default function A_Daily() {
                 <td>{l.checkIn}</td>
                 <td>{l.checkOut}</td>
                 <td className="note">{l.note || "-"}</td>
+
                 <td>
                   {l.signature ? (
                     <img
@@ -78,6 +79,7 @@ export default function A_Daily() {
                     <span style={{ color: "#6b7280" }}>-</span>
                   )}
                 </td>
+                <td>{l.mentorName || "-"}</td>   {/* ✅ แสดงชื่อพี่เลี้ยง */}
                 <td>
                   {l.mentorSignature ? (
                     <img

@@ -74,7 +74,7 @@ export default function MentorDaily() {
   function handleSaveSignature(dataUrl: string) {
     if (!popupLog) return;
     const next = logs.map((l) =>
-      l.id === popupLog.id ? { ...l, mentorSignature: dataUrl } : l
+      l.id === popupLog.id ? { ...l, mentorSignature: dataUrl, mentorName: signerName } : l
     );
     setLogs(next);
     saveDaily(next);
@@ -121,6 +121,7 @@ export default function MentorDaily() {
             <th>ออก</th>
             <th>สรุปงาน</th>
             <th>ลายเซ็น นศ.</th>
+            <th>ชื่อพี่เลี้ยง</th>
             <th>ลายเซ็น พี่เลี้ยง</th>
             <th>วันที่บันทึก</th>
           </tr>
@@ -148,6 +149,7 @@ export default function MentorDaily() {
                   </button>
                 )}
               </td>
+              <td>{l.mentorName || "-"}</td>  {/* ✅ แสดงชื่อพี่เลี้ยง */}
               <td>{new Date(l.createdAt).toLocaleString()}</td>
             </tr>
           ))}
