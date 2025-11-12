@@ -1,4 +1,8 @@
+// src/components/api.ts
 const USE_MOCK = import.meta.env.VITE_USE_MOCK === "true";
+
+// ✅ ใช้บทบาทเฉพาะ 3 แบบนี้
+export type Role = "student" | "staff" | "teacher";
 
 type AuthRes = {
   ok: boolean;
@@ -6,6 +10,11 @@ type AuthRes = {
   token?: string;
   user?: { role: Role; email: string };
 };
+
+// ขอพารามฯ แยกชัดเจน
+type SigninParams = { role: Role; email: string; password: string };
+// สมัครได้เฉพาะ "student"
+type SignupParams = { role: "student"; email: string; password: string };
 
 async function realFetch(path: string, body: any): Promise<AuthRes> {
   const r = await fetch(`/api/auth/${path}`, {
@@ -20,7 +29,13 @@ async function realFetch(path: string, body: any): Promise<AuthRes> {
 function mockSignin({ role, email }: { role: Role; email: string }): AuthRes {
   return { ok: true, token: "mock-token", user: { role, email } };
 }
-function mockSignup({ role, email }: { role: Role; email: string }): AuthRes {
+function mockSignup({
+  role,
+  email,
+}: {
+  role: "student";
+  email: string;
+}): AuthRes {
   return {
     ok: true,
     message: "สมัครสำเร็จ (mock)",
@@ -30,15 +45,7 @@ function mockSignup({ role, email }: { role: Role; email: string }): AuthRes {
 }
 
 export const AuthAPI = {
-  async signin({
-    role,
-    email,
-    password,
-  }: {
-    role: Role;
-    email: string;
-    password: string;
-  }): Promise<AuthRes> {
+  async signin({ role, email, password }: SigninParams): Promise<AuthRes> {
     if (USE_MOCK) return mockSignin({ role, email });
     try {
       return await realFetch("signin", { role, email, password });
@@ -46,27 +53,21 @@ export const AuthAPI = {
       return { ok: false, message: (e as Error).message };
     }
   },
-  async signup({
-    role,
-    email,
-    password,
-  }: {
-    role: Role;
-    email: string;
-    password: string;
-  }): Promise<AuthRes> {
+
+  // ✅ พารามฯ role ถูกจำกัดเป็น "student" ตั้งแต่ระดับ type
+  async signup({ role, email, password }: SignupParams): Promise<AuthRes> {
     if (USE_MOCK) return mockSignup({ role, email });
     try {
       return await realFetch("signup", { role, email, password });
     } catch (e) {
-      // เผื่อ dev ลืมรันแบ็กเอนด์: ตกกลับ mock ได้ด้วย
+      // dev mode fallback
       if (import.meta.env.DEV) return mockSignup({ role, email });
       return { ok: false, message: (e as Error).message };
     }
   },
 };
-export type Role = "student" | "staff" | "mentor";
 
+// (ตัวเลือก) export ตัวตรวจสอบให้ใช้ซ้ำได้
 export function validateByRole(
   role: Role,
   email: string,

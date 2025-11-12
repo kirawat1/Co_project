@@ -7,6 +7,10 @@ export interface DocumentItem {
   status: DocStatus;
   fileName?: string;
   lastUpdated?: string;
+  createdBy?: string; // เช่น "teacher:foo@kkumail.com" หรือ userId
+  uploadedAt?: string; // ISO datetime ตอนอัปโหลดจริง
+  type?: "T4" | "T5" | "OTHER";
+  size?: number;
 }
 export interface CompanyInfo {
   id: string;
@@ -24,6 +28,7 @@ export interface MentorInfo {
   email: string;
   title: string;
   companyId: string;
+  department?: string;
 }
 
 export interface MentorProfile {
@@ -235,4 +240,28 @@ export function loadMentors(): MentorProfile[] {
 
 export function saveMentors(list: MentorProfile[]) {
   localStorage.setItem(ADMIN_KEY, JSON.stringify(list));
+}
+
+// ===== Teachers (อาจารย์) =====
+export interface TeacherProfile {
+  id: string; // uuid หรือ running-id ก็ได้
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone?: string;
+  department?: string;
+  title?: string; // ตำแหน่งทางวิชาการ (ถ้ามี)
+}
+
+const TEACHER_KEY = "coop.admin.teachers";
+
+export function loadTeachers(): TeacherProfile[] {
+  try {
+    return JSON.parse(localStorage.getItem(TEACHER_KEY) || "[]");
+  } catch {
+    return [];
+  }
+}
+export function saveTeachers(list: TeacherProfile[]) {
+  localStorage.setItem(TEACHER_KEY, JSON.stringify(list));
 }

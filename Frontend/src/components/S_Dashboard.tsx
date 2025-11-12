@@ -1,13 +1,13 @@
 import { useMemo } from "react";
 import type { StudentProfile } from "./store";
 
-// ✅ อ่านประกาศจากแอดมินที่ key นี้ ถ้าไม่มีจะ fallback เป็นรายการตัวอย่างเดิม
-function loadAdminAnns(){
-  try{ return JSON.parse(localStorage.getItem("coop.shared.announcements") || "[]"); }
-  catch{ return []; }
+// อ่านประกาศจากแอดมินที่ key นี้ ถ้าไม่มีจะ fallback เป็นรายการตัวอย่างเดิม
+function loadAdminAnns() {
+  try { return JSON.parse(localStorage.getItem("coop.shared.announcements") || "[]"); }
+  catch { return []; }
 }
 
-type Ann = { id:string; title:string; date:string; body?:string };
+type Ann = { id: string; title: string; date: string; body?: string };
 
 export default function DashboardPage({ profile }: { profile: StudentProfile }) {
   const todayISO = new Date().toISOString().slice(0, 10);
@@ -29,7 +29,7 @@ export default function DashboardPage({ profile }: { profile: StudentProfile }) 
       .map((d) => ({ ...d, days: toDays(d.dueDate) }));
   }, [profile.docs]);
 
-  // ✅ ประกาศ: โหลดจากแอดมิน → ถ้าไม่มี ใช้รายการเดิม → ซ่อนเกินกำหนด → เรียงตามวัน
+  // ประกาศ: โหลดจากแอดมิน → ถ้าไม่มี ใช้รายการเดิม → ซ่อนเกินกำหนด → เรียงตามวัน
   const announcements = useMemo(() => {
     const fromAdmin: Ann[] = loadAdminAnns();
     const fallback: Ann[] = [

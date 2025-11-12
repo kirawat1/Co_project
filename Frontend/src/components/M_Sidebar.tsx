@@ -1,7 +1,7 @@
 // src/components/M_Sidebar.tsx
 import { NavLink } from "react-router-dom";
 
-export default function M_Sidebar(){
+export default function M_Sidebar() {
   return (
     <aside className="sidebar">
       {/* ▼ Brand: Co-operative: (ใหญ่) / Mentor (เล็กกว่า) */}
@@ -15,23 +15,23 @@ export default function M_Sidebar(){
       </div>
 
       <nav className="nav" aria-label="Mentor Navigation">
-        <NavLink to="/mentor/dashboard" end className={({isActive})=>"item"+(isActive?" active":"")}>
-          <span className="ico"><DashboardIcon/></span>
+        <NavLink to="/mentor/dashboard" end className={({ isActive }) => "item" + (isActive ? " active" : "")}>
+          <span className="ico"><DashboardIcon /></span>
           <span className="text">Dashboard</span>
         </NavLink>
 
-        <NavLink to="/mentor/profile" className={({isActive})=>"item"+(isActive?" active":"")}>
-          <span className="ico"><UserIcon/></span>
+        <NavLink to="/mentor/profile" className={({ isActive }) => "item" + (isActive ? " active" : "")}>
+          <span className="ico"><UserIcon /></span>
           <span className="text">Profile</span>
         </NavLink>
 
-        <NavLink to="/mentor/students" className={({isActive})=>"item"+(isActive?" active":"")}>
-          <span className="ico"><UsersIcon/></span>
+        <NavLink to="/mentor/students" className={({ isActive }) => "item" + (isActive ? " active" : "")}>
+          <span className="ico"><UsersIcon /></span>
           <span className="text">Students</span>
         </NavLink>
 
-        <NavLink to="/mentor/daily" className={({isActive})=>"item"+(isActive?" active":"")}>
-          <span className="ico"><CalendarCheckIcon/></span>
+        <NavLink to="/mentor/daily" className={({ isActive }) => "item" + (isActive ? " active" : "")}>
+          <span className="ico"><CalendarCheckIcon /></span>
           <span className="text">Daily</span>
         </NavLink>
       </nav>
@@ -91,37 +91,37 @@ export default function M_Sidebar(){
 }
 
 /* ===== Inline SVG icons ===== */
-function DashboardIcon(){
+function DashboardIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M3 13h8V3H3v10zM13 21h8V11h-8v10zM13 3v6h8V3h-8zM3 21h8v-6H3v6z"/>
+      <path d="M3 13h8V3H3v10zM13 21h8V11h-8v10zM13 3v6h8V3h-8zM3 21h8v-6H3v6z" />
     </svg>
   );
 }
-function UserIcon(){
+function UserIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-      <circle cx="12" cy="7" r="4"/>
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+      <circle cx="12" cy="7" r="4" />
     </svg>
   );
 }
-function UsersIcon(){
+function UsersIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/>
-      <circle cx="9" cy="7" r="4"/>
-      <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-      <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+      <path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
     </svg>
   );
 }
-function CalendarCheckIcon(){
+function CalendarCheckIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="3" y="4" width="18" height="18" rx="2"/>
-      <path d="M8 2v4M16 2v4M3 10h18"/>
-      <path d="M9 16l2 2 4-4"/>
+      <rect x="3" y="4" width="18" height="18" rx="2" />
+      <path d="M8 2v4M16 2v4M3 10h18" />
+      <path d="M9 16l2 2 4-4" />
     </svg>
   );
 }

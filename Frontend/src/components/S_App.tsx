@@ -60,10 +60,10 @@ export default function StudentApp() {
             <Route index element={<Navigate to="dashboard" replace />} />
             <Route path="/" element={<Navigate to="/student/dashboard" replace />} />
             <Route path="dashboard" element={<DashboardPage profile={profile} />} />
-            <Route path="profile"   element={<ProfilePage  profile={profile} setProfile={setProfile} />} />
-            <Route path="coop"      element={<CoopPage     profile={profile} setProfile={setProfile} />} />
-            <Route path="daily"     element={<DailyPage    profile={profile} />} />
-            <Route path="*"         element={<Navigate to="dashboard" replace />} />
+            <Route path="profile" element={<ProfilePage profile={profile} setProfile={setProfile} />} />
+            <Route path="coop" element={<CoopPage profile={profile} setProfile={setProfile} />} />
+            <Route path="daily" element={<DailyPage profile={profile} />} />
+            <Route path="*" element={<Navigate to="dashboard" replace />} />
           </Routes>
         </main>
       </div>

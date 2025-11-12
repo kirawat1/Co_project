@@ -29,6 +29,7 @@ export default function Sidebar() {
           <span className="text">Co-Company</span>
         </NavLink>
 
+        {/* ซ้อนการใช้งาน Daily ไว้ */}
         <NavLink to="/student/daily" className={({ isActive }) => "item" + (isActive ? " active" : "")}>
           <span className="ico" aria-hidden><IcCalendar /></span>
           <span className="text">Daily</span>
