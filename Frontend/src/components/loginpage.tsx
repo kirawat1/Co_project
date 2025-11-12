@@ -4,7 +4,9 @@ import { loadProfile, saveProfile } from "./store";
 import { useNavigate } from "react-router-dom";
 import coopLogo from "../assets/COOP_Logo.png";
 
-type Role = "student" | "staff" | "mentor";
+// ✅ บทบาทใหม่: นักศึกษา / เจ้าหน้าที่ / อาจารย์ (ไม่มีพี่เลี้ยง)
+type Role = "student" | "staff" | "teacher";
+
 function validateByRole(role: Role, email: string, password: string): string | null {
   const e = email.trim();
   if (!e) return "กรุณากรอกอีเมล";
@@ -18,15 +20,15 @@ function validateByRole(role: Role, email: string, password: string): string | n
 }
 
 const IOS_BLUE = "#0074B7";
-const ROLE_LABEL: Record<Role, string> = { student: "นักศึกษา", staff: "เจ้าหน้าที่", mentor: "พี่เลี้ยง" };
-const ALL_ROLES: Role[] = ["student", "staff", "mentor"];
-// ✅ อัปเดตปลายทางหลังล็อกอินให้ตรงกับ Route ใหม่ (/admin/*)
+const ROLE_LABEL: Record<Role, string> = { student: "นักศึกษา", staff: "เจ้าหน้าที่", teacher: "อาจารย์" };
+const ALL_ROLES: Role[] = ["student", "staff", "teacher"];
+// ✅ เส้นทางหลังล็อกอินตามบทบาท
 const HOME_BY_ROLE: Record<Role, string> = {
   student: "/student",
   staff: "/admin",
-  mentor: "/mentor",
+  teacher: "/teacher",
 };
-// ✅ คำนำหน้าชื่อให้เลือก
+// ✅ คำนำหน้าชื่อ (สมัครนักศึกษาเท่านั้น)
 const PREFIXES = ["นาย", "นางสาว", "นาง"] as const;
 
 export default function LoginPage() {
@@ -39,7 +41,7 @@ export default function LoginPage() {
   // เข้าสู่ระบบ
   const [password, setPassword] = useState("");
 
-  // สมัคร — นักศึกษา
+  // สมัคร — นักศึกษาเท่านั้น
   const [sPrefix, setSPrefix] = useState<(typeof PREFIXES)[number]>("นาย");
   const [sFirst, setSFirst] = useState("");
   const [sLast, setSLast] = useState("");
@@ -49,12 +51,6 @@ export default function LoginPage() {
   const [sMajor, setSMajor] = useState("");
   const [sCurr, setSCurr] = useState("");
   const [sNation, setSNation] = useState("");
-
-  // สมัคร — พี่เลี้ยง
-  const [mPrefix, setMPrefix] = useState<(typeof PREFIXES)[number]>("นาย");
-  const [mFirst, setMFirst] = useState("");
-  const [mLast, setMLast] = useState("");
-  const [mPhone, setMPhone] = useState("");
 
   const [remember, setRemember] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -67,7 +63,8 @@ export default function LoginPage() {
   const pwdPlaceholder = role === "student" ? "รหัสนักศึกษา 10 หลัก" : "เบอร์โทร 10 หลักขึ้นต้นด้วย 0";
 
   useEffect(() => { setError(""); setNotice(""); }, [mode, role]);
-  useEffect(() => { if (mode === "signup" && role === "staff") setRole("student"); }, [mode, role]);
+  // ✅ ถ้าอยู่โหมดสมัคร ให้ล็อกบทบาทเป็น "student" เสมอ
+  useEffect(() => { if (mode === "signup" && role !== "student") setRole("student"); }, [mode, role]);
 
   const onlyDigits = (v: string) => v.replace(/\D/g, "");
   const passwordPattern = role === "student" ? "\\d{10}" : "0\\d{9}";
@@ -76,25 +73,19 @@ export default function LoginPage() {
   function validateSignupFields(): string | null {
     const e = email.trim().toLowerCase();
     if (!e) return "กรุณากรอกอีเมล";
-    if (role === "student" && !e.endsWith("@kkumail.com")) {
+    if (!e.endsWith("@kkumail.com")) {
       return "สมัครนักศึกษาได้เฉพาะอีเมล @kkumail.com เท่านั้น";
     }
-    if (role === "student") {
-      if (!sStdId || sStdId.length !== 10) return "กรุณากรอกรหัสนักศึกษา 10 หลัก";
-      if (!sFirst.trim()) return "กรุณากรอกชื่อ";
-      if (!sLast.trim()) return "กรุณากรอกนามสกุล";
-      if (!sPhone || sPhone.length !== 10 || sPhone[0] !== "0") return "กรุณากรอกเบอร์โทรให้ถูกต้อง";
-      if (!sGpa) return "กรุณากรอก GPA";
-      const g = Number(sGpa);
-      if (Number.isNaN(g) || g < 0 || g > 4) return "GPA ต้องอยู่ระหว่าง 0.00 - 4.00";
-      if (!sMajor.trim()) return "กรุณากรอกสาขาวิชา";
-      if (!sCurr.trim()) return "กรุณากรอกหลักสูตร";
-      if (!sNation.trim()) return "กรุณากรอกสัญชาติ";
-    } else if (role === "mentor") {
-      if (!mFirst.trim()) return "กรุณากรอกชื่อ";
-      if (!mLast.trim()) return "กรุณากรอกนามสกุล";
-      if (!mPhone || mPhone.length !== 10 || mPhone[0] !== "0") return "กรุณากรอกเบอร์โทรให้ถูกต้อง";
-    }
+    if (!sStdId || sStdId.length !== 10) return "กรุณากรอกรหัสนักศึกษา 10 หลัก";
+    if (!sFirst.trim()) return "กรุณากรอกชื่อ";
+    if (!sLast.trim()) return "กรุณากรอกนามสกุล";
+    if (!sPhone || sPhone.length !== 10 || sPhone[0] !== "0") return "กรุณากรอกเบอร์โทรให้ถูกต้อง";
+    if (!sGpa) return "กรุณากรอก GPA";
+    const g = Number(sGpa);
+    if (Number.isNaN(g) || g < 0 || g > 4) return "GPA ต้องอยู่ระหว่าง 0.00 - 4.00";
+    if (!sMajor.trim()) return "กรุณากรอกสาขาวิชา";
+    if (!sCurr.trim()) return "กรุณากรอกหลักสูตร";
+    if (!sNation.trim()) return "กรุณากรอกสัญชาติ";
     return null;
   }
 
@@ -110,55 +101,38 @@ export default function LoginPage() {
         if (remember && res.token) localStorage.setItem("coop.token", res.token);
         // ✅ เก็บบทบาทไว้ใช้ในแอปส่วนอื่น
         localStorage.setItem("coop.role", role);
-        // ✅ ส่งไปยัง portal ตามบทบาทใหม่
+        // ✅ ส่งไปยัง portal ตามบทบาท
         navigate(HOME_BY_ROLE[role] || "/", { replace: true });
         setNotice(`เข้าสู่ระบบสำเร็จ: ${res.user?.email} (${res.user?.role})`);
       } else {
+        // signup (เฉพาะนักศึกษา)
         const missing = validateSignupFields();
         if (missing) throw new Error(missing);
 
-        const pwd = role === "student" ? sStdId : mPhone;
-        const err = validateByRole(role, email.trim(), pwd);
+        const pwd = sStdId; // นักศึกษาใช้รหัสนักศึกษาเป็นรหัสผ่านตอนสมัคร
+        const err = validateByRole("student", email.trim(), pwd);
         if (err) throw new Error(err);
 
-        const res = await AuthAPI.signup({ role, email: email.trim(), password: pwd });
+        const res = await AuthAPI.signup({ role: "student", email: email.trim(), password: pwd });
         if (!res.ok) throw new Error(res.message || "สมัครไม่สำเร็จ");
 
-        // ✅ เก็บโปรไฟล์นักศึกษา (เพิ่ม prefix)
-        if (role === "student") {
-          const current = loadProfile();
-          const next = {
-            ...current,
-            email: email.trim().toLowerCase(),
-            studentId: sStdId,
-            prefix: sPrefix,
-            firstName: sFirst.trim(),
-            lastName: sLast.trim(),
-            phone: sPhone,
-            gpa: sGpa,
-            major: sMajor.trim(),
-            curriculum: sCurr.trim(),
-            nationality: sNation.trim(),
-            religion: current.religion ?? "",
-          };
-          saveProfile(next);
-        }
-
-        // ✅ เก็บโปรไฟล์พี่เลี้ยง (เพิ่ม prefix — แยกจากตำแหน่งงาน)
-        if (role === "mentor") {
-          const mentor = {
-            prefix:    mPrefix,
-            firstName: mFirst.trim(),
-            lastName:  mLast.trim(),
-            email:     email.trim().toLowerCase(),
-            phone:     mPhone,
-            title:     "",
-            department:"",
-            companyName:"", companyAddress:"", hrName:"", hrEmail:""
-          };
-          localStorage.setItem("coop.mentor.profile", JSON.stringify(mentor));
-          localStorage.setItem("coop.mentor.displayName", `${mentor.firstName} ${mentor.lastName}`.trim() || "พี่เลี้ยง");
-        }
+        // ✅ เก็บโปรไฟล์นักศึกษา
+        const current = loadProfile();
+        const next = {
+          ...current,
+          email: email.trim().toLowerCase(),
+          studentId: sStdId,
+          prefix: sPrefix,
+          firstName: sFirst.trim(),
+          lastName: sLast.trim(),
+          phone: sPhone,
+          gpa: sGpa,
+          major: sMajor.trim(),
+          curriculum: sCurr.trim(),
+          nationality: sNation.trim(),
+          religion: current.religion ?? "",
+        };
+        saveProfile(next);
 
         setNotice(res.message || "สมัครสำเร็จ");
         setMode("signin");
@@ -166,7 +140,6 @@ export default function LoginPage() {
         // เคลียร์ฟอร์มสมัคร
         setPassword("");
         setSPrefix("นาย"); setSFirst(""); setSLast(""); setSStdId(""); setSPhone(""); setSGpa(""); setSMajor(""); setSCurr(""); setSNation("");
-        setMPrefix("นาย"); setMFirst(""); setMLast(""); setMPhone("");
       }
     } catch (er: unknown) {
       setError(er instanceof Error ? er.message : String(er));
@@ -178,12 +151,12 @@ export default function LoginPage() {
       <div className="card">
         <div className="panel-left">
           <div className="pill">CP · KKU</div>
-          <h1 className="headline">Co-operative:<br/>Computer Science, KKU</h1><br/>
+          <h1 className="headline">Co-operative:<br />Computer Science, KKU</h1><br />
           <ul className="bullets">
-            <li>บทบาท: นักศึกษา / เจ้าหน้าที่ / พี่เลี้ยง</li>
-            <li><b>สมัคร:</b> นักศึกษา และ พี่เลี้ยง</li>
+            <li>บทบาท: นักศึกษา / เจ้าหน้าที่ / อาจารย์</li>
+            <li><b>สมัคร:</b> เฉพาะนักศึกษา</li>
             <li>username = อีเมล</li>
-            <li>password: นักศึกษา = รหัส 10 หลัก · พี่เลี้ยง/เจ้าหน้าที่ = เบอร์ 0XXXXXXXXX</li>
+            <li>password: นักศึกษา = รหัส 10 หลัก · เจ้าหน้าที่/อาจารย์ = เบอร์ 0XXXXXXXXX</li>
           </ul>
         </div>
 
@@ -193,27 +166,27 @@ export default function LoginPage() {
               <div className="brand-badge"><img src={coopLogo} alt="Co-op Logo" className="brand-img" /></div>
             </div>
             <div className="switch" role="tablist" aria-label="สลับโหมด">
-              <button className={`sw-btn ${mode==="signin"?"active":""}`} onClick={()=>setMode("signin")} type="button">เข้าสู่ระบบ</button>
-              <button className={`sw-btn ${mode==="signup"?"active":""}`} onClick={()=>setMode("signup")} type="button">สมัคร</button>
+              <button className={`sw-btn ${mode === "signin" ? "active" : ""}`} onClick={() => setMode("signin")} type="button">เข้าสู่ระบบ</button>
+              <button className={`sw-btn ${mode === "signup" ? "active" : ""}`} onClick={() => setMode("signup")} type="button">สมัคร</button>
             </div>
           </header>
 
           <div className="title">
-            <h2>{mode==="signin" ? "เข้าสู่ระบบ" : "สมัครสมาชิก"}</h2>
+            <h2>{mode === "signin" ? "เข้าสู่ระบบ" : "สมัครสมาชิก (นักศึกษา)"}</h2>
             <p className="muted">บทบาท: <b>{roleText}</b></p>
           </div>
 
           <div className="segment" role="tablist" aria-label="เลือกบทบาท">
-            {rolesForMode.map(r=>{
-              const disabled = mode==="signup" && r==="staff";
+            {rolesForMode.map(r => {
+              const disabled = mode === "signup" && r !== "student"; // ✅ สมัครได้เฉพาะนักศึกษา
               return (
                 <button
                   key={r}
-                  className={`seg ${role===r?"active":""} ${disabled?"disabled":""}`}
+                  className={`seg ${role === r ? "active" : ""} ${disabled ? "disabled" : ""}`}
                   disabled={disabled}
                   aria-disabled={disabled}
-                  title={disabled ? "เจ้าหน้าที่สมัครไม่ได้ (เข้าสู่ระบบเท่านั้น)" : undefined}
-                  onClick={()=>{ if(!disabled){ setRole(r); setPassword(""); }}}
+                  title={disabled ? "สมัครสมาชิกได้เฉพาะนักศึกษาเท่านั้น" : undefined}
+                  onClick={() => { if (!disabled) { setRole(r); setPassword(""); } }}
                   type="button"
                 >
                   {ROLE_LABEL[r]}
@@ -223,7 +196,7 @@ export default function LoginPage() {
           </div>
 
           <form onSubmit={onSubmit} className="form" noValidate>
-            <label className="label" htmlFor="email" style={{marginLeft:10}}>อีเมล</label>
+            <label className="label" htmlFor="email" style={{ marginLeft: 10 }}>อีเมล</label>
             <input
               id="email"
               className="input"
@@ -231,108 +204,78 @@ export default function LoginPage() {
               autoComplete="email"
               placeholder="name@example.com"
               value={email}
-              onChange={(e)=>setEmail(e.target.value)}
+              onChange={(e) => setEmail(e.target.value)}
               required
-              pattern={mode==="signup" && role==="student" ? "^[^\\s@]+@kkumail\\.com$" : undefined}
-              title={mode==="signup" && role==="student" ? "สมัครนักศึกษาใช้อีเมล @kkumail.com เท่านั้น" : undefined}
+              pattern={mode === "signup" ? "^[^\\s@]+@kkumail\\.com$" : undefined}
+              title={mode === "signup" ? "สมัครนักศึกษาใช้อีเมล @kkumail.com เท่านั้น" : undefined}
             />
 
-            {mode==="signin" ? (
+            {mode === "signin" ? (
               <>
-                <label className="label" htmlFor="password" style={{marginLeft:10}}>รหัสผ่าน</label>
+                <label className="label" htmlFor="password" style={{ marginLeft: 10 }}>รหัสผ่าน</label>
                 <input
                   id="password" className="input" type="password" inputMode="numeric"
                   placeholder={pwdPlaceholder}
-                  value={password} onChange={(e)=>setPassword(onlyDigits(e.target.value))}
+                  value={password} onChange={(e) => setPassword(onlyDigits(e.target.value))}
                   required pattern={passwordPattern} minLength={10} maxLength={10}
                 />
                 <label className="remember">
-                  <input type="checkbox" checked={remember} onChange={(e)=>setRemember(e.target.checked)} style={{marginLeft:8}}/>
+                  <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} style={{ marginLeft: 8 }} />
                   <span>จดจำฉันไว้</span>
                 </label>
               </>
             ) : (
               <>
-                {/* SIGNUP FIELDS */}
-                {role==="student" && (
-                  <div className="grid2">
-                    {/* ⬇️ คำนำหน้าอยู่บน (กินเต็มแถว) */}
-                    <div style={{ gridColumn: "1 / -1" }}>
-                      <label className="label" htmlFor="sPrefix">คำนำหน้า</label>
-                      <select id="sPrefix" className="input" value={sPrefix} onChange={e=>setSPrefix(e.target.value as any)} required style={{marginLeft:10}}>
-                        {PREFIXES.map(p=> <option key={p} value={p}>{p}</option>)}
-                      </select>
-                    </div>
-
-                    {/* ชื่อ / นามสกุล */}
-                    <div>
-                      <label className="label" htmlFor="sFirst" style={{marginLeft:10}}>ชื่อ</label>
-                      <input id="sFirst" className="input" value={sFirst} onChange={e=>setSFirst(e.target.value)} required />
-                    </div>
-                    <div>
-                      <label className="label" htmlFor="sLast" style={{marginLeft:10}}>นามสกุล</label>
-                      <input id="sLast" className="input" value={sLast} onChange={e=>setSLast(e.target.value)} required />
-                    </div>
-
-                    <div>
-                      <label className="label" htmlFor="sStdId" style={{marginLeft:10}}>รหัสนักศึกษา</label>
-                      <input id="sStdId" className="input" inputMode="numeric" placeholder="6501234567"
-                        value={sStdId} onChange={e=>setSStdId(onlyDigits(e.target.value).slice(0,10))}
-                        required pattern="\\d{10}" minLength={10} maxLength={10} />
-                    </div>
-                    <div>
-                      <label className="label" htmlFor="sPhone" style={{marginLeft:10}}>เบอร์โทร</label>
-                      <input id="sPhone" className="input" inputMode="tel" placeholder="0812345678"
-                        value={sPhone} onChange={e=>setSPhone(onlyDigits(e.target.value).slice(0,10))}
-                        required pattern="0\\d{9}" minLength={10} maxLength={10} />
-                    </div>
-                    <div><br />
-                      <label className="label" htmlFor="sGpa">เกรด (GPA)</label>
-                      <input id="sGpa" className="input" type="number" step="0.01" min={0} max={4}
-                        value={sGpa} onChange={e=>setSGpa(e.target.value)} required style={{marginLeft:10}} />
-                    </div>
-                    <div>
-                      <label className="label" htmlFor="sMajor" style={{marginLeft:10}}>สาขาวิชา</label>
-                      <input id="sMajor" className="input" value={sMajor} onChange={e=>setSMajor(e.target.value)} required />
-                    </div>
-                    <div>
-                      <label className="label" htmlFor="sCurr" style={{marginLeft:10}}>หลักสูตร</label>
-                      <input id="sCurr" className="input" value={sCurr} onChange={e=>setSCurr(e.target.value)} required />
-                    </div>
-                    <div>
-                      <label className="label" htmlFor="sNation" style={{marginLeft:10}}>สัญชาติ</label>
-                      <input id="sNation" className="input" value={sNation} onChange={e=>setSNation(e.target.value)} required />
-                    </div>
+                {/* SIGNUP FIELDS — เฉพาะนักศึกษา */}
+                <div className="grid2">
+                  {/* คำนำหน้า */}
+                  <div style={{ gridColumn: "1 / -1" }}>
+                    <label className="label" htmlFor="sPrefix">คำนำหน้า</label>
+                    <select id="sPrefix" className="input" value={sPrefix} onChange={e => setSPrefix(e.target.value as any)} required style={{ marginLeft: 10 }}>
+                      {PREFIXES.map(p => <option key={p} value={p}>{p}</option>)}
+                    </select>
                   </div>
-                )}
 
-                {role==="mentor" && (
-                  <div className="grid2">
-                    {/* คำนำหน้าอยู่บน (กินเต็มแถว) */}
-                    <div style={{ gridColumn: "1 / -1" }}>
-                      <label className="label" htmlFor="mPrefix">คำนำหน้า</label>
-                      <select id="mPrefix" className="input" value={mPrefix} onChange={e=>setMPrefix(e.target.value as any)} required style={{marginLeft:10}}>
-                        {PREFIXES.map(p=> <option key={p} value={p}>{p}</option>)}
-                      </select>
-                    </div>
-
-                    {/* ชื่อ / นามสกุล / เบอร์ */}
-                    <div>
-                      <label className="label" htmlFor="mFirst" style={{marginLeft:10}}>ชื่อ</label>
-                      <input id="mFirst" className="input" value={mFirst} onChange={e=>setMFirst(e.target.value)} required />
-                    </div>
-                    <div>
-                      <label className="label" htmlFor="mLast" style={{marginLeft:10}}>นามสกุล</label>
-                      <input id="mLast" className="input" value={mLast} onChange={e=>setMLast(e.target.value)} required />
-                    </div>
-                    <div>
-                      <label className="label" htmlFor="mPhone" >เบอร์โทร</label>
-                      <input id="mPhone" className="input" inputMode="tel" placeholder="0812345678"
-                        value={mPhone} onChange={e=>setMPhone(onlyDigits(e.target.value).slice(0,10))}
-                        required pattern="0\\d{9}" minLength={10} maxLength={10} />
-                    </div>
+                  {/* ชื่อ / นามสกุล */}
+                  <div>
+                    <label className="label" htmlFor="sFirst" style={{ marginLeft: 10 }}>ชื่อ</label>
+                    <input id="sFirst" className="input" value={sFirst} onChange={e => setSFirst(e.target.value)} required />
                   </div>
-                )}
+                  <div>
+                    <label className="label" htmlFor="sLast" style={{ marginLeft: 10 }}>นามสกุล</label>
+                    <input id="sLast" className="input" value={sLast} onChange={e => setSLast(e.target.value)} required />
+                  </div>
+
+                  <div>
+                    <label className="label" htmlFor="sStdId" style={{ marginLeft: 10 }}>รหัสนักศึกษา</label>
+                    <input id="sStdId" className="input" inputMode="numeric" placeholder="6501234567"
+                      value={sStdId} onChange={e => setSStdId(onlyDigits(e.target.value).slice(0, 10))}
+                      required pattern="\\d{10}" minLength={10} maxLength={10} />
+                  </div>
+                  <div>
+                    <label className="label" htmlFor="sPhone" style={{ marginLeft: 10 }}>เบอร์โทร</label>
+                    <input id="sPhone" className="input" inputMode="tel" placeholder="0812345678"
+                      value={sPhone} onChange={e => setSPhone(onlyDigits(e.target.value).slice(0, 10))}
+                      required pattern="0\\d{9}" minLength={10} maxLength={10} />
+                  </div>
+                  <div><br />
+                    <label className="label" htmlFor="sGpa">เกรด (GPA)</label>
+                    <input id="sGpa" className="input" type="number" step="0.01" min={0} max={4}
+                      value={sGpa} onChange={e => setSGpa(e.target.value)} required style={{ marginLeft: 10 }} />
+                  </div>
+                  <div>
+                    <label className="label" htmlFor="sMajor" style={{ marginLeft: 10 }}>สาขาวิชา</label>
+                    <input id="sMajor" className="input" value={sMajor} onChange={e => setSMajor(e.target.value)} required />
+                  </div>
+                  <div>
+                    <label className="label" htmlFor="sCurr" style={{ marginLeft: 10 }}>หลักสูตร</label>
+                    <input id="sCurr" className="input" value={sCurr} onChange={e => setSCurr(e.target.value)} required />
+                  </div>
+                  <div>
+                    <label className="label" htmlFor="sNation" style={{ marginLeft: 10 }}>สัญชาติ</label>
+                    <input id="sNation" className="input" value={sNation} onChange={e => setSNation(e.target.value)} required />
+                  </div>
+                </div>
               </>
             )}
 
@@ -342,7 +285,7 @@ export default function LoginPage() {
             </div>
 
             <button className="btn" type="submit" disabled={loading}>
-              {loading ? "กำลังดำเนินการ..." : (mode==="signin" ? "เข้าสู่ระบบ" : "สมัครสมาชิก")}
+              {loading ? "กำลังดำเนินการ..." : (mode === "signin" ? "เข้าสู่ระบบ" : "สมัครสมาชิก")}
             </button>
           </form>
 

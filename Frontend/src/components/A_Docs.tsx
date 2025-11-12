@@ -1,3 +1,4 @@
+// src/components/A_Docs.tsx
 import { useMemo, useState } from "react";
 import type { StudentProfile, DocumentItem, DocStatus } from "./store";
 
@@ -9,7 +10,29 @@ export default function A_Docs() {
   const [students, setStudents] = useState<StudentProfile[]>(() => loadStudents());
   const [st, setSt] = useState<"all" | DocStatus>("all");
   const [q, setQ] = useState("");
+  const [selectedDocIds, setSelectedDocIds] = useState<string[]>([]); // เลือกหลายเอกสารได้
 
+  // รวมเอกสารทั้งหมด เพื่อทำรายการให้ติ๊ก
+  const allDocDefs = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const s of students) for (const d of (s.docs || [])) {
+      if (!map.has(d.id)) map.set(d.id, d.title || d.id);
+    }
+    return Array.from(map.entries())
+      .map(([id, title]) => ({ id, title }))
+      .sort((a, b) => a.title.localeCompare(b.title, "th"));
+  }, [students]);
+
+  // ย่อชื่อเป็น T01, T02 ถ้าทำได้
+  function shortName(doc: { id: string; title: string }): string {
+    const byId = /T(\d{1,3})/.exec(doc.id);
+    if (byId) { const n = +byId[1]; if (!Number.isNaN(n)) return `T${String(n).padStart(2, "0")}`; }
+    const byTitle = /T(\d{1,3})/.exec(doc.title);
+    if (byTitle) { const n = +byTitle[1]; if (!Number.isNaN(n)) return `T${String(n).padStart(2, "0")}`; }
+    return doc.title || doc.id;
+  }
+
+  // ตารางแถว
   const rows = useMemo(() => {
     const out: { studentId: string; name: string; item: DocumentItem }[] = [];
     students.forEach(s => (s.docs || []).forEach(d => out.push({
@@ -17,48 +40,58 @@ export default function A_Docs() {
       name: `${s.firstName || ""} ${s.lastName || ""}`.trim(),
       item: d
     })));
-    return out.filter(r =>
-      (st === "all" || r.item.status === st) &&
-      `${r.studentId} ${r.name} ${r.item.title}`.toLowerCase().includes(q.toLowerCase())
-    );
-  }, [students, st, q]);
+    return out.filter(r => {
+      const hitStatus = st === "all" || r.item.status === st;
+      const hitDoc = selectedDocIds.length === 0 || selectedDocIds.includes(r.item.id);
+      const haystack = `${r.studentId} ${r.name} ${r.item.title} ${r.item.id}`.toLowerCase();
+      const hitQuery = haystack.includes(q.toLowerCase());
+      return hitStatus && hitDoc && hitQuery;
+    });
+  }, [students, st, q, selectedDocIds]);
 
-  function updateStatus(studentId: string, id: string, v: DocStatus) {
-    const next = students.map(s => s.studentId === studentId
-      ? ({ ...s, docs: (s.docs || []).map(d => d.id === id ? { ...d, status: v, lastUpdated: new Date().toISOString() } : d) })
-      : s
+  // ✅ เปลี่ยนสถานะ (Admin แก้ไขได้)
+  function updateStatus(studentId: string, docId: string, v: DocStatus) {
+    const next = students.map(s =>
+      s.studentId === studentId
+        ? ({
+          ...s, docs: (s.docs || []).map(d =>
+            d.id === docId ? { ...d, status: v, lastUpdated: new Date().toISOString() } : d
+          )
+        })
+        : s
     );
-    setStudents(next); saveStudents(next);
+    setStudents(next);
+    saveStudents(next);
   }
+
+  // ติ๊กเลือกเอกสาร
+  function toggleDoc(id: string) {
+    setSelectedDocIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  }
+  function selectAllDocs() { setSelectedDocIds(allDocDefs.map(d => d.id)); }
+  function clearAllDocs() { setSelectedDocIds([]); }
 
   return (
     <div className="page" style={{ padding: 4, margin: 28, marginLeft: 65 }}>
       <section className="card" style={{ padding: 24, marginBottom: 28 }}>
-        <h2 style={{ marginTop: 8, marginLeft: 18 }}>เอกสารทั้งหมด</h2>
+        <h2 style={{ marginTop: 8, marginLeft: 18 }}>เอกสารทั้งหมด (Admin)</h2>
 
-        {/* Toolbar แบบ flex: ช่องค้นหา (ยืดได้) + select (คงที่) + ปุ่มส่งออก (คงที่) */}
-        <div
-          className="tools"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            flexWrap: "wrap",
-            marginLeft: 18
-          }}
-        >
+        <div className="tools" style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginLeft: 18 }}>
           <input
             className="input"
             placeholder="ค้นหา: ชื่อ/รหัส/ชื่อเอกสาร"
             value={q}
             onChange={e => setQ(e.target.value)}
-            style={{ flex: "1 1 480px", minWidth: 240 }}
+            style={{ flex: "1 1 420px", minWidth: 260 }}
           />
+
+          {/* กรองสถานะ */}
           <select
             className="input"
             value={st}
             onChange={e => setSt(e.target.value as any)}
-            style={{ flex: "0 0 220px" }}
+            style={{ flex: "0 0 180px" }}
+            title="กรองตามสถานะเอกสาร"
           >
             <option value="all">ทุกสถานะ</option>
             <option value="waiting">รอส่ง</option>
@@ -66,20 +99,56 @@ export default function A_Docs() {
             <option value="approved">ผ่าน</option>
             <option value="rejected">ไม่ผ่าน</option>
           </select>
-          <Export rows={rows} />
+
+          {/* ฟิลเตอร์เอกสารแบบติ๊กหลายตัว */}
+          <div
+            className="doc-chip-group"
+            style={{
+              display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap",
+              padding: "6px 8px", borderRadius: 12, border: "1px solid rgba(0,0,0,.08)", background: "#fff"
+            }}
+            title="ติ๊กเลือกเอกสารที่ต้องการแสดง (ไม่เลือก = ทุกเอกสาร)"
+          >
+            <span style={{ fontWeight: 800, color: "#374151" }}>เอกสาร:</span>
+            {allDocDefs.map(d => {
+              const label = shortName(d);
+              const checked = selectedDocIds.includes(d.id);
+              return (
+                <label key={d.id}
+                  className={`chip ${checked ? "chip-on" : ""}`}
+                  title={d.title}
+                  style={{
+                    display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 10px",
+                    borderRadius: 999, cursor: "pointer",
+                    border: checked ? "1px solid rgba(0,116,183,.45)" : "1px solid rgba(0,0,0,.10)",
+                    background: checked ? "rgba(0,116,183,.08)" : "#fff",
+                    userSelect: "none"
+                  }}>
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => toggleDoc(d.id)}
+                    style={{ width: 14, height: 14 }}
+                  />
+                  <span style={{ fontSize: 12, fontWeight: 800 }}>{label}</span>
+                </label>
+              );
+            })}
+            <button className="btn ghost" type="button" onClick={selectAllDocs}>ทั้งหมด</button>
+            <button className="btn ghost" type="button" onClick={clearAllDocs}>ล้าง</button>
+          </div>
         </div>
       </section>
 
       <section className="card" style={{ paddingBottom: 12 }}>
         <table className="doc-table" style={{ width: "100%", marginTop: 8, marginLeft: 18, marginBottom: 15 }}>
-          {/* คุมความกว้างคอลัมน์ให้พอดีข้อมูล และป้องกันการล้น */}
           <colgroup>
-            <col style={{ width: "10ch" }} />  {/* รหัส */}
-            <col style={{ width: "14ch" }} />  {/* ชื่อ */}
-            <col className="col-title" />       {/* เอกสาร */}
-            <col className="col-file" />        {/* ไฟล์ */}
-            <col style={{ width: "16ch" }} />  {/* สถานะ */}
-            <col style={{ width: "18ch" }} />  {/* อัปเดตล่าสุด */}
+            <col style={{ width: "10ch" }} />   {/* รหัส */}
+            <col style={{ width: "14ch" }} />   {/* ชื่อ */}
+            <col className="col-title" />      {/* เอกสาร */}
+            <col className="col-file" />       {/* ไฟล์ */}
+            <col style={{ width: "16ch" }} />   {/* สถานะ */}
+            <col style={{ width: "18ch" }} />   {/* อัปเดตล่าสุด */}
           </colgroup>
 
           <thead>
@@ -106,6 +175,8 @@ export default function A_Docs() {
                     value={r.item.status}
                     onChange={e => updateStatus(r.studentId, r.item.id, e.target.value as DocStatus)}
                     style={{ minWidth: 140, maxWidth: 180 }}
+                    aria-label={`เปลี่ยนสถานะ: ${r.item.title} ของ ${r.name}`}
+                    title="แก้ไขสถานะเอกสาร"
                   >
                     <option value="waiting">รอส่ง</option>
                     <option value="under-review">รอพิจารณา</option>
@@ -116,56 +187,28 @@ export default function A_Docs() {
                 <td>{r.item.lastUpdated ? new Date(r.item.lastUpdated).toLocaleString() : "-"}</td>
               </tr>
             ))}
-            {rows.length === 0 && <tr><td colSpan={6} style={{ color: "#6b7280" }}>— ไม่มีข้อมูล —</td></tr>}
+            {rows.length === 0 && (
+              <tr><td colSpan={6} style={{ color: "#6b7280" }}>— ไม่มีข้อมูล —</td></tr>
+            )}
           </tbody>
         </table>
       </section>
 
       <style>{`
-        /* ตารางคงที่ + ตัดข้อความด้วย … ในคอลัมน์ยาว */
         .doc-table{ table-layout: fixed; }
         .col-title{ width: 28ch; }
         .col-file{ width: 20ch; }
         .cell-ellipsis{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-
-        /* ปรับปุ่มส่งออกให้ไม่กินที่เกินไป */
         .tools .btn{ white-space: nowrap; flex: 0 0 auto; }
-
-        /* Responsive: iPad และเล็กกว่า */
         @media (max-width:1024px){
           .tools{ margin-left: 18px !important; }
           .tools .input{ flex: 1 1 100% !important; min-width: 0 !important; }
           .tools select{ flex-basis: 100% !important; }
           .tools .btn{ flex-basis: 100% !important; }
-
           .col-title{ width: 22ch; }
           .col-file{ width: 16ch; }
         }
       `}</style>
     </div>
-  );
-}
-
-function Export({ rows }: { rows: { studentId: string; name: string; item: DocumentItem }[] }) {
-  function onClick() {
-    const data = rows.map(r => ({
-      studentId: r.studentId,
-      name: r.name,
-      title: r.item.title,
-      status: r.item.status,
-      file: r.item.fileName || "",
-      lastUpdated: r.item.lastUpdated || ""
-    }));
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "docs_export.json";
-    a.click();
-    URL.revokeObjectURL(a.href);
-  }
-  return (
-    <button className="btn" onClick={onClick} type="button" style={{ flex: "0 0 auto", whiteSpace: "nowrap" }}>
-      ส่งออกผลรวม (JSON)
-    </button>
   );
 }

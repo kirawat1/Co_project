@@ -10,6 +10,7 @@ import A_Announcements from "./A_Announcements";
 import A_Settings from "./A_Settings";
 import StudentTheme from "./S_Theme";         // ใช้ธีมเดียว
 import coopLogo from "../assets/COOP_Logo.png";
+import A_Teachers from "./A_Teacher";
 
 const IOS_BLUE = "#0074B7";
 
@@ -24,7 +25,7 @@ export default function AdminApp() {
       const p = JSON.parse(localStorage.getItem("coop.admin.profile") || "{}");
       const full = `${p.firstName || ""} ${p.lastName || ""}`.trim();
       if (full) return full;
-    } catch {}
+    } catch { }
     return "เจ้าหน้าที่";
   });
   useEffect(() => {
@@ -75,6 +76,7 @@ export default function AdminApp() {
             <Route path="announcements" element={<A_Announcements />} />
             <Route path="settings" element={<A_Settings />} />
             <Route path="*" element={<Navigate to="dashboard" replace />} />
+            <Route path="teachers" element={<A_Teachers />} />
           </Routes>
         </main>
       </div>

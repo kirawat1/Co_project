@@ -236,6 +236,8 @@ export default function CoopPage({
                   <li><b>ชื่อ-นามสกุล:</b> {profile.mentor.firstName} {profile.mentor.lastName}</li>
                   <li><b>ตำแหน่ง:</b> {profile.mentor.title}</li>
                   <li><b>Email:</b> {profile.mentor.email}</li>
+                  <li><b>เบอร์โทร:</b> {profile.mentor.phone}</li>
+                  <li><b>แผนก:</b> {profile.mentor.department}</li>
                 </ul>
               ) : (
                 <div className="summary-empty" style={{ marginLeft: 18, paddingLeft: 24, width: 150 }}>
@@ -380,6 +382,23 @@ export default function CoopPage({
                     value={mentor.email}
                     onChange={(e) => setMentor({ ...mentor, email: e.target.value })}
                     required
+                  />
+                </div>
+                <div className="field">
+                  <label className="label">เบอร์โทร</label>
+                  <input
+                    type="tel"
+                    className="input"
+                    value={mentor.phone}
+                    onChange={(e) => setMentor({ ...mentor, phone: e.target.value })}
+                  />
+                </div>
+                <div className="field">
+                  <label className="label">แผนก</label>
+                  <input
+                    className="input"
+                    value={mentor.department || ""}
+                    onChange={(e) => setMentor({ ...mentor, department: e.target.value })}
                   />
                 </div>
               </div>
