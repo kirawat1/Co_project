@@ -4,6 +4,7 @@ import { loadProfile, saveProfile } from "./store";
 import { useNavigate } from "react-router-dom";
 import coopLogo from "../assets/COOP_Logo.png";
 
+
 // ✅ บทบาทใหม่: นักศึกษา / เจ้าหน้าที่ / อาจารย์ (ไม่มีพี่เลี้ยง)
 type Role = "student" | "staff" | "teacher";
 
@@ -96,13 +97,19 @@ export default function LoginPage() {
       if (mode === "signin") {
         const err = validateByRole(role, email.trim(), password);
         if (err) throw new Error(err);
+
         const res = await AuthAPI.signin({ role, email: email.trim(), password });
         if (!res.ok) throw new Error(res.message || "เข้าสู่ระบบไม่สำเร็จ");
-        if (remember && res.token) localStorage.setItem("coop.token", res.token);
+
+        if (remember && res.token)
+          localStorage.setItem("coop.token", res.token);
+
         // ✅ เก็บบทบาทไว้ใช้ในแอปส่วนอื่น
         localStorage.setItem("coop.role", role);
         // ✅ ส่งไปยัง portal ตามบทบาท
-        navigate(HOME_BY_ROLE[role] || "/", { replace: true });
+
+        navigate(HOME_BY_ROLE[role] || "/student/dashboard", { replace: true });
+
         setNotice(`เข้าสู่ระบบสำเร็จ: ${res.user?.email} (${res.user?.role})`);
       } else {
         // signup (เฉพาะนักศึกษา)
