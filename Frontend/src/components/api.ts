@@ -1,6 +1,6 @@
 // src/components/api.ts
-const USE_MOCK = import.meta.env.VITE_USE_MOCK === "true";
-
+// const USE_MOCK = import.meta.env.VITE_USE_MOCK === "true";
+const USE_MOCK = true; // เปลี่ยนเป็น false เพื่อใช้ API จริง
 // ✅ ใช้บทบาทเฉพาะ 3 แบบนี้
 export type Role = "student" | "staff" | "teacher";
 

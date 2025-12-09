@@ -169,21 +169,8 @@ export default function A_Docs() {
                 <td className="cell-ellipsis" title={r.name}>{r.name || "-"}</td>
                 <td className="cell-ellipsis" title={r.item.title}>{r.item.title}</td>
                 <td className="cell-ellipsis" title={r.item.fileName || "-"}>{r.item.fileName || "-"}</td>
-                <td>
-                  <select
-                    className="input"
-                    value={r.item.status}
-                    onChange={e => updateStatus(r.studentId, r.item.id, e.target.value as DocStatus)}
-                    style={{ minWidth: 140, maxWidth: 180 }}
-                    aria-label={`เปลี่ยนสถานะ: ${r.item.title} ของ ${r.name}`}
-                    title="แก้ไขสถานะเอกสาร"
-                  >
-                    <option value="waiting">รอส่ง</option>
-                    <option value="under-review">รอพิจารณา</option>
-                    <option value="approved">ผ่าน</option>
-                    <option value="rejected">ไม่ผ่าน</option>
-                  </select>
-                </td>
+                <td><StatusBadge status={r.item.status} /></td>
+
                 <td>{r.item.lastUpdated ? new Date(r.item.lastUpdated).toLocaleString() : "-"}</td>
               </tr>
             ))}
@@ -208,7 +195,28 @@ export default function A_Docs() {
           .col-title{ width: 22ch; }
           .col-file{ width: 16ch; }
         }
+          /* Status badge */
+        .status-badge{
+          display:inline-flex; align-items:center; gap:8px;
+          padding: 4px 10px; border-radius: 999px; font-weight: 800; font-size: 14px;
+        }
+        .st-waiting{ background: #F3F4F6; color: #374151; }
+        .st-under-review{ background: rgba(0,116,183,.10); color: #0074B7; }
+        .st-approved{ background: rgba(16,185,129,.12); color: #059669; }
+        .st-rejected{ background: rgba(239,68,68,.12); color: #DC2626; }
       `}</style>
     </div>
   );
+}
+
+function StatusBadge({ status }: { status: DocStatus }) {
+  const label =
+    status === "waiting" ? "รอส่ง" :
+      status === "under-review" ? "รอพิจารณา" :
+        status === "approved" ? "ผ่าน" : "ไม่ผ่าน";
+  const cls =
+    status === "waiting" ? "st-waiting" :
+      status === "under-review" ? "st-under-review" :
+        status === "approved" ? "st-approved" : "st-rejected";
+  return <span className={`status-badge ${cls}`}>{label}</span>;
 }
