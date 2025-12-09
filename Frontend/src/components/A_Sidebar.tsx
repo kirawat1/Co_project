@@ -29,6 +29,11 @@ export default function A_Sidebar() {
           <span className="text">พี่เลี้ยง</span>
         </NavLink>
 
+        <NavLink to="/admin/company" className={({ isActive }) => "item" + (isActive ? " active" : "")}> {/* ✅ เพิ่ม NavLink นี้ */}
+          <span className="ico"><BuildingIcon /></span>
+          <span className="text">บริษัท</span>
+        </NavLink>
+
         <NavLink to="/admin/teachers" className={({ isActive }) => "item" + (isActive ? " active" : "")}>
           <span className="ico"><TeacherIcon /></span>
           <span className="text">อาจารย์</span>
@@ -170,6 +175,15 @@ function SettingsIcon() {
     <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       <path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" />
       <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V22a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06Z" />
+    </svg>
+  );
+}
+
+function BuildingIcon() { // ✅ เพิ่มไอคอนบริษัท
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="4" y="7" width="16" height="13" rx="2" />
+      <path d="M8 11h.01M12 11h.01M16 11h.01M8 15h.01M12 15h.01M16 15h.01" />
     </svg>
   );
 }

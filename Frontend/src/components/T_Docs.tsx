@@ -11,6 +11,7 @@ function saveStudents(list: StudentProfile[]) {
     localStorage.setItem(KS, JSON.stringify(list));
 }
 
+
 export default function T_Docs() {
     const [students, setStudents] = useState<StudentProfile[]>(() => loadStudents());
     const [st, setSt] = useState<"all" | DocStatus>("all");
@@ -76,6 +77,21 @@ export default function T_Docs() {
         };
         r.readAsDataURL(file);
     }
+
+    function updateStatus(studentId: string, docId: string, v: DocStatus) {
+        const next = students.map(s =>
+            s.studentId === studentId
+                ? ({
+                    ...s, docs: (s.docs || []).map(d =>
+                        d.id === docId ? { ...d, status: v, lastUpdated: new Date().toISOString() } : d
+                    )
+                })
+                : s
+        );
+        setStudents(next);
+        saveStudents(next);
+    }
+
 
     // toggle เอกสารแต่ละตัว
     function toggleDoc(id: string) {
@@ -216,7 +232,21 @@ export default function T_Docs() {
                                 <td className="cell-ellipsis" title={r.name}>{r.name || "-"}</td>
                                 <td className="cell-ellipsis" title={r.item.title}>{r.item.title}</td>
                                 <td className="cell-ellipsis" title={r.item.fileName || "-"}>{r.item.fileName || "-"}</td>
-                                <td><StatusBadge status={r.item.status} /></td>
+                                <td>
+                                    <select
+                                        className="input"
+                                        value={r.item.status}
+                                        onChange={e => updateStatus(r.studentId, r.item.id, e.target.value as DocStatus)}
+                                        style={{ minWidth: 140, maxWidth: 180 }}
+                                        aria-label={`เปลี่ยนสถานะ: ${r.item.title} ของ ${r.name}`}
+                                        title="แก้ไขสถานะเอกสาร"
+                                    >
+                                        <option value="waiting">รอส่ง</option>
+                                        <option value="under-review">รอพิจารณา</option>
+                                        <option value="approved">ผ่าน</option>
+                                        <option value="rejected">ไม่ผ่าน</option>
+                                    </select>
+                                </td>
                                 <td>{r.item.lastUpdated ? new Date(r.item.lastUpdated).toLocaleString() : "-"}</td>
                                 <td>
                                     <label className="btn" style={{ cursor: "pointer" }}>

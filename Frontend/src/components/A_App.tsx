@@ -11,6 +11,7 @@ import A_Settings from "./A_Settings";
 import StudentTheme from "./S_Theme";         // ใช้ธีมเดียว
 import coopLogo from "../assets/COOP_Logo.png";
 import A_Teachers from "./A_Teacher";
+import A_Companies from "./A_Company";
 
 const IOS_BLUE = "#0074B7";
 
@@ -71,6 +72,7 @@ export default function AdminApp() {
             <Route path="dashboard" element={<A_Dashboard />} />
             <Route path="students" element={<A_Students />} />
             <Route path="mentors" element={<A_Mentors />} />
+            <Route path="company" element={<A_Companies />} />
             <Route path="docs" element={<A_Docs />} />
             <Route path="daily" element={<A_Daily />} />
             <Route path="announcements" element={<A_Announcements />} />
