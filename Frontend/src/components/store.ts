@@ -1,17 +1,31 @@
-//store.ts
+/* eslint-disable @typescript-eslint/no-explicit-any */
+// ===================================================
+// Coop Management System - STORE FILE (FINAL VERSION)
+// ===================================================
+
+// ---------- Document Types ----------
 export type DocStatus = "waiting" | "under-review" | "approved" | "rejected";
+
 export interface DocumentItem {
-  id: string;
-  title: string;
-  dueDate: string;
+  fileData: any;
+  id: string;           // เช่น T000, T001, W001
+  title: string;        // ชื่อเอกสาร
+  dueDate: string;      // YYYY-MM-DD
   status: DocStatus;
+
   fileName?: string;
   lastUpdated?: string;
-  createdBy?: string; // เช่น "teacher:foo@kkumail.com" หรือ userId
-  uploadedAt?: string; // ISO datetime ตอนอัปโหลดจริง
-  type?: "T4" | "T5" | "OTHER";
-  size?: number;
+
+  // ประเภทหลักของเอกสาร
+  type: "form" | "upload" | "download";
+
+  // ความสามารถเพิ่มเติม
+  needForm?: boolean;      // ต้องกรอกในระบบ
+  needDownload?: boolean;  // มีไฟล์ต้นฉบับให้ดาวน์โหลด
+  needUpload?: boolean;    // ต้องอัปโหลดไฟล์กลับขึ้นระบบ
 }
+
+// -------- Company & Mentor --------
 export interface CompanyInfo {
   id: string;
   name: string;
@@ -20,6 +34,7 @@ export interface CompanyInfo {
   hrEmail: string;
   mentors?: MentorInfo[];
 }
+
 export interface MentorInfo {
   id: string;
   firstName: string;
@@ -31,16 +46,18 @@ export interface MentorInfo {
   department?: string;
 }
 
+// -------- Mentor Profile --------
 export interface MentorProfile {
   firstName: string;
   lastName: string;
   email: string;
   phone?: string;
-  title?: string; // ตำแหน่ง
-  department?: string; // แผนก
-  companyName?: string; // ชื่อบริษัท
+  title?: string;
+  department?: string;
+  companyName?: string;
 }
 
+// -------- Student Profile --------
 export interface StudentProfile {
   email: string;
   studentId: string;
@@ -52,10 +69,14 @@ export interface StudentProfile {
   curriculum: string;
   nationality: string;
   religion: string;
+
   company?: CompanyInfo;
   mentor?: MentorInfo;
+
   docs: DocumentItem[];
 }
+
+// -------- Daily Logs ----------
 export interface DailyLog {
   id: string;
   studentId: string;
@@ -65,11 +86,15 @@ export interface DailyLog {
   checkOut: string;
   note?: string;
   createdAt: string;
+
   signature?: string;
   mentorSignature?: string;
   mentorName?: string;
 }
 
+// ===================================================
+// Utility
+// ===================================================
 const PROF_KEY = "coop.student.profile.v1";
 const DAILY_KEY = "coop.student.daily.v1";
 
@@ -80,54 +105,111 @@ const addDays = (n: number) => {
   return d;
 };
 
-const defaultDocs = (): DocumentItem[] => [
+// ===================================================
+// Default Documents (FINAL VERSION)
+// ===================================================
+
+export const defaultDocs = (): DocumentItem[] => [
+  // ---------- ก่อนออกสหกิจ ----------
   {
-    id: "req",
-    title: "แบบคำร้องขอฝึกสหกิจ",
-    dueDate: isoDate(addDays(7)),
-    status: "waiting",
-  },
-  {
-    id: "KKUCP-T000",
-    title: "KKUCP-T000_ใบสมัครงานสหกิจศึกษา",
+    id: "T000",
+    title: "KKUCP-T000 ใบสมัครสหกิจ",
+    type: "form",
+    needForm: true,
+    needDownload: true,
+    needUpload: true,
     dueDate: isoDate(addDays(14)),
     status: "waiting",
   },
   {
-    id: "KKUCP-T001",
-    title: "KKUCP-T001_ใบยินยอมจากผู้ปกครอง",
+    id: "T001",
+    title: "KKUCP-T001 ใบยินยอมผู้ปกครอง",
+    type: "upload",
+    needDownload: true,
+    needUpload: true,
+    dueDate: isoDate(addDays(30)),
+    status: "waiting",
+  },
+  {
+    id: "T002",
+    title: "KKUCP-T002 รายละเอียดงานและที่พัก",
+    type: "upload",
+    needDownload: true,
+    needUpload: true,
     dueDate: isoDate(addDays(45)),
     status: "waiting",
   },
   {
-    id: "KKUCP-T002",
-    title: "KKUCP-T002_แบบแจ้งรายละเอียดงานและรายละเอียดที่พัก",
+    id: "T003",
+    title: "KKUCP-T003 Proposal",
+    type: "upload",
+    needDownload: true,
+    needUpload: true,
+    dueDate: isoDate(addDays(60)),
+    status: "waiting",
+  },
+
+  // ---------- ระหว่างสหกิจ ----------
+  {
+    id: "T004",
+    title: "KKUCP-T004 แบบบันทึกนิเทศงาน",
+    type: "form",
+    needForm: true,
+    needDownload: true,
+    needUpload: true,
+    dueDate: isoDate(addDays(70)),
+    status: "waiting",
+  },
+  {
+    id: "W001",
+    title: "รายงานการปฏิบัติงานรายสัปดาห์",
+    type: "form",
+    needForm: true,
+    needDownload: true,
+    needUpload: true,
     dueDate: isoDate(addDays(90)),
     status: "waiting",
   },
   {
-    id: "KKUCP-T003",
-    title: "KKUCP-T003_แบบแผนและโครงร่างรายงานการปฏิบัติงานสหกิจศึกษา-Proposal",
+    id: "L001",
+    title: "หนังสือขอเข้านิเทศ",
+    type: "download",
+    needDownload: true,
     dueDate: isoDate(addDays(90)),
+    status: "approved",
+  },
+
+  // ---------- หลังสหกิจ ----------
+  {
+    id: "T007",
+    title: "KKUCP-T007 รายงานปฏิบัติสหกิจ",
+    type: "form",
+    needForm: true,
+    needDownload: true,
+    needUpload: true,
+    dueDate: isoDate(addDays(120)),
     status: "waiting",
   },
   {
-    id: "KKUCP-T004",
-    title: "KKUCP-T004_แบบบันทึกการนิเทศงานนักศึกษาสหกิจศึกษา",
-    dueDate: isoDate(addDays(90)),
+    id: "009",
+    title: "009 เล่มรายงานฉบับสมบูรณ์",
+    type: "upload",
+    needDownload: true,
+    needUpload: true,
+    dueDate: isoDate(addDays(150)),
     status: "waiting",
   },
 ];
 
-/** โหลดโปรไฟล์เดี่ยว (ใช้ตอนนักศึกษา login ตัวเอง) */
+// ===================================================
+// Student Profile Load/Save
+// ===================================================
+
 export function loadProfile(): StudentProfile {
   try {
     const raw = localStorage.getItem(PROF_KEY);
     if (!raw) throw new Error("empty");
     const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed)) {
-      return parsed[0] as StudentProfile; // ถ้าเป็น array คืนตัวแรก
-    }
     return parsed as StudentProfile;
   } catch {
     return {
@@ -146,7 +228,6 @@ export function loadProfile(): StudentProfile {
   }
 }
 
-/** โหลดหลายโปรไฟล์ (ใช้เวลา mentor ดูนักศึกษาหลายคน) */
 export function loadProfiles(): StudentProfile[] {
   try {
     const raw = localStorage.getItem(PROF_KEY);
@@ -158,74 +239,52 @@ export function loadProfiles(): StudentProfile[] {
   }
 }
 
-/** บันทึกโปรไฟล์ (ถ้ามีอยู่แล้วจะ update, ถ้าไม่มีจะ push ใหม่) */
 export function saveProfile(p: StudentProfile) {
-  const profiles = loadProfiles();
-  const idx = profiles.findIndex((x) => x.studentId === p.studentId);
-  if (idx >= 0) profiles[idx] = p;
-  else profiles.push(p);
+  const list = loadProfiles();
+  const idx = list.findIndex((x) => x.studentId === p.studentId);
+  if (idx >= 0) list[idx] = p;
+  else list.push(p);
 
-  localStorage.setItem(PROF_KEY, JSON.stringify(profiles));
+  localStorage.setItem(PROF_KEY, JSON.stringify(list));
 }
 
-//
-// ---------- Daily Logs ----------
-//
+// ===================================================
+// Daily Logs
+// ===================================================
 
 export function loadDaily(): DailyLog[] {
   try {
     const raw = localStorage.getItem(DAILY_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      return Array.isArray(parsed) ? (parsed as DailyLog[]) : [];
-    }
-  } catch (err) {
-    console.warn("loadDaily error", err);
-  }
-  return [];
-}
-
-export function saveDaily(list: DailyLog[]) {
-  try {
-    localStorage.setItem(DAILY_KEY, JSON.stringify(list));
-  } catch (err) {
-    console.error("saveDaily error", err);
-  }
-}
-
-export function saveDailyForStudent(studentId: string, list: DailyLog[]) {
-  try {
-    const all = loadDaily();
-    const merged = [...all.filter((l) => l.studentId !== studentId), ...list];
-    localStorage.setItem(DAILY_KEY, JSON.stringify(merged));
-  } catch (err) {
-    console.error("saveDaily error", err);
-  }
-}
-
-// ---------- Mentor view: โหลดโปรไฟล์นักศึกษาที่ตัวเองดูแล ----------
-
-/** โหลดโปรไฟล์นักศึกษาที่อยู่ใน mentor's list เท่านั้น */
-export function loadProfilesForMentor(): StudentProfile[] {
-  try {
-    const rawMentor = localStorage.getItem("coop.mentor.students");
-    const mentorIds: string[] = rawMentor
-      ? JSON.parse(rawMentor).map((s: any) => s.studentId ?? s.id)
-      : [];
-
-    const profiles = loadProfiles();
-
-    // ✅ กรองเฉพาะ studentId ที่อยู่ใน mentor list
-    return profiles.filter((p) => mentorIds.includes(p.studentId));
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
   } catch {
     return [];
   }
 }
 
-// ---------- Addmin: ลบ Profile ----------
-export function removeProfile(studentId: string) {
-  const profiles = loadProfiles().filter((p) => p.studentId !== studentId);
-  localStorage.setItem(PROF_KEY, JSON.stringify(profiles));
+export function saveDaily(list: DailyLog[]) {
+  localStorage.setItem(DAILY_KEY, JSON.stringify(list));
+}
+
+export function saveDailyForStudent(studentId: string, list: DailyLog[]) {
+  const all = loadDaily();
+  const merged = [...all.filter((x) => x.studentId !== studentId), ...list];
+  localStorage.setItem(DAILY_KEY, JSON.stringify(merged));
+}
+
+// ===================================================
+// Mentor / Teacher Management
+// ===================================================
+
+export function loadProfilesForMentor(): StudentProfile[] {
+  try {
+    const raw = localStorage.getItem("coop.mentor.students");
+    const ids: string[] = raw ? JSON.parse(raw).map((s: any) => s.studentId) : [];
+    return loadProfiles().filter((p) => ids.includes(p.studentId));
+  } catch {
+    return [];
+  }
 }
 
 const ADMIN_KEY = "coop.admin.mentors";
@@ -242,18 +301,17 @@ export function saveMentors(list: MentorProfile[]) {
   localStorage.setItem(ADMIN_KEY, JSON.stringify(list));
 }
 
-// ===== Teachers (อาจารย์) =====
+const TEACHER_KEY = "coop.admin.teachers";
+
 export interface TeacherProfile {
-  id: string; // uuid หรือ running-id ก็ได้
+  id: string;
   firstName: string;
   lastName: string;
   email: string;
   phone?: string;
   department?: string;
-  title?: string; // ตำแหน่งทางวิชาการ (ถ้ามี)
+  title?: string;
 }
-
-const TEACHER_KEY = "coop.admin.teachers";
 
 export function loadTeachers(): TeacherProfile[] {
   try {
@@ -262,6 +320,7 @@ export function loadTeachers(): TeacherProfile[] {
     return [];
   }
 }
+
 export function saveTeachers(list: TeacherProfile[]) {
   localStorage.setItem(TEACHER_KEY, JSON.stringify(list));
 }

@@ -1,222 +1,274 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // src/components/A_Docs.tsx
-import { useMemo, useState } from "react";
-import type { StudentProfile, DocumentItem, DocStatus } from "./store";
 
-const KS = "coop.student.profile.v1";
-function loadStudents(): StudentProfile[] { try { return JSON.parse(localStorage.getItem(KS) || "[]"); } catch { return [] } }
-function saveStudents(list: StudentProfile[]) { localStorage.setItem(KS, JSON.stringify(list)); }
+import React, { useState } from "react";
+
+const KD = "coop.admin.docPeriods.v1"; // เก็บช่วงส่งเอกสาร
+const YEAR_KEY = "coop.admin.academicYear";
+
+// โหลดปีการศึกษา
+function loadYear(): string {
+  return localStorage.getItem(YEAR_KEY) || "2568/1";
+}
+
+// โหลดช่วงส่งเอกสาร
+function loadPeriods(): Record<string, any> {
+  try {
+    return JSON.parse(localStorage.getItem(KD) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+// บันทึก
+function savePeriods(v: any) {
+  localStorage.setItem(KD, JSON.stringify(v));
+}
 
 export default function A_Docs() {
-  const [students, setStudents] = useState<StudentProfile[]>(() => loadStudents());
-  const [st, setSt] = useState<"all" | DocStatus>("all");
-  const [q, setQ] = useState("");
-  const [selectedDocIds, setSelectedDocIds] = useState<string[]>([]); // เลือกหลายเอกสารได้
+  const year = loadYear(); // ไม่มีการแก้ไข ใช้เป็นตัวแสดงผลเท่านั้น
+  const [periods, setPeriods] = useState(loadPeriods());
 
-  // รวมเอกสารทั้งหมด เพื่อทำรายการให้ติ๊ก
-  const allDocDefs = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const s of students) for (const d of (s.docs || [])) {
-      if (!map.has(d.id)) map.set(d.id, d.title || d.id);
-    }
-    return Array.from(map.entries())
-      .map(([id, title]) => ({ id, title }))
-      .sort((a, b) => a.title.localeCompare(b.title, "th"));
-  }, [students]);
+  // Modal state
+  const [editingId, setEditingId] = useState<string>("");
+  const [showModal, setShowModal] = useState(false);
 
-  // ย่อชื่อเป็น T01, T02 ถ้าทำได้
-  function shortName(doc: { id: string; title: string }): string {
-    const byId = /T(\d{1,3})/.exec(doc.id);
-    if (byId) { const n = +byId[1]; if (!Number.isNaN(n)) return `T${String(n).padStart(2, "0")}`; }
-    const byTitle = /T(\d{1,3})/.exec(doc.title);
-    if (byTitle) { const n = +byTitle[1]; if (!Number.isNaN(n)) return `T${String(n).padStart(2, "0")}`; }
-    return doc.title || doc.id;
-  }
+  const [form, setForm] = useState({
+    startDate: "",
+    startTime: "",
+    endDate: "",
+    endTime: "",
+  });
 
-  // ตารางแถว
-  const rows = useMemo(() => {
-    const out: { studentId: string; name: string; item: DocumentItem }[] = [];
-    students.forEach(s => (s.docs || []).forEach(d => out.push({
-      studentId: s.studentId || "-",
-      name: `${s.firstName || ""} ${s.lastName || ""}`.trim(),
-      item: d
-    })));
-    return out.filter(r => {
-      const hitStatus = st === "all" || r.item.status === st;
-      const hitDoc = selectedDocIds.length === 0 || selectedDocIds.includes(r.item.id);
-      const haystack = `${r.studentId} ${r.name} ${r.item.title} ${r.item.id}`.toLowerCase();
-      const hitQuery = haystack.includes(q.toLowerCase());
-      return hitStatus && hitDoc && hitQuery;
+  // เอกสารที่มีในระบบ (mock)
+  const allDocs = [
+    { id: "T00", title: "แบบคำร้องขอฝึกสหกิจ" },
+    { id: "T001", title: "ใบสมัครงานสหกิจศึกษา" },
+    { id: "T002", title: "รายละเอียดงาน / สถานประกอบการ" },
+    { id: "T003", title: "แผน/โครงร่างรายงาน" },
+    { id: "T004", title: "บันทึกการปฏิบัติงาน" },
+    { id: "T005", title: "รายงานฉบับสมบูรณ์" },
+  ];
+
+  function openEditor(docId: string) {
+    setEditingId(docId);
+
+    const p = periods[docId] || {};
+    setForm({
+      startDate: p.startDate || "",
+      startTime: p.startTime || "",
+      endDate: p.endDate || "",
+      endTime: p.endTime || "",
     });
-  }, [students, st, q, selectedDocIds]);
 
-  // ✅ เปลี่ยนสถานะ (Admin แก้ไขได้)
-  function updateStatus(studentId: string, docId: string, v: DocStatus) {
-    const next = students.map(s =>
-      s.studentId === studentId
-        ? ({
-          ...s, docs: (s.docs || []).map(d =>
-            d.id === docId ? { ...d, status: v, lastUpdated: new Date().toISOString() } : d
-          )
-        })
-        : s
-    );
-    setStudents(next);
-    saveStudents(next);
+    setShowModal(true);
   }
 
-  // ติ๊กเลือกเอกสาร
-  function toggleDoc(id: string) {
-    setSelectedDocIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  function save(e: React.FormEvent) {
+    e.preventDefault();
+
+    const next = {
+      ...periods,
+      [editingId]: { ...form },
+    };
+
+    setPeriods(next);
+    savePeriods(next);
+    setShowModal(false);
   }
-  function selectAllDocs() { setSelectedDocIds(allDocDefs.map(d => d.id)); }
-  function clearAllDocs() { setSelectedDocIds([]); }
 
   return (
     <div className="page" style={{ padding: 4, margin: 28, marginLeft: 65 }}>
-      <section className="card" style={{ padding: 24, marginBottom: 28 }}>
-        <h2 style={{ marginTop: 8, marginLeft: 18 }}>เอกสารทั้งหมด (Admin)</h2>
+      {/* Header */}
+      <section
+        className="card"
+        style={{
+          padding: 24,
+          marginBottom: 28,
+          width: "95%",
+          maxWidth: 1480,
+          marginInline: "auto",
+        }}
+      >
+        <h2 style={{ margin: 0 }}>ตั้งค่าช่วงเวลาส่งเอกสาร</h2>
+        <p style={{ marginTop: 6, color: "#6b7280" }}>
+          ปีการศึกษา: <b>{year}</b>
+        </p>
+      </section>
 
-        <div className="tools" style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginLeft: 18 }}>
-          <input
-            className="input"
-            placeholder="ค้นหา: ชื่อ/รหัส/ชื่อเอกสาร"
-            value={q}
-            onChange={e => setQ(e.target.value)}
-            style={{ flex: "1 1 420px", minWidth: 260 }}
-          />
+      {/* Document List */}
+      <section
+        className="card"
+        style={{
+          padding: 24,
+          width: "95%",
+          maxWidth: 1480,
+          marginInline: "auto",
+        }}
+      >
+        {allDocs.map((d) => {
+          const p = periods[d.id] || {};
+          const start = p.startDate ? `${p.startDate} ${p.startTime ?? ""}` : "-";
+          const end = p.endDate ? `${p.endDate} ${p.endTime ?? ""}` : "-";
 
-          {/* กรองสถานะ */}
-          <select
-            className="input"
-            value={st}
-            onChange={e => setSt(e.target.value as any)}
-            style={{ flex: "0 0 180px" }}
-            title="กรองตามสถานะเอกสาร"
-          >
-            <option value="all">ทุกสถานะ</option>
-            <option value="waiting">รอส่ง</option>
-            <option value="under-review">รอพิจารณา</option>
-            <option value="approved">ผ่าน</option>
-            <option value="rejected">ไม่ผ่าน</option>
-          </select>
+          return (
+            <div
+              key={d.id}
+              style={{
+                padding: "14px 0",
+                borderBottom: "1px solid #f1f5f9",
+                display: "grid",
+                gridTemplateColumns: "1fr 180px 180px auto",
+                gap: 12,
+                alignItems: "center",
+                fontSize: 14,
+              }}
+            >
+              <div>
+                <div style={{ fontWeight: 600 }}>{d.title}</div>
+                <div style={{ fontSize: 12, color: "#6b7280" }}>ID: {d.id}</div>
+              </div>
 
-          {/* ฟิลเตอร์เอกสารแบบติ๊กหลายตัว */}
-          <div
-            className="doc-chip-group"
-            style={{
-              display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap",
-              padding: "6px 8px", borderRadius: 12, border: "1px solid rgba(0,0,0,.08)", background: "#fff"
-            }}
-            title="ติ๊กเลือกเอกสารที่ต้องการแสดง (ไม่เลือก = ทุกเอกสาร)"
-          >
-            <span style={{ fontWeight: 800, color: "#374151" }}>เอกสาร:</span>
-            {allDocDefs.map(d => {
-              const label = shortName(d);
-              const checked = selectedDocIds.includes(d.id);
-              return (
-                <label key={d.id}
-                  className={`chip ${checked ? "chip-on" : ""}`}
-                  title={d.title}
-                  style={{
-                    display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 10px",
-                    borderRadius: 999, cursor: "pointer",
-                    border: checked ? "1px solid rgba(0,116,183,.45)" : "1px solid rgba(0,0,0,.10)",
-                    background: checked ? "rgba(0,116,183,.08)" : "#fff",
-                    userSelect: "none"
-                  }}>
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={() => toggleDoc(d.id)}
-                    style={{ width: 14, height: 14 }}
-                  />
-                  <span style={{ fontSize: 12, fontWeight: 800 }}>{label}</span>
-                </label>
-              );
-            })}
-            <button className="btn ghost" type="button" onClick={selectAllDocs}>ทั้งหมด</button>
-            <button className="btn ghost" type="button" onClick={clearAllDocs}>ล้าง</button>
+              <div>
+                <div style={{ fontSize: 12, color: "#6b7280" }}>เริ่มส่งได้</div>
+                <div>{start}</div>
+              </div>
+
+              <div>
+                <div style={{ fontSize: 12, color: "#6b7280" }}>ส่งได้ถึง</div>
+                <div>{end}</div>
+              </div>
+
+              <button
+                className="btn"
+                type="button"
+                onClick={() => openEditor(d.id)}
+                style={{ whiteSpace: "nowrap" }}
+              >
+                แก้ไขช่วงส่ง
+              </button>
+            </div>
+          );
+        })}
+      </section>
+
+      {/* Modal */}
+      {showModal && (
+        <div className="modal-backdrop">
+          <div className="modal-card" style={{ maxWidth: 600 }}>
+            <h3 style={{ marginTop: 0 }}>แก้ไขช่วงส่งเอกสาร</h3>
+            <p style={{ marginTop: 2, color: "#6b7280" }}>
+              เอกสาร: <b>{editingId}</b>
+            </p>
+
+            <form
+              onSubmit={save}
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: 14,
+                marginTop: 14,
+              }}
+            >
+              <div>
+                <label className="label">วันที่เริ่มส่ง</label>
+                <input
+                  className="input"
+                  type="date"
+                  value={form.startDate}
+                  onChange={(e) =>
+                    setForm((x) => ({ ...x, startDate: e.target.value }))
+                  }
+                  style={{ width: "90%" }}
+                />
+              </div>
+
+              <div>
+                <label className="label">เวลาเริ่มส่ง</label>
+                <input
+                  className="input"
+                  type="time"
+                  value={form.startTime}
+                  onChange={(e) =>
+                    setForm((x) => ({ ...x, startTime: e.target.value }))
+                  }
+                  style={{ width: "90%" }}
+                />
+              </div>
+
+              <div>
+                <label className="label">วันที่สิ้นสุด</label>
+                <input
+                  className="input"
+                  type="date"
+                  value={form.endDate}
+                  onChange={(e) =>
+                    setForm((x) => ({ ...x, endDate: e.target.value }))
+                  }
+                  style={{ width: "90%" }}
+                />
+              </div>
+
+              <div>
+                <label className="label">เวลาสิ้นสุด</label>
+                <input
+                  className="input"
+                  type="time"
+                  value={form.endTime}
+                  onChange={(e) =>
+                    setForm((x) => ({ ...x, endTime: e.target.value }))
+                  }
+                  style={{ width: "90%" }}
+                />
+              </div>
+
+              <div
+                style={{
+                  gridColumn: "1 / -1",
+                  display: "flex",
+                  justifyContent: "flex-end",
+                  gap: 10,
+                  marginTop: 8,
+                }}
+              >
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => setShowModal(false)}
+                >
+                  ยกเลิก
+                </button>
+                <button type="submit" className="btn">
+                  บันทึก
+                </button>
+              </div>
+            </form>
           </div>
         </div>
-      </section>
+      )}
 
-      <section className="card" style={{ paddingBottom: 12 }}>
-        <table className="doc-table" style={{ width: "100%", marginTop: 8, marginLeft: 18, marginBottom: 15 }}>
-          <colgroup>
-            <col style={{ width: "10ch" }} />   {/* รหัส */}
-            <col style={{ width: "14ch" }} />   {/* ชื่อ */}
-            <col className="col-title" />      {/* เอกสาร */}
-            <col className="col-file" />       {/* ไฟล์ */}
-            <col style={{ width: "16ch" }} />   {/* สถานะ */}
-            <col style={{ width: "18ch" }} />   {/* อัปเดตล่าสุด */}
-          </colgroup>
-
-          <thead>
-            <tr>
-              <th align="left">รหัส</th>
-              <th align="left">ชื่อ</th>
-              <th align="left">เอกสาร</th>
-              <th align="left">ไฟล์</th>
-              <th align="left">สถานะ</th>
-              <th align="left">อัปเดตล่าสุด</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {rows.map(r => (
-              <tr key={`${r.studentId}.${r.item.id}`} className="row">
-                <td>{r.studentId}</td>
-                <td className="cell-ellipsis" title={r.name}>{r.name || "-"}</td>
-                <td className="cell-ellipsis" title={r.item.title}>{r.item.title}</td>
-                <td className="cell-ellipsis" title={r.item.fileName || "-"}>{r.item.fileName || "-"}</td>
-                <td><StatusBadge status={r.item.status} /></td>
-
-                <td>{r.item.lastUpdated ? new Date(r.item.lastUpdated).toLocaleString() : "-"}</td>
-              </tr>
-            ))}
-            {rows.length === 0 && (
-              <tr><td colSpan={6} style={{ color: "#6b7280" }}>— ไม่มีข้อมูล —</td></tr>
-            )}
-          </tbody>
-        </table>
-      </section>
-
+      {/* Styles */}
       <style>{`
-        .doc-table{ table-layout: fixed; }
-        .col-title{ width: 28ch; }
-        .col-file{ width: 20ch; }
-        .cell-ellipsis{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-        .tools .btn{ white-space: nowrap; flex: 0 0 auto; }
-        @media (max-width:1024px){
-          .tools{ margin-left: 18px !important; }
-          .tools .input{ flex: 1 1 100% !important; min-width: 0 !important; }
-          .tools select{ flex-basis: 100% !important; }
-          .tools .btn{ flex-basis: 100% !important; }
-          .col-title{ width: 22ch; }
-          .col-file{ width: 16ch; }
+        .modal-backdrop{
+          position:fixed; inset:0;
+          background:rgba(15,23,42,.35);
+          display:flex; align-items:center; justify-content:center;
+          z-index:40;
         }
-          /* Status badge */
-        .status-badge{
-          display:inline-flex; align-items:center; gap:8px;
-          padding: 4px 10px; border-radius: 999px; font-weight: 800; font-size: 14px;
+        .modal-card{
+          background:white;
+          padding:24px;
+          border-radius:18px;
+          box-shadow:0 18px 45px rgba(0,0,0,.18);
+          width:100%;
         }
-        .st-waiting{ background: #F3F4F6; color: #374151; }
-        .st-under-review{ background: rgba(0,116,183,.10); color: #0074B7; }
-        .st-approved{ background: rgba(16,185,129,.12); color: #059669; }
-        .st-rejected{ background: rgba(239,68,68,.12); color: #DC2626; }
+        .btn-secondary{
+          padding:8px 16px;
+          border-radius:10px;
+          background:#fff;
+          border:1px solid #d1d5db;
+        }
       `}</style>
     </div>
   );
-}
-
-function StatusBadge({ status }: { status: DocStatus }) {
-  const label =
-    status === "waiting" ? "รอส่ง" :
-      status === "under-review" ? "รอพิจารณา" :
-        status === "approved" ? "ผ่าน" : "ไม่ผ่าน";
-  const cls =
-    status === "waiting" ? "st-waiting" :
-      status === "under-review" ? "st-under-review" :
-        status === "approved" ? "st-approved" : "st-rejected";
-  return <span className={`status-badge ${cls}`}>{label}</span>;
 }
