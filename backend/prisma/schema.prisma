@@ -1,0 +1,66 @@
+// Backend/prisma/schema.prisma
+
+// ส่วนนี้ใช้สร้าง Prisma Client (โค้ดสำหรับเรียกใช้ DB)
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ส่วนนี้กำหนด Database ที่ใช้
+datasource db {
+  provider = "mysql"
+}
+
+// ======================================
+// ============== Core Models ============
+// ======================================
+
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  password  String
+  role      Role     @default(STUDENT)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // 1:1 Relation with Student Profile
+  student Student?
+}
+
+model Student {
+  id          Int     @id @default(autoincrement())
+  studentId   String  @unique @map("student_id") // รหัสนักศึกษา (Unique)
+  firstName   String
+  lastName    String
+  phone       String? @db.VarChar(10)
+  gpa         Float?
+  major       String?
+  curriculum  String?
+  nationality String?
+
+  // Relation to User (1:1)
+  userId Int  @unique @map("user_id")
+  user   User @relation(fields: [userId], references: [id])
+
+  // TODO: เพิ่มความสัมพันธ์กับ Teacher, Mentor, Company ในภายหลัง
+}
+
+// ======================================
+// ============== Admin Models ============
+// ======================================
+
+model Announcement {
+  id          Int      @id @default(autoincrement())
+  title       String
+  body        String   @db.Text
+  publishDate DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ENUM สำหรับ Role ของผู้ใช้งาน
+enum Role {
+  STUDENT
+  TEACHER
+  MENTOR
+  ADMIN
+}

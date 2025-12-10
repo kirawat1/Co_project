@@ -217,7 +217,7 @@ export default function LoginPage() {
           </form>
 
           <p className="footnote">
-            * Frontend ล้วน — ต่อ API จริงที่ <code>/api/auth/*</code> · ตอนนี้ใช้ username ตามบทบาท
+            · ตอนนี้ใช้ username ตามบทบาท
             และ password = เลขบัตรประชาชน 13 หลัก
           </p>
         </div>
