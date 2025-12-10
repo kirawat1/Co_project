@@ -1,312 +1,431 @@
+/* eslint-disable react-refresh/only-export-components */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // src/components/A_Companies.tsx
 import React, { useMemo, useState } from "react";
 
-// --- Types & Local Storage Utilities ---
+/* ----------------------------------------------------
+   Types + LocalStorage
+---------------------------------------------------- */
 export interface AdminCompanyRecord {
-    id: string; // Unique ID (for simplicity, using string)
-    name: string;
-    address: string;
-    contactEmail: string; // อีเมลติดต่อ
-    pastCoopYears: string; // ปีที่มีการส่งไป เช่น "2565, 2566"
+  id: string;
+  name: string;
+  address: string;
+  contactEmail: string;
+  pastCoopYears: string; // เช่น "2568,2567,2566"
 }
 
 const K_COMPANIES = "coop.admin.companies";
 
 function loadCompanies(): AdminCompanyRecord[] {
-    try { return JSON.parse(localStorage.getItem(K_COMPANIES) || "[]"); }
-    catch { return []; }
+  try {
+    return JSON.parse(localStorage.getItem(K_COMPANIES) || "[]");
+  } catch {
+    return [];
+  }
 }
 function saveCompanies(list: AdminCompanyRecord[]) {
-    localStorage.setItem(K_COMPANIES, JSON.stringify(list));
+  localStorage.setItem(K_COMPANIES, JSON.stringify(list));
 }
 function genId() {
-    return `c_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  return `c_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
-type FormState = Omit<AdminCompanyRecord, 'id'> & { id?: string };
+// ปีที่ให้เลือก
+const YEAR_OPTIONS = ["2568", "2567", "2566", "2565", "2564"];
 
-// --- Main Component ---
+type FormState = Omit<AdminCompanyRecord, "id"> & { id?: string };
+
+/* ----------------------------------------------------
+   Main Component
+---------------------------------------------------- */
 export default function A_Companies() {
-    const [items, setItems] = useState<AdminCompanyRecord[]>(() => loadCompanies());
-    const [q, setQ] = useState("");
-    const [showAdd, setShowAdd] = useState(false);
-    const [showEdit, setShowEdit] = useState(false);
-    const [form, setForm] = useState<FormState>({
-        name: "", address: "", contactEmail: "", pastCoopYears: "",
-    });
+  const [items, setItems] = useState<AdminCompanyRecord[]>(loadCompanies());
+  const [q, setQ] = useState("");
+  const [showAdd, setShowAdd] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
 
-    // กรองและค้นหา
-    const filtered = useMemo(
-        () =>
-            items.filter((c) => {
-                const s = `${c.name || ""} ${c.address || ""} ${c.contactEmail || ""} ${c.pastCoopYears || ""}`.toLowerCase();
-                return s.includes(q.toLowerCase());
-            }),
-        [items, q]
+  const [form, setForm] = useState<FormState>({
+    name: "",
+    address: "",
+    contactEmail: "",
+    pastCoopYears: "",
+  });
+
+  /* ค้นหา */
+  const filtered = useMemo(() => {
+    return items.filter((c) => {
+      const s = `${c.name} ${c.address} ${c.contactEmail} ${c.pastCoopYears}`.toLowerCase();
+      return s.includes(q.toLowerCase());
+    });
+  }, [items, q]);
+
+  /* สร้างบริษัทใหม่ หรือเพิ่มปีให้บริษัทเดิม */
+  function saveAdd(e: React.FormEvent) {
+    e.preventDefault();
+
+    const name = form.name.trim();
+    const year = form.pastCoopYears.trim();
+
+    if (!name) return alert("กรุณากรอกชื่อบริษัท");
+
+    // ตรวจว่าบริษัทนี้มีอยู่แล้วหรือยัง
+    const existed = items.find((x) => x.name === name);
+
+    if (existed) {
+      // แยกปีเดิมเป็น array
+      const currentYears = existed.pastCoopYears
+        ? existed.pastCoopYears.split(",")
+        : [];
+
+      // ถ้าปีใหม่ยังไม่มี → เพิ่มเข้าไป
+      if (!currentYears.includes(year)) {
+        const updated = [year, ...currentYears].join(",");
+        existed.pastCoopYears = updated;
+      }
+
+      saveCompanies(items);
+      setItems([...items]);
+      setShowAdd(false);
+      return;
+    }
+
+    // ถ้าเป็นบริษัทใหม่ → เพิ่มใหม่
+    const newItem: AdminCompanyRecord = {
+      id: genId(),
+      name,
+      address: form.address.trim(),
+      contactEmail: form.contactEmail.trim(),
+      pastCoopYears: year,
+    };
+
+    const next = [...items, newItem];
+    saveCompanies(next);
+    setItems(next);
+    setShowAdd(false);
+  }
+
+  /* แก้ไขบริษัท */
+  function saveEdit(e: React.FormEvent) {
+    e.preventDefault();
+
+    if (!form.id) return;
+
+    const next = items.map((x) =>
+      x.id === form.id
+        ? {
+            ...x,
+            name: form.name.trim(),
+            address: form.address.trim(),
+            contactEmail: form.contactEmail.trim(),
+            pastCoopYears: form.pastCoopYears.trim(),
+          }
+        : x
     );
 
-    function remove(id: string) {
-        if (!confirm("ลบบริษัทนี้ออกจากประวัติ?")) return;
-        const next = items.filter((c) => c.id !== id);
-        setItems(next);
-        saveCompanies(next);
-    }
+    saveCompanies(next);
+    setItems(next);
+    setShowEdit(false);
+  }
 
-    function openAdd() {
-        setForm({ name: "", address: "", contactEmail: "", pastCoopYears: "" });
-        setShowAdd(true);
-    }
+  function remove(id: string) {
+    if (!confirm("ลบบริษัทนี้หรือไม่?")) return;
+    const next = items.filter((x) => x.id !== id);
+    saveCompanies(next);
+    setItems(next);
+  }
 
-    function openEdit(c: AdminCompanyRecord) {
-        setForm({ ...c });
-        setShowEdit(true);
-    }
+  function openAdd() {
+    setForm({
+      name: "",
+      address: "",
+      contactEmail: "",
+      pastCoopYears: "",
+    });
+    setShowAdd(true);
+  }
 
-    function closeAll() {
-        setShowAdd(false);
-        setShowEdit(false);
-    }
+  function openEdit(c: AdminCompanyRecord) {
+    setForm({ ...c });
+    setShowEdit(true);
+  }
 
-    function saveAdd(e: React.FormEvent) {
-        e.preventDefault();
-        const { name, address, contactEmail } = form;
-        if (!name.trim() || !address.trim() || !contactEmail.trim()) {
-            alert("กรุณากรอก ชื่อบริษัท / ที่อยู่ / อีเมลติดต่อ");
-            return;
-        }
+  function closeAll() {
+    setShowAdd(false);
+    setShowEdit(false);
+  }
 
-        const newItem: AdminCompanyRecord = {
-            id: genId(),
-            name: name.trim(),
-            address: address.trim(),
-            contactEmail: contactEmail.trim(),
-            pastCoopYears: (form.pastCoopYears || "").trim(),
-        };
-        const next = [...items, newItem];
-        setItems(next);
-        saveCompanies(next);
-        setShowAdd(false);
-    }
+  /* ----------------------------------------------------
+     UI
+  ---------------------------------------------------- */
+  return (
+    <div className="page" style={{ padding: 4, margin: 28, marginLeft: 65 }}>
+      <section className="card" style={{ padding: 24, marginBottom: 28 }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            flexWrap: "wrap",
+          }}
+        >
+          <div>
+            <h2 style={{ margin: 0 }}>ข้อมูลบริษัทสหกิจศึกษา</h2>
+            <p style={{ fontSize: 13, color: "#6b7280", marginTop: 4 }}>
+              รายชื่อบริษัทที่เคยรับนักศึกษาสหกิจศึกษา
+            </p>
+          </div>
 
-    function saveEdit(e: React.FormEvent) {
-        e.preventDefault();
-        if (!form.id) return;
-        const { name, address, contactEmail } = form;
-        if (!name.trim() || !address.trim() || !contactEmail.trim()) {
-            alert("กรุณากรอก ชื่อบริษัท / ที่อยู่ / อีเมลติดต่อ");
-            return;
-        }
+          <button className="btn" onClick={openAdd}>
+            + เพิ่มบริษัท
+          </button>
+        </div>
 
-        const next = items.map((x) =>
-            x.id === form.id
-                ? {
-                    ...x,
-                    name: name.trim(),
-                    address: address.trim(),
-                    contactEmail: contactEmail.trim(),
-                    pastCoopYears: (form.pastCoopYears || "").trim(),
-                }
-                : x
-        );
-        setItems(next);
-        saveCompanies(next);
-        setShowEdit(false);
-    }
+        {/* Search */}
+        <div style={{ display: "flex", marginTop: 16, gap: 10 }}>
+          <input
+            className="input"
+            placeholder="ค้นหา: ชื่อ / ที่อยู่ / อีเมล / ปี"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            style={{ width: 280 }}
+          />
+          <button className="btn-secondary" type="button" onClick={() => setQ("")}>
+            ล้างคำค้น
+          </button>
+        </div>
+      </section>
 
-    return (
-        <div className="page" style={{ padding: 4, margin: 28, marginLeft: 65 }}>
-            <section className="card" style={{ padding: 24, marginBottom: 28 }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-                    <h2 style={{ marginTop: 8, marginLeft: 18 }}>ข้อมูลบริษัทสหกิจศึกษา</h2>
-                    <div style={{ display: "flex", gap: 8 }}>
-                        <button className="btn" onClick={openAdd} type="button">เพิ่มบริษัท</button>
-                    </div>
-                </div>
+      {/* Table */}
+      <section className="card" style={{ padding: 24 }}>
+        <table className="tbl" style={{ width: "100%", borderCollapse: "collapse" }}>
+          <thead>
+            <tr>
+              <th>ชื่อบริษัท</th>
+              <th>ที่อยู่</th>
+              <th>อีเมลติดต่อ</th>
+              <th>ปีที่รับ นศ.</th>
+              <th style={{ width: 120, textAlign: "right" }}>การทำงาน</th>
+            </tr>
+          </thead>
 
-                <div
-                    className="tools"
-                    style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginLeft: 18, marginTop: 12 }}
-                >
-                    <input
-                        className="input"
-                        placeholder="ค้นหา: ชื่อ/ที่อยู่/อีเมล/ปี"
-                        value={q}
-                        onChange={(e) => setQ(e.target.value)}
-                        style={{ flex: "0 1 420px", minWidth: 260 }}
-                    />
-                    <button className="btn" onClick={() => setQ("")} type="button">ล้างคำค้น</button>
-                </div>
-            </section>
-
-            {/* ตารางเต็มความกว้าง */}
-            <section className="card" style={{ padding: 24, overflowX: "auto" }}>
-                <table className="doc-table" style={{ width: "100%", tableLayout: "fixed" }}>
-                    <colgroup>
-                        <col style={{ width: "20ch" }} /> {/* ชื่อ */}
-                        <col style={{ width: "30ch" }} /> {/* ที่อยู่ */}
-                        <col style={{ width: "22ch" }} /> {/* อีเมล */}
-                        <col style={{ width: "16ch" }} /> {/* ปี */}
-                        <col style={{ width: "16ch" }} /> {/* การทำงาน */}
-                    </colgroup>
-
-                    <thead>
-                        <tr>
-                            <th align="left">ชื่อบริษัท</th>
-                            <th align="left">ที่อยู่</th>
-                            <th align="left">อีเมลติดต่อ</th>
-                            <th align="left">ปีที่รับ นศ.</th>
-                            <th style={{ textAlign: "right" }}>การทำงาน</th>
-                        </tr>
-                    </thead>
-
-                    <tbody>
-                        {filtered.map((c) => (
-                            <tr key={c.id} className="row">
-                                <td className="cell-ellipsis" title={c.name}>{c.name}</td>
-                                <td className="cell-ellipsis" title={c.address}>{c.address || "-"}</td>
-                                <td className="cell-ellipsis" title={c.contactEmail}>{c.contactEmail || "-"}</td>
-                                <td className="cell-ellipsis" title={c.pastCoopYears}>{c.pastCoopYears || "-"}</td>
-                                <td className="cell-actions" style={{ textAlign: "right" }}>
-                                    <button className="btn small" onClick={() => openEdit(c)} type="button">แก้ไข</button>
-                                    <button className="btn ghost small" onClick={() => remove(c.id)} type="button">ลบ</button>
-                                </td>
-                            </tr>
-                        ))}
-                        {filtered.length === 0 && (
-                            <tr><td colSpan={5} style={{ color: "#6b7280" }}>— ไม่มีข้อมูล —</td></tr>
-                        )}
-                    </tbody>
-                </table>
-            </section>
-
-            {/* ===== Modals ===== */}
-            {showAdd && (
-                <Modal title="เพิ่มบริษัทใหม่" onClose={closeAll}>
-                    <CompanyForm form={form} setForm={setForm} onSubmit={saveAdd} submitText="เพิ่มบริษัท" />
-                </Modal>
-            )}
-            {showEdit && (
-                <Modal title="แก้ไขข้อมูลบริษัท" onClose={closeAll}>
-                    <CompanyForm form={form} setForm={setForm} onSubmit={saveEdit} submitText="บันทึกการแก้ไข" />
-                </Modal>
+          <tbody>
+            {filtered.length === 0 && (
+              <tr>
+                <td colSpan={5} style={{ textAlign: "center", padding: 16, color: "#6b7280" }}>
+                  — ไม่มีข้อมูล —
+                </td>
+              </tr>
             )}
 
-            <style>{`
-        .btn.ghost{ background:#fff; color:#0f172a; border:1px solid rgba(0,0,0,.08); border-radius:10px; padding:10px 14px; font-weight:700 }
-        .btn.ghost:hover{ background:#f8fafc; border-color:#c7d2fe; box-shadow:0 1px 0 rgba(0,0,0,.02), 0 6px 14px rgba(0,116,183,.14) }
-        .btn.small { font-size: 12px; padding: 4px 8px; min-width: auto; border-radius: 6px; }
-        .cell-ellipsis{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-        .cell-actions{ display:flex; gap:8px; justify-content:flex-end; align-items:center; white-space:nowrap; }
+            {filtered.map((c, idx) => (
+              <tr key={c.id} className={idx % 2 ? "row-odd" : "row-even"}>
+                <td>{c.name}</td>
+                <td>{c.address}</td>
+                <td>{c.contactEmail}</td>
+                <td>{c.pastCoopYears}</td>
 
-        /* Modal */
-        .modal-wrap{ position: fixed; inset: 0; z-index: 50; }
-        .modal-overlay{ position: absolute; inset: 0; background: rgba(15,23,42,.35); }
-        .modal{
-          position: relative;
-          width: min(720px, 92vw);
-          margin: 8vh auto 0;
-          padding: 16px;
-          border-radius: 16px;
-          border: 1px solid rgba(0,0,0,.06);
-          background: #fff;
+                <td style={{ textAlign: "right" }}>
+                  <button className="btn-secondary small" onClick={() => openEdit(c)}>
+                    แก้ไข
+                  </button>
+                  <button className="btn-danger small" onClick={() => remove(c.id)}>
+                    ลบ
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
+
+      {/* ---------- Modals ---------- */}
+      {showAdd && (
+        <Modal title="เพิ่มบริษัทใหม่" onClose={closeAll}>
+          <CompanyForm
+            form={form}
+            setForm={setForm}
+            onSubmit={saveAdd}
+            submitText="เพิ่มบริษัท"
+          />
+        </Modal>
+      )}
+
+      {showEdit && (
+        <Modal title="แก้ไขข้อมูลบริษัท" onClose={closeAll}>
+          <CompanyForm
+            form={form}
+            setForm={setForm}
+            onSubmit={saveEdit}
+            submitText="บันทึกการแก้ไข"
+          />
+        </Modal>
+      )}
+
+      <style>{`
+        .row-even { background:#ffffff; }
+        .row-odd { background:#f7faff; }
+
+        .tbl th {
+          text-align:left;
+          font-size:13px;
+          color:#6b7280;
+          padding-bottom:6px;
+        }
+        .tbl td {
+          padding:10px 6px;
+          font-size:14px;
+        }
+
+        .btn-secondary {
+          border-radius:999px;
+          border:1px solid #d0d7e2;
+          padding:6px 12px;
+          background:#fff;
+          cursor:pointer;
+          font-size:13px;
+        }
+        .btn-secondary.small { padding:4px 10px; font-size:12px; }
+
+        .btn-danger {
+          border-radius:999px;
+          padding:6px 12px;
+          border:1px solid #fecaca;
+          background:#fee2e2;
+          color:#b91c1c;
+          font-size:12px;
+          margin-left:6px;
         }
       `}</style>
-        </div>
-    );
+    </div>
+  );
 }
 
-/* ---------- Modal Shell (คัดลอกมาจาก A_Teacher.tsx) ---------- */
-function Modal({
-    title,
-    onClose,
-    children,
-}: {
-    title: string;
-    onClose: () => void;
-    children: React.ReactNode;
-}) {
-    return (
-        <div className="modal-wrap" role="dialog" aria-modal="true" aria-label={title}>
-            <div className="modal-overlay" onClick={onClose} />
-            <div className="modal card">
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                    <div style={{ fontWeight: 900, fontSize: 16 }}>{title}</div>
-                    <button className="icon-btn" title="ปิด" aria-label="ปิด" onClick={onClose} type="button">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-                            strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                            <line x1="18" y1="6" x2="6" y2="18"></line>
-                            <line x1="6" y1="6" x2="18" y2="18"></line>
-                        </svg>
-                    </button>
-                </div>
-                <div style={{ marginTop: 12 }}>{children}</div>
-            </div>
+/* ----------------------------------------------------
+   Modal Component
+---------------------------------------------------- */
+function Modal({ title, onClose, children }: any) {
+  return (
+    <div className="modal-backdrop">
+      <div className="modal-card">
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <h3 style={{ margin: 0 }}>{title}</h3>
+          <button className="btn-secondary small" onClick={onClose}>
+            ปิด
+          </button>
         </div>
-    );
+
+        <div style={{ marginTop: 16 }}>{children}</div>
+      </div>
+
+      <style>{`
+        .modal-backdrop {
+          position:fixed;
+          inset:0;
+          background:rgba(15,23,42,.35);
+          display:flex;
+          align-items:center;
+          justify-content:center;
+          z-index:100;
+        }
+        .modal-card {
+          background:white;
+          width:min(600px, 92vw);
+          border-radius:16px;
+          padding:20px;
+          box-shadow:0 18px 45px rgba(0,0,0,.25);
+        }
+      `}</style>
+    </div>
+  );
 }
 
-/* ---------- Form (คัดลอกมาจาก A_Teacher.tsx และดัดแปลง) ---------- */
-function CompanyForm({
-    form,
-    setForm,
-    onSubmit,
-    submitText,
-}: {
-    form: FormState;
-    setForm: (f: FormState) => void;
-    onSubmit: (e: React.FormEvent) => void;
-    submitText: string;
-}) {
-    return (
-        <form onSubmit={onSubmit}
-            style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+/* ----------------------------------------------------
+   Company Form (Select ปี + UI แบบ iOS)
+---------------------------------------------------- */
+function CompanyForm({ form, setForm, onSubmit, submitText }: any) {
+  return (
+    <form
+      onSubmit={onSubmit}
+      style={{
+        display: "grid",
+        gridTemplateColumns: "1fr 1fr",
+        gap: 16,
+      }}
+    >
+      {/* ชื่อบริษัท */}
+      <div style={{ gridColumn: "1 / -1" }}>
+        <label className="label" style={{marginLeft: 10,}}>ชื่อบริษัท</label>
+        <input
+          className="input"
+          value={form.name}
+          onChange={(e) => setForm({ ...form, name: e.target.value })}
+          required
+          style={{ width: "95%"}}
+        />
+      </div>
 
-            <div style={{ gridColumn: "span 2", display: "grid", gap: 10 }}>
-                <Field label="ชื่อบริษัท" value={form.name} onChange={(v) => setForm({ ...form, name: v })} required />
-                <Field label="ที่อยู่" isTextArea value={form.address} onChange={(v) => setForm({ ...form, address: v })} required />
-            </div>
+      {/* ที่อยู่ */}
+      <div style={{ gridColumn: "1 / -1" }}>
+        <label className="label" style={{marginLeft: 10,}}>ที่อยู่</label>
+        <textarea
+          className="input"
+          rows={3}
+          value={form.address}
+          onChange={(e) => setForm({ ...form, address: e.target.value })}
+          required
+          style={{ width: "95%"}}
+        />
+      </div>
 
-            <Field label="อีเมลติดต่อ" type="email" value={form.contactEmail} onChange={(v) => setForm({ ...form, contactEmail: v })} required />
-            <Field label="ปีที่เคยรับ นศ. (คั่นด้วย ,)" value={form.pastCoopYears} onChange={(v) => setForm({ ...form, pastCoopYears: v })} />
+      {/* อีเมล */}
+      <div>
+        <label className="label" style={{marginLeft: 10,}}>อีเมลติดต่อ</label>
+        <input
+          className="input"
+          type="email"
+          value={form.contactEmail}
+          onChange={(e) =>
+            setForm({ ...form, contactEmail: e.target.value })
+          }
+          required
+          style={{ width: "95%", }}
+        />
+      </div>
 
-            <div style={{ gridColumn: "span 2", display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 6 }}>
-                <button className="btn" type="submit">{submitText}</button>
-            </div>
-        </form>
-    );
-}
+      {/* ปีที่รับ นศ. */}
+      <div>
+        <label className="label" style={{marginLeft: 40,}}>ปีที่รับนักศึกษา</label>
+        <select
+          className="input"
+          value={form.pastCoopYears}
+          onChange={(e) =>
+            setForm({ ...form, pastCoopYears: e.target.value })
+          }
+          required
+          style={{ width: "90%", marginLeft: 30,}}
+        >
+          <option value="">-- เลือกปี --</option>
+          {YEAR_OPTIONS.map((y) => (
+            <option key={y} value={y}>
+              {y}
+            </option>
+          ))}
+        </select>
+      </div>
 
-function Field({
-    label, value, onChange, type = "text", isTextArea = false, required
-}: {
-    label: string;
-    value: string;
-    onChange: (v: string) => void;
-    type?: React.HTMLInputTypeAttribute;
-    isTextArea?: boolean;
-    required?: boolean;
-}) {
-    return (
-        <div style={{ display: "grid", gap: 5 }}>
-            <div style={{ fontSize: 12, color: "#6b7280", fontWeight: 700 }}>{label}</div>
-            {isTextArea ? (
-                <textarea
-                    className="input"
-                    value={value}
-                    onChange={(e) => onChange(e.target.value)}
-                    required={required}
-                    rows={2}
-                    style={{ minHeight: 60 }}
-                />
-            ) : (
-                <input
-                    className="input"
-                    value={value}
-                    onChange={(e) => onChange(e.target.value)}
-                    type={type}
-                    required={required}
-                />
-            )}
-        </div>
-    );
+      {/* ปุ่มบันทึก */}
+      <div
+        style={{
+          gridColumn: "1 / -1",
+          display: "flex",
+          justifyContent: "flex-end",
+          marginTop: 8,
+        }}
+      >
+        <button className="btn" type="submit">
+          {submitText}
+        </button>
+      </div>
+    </form>
+  );
 }
