@@ -6,6 +6,7 @@ import DashboardPage from "./S_Dashboard";
 import ProfilePage from "./S_ProfilePage";
 import CoopPage from "./S_CoopPage";
 import DailyPage from "./S_DailyPage";
+import DocumentsPage from "./S_Docs";
 import { loadProfile, saveProfile, type StudentProfile } from "./store";
 import StudentTheme from "./S_Theme";
 import coopLogo from "../assets/COOP_Logo.png";
@@ -63,6 +64,7 @@ export default function StudentApp() {
             <Route path="profile" element={<ProfilePage profile={profile} setProfile={setProfile} />} />
             <Route path="coop" element={<CoopPage profile={profile} setProfile={setProfile} />} />
             <Route path="daily" element={<DailyPage profile={profile} />} />
+            <Route path="docs" element={<DocumentsPage profile={profile} setProfile={setProfile} />} />
             <Route path="*" element={<Navigate to="dashboard" replace />} />
           </Routes>
         </main>
