@@ -82,34 +82,7 @@ export default function LoginPage() {
     try {
       const err = validateByRole(role, username, password);
       if (err) throw new Error(err);
-      if (mode === "signin") {
-        const err = validateByRole(role, email.trim(), password);
-        if (err) throw new Error(err);
 
-        const res = await AuthAPI.signin({ role, email: email.trim(), password });
-        if (!res.ok) throw new Error(res.message || "เข้าสู่ระบบไม่สำเร็จ");
-
-        if (remember && res.token)
-          localStorage.setItem("coop.token", res.token);
-
-        // ✅ เก็บบทบาทไว้ใช้ในแอปส่วนอื่น
-        localStorage.setItem("coop.role", role);
-        // ✅ ส่งไปยัง portal ตามบทบาท
-
-        navigate(HOME_BY_ROLE[role] || "/student/dashboard", { replace: true });
-
-        setNotice(`เข้าสู่ระบบสำเร็จ: ${res.user?.email} (${res.user?.role})`);
-      } else {
-        // signup (เฉพาะนักศึกษา)
-        const missing = validateSignupFields();
-        if (missing) throw new Error(missing);
-
-        const pwd = sStdId; // นักศึกษาใช้รหัสนักศึกษาเป็นรหัสผ่านตอนสมัคร
-        const err = validateByRole("student", email.trim(), pwd);
-        if (err) throw new Error(err);
-
-      // หมายเหตุ: ตอนนี้ส่ง username ไปในฟิลด์ email
-      // ถ้าไปแก้ backend ภายหลัง สามารถเปลี่ยนเป็น { username } ได้
       const res = await AuthAPI.signin({
         role,
         email: username.trim(),
@@ -121,9 +94,9 @@ export default function LoginPage() {
       if (remember && res.token) {
         localStorage.setItem("coop.token", res.token);
       }
-      localStorage.setItem("coop.role", role);
 
-      navigate(HOME_BY_ROLE[role] || "/", { replace: true });
+      localStorage.setItem("coop.role", role);
+      navigate(HOME_BY_ROLE[role] || "/student/dashboard", { replace: true });
       setNotice(`เข้าสู่ระบบสำเร็จ`);
     } catch (er: unknown) {
       setError(er instanceof Error ? er.message : String(er));
@@ -131,7 +104,6 @@ export default function LoginPage() {
       setLoading(false);
     }
   }
-
   return (
     <div className="screen">
       <div className="card">

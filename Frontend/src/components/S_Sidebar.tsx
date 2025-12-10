@@ -29,6 +29,12 @@ export default function Sidebar() {
           <span className="text">Co-Company</span>
         </NavLink>
 
+        <NavLink to="/student/docs" className={({ isActive }) => "item" + (isActive ? " active" : "")}>
+          <span className="ico" aria-hidden><IcDocument /></span>
+          <span className="text">Documents</span>
+        </NavLink>
+
+
         {/* ซ้อนการใช้งาน Daily ไว้ */}
         <NavLink to="/student/daily" className={({ isActive }) => "item" + (isActive ? " active" : "")}>
           <span className="ico" aria-hidden><IcCalendar /></span>
@@ -129,6 +135,14 @@ function IcCalendar() {
     <BaseIcon>
       <rect x="3.5" y="5" width="17" height="15" rx="2" />
       <path d="M8 3.5v3M16 3.5v3M3.5 10h17" />
+    </BaseIcon>
+  );
+}
+function IcDocument() {
+  return (
+    <BaseIcon>
+      <rect x="4" y="3" width="16" height="18" rx="2" />
+      <path d="M8 7h8M8 12h8M8 17h5" />
     </BaseIcon>
   );
 }
