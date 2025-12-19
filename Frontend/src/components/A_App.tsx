@@ -1,17 +1,17 @@
 import { useEffect, useState } from "react";
 import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
-import A_Sidebar from "./A_Sidebar";
-import A_Dashboard from "./A_Dashboard";
-import A_Students from "./A_Students";
-import A_Mentors from "./A_Mentors";
-import A_Docs from "./A_Docs";
-import A_Daily from "./A_Daily";
-import A_Announcements from "./A_Announcements";
-import A_Settings from "./A_Settings";
+import Sidebar from "./A_Sidebar";
+import Dashboard from "./A_Dashboard";
+import Students from "./A_Students";
+import Mentors from "./A_Mentors";
+import Docs from "./A_Docs";
+import Daily from "./A_Daily";
+import Announcements from "./A_Announcements";
+import Settings from "./A_Settings";
 import StudentTheme from "./S_Theme";         // ใช้ธีมเดียว
 import coopLogo from "../assets/COOP_Logo.png";
-import A_Teachers from "./A_Teacher";
-import A_Companies from "./A_Company";
+import Teachers from "./A_Teacher";
+import Companies from "./A_Company";
 
 const IOS_BLUE = "#0074B7";
 
@@ -26,7 +26,9 @@ export default function AdminApp() {
       const p = JSON.parse(localStorage.getItem("coop.admin.profile") || "{}");
       const full = `${p.firstName || ""} ${p.lastName || ""}`.trim();
       if (full) return full;
-    } catch { }
+    } catch {
+      // noop
+     }
     return "เจ้าหน้าที่";
   });
   useEffect(() => {
@@ -65,20 +67,20 @@ export default function AdminApp() {
 
       {/* Layout */}
       <div className="layout">
-        <A_Sidebar />
+        <Sidebar />
         <main className="main">
           <Routes>
             <Route index element={<Navigate to="dashboard" replace />} />
-            <Route path="dashboard" element={<A_Dashboard />} />
-            <Route path="students" element={<A_Students />} />
-            <Route path="mentors" element={<A_Mentors />} />
-            <Route path="company" element={<A_Companies />} />
-            <Route path="docs" element={<A_Docs />} />
-            <Route path="daily" element={<A_Daily />} />
-            <Route path="announcements" element={<A_Announcements />} />
-            <Route path="settings" element={<A_Settings />} />
+            <Route path="dashboard" element={<Dashboard />} />
+            <Route path="students" element={<Students />} />
+            <Route path="mentors" element={<Mentors />} />
+            <Route path="company" element={<Companies />} />
+            <Route path="docs" element={<Docs />} />
+            <Route path="daily" element={<Daily />} />
+            <Route path="announcements" element={<Announcements />} />
+            <Route path="settings" element={<Settings />} />
             <Route path="*" element={<Navigate to="dashboard" replace />} />
-            <Route path="teachers" element={<A_Teachers />} />
+            <Route path="teachers" element={<Teachers />} />
           </Routes>
         </main>
       </div>

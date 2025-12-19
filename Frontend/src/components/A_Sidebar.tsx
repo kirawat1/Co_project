@@ -1,189 +1,242 @@
 import { NavLink } from "react-router-dom";
+import {
+  IcDashboard,
+  IcUsers,
+  IcUser,
+  IcBuilding,
+  IcDocs,
+  IcCalendar,
+  IcTeacher,
+  IcAnnounce,
+  IcSettings,
+} from "./icons";
 
 export default function A_Sidebar() {
   return (
     <aside className="sidebar">
-      {/* ▼ Brand: Co-operative: (ใหญ่) / Admin (เล็กกว่า) */}
+      {/* BRAND BLOCK */}
       <div className="brand">
         <div className="brand-sub">Co-operative:</div>
+
         <div className="brand-main">
-          <span className="brand-bullet" aria-hidden="true" />
+          <span className="brand-bullet" />
           <span>Admin</span>
         </div>
-        <div className="brand-underline" aria-hidden="true" />
+
+        <div className="brand-underline" />
       </div>
 
+      {/* NAVIGATION */}
       <nav className="nav" aria-label="Admin Navigation">
-        <NavLink to="/admin/dashboard" end className={({ isActive }) => "item" + (isActive ? " active" : "")}>
-          <span className="ico"><DashboardIcon /></span>
+
+        <NavLink
+          to="/admin/dashboard"
+          end
+          className={({ isActive }) => "item" + (isActive ? " active" : "")}
+        >
+          <span className="ico"><IcDashboard /></span>
           <span className="text">Dashboard</span>
         </NavLink>
 
-        <NavLink to="/admin/students" className={({ isActive }) => "item" + (isActive ? " active" : "")}>
-          <span className="ico"><UsersIcon /></span>
+        <div className="sec-label">ข้อมูลบุคคล</div>
+
+        <NavLink
+          to="/admin/students"
+          className={({ isActive }) => "item" + (isActive ? " active" : "")}
+        >
+          <span className="ico"><IcUsers /></span>
           <span className="text">นักศึกษา</span>
         </NavLink>
 
-        <NavLink to="/admin/mentors" className={({ isActive }) => "item" + (isActive ? " active" : "")}>
-          <span className="ico"><UserIcon /></span>
-          <span className="text">พี่เลี้ยง</span>
-        </NavLink>
-
-        <NavLink to="/admin/company" className={({ isActive }) => "item" + (isActive ? " active" : "")}> {/* ✅ เพิ่ม NavLink นี้ */}
-          <span className="ico"><BuildingIcon /></span>
-          <span className="text">บริษัท</span>
-        </NavLink>
-
-        <NavLink to="/admin/teachers" className={({ isActive }) => "item" + (isActive ? " active" : "")}>
-          <span className="ico"><TeacherIcon /></span>
+        <NavLink
+          to="/admin/teachers"
+          className={({ isActive }) => "item" + (isActive ? " active" : "")}
+        >
+          <span className="ico"><IcTeacher /></span>
           <span className="text">อาจารย์</span>
         </NavLink>
 
-        <NavLink to="/admin/docs" className={({ isActive }) => "item" + (isActive ? " active" : "")}>
-          <span className="ico"><DocsIcon /></span>
+        <NavLink
+          to="/admin/mentors"
+          className={({ isActive }) => "item" + (isActive ? " active" : "")}
+        >
+          <span className="ico"><IcUser /></span>
+          <span className="text">พี่เลี้ยง</span>
+        </NavLink>
+
+        <div className="sec-label">ข้อมูลสถานประกอบการ</div>
+
+        <NavLink
+          to="/admin/company"
+          className={({ isActive }) => "item" + (isActive ? " active" : "")}
+        >
+          <span className="ico"><IcBuilding /></span>
+          <span className="text">บริษัท</span>
+        </NavLink>
+
+        <div className="sec-label">เอกสารและบันทึก</div>
+
+        <NavLink
+          to="/admin/docs"
+          className={({ isActive }) => "item" + (isActive ? " active" : "")}
+        >
+          <span className="ico"><IcDocs /></span>
           <span className="text">เอกสาร</span>
         </NavLink>
 
-        <NavLink to="/admin/daily" className={({ isActive }) => "item" + (isActive ? " active" : "")}>
-          <span className="ico"><CalendarCheckIcon /></span>
+        <NavLink
+          to="/admin/daily"
+          className={({ isActive }) => "item" + (isActive ? " active" : "")}
+        >
+          <span className="ico"><IcCalendar /></span>
           <span className="text">บันทึกประจำวัน</span>
         </NavLink>
 
-        <NavLink to="/admin/announcements" className={({ isActive }) => "item" + (isActive ? " active" : "")}>
-          <span className="ico"><MegaphoneIcon /></span>
+        <div className="sec-label">ระบบ</div>
+
+        <NavLink
+          to="/admin/announcements"
+          className={({ isActive }) => "item" + (isActive ? " active" : "")}
+        >
+          <span className="ico"><IcAnnounce /></span>
           <span className="text">ประกาศ</span>
         </NavLink>
 
-        <NavLink to="/admin/settings" className={({ isActive }) => "item" + (isActive ? " active" : "")}>
-          <span className="ico"><SettingsIcon /></span>
+        <NavLink
+          to="/admin/settings"
+          className={({ isActive }) => "item" + (isActive ? " active" : "")}
+        >
+          <span className="ico"><IcSettings /></span>
           <span className="text">ตั้งค่า</span>
         </NavLink>
+
       </nav>
 
-      <style>{`
-        /* ===== Brand header (เหมือน M_Sidebar) ===== */
-        .brand{ margin:20px 0 24px; }
-        .brand-sub{
-          font-weight:900; font-size:26px; line-height:1.1;
-          letter-spacing:.01em; color:#0f172a;
-        }
-        .brand-main{
-          margin-top:6px; display:flex; align-items:center; gap:10px;
-          font-weight:800; font-size:16px; line-height:1; color:#334155;
-        }
-        .brand-main > span:last-child{
-          background: linear-gradient(90deg, #0074B7 0%, #60A5FA 50%, #22D3EE 100%);
-          -webkit-background-clip: text; background-clip: text; color: transparent;
-        }
-        .brand-bullet{
-          width:8px; height:8px; border-radius:50%;
-          background: linear-gradient(135deg,#93C5FD,#3B82F6);
-          box-shadow:0 0 0 4px rgba(59,130,246,.12);
-        }
-        .brand-underline{
-          margin-top:10px; height:3px; width:64px; border-radius:999px;
-          background: linear-gradient(90deg,#E6F0FF,#BFD7ED);
-        }
-
-        /* ===== Nav items (พฤติกรรมเหมือน M_Sidebar) ===== */
-        .sidebar .nav{ display:grid; gap:6px }
-        .sidebar .item{
-          display:flex; align-items:center; gap:10px;
-          padding:10px 12px; border-radius:12px; text-decoration:none;
-          color:#334155; border:1px solid transparent;
-          transition: background .12s ease, color .12s ease, border-color .12s ease;
-        }
-        .sidebar .item:hover{ background:#f4f6f8; color:#0f172a; border-color:rgba(0,0,0,.06); }
-        .sidebar .item.active{ background:#fff; color:#0f172a; border-color:rgba(0,0,0,.08); }
-
-        /* Icon & text */
-        .sidebar .ico{ display:inline-flex; align-items:center; justify-content:center; }
-        .sidebar .ico svg{ width:18px; height:18px; display:block; stroke:currentColor; }
-        .sidebar .text{
-          flex:1 1 auto; min-width:0; font-weight:700;
-          white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-left:10px;
-        }
-      `}</style>
+      {/* CSS */}
+      <style>{SIDEBAR_CSS}</style>
     </aside>
   );
 }
 
-/* ===== Inline SVG icons (ชุดเดียวกับ M_Sidebar + เพิ่ม Docs/Megaphone/Settings) ===== */
-function DashboardIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M3 13h8V3H3v10zM13 21h8V11h-8v10zM13 3v6h8V3h-8zM3 21h8v-6H3v6z" />
-    </svg>
-  );
+
+
+const SIDEBAR_CSS = `
+/* ===== BRAND HEADER ===== */
+.brand { margin: 22px 0 26px; padding-left: 4px; }
+
+.brand-sub {
+  font-weight: 900;
+  font-size: 24px;
+  color: #0f172a;
 }
 
-function TeacherIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="7" r="4" />
-      <path d="M6 21v-2a6 6 0 0 1 12 0v2" />
-      <path d="M8 11h8" />
-    </svg>
-  );
+.brand-main {
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 800;
+  font-size: 16px;
+  color: #334155;
+}
+.brand-main > span:last-child {
+  background: linear-gradient(90deg,#0074B7,#60A5FA,#22D3EE);
+  -webkit-background-clip: text;
+  color: transparent;
 }
 
-function UserIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 11a3.5 3.5 0 1 0-3.5-3.5A3.5 3.5 0 0 0 12 11Z" />
-      <path d="M5 20a7 7 0 0 1 14 0" />
-    </svg>
-  );
-}
-function UsersIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2" />
-      <circle cx="9" cy="7" r="4" />
-      <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-    </svg>
-  );
-}
-function DocsIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12" />
-      <path d="M14 2v6a2 2 0 0 0 2 2h6" />
-    </svg>
-  );
-}
-function CalendarCheckIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="3" y="4" width="18" height="18" rx="2" />
-      <path d="M8 2v4M16 2v4M3 10h18" />
-      <path d="M9 16l2 2 4-4" />
-    </svg>
-  );
-}
-function MegaphoneIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M3 11v2a4 4 0 0 0 4 4h1" />
-      <path d="M11 5l10 4v6l-10 4V5Z" />
-    </svg>
-  );
-}
-function SettingsIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" />
-      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V22a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06Z" />
-    </svg>
-  );
+.brand-bullet {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: linear-gradient(135deg,#93C5FD,#3B82F6);
+  box-shadow: 0 0 0 4px rgba(59,130,246,.15);
 }
 
-function BuildingIcon() { // ✅ เพิ่มไอคอนบริษัท
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="4" y="7" width="16" height="13" rx="2" />
-      <path d="M8 11h.01M12 11h.01M16 11h.01M8 15h.01M12 15h.01M16 15h.01" />
-    </svg>
-  );
+.brand-underline {
+  margin-top: 10px; height: 3px; width: 72px;
+  border-radius: 999px;
+  background: linear-gradient(90deg,#E6F0FF,#BFD7ED);
 }
+
+
+/* ===== SECTION LABELS ===== */
+.sec-label {
+  margin: 18px 0 4px 6px;
+  font-size: 12px;
+  color: #6b7280;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+}
+
+
+/* ===== NAVIGATION ===== */
+.nav { display: grid; gap: 6px; }
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  text-decoration: none;
+  color: #334155;
+  border: 1px solid transparent;
+  line-height: 1;
+  transition: background .12s ease, border-color .12s ease, color .12s ease;
+}
+.item:hover {
+  background: #f4f6f8;
+  border-color: rgba(0,0,0,.06);
+}
+.item.active {
+  background: #fff;
+  border-color: rgba(0,0,0,.1);
+  box-shadow: 0 6px 18px rgba(10,132,255,.12);
+}
+
+
+/* ===== ICON & TEXT ALIGNMENT ===== */
+.ico {
+  display: inline-flex;
+  align-items: center;
+}
+.ico svg {
+  width: 20px;
+  height: 20px;
+  display: block;
+  color: #6b7280;
+}
+.item.active .ico svg {
+  color: #0074B7;
+}
+
+.text {
+  flex: 1;
+  min-width: 0;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+
+/* ===== RESPONSIVE (iPad & Mobile) ===== */
+@media (max-width: 900px) {
+  .sidebar {
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(0,0,0,.06);
+  }
+  .nav {
+    display: flex;
+    flex-direction: row;
+    overflow-x: auto;
+    gap: 8px;
+    padding-bottom: 8px;
+  }
+  .item {
+    min-width: max-content;
+  }
+  .sec-label { display: none; }
+}
+`;
