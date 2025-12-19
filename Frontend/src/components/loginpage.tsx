@@ -1,24 +1,31 @@
+// src/components/LoginPage.tsx
 import React, { useEffect, useMemo, useState } from "react";
 import { AuthAPI } from "./api";
+import type { Role, TokenClaims } from "./api";
 import { useNavigate } from "react-router-dom";
 import coopLogo from "../assets/COOP_Logo.png";
 
+// ------------------------------------------------------
+// ROLES
+// ------------------------------------------------------
+const ROLE_LABEL: Record<Role, string> = {
+  student: "นักศึกษา",
+  staff: "เจ้าหน้าที่",
+  teacher: "อาจารย์",
+};
 
-// ✅ บทบาท: นักศึกษา / เจ้าหน้าที่ / อาจารย์
-type Role = "student" | "staff" | "teacher";
-
-const IOS_BLUE = "#0074B7";
-const ROLE_LABEL: Record<Role, string> = { student: "นักศึกษา", staff: "เจ้าหน้าที่", teacher: "อาจารย์" };
 const ALL_ROLES: Role[] = ["student", "staff", "teacher"];
 
-// ✅ เส้นทางหลังล็อกอินตามบทบาท
+// เส้นทางหลังล็อกอิน
 const HOME_BY_ROLE: Record<Role, string> = {
   student: "/student",
   staff: "/admin",
   teacher: "/teacher",
 };
 
-// ✅ ตรวจรูปแบบตามบทบาท
+// ------------------------------------------------------
+// VALIDATION RULES
+// ------------------------------------------------------
 function validateByRole(role: Role, username: string, password: string): string | null {
   const u = username.trim();
   const p = password.trim();
@@ -42,37 +49,40 @@ function validateByRole(role: Role, username: string, password: string): string 
   return null;
 }
 
+// ------------------------------------------------------
+// PAGE COMPONENT
+// ------------------------------------------------------
 export default function LoginPage() {
   const [role, setRole] = useState<Role>("student");
-
-  // ใช้เป็น "username"
-  // - student: รหัสนักศึกษา 10 หลัก
-  // - staff/teacher: อีเมลของมหาวิทยาลัย
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState(""); // เลขบัตรประชาชน 13 หลัก
+  const [username, setUsername] = useState("");  // student → รหัสนักศึกษา / staff/teacher → email
+  const [password, setPassword] = useState("");  // เลขบัตรประชาชน 13 หลัก
 
   const [remember, setRemember] = useState(true);
   const [loading, setLoading] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
 
-  const navigate = useNavigate();
+  // ชื่อที่ดึงจาก Token Claims (หลังล็อกอิน)
+  const [loggedName, setLoggedName] = useState("");
 
+  const navigate = useNavigate();
   const roleText = useMemo(() => ROLE_LABEL[role], [role]);
 
-  const usernamePlaceholder =
-    role === "student"
-      ? "รหัสนักศึกษา 10 หลัก"
-      : "namexx@kku.ac.th)";
-
   const onlyDigits = (v: string) => v.replace(/\D/g, "");
+
+  const usernamePlaceholder =
+    role === "student" ? "รหัสนักศึกษา 10 หลัก" : "namexx@kku.ac.th";
 
   useEffect(() => {
     setError("");
     setNotice("");
     setPassword("");
+    setLoggedName("");
   }, [role]);
 
+  // ------------------------------------------------------
+  // SUBMIT LOGIN
+  // ------------------------------------------------------
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
@@ -89,21 +99,52 @@ export default function LoginPage() {
         password,
       });
 
-      if (!res.ok) throw new Error(res.message || "เข้าสู่ระบบไม่สำเร็จ");
+      if (!res.ok || !res.token) {
+        throw new Error(res.message || "เข้าสู่ระบบไม่สำเร็จ");
+      }
 
-      if (remember && res.token) {
+      // ----------------------------------------------------
+      // SAVE TOKEN
+      // ----------------------------------------------------
+      if (remember) {
         localStorage.setItem("coop.token", res.token);
       }
 
-      localStorage.setItem("coop.role", role);
-      navigate(HOME_BY_ROLE[role] || "/student/dashboard", { replace: true });
-      setNotice(`เข้าสู่ระบบสำเร็จ`);
+      // ----------------------------------------------------
+      // DECODE CLAIMS
+      // ----------------------------------------------------
+      const claims: TokenClaims | null = AuthAPI.decodeToken(res.token);
+
+      if (claims) {
+        localStorage.setItem("coop.claims", JSON.stringify(claims));
+
+        // ตั้งชื่อที่แสดงบนหน้าล็อกอินทันที
+        if (claims.role === "student" && claims.studentId) {
+          setLoggedName(`นักศึกษา: ${claims.studentId}`);
+        } else if (claims.role === "staff" && claims.staffName) {
+          setLoggedName(`เจ้าหน้าที่: ${claims.staffName}`);
+        } else if (claims.role === "teacher" && claims.teacherName) {
+          setLoggedName(`อาจารย์: ${claims.teacherName}`);
+        } else {
+          setLoggedName(claims.email);
+        }
+      }
+
+      setNotice("เข้าสู่ระบบสำเร็จ");
+
+      setTimeout(() => {
+        navigate(HOME_BY_ROLE[role], { replace: true });
+      }, 900);
     } catch (er: unknown) {
       setError(er instanceof Error ? er.message : String(er));
     } finally {
       setLoading(false);
     }
   }
+
+  // ------------------------------------------------------
+  // RENDER UI (CSS เดิมทั้งหมด)
+  // ------------------------------------------------------
   return (
     <div className="screen">
       <div className="card">
@@ -134,8 +175,23 @@ export default function LoginPage() {
             </p>
           </div>
 
+          {/* ชื่อจาก Token Claims */}
+          {loggedName && (
+            <div
+              style={{
+                marginBottom: 10,
+                fontSize: 16,
+                fontWeight: 800,
+                color: "#0f172a",
+                marginLeft: 2,
+              }}
+            >
+              {loggedName}
+            </div>
+          )}
+
           {/* เลือกบทบาท */}
-          <div className="segment" role="tablist" aria-label="เลือกบทบาท">
+          <div className="segment" role="tablist">
             {ALL_ROLES.map((r) => (
               <button
                 key={r}
@@ -165,18 +221,13 @@ export default function LoginPage() {
               value={username}
               onChange={(e) =>
                 setUsername(
-                  role === "student" ? onlyDigits(e.target.value).slice(0, 10) : e.target.value
+                  role === "student"
+                    ? onlyDigits(e.target.value).slice(0, 10)
+                    : e.target.value
                 )
               }
               required
               inputMode={role === "student" ? "numeric" : "email"}
-              pattern={
-                role === "student"
-                  ? "\\d{10}"
-                  : "^[^\\s@]+@(kkumail\\.com|kku\\.ac\\.th)$"
-              }
-              minLength={role === "student" ? 10 : undefined}
-              maxLength={role === "student" ? 10 : undefined}
             />
 
             <label className="label" htmlFor="password" style={{ marginLeft: 10 }}>
@@ -191,9 +242,6 @@ export default function LoginPage() {
               value={password}
               onChange={(e) => setPassword(onlyDigits(e.target.value).slice(0, 13))}
               required
-              pattern="\\d{13}"
-              minLength={13}
-              maxLength={13}
             />
 
             <label className="remember">
@@ -217,16 +265,22 @@ export default function LoginPage() {
           </form>
 
           <p className="footnote">
+<<<<<<< Updated upstream
             · ตอนนี้ใช้ username ตามบทบาท
             และ password = เลขบัตรประชาชน 13 หลัก
+=======
+            * ระบบนี้ใช้ Token Claims ในการจำลอง Authentication
+>>>>>>> Stashed changes
           </p>
         </div>
       </div>
 
-      <style>{css(IOS_BLUE)}</style>
+      {/* CSS เดิมของคุณทั้งหมด */}
+      <style>{css("#0074B7")}</style>
     </div>
   );
 }
+
 
 function css(IOS_BLUE: string) {
   return `
