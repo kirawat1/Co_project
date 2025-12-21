@@ -1,66 +1,100 @@
-// Backend/prisma/schema.prisma
-
-// ส่วนนี้ใช้สร้าง Prisma Client (โค้ดสำหรับเรียกใช้ DB)
 generator client {
   provider = "prisma-client-js"
 }
 
-// ส่วนนี้กำหนด Database ที่ใช้
 datasource db {
   provider = "mysql"
+  url      = env("DATABASE_URL")
 }
-
-// ======================================
-// ============== Core Models ============
-// ======================================
 
 model User {
   id        Int      @id @default(autoincrement())
   email     String   @unique
   password  String
-  role      Role     @default(STUDENT)
+  role      Role     @default(student)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // 1:1 Relation with Student Profile
-  student Student?
+  student   Student?
+  companies Company[]
+  mentors   Mentor[]
 }
 
 model Student {
   id          Int     @id @default(autoincrement())
-  studentId   String  @unique @map("student_id") // รหัสนักศึกษา (Unique)
+  studentId   String  @unique
   firstName   String
   lastName    String
-  phone       String? @db.VarChar(10)
+  phone       String?
   gpa         Float?
   major       String?
   curriculum  String?
   nationality String?
 
-  // Relation to User (1:1)
-  userId Int  @unique @map("user_id")
+  userId Int  @unique
   user   User @relation(fields: [userId], references: [id])
-
-  // TODO: เพิ่มความสัมพันธ์กับ Teacher, Mentor, Company ในภายหลัง
 }
 
-// ======================================
-// ============== Admin Models ============
-// ======================================
+enum Role {
+  student
+  teacher
+  staff
+}
 
 model Announcement {
-  id          Int      @id @default(autoincrement())
-  title       String
-  body        String   @db.Text
-  publishDate DateTime @default(now())
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String    @id @default(uuid())
+  title     String
+  body      String?
+  date      DateTime
+  year      String
+  linkUrl   String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @default(now()) @updatedAt
+  files     AnnFile[]
 }
 
-// ENUM สำหรับ Role ของผู้ใช้งาน
-enum Role {
-  STUDENT
-  TEACHER
-  MENTOR
-  ADMIN
+model AnnFile {
+  id             String       @id @default(uuid())
+  announcement   Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  announcementId String
+  name           String
+  mime           String
+  path           String
+}
+
+model Company {
+  id        String  @id @default(uuid())
+  name      String
+  address   String
+  email     String
+  phone     String
+  website   String?
+  pastYears String
+
+  mentors Mentor[]
+
+  createdBy   User @relation(fields: [createdById], references: [id])
+  createdById Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Mentor {
+  id         String  @id @default(uuid())
+  firstName  String
+  lastName   String
+  department String
+  position   String
+  email      String
+  phone      String?
+
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId String
+
+  createdBy   User @relation(fields: [createdById], references: [id])
+  createdById Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
