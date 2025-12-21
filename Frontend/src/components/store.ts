@@ -1,326 +1,363 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-// ===================================================
-// Coop Management System - STORE FILE (FINAL VERSION)
-// ===================================================
+/* =========================================================
+   Shared Store – FINAL VERSION
+   ใช้ร่วมกันทั้ง Student / Admin / Teacher
+========================================================= */
 
-// ---------- Document Types ----------
+/* =========================
+   Utils
+========================= */
+const jsonLoad = <T>(key: string, fallback: T): T => {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as T) : fallback;
+  } catch {
+    return fallback;
+  }
+};
+
+const jsonSave = (key: string, val: unknown) => {
+  try {
+    localStorage.setItem(key, JSON.stringify(val));
+  } catch {
+    console.warn("localStorage save failed:", key);
+  }
+};
+
+/* =========================
+   Storage Keys (UNIFIED)
+========================= */
+export const K = {
+  STUDENTS: "coop.student.profile.v1", // ✅ ใช้ key เดียวทั้งระบบ
+  STUDENT_INDEX: "coop.students.index",
+
+  COMPANIES: "coop.admin.companies",
+
+  ANNOUNCEMENTS: "coop.shared.announcements",
+  DOC_PERIODS: "coop.admin.docPeriods.v1",
+  ACADEMIC_YEAR: "coop.admin.academicYear",
+
+  DAILY_PREFIX: "coop.student.daily.",
+
+  TEACHERS: "coop.admin.teachers.v1",
+  MENTORS: "coop.admin.mentors.v1",
+};
+
+/* =========================
+   Document
+========================= */
 export type DocStatus = "waiting" | "under-review" | "approved" | "rejected";
 
+export type DocumentHistory = {
+  status: DocStatus;
+  by: string;
+  reason?: string;
+  at: string;
+};
+
 export interface DocumentItem {
-  fileData: any;
-  id: string;           // เช่น T000, T001, W001
-  title: string;        // ชื่อเอกสาร
-  dueDate: string;      // YYYY-MM-DD
+  id: string;
+  title: string;
   status: DocStatus;
 
+  dueDate?: string;
+
   fileName?: string;
+  fileData?: string;
   lastUpdated?: string;
 
-  // ประเภทหลักของเอกสาร
-  type: "form" | "upload" | "download";
+  needForm?: boolean;
+  needUpload?: boolean;
+  needDownload?: boolean;
 
-  // ความสามารถเพิ่มเติม
-  needForm?: boolean;      // ต้องกรอกในระบบ
-  needDownload?: boolean;  // มีไฟล์ต้นฉบับให้ดาวน์โหลด
-  needUpload?: boolean;    // ต้องอัปโหลดไฟล์กลับขึ้นระบบ
+  rejectReason?: string;
+  history?: DocumentHistory[];
 }
 
-// -------- Company & Mentor --------
-export interface CompanyInfo {
-  id: string;
+/* =========================
+   Document Helper (IMPORTANT)
+========================= */
+export function updateDocumentStatus(
+  doc: DocumentItem,
+  status: DocStatus,
+  by: string,
+  reason?: string
+): DocumentItem {
+  const h: DocumentHistory = {
+    status,
+    by,
+    reason,
+    at: new Date().toISOString(),
+  };
+
+  return {
+    ...doc,
+    status,
+    rejectReason: reason,
+    lastUpdated: h.at,
+    history: [...(doc.history ?? []), h],
+  };
+}
+
+/* =========================
+   Coop Request
+========================= */
+export type CoopRequestState = {
+  status?: "draft" | "submitted" | "approved" | "rejected" | "waiting-special";
+
+  coopField?: string;
+
+  submitted?: boolean; // ✅ boolean ชัดเจน
+  submittedAt?: string;
+
+  teacherReviewedBy?: string;
+  teacherReviewedAt?: string;
+
+  teacherDecision?: "passed" | "failed";
+  teacherComment?: string;
+
+  rejectReason?: string;
+
+  eligibility?: {
+    passedPrepCourse?: boolean;
+    prepCourseTerm?: string;
+    prepCourseYear?: string;
+    gpaOk?: boolean;
+    coreGpaOk?: boolean;
+    activityCredits60?: boolean;
+    englishTestPassed?: boolean;
+    computerTestPassed?: boolean;
+    otherNote?: string;
+  };
+};
+
+/* =========================
+   Student
+========================= */
+export interface StudentEmail {
+  email: string;
+  primary: boolean;
+}
+
+export interface StudentCompany {
+  id?: string;
   name: string;
-  address: string;
-  hrName: string;
-  hrEmail: string;
-  mentors?: MentorInfo[];
-}
-
-export interface MentorInfo {
-  id: string;
-  firstName: string;
-  lastName: string;
-  phone: string;
-  email: string;
-  title: string;
-  companyId: string;
-  department?: string;
-}
-
-// -------- Mentor Profile --------
-export interface MentorProfile {
-  firstName: string;
-  lastName: string;
-  email: string;
+  address?: string;
+  hrName?: string;
+  hrPosition?: string;
+  hrEmail?: string;
   phone?: string;
-  title?: string;
-  department?: string;
-  companyName?: string;
+  fax?: string;
+  website?: string;
 }
 
-// -------- Student Profile --------
 export interface StudentProfile {
-  email: string;
   studentId: string;
-  firstName: string;
-  lastName: string;
-  phone: string;
-  gpa: string;
-  major: string;
-  curriculum: string;
-  nationality: string;
-  religion: string;
 
-  company?: CompanyInfo;
-  mentor?: MentorInfo;
+  prefix?: "นาย" | "นางสาว";
+  firstName?: string;
+  lastName?: string;
+
+  year?: string;
+  major?: string;
+  curriculum?: string;
+  studyProgram?: "normal" | "special";
+
+  phone?: string;
+
+  emails: StudentEmail[];
+  company?: StudentCompany;
 
   docs: DocumentItem[];
+  coopRequest?: CoopRequestState;
 }
 
-// -------- Daily Logs ----------
+/* =========================
+   Student Normalizer
+========================= */
+function normalizeStudent(p: StudentProfile): StudentProfile {
+  return {
+    ...p,
+    emails:
+      p.emails && p.emails.length
+        ? p.emails
+        : [
+            { email: "", primary: true },
+            { email: "", primary: false },
+          ],
+    docs: p.docs ?? [],
+  };
+}
+
+/* =========================
+   Students APIs
+========================= */
+export function loadStudents(): StudentProfile[] {
+  return jsonLoad<StudentProfile[]>(K.STUDENTS, []).map(normalizeStudent);
+}
+
+export function saveStudents(list: StudentProfile[]) {
+  jsonSave(K.STUDENTS, list);
+}
+
+export function upsertStudent(profile: StudentProfile) {
+  const list = loadStudents();
+  const idx = list.findIndex((s) => s.studentId === profile.studentId);
+  const next = normalizeStudent(profile);
+
+  if (idx >= 0) list[idx] = { ...next };
+  else list.push(next);
+
+  saveStudents(list);
+
+  const index = jsonLoad<Record<string, boolean>>(K.STUDENT_INDEX, {});
+  index[profile.studentId] = true;
+  jsonSave(K.STUDENT_INDEX, index);
+}
+
+export function loadProfile(studentId: string): StudentProfile {
+  return (
+    loadStudents().find((s) => s.studentId === studentId) ??
+    normalizeStudent({
+      studentId,
+      emails: [],
+      docs: [],
+    } as StudentProfile)
+  );
+}
+
+export function saveProfile(profile: StudentProfile) {
+  upsertStudent(profile);
+}
+
+/* =========================
+   Announcements
+========================= */
+export interface AnnouncementAttachment {
+  type: "link" | "file" | "image";
+  name: string;
+  url: string;
+}
+
+export interface Announcement {
+  id: string;
+  title: string;
+  body?: string;
+  date: string;
+  year?: string;
+  attachments?: AnnouncementAttachment[];
+}
+
+export function loadAnnouncements(): Announcement[] {
+  return jsonLoad<Announcement[]>(K.ANNOUNCEMENTS, []);
+}
+
+export function saveAnnouncements(list: Announcement[]) {
+  jsonSave(K.ANNOUNCEMENTS, list);
+}
+
+/* =========================
+   Academic Year
+========================= */
+export function loadAcademicYear(): string {
+  const y = localStorage.getItem(K.ACADEMIC_YEAR);
+  if (y) return y;
+
+  const now = new Date();
+  const th = now.getFullYear() + 543;
+  const term = now.getMonth() + 1 >= 6 ? 1 : 2;
+  const guess = `${th}/${term}`;
+
+  localStorage.setItem(K.ACADEMIC_YEAR, guess);
+  return guess;
+}
+
+export function saveAcademicYear(y: string) {
+  localStorage.setItem(K.ACADEMIC_YEAR, y);
+}
+
+/* =========================
+   Document Periods
+========================= */
+export interface DocPeriod {
+  startDate?: string;
+  startTime?: string;
+  endDate?: string;
+  endTime?: string;
+}
+
+export function loadDocPeriods(): Record<string, DocPeriod> {
+  return jsonLoad<Record<string, DocPeriod>>(K.DOC_PERIODS, {});
+}
+
+export function saveDocPeriods(p: Record<string, DocPeriod>) {
+  jsonSave(K.DOC_PERIODS, p);
+}
+
+/* =========================
+   Daily Logs
+========================= */
 export interface DailyLog {
   id: string;
   studentId: string;
-  date: string;
-  studentName: string;
-  checkIn: string;
-  checkOut: string;
-  note?: string;
-  createdAt: string;
-
-  signature?: string;
-  mentorSignature?: string;
+  studentName?: string;
   mentorName?: string;
+
+  date: string;
+  checkIn?: string;
+  checkOut?: string;
+  note?: string;
+
+  status?: "draft" | "submitted";
+  submittedAt?: string;
+
+  createdAt?: string;
 }
 
-// ===================================================
-// Utility
-// ===================================================
-const PROF_KEY = "coop.student.profile.v1";
-const DAILY_KEY = "coop.student.daily.v1";
-
-const isoDate = (d = new Date()) => d.toISOString().slice(0, 10);
-const addDays = (n: number) => {
-  const d = new Date();
-  d.setDate(d.getDate() + n);
-  return d;
-};
-
-// ===================================================
-// Default Documents (FINAL VERSION)
-// ===================================================
-
-export const defaultDocs = (): DocumentItem[] => [
-  // ---------- ก่อนออกสหกิจ ----------
-  {
-    id: "T000",
-    title: "KKUCP-T000 ใบสมัครสหกิจ",
-    type: "form",
-    needForm: true,
-    needDownload: true,
-    needUpload: true,
-    dueDate: isoDate(addDays(14)),
-    status: "waiting",
-  },
-  {
-    id: "T001",
-    title: "KKUCP-T001 ใบยินยอมผู้ปกครอง",
-    type: "upload",
-    needDownload: true,
-    needUpload: true,
-    dueDate: isoDate(addDays(30)),
-    status: "waiting",
-  },
-  {
-    id: "T002",
-    title: "KKUCP-T002 รายละเอียดงานและที่พัก",
-    type: "upload",
-    needDownload: true,
-    needUpload: true,
-    dueDate: isoDate(addDays(45)),
-    status: "waiting",
-  },
-  {
-    id: "T003",
-    title: "KKUCP-T003 Proposal",
-    type: "upload",
-    needDownload: true,
-    needUpload: true,
-    dueDate: isoDate(addDays(60)),
-    status: "waiting",
-  },
-
-  // ---------- ระหว่างสหกิจ ----------
-  {
-    id: "T004",
-    title: "KKUCP-T004 แบบบันทึกนิเทศงาน",
-    type: "form",
-    needForm: true,
-    needDownload: true,
-    needUpload: true,
-    dueDate: isoDate(addDays(70)),
-    status: "waiting",
-  },
-  {
-    id: "W001",
-    title: "รายงานการปฏิบัติงานรายสัปดาห์",
-    type: "form",
-    needForm: true,
-    needDownload: true,
-    needUpload: true,
-    dueDate: isoDate(addDays(90)),
-    status: "waiting",
-  },
-  {
-    id: "L001",
-    title: "หนังสือขอเข้านิเทศ",
-    type: "download",
-    needDownload: true,
-    dueDate: isoDate(addDays(90)),
-    status: "approved",
-  },
-
-  // ---------- หลังสหกิจ ----------
-  {
-    id: "T007",
-    title: "KKUCP-T007 รายงานปฏิบัติสหกิจ",
-    type: "form",
-    needForm: true,
-    needDownload: true,
-    needUpload: true,
-    dueDate: isoDate(addDays(120)),
-    status: "waiting",
-  },
-  {
-    id: "009",
-    title: "009 เล่มรายงานฉบับสมบูรณ์",
-    type: "upload",
-    needDownload: true,
-    needUpload: true,
-    dueDate: isoDate(addDays(150)),
-    status: "waiting",
-  },
-];
-
-// ===================================================
-// Student Profile Load/Save
-// ===================================================
-
-export function loadProfile(): StudentProfile {
-  try {
-    const raw = localStorage.getItem(PROF_KEY);
-    if (!raw) throw new Error("empty");
-    const parsed = JSON.parse(raw);
-    return parsed as StudentProfile;
-  } catch {
-    return {
-      email: "",
-      studentId: "",
-      firstName: "",
-      lastName: "",
-      phone: "",
-      gpa: "",
-      major: "",
-      curriculum: "",
-      nationality: "",
-      religion: "",
-      docs: defaultDocs(),
-    };
-  }
+export function loadDaily(studentId: string): DailyLog[] {
+  return jsonLoad<DailyLog[]>(`${K.DAILY_PREFIX}${studentId}`, []);
 }
 
-export function loadProfiles(): StudentProfile[] {
-  try {
-    const raw = localStorage.getItem(PROF_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [parsed];
-  } catch {
-    return [];
-  }
+export function saveDaily(studentId: string, list: DailyLog[]) {
+  jsonSave(`${K.DAILY_PREFIX}${studentId}`, list);
 }
 
-export function saveProfile(p: StudentProfile) {
-  const list = loadProfiles();
-  const idx = list.findIndex((x) => x.studentId === p.studentId);
-  if (idx >= 0) list[idx] = p;
-  else list.push(p);
-
-  localStorage.setItem(PROF_KEY, JSON.stringify(list));
+export function loadAllDaily(): DailyLog[] {
+  return loadStudents().flatMap((s) =>
+    loadDaily(s.studentId).map((l) => ({
+      ...l,
+      studentId: s.studentId,
+    }))
+  );
 }
 
-// ===================================================
-// Daily Logs
-// ===================================================
-
-export function loadDaily(): DailyLog[] {
-  try {
-    const raw = localStorage.getItem(DAILY_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-export function saveDaily(list: DailyLog[]) {
-  localStorage.setItem(DAILY_KEY, JSON.stringify(list));
-}
-
-export function saveDailyForStudent(studentId: string, list: DailyLog[]) {
-  const all = loadDaily();
-  const merged = [...all.filter((x) => x.studentId !== studentId), ...list];
-  localStorage.setItem(DAILY_KEY, JSON.stringify(merged));
-}
-
-// ===================================================
-// Mentor / Teacher Management
-// ===================================================
-
-export function loadProfilesForMentor(): StudentProfile[] {
-  try {
-    const raw = localStorage.getItem("coop.mentor.students");
-    const ids: string[] = raw ? JSON.parse(raw).map((s: any) => s.studentId) : [];
-    return loadProfiles().filter((p) => ids.includes(p.studentId));
-  } catch {
-    return [];
-  }
-}
-
-const ADMIN_KEY = "coop.admin.mentors";
-
-export function loadMentors(): MentorProfile[] {
-  try {
-    return JSON.parse(localStorage.getItem(ADMIN_KEY) || "[]");
-  } catch {
-    return [];
-  }
-}
-
-export function saveMentors(list: MentorProfile[]) {
-  localStorage.setItem(ADMIN_KEY, JSON.stringify(list));
-}
-
-const TEACHER_KEY = "coop.admin.teachers";
-
-export interface TeacherProfile {
+/* =========================
+   Mentors / Teachers
+========================= */
+export interface MentorProfile {
   id: string;
   firstName: string;
   lastName: string;
   email: string;
   phone?: string;
-  department?: string;
   title?: string;
+  department?: string;
 }
 
-export function loadTeachers(): TeacherProfile[] {
-  try {
-    return JSON.parse(localStorage.getItem(TEACHER_KEY) || "[]");
-  } catch {
-    return [];
-  }
+export function loadMentors(): MentorProfile[] {
+  return jsonLoad<MentorProfile[]>(K.MENTORS, []);
 }
 
-export function saveTeachers(list: TeacherProfile[]) {
-  localStorage.setItem(TEACHER_KEY, JSON.stringify(list));
+export function saveMentors(list: MentorProfile[]) {
+  jsonSave(K.MENTORS, list);
 }
+
+/* =========================
+   Notifications (Optional)
+========================= */
+export type StudentNotification = {
+  id: string;
+  studentId: string;
+  message: string;
+  createdAt: string;
+  read?: boolean;
+};

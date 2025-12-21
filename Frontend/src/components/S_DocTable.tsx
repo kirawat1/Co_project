@@ -1,6 +1,5 @@
-// src/components/DocTable.tsx
 import React from "react";
-import type { DocumentItem, DocStatus } from "./store";
+import type { DocumentItem, DocStatus, DocumentHistory } from "./store";
 
 type Props = {
   items: DocumentItem[];
@@ -15,9 +14,17 @@ const STATUS_LABEL: Record<DocStatus, string> = {
   rejected: "ไม่ผ่าน",
 };
 
-export default function DocTable({ items, onChange, allowStatusChange = false }: Props) {
+const MAX_REVISION = 3;
+
+export default function DocTable({
+  items,
+  onChange,
+  allowStatusChange = false,
+}: Props) {
   function patch(id: string, partial: Partial<DocumentItem>) {
-    const next = items.map((it) => (it.id === id ? { ...it, ...partial } : it));
+    const next = items.map((it) =>
+      it.id === id ? { ...it, ...partial } : it
+    );
     onChange(next);
   }
 
@@ -26,11 +33,22 @@ export default function DocTable({ items, onChange, allowStatusChange = false }:
     patch(id, { status: v, lastUpdated: new Date().toISOString() });
   }
 
+  // ⭐ ส่งใหม่ได้ (waiting / rejected) + จำกัดจำนวนครั้ง
   function onUploadFile(id: string, file?: File | null) {
     if (!file) return;
+
+    const it = items.find((x) => x.id === id);
+    if (!it) return;
+
+    if (revisionCount(it) >= MAX_REVISION) {
+      alert("คุณแก้ไขเอกสารครบ 3 ครั้งแล้ว กรุณาติดต่ออาจารย์ผู้ดูแล");
+      return;
+    }
+
     patch(id, {
       fileName: file.name,
       status: "under-review",
+      rejectReason: undefined,
       lastUpdated: new Date().toISOString(),
     });
   }
@@ -43,24 +61,11 @@ export default function DocTable({ items, onChange, allowStatusChange = false }:
     });
   }
 
-  // ⭐ เปิดหน้าแบบฟอร์ม
-  function openForm(docId: string) {
-    window.location.href = `/student/forms/${docId}`;
-  }
-
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
   return (
-    <div
-      className="doc-table-wrap"
-      style={{
-        overflowX: "auto",
-        width: "100%",
-        maxWidth: "100%",
-        marginLeft: 0,
-      }}
-    >
+    <div className="doc-table-wrap" style={{ overflowX: "auto" }}>
       <table className="doc-table">
         <colgroup>
           <col style={{ width: "33%" }} />
@@ -80,31 +85,71 @@ export default function DocTable({ items, onChange, allowStatusChange = false }:
 
         <tbody>
           {items.map((it) => {
-            const due = new Date(it.dueDate + "T00:00:00");
-            const daysLeft = Math.ceil((+due - +today) / 86400000);
-            const isExpired = daysLeft < 0;
+            // ===== Guard: dueDate อาจไม่มี =====
+            const due = it.dueDate ? new Date(it.dueDate + "T00:00:00") : null;
+            const daysLeft =
+              due ? Math.ceil((+due - +today) / 86400000) : null;
+            const expired = daysLeft !== null && daysLeft < 0;
 
-            let dueClass: "due-red" | "due-yellow" | "due-green" | "expired";
-            if (isExpired) dueClass = "expired";
-            else if (daysLeft <= 7) dueClass = "due-red";
-            else if (daysLeft <= 20) dueClass = "due-yellow";
-            else dueClass = "due-green";
+            const dueClass =
+              daysLeft === null
+                ? ""
+                : expired
+                ? "expired"
+                : daysLeft <= 7
+                ? "due-red"
+                : daysLeft <= 20
+                ? "due-yellow"
+                : "due-green";
 
             return (
               <tr key={it.id} className="row">
-                <Td strong>{it.title}</Td>
+                <Td strong>
+                  {it.title}
+                  {revisionCount(it) > 0 && (
+                    <div className="meta">
+                      แก้ไขครั้งที่ {revisionCount(it)}
+                    </div>
+                  )}
+                </Td>
 
                 <Td>
-                  {isExpired ? (
-                    <span className={`pill ${dueClass}`}>หมดเวลา</span>
+                  {daysLeft === null ? (
+                    <span className="muted">-</span>
                   ) : (
                     <span className={`pill ${dueClass}`}>
-                      {daysLeft === 0 ? "วันนี้" : `อีก ${daysLeft} วัน`}
+                      {expired
+                        ? "หมดเวลา"
+                        : daysLeft === 0
+                        ? "วันนี้"
+                        : `อีก ${daysLeft} วัน`}
                     </span>
                   )}
                 </Td>
 
-                <Td className="td-file">{renderActions(it, isExpired)}</Td>
+                <Td className="td-file">
+                  {expired ? (
+                    <span className="muted">หมดเวลา</span>
+                  ) : it.fileName ? (
+                    <UploadedFile it={it} onRemove={onRemoveFile} />
+                  ) : (
+                    <label className="btn-light">
+                      {it.status === "rejected"
+                        ? "ส่งไฟล์แก้ไข"
+                        : "แนบไฟล์"}
+                      <input
+                        type="file"
+                        hidden
+                        accept=".pdf,.doc,.docx,.zip,.rar,image/*"
+                        onChange={(e) => {
+                          const f = e.currentTarget.files?.[0];
+                          onUploadFile(it.id, f);
+                          e.currentTarget.value = "";
+                        }}
+                      />
+                    </label>
+                  )}
+                </Td>
 
                 <Td className="td-status">
                   {allowStatusChange ? (
@@ -112,23 +157,72 @@ export default function DocTable({ items, onChange, allowStatusChange = false }:
                       <select
                         className="input"
                         value={it.status}
-                        onChange={(e) => onStatusChange(it.id, e.target.value as DocStatus)}
+                        onChange={(e) =>
+                          onStatusChange(
+                            it.id,
+                            e.target.value as DocStatus
+                          )
+                        }
                       >
-                        {(Object.keys(STATUS_LABEL) as DocStatus[]).map((k) => (
-                          <option key={k} value={k}>
-                            {STATUS_LABEL[k]}
-                          </option>
-                        ))}
+                        {(Object.keys(STATUS_LABEL) as DocStatus[]).map(
+                          (k) => (
+                            <option key={k} value={k}>
+                              {STATUS_LABEL[k]}
+                            </option>
+                          )
+                        )}
                       </select>
+
                       {it.lastUpdated && (
-                        <div className="meta">อัปเดตล่าสุด: {new Date(it.lastUpdated).toLocaleString()}</div>
+                        <div className="meta">
+                          อัปเดตล่าสุด:{" "}
+                          {new Date(it.lastUpdated).toLocaleString()}
+                        </div>
                       )}
                     </>
                   ) : (
                     <>
-                      <span className={`chip ${chipClass(it.status)}`}>{STATUS_LABEL[it.status]}</span>
+                      <span className={`chip ${chipClass(it.status)}`}>
+                        {STATUS_LABEL[it.status]}
+                      </span>
+
+                      {/* เหตุผลไม่ผ่าน */}
+                      {it.status === "rejected" && it.rejectReason && (
+                        <div className="meta" style={{ color: "#b91c1c" }}>
+                          เหตุผล: {it.rejectReason}
+                        </div>
+                      )}
+
                       {it.lastUpdated && (
-                        <div className="meta">อัปเดตล่าสุด: {new Date(it.lastUpdated).toLocaleString()}</div>
+                        <div className="meta">
+                          อัปเดตล่าสุด:{" "}
+                          {new Date(it.lastUpdated).toLocaleString()}
+                        </div>
+                      )}
+
+                      {/* Timeline */}
+                      {it.history && it.history.length > 0 && (
+                        <details style={{ marginTop: 6 }}>
+                          <summary
+                            style={{
+                              cursor: "pointer",
+                              fontSize: 12,
+                              color: "#2563eb",
+                              fontWeight: 700,
+                            }}
+                          >
+                            ดูประวัติการพิจารณา
+                          </summary>
+                          <ul style={{ fontSize: 12, marginTop: 6 }}>
+                            {it.history.map((h, i) => (
+                              <li key={i}>
+                                {new Date(h.at).toLocaleString()} –{" "}
+                                {STATUS_LABEL[h.status]} ({h.by})
+                                {h.reason && ` : ${h.reason}`}
+                              </li>
+                            ))}
+                          </ul>
+                        </details>
                       )}
                     </>
                   )}
@@ -139,122 +233,51 @@ export default function DocTable({ items, onChange, allowStatusChange = false }:
         </tbody>
       </table>
 
-      {/* STYLE: ใช้ได้กับทุกหน้าจอ */}
       <style>{`
-        .doc-table {
-          width: 100%;
-          border-collapse: separate;
-          border-spacing: 0;
-          table-layout: fixed;
-        }
-        .doc-table th, .doc-table td {
-          padding: 10px 12px;
-          border-bottom: 1px solid rgba(0,0,0,.06);
-          background:#fff;
-          vertical-align: middle;
-        }
-        .doc-table thead th { background:#f9fafb; font-weight:800; color:#111827; }
-        .row:hover td { background:#fcfcff; }
-
-        .meta{ font-size:12px; color:#6b7280; margin-top:4px; }
-
-        .pill { padding:4px 10px; border-radius:999px; font-weight:800; display:inline-block; }
-        .pill.due-green{  background:#ECFDF5; color:#065F46; border:1px solid #6EE7B7; }
-        .pill.due-yellow{ background:#FFF7ED; color:#9A3412; border:1px solid #FDBA74; }
-        .pill.due-red{    background:#FEF2F2; color:#B91C1C; border:1px solid #FCA5A5; }
-        .pill.expired{    background:#FEF2F2; color:#B91C1C; border:1px solid #FCA5A5; }
-
-        .muted{ color:#6b7280; font-weight:700; }
-
-        .td-file { overflow: hidden; }
-        .file-wrap{ display:flex; align-items:center; gap:8px; min-width:0; }
-        .file-chip{
-          flex: 1;
-          background:#EFF6FF; color:#1E40AF; border:1px solid #93C5FD;
-          border-radius:999px; padding:4px 10px; font-weight:700;
-          overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
-        }
-
-        .btn-light {
-          display:inline-flex; align-items:center; gap:6px;
-          height:34px; padding:0 12px; border-radius:10px;
-          border:1px solid #e5e7eb; background:#fff;
-          cursor:pointer; font-weight:700;
-        }
-
-        .icon-btn{
-          width:30px; height:30px; display:flex; align-items:center; justify-content:center;
-          border-radius:8px; border:1px solid #e5e7eb; background:#fff; cursor:pointer;
-        }
-        .icon-btn.danger{ color:#B91C1C; border-color:#FCA5A5; background:#FEF2F2; }
-
-        .td-status { overflow:hidden; }
-        .chip{ padding:4px 10px; border-radius:999px; font-weight:800; }
-        .chip.waiting{ background:#EFF6FF; color:#1E40AF; border:1px solid #93C5FD }
-        .chip.under{   background:#FFF7ED; color:#9A3412; border:1px solid #FDBA74 }
-        .chip.appr{    background:#ECFDF5; color:#065F46; border:1px solid #6EE7B7 }
-        .chip.rej{     background:#FEF2F2; color:#B91C1C; border:1px solid #FCA5A5 }
+        .doc-table{width:100%;border-collapse:separate;border-spacing:0}
+        .doc-table th,.doc-table td{padding:10px 12px;border-bottom:1px solid rgba(0,0,0,.06);background:#fff}
+        thead th{background:#f9fafb;font-weight:800}
+        .row:hover td{background:#fcfcff}
+        .meta{font-size:12px;color:#6b7280;margin-top:4px}
+        .pill{padding:4px 10px;border-radius:999px;font-weight:800}
+        .due-green{background:#ECFDF5;color:#065F46;border:1px solid #6EE7B7}
+        .due-yellow{background:#FFF7ED;color:#9A3412;border:1px solid #FDBA74}
+        .due-red,.expired{background:#FEF2F2;color:#B91C1C;border:1px solid #FCA5A5}
+        .btn-light{height:34px;padding:0 12px;border-radius:10px;border:1px solid #e5e7eb;background:#fff;cursor:pointer;font-weight:700}
+        .file-wrap{display:flex;align-items:center;gap:8px}
+        .file-chip{background:#EFF6FF;color:#1E40AF;border:1px solid #93C5FD;border-radius:999px;padding:4px 10px;font-weight:700}
+        .icon-btn{width:30px;height:30px;border-radius:8px;border:1px solid #FCA5A5;background:#FEF2F2;color:#B91C1C;cursor:pointer}
+        .chip.waiting{background:#EFF6FF;color:#1E40AF;border:1px solid #93C5FD}
+        .chip.under{background:#FFF7ED;color:#9A3412;border:1px solid #FDBA74}
+        .chip.appr{background:#ECFDF5;color:#065F46;border:1px solid #6EE7B7}
+        .chip.rej{background:#FEF2F2;color:#B91C1C;border:1px solid #FCA5A5}
+        .muted{color:#6b7280;font-weight:700}
       `}</style>
     </div>
   );
+}
 
-  // ===========================
-  // ⭐ ปุ่มฟอร์ม / ดาวน์โหลด / อัปโหลด
-  // ===========================
-  function renderActions(it: DocumentItem, expired: boolean) {
-    if (expired) return <span className="muted">หมดเวลา</span>;
+function revisionCount(it: DocumentItem) {
+  return (it.history || []).filter(
+    (h: DocumentHistory) => h.status === "rejected"
+  ).length;
+}
 
-    return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-
-        {/* ⭐ กรอกฟอร์ม (แทนปุ่มอัปโหลด) */}
-        {it.needForm && (
-          <button className="btn-light" onClick={() => openForm(it.id)}>
-            กรอกฟอร์ม
-          </button>
-        )}
-
-        {/* ⭐ ถ้ามีไฟล์ต้นฉบับให้ดาวน์โหลด */}
-        {it.needDownload && (
-          <a className="btn-light" href={`/forms/${it.id}.pdf`} download>
-            ดาวน์โหลดต้นฉบับ
-          </a>
-        )}
-
-        {/* ⭐ อัปโหลดเฉพาะเอกสารที่ไม่ใช่ฟอร์ม */}
-        {!it.needForm && it.needUpload && (
-          it.fileName ? (
-            <UploadedFile it={it} />
-          ) : (
-            <label className="btn-light">
-              แนบไฟล์
-              <input
-                type="file"
-                hidden
-                onChange={(e) => {
-                  const f = e.currentTarget.files?.[0];
-                  onUploadFile(it.id, f);
-                  e.currentTarget.value = "";
-                }}
-                accept=".pdf,.doc,.docx,.zip,.rar,image/*"
-              />
-            </label>
-          )
-        )}
-      </div>
-    );
-  }
-
-  function UploadedFile({ it }: { it: DocumentItem }) {
-    return (
-      <div className="file-wrap">
-        <span className="file-chip">{truncateMiddle(it.fileName!, 24)}</span>
-        <button className="icon-btn danger" onClick={() => onRemoveFile(it.id)}>
-          ✕
-        </button>
-      </div>
-    );
-  }
+function UploadedFile({
+  it,
+  onRemove,
+}: {
+  it: DocumentItem;
+  onRemove: (id: string) => void;
+}) {
+  return (
+    <div className="file-wrap">
+      <span className="file-chip">{truncateMiddle(it.fileName!, 24)}</span>
+      <button className="icon-btn" onClick={() => onRemove(it.id)}>
+        ✕
+      </button>
+    </div>
+  );
 }
 
 function truncateMiddle(name: string, max = 24) {
@@ -270,10 +293,23 @@ function chipClass(s: DocStatus) {
   return "rej";
 }
 
-function Th({ children, style }: React.PropsWithChildren<{ style?: React.CSSProperties }>) {
-  return <th style={{ textAlign: "left", ...style }}>{children}</th>;
+function Th({ children }: React.PropsWithChildren) {
+  return <th style={{ textAlign: "left" }}>{children}</th>;
 }
-
-function Td({ children, strong = false, className }: React.PropsWithChildren<{ strong?: boolean; className?: string }>) {
-  return <td className={className} style={{ fontWeight: strong ? 700 : 500 }}>{children}</td>;
+function Td({
+  children,
+  strong,
+  className,
+}: React.PropsWithChildren<{
+  strong?: boolean;
+  className?: string;
+}>) {
+  return (
+    <td
+      className={className}
+      style={{ fontWeight: strong ? 700 : 500 }}
+    >
+      {children}
+    </td>
+  );
 }

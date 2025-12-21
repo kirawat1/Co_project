@@ -1,69 +1,129 @@
-// Frontend/src/components/api.ts
+// src/components/api.ts
 
-const USE_MOCK = false;
+//
+// const USE_MOCK = import.meta.env.VITE_USE_MOCK === "true";
 
+const USE_MOCK = false; // เปลี่ยนเป็น false เพื่อใช้ API จริง
+// ✅ ใช้บทบาทเฉพาะ 3 แบบนี้
 export type Role = "student" | "staff" | "teacher";
 
-type AuthRes = {
+export interface SigninPayload {
+  role: Role;
+  email: string;        // student = รหัสนักศึกษา / staff/teacher = email มข.
+  password: string;     // เลขบัตรประชาชน 13 หลัก
+}
+
+export interface SignupPayload {
+  role: Role;
+  email: string;
+  password: string;
+}
+
+// Token Claims ที่ถอดออกจาก token ได้
+export interface TokenClaims {
+  role: Role;
+  email: string;
+  studentId?: string;
+  staffName?: string;
+  teacherName?: string;
+
+  iat: number;  // issued-at
+  exp: number;  // expire time
+}
+
+export interface AuthRes {
   ok: boolean;
   message?: string;
-  token?: string;
-  user?: { role: Role; email: string };
-};
+  token?: string;      // base64 ของ TokenClaims
+  user?: TokenClaims;
+}
 
-type SigninParams = { role: Role; email: string; password: string };
+// ======================================================
+// UTIL — สร้าง Token Claims แบบ Mock
+// ======================================================
+function createMockClaims(payload: SigninPayload): TokenClaims {
+  return {
+    role: payload.role,
+    email: payload.email,
 
-async function realFetch(path: string, body: any): Promise<AuthRes> {
+    studentId: payload.role === "student" ? payload.email : undefined,
+    staffName: payload.role === "staff" ? "เจ้าหน้าที่มหาวิทยาลัย" : undefined,
+    teacherName: payload.role === "teacher" ? "อาจารย์ประจำวิชา" : undefined,
+
+    iat: Date.now(),
+    exp: Date.now() + 1000 * 60 * 60 * 4, // หมดอายุใน 4 ชั่วโมง
+  };
+}
+
+function encodeToken(claims: TokenClaims): string {
+  return btoa(JSON.stringify(claims));
+}
+
+function decodeToken(token: string): TokenClaims | null {
+  try {
+    return JSON.parse(atob(token)) as TokenClaims;
+  } catch {
+    return null;
+  }
+}
+
+// ======================================================
+// REAL FETCH (ต่อ API จริงภายหลังได้)
+// ======================================================
+
+async function realFetch(
+  path: string,
+  body: SigninPayload | SignupPayload
+): Promise<AuthRes> {
   const r = await fetch(`/api/auth/${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
+
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
-  return r.json();
+
+  return r.json() as Promise<AuthRes>;
 }
+
+// ======================================================
+// MOCK API
+// ======================================================
+
+function mockSignin(payload: SigninPayload): AuthRes {
+  const claims = createMockClaims(payload);
+  const token = encodeToken(claims);
+
+  return {
+    ok: true,
+    token,
+    user: claims,
+    message: "เข้าสู่ระบบสำเร็จ (MOCK)",
+  };
+}
+
+function mockSignup(payload: SignupPayload): AuthRes {
+  return {
+    ok: true,
+    message: "สมัครสมาชิกสำเร็จ",
+    token: encodeToken({
+      role: payload.role,
+      email: payload.email,
+      iat: Date.now(),
+      exp: Date.now() + 1000 * 60 * 60 * 4,
+    }),
+  };
+}
+
+
+// ======================================================
 
 export const AuthAPI = {
-  async signin({ role, email, password }: SigninParams): Promise<AuthRes> {
-    if (USE_MOCK)
-      return { ok: true, token: "mock-token", user: { role, email } };
-    try {
-      return await realFetch("signin", { role, email, password });
-    } catch (e) {
-      return { ok: false, message: (e as Error).message };
-    }
-  },
+  signin: (data: SigninPayload) =>
+    USE_MOCK ? Promise.resolve(mockSignin(data)) : realFetch("signin", data),
+
+  signup: (data: SignupPayload) =>
+    USE_MOCK ? Promise.resolve(mockSignup(data)) : realFetch("signup", data),
+
+  decodeToken,
 };
-
-// ตรวจสอบ input ก่อน submit
-export function validateByRole(
-  role: Role,
-  email: string,
-  password: string
-): string | null {
-  const e = email.trim();
-  const p = password.trim();
-
-  if (role === "student") {
-    if (!/^\d{10}$/.test(e)) return "รหัสนักศึกษาต้องเป็นตัวเลข 10 หลัก";
-    if (!/^\d{13}$/.test(p)) return "รหัสผ่านต้องเป็นเลขบัตรประชาชน 13 หลัก";
-  } else {
-    const uniEmail = /^[^@\s]+@(kkumail\.com|kku\.ac\.th)$/i;
-    if (!uniEmail.test(e)) return "กรุณากรอกอีเมลมหาวิทยาลัยให้ถูกต้อง";
-    if (!/^\d{13}$/.test(p)) return "รหัสผ่านต้องเป็นเลขบัตรประชาชน 13 หลัก";
-  }
-
-  return null;
-}
-
-export async function getProfile(token: string) {
-  try {
-    const res = await fetch("/api/auth/me", {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!res.ok) return { ok: false };
-    return await res.json();
-  } catch {
-    return { ok: false };
-  }
-}

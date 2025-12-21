@@ -1,335 +1,306 @@
-import React, { useState } from "react";
-import type { StudentProfile, DocumentItem } from "./store";
-import DocTable from "./S_DocTable";
+/* eslint-disable react-refresh/only-export-components */
+import { useState, useEffect } from "react";
+import type { StudentProfile } from "./store";
+import { loadStudents, upsertStudent } from "./store";
 
-/* ---------- ฟอร์มฝั่งซ้าย (เอาศาสนาออกแล้ว) ---------- */
-type FormState = {
-  firstName: string;
-  lastName: string;
-  phone: string;
-  gpa: string;
-  major: string;
-  curriculum: string;
-  nationality: string;
-};
+export default function S_ProfilePage() {
+  /* ================= MOCK LOGIN ================= */
+  const studentId = "6400000000";
 
-/* ฟิลด์แก้ไขได้/อ่านอย่างเดียว + type guard */
-type EditableField = {
-  label: string;
-  key: keyof FormState;
-  type?: React.HTMLInputTypeAttribute;
-  inputMode?: React.HTMLAttributes<HTMLInputElement>["inputMode"];
-  step?: string;
-  min?: number;
-  max?: number;
-};
-type ReadonlyField = {
-  label: string;
-  key: "studentId" | "email";
-  value: string;
-  disabled: true;
-};
-type Field = EditableField | ReadonlyField;
-function isReadonlyField(field: Field): field is ReadonlyField {
-  return "disabled" in field && field.disabled === true;
-}
+  /* ================= LOAD DATA ================= */
+  const students = loadStudents();
 
-/* ---------- ไอคอนดินสอ (minimal stroke) ---------- */
-function PencilIcon() {
+  const initial: StudentProfile = students.find(
+    (s) => s.studentId === studentId
+  ) ?? {
+    studentId,
+    prefix: "นาย",
+    firstName: "",
+    lastName: "",
+    year: "",
+    major: "",
+    curriculum: "ภาคปกติ",
+    phone: "",
+    emails: [
+      { email: "", primary: true },
+      { email: "", primary: false },
+    ],
+    company: undefined,
+    docs: [],
+  };
+
+  const [profile, setProfile] = useState<StudentProfile>(initial);
+
+  /* ================= PERMISSION ================= */
+  const canEditStudent =
+    !profile.coopRequest || profile.coopRequest.status === "draft";
+
+  /* ================= EDIT STATE ================= */
+  const [editStudent, setEditStudent] = useState(false);
+  /* FORCE LOCK: ถ้าไม่สามารถแก้ไขได้ ให้ปิดโหมดแก้ไขทันที */
+  useEffect(() => {
+    if (!canEditStudent && editStudent) {
+      setEditStudent(false);
+    }
+  }, [canEditStudent, editStudent]);
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [editCompany, setEditCompany] = useState(false);
+
+  /* ================= SAVE ================= */
+  function saveStudent() {
+    if (!canEditStudent) {
+      alert("ไม่สามารถแก้ไขข้อมูลได้หลังจากยื่นคำร้องแล้ว");
+      return;
+    }
+
+    upsertStudent(profile);
+    setEditStudent(false);
+    alert("บันทึกข้อมูลนักศึกษาเรียบร้อย");
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  function saveCompany() {
+    upsertStudent(profile);
+
+    if (profile.company?.name) {
+      const KEY = "coop.admin.companies";
+      const companies = JSON.parse(localStorage.getItem(KEY) || "[]");
+
+      const existed = companies.find(
+        (c: { name: string }) => c.name === profile.company!.name
+      );
+
+      if (!existed) {
+        companies.push({
+          id: `c_${Date.now()}`,
+          name: profile.company.name,
+          address: profile.company.address || "",
+          contactEmail: profile.company.hrEmail || "",
+          pastCoopYears: new Date().getFullYear() + 543 + "",
+        });
+
+        localStorage.setItem(KEY, JSON.stringify(companies));
+      }
+    }
+
+    setEditCompany(false);
+    alert("บันทึกข้อมูลบริษัทเรียบร้อย");
+  }
+
+  /* ================= UI ================= */
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M12 20h9" />
-      <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4 13.5-11.5Z" />
-    </svg>
-  );
-}
+    <div style={{ padding: 24, marginLeft: 35 }}>
+      <style>{PROFILE_CSS}</style>
 
-export default function ProfilePage({
-  profile,
-  setProfile,
-}: {
-  profile: StudentProfile;
-  setProfile: (p: StudentProfile) => void;
-}) {
-  const [isEditing, setIsEditing] = useState(false);
-  const [savedMsg, setSavedMsg] = useState("");
-
-  const [form, setForm] = useState<FormState>({
-    firstName: profile.firstName,
-    lastName: profile.lastName,
-    phone: profile.phone,
-    gpa: profile.gpa,
-    major: profile.major,
-    curriculum: profile.curriculum,
-    nationality: profile.nationality,
-  });
-
-  function enterEdit() {
-    setForm({
-      firstName: profile.firstName,
-      lastName: profile.lastName,
-      phone: profile.phone,
-      gpa: profile.gpa,
-      major: profile.major,
-      curriculum: profile.curriculum,
-      nationality: profile.nationality,
-    });
-    setSavedMsg("");
-    setIsEditing(true);
-  }
-  function cancelEdit() {
-    setIsEditing(false);
-    setSavedMsg("");
-  }
-  function savePersonal(e: React.FormEvent) {
-    e.preventDefault();
-    setProfile({ ...profile, ...form });
-    setIsEditing(false);
-    setSavedMsg("บันทึกข้อมูลเรียบร้อยแล้ว");
-    window.setTimeout(() => setSavedMsg(""), 2500);
-  }
-  function updateDocs(next: DocumentItem[]) {
-    setProfile({ ...profile, docs: next });
-  }
-
-  const fields: Field[] = [
-    { label: "ชื่อ", key: "firstName" },
-    { label: "นามสกุล", key: "lastName" },
-    { label: "รหัสนักศึกษา", key: "studentId", value: profile.studentId, disabled: true },
-    { label: "อีเมล", key: "email", value: profile.email, disabled: true },
-    { label: "เบอร์โทร", key: "phone", inputMode: "tel" },
-    { label: "เกรด (GPA)", key: "gpa", type: "number", step: "0.01", min: 0, max: 4 },
-    { label: "สาขาวิชา", key: "major" },
-    { label: "หลักสูตร", key: "curriculum" },
-    { label: "สัญชาติ", key: "nationality" },
-  ];
-
-  return (
-    <div className="page" style={{ padding: 4, margin: 36, marginLeft: 55 }}>
-      <div className="cols">
-        <div>
-          <section className="card" style={{ padding: 24, marginBottom: 28 }}>
-            <div style={{ display: "flex", alignItems: "start", gap: 12 }}>
-              <h2 style={{ margin: 0, marginLeft: 8 }}>ข้อมูลนักศึกษา</h2>
-              {!isEditing && (
-                <button
-                  className="btn-ico"
-                  onClick={enterEdit}
-                  aria-label="แก้ไขข้อมูลนักศึกษา"
-                  title="แก้ไขข้อมูล"
-                  type="button"
-                >
-                  <PencilIcon />
-                </button>
+      <div className="profile-grid">
+        {/* ================= STUDENT ================= */}
+        <section className="profile-card">
+          <div className="card-head">
+            <div>
+              <h3 className="profile-title">ข้อมูลนักศึกษา</h3>
+              {!canEditStudent && (
+                <div style={{ color: "#64748b", fontSize: 13 }}>
+                  ไม่สามารถแก้ไขข้อมูลนักศึกษาได้หลังจากยื่นคำร้องแล้ว
+                </div>
               )}
             </div>
 
-            {/* แจ้งบันทึกสำเร็จ */}
-            {savedMsg && <div className="alert ok" style={{ marginTop: 12 }}>{savedMsg}</div>}
-
-            {/* โหมดดู: ไม่มีกรอบครอบข้อมูล ใช้แถวมินิมอล */}
-            {!isEditing && (
-              <div className="info-grid" style={{ marginLeft: 8, marginTop: 20 }}>
-                <ViewRow label="ชื่อ" value={profile.firstName} />
-                <ViewRow label="นามสกุล" value={profile.lastName} />
-                <ViewRow label="รหัสนักศึกษา" value={profile.studentId} />
-                <ViewRow label="อีเมล" value={profile.email} />
-                <ViewRow label="เบอร์โทร" value={profile.phone} />
-                <ViewRow label="เกรด (GPA)" value={profile.gpa} />
-                <ViewRow label="สาขาวิชา" value={profile.major} />
-                <ViewRow label="หลักสูตร" value={profile.curriculum} />
-                <ViewRow label="สัญชาติ" value={profile.nationality} />
-              </div>
+            {!editStudent && canEditStudent && (
+              <button className="btn" onClick={() => setEditStudent(true)}>
+                แก้ไข
+              </button>
             )}
+          </div>
 
-            {/* โหมดแก้ไข: มีช่องกรอก */}
-            {isEditing && (
-              <form
-                className="grid2"
-                onSubmit={savePersonal}
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
-                  columnGap: 40,
-                  rowGap: 12,
-                  width: "100%",
-                  maxWidth: 560,
-                  marginTop: 15,
-                  marginLeft: 8,
-                }}
-              >
-                {fields.map((f, idx) => {
-                  if (isReadonlyField(f)) {
-                    return (
-                      <div key={idx} style={{ display: "grid", gap: 5 }}>
-                        <label className="label">{f.label}</label>
-                        <input className="input" value={f.value} disabled readOnly />
-                      </div>
-                    );
-                  }
+          {!editStudent ? (
+            <>
+              <Info label="รหัสนักศึกษา" value={profile.studentId} />
+              <Info
+                label="ชื่อ–นามสกุล"
+                value={`${profile.prefix} ${profile.firstName} ${profile.lastName}`}
+              />
+              <Info label="ชั้นปี" value={profile.year || "-"} />
+              <Info label="สาขาวิชา" value={profile.major || "-"} />
+              <Info label="หลักสูตร" value={profile.curriculum || "-"} />
+              <Info label="เบอร์โทร" value={profile.phone || "-"} />
+              <Info
+                label="อีเมลมหาวิทยาลัย"
+                value={profile.emails[0]?.email || "-"}
+                pill
+              />
+              <Info
+                label="อีเมลส่วนตัว"
+                value={profile.emails[1]?.email || "-"}
+                pill
+              />
+            </>
+          ) : (
+            <div className="form-grid">
+              <input className="input" value={profile.studentId} disabled />
 
-                  const key: keyof FormState = f.key;
-                  const value: string = form[key] ?? "";
-                  const onChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-                    const raw = e.target.value;
-                    const v = key === "phone" ? raw.replace(/\D/g, "").slice(0, 10) : raw;
-                    setForm({ ...form, [key]: v });
-                  };
+              <input
+                className="input"
+                placeholder="ชื่อ"
+                value={profile.firstName}
+                onChange={(e) =>
+                  setProfile({ ...profile, firstName: e.target.value })
+                }
+              />
 
-                  return (
-                    <div key={idx} style={{ display: "grid", gap: 5 }}>
-                      <label className="label">{f.label}</label>
-                      <input
-                        className="input"
-                        type={f.type ?? "text"}
-                        inputMode={f.inputMode}
-                        step={f.step}
-                        min={f.min}
-                        max={f.max}
-                        value={value}
-                        onChange={onChange}
-                        required
-                      />
-                    </div>
-                  );
-                })}
+              <input
+                className="input"
+                placeholder="นามสกุล"
+                value={profile.lastName}
+                onChange={(e) =>
+                  setProfile({ ...profile, lastName: e.target.value })
+                }
+              />
 
-                <div style={{ gridColumn: "span 2", marginRight: -18, marginTop: 16, display: "flex", gap: 5, justifyContent: "flex-end" }}>
-                  <button className="btn ghost" type="button" onClick={cancelEdit}>ยกเลิก</button>
-                  <button className="btn" type="submit">บันทึกข้อมูลส่วนตัว</button>
+              <div className="action-row form-span">
+                <button
+                  className="btn-secondary"
+                  onClick={() => setEditStudent(false)}
+                >
+                  ยกเลิก
+                </button>
+                <button className="btn" onClick={saveStudent}>
+                  บันทึก
+                </button>
+              </div>
+            </div>
+          )}
+        </section>
+
+        {/* ================= COMPANY ================= */}
+        {profile.company && (
+          <section className="profile-card">
+            <div className="card-head">
+              <div>
+                <h3 className="profile-title">ข้อมูลบริษัท</h3>
+                <div className="profile-sub">
+                  ข้อมูลบริษัทที่ยื่นในคำร้องสหกิจ
                 </div>
-              </form>
-            )}
-          </section>
-
-          {profile.company && (
-            <section className="card" style={{ padding: 24, marginBottom: 28 }}>
-              <h2 style={{ marginTop: 0, marginBottom: 16 }}>ข้อมูลบริษัท</h2>
-              {/* จัดเรียงเหมือน "ข้อมูลนักศึกษา" */}
-              <div className="info-grid">
-                <Row label="ชื่อบริษัท" value={profile.company.name} />
-                <Row label="ที่อยู่" value={profile.company.address} wide />
-                <Row label="ชื่อ HR" value={profile.company.hrName} />
-                <Row label="อีเมล HR" value={profile.company.hrEmail} />
               </div>
-            </section>
-          )}
+            </div>
 
-          {profile.mentor && (
-            <section className="card" style={{ padding: 24 }}>
-              <h2 style={{ marginTop: 0, marginBottom: 16 }}>ข้อมูลพี่เลี้ยง</h2>
-              {/* จัดเรียงเหมือน "ข้อมูลนักศึกษา" */}
-              <div className="info-grid">
-                <Row label="ชื่อ-นามสกุล" value={`${profile.mentor.firstName} ${profile.mentor.lastName}`} />
-                <Row label="ตำแหน่งงาน" value={profile.mentor.title} />
-                <Row label="เบอร์โทร" value={profile.mentor.phone} />
-                <Row label="อีเมล" value={profile.mentor.email} />
-              </div>
-            </section>
-          )}
-        </div>
-
-        <div>
-          <section className="card" style={{ padding: 24, marginRight: -20 }}>
-            <h2 style={{ marginTop: 0, marginBottom: 12, paddingLeft: 8 }}>ตารางการส่งเอกสาร</h2>
-            <DocTable items={profile.docs} onChange={updateDocs} />
+            <Info label="ชื่อบริษัท" value={profile.company.name || "-"} />
+            <Info label="ผู้ประสานงาน" value={profile.company.hrName || "-"} />
+            <Info label="ตำแหน่ง" value={profile.company.hrPosition || "-"} />
+            <Info label="ที่อยู่" value={profile.company.address || "-"} />
+            <Info label="เบอร์โทร" value={profile.company.phone || "-"} />
+            <Info label="แฟกซ์" value={profile.company.fax || "-"} />
+            <Info label="อีเมล" value={profile.company.hrEmail || "-"} />
+            <Info label="เว็บไซต์" value={profile.company.website || "-"} />
           </section>
-        </div>
+        )}
       </div>
-
-      {/* สไตล์ย่อย */}
-      <style>{`
-        .page .input{
-          height: 46px;
-          padding: 0 14px;
-        }
-        .page .label{ font-weight: 700; }
-        .page .btn.ghost{
-          background:#fff; color:#0f172a; border:1px solid rgba(0,0,0,.08);
-          border-radius:10px; padding:10px 14px; font-weight:700;
-        }
-        .page .btn.ghost:hover{
-          background:#f8fafc; border-color:#c7d2fe;
-          box-shadow:0 1px 0 rgba(0,0,0,.02), 0 6px 14px rgba(0,116,183,.14);
-        }
-        .page .alert.ok{
-          color:#065F46; background:#ECFDF5; border:1px solid #6EE7B7;
-          padding:10px 12px; border-radius:12px; font-size:14px;
-        }
-
-        /* เลย์เอาต์หลัก: iPad/จอเล็ก = 1 คอลัมน์, เดสก์ท็อปใหญ่ (≥1440px) = 2 คอลัมน์ */
-        .cols{
-          display:grid;
-          gap:32px;
-          grid-template-columns: 1fr; /* เริ่มต้น: 1 คอลัมน์ */
-        }
-        @media (min-width: 1440px){
-          .cols{ grid-template-columns: 1.2fr 1fr; }
-        }
-
-        /* แถวข้อมูลแบบมินิมอล (ไม่มีกรอบครอบข้อมูล) */
-        .info-grid{
-          display:grid;
-          grid-template-columns: 1fr 1fr;
-          gap:12px;
-          width: 100%;
-        }
-        .info-row{
-          display:grid;
-          grid-template-columns: 100px 1fr;
-          align-items:center;
-          gap:2px;
-          padding:4px 2px;
-        }
-        .info-row .lbl{ color:#6b7280; font-size:13px; font-weight:700; }
-        .info-row .val{ font-weight:500; color:#0f172a; word-break:break-word; }
-
-        /* ปุ่มไอคอนมินิมอล */
-        .btn-ico{
-          width:38px; height:38px; display:inline-flex; align-items:center; justify-content:center;
-          border-radius:10px; border:1px solid rgba(0,0,0,.08);
-          background:#fff; color:#0f172a; cursor:pointer;
-          transition: background .12s ease, border-color .12s ease, box-shadow .12s ease, color .12s ease;
-        }
-        .btn-ico:hover{
-          background:#f8fafc; border-color:#c7d2fe; color:#0074B7;
-          box-shadow:0 1px 0 rgba(0,0,0,.02), 0 6px 14px rgba(0,116,183,.14);
-        }
-        .btn-ico svg{ width:20px; height:20px; display:block; }
-
-        /* iPad และเล็กกว่านั้น: ให้ทุก info-grid เป็น 1 คอลัมน์ */
-        @media (max-width: 1024px){
-          .info-grid{ grid-template-columns: 1fr; }
-          .info-row{ grid-template-columns: 1fr; align-items:start; }
-        }
-
-        /* มือถือเล็กมาก */
-        @media (max-width: 560px){
-          .info-grid{ grid-template-columns: 1fr; }
-          .info-row{ grid-template-columns: 1fr; align-items:start; }
-        }
-      `}</style>
     </div>
   );
 }
 
-/* ----- แถวสำหรับโหมดดู (ข้อมูลนักศึกษา) ----- */
-function ViewRow({ label, value }: { label: string; value: string }) {
+/* ================= Helper ================= */
+function Info({
+  label,
+  value,
+  pill,
+}: {
+  label: string;
+  value: string;
+  pill?: boolean;
+}) {
   return (
     <div className="info-row">
-      <div className="lbl">{label}</div>
-      <div className="val">{value || "-"}</div>
+      <div className="label">{label}</div>
+      <div className={pill ? "value email-pill" : "value"}>{value}</div>
     </div>
   );
 }
 
-/* ----- แถวสำหรับบริษัท/พี่เลี้ยง (เหมือน ViewRow แต่มี wide ได้) ----- */
-function Row({ label, value, wide = false }: { label: string; value: string; wide?: boolean }) {
-  return (
-    <div className="info-row" style={{ gridColumn: wide ? "span 2" as const : undefined }}>
-      <div className="lbl">{label}</div>
-      <div className="val">{value || "-"}</div>
-    </div>
-  );
+/* ================= CSS ================= */
+const PROFILE_CSS = `
+.profile-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:28px;
+  align-items:flex-start;
 }
+@media (max-width: 1024px){
+  .profile-grid{ grid-template-columns:1fr; }
+}
+
+.profile-card{
+  background:#fff;
+  border-radius:20px;
+  padding:28px 32px;
+  box-shadow:0 8px 24px rgba(15,23,42,.08);
+}
+
+.card-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  margin-bottom:14px;
+}
+
+.profile-title{
+  font-size:18px;
+  font-weight:800;
+  margin:0;
+}
+
+.profile-sub{
+  font-size:13px;
+  color:#64748b;
+  margin-top:4px;
+}
+
+.divider{
+  height:1px;
+  background:#e5e7eb;
+  margin:14px 0 18px;
+}
+
+/* info row */
+.info-row{
+  display:grid;
+  grid-template-columns:160px 1fr;
+  gap:8px;
+  padding:8px 0;
+}
+.label{
+  color:#64748b;
+  font-weight:700;
+  font-size:14px;
+}
+.value{
+  color:#0f172a;
+  font-weight:600;
+  line-height:1.55;
+}
+
+.email-pill{
+  display:inline-block;
+  padding:6px 12px;
+  border-radius:999px;
+  background:#eff6ff;
+  border:1px solid #bfdbfe;
+  color:#1e40af;
+  font-weight:700;
+}
+
+/* form */
+.form-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:14px 20px;
+}
+.form-span{ grid-column:1 / -1; }
+
+.action-row{
+  display:flex;
+  justify-content:flex-end;
+  gap:10px;
+  margin-top:18px;
+}
+`;

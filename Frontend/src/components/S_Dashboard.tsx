@@ -1,121 +1,294 @@
-import { useMemo } from "react";
-import type { StudentProfile } from "./store";
+import { useEffect, useMemo, useState } from "react";
+import { IcAnnounce, IcDocs } from "./icons";
+import {
+  loadAnnouncements,
+  loadDocPeriods,
+  loadAcademicYear,
+  loadStudents,
+} from "./store";
+import type { Announcement, DocPeriod, StudentProfile } from "./store";
 
-// อ่านประกาศจากแอดมินที่ key นี้ ถ้าไม่มีจะ fallback เป็นรายการตัวอย่างเดิม
-function loadAdminAnns() {
-  try { return JSON.parse(localStorage.getItem("coop.shared.announcements") || "[]"); }
-  catch { return []; }
+/* ===============================
+   Exam (นิเทศ)
+=============================== */
+type ExamItem = {
+  id: string;
+  studentId: string;
+  round?: string;
+  date: string;
+  time?: string;
+  location?: string;
+  note?: string;
+};
+
+const K_EXAMS = "coop.teacher.exams.v1";
+
+/* ===============================
+   Document Name Mapping
+=============================== */
+const DOC_LABEL: Record<string, string> = {
+  T001: "แบบฟอร์มคำร้องสหกิจ",
+  T002: "หนังสือข้อตกลงบริษัท",
+  W001: "ตารางการปฏิบัติงาน",
+};
+
+/* ===============================
+   Helper
+=============================== */
+function buildDate(date?: string, time?: string): Date | null {
+  if (!date) return null;
+  return new Date(`${date}T${time || "00:00"}:00+07:00`);
 }
 
-type Ann = { id: string; title: string; date: string; body?: string };
+/* ===============================
+   Component
+=============================== */
+export default function S_Dashboard() {
+  const [ann, setAnn] = useState<Announcement[]>([]);
+  const [docs, setDocs] = useState<Record<string, DocPeriod>>({});
 
-export default function DashboardPage({ profile }: { profile: StudentProfile }) {
-  const todayISO = new Date().toISOString().slice(0, 10);
+  const adminYear = loadAcademicYear();
+  console.debug("Academic year:", adminYear);
 
-  // เอกสารเรียงตามกำหนดส่ง + คำนวณจำนวนวัน
-  const upcoming = useMemo(() => {
-    const startOfToday = () => {
-      const t = new Date();
-      t.setHours(0, 0, 0, 0);
-      return t;
-    };
-    const toDays = (iso: string) => {
-      const t = startOfToday();
-      const d = new Date(iso + "T00:00:00");
-      return Math.round((d.getTime() - t.getTime()) / 86400000);
-    };
-    return [...profile.docs]
-      .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
-      .map((d) => ({ ...d, days: toDays(d.dueDate) }));
-  }, [profile.docs]);
+  /** mock login: นักศึกษาคนปัจจุบัน */
+  const student: StudentProfile | undefined = loadStudents()[0];
+  const coopStatus = student?.coopRequest?.status;
+  const canSubmit = coopStatus !== "approved";
 
-  // ประกาศ: โหลดจากแอดมิน → ถ้าไม่มี ใช้รายการเดิม → ซ่อนเกินกำหนด → เรียงตามวัน
-  const announcements = useMemo(() => {
-    const fromAdmin: Ann[] = loadAdminAnns();
-    const fallback: Ann[] = [
-      { id: "a1", title: "กำหนดส่งแบบคำร้องสหกิจ 1/2568", date: "2025-09-05", body: "ส่งผ่านระบบภายใน 23:59 น." },
-      { id: "a2", title: "อบรมเตรียมความพร้อมก่อนออกฝึก", date: "2025-09-10", body: "ห้อง CC-201 เวลา 09:00-12:00 น." },
-    ];
-    const base = (fromAdmin && fromAdmin.length) ? fromAdmin : fallback;
-    return base
-      .filter((a) => a.date >= todayISO)
-      .sort((a, b) => a.date.localeCompare(b.date));
-  }, [todayISO]);
+  useEffect(() => {
+    setAnn(loadAnnouncements());
+    setDocs(loadDocPeriods());
+  }, []);
+
+  /* ===============================
+     Announcements
+  =============================== */
+  const upcomingAnnouncements = useMemo<Announcement[]>(() => {
+    return [...ann];
+  }, [ann]);
+
+  /* ===============================
+     Active Docs
+  =============================== */
+  const activeDocs = useMemo(() => {
+    const now = new Date();
+    return Object.entries(docs)
+      .map(([id, p]) => {
+        const start = buildDate(p.startDate, p.startTime);
+        const end = buildDate(p.endDate, p.endTime);
+        if (!start || !end) return null;
+        if (start <= now && now <= end) {
+          return { id, start, end };
+        }
+        return null;
+      })
+      .filter((v): v is { id: string; start: Date; end: Date } => v !== null);
+  }, [docs]);
+
+  /* ===============================
+     My Exams (นิเทศของนักศึกษา)
+  =============================== */
+  const myExams = useMemo<ExamItem[]>(() => {
+    if (!student?.studentId) return [];
+
+    try {
+      const all: ExamItem[] = JSON.parse(localStorage.getItem(K_EXAMS) || "[]");
+
+      return all
+        .filter((x) => x.studentId === student.studentId)
+        .sort((a, b) =>
+          `${a.date} ${a.time || ""}`.localeCompare(`${b.date} ${b.time || ""}`)
+        )
+        .slice(0, 3);
+    } catch {
+      return [];
+    }
+  }, [student?.studentId]);
 
   return (
-    <div className="page" style={{ padding: 4, margin: 28 }}>
-      <div className="card" style={{ marginBottom: 40, marginLeft: 30, paddingLeft: 30, paddingTop: 5, paddingBottom: 30 }}>
-        <h2>กำหนดส่งเอกสาร</h2>
-        <div className="grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(260px,1fr))", gap: 20 }}>
-          {upcoming.map((u) => (
-            <div className="card" key={u.id} style={{ padding: 12 }}>
-              <div style={{ fontWeight: 700, marginLeft: 15 }}>{u.title}</div>
+    <div className="dashboard-wrapper">
+      <style>{DASHBOARD_CSS}</style>
 
-              {/* ชิพวันคงเหลือพร้อมสีตามเกณฑ์ */}
-              <div className={`chip ${chipClass(u.days)}`} style={{ marginTop: 6, fontSize: 14, fontWeight: 700, marginLeft: 15 }}>
-                {fmtDate(u.dueDate)} · {humanDays(u.days)}
-              </div>
+      {/* HEADER */}
+      <div className="dashboard-header">
+        <h1>ภาพรวมสำหรับนักศึกษา</h1>
+        <p>ติดตามประกาศ เอกสาร และนัดนิเทศในที่เดียว</p>
+      </div>
 
-              {/* สีสถานะให้เข้ากันกับตารางส่งเอกสาร */}
-              <div style={{ color: "#374151", marginTop: 6, marginLeft: 15 }}>
-                สถานะ : <span className={`st ${statusClass(u.status)}`}>{statusTH(u.status)}</span>
+      {/* GRID */}
+      <div className="dash-grid">
+        {/* ================= ANNOUNCEMENTS ================= */}
+        <div className="dash-card">
+          <div className="dash-title">
+            <IcAnnounce className="dash-icon" />
+            ประกาศ
+          </div>
+
+          <div className="dash-content">
+            {upcomingAnnouncements.length === 0 && (
+              <div className="dash-empty">ไม่มีประกาศในช่วงนี้</div>
+            )}
+
+            {upcomingAnnouncements.map((a) => (
+              <div key={a.id} className="dash-item dash-left-info">
+                <div className="dash-item-title">{a.title}</div>
+                {"body" in a && a.body && (
+                  <div className="dash-item-sub">{a.body}</div>
+                )}
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
+        </div>
+
+        {/* ================= DOC PERIOD ================= */}
+        <div className="dash-card">
+          <div className="dash-title">
+            <IcDocs className="dash-icon" />
+            เอกสารที่ต้องส่ง
+          </div>
+
+          <div className="dash-content">
+            {activeDocs.length === 0 && (
+              <div className="dash-empty">ยังไม่มีเอกสารที่เปิดให้ส่ง</div>
+            )}
+
+            {activeDocs.map((d) => (
+              <div key={d.id} className="dash-item dash-left-doc">
+                <div className="dash-item-title">
+                  เอกสาร {d.id} — {DOC_LABEL[d.id]}
+                </div>
+                <div className="dash-item-sub">
+                  {d.start.toLocaleString("th-TH")} –{" "}
+                  {d.end.toLocaleString("th-TH")}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* ================= MY EXAMS ================= */}
+        <div className="dash-card">
+          <div className="dash-title">นัดนิเทศของฉัน</div>
+
+          <div className="dash-content">
+            {myExams.length === 0 && (
+              <div className="dash-empty">ยังไม่มีนัดนิเทศ</div>
+            )}
+
+            {myExams.map((x) => (
+              <div key={x.id} className="dash-item dash-left-final">
+                <div className="dash-item-title">รอบที่ {x.round || "-"}</div>
+                <div className="dash-item-sub">
+                  {new Date(`${x.date}T${x.time || "00:00"}`).toLocaleString(
+                    "th-TH"
+                  )}
+                </div>
+                <div style={{ marginTop: 4, fontSize: 14 }}>
+                  📍 {x.location || "-"}
+                </div>
+                {x.note && (
+                  <div
+                    style={{
+                      marginTop: 4,
+                      fontSize: 13,
+                      color: "#374151",
+                    }}
+                  >
+                    {x.note}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
-      <div className="card" style={{ marginLeft: 30, paddingLeft: 30, paddingTop: 5, paddingBottom: 30 }}>
-        <h2>ประกาศสหกิจศึกษา</h2>
-        <ul style={{ margin: 0, marginRight: 30, padding: 0, listStyle: "none" }}>
-          {announcements.map((a) => (
-            <li key={a.id} style={{ padding: "10px 0", borderBottom: "1px dashed #e5e7eb" }}>
-              <div style={{ fontWeight: 800 }}>{a.title}</div>
-              <div style={{ color: "#6b7280", fontSize: 14 }}>
-                {fmtDate(a.date)} · {a.body || "-"}
-              </div>
-            </li>
-          ))}
-          {announcements.length === 0 && (
-            <li style={{ padding: "10px 0", color: "#6b7280" }}>— ไม่มีประกาศในช่วงนี้ —</li>
-          )}
-        </ul>
-      </div>
-
-      {/* สไตล์เฉพาะหน้า Dashboard (scoped ด้วย .page) */}
-      <style>{dashCss()}</style>
+      {/* SUBMIT BUTTON */}
+      {canSubmit && (
+        <div className="dash-btn-wrapper">
+          <a href="/student/gateway" className="dash-btn">
+            ยื่นคำร้องเข้าร่วมโครงการ
+          </a>
+        </div>
+      )}
     </div>
   );
 }
 
-/* ---------- Helpers ---------- */
-const fmtDate = (iso: string) => new Date(iso + "T00:00:00").toLocaleDateString();
-const humanDays = (d: number) => (d < 0 ? `เลยกำหนด ${Math.abs(d)} วัน` : d === 0 ? "ครบกำหนดวันนี้" : `อีก ${d} วัน`);
-
-// สีชิพตามเกณฑ์: overdue(เลยกำหนด)=แดงเข้ม, ≤7=แดง, 8–20=เหลือง, ≥21=เขียว
-const chipClass = (d: number) => (d < 0 ? "chip-over" : d <= 7 ? "chip-red" : d <= 20 ? "chip-yellow" : "chip-green");
-
-// สีสถานะให้ตรงกับตารางเอกสาร: waiting(เทา) / under-review(คราม) / approved(เขียว) / rejected(แดง)
-const statusTH = (s: string) =>
-  s === "waiting" ? "รอส่งเอกสาร" : s === "under-review" ? "รอพิจารณา" : s === "approved" ? "ผ่าน" : "ไม่ผ่าน";
-const statusClass = (s: string) =>
-  s === "waiting" ? "st-waiting" : s === "under-review" ? "st-under" : s === "approved" ? "st-pass" : "st-fail";
-
-/* ---------- Scoped CSS ---------- */
-function dashCss() {
-  return `
-  .page .chip{
-    display:inline-block; padding:4px 10px; border-radius:999px; border:1px solid;
-  }
-  .page .chip-over   { background:#fee2e2; color:#7f1d1d; border-color:#fecaca; }  /* เลยกำหนด */
-  .page .chip-red    { background:#fef2f2; color:#991b1b; border-color:#fecaca; }  /* ≤ 7 วัน */
-  .page .chip-yellow { background:#fef9c3; color:#854d0e; border-color:#fde68a; }  /* 8–20 วัน */
-  .page .chip-green  { background:#ecfdf5; color:#065f46; border-color:#a7f3d0; }  /* ≥ 21 วัน */
-
-  .page .st { font-weight:800; }
-  .page .st-waiting { color:#6b7280; }   /* เทา */
-  .page .st-under   { color:#4f46e5; }   /* คราม/Indigo */
-  .page .st-pass    { color:#16a34a; }   /* เขียว */
-  .page .st-fail    { color:#dc2626; }   /* แดง */
-  `;
+/* ===============================
+   CSS
+=============================== */
+const DASHBOARD_CSS = `
+.dashboard-wrapper {
+  width: 95%;
+  padding: 20px 10px;
+  margin-left: 45px;
 }
+.dashboard-header h1 {
+  font-size: 28px;
+  font-weight: 800;
+}
+.dashboard-header p {
+  color: #6b7280;
+}
+.dash-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 26px;
+  margin-top: 24px;
+}
+.dash-card {
+  background: white;
+  border-radius: 18px;
+  padding: 24px;
+  border: 1px solid #e7ecf5;
+  box-shadow: 0 8px 22px rgba(0,0,0,.06);
+}
+.dash-title {
+  display: flex;
+  gap: 10px;
+  font-size: 17px;
+  font-weight: 700;
+  margin-bottom: 18px;
+}
+.dash-icon {
+  width: 20px;
+  height: 20px;
+  color: #0a84ff;
+}
+.dash-content {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 260px;
+}
+.dash-empty {
+  color: #a0a9b6;
+  text-align: center;
+  padding-top: 30px;
+}
+.dash-item {
+  background: #f9fbff;
+  border: 1px solid #e6ecf5;
+  border-radius: 14px;
+  padding: 14px 18px;
+}
+.dash-item-title {
+  font-weight: 600;
+}
+.dash-item-sub {
+  font-size: 13px;
+  color: #6b7280;
+}
+.dash-left-info { border-left: 4px solid #3b82f6; }
+.dash-left-doc { border-left: 4px solid #0ea5e9; }
+.dash-left-final { border-left: 4px solid #ef4444; }
+.dash-btn-wrapper { margin-top: 28px; }
+.dash-btn {
+  padding: 12px 26px;
+  border-radius: 999px;
+  background: linear-gradient(90deg,#0074B7,#0A84FF,#22D3EE);
+  color: white;
+  font-weight: 700;
+}
+`;
