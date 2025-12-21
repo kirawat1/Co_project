@@ -1,152 +1,190 @@
-/* eslint-disable react-refresh/only-export-components */
-import React, { useMemo, useState } from "react";
-import type { StudentProfile, DocumentItem, DocStatus } from "./store";
+import { useMemo, useState } from "react";
+import type { StudentProfile, StudentEmail } from "./store";
+import { loadStudents, saveStudents } from "./store";
+import DocTable from "./S_DocTable";
 
-const KS = "coop.student.profile.v1";
+/* =========================
+   Helpers
+========================= */
 
-function load(): StudentProfile[] {
-  try {
-    return JSON.parse(localStorage.getItem(KS) || "[]");
-  } catch {
-    return [];
-  }
+function primaryEmail(emails: StudentEmail[] | undefined): string {
+  if (!emails || emails.length === 0) return "-";
+  return emails.find((e) => e.primary)?.email || emails[0].email;
 }
 
-export default function A_Students() {
-  const [items] = useState<StudentProfile[]>(() => load());
-  const [q, setQ] = useState("");
+/* =========================
+   Mapping
+========================= */
 
-  // Modal
-  const [showModal, setShowModal] = useState(false);
+const MAJOR_TH: Record<string, string> = {
+  CS: "วิทยาการคอมพิวเตอร์",
+  IT: "เทคโนโลยีสารสนเทศ",
+  GIS: "ภูมิสารสนเทศศาสตร์",
+};
+
+const CURRICULUM_TH: Record<string, string> = {
+  normal: "ภาคปกติ",
+  special: "ภาคพิเศษ",
+};
+
+const STATUS_TH: Record<string, string> = {
+  submitted: "รอพิจารณา",
+  approved: "อนุมัติ",
+  rejected: "ไม่อนุมัติ",
+};
+
+/* =========================
+   Main
+========================= */
+
+export default function A_Students() {
+  const [items, setItems] = useState<StudentProfile[]>(() => loadStudents());
+
+  const [q, setQ] = useState("");
+  const [filterMajors, setFilterMajors] = useState<string[]>([]);
+  const [filterCurriculums, setFilterCurriculums] = useState<string[]>([]);
+  const [filterStatuses, setFilterStatuses] = useState<string[]>([]);
   const [modalStudent, setModalStudent] = useState<StudentProfile | null>(null);
 
-  function openStudentInfo(st: StudentProfile) {
-    setModalStudent(st);
-    setShowModal(true);
+  function resetFilters() {
+    setQ("");
+    setFilterMajors([]);
+    setFilterCurriculums([]);
+    setFilterStatuses([]);
+  }
+
+  function setRequestStatus(
+    studentId: string,
+    status: "approved" | "rejected",
+    teacherReason?: string
+  ) {
+    setItems((prev) => {
+      const next = prev.map((s) =>
+        s.studentId !== studentId
+          ? s
+          : {
+            ...s,
+            coopRequest: {
+              ...s.coopRequest,
+              status,
+              teacherReason,
+              decidedAt: new Date().toISOString(),
+              decidedBy: "เจ้าหน้าที่ระบบ",
+            },
+          }
+      );
+      saveStudents(next);
+      return next;
+    });
+    setModalStudent(null);
   }
 
   const filtered = useMemo(() => {
     return items.filter((s) => {
-      const t = `${s.studentId} ${s.firstName} ${s.lastName} ${s.email} ${s.major} ${s.curriculum}`.toLowerCase();
-      return t.includes(q.toLowerCase());
+      const text = `
+        ${s.studentId}
+        ${s.prefix ?? ""}
+        ${s.firstName ?? ""}
+        ${s.lastName ?? ""}
+        ${primaryEmail(s.emails)}
+      `.toLowerCase();
+
+      return (
+        text.includes(q.toLowerCase()) &&
+        (filterMajors.length === 0 || filterMajors.includes(s.major ?? "")) &&
+        (filterCurriculums.length === 0 ||
+          filterCurriculums.includes(s.curriculum ?? "")) &&
+        (filterStatuses.length === 0 ||
+          filterStatuses.includes(s.coopRequest?.status ?? ""))
+      );
     });
-  }, [items, q]);
+  }, [items, q, filterMajors, filterCurriculums, filterStatuses]);
 
   return (
-    <div className="page" style={{ padding: 4, margin: 28, marginLeft: 65 }}>
+    <div style={{ padding: 28, marginLeft: 35 }}>
+      {/* ================= Filters ================= */}
+      <section style={card}>
+        <h2 style={{ marginBottom: 16 }}>ข้อมูลนักศึกษา</h2>
 
-      {/* Header Card */}
-      <section
-        className="card"
-        style={{
-          padding: 24,
-          marginBottom: 28,
-          borderRadius: 18,
-          boxShadow: "0 8px 24px rgba(15,23,42,0.08)",
-        }}
-      >
-        <h2 style={{ marginBottom: 16, fontSize: 20, fontWeight: 700 }}>
-          ข้อมูลนักศึกษา
-        </h2>
-
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+        <div style={filterRow}>
           <input
             className="input"
-            placeholder="ค้นหา: รหัส / ชื่อ / อีเมล / สาขาวิชา"
+            placeholder="ค้นหา: รหัส / ชื่อ / อีเมล"
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            style={{
-              flex: "1 1 280px",
-              height: 42,
-              borderRadius: 12,
-              paddingLeft: 14,
-              fontSize: 15,
-            }}
+            style={{ width: 260 }}
           />
+
+          <FilterBox
+            title="สาขาวิชา"
+            items={MAJOR_TH}
+            values={filterMajors}
+            onChange={setFilterMajors}
+          />
+          <FilterBox
+            title="หลักสูตร"
+            items={CURRICULUM_TH}
+            values={filterCurriculums}
+            onChange={setFilterCurriculums}
+          />
+          <FilterBox
+            title="สถานะคำร้อง"
+            items={STATUS_TH}
+            values={filterStatuses}
+            onChange={setFilterStatuses}
+          />
+
+          <button className="btn" style={saveBtn} onClick={resetFilters}>
+            ล้างตัวกรอง
+          </button>
         </div>
       </section>
 
-      {/* Table Card */}
-      <section
-        className="card"
-        style={{
-          padding: 20,
-          borderRadius: 18,
-          boxShadow: "0 8px 24px rgba(15,23,42,0.06)",
-        }}
-      >
-        <table
-          className="tbl"
-          style={{
-            width: "100%",
-            borderCollapse: "separate",
-            borderSpacing: "0 10px",
-          }}
-        >
+      {/* ================= Table ================= */}
+      <section style={{ ...card, marginTop: 20 }}>
+        <table width="100%">
           <thead>
             <tr>
-              {["รหัสนักศึกษา", "ชื่อ–นามสกุล", "อีเมล", "สาขาวิชา", "หลักสูตร", "รายละเอียด"].map(
-                (h) => (
-                  <th
-                    key={h}
-                    style={{
-                      textAlign: "left",
-                      padding: "6px 8px",
-                      fontSize: 14,
-                      fontWeight: 700,
-                      color: "#374151",
-                    }}
-                  >
-                    {h}
-                  </th>
-                )
-              )}
+              {[
+                "รหัส",
+                "ชื่อ–นามสกุล",
+                "อีเมล",
+                "สาขา",
+                "หลักสูตร",
+                "สถานะ",
+                "รายละเอียด",
+              ].map((h) => (
+                <th key={h} style={th}>
+                  {h}
+                </th>
+              ))}
             </tr>
           </thead>
-
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td
-                  colSpan={6}
-                  style={{
-                    textAlign: "center",
-                    padding: 18,
-                    color: "#6b7280",
-                    fontSize: 14,
-                  }}
-                >
-                  ไม่พบนักศึกษาตามเงื่อนไขที่เลือก
+                <td colSpan={7} style={{ padding: 16, color: "#64748b" }}>
+                  ไม่พบนักศึกษาตามเงื่อนไข
                 </td>
               </tr>
             ) : (
               filtered.map((s) => (
-                <tr
-                  key={s.studentId}
-                  style={{
-                    background: "#fff",
-                    borderRadius: 12,
-                    boxShadow: "0 1px 4px rgba(0,0,0,0.04)",
-                  }}
-                >
-                  <td style={cell}>{s.studentId}</td>
-                  <td style={cell}>{s.firstName} {s.lastName}</td>
-                  <td style={cell}>{s.email || "-"}</td>
-                  <td style={cell}>{s.major || "-"}</td>
-                  <td style={cell}>{s.curriculum || "-"}</td>
-
-                  <td style={cell}>
+                <tr key={s.studentId}>
+                  <td>{s.studentId}</td>
+                  <td>
+                    {(s.prefix ?? "") + s.firstName} {s.lastName}
+                  </td>
+                  <td>{primaryEmail(s.emails)}</td>
+                  <td>{MAJOR_TH[s.major ?? ""] ?? "-"}</td>
+                  <td>{CURRICULUM_TH[s.curriculum ?? ""] ?? "-"}</td>
+                  <td>
+                    <StatusBadge status={s.coopRequest?.status} />
+                  </td>
+                  <td>
                     <button
-                      className="btn-secondary"
-                      onClick={() => openStudentInfo(s)}
-                      style={{
-                        padding: "6px 14px",
-                        borderRadius: 999,
-                        border: "1px solid #d1d5db",
-                        background: "#fff",
-                        fontSize: 14,
-                        cursor: "pointer",
-                      }}
+                      className="btn"
+                      style={ghostBtn}
+                      onClick={() => setModalStudent(s)}
                     >
                       ดูข้อมูล
                     </button>
@@ -158,100 +196,102 @@ export default function A_Students() {
         </table>
       </section>
 
-      {showModal && modalStudent && (
-        <StudentModal student={modalStudent} onClose={() => setShowModal(false)} />
+      {modalStudent && (
+        <StudentModal
+          student={modalStudent}
+          onClose={() => setModalStudent(null)}
+          onApprove={(r) =>
+            setRequestStatus(modalStudent.studentId, "approved", r)
+          }
+          onReject={(r) =>
+            setRequestStatus(modalStudent.studentId, "rejected", r)
+          }
+        />
       )}
-
     </div>
   );
 }
 
-/* Shared Cell Style */
-const cell: React.CSSProperties = {
-  padding: "14px 10px",
-  fontSize: 15,
-  color: "#111827",
-};
-
-/* ======================================================================
-   Modal (iOS 2-column card)
-====================================================================== */
+/* =========================
+   Modal
+========================= */
 
 function StudentModal({
   student,
   onClose,
+  onApprove,
+  onReject,
 }: {
   student: StudentProfile;
   onClose: () => void;
+  onApprove: (reason?: string) => void;
+  onReject: (reason?: string) => void;
 }) {
+  const [reason, setReason] = useState("");
+  const isApproved = student.coopRequest?.status === "approved";
+
   return (
-    <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(15,23,42,.35)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 50,
-      }}
-    >
-      <div
-        style={{
-          background: "#fff",
-          padding: 28,
-          borderRadius: 18,
-          width: "100%",
-          maxWidth: 760,
-          boxShadow: "0 18px 45px rgba(15,23,42,.24)",
-        }}
-      >
-        <h3 style={{ marginTop: 0, fontSize: 20, fontWeight: 700 }}>
-          {student.studentId} — {student.firstName} {student.lastName}
-        </h3>
-
-        {/* 2-column Info */}
-        <div
-          style={{
-            marginTop: 18,
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gap: 16,
-            background: "#f9fafb",
-            padding: 16,
-            borderRadius: 14,
-            border: "1px solid #f3f4f6",
-          }}
-        >
-          <div style={{ display: "grid", gap: 10 }}>
-            <Field label="อีเมล" value={student.email || "-"} />
-            <Field label="เบอร์โทร" value={student.phone || "-"} />
-          </div>
-
-          <div style={{ display: "grid", gap: 10 }}>
-            <Field label="สาขาวิชา" value={student.major || "-"} />
-            <Field label="หลักสูตร" value={student.curriculum || "-"} />
-          </div>
+    <div style={overlay}>
+      <div style={modal}>
+        <h2>
+          {(student.prefix ?? "") + student.firstName} {student.lastName}
+        </h2>
+        <div style={{ color: "#64748b", marginBottom: 16 }}>
+          รหัสนักศึกษา: {student.studentId}
         </div>
 
-        <h4 style={{ marginTop: 24, marginBottom: 8, fontSize: 16, fontWeight: 700 }}>
-          เอกสารทั้งหมด
-        </h4>
+        <Section title="ข้อมูลนักศึกษา">
+          <InfoRow label="สาขา" value={MAJOR_TH[student.major ?? ""]} />
+          <InfoRow
+            label="หลักสูตร"
+            value={CURRICULUM_TH[student.curriculum ?? ""]}
+          />
+          <InfoRow label="อีเมล" value={primaryEmail(student.emails)} />
+          <InfoRow label="เบอร์โทร" value={student.phone} />
+        </Section>
 
-        <StudentDocs items={student.docs || []} />
+        {student.company && (
+          <Section title="ข้อมูลบริษัท">
+            <InfoRow label="ชื่อบริษัท" value={student.company.name} />
+            <InfoRow label="ที่อยู่" value={student.company.address} />
+            <InfoRow label="อีเมล" value={student.company.hrEmail} />
+          </Section>
+        )}
 
-        <div style={{ textAlign: "right", marginTop: 22 }}>
-          <button
-            className="btn-secondary"
-            onClick={onClose}
-            style={{
-              padding: "8px 18px",
-              borderRadius: 999,
-              border: "1px solid #d1d5db",
-              background: "#fff",
-              fontSize: 14,
-            }}
-          >
+        {/* ===== ADD: เอกสารของนักศึกษา ===== */}
+        <Section title="เอกสารของนักศึกษา">
+          <DocTable
+            items={student.docs ?? []} //  fallback
+            allowStatusChange={false} // Admin ดูอย่างเดียว
+            onChange={() => { }}
+          />
+        </Section>
+
+        {!isApproved && (
+          <Section title="ผลการพิจารณา">
+            <textarea
+              style={textarea}
+              placeholder="เหตุผลตอบกลับ"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+            />
+            <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
+              <button
+                className="btn"
+                style={{ ...ghostBtn, color: "#dc2626" }}
+                onClick={() => onReject(reason)}
+              >
+                ไม่อนุมัติ
+              </button>
+              <button className="btn" onClick={() => onApprove(reason)}>
+                อนุมัติ
+              </button>
+            </div>
+          </Section>
+        )}
+
+        <div style={modalFooter}>
+          <button className="btn" style={saveBtn} onClick={onClose}>
             ปิด
           </button>
         </div>
@@ -260,96 +300,177 @@ function StudentModal({
   );
 }
 
-/* Field component for 2-column display */
-function Field({ label, value }: { label: string; value: string }) {
+/* =========================
+   UI Helpers
+========================= */
+
+function FilterBox({
+  title,
+  items,
+  values,
+  onChange,
+}: {
+  title: string;
+  items: Record<string, string>;
+  values: string[];
+  onChange: (v: string[]) => void;
+}) {
   return (
     <div>
-      <div style={{ fontSize: 12, color: "#6b7280", fontWeight: 600 }}>
-        {label}
+      <div style={{ fontSize: 13, color: "#475569", marginBottom: 4 }}>
+        {title}
       </div>
-      <div style={{ fontSize: 15, color: "#111827", fontWeight: 500 }}>
-        {value}
-      </div>
+      {Object.entries(items).map(([k, v]) => (
+        <label key={k} style={{ marginRight: 10, fontSize: 14 }}>
+          <input
+            type="checkbox"
+            checked={values.includes(k)}
+            onChange={(e) =>
+              onChange(
+                e.target.checked
+                  ? [...values, k]
+                  : values.filter((x) => x !== k)
+              )
+            }
+          />{" "}
+          {v}
+        </label>
+      ))}
     </div>
   );
 }
 
-/* ======================================================================
-   Documents Table
-====================================================================== */
-
-function fmtStatus(s: DocStatus) {
-  return {
-    waiting: "รอส่งเอกสาร",
-    "under-review": "รอพิจารณา",
-    approved: "ผ่าน",
-    rejected: "ไม่ผ่าน",
-  }[s] || s;
-}
-
-function badgeColor(s: DocStatus) {
-  return {
-    waiting: "#fbbf24",
-    "under-review": "#60a5fa",
-    approved: "#22c55e",
-    rejected: "#ef4444",
-  }[s];
-}
-
-function StudentDocs({ items }: { items: DocumentItem[] }) {
-  if (!items.length)
-    return <p style={{ color: "#6b7280" }}>ยังไม่มีเอกสาร</p>;
-
+function InfoRow({ label, value }: { label: string; value?: string }) {
   return (
-    <table style={{ width: "100%", marginTop: 10 }}>
-      <thead>
-        <tr>
-          <th style={{ textAlign: "left", padding: 6 }}>ชื่อเอกสาร</th>
-          <th style={{ textAlign: "left", padding: 6 }}>สถานะ</th>
-          <th style={{ textAlign: "left", padding: 6 }}>ไฟล์</th>
-        </tr>
-      </thead>
-
-      <tbody>
-        {items.map((it, i) => (
-          <tr key={it.id} style={{ background: i % 2 === 0 ? "#fff" : "#f9fafb" }}>
-            <td style={{ padding: 10 }}>{it.title || it.id}</td>
-            <td style={{ padding: 10 }}>
-              <span
-                style={{
-                  background: badgeColor(it.status),
-                  color: "#fff",
-                  padding: "3px 10px",
-                  borderRadius: 999,
-                  fontSize: 12,
-                }}
-              >
-                {fmtStatus(it.status)}
-              </span>
-            </td>
-            <td style={{ padding: 10 }}>
-              {it.fileData ? (
-                <a
-                  href={it.fileData}
-                  target="_blank"
-                  rel="noreferrer"
-                  style={{
-                    padding: "4px 10px",
-                    borderRadius: 999,
-                    border: "1px solid #d1d5db",
-                    background: "#fff",
-                    fontSize: 13,
-                  }}
-                >
-                  ดูไฟล์
-                </a>
-              ) : (
-                "-"
-              )}
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+    <div style={{ display: "grid", gridTemplateColumns: "120px 1fr" }}>
+      <div style={{ color: "#64748b", fontWeight: 600 }}>{label}</div>
+      <div style={{ fontWeight: 600 }}>{value || "-"}</div>
+    </div>
   );
 }
+
+function StatusBadge({ status }: { status?: string }) {
+  const map: Record<string, { bg: string; color: string }> = {
+    submitted: { bg: "#eff6ff", color: "#1e40af" },
+    approved: { bg: "#ecfdf5", color: "#065f46" },
+    rejected: { bg: "#fef2f2", color: "#991b1b" },
+  };
+  const s = status ? map[status] : undefined;
+  return (
+    <span
+      style={{
+        padding: "4px 10px",
+        borderRadius: 999,
+        fontSize: 12,
+        fontWeight: 600,
+        background: s?.bg ?? "#f1f5f9",
+        color: s?.color ?? "#334155",
+      }}
+    >
+      {STATUS_TH[status ?? ""] ?? "-"}
+    </span>
+  );
+}
+
+/* =========================
+   Styles
+========================= */
+
+const card: React.CSSProperties = {
+  background: "#fff",
+  borderRadius: 14,
+  padding: 20,
+  border: "1px solid #e5e7eb",
+};
+
+const filterRow: React.CSSProperties = {
+  display: "flex",
+  gap: 24,
+  flexWrap: "wrap",
+  alignItems: "flex-end",
+};
+
+const th: React.CSSProperties = {
+  textAlign: "left",
+  paddingBottom: 8,
+  fontSize: 14,
+};
+
+const overlay: React.CSSProperties = {
+  position: "fixed",
+  inset: 0,
+  background: "rgba(15,23,42,.45)",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  zIndex: 50,
+};
+
+const modal: React.CSSProperties = {
+  background: "#fff",
+  borderRadius: 16,
+  padding: 28,
+  width: "100%",
+  maxWidth: 640,
+  border: "1px solid #e5e7eb",
+};
+
+const modalFooter: React.CSSProperties = {
+  display: "flex",
+  justifyContent: "flex-end",
+  marginTop: 24,
+};
+
+const textarea: React.CSSProperties = {
+  width: "100%",
+  minHeight: 90,
+  borderRadius: 10,
+  padding: 12,
+  border: "1px solid #e5e7eb",
+};
+
+const ghostBtn: React.CSSProperties = {
+  background: "#fff",
+  color: "var(--ios-blue)",
+  boxShadow: "none",
+  border: "1px solid rgba(10,132,255,.25)",
+  height: 36,
+};
+
+const saveBtn: React.CSSProperties = {
+  background: "var(--ios-blue)",
+  color: "#fff",
+  boxShadow: "none",
+  border: "1px solid rgba(10,132,255,.25)",
+  height: 36,
+};
+
+/* ===== Section ===== */
+
+function Section({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div style={sectionCard}>
+      <div style={sectionTitle}>{title}</div>
+      {children}
+    </div>
+  );
+}
+
+const sectionCard: React.CSSProperties = {
+  background: "#f8fafc",
+  borderRadius: 12,
+  padding: 16,
+  marginBottom: 14,
+};
+
+const sectionTitle: React.CSSProperties = {
+  fontWeight: 700,
+  marginBottom: 10,
+  fontSize: 14,
+};

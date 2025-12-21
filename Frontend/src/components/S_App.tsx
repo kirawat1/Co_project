@@ -4,9 +4,10 @@ import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import Sidebar from "./S_Sidebar";
 import DashboardPage from "./S_Dashboard";
 import ProfilePage from "./S_ProfilePage";
-import CoopPage from "./S_CoopPage";
+import Gateway from "./S_Gateway";
 import DailyPage from "./S_DailyPage";
-import DocumentsPage from "./S_Docs";
+import DocPage from "./S_Docs";
+
 import { loadProfile, saveProfile, type StudentProfile } from "./store";
 import StudentTheme from "./S_Theme";
 import coopLogo from "../assets/COOP_Logo.png";
@@ -16,21 +17,33 @@ const IOS_BLUE = "#0074B7";
 export default function StudentApp() {
   const navigate = useNavigate();
 
-  const [profile, setProfile] = useState<StudentProfile>(() => loadProfile());
-  useEffect(() => { saveProfile(profile); }, [profile]);
+  // ใช้ studentId จาก token / mock login
+  const studentIdFromToken =
+    localStorage.getItem("coop.current.studentId") || "6400000000";
 
-  // ✅ แสดง "รหัสนักศึกษา" ก่อนเสมอ → ถ้าไม่มีค่อยใช้ชื่อ-นามสกุล → สุดท้ายค่อย "นักศึกษา"
-  const fullName = `${profile.firstName || ""} ${profile.lastName || ""}`.trim();
-  const displayName = profile.studentId || fullName || "นักศึกษา"; // <-- แก้
+  // โหลดโปรไฟล์แบบ per-student
+  const [profile, setProfile] = useState<StudentProfile>(() =>
+    loadProfile(studentIdFromToken)
+  );
+
+  useEffect(() => {
+    saveProfile(profile);
+  }, [profile]);
+
+  const fullName = `${profile.firstName || ""} ${
+    profile.lastName || ""
+  }`.trim();
+  const displayName = profile.studentId || fullName || "นักศึกษา";
 
   function onLogout() {
-    window.localStorage?.removeItem("coop.token");
+    localStorage.removeItem("coop.token");
+    localStorage.removeItem("coop.current.studentId");
     navigate("/", { replace: true });
   }
 
   return (
     <div className="app-bg">
-      {/* Topbar */}
+      {/* ---------- Topbar ---------- */}
       <header className="topbar">
         <div className="brand-badge">
           <img src={coopLogo} alt="Co-op Logo" className="brand-img" />
@@ -41,53 +54,62 @@ export default function StudentApp() {
             <div className="user-ava" />
             <div className="user-name">{displayName}</div>
           </div>
-          {/* ปุ่มไอคอนออกจากระบบ + บอกเลขนักศึกษาด้วย */}
+
           <button
             className="btn-ico"
             onClick={onLogout}
-            aria-label={`ออกจากระบบ (${profile.studentId || "ไม่ทราบรหัส"})`} // <-- แก้
-            title={profile.studentId || "ออกจากระบบ"}                             // <-- แก้
+            aria-label={`ออกจากระบบ (${profile.studentId || ""})`}
+            title="ออกจากระบบ"
           >
             <LogoutIcon />
           </button>
         </div>
       </header>
 
-      {/* Layout */}
+      {/* ---------- Layout ---------- */}
       <div className="layout">
-        <Sidebar />
+        {/* Sidebar ฝั่งซ้าย */}
+        <Sidebar profile={profile} />
+
         <main className="main">
           <Routes>
             <Route index element={<Navigate to="dashboard" replace />} />
-            <Route path="/" element={<Navigate to="/student/dashboard" replace />} />
-            <Route path="dashboard" element={<DashboardPage profile={profile} />} />
-            <Route path="profile" element={<ProfilePage profile={profile} setProfile={setProfile} />} />
-            <Route path="coop" element={<CoopPage profile={profile} setProfile={setProfile} />} />
+            {/* dashboard ไม่ต้องรับ profile แล้ว */}
+            <Route path="dashboard" element={<DashboardPage />} />
+            <Route path="profile" element={<ProfilePage />} />
+            <Route
+              path="gateway"
+              element={<Gateway profile={profile} setProfile={setProfile} />}
+            />
             <Route path="daily" element={<DailyPage profile={profile} />} />
-            <Route path="docs" element={<DocumentsPage profile={profile} setProfile={setProfile} />} />
+            <Route path="docs" element={<DocPage profile={profile} setProfile={setProfile} />} />
             <Route path="*" element={<Navigate to="dashboard" replace />} />
           </Routes>
         </main>
       </div>
 
-      {/* ธีมหลัก */}
       <StudentTheme IOS_BLUE={IOS_BLUE} />
 
-      {/* สไตล์เฉพาะ Topbar/โลโก้/ปุ่มไอคอน */}
+      {/* ---------- CSS ---------- */}
       <style>{`
         .topbar{
-          position: sticky; top: 0; z-index: 10;
-          display:flex; align-items:center; justify-content:space-between;
-          gap:16px; padding:10px 16px; background:#fff;
+          position: sticky;
+          top: 0;
+          z-index: 10;
+          display:flex;
+          align-items:center;
+          justify-content:space-between;
+          gap:16px;
+          padding:10px 16px;
+          background:#fff;
           border-bottom:1px solid rgba(0,0,0,.06);
         }
         .brand-badge{
           display:flex; align-items:center; justify-content:center;
-          background:#E6F0FF; border-radius:14px; padding:2px 2px;
+          background:#E6F0FF; border-radius:14px; padding:2px;
           border:1px solid rgba(0,0,0,.05);
         }
-        .brand-img{ height:25px; width:auto; display:block; }
-        @media (min-width:1024px){ .brand-img{ height:40px; } }
+        .brand-img{ height:40px; width:auto; }
 
         .topbar-right{ display:flex; align-items:center; gap:12px; }
         .user-mini{ display:flex; align-items:center; gap:10px; }
@@ -95,26 +117,34 @@ export default function StudentApp() {
         .user-name{ font-weight:700; }
 
         .btn-ico{
-          width:38px; height:38px; display:inline-flex; align-items:center; justify-content:center;
+          width:38px; height:38px;
+          display:inline-flex; align-items:center; justify-content:center;
           border-radius:10px; border:1px solid rgba(0,0,0,.08);
           background:#fff; color:#0f172a; cursor:pointer;
-          transition: background .12s ease, border-color .12s ease, box-shadow .12s ease, color .12s ease;
+          transition:.12s;
         }
         .btn-ico:hover{
-          background:#f8fafc; border-color:#c7d2fe; color:${IOS_BLUE};
-          box-shadow:0 1px 0 rgba(0,0,0,.02), 0 6px 14px rgba(0,116,183,.14);
+          background:#f8fafc;
+          border-color:#c7d2fe;
+          color:${IOS_BLUE};
+          box-shadow:0 2px 10px rgba(0,116,183,.14);
         }
-        .btn-ico svg{ width:20px; height:20px; display:block; }
+        .btn-ico svg{ width:20px; height:20px; }
       `}</style>
     </div>
   );
 }
 
-/* ไอคอนออกจากระบบแบบมินิมอล */
 function LogoutIcon() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <path d="M13 4H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h6" />
       <path d="M16 12H8" />
       <path d="M19 12l-3-3" />

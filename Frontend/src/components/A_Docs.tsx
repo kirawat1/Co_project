@@ -1,38 +1,44 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-// src/components/A_Docs.tsx
+import { useState } from "react";
+import { loadDocPeriods, saveDocPeriods, loadAcademicYear } from "./store";
 
-import React, { useState } from "react";
+/* =========================
+   Constants
+========================= */
 
-const KD = "coop.admin.docPeriods.v1"; // เก็บช่วงส่งเอกสาร
-const YEAR_KEY = "coop.admin.academicYear";
+const DOCS = [
+  { id: "T001", code: "COOP-T001", title: "แบบฟอร์มคำร้องสหกิจ" },
+  { id: "T002", code: "COOP-T002", title: "ใบสมัครงานสหกิจศึกษา" },
+  { id: "T003", code: "COOP-T003", title: "รายละเอียดงาน / สถานประกอบการ" },
+  { id: "T004", code: "COOP-T004", title: "แผน/โครงร่างการทำงาน" },
+  { id: "T005", code: "COOP-T005", title: "บันทึกการปฏิบัติงาน" },
+  { id: "T006", code: "COOP-T006", title: "รายงานฉบับสมบูรณ์" },
+];
 
-// โหลดปีการศึกษา
-function loadYear(): string {
-  return localStorage.getItem(YEAR_KEY) || "2568/1";
+/* =========================
+   Helpers
+========================= */
+
+function getDocWindow(p?: {
+  startDate?: string;
+  startTime?: string;
+  endDate?: string;
+  endTime?: string;
+}) {
+  if (!p?.startDate || !p?.endDate) return "not-open";
+  const now = new Date();
+  const start = new Date(`${p.startDate} ${p.startTime || "00:00"}`);
+  const end = new Date(`${p.endDate} ${p.endTime || "23:59"}`);
+  return now >= start && now <= end ? "open" : "not-open";
 }
 
-// โหลดช่วงส่งเอกสาร
-function loadPeriods(): Record<string, any> {
-  try {
-    return JSON.parse(localStorage.getItem(KD) || "{}");
-  } catch {
-    return {};
-  }
-}
-
-// บันทึก
-function savePeriods(v: any) {
-  localStorage.setItem(KD, JSON.stringify(v));
-}
+/* =========================
+   Component
+========================= */
 
 export default function A_Docs() {
-  const year = loadYear(); // ไม่มีการแก้ไข ใช้เป็นตัวแสดงผลเท่านั้น
-  const [periods, setPeriods] = useState(loadPeriods());
-
-  // Modal state
-  const [editingId, setEditingId] = useState<string>("");
-  const [showModal, setShowModal] = useState(false);
-
+  const year = loadAcademicYear();
+  const [periods, setPeriods] = useState(loadDocPeriods());
+  const [editing, setEditing] = useState<string | null>(null);
   const [form, setForm] = useState({
     startDate: "",
     startTime: "",
@@ -40,19 +46,7 @@ export default function A_Docs() {
     endTime: "",
   });
 
-  // เอกสารที่มีในระบบ (mock)
-  const allDocs = [
-    { id: "T00", title: "แบบคำร้องขอฝึกสหกิจ" },
-    { id: "T001", title: "ใบสมัครงานสหกิจศึกษา" },
-    { id: "T002", title: "รายละเอียดงาน / สถานประกอบการ" },
-    { id: "T003", title: "แผน/โครงร่างรายงาน" },
-    { id: "T004", title: "บันทึกการปฏิบัติงาน" },
-    { id: "T005", title: "รายงานฉบับสมบูรณ์" },
-  ];
-
-  function openEditor(docId: string) {
-    setEditingId(docId);
-
+  function open(docId: string) {
     const p = periods[docId] || {};
     setForm({
       startDate: p.startDate || "",
@@ -60,215 +54,284 @@ export default function A_Docs() {
       endDate: p.endDate || "",
       endTime: p.endTime || "",
     });
-
-    setShowModal(true);
+    setEditing(docId);
   }
 
-  function save(e: React.FormEvent) {
-    e.preventDefault();
-
-    const next = {
-      ...periods,
-      [editingId]: { ...form },
-    };
-
+  function save() {
+    if (!editing) return;
+    const next = { ...periods, [editing]: form };
     setPeriods(next);
-    savePeriods(next);
-    setShowModal(false);
+    saveDocPeriods(next);
+    setEditing(null);
   }
 
   return (
-    <div className="page" style={{ padding: 4, margin: 28, marginLeft: 65 }}>
-      {/* Header */}
-      <section
-        className="card"
-        style={{
-          padding: 24,
-          marginBottom: 28,
-          width: "95%",
-          maxWidth: 1480,
-          marginInline: "auto",
-        }}
-      >
-        <h2 style={{ margin: 0 }}>ตั้งค่าช่วงเวลาส่งเอกสาร</h2>
-        <p style={{ marginTop: 6, color: "#6b7280" }}>
-          ปีการศึกษา: <b>{year}</b>
-        </p>
+    <div style={{ padding: 28, marginLeft: 30 }}>
+      {/* ================= Header ================= */}
+      <section style={card}>
+        <h2 style={{ marginBottom: 4 }}>📄 ตั้งค่าช่วงเวลาส่งเอกสาร</h2>
+        <div style={{ color: "#64748b" }}>ปีการศึกษา {year}</div>
       </section>
 
-      {/* Document List */}
-      <section
-        className="card"
-        style={{
-          padding: 24,
-          width: "95%",
-          maxWidth: 1480,
-          marginInline: "auto",
-        }}
-      >
-        {allDocs.map((d) => {
+      {/* ================= Table Description ================= */}
+      <div style={tableDesc}>
+        <div style={tableDescTitle}>รายการในตาราง</div>
+        <ul style={tableDescList}>
+          <li>
+            <b>รหัสเอกสาร</b> – รหัสอ้างอิงเอกสารสหกิจศึกษา
+          </li>
+          <li>
+            <b>ชื่อเอกสาร</b> – ประเภทเอกสารที่นักศึกษาต้องส่ง
+          </li>
+          <li>
+            <b>วันที่เริ่ม</b> – วันที่เริ่มเปิดรับการส่งเอกสาร
+          </li>
+          <li>
+            <b>วันที่สิ้นสุด</b> – วันที่สิ้นสุดการเปิดรับเอกสาร
+          </li>
+          <li>
+            <b>สถานะ</b> – สถานะช่วงเวลาเอกสาร (
+            <span style={{ color: "#16a34a" }}>● เปิดรับ</span> /{" "}
+            <span style={{ color: "#64748b" }}>● ยังไม่เปิด</span>)
+          </li>
+          <li>
+            <b>การจัดการ</b> – ปุ่มแก้ไขช่วงวันและเวลา
+          </li>
+        </ul>
+      </div>
+
+      {/* ================= Table ================= */}
+      <section style={{ ...card, marginTop: 16 }}>
+        {DOCS.map((d) => {
           const p = periods[d.id] || {};
-          const start = p.startDate ? `${p.startDate} ${p.startTime ?? ""}` : "-";
-          const end = p.endDate ? `${p.endDate} ${p.endTime ?? ""}` : "-";
-
+          const status = getDocWindow(p);
           return (
-            <div
-              key={d.id}
-              style={{
-                padding: "14px 0",
-                borderBottom: "1px solid #f1f5f9",
-                display: "grid",
-                gridTemplateColumns: "1fr 180px 180px auto",
-                gap: 12,
-                alignItems: "center",
-                fontSize: 14,
-              }}
-            >
+            <div key={d.id} style={row}>
+              <div style={{ fontWeight: 600 }}>{d.code}</div>
+              <div>{d.title}</div>
+              <div>{p.startDate || "-"}</div>
+              <div>{p.endDate || "-"}</div>
               <div>
-                <div style={{ fontWeight: 600 }}>{d.title}</div>
-                <div style={{ fontSize: 12, color: "#6b7280" }}>ID: {d.id}</div>
+                {status === "open" ? (
+                  <span style={badgeOk}>เปิดรับ</span>
+                ) : (
+                  <span style={badgeWait}>ยังไม่เปิด</span>
+                )}
               </div>
-
-              <div>
-                <div style={{ fontSize: 12, color: "#6b7280" }}>เริ่มส่งได้</div>
-                <div>{start}</div>
-              </div>
-
-              <div>
-                <div style={{ fontSize: 12, color: "#6b7280" }}>ส่งได้ถึง</div>
-                <div>{end}</div>
-              </div>
-
               <button
                 className="btn"
-                type="button"
-                onClick={() => openEditor(d.id)}
-                style={{ whiteSpace: "nowrap" }}
+                style={ghostBtn}
+                onClick={() => open(d.id)}
               >
-                แก้ไขช่วงส่ง
+                แก้ไข
               </button>
             </div>
           );
         })}
       </section>
 
-      {/* Modal */}
-      {showModal && (
-        <div className="modal-backdrop">
-          <div className="modal-card" style={{ maxWidth: 600 }}>
-            <h3 style={{ marginTop: 0 }}>แก้ไขช่วงส่งเอกสาร</h3>
-            <p style={{ marginTop: 2, color: "#6b7280" }}>
-              เอกสาร: <b>{editingId}</b>
-            </p>
+      {/* ================= Modal ================= */}
+      {editing && (
+        <div style={overlay}>
+          <div style={modal}>
+            <h3 style={modalTitle}>แก้ไขช่วงเวลาเอกสาร</h3>
 
-            <form
-              onSubmit={save}
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: 14,
-                marginTop: 14,
-              }}
-            >
-              <div>
-                <label className="label">วันที่เริ่มส่ง</label>
+            <div style={formGrid}>
+              <label style={field}>
+                วันที่เริ่ม
                 <input
-                  className="input"
                   type="date"
                   value={form.startDate}
                   onChange={(e) =>
-                    setForm((x) => ({ ...x, startDate: e.target.value }))
+                    setForm({ ...form, startDate: e.target.value })
                   }
-                  style={{ width: "90%" }}
+                  style={input}
                 />
-              </div>
+              </label>
 
-              <div>
-                <label className="label">เวลาเริ่มส่ง</label>
+              <label style={field}>
+                เวลาเริ่ม
                 <input
-                  className="input"
                   type="time"
                   value={form.startTime}
                   onChange={(e) =>
-                    setForm((x) => ({ ...x, startTime: e.target.value }))
+                    setForm({ ...form, startTime: e.target.value })
                   }
-                  style={{ width: "90%" }}
+                  style={input}
                 />
-              </div>
+              </label>
 
-              <div>
-                <label className="label">วันที่สิ้นสุด</label>
+              <label style={field}>
+                วันที่สิ้นสุด
                 <input
-                  className="input"
                   type="date"
                   value={form.endDate}
                   onChange={(e) =>
-                    setForm((x) => ({ ...x, endDate: e.target.value }))
+                    setForm({ ...form, endDate: e.target.value })
                   }
-                  style={{ width: "90%" }}
+                  style={input}
                 />
-              </div>
+              </label>
 
-              <div>
-                <label className="label">เวลาสิ้นสุด</label>
+              <label style={field}>
+                เวลาสิ้นสุด
                 <input
-                  className="input"
                   type="time"
                   value={form.endTime}
                   onChange={(e) =>
-                    setForm((x) => ({ ...x, endTime: e.target.value }))
+                    setForm({ ...form, endTime: e.target.value })
                   }
-                  style={{ width: "90%" }}
+                  style={input}
                 />
-              </div>
+              </label>
+            </div>
 
-              <div
-                style={{
-                  gridColumn: "1 / -1",
-                  display: "flex",
-                  justifyContent: "flex-end",
-                  gap: 10,
-                  marginTop: 8,
-                }}
+            <div style={footer}>
+              <button
+                className="btn"
+                style={ghostBtn}
+                onClick={() => setEditing(null)}
               >
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  onClick={() => setShowModal(false)}
-                >
-                  ยกเลิก
-                </button>
-                <button type="submit" className="btn">
-                  บันทึก
-                </button>
-              </div>
-            </form>
+                ยกเลิก
+              </button>
+              <button className="btn" onClick={save} style={saveBtn}>
+                บันทึก
+              </button>
+            </div>
           </div>
         </div>
       )}
-
-      {/* Styles */}
-      <style>{`
-        .modal-backdrop{
-          position:fixed; inset:0;
-          background:rgba(15,23,42,.35);
-          display:flex; align-items:center; justify-content:center;
-          z-index:40;
-        }
-        .modal-card{
-          background:white;
-          padding:24px;
-          border-radius:18px;
-          box-shadow:0 18px 45px rgba(0,0,0,.18);
-          width:100%;
-        }
-        .btn-secondary{
-          padding:8px 16px;
-          border-radius:10px;
-          background:#fff;
-          border:1px solid #d1d5db;
-        }
-      `}</style>
     </div>
   );
 }
+
+/* =========================
+   Styles
+========================= */
+
+const card: React.CSSProperties = {
+  background: "#fff",
+  borderRadius: 14,
+  padding: 20,
+  border: "1px solid #e5e7eb",
+};
+
+const tableDesc: React.CSSProperties = {
+  marginTop: 16,
+  padding: "14px 16px",
+  background: "#f8fafc",
+  borderRadius: 12,
+  border: "1px solid #e5e7eb",
+};
+
+const tableDescTitle: React.CSSProperties = {
+  fontSize: 14,
+  fontWeight: 700,
+  marginBottom: 8,
+};
+
+const tableDescList: React.CSSProperties = {
+  margin: 0,
+  paddingLeft: 18,
+  fontSize: 13,
+  color: "#475569",
+  lineHeight: 1.8,
+};
+
+const row: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "120px 1fr 120px 120px 120px auto",
+  gap: 12,
+  padding: "12px 0",
+  alignItems: "center",
+  borderBottom: "1px solid #f1f5f9",
+};
+
+const overlay: React.CSSProperties = {
+  position: "fixed",
+  inset: 0,
+  background: "rgba(15,23,42,.4)",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  zIndex: 50,
+};
+
+const modal: React.CSSProperties = {
+  background: "#fff",
+  borderRadius: 16,
+  padding: 28,
+  width: "100%",
+  maxWidth: 460,
+  boxShadow: "0 20px 50px rgba(15,23,42,.18)",
+};
+
+const modalTitle: React.CSSProperties = {
+  margin: 0,
+  marginBottom: 20,
+  fontSize: 18,
+  fontWeight: 700,
+};
+
+const formGrid: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "1fr 1fr",
+  gap: 16,
+  marginBottom: 24,
+};
+
+const field: React.CSSProperties = {
+  display: "flex",
+  flexDirection: "column",
+  gap: 6,
+  fontSize: 13,
+  color: "#475569",
+};
+
+const input: React.CSSProperties = {
+  height: 38,
+  borderRadius: 10,
+  border: "1px solid #e5e7eb",
+  padding: "0 12px",
+  fontSize: 14,
+};
+
+const footer: React.CSSProperties = {
+  display: "flex",
+  justifyContent: "flex-end",
+  gap: 10,
+};
+
+const ghostBtn: React.CSSProperties = {
+  background: "#fff",
+  color: "var(--ios-blue)",
+  boxShadow: "none",
+  border: "1px solid rgba(10,132,255,.25)",
+  height: 36,
+};
+
+const saveBtn: React.CSSProperties = {
+  background: "var(--ios-blue)",
+  color: "#fff",
+  boxShadow: "none",
+  border: "1px solid rgba(10,132,255,.25)",
+  height: 36,
+};
+
+const badgeOk: React.CSSProperties = {
+  padding: "4px 10px",
+  borderRadius: 999,
+  fontSize: 12,
+  fontWeight: 600,
+  background: "#ecfdf5",
+  color: "#065f46",
+};
+
+const badgeWait: React.CSSProperties = {
+  padding: "4px 10px",
+  borderRadius: 999,
+  fontSize: 12,
+  fontWeight: 600,
+  background: "#f8fafc",
+  color: "#64748b",
+};

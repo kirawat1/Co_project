@@ -1,306 +1,292 @@
-// src/components/A_Announcements.tsx
-import React, { useMemo, useState, useEffect } from "react";
+/* ============================ */
+import { useState, useEffect } from "react";
+import axios from "axios";
+import type { CSSProperties } from "react";
 
-export type Ann = {
+type AnnouncementAttachment = {
+  id?: string;
+  type: "link" | "file" | "image";
+  name: string;
+  url: string;
+  rawFile?: File;
+};
+
+type Announcement = {
   id: string;
   title: string;
-  date: string;
   body?: string;
-  year?: string;
-  linkUrl?: string;
-  createdAt?: string;
-  // เพิ่มส่วนนี้
-  files?: {
-    id: string;
-    name: string;
-    mime: string;
-    path: string;
-  }[];
+  date: string;
+  year: string;
+  attachments: AnnouncementAttachment[];
 };
-const YEAR_KEY = "coop.admin.academicYear";
-
-function getFileUrl(path: string) {
-  const backendOrigin = "http://localhost:5000"; // backend
-  const url = `${backendOrigin}/uploads/${encodeURIComponent(path)}`;
-  // console.log("getFileUrl:", url);
-  return url;
-}
-
-
-
-
-function loadYear(): string {
-  const saved = localStorage.getItem(YEAR_KEY);
-  if (saved) return saved;
-
-  const now = new Date();
-  const thYear = now.getFullYear() + 543;
-  const month = now.getMonth() + 1;
-  const term = month >= 6 && month <= 11 ? 1 : 2;
-  const guess = `${thYear}/${term}`;
-  localStorage.setItem(YEAR_KEY, guess);
-  return guess;
-}
 
 export default function A_Announcements() {
-  const [items, setItems] = useState<Ann[]>([]);
-  const year = localStorage.getItem(YEAR_KEY) || loadYear();
+  const [year, setYear] = useState(new Date().getFullYear().toString());
+  const [items, setItems] = useState<Announcement[]>([]);
 
   const [title, setTitle] = useState("");
-  const [date, setDate] = useState<string>(new Date().toISOString().slice(0, 10));
   const [body, setBody] = useState("");
-  const [linkUrl, setLinkUrl] = useState("");
-  const [files, setFiles] = useState<File[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [attachments, setAttachments] = useState<AnnouncementAttachment[]>([]);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null); // preview รูป
 
-  const [preview, setPreview] = useState<{ type: "image" | "pdf"; src: string } | null>(null);
-
-  // โหลดประกาศจาก backend
-  useEffect(() => {
-    const token = localStorage.getItem("coop.token");
-    if (!token) return;
-    fetch("/api/announcements", {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then(res => res.json())
-      .then(data => {
-        if (data.ok) setItems(data.list || []);
-      });
-  }, []);
-
-  const upcoming = useMemo(
-    () =>
-      [...items]
-        .filter((a) => (a.year || year) === year)
-        .filter((a) => a.date >= new Date().toISOString().slice(0, 10))
-        .sort((a, b) => a.date.localeCompare(b.date)),
-    [items, year]
-  );
-
-  function onFilesChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const selected = e.target.files;
-    if (!selected) return;
-    setFiles(Array.from(selected));
-  }
-
-  async function addAnnouncement(e: React.FormEvent) {
-    e.preventDefault();
-    if (loading) return;
-    setLoading(true);
-
-    if (!title.trim()) return alert("กรุณากรอกหัวข้อ");
-
-    const formData = new FormData();
-    formData.append("title", title.trim());
-    formData.append("date", date);
-    formData.append("year", year);
-    if (body.trim()) formData.append("body", body.trim());
-    if (linkUrl.trim()) formData.append("linkUrl", linkUrl.trim());
-    files.forEach(f => formData.append("attachments", f));
-
+  /* ================= LOAD DATA ================= */
+  const fetchAnnouncements = async () => {
     try {
-      const token = localStorage.getItem("coop.token");
-      const res = await fetch("http://localhost:5000/api/announcements", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData,
-      });
-      const data = await res.json();
-      if (!data.ok) return alert(data.message || "เกิดข้อผิดพลาด");
-
-      setItems(prev => [data.announcement, ...prev]);
-      setTitle(""); setBody(""); setLinkUrl(""); setFiles([]);
-    } catch (err) {
-      console.error(err);
-      alert("เกิดข้อผิดพลาดในการส่งข้อมูล");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-
-  async function removeAnnouncement(id: string) {
-    if (!confirm("ลบประกาศนี้?")) return;
-    const token = localStorage.getItem("coop.token");
-    if (!token) return alert("กรุณาเข้าสู่ระบบ");
-
-    try {
-      const res = await fetch(`/api/announcements/${id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (data.ok) {
-        setItems(prev => prev.filter(x => x.id !== id));
-      } else {
-        alert(data.message || "เกิดข้อผิดพลาด");
+      const res = await axios.get(`http://localhost:5000/api/announcements?year=${year}`);
+      if (res.data.ok) {
+        setItems(
+          res.data.list.map((a: any) => ({
+            ...a,
+            attachments: [
+              ...(a.files?.map((f: any) => ({
+                id: f.id,
+                type: f.mime?.startsWith("image/") ? "image" : "file",
+                name: f.name,
+                url: `http://localhost:5000/uploads/${f.path}`,
+              })) || []),
+              ...(a.linkUrl ? JSON.parse(a.linkUrl).map((l: string) => ({
+                type: "link",
+                name: l,
+                url: l,
+              })) : [])
+            ]
+          }))
+        );
       }
     } catch (err) {
       console.error(err);
-      alert("เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์");
+    }
+  };
+
+  useEffect(() => { fetchAnnouncements(); }, [year]);
+
+  /* ================= ATTACHMENTS ================= */
+  function addLink() {
+    const url = prompt("กรอก URL");
+    if (!url) return;
+    setAttachments(prev => [...prev, { type: "link", name: url, url }]);
+  }
+
+  function addFile(file: File, type: "file" | "image") {
+    setAttachments(prev => [...prev, { type, name: file.name, url: URL.createObjectURL(file), rawFile: file }]);
+  }
+
+  function removeAttachment(index: number) {
+    setAttachments(prev => prev.filter((_, i) => i !== index));
+  }
+
+  function openAttachment(at: AnnouncementAttachment) {
+    if (at.type === "image") {
+      setPreviewUrl(at.url);
+    } else {
+      window.open(at.url, "_blank");
     }
   }
 
-  function isImageMime(mime?: string) {
-    return !!mime && mime.startsWith("image/");
-  }
+  /* ================= SAVE ================= */
+  const save = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title.trim()) return alert("กรุณากรอกหัวข้อประกาศ");
 
-  function isPdfMime(mime?: string) {
-    return !!mime && mime === "application/pdf";
-  }
+    const form = new FormData();
+    if (editingId) form.append("id", editingId);
+    form.append("title", title);
+    form.append("body", body);
+    form.append("date", date);
+    form.append("year", year);
 
+    attachments.forEach(att => {
+      if ((att.type === "file" || att.type === "image") && att.rawFile) {
+        form.append("attachments", att.rawFile);
+      }
+    });
+
+    const links = attachments.filter(a => a.type === "link").map(a => a.url);
+    if (links.length) form.append("linkUrls", JSON.stringify(links));
+
+    const keepFileIds = attachments.filter(a => a.id).map(a => a.id!);
+    if (keepFileIds.length) form.append("keepFileIds", JSON.stringify(keepFileIds));
+
+    try {
+      await axios.post("http://localhost:5000/api/announcements", form, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
+      setTitle(""); setBody(""); setDate(new Date().toISOString().slice(0, 10));
+      setAttachments([]); setEditingId(null); setModalOpen(false);
+      fetchAnnouncements();
+    } catch (err) {
+      console.error(err);
+      alert("เกิดข้อผิดพลาดในการบันทึก");
+    }
+  };
+
+  const openEditModal = (a: Announcement) => {
+    setEditingId(a.id);
+    setTitle(a.title);
+    setBody(a.body || "");
+    setDate(a.date);
+    setAttachments(a.attachments || []);
+    setModalOpen(true);
+  };
+
+  const remove = async (id: string) => {
+    if (!confirm("ลบประกาศนี้?")) return;
+    try { await axios.delete(`http://localhost:5000/api/announcements/${id}`); fetchAnnouncements(); }
+    catch (err) { console.error(err); alert("ลบไม่สำเร็จ"); }
+  };
+
+  /* ================= RENDER ================= */
   return (
-    <div className="page" style={{ padding: 4, margin: 28, marginLeft: 65 }}>
-      {/* Form */}
-      <section className="card" style={{ padding: 24, marginBottom: 28 }}>
-        <h2 style={{ marginTop: 8, marginLeft: 18 }}>เขียนประกาศสหกิจศึกษา</h2>
+    <div style={{ padding: 28 }}>
+      {/* HEADER */}
+      <section style={{ ...card, marginLeft: 35 }}>
+        <h2>จัดการประกาศสหกิจ</h2>
+        <div style={{ color: "#64748b", fontSize: 14 }}>ปีการศึกษา {year}</div>
+      </section>
 
-        <form className="grid2" onSubmit={addAnnouncement} style={{ display: "grid", gridTemplateColumns: "2fr 1.2fr", gap: 16, marginLeft: 18, marginRight: 36, alignItems: "flex-start" }}>
-          {/* ซ้าย */}
-          <div style={{ display: "grid", gap: 10 }}>
-            <div className="field">
-              <label className="label" style={{ marginLeft: 10 }}>หัวข้อประกาศ</label>
-              <input className="input" placeholder="หัวข้อประกาศ" value={title} onChange={(e) => setTitle(e.target.value)} style={{ width: "90%", marginRight: 30 }} />
-            </div>
-            <div className="field">
-              <label className="label" style={{ marginLeft: 10 }}>เนื้อหาประกาศ (ไม่บังคับ)</label>
-              <textarea className="input" rows={4} placeholder="รายละเอียดประกาศ / เงื่อนไข / ลิงก์เพิ่มเติม" value={body} onChange={(e) => setBody(e.target.value)} style={{ width: "90%", marginRight: 30, resize: "vertical" }} />
-            </div>
-            <div className="field">
-              <label className="label" style={{ marginLeft: 10 }}>แนบลิงก์ (ถ้ามี)</label>
-              <input className="input" placeholder="เช่น ลิงก์ Google Form / เอกสารภายนอก" value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} style={{ width: "90%", marginRight: 30 }} />
-            </div>
+      {/* ADD NEW */}
+      <section style={{ ...card, marginTop: 20, marginLeft: 35 }}>
+        <form onSubmit={save} style={formGrid}>
+          <div style={field}>
+            <label style={label}>หัวข้อประกาศ</label>
+            <input className="input" value={title} onChange={e => setTitle(e.target.value)} />
           </div>
-
-          {/* ขวา */}
-          <div style={{ display: "grid", gap: 10 }}>
-            <div className="field">
-              <label className="label" style={{ marginLeft: 10 }}>กำหนดวันที่</label>
-              <input className="input" type="date" aria-label="กำหนดวันที่ของประกาศ" value={date} onChange={(e) => setDate(e.target.value)} />
-            </div>
-
-            <div className="field">
-              <label className="label" style={{ marginLeft: 10 }}>แนบไฟล์ / รูปภาพ (ไม่บังคับ)</label>
-              <input className="input" type="file" multiple onChange={onFilesChange} accept="image/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.py,.c,.txt" />
-              {files.length > 0 && (
-                <div style={{ fontSize: 12, color: "#6b7280", marginTop: 4 }}>ไฟล์ที่เลือก: {files.map(f => f.name).join(", ")}</div>
-              )}
-            </div>
-
-            <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", marginTop: 4 }}>
-              <button className="btn" type="submit" disabled={loading}>{loading ? "กำลังบันทึก..." : "บันทึกประกาศ"}</button>
-            </div>
+          <div style={field}>
+            <label style={label}>เนื้อหาประกาศ</label>
+            <textarea className="input" rows={4} value={body} onChange={e => setBody(e.target.value)} />
           </div>
+          <div style={fieldRow}>
+            <input type="date" className="input" value={date} onChange={e => setDate(e.target.value)} />
+          </div>
+          <div style={attachRow}>
+            <button type="button" className="btn" onClick={addLink}>🔗 แนบลิงก์</button>
+            <label style={attachLabel}>📄 แนบไฟล์
+              <input type="file" hidden multiple onChange={e => e.target.files && Array.from(e.target.files).forEach(f => addFile(f, "file"))} />
+            </label>
+            <label style={attachLabel}>🖼 แนบรูป
+              <input type="file" hidden multiple accept="image/*" onChange={e => e.target.files && Array.from(e.target.files).forEach(f => addFile(f, "image"))} />
+            </label>
+          </div>
+          {attachments.length > 0 && (
+            <ul style={attachList}>
+              {attachments.map((a, i) => (
+                <li key={i}>
+                  <span style={{ cursor: "pointer", color: a.type !== "link" ? "blue" : undefined }} onClick={() => openAttachment(a)}>
+                    {a.type === "link" ? "🔗" : a.type === "image" ? "🖼" : "📄"} {a.name}
+                  </span>
+                  <button type="button" style={delBtn} onClick={() => removeAttachment(i)}>ลบ</button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <button className="btn" type="submit">{editingId ? "บันทึกการแก้ไข" : "บันทึกประกาศ"}</button>
         </form>
       </section>
 
-      {/* List */}
-      <section className="card" style={{ padding: 24 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", marginBottom: 8 }}>
-          <h3 style={{ margin: 0 }}>ประกาศตามปีการศึกษา {year}</h3>
-          <span style={{ fontSize: 12, color: "#6b7280" }}>ทั้งหมด {upcoming.length} รายการ</span>
-        </div>
-
-        {upcoming.length === 0 ? (
-          <p style={{ fontSize: 13, color: "#6b7280", marginTop: 8 }}>ยังไม่มีประกาศสำหรับปีการศึกษานี้</p>
-        ) : (
-          <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gap: 12 }}>
-            {upcoming.map((a) => (
-              <li key={a.id} style={{ border: "1px solid #e5e7eb", borderRadius: 14, padding: 12, display: "grid", gridTemplateColumns: "minmax(0,1fr) auto", gap: 8 }}>
-                <div>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
-                    <div style={{ fontWeight: 600 }}>{a.title}</div>
-                    <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 999, background: "#eff6ff", color: "#1d4ed8" }}>{a.date}</span>
-                    {a.year && <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 999, background: "#fef3c7", color: "#92400e" }}>ปี {a.year}</span>}
-                  </div>
-                  {a.body && <p style={{ fontSize: 13, color: "#4b5563", marginTop: 6, whiteSpace: "pre-wrap" }}>{a.body}</p>}
-
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 6, alignItems: "center" }}>
-                    {a.files?.map((f, i) => {
-                      const url = getFileUrl(f.path);
-
-                      if (isImageMime(f.mime)) {
-                        return (
-                          <img
-                            key={i}
-                            src={url}
-                            alt={f.name}
-                            style={{ maxHeight: 120 }}
-                            onClick={() => {
-                              console.log("Preview image:", url);
-                              setPreview({ type: "image", src: url });
-                            }}
-                          />
-                        );
-                      }
-
-                      if (isPdfMime(f.mime)) {
-                        return (
-                          <a
-                            key={i}
-                            href={url}
-                            target="_blank"
-                            rel="noreferrer"
-                            onClick={() => console.log("Open PDF in new tab:", url)}
-                          >
-                            {f.name}
-                          </a>
-                        );
-                      }
-
-                      return (
-                        <a
-                          key={i}
-                          href={url}
-                          download
-                          onClick={() => console.log("Download file:", url)}
-                        >
-                          {f.name}
-                        </a>
-                      );
-                    })}
-
-                  </div>
-                </div>
-
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8, fontSize: 11, color: "#9ca3af" }}>
-                  {a.createdAt && <span>เพิ่มเมื่อ {new Date(a.createdAt).toLocaleString("th-TH", { dateStyle: "short", timeStyle: "short" })}</span>}
-                  <button type="button" className="btn-secondary" onClick={() => removeAnnouncement(a.id)}>ลบ</button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
+      {/* LIST */}
+      <section style={{ marginTop: 28, marginLeft: 35 }}>
+        <h3>ประกาศปีการศึกษา {year}</h3>
+        {items.map(a => (
+          <div key={a.id} style={listItem}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 700 }}>{a.title}</div>
+              <div style={meta}>{a.date}</div>
+              {a.body && <div style={{ marginTop: 6 }}>{a.body}</div>}
+              {a.attachments.length > 0 && (
+                <ul style={{ marginTop: 6 }}>
+                  {a.attachments.map((at, i) => (
+                    <li key={i}>
+                      <span style={{ cursor: at.type !== "link" ? "pointer" : undefined, color: at.type !== "link" ? "blue" : undefined }} onClick={() => openAttachment(at)}>
+                        {at.type === "link" ? "🔗" : at.type === "image" ? "🖼" : "📄"} {at.name}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button className="btn" style={ghostBtn} onClick={() => openEditModal(a)}>แก้ไข</button>
+              <button className="btn" style={delBtn} onClick={() => remove(a.id)}>ลบ</button>
+            </div>
+          </div>
+        ))}
       </section>
 
-      {/* Preview Modal */}
-      {preview && (
-        <div onClick={() => setPreview(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 999 }}>
-          {preview.type === "image" ? (
-            <img src={preview.src} alt="preview" style={{ maxHeight: "90%", maxWidth: "90%", borderRadius: 8 }} />
-          ) : (
-            <iframe src={preview.src} style={{ width: "80vw", height: "80vh", border: "none", borderRadius: 8 }} />
-          )}
+      {/* MODAL */}
+      {modalOpen && (
+        <div style={modalOverlay}>
+          <div style={modalContent}>
+            <h3>แก้ไขประกาศ</h3>
+            <form onSubmit={save} style={formGrid}>
+              <div style={field}>
+                <label style={label}>หัวข้อประกาศ</label>
+                <input className="input" value={title} onChange={e => setTitle(e.target.value)} />
+              </div>
+              <div style={field}>
+                <label style={label}>เนื้อหาประกาศ</label>
+                <textarea className="input" rows={4} value={body} onChange={e => setBody(e.target.value)} />
+              </div>
+              <div style={fieldRow}>
+                <input type="date" className="input" value={date} onChange={e => setDate(e.target.value)} />
+              </div>
+              <div style={attachRow}>
+                <button type="button" className="btn" onClick={addLink}>🔗 แนบลิงก์</button>
+                <label style={attachLabel}>📄 แนบไฟล์
+                  <input type="file" hidden multiple onChange={e => e.target.files && Array.from(e.target.files).forEach(f => addFile(f, "file"))} />
+                </label>
+                <label style={attachLabel}>🖼 แนบรูป
+                  <input type="file" hidden multiple accept="image/*" onChange={e => e.target.files && Array.from(e.target.files).forEach(f => addFile(f, "image"))} />
+                </label>
+              </div>
+              {attachments.length > 0 && (
+                <ul style={attachList}>
+                  {attachments.map((a, i) => (
+                    <li key={i}>
+                      <span style={{ cursor: a.type !== "link" ? "pointer" : undefined, color: a.type !== "link" ? "blue" : undefined }} onClick={() => openAttachment(a)}>
+                        {a.type === "link" ? "🔗" : a.type === "image" ? "🖼" : "📄"} {a.name}
+                      </span>
+                      <button type="button" style={delBtn} onClick={() => removeAttachment(i)}>ลบ</button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <div style={{ display: "flex", gap: 8 }}>
+                <button className="btn" type="submit">บันทึกการแก้ไข</button>
+                <button type="button" className="btn" style={delBtn} onClick={() => setModalOpen(false)}>ปิด</button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 
-
-      <style>{`
-        .btn-secondary{
-          border-radius:999px;
-          padding:6px 14px;
-          border:1px solid #e5e7eb;
-          background:#fff;
-          font-size:12px;
-          cursor:pointer;
-        }
-        @media (max-width:1024px){
-          form.grid2{
-            grid-template-columns:1fr !important;
-            margin-right:18px !important;
-          }
-        }
-      `}</style>
+      {/* IMAGE PREVIEW POPUP */}
+      {previewUrl && (
+        <div style={previewOverlay} onClick={() => setPreviewUrl(null)}>
+          <img src={previewUrl} alt="preview" style={previewImage} />
+        </div>
+      )}
     </div>
   );
 }
+
+/* ================= STYLES ================= */
+const card = { background: "#fff", borderRadius: 14, padding: 30, border: "1px solid #e5e7eb" };
+const formGrid = { display: "grid", gap: 16 };
+const field: CSSProperties = { display: "flex", flexDirection: "column", gap: 6, width: "98%" };
+const fieldRow = { width: "20%" };
+const label = { fontSize: 13 };
+const attachRow = { display: "flex", gap: 10 };
+const attachLabel: CSSProperties = { padding: "8px 12px", border: "1px dashed #cbd5e1", cursor: "pointer" };
+const attachList = { fontSize: 13 };
+const listItem: CSSProperties = { display: "flex", gap: 12, padding: 14, border: "1px solid #e5e7eb", borderRadius: 12, marginBottom: 12 };
+const meta = { fontSize: 13, color: "#64748b" };
+const ghostBtn: CSSProperties = { background: "#fff", color: "var(--ios-blue)", boxShadow: "none", border: "1px solid rgba(10,132,255,.25)", height: 36 };
+const delBtn: CSSProperties = { background: "#fff", color: "#dc2626", boxShadow: "none", border: "1px solid rgba(10,132,255,.25)", height: 24, padding: "0 6px", cursor: "pointer" };
+const modalOverlay: CSSProperties = { position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.3)", display: "flex", justifyContent: "center", alignItems: "center" };
+const modalContent: CSSProperties = { background: "#fff", borderRadius: 14, padding: 20, width: 700, maxHeight: "90%", overflowY: "auto" };
+const previewOverlay: CSSProperties = { position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh", background: "rgba(0,0,0,0.5)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 999 };
+const previewImage: CSSProperties = { maxWidth: "90%", maxHeight: "90%" };

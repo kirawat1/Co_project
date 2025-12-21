@@ -1,6 +1,6 @@
 // src/components/A_Settings.tsx
 
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 
 const LS_YEAR = "coop.admin.academicYear";
 
@@ -68,7 +68,7 @@ export default function A_Settings() {
               fontWeight: 700,
               color: "#111827",
               marginBottom: 6,
-              marginRight:15,
+              marginRight: 15,
               display: "inline-block",
             }}
           >
