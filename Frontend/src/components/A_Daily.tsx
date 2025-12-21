@@ -203,9 +203,9 @@ export default function A_Daily() {
           toCsv(l.note),
           l.createdAt
             ? new Date(l.createdAt).toLocaleString("th-TH", {
-                dateStyle: "short",
-                timeStyle: "short",
-              })
+              dateStyle: "short",
+              timeStyle: "short",
+            })
             : "",
         ].join(",")
       ),
@@ -423,9 +423,9 @@ export default function A_Daily() {
                     <td style={{ padding: 10, fontSize: 14 }}>
                       {l.createdAt
                         ? new Date(l.createdAt).toLocaleString("th-TH", {
-                            dateStyle: "short",
-                            timeStyle: "short",
-                          })
+                          dateStyle: "short",
+                          timeStyle: "short",
+                        })
                         : "-"}
                     </td>
                   </tr>

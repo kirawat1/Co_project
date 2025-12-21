@@ -1,228 +1,119 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { AuthAPI } from "./api";
+import { AuthAPI, validateByRole } from "./api";
+import type { Role } from "./api";
 import { useNavigate } from "react-router-dom";
 import coopLogo from "../assets/COOP_Logo.png";
-
-
-// ✅ บทบาท: นักศึกษา / เจ้าหน้าที่ / อาจารย์
-type Role = "student" | "staff" | "teacher";
 
 const IOS_BLUE = "#0074B7";
 const ROLE_LABEL: Record<Role, string> = { student: "นักศึกษา", staff: "เจ้าหน้าที่", teacher: "อาจารย์" };
 const ALL_ROLES: Role[] = ["student", "staff", "teacher"];
-
-// ✅ เส้นทางหลังล็อกอินตามบทบาท
-const HOME_BY_ROLE: Record<Role, string> = {
-  student: "/student",
-  staff: "/admin",
-  teacher: "/teacher",
-};
-
-// ✅ ตรวจรูปแบบตามบทบาท
-function validateByRole(role: Role, username: string, password: string): string | null {
-  const u = username.trim();
-  const p = password.trim();
-
-  if (role === "student") {
-    if (!/^\d{10}$/.test(u)) {
-      return "รหัสนักศึกษาต้องเป็นตัวเลข 10 หลัก";
-    }
-  } else {
-    if (!u) return "กรุณากรอกอีเมลมหาวิทยาลัย";
-    const uniEmail = /^[^@\s]+@(kkumail\.com|kku\.ac\.th)$/i;
-    if (!uniEmail.test(u)) {
-      return "กรุณากรอกอีเมลมหาวิทยาลัยให้ถูกต้อง (@kkumail.com หรือ @kku.ac.th)";
-    }
-  }
-
-  if (!/^\d{13}$/.test(p)) {
-    return "รหัสผ่านต้องเป็นเลขบัตรประชาชน 13 หลัก";
-  }
-
-  return null;
-}
+const HOME_BY_ROLE: Record<Role, string> = { student: "/student", staff: "/admin", teacher: "/teacher" };
 
 export default function LoginPage() {
   const [role, setRole] = useState<Role>("student");
-
-  // ใช้เป็น "username"
-  // - student: รหัสนักศึกษา 10 หลัก
-  // - staff/teacher: อีเมลของมหาวิทยาลัย
   const [username, setUsername] = useState("");
-  const [password, setPassword] = useState(""); // เลขบัตรประชาชน 13 หลัก
-
+  const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(true);
   const [loading, setLoading] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
-
   const navigate = useNavigate();
 
   const roleText = useMemo(() => ROLE_LABEL[role], [role]);
-
-  const usernamePlaceholder =
-    role === "student"
-      ? "รหัสนักศึกษา 10 หลัก"
-      : "namexx@kku.ac.th)";
+  const usernamePlaceholder = role === "student" ? "รหัสนักศึกษา 10 หลัก" : "namexx@kku.ac.th";
 
   const onlyDigits = (v: string) => v.replace(/\D/g, "");
 
   useEffect(() => {
-    setError("");
-    setNotice("");
-    setPassword("");
+    setError(""); setNotice(""); setPassword(""); setUsername("");
   }, [role]);
 
-  async function onSubmit(e: React.FormEvent) {
+  const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setNotice("");
-    setLoading(true);
+
+    console.log("Submitting...", { role, username, password });
+
+    const err = validateByRole(role, username, password);
+    if (err) {
+      setError(err);
+      return;
+    }
 
     try {
-      const err = validateByRole(role, username, password);
-      if (err) throw new Error(err);
-
       const res = await AuthAPI.signin({
-        role,
-        email: username.trim(),
+        role,                 // "student" | "staff" | "teacher"
+        email: username.trim(), // input ของผู้ใช้
         password,
       });
 
       if (!res.ok) throw new Error(res.message || "เข้าสู่ระบบไม่สำเร็จ");
 
-      if (remember && res.token) {
-        localStorage.setItem("coop.token", res.token);
-      }
-
+      localStorage.setItem("coop.token", res.token!);
       localStorage.setItem("coop.role", role);
-      navigate(HOME_BY_ROLE[role] || "/student/dashboard", { replace: true });
-      setNotice(`เข้าสู่ระบบสำเร็จ`);
+
+      localStorage.setItem("coop.admin.profile", JSON.stringify(res.user));
+
+      // navigate ตาม role
+      navigate({
+        student: "/student",
+        staff: "/admin",
+        teacher: "/teacher"
+      }[role]);
+
     } catch (er: unknown) {
       setError(er instanceof Error ? er.message : String(er));
-    } finally {
-      setLoading(false);
     }
-  }
+  };
+
   return (
     <div className="screen">
       <div className="card">
-        {/* ฝั่งซ้าย */}
         <div className="panel-left">
           <div className="pill">CP · KKU</div>
-          <h1 className="headline">
-            Co-operative:
-            <br />
-            Computer Science, KKU
-          </h1>
+          <h1 className="headline">Co-operative:<br />Computer Science, KKU</h1>
         </div>
-
-        {/* ฝั่งขวา */}
         <div className="panel-right">
           <header className="topbar">
-            <div className="brand">
-              <div className="brand-badge">
-                <img src={coopLogo} alt="Co-op Logo" className="brand-img" />
-              </div>
-            </div>
+            <div className="brand"><img src={coopLogo} alt="Co-op Logo" className="brand-img" /></div>
           </header>
-
           <div className="title">
             <h2>เข้าสู่ระบบ</h2>
-            <p className="muted">
-              บทบาท: <b>{roleText}</b>
-            </p>
+            <p className="muted">บทบาท: <b>{roleText}</b></p>
           </div>
 
-          {/* เลือกบทบาท */}
           <div className="segment" role="tablist" aria-label="เลือกบทบาท">
-            {ALL_ROLES.map((r) => (
-              <button
-                key={r}
-                className={`seg ${role === r ? "active" : ""}`}
-                type="button"
-                onClick={() => {
-                  setRole(r);
-                  setUsername("");
-                }}
-              >
-                {ROLE_LABEL[r]}
-              </button>
+            {ALL_ROLES.map(r => (
+              <button key={r} className={`seg ${role === r ? "active" : ""}`} type="button"
+                onClick={() => { setRole(r); setUsername(""); setPassword(""); }}>{ROLE_LABEL[r]}</button>
             ))}
           </div>
 
-          {/* ฟอร์มเข้าสู่ระบบ */}
           <form onSubmit={onSubmit} className="form" noValidate>
-            <label className="label" htmlFor="username" style={{ marginLeft: 10 }}>
-              ชื่อผู้ใช้ (Username)
-            </label>
-            <input
-              id="username"
-              className="input"
-              type="text"
-              autoComplete="username"
-              placeholder={usernamePlaceholder}
-              value={username}
-              onChange={(e) =>
-                setUsername(
-                  role === "student" ? onlyDigits(e.target.value).slice(0, 10) : e.target.value
-                )
-              }
-              required
-              inputMode={role === "student" ? "numeric" : "email"}
-              pattern={
-                role === "student"
-                  ? "\\d{10}"
-                  : "^[^\\s@]+@(kkumail\\.com|kku\\.ac\\.th)$"
-              }
-              minLength={role === "student" ? 10 : undefined}
-              maxLength={role === "student" ? 10 : undefined}
-            />
-
-            <label className="label" htmlFor="password" style={{ marginLeft: 10 }}>
-              รหัสผ่าน (เลขบัตรประชาชน)
-            </label>
-            <input
-              id="password"
-              className="input"
-              type="password"
-              inputMode="numeric"
-              placeholder="เลขบัตรประชาชน 13 หลัก"
-              value={password}
-              onChange={(e) => setPassword(onlyDigits(e.target.value).slice(0, 13))}
-              required
-              pattern="\\d{13}"
-              minLength={13}
-              maxLength={13}
-            />
+            <label className="label">ชื่อผู้ใช้</label>
+            <input className="input" placeholder={usernamePlaceholder} value={username}
+              onChange={e => setUsername(role === "student" ? onlyDigits(e.target.value).slice(0, 10) : e.target.value)}
+              required inputMode={role === "student" ? "numeric" : "email"} />
+            <label className="label">รหัสผ่าน</label>
+            <input className="input" type="password" placeholder="เลขบัตรประชาชน 13 หลัก"
+              value={password} onChange={e => setPassword(onlyDigits(e.target.value).slice(0, 13))}
+              required inputMode="numeric" />
 
             <label className="remember">
-              <input
-                type="checkbox"
-                checked={remember}
-                onChange={(e) => setRemember(e.target.checked)}
-                style={{ marginLeft: 8 }}
-              />
+              <input type="checkbox" checked={remember} onChange={e => setRemember(e.target.checked)} />
               <span>จดจำฉันไว้</span>
             </label>
 
-            <div aria-live="polite">
-              {error && <div className="alert error">{error}</div>}
-              {notice && <div className="alert ok">{notice}</div>}
-            </div>
+            {error && <div className="alert error">{error}</div>}
+            {notice && <div className="alert ok">{notice}</div>}
 
             <button className="btn" type="submit" disabled={loading}>
               {loading ? "กำลังดำเนินการ..." : "เข้าสู่ระบบ"}
             </button>
           </form>
-
-          <p className="footnote">
-            · ตอนนี้ใช้ username ตามบทบาท
-            และ password = เลขบัตรประชาชน 13 หลัก
-          </p>
         </div>
       </div>
-
       <style>{css(IOS_BLUE)}</style>
     </div>
   );

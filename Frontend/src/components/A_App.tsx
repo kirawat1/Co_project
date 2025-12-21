@@ -18,26 +18,53 @@ const IOS_BLUE = "#0074B7";
 export default function AdminApp() {
   const navigate = useNavigate();
 
-  // ชื่อเจ้าหน้าที่จาก localStorage (fallback เป็น "เจ้าหน้าที่")
-  const [displayName, setDisplayName] = useState<string>(() => {
-    const n = localStorage.getItem("coop.admin.displayName");
-    if (n && n.trim()) return n;
-    try {
-      const p = JSON.parse(localStorage.getItem("coop.admin.profile") || "{}");
-      const full = `${p.firstName || ""} ${p.lastName || ""}`.trim();
-      if (full) return full;
-    } catch { }
-    return "เจ้าหน้าที่";
-  });
+  const [displayName, setDisplayName] = useState("กำลังโหลดข้อมูล...");
+  const [loading, setLoading] = useState(true);
+
   useEffect(() => {
-    const n = localStorage.getItem("coop.admin.displayName");
-    if (n) setDisplayName(n);
-  }, []);
+    const token = localStorage.getItem("coop.token");
+    console.log("Token from localStorage:", token); // 🔹 log token
+    if (!token) {
+      navigate("/", { replace: true });
+      return;
+    }
+
+    async function fetchProfile() {
+      try {
+        console.log("Fetching /api/auth/me with token:", token);
+        const res = await fetch("/api/auth/me", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+
+        if (!data.ok) throw new Error(data.message || "ไม่สามารถโหลดข้อมูลผู้ใช้ได้");
+
+        const user = data.user;
+        const name = user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.email;
+        setDisplayName(name);
+
+        // เก็บ cache เผื่อใช้เร็ว ๆ
+        localStorage.setItem("coop.admin.displayName", name);
+        localStorage.setItem("coop.admin.profile", JSON.stringify(user));
+      } catch (err) {
+        console.error(err);
+        navigate("/", { replace: true });
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchProfile();
+  }, [navigate]);
 
   function onLogout() {
     localStorage.removeItem("coop.token");
+    localStorage.removeItem("coop.admin.profile");
+    localStorage.removeItem("coop.admin.displayName");
     navigate("/", { replace: true });
   }
+
+  if (loading) return <div>กำลังโหลดข้อมูล...</div>;
 
   return (
     <div className="app-bg">

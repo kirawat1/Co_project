@@ -1,9 +1,10 @@
-// Backend/controllers/authController.js
+// backend/middleware/auth.js
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const prisma = require('../config/prismaClient');
 const dotenv = require('dotenv');
 dotenv.config();
+
 
 // ---------------- Helper: ดึงข้อมูลโปรไฟล์ตาม Role ----------------
 const getProfileByRole = async (user) => {
@@ -140,3 +141,41 @@ exports.signUp = async (req, res) => {
         return res.status(500).json({ ok: false, message: 'เกิดข้อผิดพลาดในการสมัครสมาชิก' });
     }
 };
+
+// ---------------- Middleware ตรวจสอบ token ----------------
+const authMiddleware = async (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({ ok: false, message: "กรุณาเข้าสู่ระบบ" });
+    }
+
+    const token = authHeader.split(" ")[1];
+
+    let payload;
+    try {
+      payload = require("jsonwebtoken").verify(token, process.env.JWT_SECRET);
+    } catch (err) {
+      return res.status(401).json({ ok: false, message: "Token หมดอายุหรือไม่ถูกต้อง" });
+    }
+
+    // หา user จาก DB
+    const user = await require("../config/prismaClient").user.findUnique({
+      where: { id: payload.id },
+      include: { student: true },
+    });
+
+    if (!user) {
+      return res.status(401).json({ ok: false, message: "ไม่พบผู้ใช้งาน" });
+    }
+
+    req.user = user;
+    next();
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดเซิร์ฟเวอร์" });
+  }
+};
+
+module.exports = authMiddleware;
