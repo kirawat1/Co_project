@@ -12,6 +12,8 @@ export interface AdminCompanyRecord {
   email: string;
   phone: string;
   website?: string;
+  contactPosition?: string;
+  contactPerson?: string;
   pastYears: string;
   mentors: MentorRecord[];
 }
@@ -93,6 +95,8 @@ export default function A_Companies() {
       phone: "",
       website: "",
       pastYears: "",
+      contactPerson: "",
+      contactPosition: "",
     };
   }
 
@@ -358,7 +362,9 @@ export default function A_Companies() {
               <th>ชื่อบริษัท</th>
               <th>อีเมล</th>
               <th>ปีที่รับ</th>
-              <th style={{ width: 180, textAlign: "right" }}>การทำงาน</th>
+              <th>ผู้ติดต่อ</th>
+              <th>ตำแหน่งผู้ติดต่อ</th>
+              <th style={td}>การทำงาน</th>
             </tr>
           </thead>
           <tbody>
@@ -375,19 +381,23 @@ export default function A_Companies() {
                 <td>{c.name}</td>
                 <td>{c.email}</td>
                 <td>{c.pastYears}</td>
-                <td style={{ textAlign: "right" }}>
-                  <button className="btn-secondary small" onClick={() => setViewCompany(c)}>
-                    ดูรายละเอียด
-                  </button>
-                  <button
-                    className="btn-secondary small"
-                    onClick={() => { setForm(c); setShowEdit(true); }}
-                  >
-                    แก้ไข
-                  </button>
-                  <button className="btn-danger small" onClick={() => remove(c.id)}>
-                    ลบ
-                  </button>
+                <td>{c.contactPerson || "-"}</td>
+                <td>{c.contactPosition || "-"}</td>
+                <td style={td}>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button className="btn" style={ghostBtn} onClick={() => setViewCompany(c)}>
+                      ดูรายละเอียด
+                    </button>
+                    <button
+                      className="btn" style={{ ...ghostBtn, color: '#c2410c', borderColor: '#c2410c', background: '#fff7ed' }}
+                      onClick={() => { setForm(c); setShowEdit(true); }}
+                    >
+                      แก้ไข
+                    </button>
+                    <button className="btn" style={{ ...ghostBtn, color: '#ef4444', borderColor: '#fecaca', background: '#fef2f2' }} onClick={() => remove(c.id)}>
+                      ลบ
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -415,6 +425,8 @@ export default function A_Companies() {
           <p><b>อีเมล:</b> {viewCompany.email}</p>
           <p><b>โทร:</b> {viewCompany.phone}</p>
           <p><b>เว็บไซต์:</b> {viewCompany.website || "-"}</p>
+          <p><b>ผู้ติดต่อ:</b> {viewCompany.contactPerson || "-"}</p>
+          <p><b>ตำแหน่งผู้ติดต่อ:</b> {viewCompany.contactPosition || "-"}</p>
 
           <hr style={{ margin: "16px 0" }} />
 
@@ -610,6 +622,24 @@ function CompanyForm({ form, setForm, onSubmit }: any) {
         onChange={e => setForm({ ...form, website: e.target.value })}
       />
 
+      <input
+        id="company-contact-person"
+        name="companyContactPerson"
+        className="input"
+        placeholder="ชื่อผู้ติดต่อ"
+        value={form.contactPerson}
+        onChange={e => setForm({ ...form, contactPerson: e.target.value })}
+      />
+
+      <input
+        id="company-contact-position"
+        name="companyContactPosition"
+        className="input"
+        placeholder="ตำแหน่งผู้ติดต่อ (CEO,HR,กรรมการผู้จัดการ)"
+        value={form.contactPosition}
+        onChange={e => setForm({ ...form, contactPosition: e.target.value })}
+      />
+
       <select
         id="company-year"
         name="pastYears"
@@ -647,3 +677,6 @@ function MentorForm({ form, setForm, onSubmit }: any) {
     </form>
   );
 }
+
+const ghostBtn: React.CSSProperties = { background: "#fff", color: "#0074B7", boxShadow: "none", border: "1px solid rgba(10,132,255,.25)", height: 36, borderRadius: 8, padding: '0 16px', cursor: 'pointer' };
+const td: React.CSSProperties = { padding: "14px 16px", fontSize: 14, color: '#334155', verticalAlign: 'middle' };

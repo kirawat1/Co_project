@@ -1,68 +1,93 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import type { StudentProfile } from "./store";
-import { loadStudents, loadAcademicYear } from "./store";
+import { loadAcademicYear } from "./store";
 
-const MAP_KEY_OLD = "coop.admin.teacherStudentsByYear.v1";
-const MAP_KEY_NEW = "coop.admin.teacherStudentsByYear";
-
-type TeacherStudentsMap = Record<string, Record<string, string[]>>;
-
-function getTeacherId(): string {
-  const raw = localStorage.getItem("coop.teacher.id");
-  if (raw) return raw;
-  try {
-    const p = JSON.parse(localStorage.getItem("coop.teacher.profile") || "{}");
-    if (p?.email) return `teacher:${String(p.email).toLowerCase()}`;
-  } catch { /* empty */ }
-  return "teacher:unknown";
-}
-
-function loadTeacherMap(): TeacherStudentsMap {
-  const tryLoad = (k: string) => {
-    try {
-      const raw = localStorage.getItem(k);
-      if (!raw) return null;
-      const obj = JSON.parse(raw);
-      return obj && typeof obj === "object" ? (obj as TeacherStudentsMap) : null;
-    } catch {
-      return null;
-    }
+// --- Interfaces ---
+interface StudentProfile {
+  id: number;
+  studentId: string;
+  firstName?: string;
+  lastName?: string;
+  major?: string;
+  company?: { name: string };
+  coop?: {
+    status: string;
   };
-  return tryLoad(MAP_KEY_OLD) || tryLoad(MAP_KEY_NEW) || {};
+  coopRequest?: {
+    status: string;
+  };
 }
 
-function assignedIds(year: string, teacherId: string) {
-  const map = loadTeacherMap();
-  const byYear = map[year] || {};
-  const list = byYear[teacherId] || [];
-  return Array.isArray(list) ? list : [];
+// --- UI Helper: Status Chip ---
+function chip(status: string) {
+  const s = (status || "").toLowerCase();
+
+  let cls = "waiting";
+  let label = "ฉบับร่าง";
+
+  if (s === "submitted" || s === "pending") {
+    cls = "under"; label = "รอพิจารณา";
+  } else if (s === "approved") {
+    cls = "appr"; label = "ผ่าน";
+  } else if (s === "rejected") {
+    cls = "rej"; label = "ไม่ผ่าน";
+  } else if (s === "edits_required") {
+    cls = "edit"; label = "รอแก้ไข";
+  }
+
+  return <span className={`chip ${cls}`}>{label}</span>;
 }
 
+// --- Main Component ---
 export default function T_Students() {
   const year = loadAcademicYear();
-  const teacherId = getTeacherId();
 
-  const [students] = useState<StudentProfile[]>(() => loadStudents());
+  // State เก็บข้อมูลนักศึกษาจริงจาก API
+  const [allStudents, setAllStudents] = useState<StudentProfile[]>([]);
+  const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
 
-  const ids = assignedIds(year, teacherId);
+  // --- 1. Fetch Data จาก API ---
+  useEffect(() => {
+    const fetchData = async () => {
+      const token = localStorage.getItem("coop.token");
+      try {
+        const res = await fetch("http://localhost:5000/api/students", {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setAllStudents(data);
+        }
+      } catch (err) {
+        console.error("Error fetching students:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
 
-  const myStudents = useMemo(() => {
-    const set = new Set(ids);
-    return students
-      .filter((s) => set.has(s.studentId))
-      .filter((s) => {
-        const t = `${s.studentId} ${s.firstName || ""} ${s.lastName || ""} ${s.company?.name || ""}`.toLowerCase();
-        return t.includes(q.toLowerCase());
-      });
-  }, [ids, students, q]);
+  // --- 2. Filter: แสดงทุกคน (เอา assignedIds ออก) ---
+  const filteredStudents = useMemo(() => {
+    return allStudents.filter((s) => {
+      // กรองตามคำค้นหา (Search)
+      const t = `${s.studentId} ${s.firstName || ""} ${s.lastName || ""} ${s.company?.name || s.coop?.status || ""}`.toLowerCase();
+      return t.includes(q.toLowerCase());
+    });
+  }, [allStudents, q]);
+
+  if (loading) return <div style={{ padding: 20 }}>กำลังโหลดข้อมูล...</div>;
 
   return (
     <div style={{ display: "grid", gap: 16, marginLeft: 35, marginTop: 28 }}>
+
+      {/* Header Card */}
       <section className="card">
-        <div style={{ fontWeight: 1000, fontSize: 20 }}>นักศึกษาที่ดูแล</div>
-        <div style={{ color: "#6b7280", marginTop: 4 }}>อิงการจัดสรรของแอดมินในปีการศึกษา <b>{year}</b></div>
+        <div style={{ fontWeight: 1000, fontSize: 20 }}>รายชื่อนักศึกษาทั้งหมด</div>
+        <div style={{ color: "#6b7280", marginTop: 4 }}>
+          ปีการศึกษา <b>{year}</b>
+        </div>
 
         <div style={{ marginTop: 12, display: "flex", gap: 10, flexWrap: "wrap" }}>
           <input
@@ -73,11 +98,12 @@ export default function T_Students() {
             style={{ flex: "1 1 320px" }}
           />
           <div style={{ display: "inline-flex", alignItems: "center", color: "#6b7280", fontWeight: 800 }}>
-            ทั้งหมด {myStudents.length} คน
+            ทั้งหมด {filteredStudents.length} คน
           </div>
         </div>
       </section>
 
+      {/* Table Card */}
       <section className="card" style={{ padding: 0 }}>
         <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: "0 10px", padding: 14 }}>
@@ -89,9 +115,11 @@ export default function T_Students() {
               </tr>
             </thead>
             <tbody>
-              {myStudents.map((s) => {
+              {filteredStudents.map((s) => {
                 const name = `${s.firstName || ""} ${s.lastName || ""}`.trim() || "-";
-                const st = s.coopRequest?.status || "draft";
+                // ใช้ status จาก coop (DB) หรือ fallback
+                const st = s.coop?.status || s.coopRequest?.status || "DRAFT";
+
                 return (
                   <tr key={s.studentId} style={{ background: "#fff" }}>
                     <td style={td()}>{s.studentId}</td>
@@ -100,34 +128,31 @@ export default function T_Students() {
                     <td style={td()}>{s.company?.name || "-"}</td>
                     <td style={td()}>{chip(st)}</td>
                     <td style={td()}>
-                      <Link className="btn" to={`/teacher/students/${s.studentId}`} style={{ textDecoration: "none" }}>
+                      <Link className="btn" to={`/teacher/students/${s.studentId}`} style={{ padding: "6px 20px", fontSize: 16, textDecoration: 'none' }}>
                         รายละเอียด
                       </Link>
                     </td>
                   </tr>
                 );
               })}
-              {myStudents.length === 0 && (
-                <tr><td colSpan={6} style={{ padding: 14, color: "#6b7280" }}>— ไม่มีรายชื่อที่จัดสรรให้คุณในปีนี้ —</td></tr>
+
+              {filteredStudents.length === 0 && (
+                <tr>
+                  <td colSpan={6} style={{ padding: 14, color: "#6b7280", textAlign: 'center' }}>
+                    — ไม่พบรายชื่อ —
+                  </td>
+                </tr>
               )}
             </tbody>
           </table>
         </div>
       </section>
+
+      <style>{`
+        .chip.edit { background: #ffedd5; color: #c2410c; } /* สีส้มสำหรับรอแก้ไข */
+      `}</style>
     </div>
   );
-}
-
-function chip(status: string) {
-  const cls =
-    status === "submitted" ? "under" :
-    status === "approved" ? "appr" :
-    status === "rejected" ? "rej" : "waiting";
-  const label =
-    status === "submitted" ? "รอพิจารณา" :
-    status === "approved" ? "ผ่าน" :
-    status === "rejected" ? "ไม่ผ่าน" : "ฉบับร่าง";
-  return <span className={`chip ${cls}`}>{label}</span>;
 }
 
 function td(): React.CSSProperties {

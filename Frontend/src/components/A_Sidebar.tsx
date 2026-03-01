@@ -20,7 +20,7 @@ export default function A_Sidebar() {
 
         <div className="brand-main">
           <span className="brand-bullet" />
-          <span>Admin</span>
+          <span>Staff</span>
         </div>
 
         <div className="brand-underline" />
@@ -77,20 +77,28 @@ export default function A_Sidebar() {
         <div className="sec-label">เอกสารและบันทึก</div>
 
         <NavLink
+          to="/admin/doct000"
+          className={({ isActive }) => "item" + (isActive ? " active" : "")}
+        >
+          <span className="ico"><IcDocs /></span>
+          <span className="text">T000 เอกสารใบสมัคร</span>
+        </NavLink>
+
+        {/* <NavLink
           to="/admin/docs"
           className={({ isActive }) => "item" + (isActive ? " active" : "")}
         >
           <span className="ico"><IcDocs /></span>
           <span className="text">เอกสาร</span>
-        </NavLink>
+        </NavLink> */}
 
-        <NavLink
+        {/* <NavLink
           to="/admin/daily"
           className={({ isActive }) => "item" + (isActive ? " active" : "")}
         >
           <span className="ico"><IcCalendar /></span>
           <span className="text">บันทึกประจำวัน</span>
-        </NavLink>
+        </NavLink> */}
 
         <div className="sec-label">ระบบ</div>
 
@@ -100,6 +108,14 @@ export default function A_Sidebar() {
         >
           <span className="ico"><IcAnnounce /></span>
           <span className="text">ประกาศ</span>
+        </NavLink>
+
+        <NavLink
+          to="/admin/criteria"
+          className={({ isActive }) => "item" + (isActive ? " active" : "")}
+        >
+          <span className="ico"><IcSettings /></span>
+          <span className="text">เงื่อนไขออกสหกิจศึกษา</span>
         </NavLink>
 
         <NavLink

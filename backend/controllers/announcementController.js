@@ -1,3 +1,4 @@
+//backend/controllers/announcementController.js
 const prisma = require("../config/prismaClient");
 const path = require("path");
 const fs = require("fs");

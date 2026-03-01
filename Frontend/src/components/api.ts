@@ -9,8 +9,8 @@ export type Role = "student" | "staff" | "teacher";
 
 export interface SigninPayload {
   role: Role;
-  email: string;        // student = รหัสนักศึกษา / staff/teacher = email มข.
-  password: string;     // เลขบัตรประชาชน 13 หลัก
+  email: string; // ใช้อีเมลมหาวิทยาลัย (@kkumail.com หรือ @kku.ac.th)
+  password: string; // เลขบัตรประชาชน 13 หลัก
 }
 
 export interface SignupPayload {
@@ -21,20 +21,21 @@ export interface SignupPayload {
 
 // Token Claims ที่ถอดออกจาก token ได้
 export interface TokenClaims {
+  id?: number;
   role: Role;
   email: string;
   studentId?: string;
   staffName?: string;
   teacherName?: string;
 
-  iat: number;  // issued-at
-  exp: number;  // expire time
+  iat: number; // issued-at
+  exp: number; // expire time
 }
 
 export interface AuthRes {
   ok: boolean;
   message?: string;
-  token?: string;      // base64 ของ TokenClaims
+  token?: string; // base64 ของ TokenClaims
   user?: TokenClaims;
 }
 
@@ -73,7 +74,7 @@ function decodeToken(token: string): TokenClaims | null {
 
 async function realFetch(
   path: string,
-  body: SigninPayload | SignupPayload
+  body: SigninPayload | SignupPayload,
 ): Promise<AuthRes> {
   const r = await fetch(`/api/auth/${path}`, {
     method: "POST",
@@ -114,7 +115,6 @@ function mockSignup(payload: SignupPayload): AuthRes {
     }),
   };
 }
-
 
 // ======================================================
 

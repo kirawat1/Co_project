@@ -49,13 +49,13 @@ export default function T_Sidebar() {
           <span className="text">นักศึกษาที่ดูแล</span>
         </NavLink>
 
-        <NavLink
+        {/* <NavLink
           to="/teacher/exams"
           className={({ isActive }) => "item" + (isActive ? " active" : "")}
         >
           <span className="ico"><IcCalendar /></span>
           <span className="text">นัดสอบนิเทศ</span>
-        </NavLink>
+        </NavLink> */}
 
         <NavLink
           to="/teacher/profile"
