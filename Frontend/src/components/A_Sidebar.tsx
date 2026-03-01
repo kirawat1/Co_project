@@ -38,6 +38,14 @@ export default function A_Sidebar() {
           <span className="text">Dashboard</span>
         </NavLink>
 
+        <NavLink
+          to="/admin/announcements"
+          className={({ isActive }) => "item" + (isActive ? " active" : "")}
+        >
+          <span className="ico"><IcAnnounce /></span>
+          <span className="text">ประกาศ</span>
+        </NavLink>
+
         <div className="sec-label">ข้อมูลบุคคล</div>
 
         <NavLink
@@ -103,12 +111,13 @@ export default function A_Sidebar() {
         <div className="sec-label">ระบบ</div>
 
         <NavLink
-          to="/admin/announcements"
+          to="/admin/coop-period"
           className={({ isActive }) => "item" + (isActive ? " active" : "")}
         >
-          <span className="ico"><IcAnnounce /></span>
-          <span className="text">ประกาศ</span>
+          <span className="ico"><IcCalendar /></span>
+          <span className="text">รอบรับสมัครสหกิจ</span>
         </NavLink>
+
 
         <NavLink
           to="/admin/criteria"
