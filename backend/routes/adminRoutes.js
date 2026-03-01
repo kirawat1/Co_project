@@ -11,8 +11,9 @@ const systemUpload = require('../middlewares/systemUploadMiddleware'); // สำ
 // ✅ 2. Import Controllers
 const adminDocController = require('../controllers/adminDocController');
 const systemAssetController = require('../controllers/systemAssetController');
-
-
+const coopPeriodController = require("../controllers/coopPeriodController");
+const adminDashboardController = require('../controllers/adminDashboardController');
+const criteriaController = require('../controllers/criteriaController');
 // ==========================================
 // Group 1: จัดการเอกสารและการตั้งค่า (T000)
 // ==========================================
@@ -20,31 +21,27 @@ const systemAssetController = require('../controllers/systemAssetController');
 // Config วันเปิด-ปิดระบบ
 router.get('/config/t000', verifyToken, adminDocController.getT000Config);
 router.post('/config/t000', verifyToken, verifyRole('teacher', 'staff'), adminDocController.saveT000Config);
-
-// ดึงรายชื่อนักศึกษา
 router.get('/t000/students', verifyToken, adminDocController.getStudentsForT000);
-
-// อัปเดตสถานะไฟล์รายใบ (ผ่าน/ไม่ผ่าน)
 router.put('/doc/:id/status', verifyToken, adminDocController.updateDocStatus);
-
-// อนุมัติเอกสารทั้งหมด (One Click)
 router.post('/t000/approve-all', verifyToken, adminDocController.approveAllDocs);
-
-// ⭐️ สำคัญ: Review & บันทึกหนังสือส่งตัว (มีการแนบไฟล์ PDF กลับมา)
-// ใช้ 'upload' (ตัวเดิม) เพื่อเก็บไฟล์ลง folder uploads/ (รวมกับไฟล์ นศ.)
 router.put('/t000/review', verifyToken, upload.single('file'), adminDocController.reviewStudentStatus);
 
-
-// ==========================================
-// Group 2: จัดการไฟล์แม่แบบ (System Assets)
-// ==========================================
-
-// ดึงรายการไฟล์แม่แบบ (ตราครุฑ, ลายเซ็น ฯลฯ)
 router.get('/assets', systemAssetController.getAllAssets);
-
-// ⭐️ สำคัญ: อัปโหลดไฟล์แม่แบบใหม่
-// ใช้ 'systemUpload' (ตัวใหม่) เพื่อเก็บไฟล์ลง folder uploads/system/
 router.post('/assets', systemUpload.single('file'), systemAssetController.updateAsset);
 
+// Coop Period
+router.get("/coop-periods", coopPeriodController.getPeriods);
+router.post("/coop-periods", coopPeriodController.createPeriod);
+router.put("/coop-periods/:id", coopPeriodController.updatePeriod);
+router.patch("/coop-periods/:id/toggle", coopPeriodController.togglePeriod);
+router.delete("/coop-periods/:id", coopPeriodController.deletePeriod);
+
+router.get('/dashboard-stats', adminDashboardController.getDashboardStats);
+
+router.get('/majors', criteriaController.getMajorList);
+router.get('/criteria', criteriaController.getAllCriteria);
+router.post('/criteria', criteriaController.saveCriteria); // ใช้เซฟตอนเพิ่มสาขาใหม่ (หรือ Upsert)
+router.put('/criteria/:id', criteriaController.saveCriteria); // ใช้ตอนกดอัปเดตเกณฑ์
+router.delete('/criteria/:id', criteriaController.deleteCriteria); // ใช้ตอนกดลบสาขา
 
 module.exports = router;

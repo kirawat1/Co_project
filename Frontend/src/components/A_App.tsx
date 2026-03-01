@@ -14,6 +14,7 @@ import Teachers from "./A_Teacher";
 import Companies from "./A_Company";
 import StaffCriteriaPage from "./A_CriteriaPage";
 import DocT000 from "./A_DocT000";
+import Coopperiod from "./A_CoopPeriod";
 
 const IOS_BLUE = "#0074B7";
 
@@ -108,6 +109,7 @@ export default function AdminApp() {
             <Route path="teachers" element={<Teachers />} />
             <Route path="criteria" element={<StaffCriteriaPage />} />
             <Route path="doct000" element={<DocT000 />} />
+            <Route path="coop-period" element={<Coopperiod />} />
           </Routes>
         </main>
       </div>

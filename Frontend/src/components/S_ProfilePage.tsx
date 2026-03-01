@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { IcUser, IcEdit, IcSave } from "./icons";
 
+
 /* ================= TYPES ================= */
 interface Mentor {
   id: string;
@@ -25,15 +26,15 @@ interface StudentCompany {
 
 interface StudentProfile {
   studentId: string;
-  prefix?: "นาย" | "นางสาว" | "MR" | "MS"; // รองรับทั้ง UI และ Prisma Enum
+  prefix?: "นาย" | "นางสาว" | "MR" | "MS";
   firstName?: string;
   lastName?: string;
-  firstNameEn?: string; // ✅ เพิ่มใหม่
-  lastNameEn?: string;  // ✅ เพิ่มใหม่
+  firstNameEn?: string;
+  lastNameEn?: string;
   year?: string;
   major?: string;
   curriculum?: string;
-  advisorName?: string; // ✅ เพิ่มใหม่
+  advisorName?: string;
   phone?: string;
   studyProgram?: "ภาคปกติ" | "ภาคพิเศษ" | "normal" | "special";
   gpa?: number;
@@ -59,10 +60,9 @@ export default function S_ProfilePage() {
   const [openStudentModal, setOpenStudentModal] = useState(false);
   const token = localStorage.getItem("coop.token");
 
-  // Mapping Helpers
+  // Mapping Helpers (✅ เอา majorMapToUI ออกไปแล้ว เพราะใช้ค่าตรงๆ จาก DB)
   const prefixMapToPrisma = { นาย: "MR", นางสาว: "MS", MR: "MR", MS: "MS" };
   const prefixMapToUI = { MR: "นาย", MS: "นางสาว", นาย: "นาย", นางสาว: "นางสาว" };
-  const majorMapToUI = { CS: "วิทยาการคอมพิวเตอร์", IT: "เทคโนโลยีสารสนเทศ", GIS: "ภูมิสารสนเทศศาสตร์" } as any;
   const studyProgramMapToPrisma = { ภาคปกติ: "normal", ภาคพิเศษ: "special", normal: "normal", special: "special" };
   const studyProgramMapToUI = { normal: "ภาคปกติ", special: "ภาคพิเศษ", ภาคปกติ: "ภาคปกติ", ภาคพิเศษ: "ภาคพิเศษ" } as any;
 
@@ -74,7 +74,6 @@ export default function S_ProfilePage() {
     })
       .then(res => res.json())
       .then((data: StudentProfile) => {
-        // console.log("Data from DB:", data);
         const emails = data.emails?.length > 0
           ? data.emails
           : [{ email: "", primary: false }];
@@ -112,7 +111,6 @@ export default function S_ProfilePage() {
           ...updatedProfile,
           prefix: prefixMapToPrisma[updatedProfile.prefix as keyof typeof prefixMapToPrisma],
           studyProgram: studyProgramMapToPrisma[updatedProfile.studyProgram as keyof typeof studyProgramMapToPrisma],
-          // ✅ มั่นใจว่าตัวเลขเป็น Number
           gpa: updatedProfile.gpa ? Number(updatedProfile.gpa) : 0,
           coreGpa: updatedProfile.coreGpa ? Number(updatedProfile.coreGpa) : 0,
           activityUnit: updatedProfile.activityUnit ? Number(updatedProfile.activityUnit) : 0,
@@ -140,12 +138,10 @@ export default function S_ProfilePage() {
           major: updatedProfile.major,
           companyId: updatedProfile.company?.id,
           mentorId: updatedProfile.company?.mentor?.id,
-
         }),
       });
       if (res.ok) {
         const result = await res.json();
-        // ✅ อัปเดตข้อมูลในหน้าเว็บเพื่อให้สถานะ Qualification เปลี่ยนทันที (ถ้ามี)
         setProfile(prev => ({ ...prev!, ...result.student }));
         alert("บันทึกข้อมูลบริษัทเรียบร้อย");
       }
@@ -173,17 +169,15 @@ export default function S_ProfilePage() {
             label="ชื่อ–นามสกุล (TH)"
             value={`${prefixMapToUI[profile.prefix as keyof typeof prefixMapToUI] || ""} ${profile.firstName ?? ""} ${profile.lastName ?? ""}`}
           />
-          {/* ✅ แสดงชื่อภาษาอังกฤษที่เพิ่มมา */}
           <Info
             label="ชื่อ–นามสกุล (EN)"
             value={`${profile.firstNameEn ?? "-"} ${profile.lastNameEn ?? "-"}`}
           />
           <Info label="ชั้นปี" value={profile.year || "-"} />
           <Info label="คณะ" value={profile.curriculum || "-"} />
-          <Info
-            label="สาขาวิชา"
-            value={majorMapToUI[profile.major as string] || profile.major || "-"}
-          />
+          {/* ✅ แสดงชื่อสาขาตรงๆ จาก DB เลย ไม่ต้องผ่าน Mapper แล้ว */}
+          <Info label="สาขาวิชา" value={profile.major || "-"} />
+
           <Info
             label="รูปแบบการศึกษา"
             value={studyProgramMapToUI[profile.studyProgram as string] || profile.studyProgram || "-"}
@@ -192,16 +186,16 @@ export default function S_ProfilePage() {
           <Info label="เบอร์โทร" value={profile.phone || "-"} />
           <Info label="GPA" value={profile?.gpa != null ? profile.gpa.toFixed(2) : "-"} />
           <Info label="GPA หมวดวิชาเฉพาะ" value={profile.coreGpa?.toFixed(2) || "0.00"} />
-          <Info label="หน่วยกิจสะสม" value={`${profile.activityUnit || 0} หน่วย`} />
+          <Info label="หน่วยกิตสะสม" value={`${profile.activityUnit || 0} หน่วย`} />
           <Info
-            label="วิชาสหกิจศึกษาทางวิทยาการคอมพิวเตอร์"
+            label="วิชาสหกิจศึกษา (CP002001/SC002001)"
             value={profile.isPassPrepCourse ? "ผ่านแล้ว (S)" : "ยังไม่ผ่าน"}
           />
           <Info label="อีเมลมหาวิทยาลัย" value={profile.userEmail || "-"} pill />
           <Info label="อีเมลติดต่อหลัก" value={profile.email || "-"} pill />
         </section>
 
-        {/* ================= COOP ================= */}
+        {/* ================= COOP (สถานที่ฝึกงาน) ================= */}
         <section className="profile-card">
           <h3 className="profile-title">สถานที่ฝึกสหกิจ</h3>
           <div className="profile-sub">เลือกบริษัทและพี่เลี้ยง</div>
@@ -262,7 +256,6 @@ export default function S_ProfilePage() {
               <Info label="เบอร์โทร" value={profile.company.phone || "-"} />
               <Info label="ตำแหน่งผู้ติดต่อ" value={profile.company.contactPosition || "-"} />
               <Info label="ผู้ติดต่อ" value={profile.company.contactPerson || "-"} />
-
             </div>
           )}
 
@@ -292,6 +285,20 @@ export default function S_ProfilePage() {
 /* ================= MODAL COMPONENT ================= */
 function StudentModal({ profile, saveStudentInfo, closeModal }: any) {
   const [form, setForm] = useState<StudentProfile>({ ...profile });
+
+  // ✅ 1. เพิ่ม State เก็บรายชื่อสาขา
+  const [majorOptions, setMajorOptions] = useState<string[]>([]);
+
+  // ✅ 2. ดึงข้อมูลรายชื่อสาขาตอนเปิด Modal
+  useEffect(() => {
+    // ใช้ endpoint ดึงสาขาที่เราเพิ่งสร้างไป (ถ้าติดเรื่อง Permission ให้แอดมินปลดล็อก API นี้นะครับ)
+    fetch("http://localhost:5000/api/admin/majors")
+      .then(res => res.json())
+      .then(data => {
+        if (data.ok) setMajorOptions(data.majors);
+      })
+      .catch(err => console.error("Failed to load majors", err));
+  }, []);
 
   return (
     <div className="modal-backdrop">
@@ -340,7 +347,6 @@ function StudentModal({ profile, saveStudentInfo, closeModal }: any) {
             />
           </div>
 
-          {/* ✅ เพิ่มฟิลด์ภาษาอังกฤษใน Modal */}
           <div>
             <label className="label">First Name (EN)</label>
             <input
@@ -359,6 +365,7 @@ function StudentModal({ profile, saveStudentInfo, closeModal }: any) {
             />
           </div>
 
+          {/* ✅ 3. ปรับ Dropdown สาขาวิชา ให้วนลูปจาก DB */}
           <div>
             <label className="label">สาขาวิชา</label>
             <select
@@ -367,9 +374,11 @@ function StudentModal({ profile, saveStudentInfo, closeModal }: any) {
               onChange={(e) => setForm({ ...form, major: e.target.value })}
             >
               <option value="">-- เลือกสาขาวิชา --</option>
-              <option value="CS">วิทยาการคอมพิวเตอร์</option>
-              <option value="IT">เทคโนโลยีสารสนเทศ</option>
-              <option value="GIS">ภูมิสารสนเทศศาสตร์</option>
+              {majorOptions.map((major) => (
+                <option key={major} value={major}>
+                  {major}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -420,7 +429,7 @@ function StudentModal({ profile, saveStudentInfo, closeModal }: any) {
           </div>
 
           <div>
-            <label className="label">หน่วยกิจสะสม (หน่วย)</label>
+            <label className="label">หน่วยกิตสะสม (หน่วย)</label>
             <input
               className="input"
               type="number"
@@ -442,7 +451,6 @@ function StudentModal({ profile, saveStudentInfo, closeModal }: any) {
               ผ่านรายวิชาเตรียมความพร้อมสหกิจศึกษา (CP002001/SC002001)
             </label>
           </div>
-
 
           <div style={{ gridColumn: 'span 2' }}>
             <label className="label">คณะ / หลักสูตร</label>

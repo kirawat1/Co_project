@@ -45,7 +45,7 @@ model Student {
   lastName     String
   firstNameEn  String?
   lastNameEn   String?
-  major        Major?
+  major        String?
   curriculum   String?
   year         String?
   phone        String?
@@ -122,6 +122,27 @@ model StudentCoop {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  // ความสัมพันธ์: นักศึกษาสหกิจ 1 คน อยู่ในรอบการรับสมัครสหกิจได้แค่รอบเดียว (ถ้าอยากสมัครรอบใหม่ ต้องลบอันเก่าออกก่อน)
+  coopPeriod   CoopPeriod? @relation(fields: [coopPeriodId], references: [id])
+  coopPeriodId Int?
+}
+
+model CoopPeriod {
+  id           Int      @id @default(autoincrement())
+  academicYear String // ปีการศึกษา เช่น "2569"
+  semester     Int // ภาคการศึกษา เช่น 1, 2, 3
+  startDate    DateTime // วันที่เริ่มเปิดรับสมัคร (เช่น 25-เมษา-69)
+  endDate      DateTime // วันที่ปิดรับสมัคร (เช่น 25-ตุลา-69)
+  isActive     Boolean  @default(false) // สถานะให้เจ้าหน้าที่กด ปิด/เปิด รับสมัครแบบ Manual ได้
+
+  // ความสัมพันธ์: 1 รอบการรับสมัคร มีนักศึกษาเข้าโครงการหลายคน
+  studentCoops StudentCoop[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([academicYear, semester]) // ป้องกันเจ้าหน้าที่สร้างปีและเทอมซ้ำกัน
 }
 
 model CoopApplicationForm {
@@ -160,7 +181,7 @@ model CoopApplicationForm {
 // ==========================================
 model CoopCriteria {
   id              String   @id @default(uuid())
-  major           Major    @unique
+  major           String   @unique
   minGpa          Float    @default(2.00)
   minCoreGpa      Float    @default(2.00)
   minActivityUnit Int      @default(0)
@@ -220,7 +241,7 @@ model Teacher {
   email     String   @unique
   phone     String?
   faculty   String?
-  major     Major?
+  major     String?
   userId    Int      @unique
   user      User     @relation(fields: [userId], references: [id])
   visits    Visit[]
@@ -318,12 +339,6 @@ enum CoopStatus {
 
   // --- Zone 4: ปฏิบัติงาน ---
   INTERNSHIP_STARTED // 9. เริ่มออกฝึกสหกิจ
-}
-
-enum Major {
-  CS
-  IT
-  GIS
 }
 
 enum Role {
