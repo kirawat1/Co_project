@@ -2,324 +2,282 @@ import React, { useEffect, useRef, useState } from "react";
 import { IcUser, IcEdit, IcSave } from "./icons";
 
 /* =========================
-   Types (Model)
+   Types & Enums
 ========================= */
 export type TeacherProfile = {
+  id?: number;
   firstName: string;
   lastName: string;
-  email: string; // PRIMARY KEY
+  email: string;
   phone: string;
-  department?: string;
+  faculty?: string;
+  major?: "CS" | "IT" | "GIS" | ""; // ✅ เปลี่ยนจาก department เป็น major ให้ตรง DB
 };
-
-/* =========================
-   Data Service (API-ready)
-========================= */
-
-/**
- * โหมดในอนาคต:
- * - เปลี่ยน useApi = true
- * - ต่อ endpoint มหาวิทยาลัยได้ทันที
- */
-const useApi = false;
-
-const API_BASE = "/api/teacher"; // placeholder
-const LS_PROFILE = "coop.teacher.profile";
-const LS_EMAIL = "coop.teacher.email";
-const LS_DISPLAY = "coop.teacher.displayName";
 
 const EMPTY: TeacherProfile = {
   firstName: "",
   lastName: "",
   email: "",
   phone: "",
-  department: "",
+  faculty: "",
+  major: "", // ✅
 };
 
-function normalize(p: TeacherProfile): TeacherProfile {
-  return {
-    firstName: p.firstName.trim(),
-    lastName: p.lastName.trim(),
-    email: p.email.trim().toLowerCase(),
-    phone: p.phone.replace(/\D/g, "").slice(0, 10),
-    department: (p.department || "").trim(),
-  };
-}
-
-/* ---------- Service ---------- */
-const TeacherService = {
-  async getProfile(): Promise<TeacherProfile> {
-    if (useApi) {
-      const res = await fetch(`${API_BASE}/me`);
-      if (!res.ok) throw new Error("โหลดข้อมูลอาจารย์ไม่สำเร็จ");
-      return normalize(await res.json());
-    }
-
-    // localStorage (current)
-    try {
-      const raw = localStorage.getItem(LS_PROFILE);
-      if (!raw) return { ...EMPTY };
-      return normalize({ ...EMPTY, ...(JSON.parse(raw) as TeacherProfile) });
-    } catch {
-      return { ...EMPTY };
-    }
-  },
-
-  async saveProfile(profile: TeacherProfile): Promise<void> {
-    const next = normalize(profile);
-
-    if (useApi) {
-      const res = await fetch(`${API_BASE}/me`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(next),
-      });
-      if (!res.ok) throw new Error("บันทึกข้อมูลไม่สำเร็จ");
-      return;
-    }
-
-    // localStorage (current)
-    localStorage.setItem(LS_PROFILE, JSON.stringify(next));
-    localStorage.setItem(LS_EMAIL, next.email);
-    localStorage.setItem(
-      LS_DISPLAY,
-      `${next.firstName} ${next.lastName}`.trim() || "อาจารย์"
-    );
-  },
+// Map สำหรับแสดงชื่อไทย
+const MAJOR_MAP: Record<string, string> = {
+  CS: "วิทยาการคอมพิวเตอร์",
+  IT: "เทคโนโลยีสารสนเทศ",
+  GIS: "ภูมิสารสนเทศศาสตร์"
 };
 
-/* =========================
-   Component
-========================= */
 export default function T_Profile() {
   const [profile, setProfile] = useState<TeacherProfile>({ ...EMPTY });
   const [form, setForm] = useState<TeacherProfile>({ ...EMPTY });
-  const [isEditing, setIsEditing] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [savedMsg, setSavedMsg] = useState("");
   const timerRef = useRef<number | null>(null);
 
-  /* ---------- load ---------- */
+  const token = localStorage.getItem("coop.token");
+
+  // ---------- Fetch Data ----------
+  const fetchProfile = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch("http://localhost:5000/api/teacher/me", {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        // ถ้า Backend ส่ง department มา (โค้ดเก่า) หรือส่ง major มา ก็ให้ map ให้ถูก
+        setProfile({
+          ...data,
+          major: data.major || data.department || ""
+        });
+      }
+    } catch (err) {
+      console.error("Fetch error:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    TeacherService.getProfile().then(setProfile);
-    return () => {
-      if (timerRef.current) window.clearTimeout(timerRef.current);
-    };
+    fetchProfile();
+    return () => { if (timerRef.current) window.clearTimeout(timerRef.current); };
   }, []);
 
-  function startEdit() {
-    setForm(profile);
-    setIsEditing(true);
-    setSavedMsg("");
-  }
+  const handleSave = async () => {
+    try {
+      const res = await fetch("http://localhost:5000/api/teacher/me", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(form),
+      });
 
-  function cancelEdit() {
-    setIsEditing(false);
-    setSavedMsg("");
-  }
+      if (res.ok) {
+        const result = await res.json();
+        const updatedData = result.data || form;
+        setProfile(updatedData);
+        setSavedMsg("บันทึกข้อมูลสำเร็จ");
+        localStorage.setItem("coop.teacher.displayName", `${updatedData.firstName} ${updatedData.lastName}`);
 
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    const next = normalize(form);
+        if (timerRef.current) window.clearTimeout(timerRef.current);
+        timerRef.current = window.setTimeout(() => setSavedMsg(""), 3000);
+        setIsModalOpen(false);
+      }
+    } catch (err) {
+      alert("ไม่สามารถบันทึกข้อมูลได้");
+    }
+  };
 
-    await TeacherService.saveProfile(next);
-    setProfile(next);
-    setIsEditing(false);
-    setSavedMsg("บันทึกข้อมูลเรียบร้อยแล้ว");
+  if (loading) return <div style={{ padding: 100, textAlign: 'center', color: '#64748b' }}>กำลังโหลดข้อมูลโปรไฟล์...</div>;
 
-    if (timerRef.current) window.clearTimeout(timerRef.current);
-    timerRef.current = window.setTimeout(() => setSavedMsg(""), 2500);
-  }
+  const isFirstTime = !profile.firstName || profile.firstName === "";
 
   return (
-    <div className="page" style={{ padding: 4, margin: 28 }}>
-      <section className="card" style={{ padding: 24 }}>
-        {/* ---------- Header ---------- */}
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <IcUser width={28} height={28} />
-          <div style={{ flex: 1 }}>
-            <h2 style={{ margin: 0 }}>โปรไฟล์อาจารย์นิเทศ</h2>
-            <p style={{ margin: "4px 0 0", fontSize: 13, color: "#6b7280" }}>
-              ใช้ <b>อีเมล</b> เป็นตัวเชื่อมกับการจัดสรรนักศึกษา (Admin)
-            </p>
-          </div>
+    <div className="page" style={{ padding: "40px 20px", maxWidth: "900px", margin: "0 auto" }}>
+      <style>{PROFILE_CSS}</style>
 
-          {!isEditing && (
-            <button className="btn-ico" onClick={startEdit} title="แก้ไข">
-              <IcEdit width={18} height={18} />
-            </button>
-          )}
+      {/* Header */}
+      <div style={{ marginBottom: "28px", textAlign: 'center' }}>
+        <h1 style={{ fontSize: "28px", fontWeight: 800, margin: 0, color: '#1e293b' }}>โปรไฟล์ของฉัน</h1>
+        <p style={{ color: "#64748b", marginTop: "4px" }}>จัดการข้อมูลส่วนตัวและรายละเอียดการติดต่อ</p>
+      </div>
+
+      {savedMsg && (
+        <div style={{ background: "#dcfce7", color: "#15803d", padding: "12px 20px", borderRadius: "12px", marginBottom: "20px", fontWeight: 700, textAlign: 'center' }}>
+          ✅ {savedMsg}
         </div>
+      )}
 
-        {savedMsg && (
-          <div className="alert ok" style={{ marginTop: 12 }}>
-            {savedMsg}
+      {/* Profile Card */}
+      <div className="profile-card">
+        {isFirstTime ? (
+          <div style={{ textAlign: 'center', padding: '20px 0' }}>
+            <div style={{ background: '#f8fafc', width: '80px', height: '80px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+              <IcUser width={40} height={40} style={{ color: '#94a3b8' }} />
+            </div>
+            <h2 style={{ fontSize: '20px', fontWeight: 800, color: '#1e293b', margin: '0 0 8px' }}>ยินดีต้อนรับ!</h2>
+            <p style={{ color: '#64748b', marginBottom: '24px' }}>คุณยังไม่ได้ตั้งค่าโปรไฟล์อาจารย์นิเทศ กรุณากรอกข้อมูลเพื่อเริ่มใช้งาน</p>
+            <button className="btn" onClick={() => { setForm(profile); setIsModalOpen(true); }}>
+              ตั้งค่าโปรไฟล์ครั้งแรก
+            </button>
           </div>
-        )}
-
-        {/* ---------- View Mode ---------- */}
-        {!isEditing && (
-          <div className="info-grid" style={{ marginTop: 20 }}>
-            <ViewRow label="ชื่อ" value={profile.firstName || "-"} />
-            <ViewRow label="นามสกุล" value={profile.lastName || "-"} />
-            <ViewRow label="อีเมล (ตัวเชื่อมระบบ)" value={profile.email || "-"} />
-            <ViewRow label="เบอร์โทร" value={profile.phone || "-"} />
-            <ViewRow label="ภาควิชา / สาขา" value={profile.department || "-"} />
-          </div>
-        )}
-
-        {/* ---------- Edit Mode ---------- */}
-        {isEditing && (
-          <form
-            onSubmit={submit}
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: 12,
-              maxWidth: 720,
-              marginTop: 16,
-            }}
-          >
-            <FieldEdit
-              label="ชื่อ"
-              value={form.firstName}
-              onChange={(v) => setForm({ ...form, firstName: v })}
-              required
-            />
-            <FieldEdit
-              label="นามสกุล"
-              value={form.lastName}
-              onChange={(v) => setForm({ ...form, lastName: v })}
-              required
-            />
-
-            <FieldEdit
-              label="อีเมล (ใช้เชื่อมระบบ)"
-              type="email"
-              value={form.email}
-              onChange={(v) => setForm({ ...form, email: v })}
-              hint="ต้องตรงกับอีเมลที่ Admin เพิ่มอาจารย์"
-              required
-            />
-
-            <FieldEdit
-              label="เบอร์โทร"
-              inputMode="tel"
-              value={form.phone}
-              onChange={(v) =>
-                setForm({ ...form, phone: v.replace(/\D/g, "").slice(0, 10) })
-              }
-              hint="ตัวเลข 10 หลัก"
-              required
-            />
-
-            <FieldEdit
-              label="ภาควิชา / สาขา"
-              value={form.department || ""}
-              onChange={(v) => setForm({ ...form, department: v })}
-            />
-
-            <div
-              style={{
-                gridColumn: "1 / -1",
-                display: "flex",
-                justifyContent: "flex-end",
-                gap: 8,
-                marginTop: 8,
-              }}
-            >
-              <button
-                type="button"
-                className="btn ghost"
-                onClick={cancelEdit}
-              >
-                ยกเลิก
-              </button>
-              <button type="submit" className="btn">
-                <IcSave width={16} height={16} style={{ marginRight: 6 }} />
-                บันทึก
+        ) : (
+          <>
+            <div className="card-head">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                <div style={{ background: '#eff6ff', padding: '10px', borderRadius: '12px' }}>
+                  <IcUser width={30} height={30} style={{ color: '#2563eb' }} />
+                </div>
+                <div>
+                  <div className="profile-title">{profile.firstName} {profile.lastName}</div>
+                  {/* ✅ ใช้ major และ map ชื่อไทย */}
+                  <div className="profile-sub">
+                    {profile.faculty} {profile.major ? `• ${MAJOR_MAP[profile.major]}` : ""}
+                  </div>
+                </div>
+              </div>
+              <button className="btn-edit" onClick={() => { setForm(profile); setIsModalOpen(true); }} style={editBtnStyle}>
+                <IcEdit width={16} height={16} /> แก้ไขข้อมูล
               </button>
             </div>
-          </form>
+
+            <div className="divider"></div>
+
+            <div className="info-grid-single">
+              <div className="info-row">
+                <span className="label">ชื่อ-นามสกุล</span>
+                <span className="value">{profile.firstName} {profile.lastName}</span>
+              </div>
+              <div className="info-row">
+                <span className="label">อีเมลมหาวิทยาลัย</span>
+                <span className="value"><span className="email-pill">{profile.email}</span></span>
+              </div>
+              <div className="info-row">
+                <span className="label">เบอร์โทรศัพท์</span>
+                <span className="value">{profile.phone || "-"}</span>
+              </div>
+              <div className="info-row">
+                <span className="label">คณะ</span>
+                <span className="value">{profile.faculty || "-"}</span>
+              </div>
+              <div className="info-row">
+                <span className="label">สาขาวิชา</span>
+                {/* ✅ ใช้ major และ map ชื่อไทย */}
+                <span className="value">{MAJOR_MAP[profile.major || ""] || profile.major || "-"}</span>
+              </div>
+            </div>
+          </>
         )}
-      </section>
+      </div>
 
-      {/* ---------- styles ---------- */}
-      <style>{`
-        .alert.ok{
-          color:#065F46; background:#ECFDF5;
-          border:1px solid #6EE7B7;
-          padding:10px 12px; border-radius:12px;
-          font-size:14px; font-weight:800;
-        }
-        .info-grid{
-          display:grid;
-          grid-template-columns: 1fr 1fr;
-          gap:12px;
-        }
-        .info-row{
-          display:grid;
-          grid-template-columns: 140px 1fr;
-          gap:8px;
-        }
-        .lbl{ color:#6b7280; font-size:13px; font-weight:800 }
-        .val{ font-weight:600; color:#0f172a }
-        .btn-ico{
-          width:36px; height:36px;
-          border-radius:10px;
-          border:1px solid rgba(0,0,0,.08);
-          background:#fff;
-          display:inline-flex;
-          align-items:center;
-          justify-content:center;
-          cursor:pointer;
-        }
-        .btn-ico:hover{ color:#0074B7 }
-        @media (max-width:1024px){
-          .info-grid{ grid-template-columns: 1fr }
-          form{ grid-template-columns: 1fr !important }
-          .info-row{ grid-template-columns: 1fr }
-        }
-      `}</style>
+      {/* Modal แก้ไขข้อมูล */}
+      {isModalOpen && (
+        <div className="modal-backdrop">
+          <div className="modal-card">
+            <h3 className="profile-title" style={{ fontSize: "22px" }}>
+              {isFirstTime ? "ตั้งค่าโปรไฟล์ครั้งแรก" : "แก้ไขข้อมูลโปรไฟล์"}
+            </h3>
+            <p className="profile-sub" style={{ marginBottom: '20px' }}>กรุณากรอกข้อมูลส่วนตัวของคุณเพื่อใช้ในการนิเทศนักศึกษา</p>
+
+            <div className="form-grid">
+              <div>
+                <label className="label">ชื่อ</label>
+                <input
+                  className="input"
+                  value={form.firstName}
+                  onChange={(e) => setForm({ ...form, firstName: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="label">นามสกุล</label>
+                <input
+                  className="input"
+                  value={form.lastName}
+                  onChange={(e) => setForm({ ...form, lastName: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="label">เบอร์โทรศัพท์</label>
+                <input
+                  className="input"
+                  value={form.phone}
+                  maxLength={10}
+                  onChange={(e) => setForm({ ...form, phone: e.target.value.replace(/\D/g, "") })}
+                />
+              </div>
+              <div>
+                <label className="label">อีเมล (ล็อกอิน)</label>
+                <input className="input" value={form.email} disabled style={{ background: "#f1f5f9", cursor: 'not-allowed', color: '#94a3b8' }} />
+              </div>
+
+              <div style={{ gridColumn: 'span 2' }}>
+                <label className="label">คณะ</label>
+                <input
+                  className="input"
+                  value={form.faculty}
+                  onChange={(e) => setForm({ ...form, faculty: e.target.value })}
+                  placeholder="เช่น วิทยาลัยการคอมพิวเตอร์"
+                />
+              </div>
+
+              {/* ✅ Dropdown เลือก Major */}
+              <div style={{ gridColumn: 'span 2' }}>
+                <label className="label">สาขาวิชา</label>
+                <select
+                  className="input"
+                  value={form.major || ""}
+                  onChange={(e) => setForm({ ...form, major: e.target.value as any })}
+                  style={{ appearance: 'none', background: '#fff url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23131313%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E") no-repeat right 12px center', backgroundSize: '12px' }}
+                >
+                  <option value="">-- เลือกสาขาวิชา --</option>
+                  {Object.entries(MAJOR_MAP).map(([key, label]) => (
+                    <option key={key} value={key}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="action-row">
+              <button className="btn-secondary" onClick={() => setIsModalOpen(false)}>ยกเลิก</button>
+              <button className="btn" onClick={handleSave}>บันทึกข้อมูล</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-/* =========================
-   Small UI Parts
-========================= */
-function ViewRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="info-row">
-      <div className="lbl">{label}</div>
-      <div className="val">{value}</div>
-    </div>
-  );
-}
-
-function FieldEdit(props: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  type?: React.HTMLInputTypeAttribute;
-  inputMode?: React.HTMLAttributes<HTMLInputElement>["inputMode"];
-  hint?: string;
-  required?: boolean;
-}) {
-  const { label, value, onChange, type = "text", inputMode, hint, required } =
-    props;
-
-  return (
-    <div style={{ display: "grid", gap: 6 }}>
-      <label className="label">{label}</label>
-      <input
-        className="input"
-        type={type}
-        inputMode={inputMode}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        required={required}
-      />
-      {hint && <div style={{ fontSize: 12, color: "#6b7280" }}>{hint}</div>}
-    </div>
-  );
-}
+// ... Styles
+const editBtnStyle = { background: "#f1f5f9", border: "none", padding: "8px 16px", borderRadius: "10px", fontSize: "13px", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: "6px", color: "#475569" };
+const PROFILE_CSS = `
+.profile-card{ background:#fff; border-radius:24px; padding:40px; box-shadow:0 10px 30px rgba(15,23,42,.08); border: 1px solid #f1f5f9; }
+.card-head{ display:flex; justify-content:space-between; align-items:center; }
+.profile-title{ font-size:22px; font-weight:800; margin:0; color:#1e293b; }
+.profile-sub{ font-size:14px; color:#64748b; margin-top:4px; }
+.divider{ height:1px; background:#f1f5f9; margin:25px 0; }
+.info-grid-single{ display:grid; gap:12px; }
+.info-row{ display:grid; grid-template-columns:200px 1fr; padding:12px 0; border-bottom:1px solid #f8fafc; }
+.info-row:last-child{ border-bottom:none; }
+.label{ color:#64748b; font-weight:700; font-size:14px; }
+.value{ font-weight:600; color:#1e293b; font-size:15px; }
+.email-pill{ display:inline-block; padding:6px 14px; border-radius:999px; background:#f0f7ff; border:1px solid #e0efff; color:#0369a1; font-size:14px; font-weight:700; }
+.input{ padding:12px 16px; border-radius:12px; border:1px solid #e2e8f0; font-weight:600; width:100%; margin-top:8px; box-sizing:border-box; font-family:inherit; transition: 0.2s; }
+.input:focus{ border-color: #2563eb; outline: none; box-shadow: 0 0 0 4px rgba(37,99,235,0.1); }
+.form-grid{ display:grid; grid-template-columns:1fr 1fr; gap:16px 24px; }
+.action-row{ display:flex; justify-content:flex-end; gap:12px; margin-top:32px; }
+.btn{ background:#2563eb; color:#fff; padding:12px 24px; border-radius:12px; font-weight:700; border:none; cursor:pointer; transition: 0.2s; }
+.btn:hover{ background:#1d4ed8; transform: translateY(-1px); }
+.btn-secondary{ background:#f1f5f9; color:#475569; padding:12px 24px; border-radius:12px; font-weight:700; border:none; cursor:pointer; }
+.btn-secondary:hover{ background:#e2e8f0; }
+.modal-backdrop{ position:fixed; inset:0; background:rgba(15,23,42,.6); display:flex; align-items:center; justify-content:center; z-index:100; backdrop-filter: blur(8px); }
+.modal-card{ background:#fff; border-radius:24px; padding:40px; width:720px; max-width:95%; box-shadow:0 25px 50px -12px rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.3); }
+`;

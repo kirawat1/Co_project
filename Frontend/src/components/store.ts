@@ -57,20 +57,12 @@ export type DocumentHistory = {
 export interface DocumentItem {
   id: string;
   title: string;
-  status: DocStatus;
-
   dueDate?: string;
-
   fileName?: string;
-  fileData?: string;
+  status: "waiting" | "under-review" | "approved" | "rejected";
   lastUpdated?: string;
-
-  needForm?: boolean;
-  needUpload?: boolean;
-  needDownload?: boolean;
-
   rejectReason?: string;
-  history?: DocumentHistory[];
+  history?: any[];
 }
 
 /* =========================
@@ -156,18 +148,34 @@ export interface StudentProfile {
   prefix?: "นาย" | "นางสาว";
   firstName?: string;
   lastName?: string;
-
+  firstNameEn?: string;
+  lastNameEn?: string;
+  email?: string; // เพิ่ม email (string)
+  phone?: string;
+  gpa?: number; // เพิ่ม GPA
   year?: string;
   major?: string;
   curriculum?: string;
   studyProgram?: "normal" | "special";
 
-  phone?: string;
-
-  emails: StudentEmail[];
+  emails?: { id?: number; email: string; primary: boolean }[];
   company?: StudentCompany;
+  coop?: {
+    company: any;
+    mentor?: any;
+    status?: string;
+  };
 
-  docs: DocumentItem[];
+  documents?: {
+    id: number;
+    name: string;
+    path: string;
+    type?: string;
+    status?: string;
+    uploadedAt?: string;
+    rejectReason?: string;
+    history?: any[];
+  }[];
   coopRequest?: CoopRequestState;
 }
 

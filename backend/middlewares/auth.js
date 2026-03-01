@@ -143,39 +143,33 @@ exports.signUp = async (req, res) => {
 };
 
 // ---------------- Middleware ตรวจสอบ token ----------------
-const authMiddleware = async (req, res, next) => {
+
+function authMiddleware(req, res, next) {
   try {
     const authHeader = req.headers.authorization;
-
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return res.status(401).json({ ok: false, message: "กรุณาเข้าสู่ระบบ" });
+    if (!authHeader) {
+      return res.status(401).json({ message: "No token provided" });
     }
 
     const token = authHeader.split(" ")[1];
-
-    let payload;
-    try {
-      payload = require("jsonwebtoken").verify(token, process.env.JWT_SECRET);
-    } catch (err) {
-      return res.status(401).json({ ok: false, message: "Token หมดอายุหรือไม่ถูกต้อง" });
+    if (!token) {
+      return res.status(401).json({ message: "Invalid token format" });
     }
 
-    // หา user จาก DB
-    const user = await require("../config/prismaClient").user.findUnique({
-      where: { id: payload.id },
-      include: { student: true },
-    });
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    if (!user) {
-      return res.status(401).json({ ok: false, message: "ไม่พบผู้ใช้งาน" });
-    }
+    // แนบข้อมูล user ลง req
+    req.user = decoded;      // object { id, role }
+    req.userId = decoded.id; // ใช้สะดวก
 
-    req.user = user;
+    console.log("Auth header:", req.headers.authorization);
+    console.log("Decoded token:", decoded);
+
     next();
   } catch (err) {
     console.error(err);
-    res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดเซิร์ฟเวอร์" });
+    return res.status(401).json({ message: "Unauthorized" });
   }
-};
+}
 
 module.exports = authMiddleware;

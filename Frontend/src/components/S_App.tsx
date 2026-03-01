@@ -1,4 +1,5 @@
-// src/components/S_App.tsx
+//frontend/src/components/S_App.tsx
+
 import { useEffect, useState } from "react";
 import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import Sidebar from "./S_Sidebar";
@@ -7,32 +8,63 @@ import ProfilePage from "./S_ProfilePage";
 import Gateway from "./S_Gateway";
 import DailyPage from "./S_DailyPage";
 import DocPage from "./S_Docs";
-
-import { loadProfile, saveProfile, type StudentProfile } from "./store";
+import Company from "./S_Company";
 import StudentTheme from "./S_Theme";
 import coopLogo from "../assets/COOP_Logo.png";
+import { type StudentProfile } from "./store";
 
 const IOS_BLUE = "#0074B7";
 
 export default function StudentApp() {
   const navigate = useNavigate();
+  const token = localStorage.getItem("coop.token");
 
-  // ใช้ studentId จาก token / mock login
-  const studentIdFromToken =
-    localStorage.getItem("coop.current.studentId") || "6400000000";
+  const [profile, setProfile] = useState<StudentProfile | null>(null);
 
-  // โหลดโปรไฟล์แบบ per-student
-  const [profile, setProfile] = useState<StudentProfile>(() =>
-    loadProfile(studentIdFromToken)
-  );
+  // ---------- ดึงข้อมูลจาก backend ----------
 
   useEffect(() => {
-    saveProfile(profile);
-  }, [profile]);
+    if (!token) {
+      navigate("/", { replace: true });
+    }
+  }, [token, navigate]);
 
-  const fullName = `${profile.firstName || ""} ${
-    profile.lastName || ""
-  }`.trim();
+  useEffect(() => {
+    if (!token) return;
+
+    const fetchProfile = async () => {
+      try {
+        const res = await fetch("http://localhost:5000/api/students/me", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+
+        const data = await res.json();
+
+        // map studentId จาก user.email หากยังไม่มี studentId
+        const studentId = data.studentId || data.user?.email || "";
+
+        // เตรียม emails
+        const emails = [
+          data.emails?.[0] ?? { email: "", primary: true },
+          data.emails?.[1] ?? { email: "", primary: false },
+        ];
+
+        // map coop.company + mentor
+        const company = data.coop ? { ...data.coop.company, mentor: data.coop.mentor } : undefined;
+
+        setProfile({ ...data, studentId, emails, company });
+      } catch (err) {
+        console.error("Error fetching profile:", err);
+      }
+    };
+
+    fetchProfile();
+  }, [token]);
+
+  if (!profile) return <div>กำลังโหลดข้อมูล...</div>;
+
+  const fullName = `${profile.firstName || ""} ${profile.lastName || ""}`.trim();
   const displayName = profile.studentId || fullName || "นักศึกษา";
 
   function onLogout() {
@@ -68,21 +100,17 @@ export default function StudentApp() {
 
       {/* ---------- Layout ---------- */}
       <div className="layout">
-        {/* Sidebar ฝั่งซ้าย */}
         <Sidebar profile={profile} />
 
         <main className="main">
           <Routes>
             <Route index element={<Navigate to="dashboard" replace />} />
-            {/* dashboard ไม่ต้องรับ profile แล้ว */}
             <Route path="dashboard" element={<DashboardPage />} />
             <Route path="profile" element={<ProfilePage />} />
-            <Route
-              path="gateway"
-              element={<Gateway profile={profile} setProfile={setProfile} />}
-            />
+            <Route path="gateway" element={<Gateway profile={profile} setProfile={setProfile} />} />
             <Route path="daily" element={<DailyPage profile={profile} />} />
             <Route path="docs" element={<DocPage profile={profile} setProfile={setProfile} />} />
+            <Route path="company" element={<Company profile={profile} setProfile={setProfile} />} />
             <Route path="*" element={<Navigate to="dashboard" replace />} />
           </Routes>
         </main>

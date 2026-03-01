@@ -7,32 +7,323 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ==========================================
+// 1. User & Auth (คงเดิม)
+// ==========================================
 model User {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique
-  password  String
-  role      Role     @default(student)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id             Int     @id @default(autoincrement())
+  username       String  @unique
+  password       String?
+  email          String?
+  role           Role    @default(student)
+  provider       String  @default("credentials")
+  kkuAccessToken String? @db.Text
 
   student   Student?
+  teacher   Teacher?
   companies Company[]
   mentors   Mentor[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
+model SystemConfig {
+  key   String @id // เช่น "T000_CONFIG"
+  value String @db.Text // เก็บ JSON เช่น { startDate: "...", endDate: "...", isOpen: true }
+}
+
+// ==========================================
+// 2. Student Data (คงเดิม)
+// ==========================================
 model Student {
-  id          Int     @id @default(autoincrement())
-  studentId   String  @unique
-  firstName   String
-  lastName    String
-  phone       String?
-  gpa         Float?
-  major       String?
-  curriculum  String?
-  nationality String?
+  id        Int    @id @default(autoincrement())
+  studentId String @unique
+
+  prefix       Prefix?
+  firstName    String
+  lastName     String
+  firstNameEn  String?
+  lastNameEn   String?
+  major        Major?
+  curriculum   String?
+  year         String?
+  phone        String?
+  email        String?
+  studyProgram StudyProgram?
+  gpa          Float?        @default(0.00)
+  coreGpa      Float?        @default(0.00)
+  activityUnit Int           @default(0)
+  apiSyncedAt  DateTime?
+  advisorName  String? // ชื่ออาจารย์ที่ปรึกษา
+  jobPosition  String? // ตำแหน่งงานที่สนใจ/สมัคร
+
+  isPassPrepCourse Boolean @default(false)
+  isQualified      Boolean @default(false)
 
   userId Int  @unique
   user   User @relation(fields: [userId], references: [id])
+
+  coop      StudentCoop?
+  documents Document[]
+  emails    StudentEmail[]
+  visits    Visit[]
+
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  coopApplicationForm CoopApplicationForm?
+}
+
+// ==========================================
+// 3. Coop Process (แก้ไขใหม่ให้ตรง Workflow)
+// ==========================================
+model StudentCoop {
+  id Int @id @default(autoincrement())
+
+  studentId Int     @unique
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  // Status Workflow (ปรับตาม Diagram)
+  status CoopStatus @default(APPLYING)
+
+  // --- Step 1-3: อาจารย์ตรวจสอบคุณสมบัติ ---
+  // อาจารย์อาจจะ Note เหตุผลที่ไม่ผ่าน (QUALIFICATION_FAILED)
+  teacherCheckComment String?   @db.Text
+  teacherCheckDate    DateTime?
+
+  // --- Step 4: นักศึกษายื่น CP-T000 (เลือกบริษัท) ---
+  companyId   String? // ยังเป็น Optional เพราะตอนสมัครครั้งแรกอาจยังไม่เลือก
+  company     Company? @relation(fields: [companyId], references: [id])
+  jobPosition String? // ตำแหน่งที่สมัคร
+
+  t000Status  DocStatus @default(WAITING)
+  t000Comment String?   @db.Text
+
+  // --- Step 5-6: เจ้าหน้าที่ตรวจเอกสาร & ออก "เอกสารยื่นสหกิจ" (ใบแรก) ---
+  staffCheckComment String?   @db.Text // เหตุผลที่ให้แก้เอกสาร (EDITS_REQUIRED)
+  reqDocNumber      String? // เลขที่หนังสือ "ที่ อว 660301..."
+  reqDocDate        DateTime? // วันที่ออกหนังสือ
+  reqLetterUrl      String? // ไฟล์ PDF ออกเอกสารยื่นสหกิจ 
+
+  // --- Step 7-9: ยื่นบริษัท & รอหนังสือส่งตัว (ใบสอง) ---
+  acceptanceFileUrl String? // ไฟล์ใบตอบรับจากบริษัท (หน้า 13)
+
+  // ข้อมูลสำหรับหนังสือส่งตัว
+  actualStartDate DateTime? // วันเริ่มงานจริง
+  actualEndDate   DateTime? // วันจบงานจริง
+
+  placeDocNumber String? // เลขที่หนังสือส่งตัว "ที่ อว..."
+  placeDocDate   DateTime? // วันที่ออกหนังสือส่งตัว
+  placeLetterUrl String? // ไฟล์ PDF ส่งตัว 
+
+  // Mentor (พี่เลี้ยง) อาจจะมาใส่ทีหลังตอนเริ่มฝึกงานแล้ว
+  mentorId String?
+  mentor   Mentor? @relation(fields: [mentorId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model CoopApplicationForm {
+  id        Int     @id @default(autoincrement())
+  studentId Int     @unique
+  student   Student @relation(fields: [studentId], references: [id])
+
+  // --- ข้อมูลที่อยู่ที่ติดต่อได้ ---
+  contactAddress String? @db.Text
+  contactPhone   String?
+  contactEmail   String?
+
+  // --- ข้อมูลบุคคลฉุกเฉิน ---
+  emergencyName      String?
+  emergencyRelation  String?
+  emergencyJob       String?
+  emergencyWorkplace String?
+  emergencyAddress   String? @db.Text
+  emergencyPhone     String?
+  emergencyEmail     String?
+
+  // --- ✅ เพิ่ม: ระยะเวลาปฏิบัติงาน (ตามที่ขอ) ---
+  startDate DateTime?
+  endDate   DateTime?
+
+  // --- ✅ เพิ่ม: จุดมุ่งหมายอาชีพ (3 ข้อ) ---
+  careerObjective1 String?
+  careerObjective2 String?
+  careerObjective3 String?
+
+  updatedAt DateTime @updatedAt
+}
+
+// ==========================================
+// 4. Admin Configuration (คงเดิม)
+// ==========================================
+model CoopCriteria {
+  id              String   @id @default(uuid())
+  major           Major    @unique
+  minGpa          Float    @default(2.00)
+  minCoreGpa      Float    @default(2.00)
+  minActivityUnit Int      @default(0)
+  requiredCourses Json
+  coreCourses     Json
+  updatedAt       DateTime @updatedAt
+}
+
+// ==========================================
+// 5. Supporting Models (ปรับ Company นิดหน่อย)
+// ==========================================
+
+model Company {
+  id        String  @id @default(uuid())
+  name      String
+  address   String? @db.Text
+  phone     String?
+  email     String?
+  website   String?
+  pastYears String?
+
+  // เพิ่มข้อมูลผู้ติดต่อเพื่อนำไป Gen ลง PDF (เรียน คุณ...)
+  contactPerson   String?
+  contactPosition String?
+
+  mentors      Mentor[]
+  studentCoops StudentCoop[]
+
+  createdById Int
+  createdBy   User @relation(fields: [createdById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Mentor {
+  id           String        @id @default(uuid())
+  firstName    String
+  lastName     String
+  department   String?
+  position     String?
+  email        String?
+  phone        String?
+  companyId    String
+  company      Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  studentCoops StudentCoop[]
+  createdById  Int
+  createdBy    User          @relation(fields: [createdById], references: [id])
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model Teacher {
+  id        Int      @id @default(autoincrement())
+  firstName String
+  lastName  String
+  email     String   @unique
+  phone     String?
+  faculty   String?
+  major     Major?
+  userId    Int      @unique
+  user      User     @relation(fields: [userId], references: [id])
+  visits    Visit[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Visit {
+  id        Int      @id @default(autoincrement())
+  date      DateTime
+  time      String?
+  location  String?
+  note      String?
+  status    String   @default("scheduled")
+  studentId Int
+  student   Student  @relation(fields: [studentId], references: [id])
+  teacherId Int
+  teacher   Teacher  @relation(fields: [teacherId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model Document {
+  id        Int     @id @default(autoincrement())
+  studentId Int
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  name String
+  path String
+
+  type       DocumentType
+  status     DocStatus    @default(WAITING)
+  uploadedAt DateTime     @default(now())
+}
+
+model StudentEmail {
+  id        Int     @id @default(autoincrement())
+  email     String
+  primary   Boolean @default(false)
+  studentId Int
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+}
+
+model Announcement {
+  id        String    @id @default(uuid())
+  title     String
+  body      String?   @db.Text
+  date      DateTime
+  year      String
+  linkUrl   String?
+  files     AnnFile[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @default(now()) @updatedAt
+}
+
+model AnnFile {
+  id             String       @id @default(uuid())
+  announcementId String
+  announcement   Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  name           String
+  mime           String
+  path           String
+}
+
+model SystemAsset {
+  key       String   @id // ตัวระบุ เช่น 'KRUT', 'SIGNATURE', 'PROJECT_DETAILS', 'ACCEPTANCE_FORM'
+  label     String // ชื่อแสดงผล เช่น 'ตราครุฑ', 'รายละเอียดโครงการ'
+  path      String // path ไฟล์บน server
+  mimeType  String? // เก็บว่าเป็น pdf หรือ png
+  updatedAt DateTime @updatedAt
+}
+
+// ==========================================
+// Enums (อัปเดตใหม่ตาม Diagram เป๊ะๆ)
+// ==========================================
+
+enum CoopStatus {
+  // --- Zone 1: อาจารย์ตรวจสอบ ---
+  NOT_SUBMITTED // 0. ยังไม่ยื่นสหกิจ
+  APPLYING // 1. นศ. ยื่นสหกิจ (รออาจารย์ตรวจสอบคุณสมบัติ)
+  QUALIFICATION_FAILED // 2. ไม่ผ่าน (อาจารย์ปฏิเสธ -> กลับไปแก้คุณสมบัติไม่ได้แล้ว ต้องคุยนอกรอบ)
+  APPLICATION_EDITS_REQUIRED // 2. แก้ไขคุณสมบัติ (อาจารย์สั่งแก้ -> นศ. กลับไปแก้ -> ส่งใหม่)
+  QUALIFIED // 3. เป็นนักศึกษาสหกิจ (ผ่านเกณฑ์อาจารย์)
+
+  // --- Zone 2: เจ้าหน้าที่ตรวจเอกสารสมัคร (CP-T000) ---
+  WAITING_FOR_STAFF_CHECK // 4. นศ. ยื่น KKU CP-T000 (รอเจ้าหน้าที่ตรวจ)
+  EDITS_REQUIRED // 5. แก้เอกสาร (เจ้าหน้าที่สั่งแก้ -> นศ. กลับไปแก้ -> ส่งใหม่)
+  DOCS_APPROVED // 6. เอกสารผ่าน (เจ้าหน้าที่อนุมัติเอกสาร)
+  REQ_LETTER_ISSUED // 6. ออกเอกสารยื่นสหกิจ (ผ่าน) -> นศ. โหลดไปยื่นบริษัท
+
+  // --- Zone 3: ตอบรับ & ส่งตัว ---
+  WAITING_FOR_PLACEMENT_LETTER // 7. ยื่นใบตอบรับจากบริษัท 
+  WAITING_FOR_STAFF_CHECK_LETTER // 7. รอเจ้าหน้าที่ตรวจหนังสือส่งตัว
+  ACCEPTANCE_CHECKED // 7. หนังสือส่งตัวผ่าน (รอเจ้าหน้าที่อนุมัติหนังสือส่งตัว)
+  PLACEMENT_LETTER_ISSUED // 8. ออกหนังสือรับรองการฝึกงานออกให้แล้ว
+
+  // --- Zone 4: ปฏิบัติงาน ---
+  INTERNSHIP_STARTED // 9. เริ่มออกฝึกสหกิจ
+}
+
+enum Major {
+  CS
+  IT
+  GIS
 }
 
 enum Role {
@@ -41,60 +332,32 @@ enum Role {
   staff
 }
 
-model Announcement {
-  id        String    @id @default(uuid())
-  title     String
-  body      String?
-  date      DateTime
-  year      String
-  linkUrl   String?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @default(now()) @updatedAt
-  files     AnnFile[]
+enum Prefix {
+  MR
+  MS
 }
 
-model AnnFile {
-  id             String       @id @default(uuid())
-  announcement   Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
-  announcementId String
-  name           String
-  mime           String
-  path           String
+enum StudyProgram {
+  normal
+  special
 }
 
-model Company {
-  id        String  @id @default(uuid())
-  name      String
-  address   String
-  email     String
-  phone     String
-  website   String?
-  pastYears String
-
-  mentors Mentor[]
-
-  createdBy   User @relation(fields: [createdById], references: [id])
-  createdById Int
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+enum DocumentType {
+  APPLICATION_DOC // ใบคำร้องขอเข้าร่วมโครงการสหกิจศึกษา
+  T000_SIGNED // ใบสมัครติดรูป + เซ็นชื่อแล้ว (ถ้าต้องอัปโหลดกลับ)
+  TRANSCRIPT // สำเนาใบรายงานผลการศึกษา
+  STUDENT_CARD // สำเนาบัตรนักศึกษา
+  CITIZEN_CARD // สำเนาบัตรประชาชน
+  CV // ประวัติส่วนตัว
+  ACCEPTANCE_FORM // ใบตอบรับจากบริษัท
+  PARENTAL_CONSENT // ใบยินยอมผู้ปกครอง 
+  OTHER
 }
 
-model Mentor {
-  id         String  @id @default(uuid())
-  firstName  String
-  lastName   String
-  department String
-  position   String
-  email      String
-  phone      String?
-
-  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  companyId String
-
-  createdBy   User @relation(fields: [createdById], references: [id])
-  createdById Int
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+enum DocStatus {
+  WAITING
+  PENDING
+  APPROVED
+  REJECTED
+  EDITS_REQUIRED
 }

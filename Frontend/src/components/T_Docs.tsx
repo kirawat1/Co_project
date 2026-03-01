@@ -74,11 +74,11 @@ export default function T_Docs() {
     const next = students.map((s) =>
       s.studentId === studentId
         ? ({
-            ...s,
-            docs: (s.docs || []).map((d) =>
-              d.id === docId ? { ...d, status: v, lastUpdated: new Date().toISOString() } : d
-            ),
-          } as StudentProfile)
+          ...s,
+          docs: (s.docs || []).map((d) =>
+            d.id === docId ? { ...d, status: v, lastUpdated: new Date().toISOString() } : d
+          ),
+        } as StudentProfile)
         : s
     );
     save(next);

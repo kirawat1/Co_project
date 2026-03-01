@@ -2,7 +2,7 @@
 const express = require("express");
 const router = express.Router();
 const companyController = require("../controllers/companyController");
-const authMiddleware = require("../middleware/auth"); // จาก auth.js
+const authMiddleware = require("../middlewares/auth"); // จาก auth.js
 
 router.get("/", authMiddleware, companyController.getCompanies);
 router.post("/", authMiddleware, companyController.addCompany);

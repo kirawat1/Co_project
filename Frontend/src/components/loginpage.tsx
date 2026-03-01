@@ -30,18 +30,15 @@ function validateByRole(role: Role, username: string, password: string): string 
   const u = username.trim();
   const p = password.trim();
 
-  if (role === "student") {
-    if (!/^\d{10}$/.test(u)) {
-      return "รหัสนักศึกษาต้องเป็นตัวเลข 10 หลัก";
-    }
-  } else {
-    if (!u) return "กรุณากรอกอีเมลมหาวิทยาลัย";
-    const uniEmail = /^[^@\s]+@(kkumail\.com|kku\.ac\.th)$/i;
-    if (!uniEmail.test(u)) {
-      return "กรุณากรอกอีเมลมหาวิทยาลัยให้ถูกต้อง (@kkumail.com หรือ @kku.ac.th)";
-    }
+  // ตรวจสอบ Email สำหรับทุกบทบาท (รวมนักศึกษาด้วย)
+  if (!u) return "กรุณากรอกอีเมลมหาวิทยาลัย";
+
+  const uniEmail = /^[^@\s]+@(kkumail\.com|kku\.ac\.th)$/i;
+  if (!uniEmail.test(u)) {
+    return "กรุณากรอกอีเมลมหาวิทยาลัยให้ถูกต้อง (@kkumail.com หรือ @kku.ac.th)";
   }
 
+  // รหัสผ่านยังคงเป็นเลขบัตรประชาชน 13 หลักเหมือนเดิม
   if (!/^\d{13}$/.test(p)) {
     return "รหัสผ่านต้องเป็นเลขบัตรประชาชน 13 หลัก";
   }
@@ -70,8 +67,7 @@ export default function LoginPage() {
 
   const onlyDigits = (v: string) => v.replace(/\D/g, "");
 
-  const usernamePlaceholder =
-    role === "student" ? "รหัสนักศึกษา 10 หลัก" : "namexx@kku.ac.th";
+  const usernamePlaceholder = "example@kkumail.com หรือ @kku.ac.th";
 
   useEffect(() => {
     setError("");
@@ -103,11 +99,13 @@ export default function LoginPage() {
         throw new Error(res.message || "เข้าสู่ระบบไม่สำเร็จ");
       }
 
-      // ----------------------------------------------------
-      // SAVE TOKEN
-      // ----------------------------------------------------
       if (remember) {
         localStorage.setItem("coop.token", res.token);
+
+        // ✅ เพิ่มบรรทัดนี้: บันทึก ID เพื่อให้หน้าอื่นเอาไปใช้เช็คสิทธิ์ (Delete/Edit) ได้ทันที
+        if (res.user && res.user.id) {
+          localStorage.setItem("coop.userId", String(res.user.id));
+        }
       }
 
       // ----------------------------------------------------
@@ -215,19 +213,13 @@ export default function LoginPage() {
             <input
               id="username"
               className="input"
-              type="text"
+              type="email" // เปลี่ยนจาก text เป็น email เพื่อให้คีย์บอร์ดมือถือรองรับ
               autoComplete="username"
               placeholder={usernamePlaceholder}
               value={username}
-              onChange={(e) =>
-                setUsername(
-                  role === "student"
-                    ? onlyDigits(e.target.value).slice(0, 10)
-                    : e.target.value
-                )
-              }
+              onChange={(e) => setUsername(e.target.value)} // เอา onlyDigits และ slice(0, 10) ออก
               required
-              inputMode={role === "student" ? "numeric" : "email"}
+              inputMode="email" // เปลี่ยนเป็น email สำหรับทุกบทบาท
             />
 
             <label className="label" htmlFor="password" style={{ marginLeft: 10 }}>
