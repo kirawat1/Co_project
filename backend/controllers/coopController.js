@@ -25,7 +25,8 @@ const upload = multer({ storage });
 const submitCoopApplication = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { coopField } = req.body; // รายละเอียดงาน (ถ้ามี)
+    // ✅ 1. เปลี่ยนมารับค่า jobPosition ตามที่ Frontend ส่งมา
+    const { jobPosition } = req.body; 
     const files = req.files || [];
 
     // หา Student ID
@@ -45,7 +46,7 @@ const submitCoopApplication = async (req, res) => {
       studentId: student.id,
     }));
 
-    // ใช้ Transaction เพื่อความชัวร์ (ถ้าบันทึกไฟล์พลาด ให้ยกเลิกสถานะด้วย)
+    // ใช้ Transaction เพื่อความชัวร์
     await prisma.$transaction(async (tx) => {
       // 2.1 บันทึกไฟล์ลง Table Document
       if (docData.length > 0) {
@@ -54,17 +55,17 @@ const submitCoopApplication = async (req, res) => {
         });
       }
 
-      // 2.2 อัปเดตสถานะใน StudentCoop เป็น PENDING
+      // 2.2 อัปเดตสถานะใน StudentCoop เป็น APPLYING พร้อมบันทึก Job Position
       await tx.studentCoop.upsert({
         where: { studentId: student.id },
         update: {
-          status: "APPLYING", // <-- สำคัญ: เปลี่ยนสถานะเป็น รอตรวจสอบ
-          // jobDescription: coopField, // ถ้าใน DB มี field นี้ให้เปิดบรรทัดนี้
+          status: "APPLYING", 
+          jobPosition: jobPosition, // ✅ 2. บันทึกลักษณะงานลงไปในการ Update
         },
         create: {
           studentId: student.id,
-          companyId: "", // *หมายเหตุ: ควรเลือกบริษัทก่อนหน้านี้แล้ว
           status: "APPLYING",
+          jobPosition: jobPosition, // ✅ 3. บันทึกลักษณะงานลงไปในการ Create (เผื่อเพิ่งเคยยื่นครั้งแรก)
         },
       });
     });

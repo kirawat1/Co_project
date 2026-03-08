@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { IcUser, IcEdit, IcSave } from "./icons";
-
 
 /* ================= TYPES ================= */
 interface Mentor {
@@ -55,12 +55,14 @@ interface StudentProfile {
 
 /* ================= PAGE ================= */
 export default function S_ProfilePage() {
+  const navigate = useNavigate();
   const [profile, setProfile] = useState<StudentProfile | null>(null);
   const [companies, setCompanies] = useState<StudentCompany[]>([]);
+  const [teachers, setTeachers] = useState<any[]>([]);
   const [openStudentModal, setOpenStudentModal] = useState(false);
   const token = localStorage.getItem("coop.token");
 
-  // Mapping Helpers (✅ เอา majorMapToUI ออกไปแล้ว เพราะใช้ค่าตรงๆ จาก DB)
+  // Mapping Helpers
   const prefixMapToPrisma = { นาย: "MR", นางสาว: "MS", MR: "MR", MS: "MS" };
   const prefixMapToUI = { MR: "นาย", MS: "นางสาว", นาย: "นาย", นางสาว: "นางสาว" };
   const studyProgramMapToPrisma = { ภาคปกติ: "normal", ภาคพิเศษ: "special", normal: "normal", special: "special" };
@@ -69,6 +71,7 @@ export default function S_ProfilePage() {
   useEffect(() => {
     if (!token) return;
 
+    // 1. ดึงข้อมูล Profile
     fetch("http://localhost:5000/api/students/me", {
       headers: { Authorization: `Bearer ${token}` },
     })
@@ -77,23 +80,29 @@ export default function S_ProfilePage() {
         const emails = data.emails?.length > 0
           ? data.emails
           : [{ email: "", primary: false }];
-
         const company = data.coop ? { ...data.coop.company, mentor: data.coop.mentor } : data.company;
-
-        setProfile({
-          ...data,
-          emails,
-          company,
-        });
+        setProfile({ ...data, emails, company });
       })
       .catch(err => console.error("Error fetching profile:", err));
 
+    // 2. ดึงข้อมูลบริษัท
     fetch("http://localhost:5000/api/companies", {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(res => res.json())
       .then(data => setCompanies(data))
       .catch(err => console.error("Error fetching companies:", err));
+
+    // 3. ดึงข้อมูลอาจารย์
+    fetch("http://localhost:5000/api/teachers", {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.ok && data.teachers) setTeachers(data.teachers);
+        else if (Array.isArray(data)) setTeachers(data);
+      })
+      .catch(err => console.error("Error fetching teachers:", err));
   }, [token]);
 
   if (!profile) return <div style={{ padding: 40, textAlign: 'center' }}>กำลังโหลดข้อมูล...</div>;
@@ -103,10 +112,7 @@ export default function S_ProfilePage() {
     try {
       const res = await fetch("http://localhost:5000/api/students/me", {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           ...updatedProfile,
           prefix: prefixMapToPrisma[updatedProfile.prefix as keyof typeof prefixMapToPrisma],
@@ -123,32 +129,50 @@ export default function S_ProfilePage() {
         alert("บันทึกข้อมูลเรียบร้อย");
         setOpenStudentModal(false);
       }
-    } catch (err) {
-      alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล");
-    }
+    } catch (err) { alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล"); }
   }
 
-  async function saveStudentCompany(updatedProfile?: StudentProfile) {
-    if (!updatedProfile) return;
+  async function saveStudentCompany() {
+    if (!profile) return;
     try {
       const res = await fetch("http://localhost:5000/api/students/me", {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({
-          major: updatedProfile.major,
-          companyId: updatedProfile.company?.id,
-          mentorId: updatedProfile.company?.mentor?.id,
+          major: profile.major,
+          // ✅ ส่งค่า null ไปให้ Backend ถ้า profile.company ถูกเคลียร์ทิ้ง
+          companyId: profile.company?.id || null,
+          mentorId: profile.company?.mentor?.id || null,
         }),
       });
       if (res.ok) {
         const result = await res.json();
-        setProfile(prev => ({ ...prev!, ...result.student }));
-        alert("บันทึกข้อมูลบริษัทเรียบร้อย");
+        setProfile(prev => ({
+          ...prev!,
+          ...result.student,
+          company: profile.company // ✅ คงค่า Company ไว้ตามหน้าจอ UI เพื่อไม่ให้กระพริบหาย
+        }));
+        alert("บันทึกข้อมูลสถานที่ฝึกเรียบร้อย");
       }
-    } catch (err) {
-      alert("เกิดข้อผิดพลาดในการบันทึกบริษัท");
-    }
+    } catch (err) { alert("เกิดข้อผิดพลาดในการบันทึกบริษัท"); }
   }
+
+  /* ================= OPTIONS FOR DROPDOWNS ================= */
+  // ✅ 1. เพิ่มตัวเลือก "ยกเลิก" สำหรับบริษัท
+  const companyOptions = [
+    { id: "clear", label: "❌ ยกเลิกการเลือก (ยังไม่มีที่ฝึก)", rawData: null },
+    ...companies.map(c => ({ id: c.id, label: c.name, rawData: c }))
+  ];
+
+  // ✅ 2. เพิ่มตัวเลือก "ยกเลิก" สำหรับพี่เลี้ยง
+  const mentorOptions = profile.company ? [
+    { id: "clear", label: "❌ ยกเลิกการเลือก (ยังไม่มีพี่เลี้ยง)", rawData: null },
+    ...(profile.company.mentors?.map(m => ({
+      id: m.id,
+      label: `${m.firstName} ${m.lastName} ${m.position ? `(${m.position})` : ''}`,
+      rawData: m
+    })) || [])
+  ] : [];
 
   return (
     <div style={{ padding: 24, marginLeft: 35 }}>
@@ -165,32 +189,18 @@ export default function S_ProfilePage() {
           </div>
 
           <Info label="รหัสนักศึกษา" value={profile.studentId} />
-          <Info
-            label="ชื่อ–นามสกุล (TH)"
-            value={`${prefixMapToUI[profile.prefix as keyof typeof prefixMapToUI] || ""} ${profile.firstName ?? ""} ${profile.lastName ?? ""}`}
-          />
-          <Info
-            label="ชื่อ–นามสกุล (EN)"
-            value={`${profile.firstNameEn ?? "-"} ${profile.lastNameEn ?? "-"}`}
-          />
+          <Info label="ชื่อ–นามสกุล (TH)" value={`${prefixMapToUI[profile.prefix as keyof typeof prefixMapToUI] || ""} ${profile.firstName ?? ""} ${profile.lastName ?? ""}`} />
+          <Info label="ชื่อ–นามสกุล (EN)" value={`${profile.firstNameEn ?? "-"} ${profile.lastNameEn ?? "-"}`} />
           <Info label="ชั้นปี" value={profile.year || "-"} />
           <Info label="คณะ" value={profile.curriculum || "-"} />
-          {/* ✅ แสดงชื่อสาขาตรงๆ จาก DB เลย ไม่ต้องผ่าน Mapper แล้ว */}
           <Info label="สาขาวิชา" value={profile.major || "-"} />
-
-          <Info
-            label="รูปแบบการศึกษา"
-            value={studyProgramMapToUI[profile.studyProgram as string] || profile.studyProgram || "-"}
-          />
+          <Info label="รูปแบบการศึกษา" value={studyProgramMapToUI[profile.studyProgram as string] || profile.studyProgram || "-"} />
           <Info label="ที่ปรึกษา" value={profile.advisorName || "-"} />
           <Info label="เบอร์โทร" value={profile.phone || "-"} />
           <Info label="GPA" value={profile?.gpa != null ? profile.gpa.toFixed(2) : "-"} />
           <Info label="GPA หมวดวิชาเฉพาะ" value={profile.coreGpa?.toFixed(2) || "0.00"} />
           <Info label="หน่วยกิตสะสม" value={`${profile.activityUnit || 0} หน่วย`} />
-          <Info
-            label="วิชาสหกิจศึกษา (CP002001/SC002001)"
-            value={profile.isPassPrepCourse ? "ผ่านแล้ว (S)" : "ยังไม่ผ่าน"}
-          />
+          <Info label="วิชาสหกิจศึกษา (CP002001/SC002001)" value={profile.isPassPrepCourse ? "ผ่านแล้ว (S)" : "ยังไม่ผ่าน"} />
           <Info label="อีเมลมหาวิทยาลัย" value={profile.userEmail || "-"} pill />
           <Info label="อีเมลติดต่อหลัก" value={profile.email || "-"} pill />
         </section>
@@ -203,50 +213,53 @@ export default function S_ProfilePage() {
 
           <div style={{ marginBottom: 15 }}>
             <label className="label">บริษัท</label>
-            <select
-              className="input"
-              style={{ marginTop: 5 }}
-              value={profile.company?.id || ""}
-              onChange={(e) => {
-                const company = companies.find(c => c.id === e.target.value);
-                if (!company) return;
-                setProfile({ ...profile, company: { ...company, mentors: company.mentors, mentor: undefined } });
-              }}
-            >
-              <option value="">เลือกบริษัท</option>
-              {companies.map(c => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
+            <div style={{ marginTop: 5 }}>
+              <SearchableDropdown
+                options={companyOptions}
+                value={profile.company?.id || ""}
+                placeholder="พิมพ์ค้นหาชื่อบริษัท..."
+                noOptionText="ไม่พบบริษัทที่ค้นหา"
+                onAddClick={() => navigate("/student/company")}
+                onChange={(id: string, rawData: any) => {
+                  // ✅ ถ้ากดล้างข้อมูล ให้เคลียร์ค่า profile.company เป็น undefined
+                  if (id === "clear") {
+                    setProfile({ ...profile, company: undefined });
+                  } else {
+                    setProfile({ ...profile, company: { ...rawData, mentors: rawData.mentors, mentor: undefined } });
+                  }
+                }}
+              />
+            </div>
           </div>
 
           <div style={{ marginBottom: 15 }}>
             <label className="label">พี่เลี้ยง</label>
-            <select
-              className="input"
-              style={{ marginTop: 5 }}
-              disabled={!profile.company}
-              value={profile.company?.mentor?.id || ""}
-              onChange={(e) => {
-                const mentor = profile.company?.mentors?.find(m => m.id === e.target.value);
-                if (!mentor || !profile.company) return;
-                setProfile({ ...profile, company: { ...profile.company, mentor } });
-              }}
-            >
-              <option value="">เลือกพี่เลี้ยง</option>
-              {profile.company?.mentors?.map(m => (
-                <option key={m.id} value={m.id}>{m.firstName} {m.lastName}</option>
-              ))}
-            </select>
+            <div style={{ marginTop: 5 }}>
+              <SearchableDropdown
+                options={mentorOptions}
+                value={profile.company?.mentor?.id || ""}
+                placeholder={profile.company ? "พิมพ์ค้นหาชื่อพี่เลี้ยง..." : "กรุณาเลือกบริษัทก่อน"}
+                noOptionText="ไม่พบพี่เลี้ยงในบริษัทนี้"
+                onChange={(id: string, rawData: any) => {
+                  // ✅ ถ้ากดล้างข้อมูลพี่เลี้ยง ให้เซ็ต mentor เป็น undefined
+                  if (id === "clear") {
+                    setProfile({ ...profile, company: { ...profile.company!, mentor: undefined } });
+                  } else {
+                    setProfile({ ...profile, company: { ...profile.company!, mentor: rawData } });
+                  }
+                }}
+              />
+            </div>
           </div>
 
           <div className="action-row">
-            <button className="btn" onClick={() => saveStudentCompany(profile)}>
+            <button className="btn" onClick={saveStudentCompany}>
               <IcSave width={16} height={16} style={{ marginRight: 8 }} />
               บันทึกสถานที่ฝึก
             </button>
           </div>
 
+          {/* รายละเอียดบริษัท / พี่เลี้ยงที่ถูกเลือก */}
           {profile.company && (
             <div style={{ marginTop: 20 }}>
               <div className="divider" />
@@ -274,6 +287,7 @@ export default function S_ProfilePage() {
       {openStudentModal && (
         <StudentModal
           profile={profile}
+          teachers={teachers}
           saveStudentInfo={saveStudentInfo}
           closeModal={() => setOpenStudentModal(false)}
         />
@@ -283,20 +297,14 @@ export default function S_ProfilePage() {
 }
 
 /* ================= MODAL COMPONENT ================= */
-function StudentModal({ profile, saveStudentInfo, closeModal }: any) {
+function StudentModal({ profile, teachers, saveStudentInfo, closeModal }: any) {
   const [form, setForm] = useState<StudentProfile>({ ...profile });
-
-  // ✅ 1. เพิ่ม State เก็บรายชื่อสาขา
   const [majorOptions, setMajorOptions] = useState<string[]>([]);
 
-  // ✅ 2. ดึงข้อมูลรายชื่อสาขาตอนเปิด Modal
   useEffect(() => {
-    // ใช้ endpoint ดึงสาขาที่เราเพิ่งสร้างไป (ถ้าติดเรื่อง Permission ให้แอดมินปลดล็อก API นี้นะครับ)
     fetch("http://localhost:5000/api/admin/majors")
       .then(res => res.json())
-      .then(data => {
-        if (data.ok) setMajorOptions(data.majors);
-      })
+      .then(data => { if (data.ok) setMajorOptions(data.majors); })
       .catch(err => console.error("Failed to load majors", err));
   }, []);
 
@@ -306,166 +314,60 @@ function StudentModal({ profile, saveStudentInfo, closeModal }: any) {
         <h3 className="profile-title">แก้ไขข้อมูลนักศึกษา</h3>
         <div className="form-grid" style={{ maxHeight: '70vh', overflowY: 'auto', paddingRight: 10 }}>
 
-          <div>
-            <label className="label">คำนำหน้า</label>
-            <select
-              className="input"
-              value={form.prefix ?? ""}
-              onChange={(e) => setForm({ ...form, prefix: e.target.value as any })}
-            >
-              <option value="">เลือก</option>
-              <option value="นาย">นาย</option>
-              <option value="นางสาว">นางสาว</option>
+          <div><label className="label">คำนำหน้า</label>
+            <select className="input" value={form.prefix ?? ""} onChange={(e) => setForm({ ...form, prefix: e.target.value as any })}>
+              <option value="">เลือก</option><option value="นาย">นาย</option><option value="นางสาว">นางสาว</option>
             </select>
           </div>
+          <div><label className="label">รหัสนักศึกษา</label><input className="input" value={form.studentId} maxLength={15} onChange={(e) => setForm({ ...form, studentId: e.target.value })} /></div>
+          <div><label className="label">ชื่อ (ภาษาไทย)</label><input className="input" value={form.firstName ?? ""} onChange={(e) => setForm({ ...form, firstName: e.target.value })} /></div>
+          <div><label className="label">นามสกุล (ภาษาไทย)</label><input className="input" value={form.lastName ?? ""} onChange={(e) => setForm({ ...form, lastName: e.target.value })} /></div>
+          <div><label className="label">First Name (EN)</label><input className="input" value={form.firstNameEn ?? ""} onChange={(e) => setForm({ ...form, firstNameEn: e.target.value })} /></div>
+          <div><label className="label">Last Name (EN)</label><input className="input" value={form.lastNameEn ?? ""} onChange={(e) => setForm({ ...form, lastNameEn: e.target.value })} /></div>
 
-          <div>
-            <label className="label">รหัสนักศึกษา</label>
-            <input
-              className="input"
-              value={form.studentId}
-              maxLength={15}
-              onChange={(e) => setForm({ ...form, studentId: e.target.value })}
-            />
-          </div>
-
-          <div>
-            <label className="label">ชื่อ (ภาษาไทย)</label>
-            <input
-              className="input"
-              value={form.firstName ?? ""}
-              onChange={(e) => setForm({ ...form, firstName: e.target.value })}
-            />
-          </div>
-
-          <div>
-            <label className="label">นามสกุล (ภาษาไทย)</label>
-            <input
-              className="input"
-              value={form.lastName ?? ""}
-              onChange={(e) => setForm({ ...form, lastName: e.target.value })}
-            />
-          </div>
-
-          <div>
-            <label className="label">First Name (EN)</label>
-            <input
-              className="input"
-              value={form.firstNameEn ?? ""}
-              onChange={(e) => setForm({ ...form, firstNameEn: e.target.value })}
-            />
-          </div>
-
-          <div>
-            <label className="label">Last Name (EN)</label>
-            <input
-              className="input"
-              value={form.lastNameEn ?? ""}
-              onChange={(e) => setForm({ ...form, lastNameEn: e.target.value })}
-            />
-          </div>
-
-          {/* ✅ 3. ปรับ Dropdown สาขาวิชา ให้วนลูปจาก DB */}
           <div>
             <label className="label">สาขาวิชา</label>
-            <select
-              className="input"
-              value={form.major || ""}
-              onChange={(e) => setForm({ ...form, major: e.target.value })}
-            >
+            <select className="input" value={form.major || ""} onChange={(e) => setForm({ ...form, major: e.target.value })}>
               <option value="">-- เลือกสาขาวิชา --</option>
-              {majorOptions.map((major) => (
-                <option key={major} value={major}>
-                  {major}
-                </option>
-              ))}
+              {majorOptions.map((major) => (<option key={major} value={major}>{major}</option>))}
             </select>
           </div>
 
           <div>
             <label className="label">รูปแบบการศึกษา</label>
-            <select
-              className="input"
-              value={form.studyProgram || ""}
-              onChange={(e) => setForm({ ...form, studyProgram: e.target.value as any })}
-            >
-              <option value="">เลือกรูปแบบ</option>
-              <option value="ภาคปกติ">ภาคปกติ</option>
-              <option value="ภาคพิเศษ">ภาคพิเศษ</option>
+            <select className="input" value={form.studyProgram || ""} onChange={(e) => setForm({ ...form, studyProgram: e.target.value as any })}>
+              <option value="">เลือกรูปแบบ</option><option value="ภาคปกติ">ภาคปกติ</option><option value="ภาคพิเศษ">ภาคพิเศษ</option>
             </select>
           </div>
 
           <div>
             <label className="label">ที่ปรึกษา</label>
-            <input className="input" value={form.advisorName ?? ""} onChange={(e) => setForm({ ...form, advisorName: e.target.value })} />
-          </div>
-
-          <div>
-            <label className="label">ชั้นปี</label>
-            <input className="input" value={form.year ?? ""} onChange={(e) => setForm({ ...form, year: e.target.value })} />
-          </div>
-
-          <div>
-            <label className="label">GPA</label>
-            <input
+            <select
               className="input"
-              type="number"
-              step="0.01"
-              value={form.gpa ?? ""}
-              onChange={(e) => setForm({ ...form, gpa: parseFloat(e.target.value) })}
-            />
+              value={form.advisorName ?? ""}
+              onChange={(e) => setForm({ ...form, advisorName: e.target.value })}
+            >
+              <option value="">-- เลือกที่ปรึกษา --</option>
+              {teachers.map((t: any) => {
+                const fullName = `${t.prefix || ""}${t.firstName} ${t.lastName}`;
+                return <option key={t.id} value={fullName}>{fullName}</option>;
+              })}
+            </select>
           </div>
 
-          <div>
-            <label className="label">เกรดเฉลี่ยวิชาแกน (Core GPA)</label>
-            <input
-              className="input"
-              type="number"
-              step="0.01"
-              placeholder="0.00"
-              value={form.coreGpa ?? ""}
-              onChange={(e) => setForm({ ...form, coreGpa: e.target.value === "" ? 0 : Number(e.target.value) })}
-            />
-          </div>
-
-          <div>
-            <label className="label">หน่วยกิตสะสม (หน่วย)</label>
-            <input
-              className="input"
-              type="number"
-              placeholder="60"
-              value={form.activityUnit ?? ""}
-              onChange={(e) => setForm({ ...form, activityUnit: e.target.value === "" ? 0 : Number(e.target.value) })}
-            />
-          </div>
+          <div><label className="label">ชั้นปี</label><input className="input" value={form.year ?? ""} onChange={(e) => setForm({ ...form, year: e.target.value })} /></div>
+          <div><label className="label">GPA</label><input className="input" type="number" step="0.01" value={form.gpa ?? ""} onChange={(e) => setForm({ ...form, gpa: parseFloat(e.target.value) })} /></div>
+          <div><label className="label">เกรดเฉลี่ยวิชาแกน (Core GPA)</label><input className="input" type="number" step="0.01" value={form.coreGpa ?? ""} onChange={(e) => setForm({ ...form, coreGpa: e.target.value === "" ? 0 : Number(e.target.value) })} /></div>
+          <div><label className="label">หน่วยกิตสะสม (หน่วย)</label><input className="input" type="number" value={form.activityUnit ?? ""} onChange={(e) => setForm({ ...form, activityUnit: e.target.value === "" ? 0 : Number(e.target.value) })} /></div>
 
           <div style={{ gridColumn: 'span 2', display: 'flex', alignItems: 'center', gap: '10px', marginTop: '10px' }}>
-            <input
-              type="checkbox"
-              id="prepCourse"
-              style={{ width: '20px', height: '20px', cursor: 'pointer' }}
-              checked={form.isPassPrepCourse || false}
-              onChange={(e) => setForm({ ...form, isPassPrepCourse: e.target.checked })}
-            />
-            <label htmlFor="prepCourse" className="label" style={{ margin: 0, cursor: 'pointer' }}>
-              ผ่านรายวิชาเตรียมความพร้อมสหกิจศึกษา (CP002001/SC002001)
-            </label>
+            <input type="checkbox" id="prepCourse" style={{ width: '20px', height: '20px', cursor: 'pointer' }} checked={form.isPassPrepCourse || false} onChange={(e) => setForm({ ...form, isPassPrepCourse: e.target.checked })} />
+            <label htmlFor="prepCourse" className="label" style={{ margin: 0, cursor: 'pointer' }}>ผ่านรายวิชาเตรียมความพร้อมสหกิจศึกษา (CP002001/SC002001)</label>
           </div>
 
-          <div style={{ gridColumn: 'span 2' }}>
-            <label className="label">คณะ / หลักสูตร</label>
-            <input className="input" value={form.curriculum ?? ""} onChange={(e) => setForm({ ...form, curriculum: e.target.value })} />
-          </div>
-
-          <div>
-            <label className="label">เบอร์โทรศัพท์</label>
-            <input className="input" value={form.phone ?? ""} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
-          </div>
-
-          <div>
-            <label className="label">อีเมลติดต่อหลัก</label>
-            <input className="input" value={form.email ?? ""} onChange={(e) => setForm({ ...form, email: e.target.value })} />
-          </div>
+          <div style={{ gridColumn: 'span 2' }}><label className="label">คณะ / หลักสูตร</label><input className="input" value={form.curriculum ?? ""} onChange={(e) => setForm({ ...form, curriculum: e.target.value })} /></div>
+          <div><label className="label">เบอร์โทรศัพท์</label><input className="input" value={form.phone ?? ""} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
+          <div><label className="label">อีเมลติดต่อหลัก</label><input className="input" value={form.email ?? ""} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
         </div>
 
         <div className="action-row">
@@ -473,6 +375,72 @@ function StudentModal({ profile, saveStudentInfo, closeModal }: any) {
           <button className="btn" onClick={() => saveStudentInfo(form)}>บันทึก</button>
         </div>
       </div>
+    </div>
+  );
+}
+
+/* ================= CUSTOM SEARCHABLE DROPDOWN ================= */
+function SearchableDropdown({ options, value, onChange, placeholder, noOptionText, onAddClick }: any) {
+  const [search, setSearch] = useState("");
+  const [isOpen, setIsOpen] = useState(false);
+
+  const selectedLabel = options.find((o: any) => o.id === value)?.label || "";
+  const filtered = options.filter((o: any) => o.label.toLowerCase().includes(search.toLowerCase()));
+
+  return (
+    <div style={{ position: "relative" }}>
+      <input
+        className="input"
+        placeholder={placeholder}
+        value={isOpen ? search : selectedLabel}
+        onChange={(e) => setSearch(e.target.value)}
+        onFocus={() => { setIsOpen(true); setSearch(""); }}
+        onBlur={() => setTimeout(() => setIsOpen(false), 200)}
+      />
+      {isOpen && (
+        <div style={{
+          position: "absolute", top: "100%", left: 0, right: 0,
+          background: "#fff", border: "1px solid #cbd5e1", zIndex: 50,
+          maxHeight: 250, overflowY: "auto", borderRadius: 10,
+          boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)", marginTop: 4
+        }}>
+          {filtered.length > 0 ? (
+            filtered.map((o: any) => (
+              <div
+                key={o.id}
+                // ไฮไลต์สีให้ตัวเลือก "ยกเลิก" ดูแตกต่างนิดหน่อย
+                style={{
+                  padding: "10px 14px",
+                  cursor: "pointer",
+                  borderBottom: "1px solid #f1f5f9",
+                  fontSize: 14,
+                  color: o.id === "clear" ? "#dc2626" : "#1e293b",
+                  fontWeight: o.id === "clear" ? "bold" : "normal"
+                }}
+                onMouseDown={() => { onChange(o.id, o.rawData); setSearch(o.label); setIsOpen(false); }}
+                onMouseEnter={(e) => e.currentTarget.style.background = o.id === "clear" ? "#fee2e2" : "#f8fafc"}
+                onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+              >
+                {o.label}
+              </div>
+            ))
+          ) : (
+            <div style={{ padding: "14px", textAlign: "center", color: "#64748b", fontSize: 14 }}>
+              {noOptionText}
+              {onAddClick && (
+                <button
+                  type="button"
+                  className="btn"
+                  style={{ width: "100%", marginTop: 10, justifyContent: "center", padding: "8px" }}
+                  onMouseDown={(e) => { e.preventDefault(); onAddClick(); }}
+                >
+                  + เพิ่มบริษัทใหม่
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -513,11 +481,14 @@ const PROFILE_CSS = `
 .label{ color:#64748b; font-weight:700; font-size: 14px; }
 .value{ font-weight:600; color: #1e293b; }
 .email-pill{ display:inline-block; padding:4px 12px; border-radius:999px; background:#eff6ff; border:1px solid #bfdbfe; color:#1e40af; font-size: 13px; }
-.input { padding:10px 14px; border-radius:10px; border:1px solid #e5e7eb; font-weight:600; width:100%; box-sizing:border-box; font-family: inherit; }
+.input { padding:10px 14px; border-radius:10px; border:1px solid #e5e7eb; font-weight:600; width:100%; box-sizing:border-box; font-family: inherit; transition: 0.2s; }
+.input:focus { border-color: #3b82f6; outline: none; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
 .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:15px 20px; }
 .action-row { display:flex; justify-content:flex-end; gap:10px; margin-top:25px; }
-.btn { background:#2563eb; color:#fff; padding:10px 20px; border-radius:10px; font-weight:700; border: none; cursor: pointer; display: flex; align-items: center; }
+.btn { background:#2563eb; color:#fff; padding:10px 20px; border-radius:10px; font-weight:700; border: none; cursor: pointer; display: flex; align-items: center; transition: 0.2s; }
+.btn:hover { background: #1d4ed8; }
 .btn-secondary { background:#f1f5f9; color:#475569; padding:10px 20px; border-radius:10px; font-weight:700; border: none; cursor: pointer; }
+.btn-secondary:hover { background:#e2e8f0; }
 .modal-backdrop { position:fixed; inset:0; background:rgba(15,23,42,.45); display:flex; align-items:center; justify-content:center; z-index:50; backdrop-filter: blur(4px); }
 .modal-card { background:#fff; border-radius:24px; padding:35px; width:750px; max-width:95%; box-shadow:0 20px 25px -5px rgba(0,0,0,0.1); }
 `;

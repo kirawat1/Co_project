@@ -83,7 +83,19 @@ export default function A_CoopPeriod() {
     };
 
     const toggleStatus = async (id: number, currentStatus: boolean) => {
-        if (!confirm(`ต้องการ ${currentStatus ? 'ปิด' : 'เปิด'} การรับสมัครรอบนี้ใช่หรือไม่?`)) return;
+        // หากปัจจุบันปิดอยู่ (กำลังจะกดเปิด)
+        if (!currentStatus) {
+            const hasActive = periods.some(p => p.isActive && p.id !== id);
+            if (hasActive) {
+                if (!confirm(`⚠️ มีรอบรับสมัครอื่นเปิดอยู่แล้ว\nคุณต้องการ "ปิดรอบเดิม" และ "เปิดรอบนี้" แทนหรือไม่?`)) return;
+            } else {
+                if (!confirm(`ต้องการเปิดการรับสมัครรอบนี้ใช่หรือไม่?`)) return;
+            }
+        } else {
+            // หากปัจจุบันเปิดอยู่ (กำลังจะกดปิด)
+            if (!confirm(`ต้องการปิดการรับสมัครรอบนี้ใช่หรือไม่?`)) return;
+        }
+
         try {
             await axios.patch(`http://localhost:5000/api/admin/coop-periods/${id}/toggle`, {
                 isActive: !currentStatus

@@ -6,7 +6,7 @@ const { verifyToken } = require('../middlewares/authMiddleware');
 
 const studentController = require('../controllers/studentController');
 const docController = require('../controllers/docController');
-
+const coopPeriodController = require("../controllers/coopPeriodController");
 // --- Routes ---
 
 // ดึงข้อมูลโปรไฟล์ตัวเอง
@@ -24,5 +24,5 @@ router.post('/download-placement-letter', verifyToken, studentController.downloa
 
 router.post("/acknowledge-placement-letter",verifyToken,docController.acknowledgePlacementLetter);
 
-
+router.get("/coop-periods/active", coopPeriodController.getActivePeriod);
 module.exports = router;
