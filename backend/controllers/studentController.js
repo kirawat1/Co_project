@@ -24,10 +24,10 @@ exports.getMyProfile = async (req, res) => {
     if (!student) {
       const user = await prisma.user.findUnique({ where: { id: req.userId } });
       return res.json({
-        id: req.userId, // ✅ สำคัญ: ส่ง ID กลับไปให้ Frontend ใช้ด้วย
-        userId: req.userId, // เผื่อ Frontend ใช้ field นี้
+        id: req.userId,
+        userId: req.userId, 
         studentId: "",
-        prefix: null, // เปลี่ยนจาก "" เป็น null เพื่อให้ตรงกับ Optional Enum
+        prefix: null, 
         firstName: "",
         lastName: "",
         firstNameEn: "",
@@ -38,11 +38,11 @@ exports.getMyProfile = async (req, res) => {
         studyProgram: null,
         phone: "",
         gpa: 0.0,
-        coreGpa: 0.0,       // ✅ เพิ่มฟิลด์ใหม่ (default)
-        activityUnit: 0,    // ✅ เพิ่มฟิลด์ใหม่ (default)
-        isPassPrepCourse: false, // ✅ เพิ่มฟิลด์ใหม่ (default)
-        advisorName: "",   // ✅ เพิ่มฟิลด์ใหม่ (default)
-        jobPosition: "",   // ✅ เพิ่มฟิลด์ใหม่ (default)
+        coreGpa: 0.0,       
+        activityUnit: 0,    
+        isPassPrepCourse: false, 
+        advisorName: "",   
+        jobPosition: "",   
         emails: [],
         userEmail: user ? user.email : "",
         company: undefined,
@@ -50,12 +50,12 @@ exports.getMyProfile = async (req, res) => {
       });
     }
 
-    // ส่งข้อมูลกลับ พร้อมแปลงโครงสร้างบริษัทให้ใช้ง่าย
+    // ✅ แก้ไข: เช็คให้ชัวร์ว่า student.coop.company มีค่าจริง ป้องกัน Error กระจายค่า null
     res.json({
       ...student,
-      company: student.coop
+      company: (student.coop && student.coop.company)
         ? { ...student.coop.company, mentor: student.coop.mentor }
-        : undefined,
+        : null, // ถ้าไม่มีบริษัทให้เป็น null ไปเลย
       userEmail: student.user?.email || "",
     });
   } catch (err) {
@@ -71,15 +71,13 @@ exports.updateMyProfile = async (req, res) => {
     const userId = req.userId;
 
     if (data.studentId && data.studentId.length > 15) {
-      return res.status(400).json({ ok: false, message: "รหัสนักศึกษาต้องไม่เกิน 10 หลัก" });
+      return res.status(400).json({ ok: false, message: "รหัสนักศึกษาต้องไม่เกิน 15 หลัก" });
     }
 
-    // 🔍 ดึงข้อมูลปัจจุบันจาก DB มาพักไว้ก่อน เพื่อป้องกันการทับค่าด้วย 0
     const currentStudent = await prisma.student.findUnique({
       where: { userId: userId }
     });
 
-    // 1. กำหนดค่าที่จะใช้คำนวณ (ถ้า Frontend ไม่ส่งมา ให้ใช้ค่าเดิมใน DB)
     const targetMajor = data.major || currentStudent?.major;
     const gpa = data.gpa !== undefined ? parseFloat(data.gpa) : (currentStudent?.gpa || 0);
     const coreGpa = data.coreGpa !== undefined ? parseFloat(data.coreGpa) : (currentStudent?.coreGpa || 0);
@@ -88,7 +86,6 @@ exports.updateMyProfile = async (req, res) => {
       (data.isPassPrepCourse === true || data.isPassPrepCourse === 'true') : 
       (currentStudent?.isPassPrepCourse || false);
 
-    // 2. Logic การตรวจสอบคุณสมบัติ
     let calculatedQualified = currentStudent?.isQualified || false;
 
     if (targetMajor) {
@@ -102,12 +99,9 @@ exports.updateMyProfile = async (req, res) => {
           coreGpa >= criteria.minCoreGpa && 
           activityUnit >= criteria.minActivityUnit && 
           isPassPrepCourse === true;
-        
-        console.log(`Debug Check [${targetMajor}]: GPA(${gpa >= criteria.minGpa}) Core(${coreGpa >= criteria.minCoreGpa}) Act(${activityUnit >= criteria.minActivityUnit}) Prep(${isPassPrepCourse}) -> Result: ${calculatedQualified}`);
       }
     }
 
-    // 3. จัดการข้อมูลหลักของ Student (ใช้ upsert)
     const student = await prisma.student.upsert({
       where: { userId: userId },
       update: {
@@ -125,7 +119,6 @@ exports.updateMyProfile = async (req, res) => {
         email: data.email,
         advisorName: data.advisorName, 
         jobPosition: data.jobPosition,
-        // ✅ บันทึกค่าใหม่เฉพาะที่มีการส่งมา ถ้าไม่มีส่งมา Prisma จะไม่ Update ฟิลด์นั้น (ใช้ undefined)
         gpa: data.gpa !== undefined ? parseFloat(data.gpa) : undefined,
         coreGpa: data.coreGpa !== undefined ? parseFloat(data.coreGpa) : undefined,
         activityUnit: data.activityUnit !== undefined ? parseInt(data.activityUnit) : undefined,
@@ -148,12 +141,11 @@ exports.updateMyProfile = async (req, res) => {
       },
     });
 
-    // 2. จัดการ Emails สำรอง (StudentEmail Table)
     if (data.emails && Array.isArray(data.emails)) {
       for (const e of data.emails) {
         if (e.email && e.email.trim() !== "") {
           await prisma.studentEmail.upsert({
-            where: { id: e.id || -1 }, // ถ้าไม่มี id ให้พยายามหาด้วยค่าที่ไม่มีทางเจอเพื่อ create
+            where: { id: e.id || -1 },
             update: { email: e.email, primary: e.primary || false },
             create: {
               email: e.email,
@@ -165,20 +157,25 @@ exports.updateMyProfile = async (req, res) => {
       }
     }
 
+    // ==========================================
     // 3. จัดการสถานะการฝึกงาน (StudentCoop Table)
+    // ==========================================
     let updatedCoop = null;
-    if (data.companyId) {
+    
+    // ✅ แก้ไข: เช็คจาก 'undefined' แทนการเช็ค truthy value 
+    // เพื่อให้ทำงานได้แม้มีการส่ง { companyId: null } มาก็ตาม
+    if (data.companyId !== undefined) {
       updatedCoop = await prisma.studentCoop.upsert({
         where: { studentId: student.id },
         update: {
-          companyId: data.companyId,
-          mentorId: data.mentorId || null,
+          companyId: data.companyId, // รับค่า null เพื่อลบข้อมูลเดิมออกได้
+          mentorId: data.mentorId || null, 
         },
         create: {
           studentId: student.id,
           companyId: data.companyId,
           mentorId: data.mentorId || null,
-          status: "APPLYING", // เริ่มต้นที่สถานะแรกตาม Enum
+          status: "NOT_SUBMITTED", // กำหนดสถานะเริ่มต้นเมื่อมีการสร้างใหม่
         },
         include: {
           company: { include: { mentors: true } },
@@ -187,7 +184,6 @@ exports.updateMyProfile = async (req, res) => {
       });
     }
 
-    // ดึงข้อมูล User และผลลัพธ์ทั้งหมดส่งกลับ
     const user = await prisma.user.findUnique({ where: { id: userId } });
     const finalEmails = await prisma.studentEmail.findMany({ where: { studentId: student.id } });
 
@@ -195,28 +191,21 @@ exports.updateMyProfile = async (req, res) => {
       ok: true,
       student,
       emails: finalEmails,
-      company: updatedCoop ? { ...updatedCoop.company, mentor: updatedCoop.mentor } : undefined,
+      // ✅ แก้ไข: เช็คให้ชัวร์ว่ามี company จริงๆ ถึงส่งข้อมูลกลับไป ไม่งั้นส่ง null
+      company: (updatedCoop && updatedCoop.company) 
+               ? { ...updatedCoop.company, mentor: updatedCoop.mentor } 
+               : null,
       userEmail: user ? user.email : "",
     });
 
   } catch (err) {
     console.error("Update Error:", err);
     if (err.code === 'P2002') {
-      // เช็คว่าซ้ำที่ field ไหน (ในที่นี้คือ studentId)
       const target = err.meta?.target;
-      
       if (typeof target === 'string' && target.includes('studentId')) {
-         return res.status(400).json({ 
-           ok: false, 
-           message: "รหัสนักศึกษานี้มีอยู่ในระบบแล้ว (ซ้ำกับบัญชีอื่น)" 
-         });
+         return res.status(400).json({ ok: false, message: "รหัสนักศึกษานี้มีอยู่ในระบบแล้ว (ซ้ำกับบัญชีอื่น)" });
       }
-      
-      // กรณีซ้ำที่ field อื่น (เผื่อไว้)
-      return res.status(400).json({ 
-        ok: false, 
-        message: "ข้อมูลบางอย่างซ้ำกับในระบบ" 
-      });
+      return res.status(400).json({ ok: false, message: "ข้อมูลบางอย่างซ้ำกับในระบบ" });
     }
     res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดที่ Server" });
   }

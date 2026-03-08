@@ -73,6 +73,14 @@ exports.togglePeriod = async (req, res) => {
     const { id } = req.params;
     const { isActive } = req.body;
 
+    // ✅ ถ้ากำลังจะเปิดรอบนี้ ให้ไป ปิด (isActive: false) รอบอื่นๆ ทั้งหมดก่อน
+    if (isActive === true) {
+      await prisma.coopPeriod.updateMany({
+        where: { id: { not: Number(id) } },
+        data: { isActive: false },
+      });
+    }
+
     const updated = await prisma.coopPeriod.update({
       where: { id: Number(id) },
       data: { isActive },
@@ -94,6 +102,17 @@ exports.deletePeriod = async (req, res) => {
     res.json({ ok: true, message: "Deleted successfully" });
   } catch (error) {
     console.error("Delete period error:", error);
+    res.status(500).json({ ok: false, error: "Server error" });
+  }
+};
+
+exports.getActivePeriod = async (req, res) => {
+  try {
+    const period = await prisma.coopPeriod.findFirst({
+      where: { isActive: true },
+    });
+    res.json({ ok: true, period });
+  } catch (error) {
     res.status(500).json({ ok: false, error: "Server error" });
   }
 };
