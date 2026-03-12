@@ -2,7 +2,6 @@ import React from "react";
 import { useEffect } from "react";
 
 // ================= TYPES DEFINITION =================
-// ✅ รองรับทั้งแบบ Frontend (ตัวเล็ก) และ Backend (ตัวใหญ่)
 export type DocStatus =
   | "waiting" | "under-review" | "approved" | "rejected"
   | "WAITING" | "PENDING" | "APPROVED" | "REJECTED" | "EDITS_REQUIRED";
@@ -34,23 +33,23 @@ type Props = {
 };
 
 // ================= CONSTANTS =================
-// ✅ Mapping ข้อความให้ครอบคลุมทุกค่าที่อาจส่งมา
+// ✅ แยกคำแปลสถานะให้ชัดเจนระหว่าง มีไฟล์ กับ ไม่มีไฟล์
 const STATUS_LABEL: Record<string, string> = {
-  // แบบเดิม (Frontend State)
+  // 1. ยังไม่มีไฟล์
   "waiting": "รอส่งเอกสาร",
-  "under-review": "รอตรวจเอกสาร",
-  "approved": "เอกสารผ่าน",
-  "rejected": "ไม่ผ่าน",
 
-  // แบบใหม่ (Backend/Database Enum)
-  "WAITING": "รอส่งเอกสาร",
-  "PENDING": "รอตรวจสอบ",
+  // 2. มีไฟล์แล้ว (รอแอดมินตรวจ)
+  "WAITING": "⏳ รอตรวจสอบ",
+  "PENDING": "⏳ รอตรวจสอบ",
+  "under-review": "⏳ รอตรวจสอบ",
+
+  // 3. ตรวจแล้ว
   "APPROVED": "✅ เอกสารผ่าน",
+  "approved": "✅ เอกสารผ่าน",
   "REJECTED": "❌ ไม่ผ่าน",
+  "rejected": "❌ ไม่ผ่าน",
   "EDITS_REQUIRED": "⚠️ รอแก้ไข"
 };
-
-
 
 // ================= COMPONENT =================
 export default function DocTable({
@@ -62,7 +61,7 @@ export default function DocTable({
 }: Props) {
 
   useEffect(() => {
-    console.log("DOC ITEMS", items);
+    // console.log("DOC ITEMS", items);
   }, [items]);
 
   function patch(id: string, partial: Partial<DocumentItem>) {
@@ -78,55 +77,42 @@ export default function DocTable({
     patch(id, { status: v, lastUpdated: new Date().toISOString() });
   }
 
-  // ✅ ฟังก์ชันอัปโหลด (เอาเงื่อนไขจำกัดจำนวนออกแล้ว)
   function onUploadFile(id: string, e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // 1. เคลียร์ค่า input ทันที (เพื่อให้เลือกไฟล์เดิมซ้ำได้ กรณีเลือกผิดแล้วเลือกใหม่)
+    // เคลียร์ค่า input ทันที
     e.target.value = "";
 
     const it = items.find((x: DocumentItem) => x.id === id);
     if (!it) return;
 
-    // ลบเงื่อนไขเช็คจำนวนครั้งออกแล้ว (Revision Check Removed)
-    // if ((it.history?.length || 0) >= 30) { return alert(...) }
-
-    // 2. ส่งไฟล์
     if (onUploadCall) {
       onUploadCall(id, file);
     } else {
-      // Fallback update local state
       patch(id, {
         fileName: file.name,
-        status: "PENDING",
+        status: "WAITING", // ถ้าทำ Local Update ให้โชว์รอตรวจสอบ
         rejectReason: undefined,
         lastUpdated: new Date().toISOString(),
       });
     }
   }
 
-  // Handle Remove
   function onRemoveFile(id: string) {
     if (!window.confirm("ต้องการลบไฟล์นี้ใช่หรือไม่?")) return;
 
-    // 1. แจ้ง Backend
     if (onDeleteCall) {
       onDeleteCall(id);
-      console.log("Called onDeleteCall for doc id:", id);
     }
 
-    // 2. รีเซ็ตหน้าจอทันที
     patch(id, {
       fileName: undefined,
-      status: "WAITING",
+      status: "waiting", // กลับไปเป็นตัวเล็ก (รอส่งเอกสาร)
       lastUpdated: new Date().toISOString(),
       rejectReason: undefined
     });
-
-    console.log("Removed file for doc id:", id);
   }
-
 
   return (
     <div className="doc-table-wrap" style={{ overflowX: "auto" }}>
@@ -147,7 +133,6 @@ export default function DocTable({
 
         <tbody>
           {items.map((it) => {
-            // Normalize status check (case insensitive)
             const st = (it.status || "").toUpperCase();
             const isApproved = st === 'APPROVED';
 
@@ -180,14 +165,12 @@ export default function DocTable({
                           type="file"
                           hidden
                           accept=".pdf,.doc,.docx,.jpg,.png"
-                          // ✅ ส่ง event ไปด้วย เพื่อเคลียร์ value
                           onChange={(e) => onUploadFile(it.id, e)}
                         />
                       </label>
                     </div>
                   )}
                 </Td>
-
 
                 <Td className="td-status">
                   {allowStatusChange ? (
@@ -204,7 +187,7 @@ export default function DocTable({
                     </select>
                   ) : (
                     <>
-                      {/* ✅ ใช้ helper ที่ปรับปรุงแล้ว */}
+                      {/* ✅ แสดงสถานะพร้อมสีที่ถูกต้อง */}
                       <span className={`chip ${chipClass(it.status)}`}>
                         {STATUS_LABEL[it.status] || it.status || "Unknown"}
                       </span>
@@ -270,35 +253,34 @@ export default function DocTable({
 
         .chip { padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 700; display: inline-block; white-space: nowrap; }
         
-        /* ✅ CSS Status Colors */
-        .chip.waiting { background: #f1f5f9; color: #475569; }
-        .chip.under { background: #fff7ed; color: #c2410c; border: 1px solid #fed7aa; }
+        /* ✅ CSS Status Colors (ปรับให้สีฟ้าสำหรับรอตรวจสอบ) */
+        .chip.waiting { background: #f1f5f9; color: #475569; border: 1px solid transparent; }
+        .chip.under { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
         .chip.appr { background: #ecfdf5; color: #047857; border: 1px solid #6ee7b7; }
         .chip.rej { background: #fef2f2; color: #b91c1c; border: 1px solid #fca5a5; }
-        .chip.edit { background: #fffbeb; color: #b45309; border: 1px solid #fcd34d; } /* สีเหลืองสำหรับแก้ไข */
+        .chip.edit { background: #fffbeb; color: #b45309; border: 1px solid #fcd34d; }
       `}</style>
     </div>
   );
 }
 
 // ================= HELPERS =================
-
 function revisionCount(it: DocumentItem) {
   if (!it.history) return 0;
-  // เช็คแบบ case-insensitive
   return it.history.filter((h: DocumentHistory) => (h.status || "").toUpperCase() === "REJECTED").length;
 }
 
-// ✅ ปรับปรุง Helper ให้รองรับค่าจาก DB (ตัวพิมพ์ใหญ่)
+// ✅ อัปเดตการใส่สี: แยกตัวเล็ก/ตัวใหญ่ให้สีต่างกัน
 function chipClass(status: DocStatus) {
-  const s = (status || "").toLowerCase(); // แปลงเป็นตัวเล็กเพื่อเทียบง่ายๆ
+  if (status === "waiting") return "waiting"; // สีเทา (ยังไม่มีไฟล์)
 
-  if (s === "waiting") return "waiting";
-  if (s === "under-review" || s === "pending") return "under";
-  if (s === "approved") return "appr";
-  if (s === "edits_required") return "edit"; // สีเหลือง
+  // สีฟ้า (ส่งไฟล์แล้ว รอแอดมินตรวจ)
+  if (status === "WAITING" || status === "PENDING" || status === "under-review") return "under";
 
-  return "rej"; // rejected หรืออื่นๆ เป็นสีแดง
+  if (status === "APPROVED" || status === "approved") return "appr";
+  if (status === "EDITS_REQUIRED") return "edit";
+
+  return "rej"; // นอกนั้นตีเป็นสีแดง
 }
 
 function UploadedFile({ it, onRemove, isApproved }: any) {
@@ -311,12 +293,6 @@ function UploadedFile({ it, onRemove, isApproved }: any) {
       {isApproved && <span>✅</span>}
     </div>
   );
-}
-
-function truncateMiddle(name: string, max = 24) {
-  if (name.length <= max) return name;
-  const keep = Math.floor((max - 3) / 2);
-  return name.slice(0, keep) + "..." + name.slice(-keep);
 }
 
 function Th({ children }: React.PropsWithChildren) {

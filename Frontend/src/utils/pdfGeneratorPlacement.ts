@@ -1,3 +1,4 @@
+// utils/pdfGeneratorPlacement.ts
 import { jsPDF } from "jspdf";
 
 // Helper: โหลด Font
@@ -45,6 +46,8 @@ export const createPlacementPDF = async (
   formData: any,
   signatureUrl: string,
   krutUrl: string,
+  deanName: string = "รองศาสตราจารย์สิรภัทร เชี่ยวชาญวัฒนา", // รับค่าชื่อ (มีค่า Default กันเหนียว)
+  deanPosition: string = "คณบดีวิทยาลัยการคอมพิวเตอร์", // รับค่าตำแหน่ง
 ): Promise<jsPDF> => {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
 
@@ -159,10 +162,10 @@ export const createPlacementPDF = async (
   }
 
   currentY += 20;
-  doc.text("(รองศาสตราจารย์สิรภัทร เชี่ยวชาญวัฒนา)", centerX, currentY, {
+  doc.text(`(${deanName})`, centerX, currentY, {
     align: "center",
   });
-  doc.text("คณบดีวิทยาลัยการคอมพิวเตอร์", centerX, currentY + 7, {
+  doc.text(`${deanPosition}`, centerX, currentY + 7, {
     align: "center",
   });
 

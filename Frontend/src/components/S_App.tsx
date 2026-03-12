@@ -10,6 +10,8 @@ import DailyPage from "./S_DailyPage";
 import DocPage from "./S_Docs";
 import Company from "./S_Company";
 import StudentTheme from "./S_Theme";
+import DocT002 from "./S_DocsT002Form";
+import DocT003 from "./S_DocsT003Form";
 import coopLogo from "../assets/COOP_Logo.png";
 import { type StudentProfile } from "./store";
 
@@ -111,6 +113,8 @@ export default function StudentApp() {
             <Route path="daily" element={<DailyPage profile={profile} />} />
             <Route path="docs" element={<DocPage profile={profile} setProfile={setProfile} />} />
             <Route path="company" element={<Company profile={profile} setProfile={setProfile} />} />
+            <Route path="docs-t002" element={<DocT002 profile={profile} />} />
+            <Route path="docs-t003" element={<DocT003 profile={profile} />} />
             <Route path="*" element={<Navigate to="dashboard" replace />} />
           </Routes>
         </main>

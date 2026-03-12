@@ -3,7 +3,6 @@
 // Frontend/src/components/S_Company.tsx
 import React, { useEffect, useState, useMemo } from "react";
 
-
 interface MentorRecord {
     id: string;
     firstName: string;
@@ -16,10 +15,24 @@ interface MentorRecord {
 
 interface CompanyRecord {
     id: string;
-    name: string;
-    address: string;
+    name: string; // ชื่อบริษัท (ไทย)
+    nameEn?: string; // ชื่อบริษัท (อังกฤษ)
+
+    // ที่อยู่แบบละเอียด
+    address?: string;
+    addressNo?: string;
+    moo?: string;
+    soi?: string;
+    road?: string;
+    subDistrict?: string;
+    district?: string;
+    province?: string;
+    zipcode?: string;
+
     email: string;
     phone: string;
+    fax?: string;
+
     website?: string;
     pastYears: string;
     contactPosition?: string;
@@ -30,15 +43,8 @@ interface CompanyRecord {
 
 const YEAR_OPTIONS = ["2568", "2567", "2566", "2565", "2564"];
 
-
 export default function Company({ profile }: { profile: any }) {
     const userId = profile?.userId || profile?.id || Number(localStorage.getItem("coop.userId") || 0);
-    console.log("DEBUG ID:", {
-        Profile_ID: profile?.id,
-        Storage_ID: localStorage.getItem("coop.userId"),
-        Final_UserID: userId
-    });
-
     const token = localStorage.getItem("coop.token");
 
     const [items, setItems] = useState<CompanyRecord[]>([]);
@@ -64,19 +70,13 @@ export default function Company({ profile }: { profile: any }) {
             .catch(err => console.error(err));
     }, []);
 
-    useEffect(() => {
-        console.log(items.map(c => ({ name: c.name, createdById: c.createdById })));
-    }, [items]);
-
-
-
     const filtered = useMemo(() => {
         return items.filter(c =>
-            `${c.name} ${c.address} ${c.email} ${c.pastYears}`.toLowerCase().includes(q.toLowerCase())
+            `${c.name} ${c.nameEn} ${c.province} ${c.email} ${c.pastYears}`.toLowerCase().includes(q.toLowerCase())
         );
     }, [items, q]);
 
-    /* ---------------- Company ---------------- */
+    /* ---------------- Company Functions ---------------- */
     async function saveAdd(e: React.FormEvent) {
         e.preventDefault();
         if (!token) return alert("กรุณาเข้าสู่ระบบ");
@@ -100,6 +100,9 @@ export default function Company({ profile }: { profile: any }) {
         e.preventDefault();
         if (!token || !form.id) return alert("กรุณาเข้าสู่ระบบ");
 
+        if (String(form.createdById) !== String(userId)) {
+            return alert("คุณไม่มีสิทธิ์แก้ไขข้อมูลบริษัทที่เพิ่มโดยผู้อื่นครับ");
+        }
         try {
             const res = await fetch(`http://localhost:5000/api/companies/${form.id}`, {
                 method: "PUT",
@@ -107,8 +110,7 @@ export default function Company({ profile }: { profile: any }) {
                 body: JSON.stringify(form),
             });
             const data = await res.json();
-            console.log("data", data);
-            if (!data.ok) return alert("แก้ไขข้อมูลบริษัทสำเร็จ");
+            if (!data.ok) return alert("แก้ไขข้อมูลบริษัทไม่สำเร็จ");
 
             setItems(prev => prev.map(c => c.id === form.id ? data.company : c));
             setShowEdit(false);
@@ -119,7 +121,6 @@ export default function Company({ profile }: { profile: any }) {
         if (!confirm("ลบบริษัทนี้หรือไม่?")) return;
         const c = items.find(c => c.id === id);
         if (!c) return;
-        console.log("userId", userId, "createdById", c.createdById);
         if (String(c.createdById) !== String(userId)) {
             return alert("ลบได้เฉพาะบริษัทที่ตัวเองเพิ่ม");
         }
@@ -138,7 +139,7 @@ export default function Company({ profile }: { profile: any }) {
         } catch (err) { console.error(err); alert("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้"); }
     }
 
-    /* ---------------- Mentor ---------------- */
+    /* ---------------- Mentor Functions ---------------- */
     async function saveMentor(e: React.FormEvent) {
         e.preventDefault();
         if (!viewCompany) return;
@@ -146,7 +147,6 @@ export default function Company({ profile }: { profile: any }) {
         const { firstName, lastName, department, position, email, phone } = mentorForm;
         if (!firstName || !lastName || !department || !position || !email || !phone) return alert("กรุณากรอกให้ครบ");
         if (!/^\S+@\S+\.\S+$/.test(email)) return alert("รูปแบบอีเมลไม่ถูกต้อง");
-        if (!/^\d{9,10}$/.test(phone)) return alert("เบอร์โทร 9–10 หลัก");
 
         if (!token) return alert("กรุณาเข้าสู่ระบบ");
 
@@ -199,34 +199,37 @@ export default function Company({ profile }: { profile: any }) {
     return (
         <div className="page" style={{ padding: 4, margin: 28, marginLeft: 65 }}>
             <section className="card" style={{ padding: 24, marginBottom: 28 }}>
-                <h2 style={{ margin: 0 }}>บริษัทสหกิจศึกษา</h2>
+                <h2 style={{ margin: 0 }}>🏢 ทำเนียบสถานประกอบการ</h2>
                 <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
-                    <input className="input" placeholder="ค้นหา" value={q} onChange={e => setQ(e.target.value)} style={{ width: 280 }} />
-                    <button className="btn" onClick={() => { setForm(emptyCompany()); setShowAdd(true); }}>+ เพิ่มบริษัท</button>
+                    <input className="input" placeholder="ค้นหาชื่อ, จังหวัด, อีเมล..." value={q} onChange={e => setQ(e.target.value)} style={{ width: 320 }} />
+                    <button className="btn" onClick={() => { setForm(emptyCompany()); setShowAdd(true); }}>+ เพิ่มบริษัทใหม่</button>
                 </div>
             </section>
 
             <section className="card" style={{ padding: 24 }}>
                 <table className="tbl" style={{ width: "100%", borderCollapse: "collapse" }}>
                     <thead>
-                        <tr><th>ชื่อบริษัท</th><th>อีเมล</th><th>ปีที่รับ</th><th style={{ textAlign: "right" }}>การทำงาน</th></tr>
+                        <tr><th>ชื่อบริษัท</th><th>จังหวัด</th><th>อีเมล</th><th>เบอร์โทร</th><th style={{ textAlign: "right" }}>จัดการ</th></tr>
                     </thead>
                     <tbody>
                         {filtered.length === 0 ?
-                            <tr><td colSpan={4} style={{ textAlign: "center", padding: 16, color: "#6b7280" }}>— ไม่มีข้อมูล —</td></tr>
+                            <tr><td colSpan={5} style={{ textAlign: "center", padding: 16, color: "#6b7280" }}>— ไม่มีข้อมูล —</td></tr>
                             : filtered.map((c, idx) =>
                                 <tr key={c.id} className={idx % 2 ? "row-odd" : "row-even"}>
-                                    <td>{c.name}</td><td>{c.email}</td><td>{c.pastYears}</td>
+                                    <td style={{ fontWeight: 600, color: '#1e293b' }}>{c.name}</td>
+                                    <td>{c.province || "-"}</td>
+                                    <td>{c.email || "-"}</td>
+                                    <td>{c.phone || "-"}</td>
                                     <td style={{ textAlign: "right" }}>
-                                        <button className="btn-secondary small" onClick={() => setViewCompany(c)}>
-                                            ดูรายละเอียด
-                                        </button>
-                                        <button className="btn-secondary small" onClick={() => { setForm(c); setShowEdit(true); }} style={{ marginLeft: 6 }}>
-                                            แก้ไข
-                                        </button>
-                                        <button className="btn-danger small" onClick={() => removeCompany(c.id)} style={{ marginLeft: 6 }}>
-                                            ลบ
-                                        </button>
+                                        <button className="btn-secondary small" onClick={() => setViewCompany(c)}>ดูรายละเอียด</button>
+
+                                        {/* ✅ 2. ซ่อนปุ่มแก้ไข/ลบ ถ้าบริษัทนี้เราไม่ได้เป็นคนเพิ่มเอง */}
+                                        {String(c.createdById) === String(userId) && (
+                                            <>
+                                                <button className="btn-secondary small" onClick={() => { setForm(c); setShowEdit(true); }} style={{ marginLeft: 6 }}>แก้ไข</button>
+                                                <button className="btn-danger small" onClick={() => removeCompany(c.id)} style={{ marginLeft: 6 }}>ลบ</button>
+                                            </>
+                                        )}
                                     </td>
                                 </tr>
                             )}
@@ -234,45 +237,65 @@ export default function Company({ profile }: { profile: any }) {
                 </table>
             </section>
 
-            {showAdd && <Modal title="เพิ่มบริษัท" onClose={() => setShowAdd(false)}>
+            {/* Modals */}
+            {showAdd && <Modal title="✨ เพิ่มบริษัทสถานประกอบการใหม่" onClose={() => setShowAdd(false)}>
                 <CompanyForm form={form} setForm={setForm} onSubmit={saveAdd} />
             </Modal>}
-            {showEdit && <Modal title="แก้ไขบริษัท" onClose={() => setShowEdit(false)}>
+            {showEdit && <Modal title="✏️ แก้ไขข้อมูลบริษัท" onClose={() => setShowEdit(false)}>
                 <CompanyForm form={form} setForm={setForm} onSubmit={saveEdit} />
             </Modal>}
-            {viewCompany && <Modal title="รายละเอียดบริษัท" onClose={() => setViewCompany(null)}>
-                <p><b>ชื่อ:</b> {viewCompany.name}</p>
-                <p><b>ที่อยู่:</b> {viewCompany.address}</p>
-                <p><b>อีเมล:</b> {viewCompany.email}</p>
-                <p><b>โทร:</b> {viewCompany.phone}</p>
-                <p><b>เว็บไซต์:</b> {viewCompany.website || "-"}</p>
-                <p><b>ตำแหน่ง:</b> {viewCompany.contactPosition}</p>
-                <p><b>ผู้ติดต่อ:</b> {viewCompany.contactPerson}</p>
-                <hr style={{ margin: "16px 0" }} />
-                <h4>พี่เลี้ยง</h4>
-                {viewCompany.mentors.length === 0 ? <p style={{ color: "#6b7280" }}>ยังไม่มีพี่เลี้ยง</p> :
-                    <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 8, marginBottom: 16 }}>
-                        <thead>
+
+            {viewCompany && <Modal title="🏢 รายละเอียดสถานประกอบการ" onClose={() => setViewCompany(null)}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, fontSize: 14 }}>
+                    <div><b>ชื่อ (ไทย):</b> {viewCompany.name}</div>
+                    <div><b>ชื่อ (อังกฤษ):</b> {viewCompany.nameEn || "-"}</div>
+
+                    <div style={{ gridColumn: '1 / -1', background: '#f8fafc', padding: 12, borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                        <div style={{ fontWeight: 'bold', marginBottom: 4, color: '#334155' }}>ที่อยู่:</div>
+                        {viewCompany.addressNo ? (
+                            <span>
+                                เลขที่ {viewCompany.addressNo} ม.{viewCompany.moo || "-"} ซ.{viewCompany.soi || "-"} ถ.{viewCompany.road || "-"} <br />
+                                ต.{viewCompany.subDistrict || "-"} อ.{viewCompany.district || "-"} จ.{viewCompany.province || "-"} {viewCompany.zipcode || ""}
+                            </span>
+                        ) : (
+                            <span>{viewCompany.address || "-"}</span>
+                        )}
+                    </div>
+
+                    <div><b>อีเมล:</b> {viewCompany.email || "-"}</div>
+                    <div><b>เว็บไซต์:</b> {viewCompany.website || "-"}</div>
+                    <div><b>โทรศัพท์:</b> {viewCompany.phone || "-"}</div>
+                    <div><b>โทรสาร (Fax):</b> {viewCompany.fax || "-"}</div>
+
+                    <div style={{ gridColumn: '1 / -1', borderTop: '1px solid #eee', paddingTop: 10 }}>
+                        <b>ผู้ติดต่อ:</b> {viewCompany.contactPerson || "-"} ({viewCompany.contactPosition || "-"})
+                    </div>
+                </div>
+
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 20, marginBottom: 10 }}>
+                    <h4 style={{ margin: 0 }}>👥 ข้อมูลพี่เลี้ยง (Mentors)</h4>
+                    <button className="btn-secondary small" onClick={() => setShowAddMentor(true)}>+ เพิ่มพี่เลี้ยง</button>
+                </div>
+
+                {/* ✅ 1. ป้องกันตอนเช็คความยาว (length) */}
+                {(!viewCompany.mentors || viewCompany.mentors.length === 0) ? <p style={{ color: "#6b7280", fontSize: 13 }}>ยังไม่มีข้อมูลพี่เลี้ยงในระบบ</p> :
+                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                        <thead style={{ background: '#f1f5f9' }}>
                             <tr>
-                                <th style={{ padding: 6 }}>ชื่อ</th>
-                                <th style={{ padding: 6 }}>นามสกุล</th>
-                                <th style={{ padding: 6 }}>ตำแหน่ง</th>
-                                <th style={{ padding: 6 }}>แผนก</th>
-                                <th style={{ padding: 6 }}>อีเมล</th>
-                                <th style={{ padding: 6 }}>โทร</th>
-                                <th style={{ padding: 6, textAlign: "center" }}>จัดการ</th>
+                                <th style={{ padding: 8, textAlign: 'left' }}>ชื่อ-นามสกุล</th>
+                                <th style={{ padding: 8, textAlign: 'left' }}>ตำแหน่ง / แผนก</th>
+                                <th style={{ padding: 8, textAlign: 'left' }}>ติดต่อ</th>
+                                <th style={{ padding: 8, textAlign: "center" }}>จัดการ</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {viewCompany.mentors.map(m =>
-                                <tr key={m.id}>
-                                    <td style={{ padding: 6 }}>{m.firstName}</td>
-                                    <td style={{ padding: 6 }}>{m.lastName}</td>
-                                    <td style={{ padding: 6 }}>{m.position}</td>
-                                    <td style={{ padding: 6 }}>{m.department}</td>
-                                    <td style={{ padding: 6 }}>{m.email}</td>
-                                    <td style={{ padding: 6 }}>{m.phone}</td>
-                                    <td style={{ textAlign: "center", padding: 6 }}>
+                            {/* ✅ 2. ป้องกันตอนวนลูป map */}
+                            {(viewCompany.mentors || []).map(m =>
+                                <tr key={m.id} style={{ borderBottom: '1px solid #eee' }}>
+                                    <td style={{ padding: 8 }}>{m.firstName} {m.lastName}</td>
+                                    <td style={{ padding: 8 }}>{m.position} <br /><span style={{ color: '#64748b', fontSize: 12 }}>{m.department}</span></td>
+                                    <td style={{ padding: 8 }}>{m.phone} <br /><span style={{ color: '#64748b', fontSize: 12 }}>{m.email}</span></td>
+                                    <td style={{ textAlign: "center", padding: 8 }}>
                                         <button className="btn-secondary small" onClick={() => { setEditingMentor(m); setMentorForm(m); setShowAddMentor(true) }}>แก้ไข</button>
                                         <button className="btn-danger small" onClick={() => removeMentor(m.id)}>ลบ</button>
                                     </td>
@@ -281,9 +304,6 @@ export default function Company({ profile }: { profile: any }) {
                         </tbody>
                     </table>
                 }
-                <div style={{ display: "flex", justifyContent: "right", marginTop: 12 }}>
-                    <button className="btn" onClick={() => setShowAddMentor(true)}>+ เพิ่มพี่เลี้ยง</button>
-                </div>
             </Modal>}
 
             {showAddMentor && <Modal title={editingMentor ? "แก้ไขพี่เลี้ยง" : "เพิ่มพี่เลี้ยง"} onClose={() => { setShowAddMentor(false); setEditingMentor(null) }}>
@@ -291,65 +311,144 @@ export default function Company({ profile }: { profile: any }) {
             </Modal>}
 
             <style>{`
-        .row-even { background:#ffffff; }
-        .row-odd { background:#f7faff; }
-        .tbl th { text-align:left; font-size:13px; color:#6b7280; padding-bottom:6px; }
-        .tbl td { padding:10px 6px; font-size:14px; }
-        .btn-secondary { border-radius:999px; border:1px solid #d0d7e2; padding:6px 12px; background:#fff; cursor:pointer; font-size:13px; }
-        .btn-secondary.small { padding:4px 10px; font-size:12px; }
-        .btn-danger { border-radius:999px; padding:6px 12px; border:1px solid #fecaca; background:#fee2e2; color:#b91c1c; font-size:12px; margin-left:6px; }
-      `}</style>
+                .row-even { background:#ffffff; }
+                .row-odd { background:#f8fafc; }
+                .tbl th { text-align:left; font-size:13px; color:#475569; padding: 12px 6px; border-bottom: 2px solid #e2e8f0; }
+                .tbl td { padding:12px 6px; font-size:14px; border-bottom: 1px solid #f1f5f9; }
+                .btn { border-radius: 8px; border: none; font-weight: 600; color: white; background: #6366f1; cursor: pointer; padding: 10px 16px; transition: 0.2s; }
+                .btn:hover { background: #4f46e5; }
+                .btn-secondary { border-radius: 6px; border:1px solid #cbd5e1; padding:6px 12px; background:#fff; cursor:pointer; font-size:13px; font-weight: 600; color: #475569; }
+                .btn-secondary:hover { background: #f8fafc; }
+                .btn-secondary.small { padding:4px 10px; font-size:12px; }
+                .btn-danger { border-radius: 6px; padding:6px 12px; border:1px solid #fecaca; background:#fef2f2; color:#b91c1c; font-size:12px; font-weight: 600; }
+                .btn-danger:hover { background: #fee2e2; }
+                .input { padding: 10px 14px; border-radius: 6px; border: 1px solid #cbd5e1; outline: none; font-family: inherit; font-size: 14px; width: 100%; box-sizing: border-box; }
+                .input:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1); }
+            `}</style>
         </div>
     );
 }
 
-function emptyCompany() { return { name: "", address: "", email: "", phone: "", website: "", pastYears: "", createdBy: "", mentors: [], contactPerson: "", contactPosition: "" } }
+// ค่าเริ่มต้นแบบฟอร์ม
+function emptyCompany() {
+    return {
+        name: "", nameEn: "",
+        addressNo: "", moo: "", soi: "", road: "", subDistrict: "", district: "", province: "", zipcode: "",
+        email: "", phone: "", fax: "", website: "", pastYears: "", contactPerson: "", contactPosition: "", mentors: []
+    }
+}
 function emptyMentor() { return { firstName: "", lastName: "", department: "", position: "", email: "", phone: "" } }
 
+// UI Modal
 function Modal({ title, onClose, children }: any) {
     return (
         <div className="modal-backdrop">
             <div className="modal-card">
-                <div style={{ display: "flex", justifyContent: "space-between" }}><h3 style={{ margin: 0 }}>{title}</h3><button className="btn-secondary small" onClick={onClose}>ปิด</button></div>
-                <div style={{ marginTop: 16 }}>{children}</div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: 15 }}>
+                    <h3 style={{ margin: 0, color: '#1e293b' }}>{title}</h3>
+                    <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 24, cursor: 'pointer', color: '#64748b' }}>&times;</button>
+                </div>
+                <div style={{ marginTop: 20, maxHeight: '75vh', overflowY: 'auto', paddingRight: 5 }}>{children}</div>
             </div>
             <style>{`
-      .modal-backdrop { position:fixed; inset:0; background:rgba(15,23,42,.35); display:flex; align-items:center; justify-content:center; z-index:100; }
-      .modal-card { background:white; width:min(1000px,92vw); border-radius:16px; padding:20px; padding-right:45px; box-shadow:0 18px 45px rgba(0,0,0,.25); }
-    `}</style>
+                .modal-backdrop { position:fixed; inset:0; background:rgba(15,23,42,.5); display:flex; align-items:center; justify-content:center; z-index:100; backdrop-filter: blur(2px); }
+                .modal-card { background:white; width:min(800px, 95vw); border-radius:12px; padding:24px; box-shadow:0 20px 25px -5px rgba(0,0,0,.1); }
+            `}</style>
         </div>
     )
 }
 
+// UI Form ใส่ Grid แบ่งสัดส่วน
 function CompanyForm({ form, setForm, onSubmit }: any) {
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+        setForm({ ...form, [e.target.name]: e.target.value });
+    };
+
     return (
-        <form onSubmit={onSubmit} style={{ display: "grid", gap: 12 }}>
-            <input className="input" placeholder="ชื่อบริษัท" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
-            <textarea className="input" placeholder="ที่อยู่" value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} />
-            <input className="input" type="email" placeholder="อีเมล" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
-            <input className="input" placeholder="เบอร์โทร" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} />
-            <input className="input" placeholder="เว็บไซต์" value={form.website} onChange={e => setForm({ ...form, website: e.target.value })} />
-            <input className="input" placeholder="ชื่อผู้ติดต่อ" value={form.contactPerson} onChange={e => setForm({ ...form, contactPerson: e.target.value })} />
-            <input className="input" placeholder="ตำแหน่งผู้ติดต่อ (CEO,HR,กรรมการผู้จัดการ)" value={form.contactPosition} onChange={e => setForm({ ...form, contactPosition: e.target.value })} />
-            <select className="input" value={form.pastYears} onChange={e => setForm({ ...form, pastYears: e.target.value })}>
-                <option value="">-- เลือกปี --</option>
-                {YEAR_OPTIONS.map(y => <option key={y} value={y}>{y}</option>)}
-            </select>
-            <button className="btn">บันทึก</button>
+        <form onSubmit={onSubmit} style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+            {/* ข้อมูลพื้นฐาน */}
+            <div>
+                <h4 style={{ margin: '0 0 10px 0', color: '#475569' }}>1. ข้อมูลทั่วไป</h4>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                    <div><label style={lbl}>ชื่อบริษัท (ไทย) <span style={{ color: 'red' }}>*</span></label><input required className="input" name="name" value={form.name || ""} onChange={handleChange} /></div>
+                    <div><label style={lbl}>ชื่อบริษัท (อังกฤษ)</label><input className="input" name="nameEn" value={form.nameEn || ""} onChange={handleChange} /></div>
+                </div>
+            </div>
+
+            {/* ข้อมูลที่อยู่ */}
+            <div style={{ background: '#f8fafc', padding: 15, borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                <h4 style={{ margin: '0 0 10px 0', color: '#475569' }}>2. ที่อยู่สถานประกอบการ</h4>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 12 }}>
+                    <div><label style={lbl}>เลขที่ <span style={{ color: 'red' }}>*</span></label><input required className="input" name="addressNo" value={form.addressNo || ""} onChange={handleChange} /></div>
+                    <div><label style={lbl}>หมู่</label><input className="input" name="moo" value={form.moo || ""} onChange={handleChange} /></div>
+                    <div><label style={lbl}>ซอย</label><input className="input" name="soi" value={form.soi || ""} onChange={handleChange} /></div>
+                    <div><label style={lbl}>ถนน</label><input className="input" name="road" value={form.road || ""} onChange={handleChange} /></div>
+
+                    <div><label style={lbl}>ตำบล/แขวง <span style={{ color: 'red' }}>*</span></label><input required className="input" name="subDistrict" value={form.subDistrict || ""} onChange={handleChange} /></div>
+                    <div><label style={lbl}>อำเภอ/เขต <span style={{ color: 'red' }}>*</span></label><input required className="input" name="district" value={form.district || ""} onChange={handleChange} /></div>
+                    <div><label style={lbl}>จังหวัด <span style={{ color: 'red' }}>*</span></label><input required className="input" name="province" value={form.province || ""} onChange={handleChange} /></div>
+                    <div><label style={lbl}>รหัสไปรษณีย์ <span style={{ color: 'red' }}>*</span></label><input required className="input" name="zipcode" value={form.zipcode || ""} onChange={handleChange} /></div>
+                </div>
+            </div>
+
+            {/* ข้อมูลติดต่อ */}
+            <div>
+                <h4 style={{ margin: '0 0 10px 0', color: '#475569' }}>3. ข้อมูลการติดต่อ</h4>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+                    <div><label style={lbl}>เบอร์โทรศัพท์ <span style={{ color: 'red' }}>*</span></label><input required className="input" name="phone" value={form.phone || ""} onChange={handleChange} /></div>
+                    <div><label style={lbl}>เบอร์โทรสาร (Fax)</label><input className="input" name="fax" value={form.fax || ""} onChange={handleChange} /></div>
+                    <div><label style={lbl}>อีเมล</label><input className="input" type="email" name="email" value={form.email || ""} onChange={handleChange} /></div>
+
+                    <div style={{ gridColumn: "1 / span 2" }}><label style={lbl}>เว็บไซต์</label><input className="input" name="website" value={form.website || ""} onChange={handleChange} /></div>
+                    <div><label style={lbl}>ปีที่เปิดรับ</label>
+                        <select className="input" name="pastYears" value={form.pastYears || ""} onChange={handleChange}>
+                            <option value="">-- เลือกปี --</option>
+                            {YEAR_OPTIONS.map(y => <option key={y} value={y}>{y}</option>)}
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            {/* บุคคลติดต่อ */}
+            <div>
+                <h4 style={{ margin: '0 0 10px 0', color: '#475569' }}>4. ผู้จัดการ / ผู้ประสานงาน</h4>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                    <div><label style={lbl}>ชื่อ-สกุล ผู้ติดต่อ</label><input className="input" name="contactPerson" value={form.contactPerson || ""} onChange={handleChange} /></div>
+                    <div><label style={lbl}>ตำแหน่งผู้ติดต่อ</label><input className="input" name="contactPosition" value={form.contactPosition || ""} onChange={handleChange} placeholder="เช่น HR, CEO" /></div>
+                </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10, borderTop: '1px solid #e2e8f0', paddingTop: 20 }}>
+                <button type="submit" className="btn" style={{ padding: '12px 24px', fontSize: 15 }}>💾 บันทึกข้อมูลบริษัท</button>
+            </div>
         </form>
     )
 }
 
 function MentorForm({ form, setForm, onSubmit }: any) {
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setForm({ ...form, [e.target.name]: e.target.value });
+    };
+
     return (
-        <form onSubmit={onSubmit} style={{ display: "grid", gap: 10 }}>
-            <input className="input" placeholder="ชื่อ" value={form.firstName} onChange={e => setForm({ ...form, firstName: e.target.value })} />
-            <input className="input" placeholder="นามสกุล" value={form.lastName} onChange={e => setForm({ ...form, lastName: e.target.value })} />
-            <input className="input" placeholder="แผนก" value={form.department} onChange={e => setForm({ ...form, department: e.target.value })} />
-            <input className="input" placeholder="ตำแหน่ง" value={form.position} onChange={e => setForm({ ...form, position: e.target.value })} />
-            <input className="input" type="email" placeholder="อีเมล" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
-            <input className="input" placeholder="โทร" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} />
-            <button className="btn">บันทึก</button>
+        <form onSubmit={onSubmit} style={{ display: "grid", gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div><label style={lbl}>ชื่อ <span style={{ color: 'red' }}>*</span></label><input required className="input" name="firstName" value={form.firstName || ""} onChange={handleChange} /></div>
+                <div><label style={lbl}>นามสกุล <span style={{ color: 'red' }}>*</span></label><input required className="input" name="lastName" value={form.lastName || ""} onChange={handleChange} /></div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div><label style={lbl}>ตำแหน่ง <span style={{ color: 'red' }}>*</span></label><input required className="input" name="position" value={form.position || ""} onChange={handleChange} /></div>
+                <div><label style={lbl}>แผนก <span style={{ color: 'red' }}>*</span></label><input required className="input" name="department" value={form.department || ""} onChange={handleChange} /></div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div><label style={lbl}>อีเมล <span style={{ color: 'red' }}>*</span></label><input required type="email" className="input" name="email" value={form.email || ""} onChange={handleChange} /></div>
+                <div><label style={lbl}>เบอร์โทร <span style={{ color: 'red' }}>*</span></label><input required className="input" name="phone" value={form.phone || ""} onChange={handleChange} /></div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
+                <button type="submit" className="btn">💾 บันทึกข้อมูลพี่เลี้ยง</button>
+            </div>
         </form>
     )
 }
+
+const lbl = { display: 'block', fontSize: 12, fontWeight: 600, color: '#64748b', marginBottom: 4 };

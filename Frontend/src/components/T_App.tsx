@@ -8,7 +8,8 @@ import Students from "./T_Students";
 import StudentDetail from "./T_StudentDetail";
 import Exams from "./T_Exams";
 import Profile from "./T_Profile";
-
+import T_T002Review from "./T_T002Review";
+import T_T003Review from "./T_T003Review";
 import StudentTheme from "./S_Theme";
 import coopLogo from "../assets/COOP_Logo.png";
 
@@ -93,6 +94,8 @@ export default function TeacherApp() {
 
             <Route path="exams" element={<Exams />} />
             <Route path="profile" element={<Profile />} />
+            <Route path="review-t002" element={<T_T002Review />} />
+            <Route path="review-t003" element={<T_T003Review />} />
 
             <Route path="*" element={<Navigate to="dashboard" replace />} />
           </Routes>

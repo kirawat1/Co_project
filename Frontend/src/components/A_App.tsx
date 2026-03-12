@@ -14,7 +14,11 @@ import Teachers from "./A_Teacher";
 import Companies from "./A_Company";
 import StaffCriteriaPage from "./A_CriteriaPage";
 import DocT000 from "./A_DocT000";
+import DocT002 from "./A_DocT002Review";
+import DocT003 from "./A_DocT003Review";
 import Coopperiod from "./A_CoopPeriod";
+import CoopApplications from "./A_CoopApplications";
+import A_DocRequirements from "./A_DocRequirements";
 
 const IOS_BLUE = "#0074B7";
 
@@ -96,7 +100,7 @@ export default function AdminApp() {
         <Sidebar />
         <main className="main">
           <Routes>
-            <Route index element={<Navigate to="dashboard" replace />} />
+            <Route index element={<Navigate to="/admin/dashboard" replace />} />
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="students" element={<Students />} />
             <Route path="mentors" element={<Mentors />} />
@@ -105,11 +109,19 @@ export default function AdminApp() {
             <Route path="daily" element={<Daily />} />
             <Route path="announcements" element={<Announcements />} />
             <Route path="settings" element={<Settings />} />
-            <Route path="*" element={<Navigate to="dashboard" replace />} />
             <Route path="teachers" element={<Teachers />} />
             <Route path="criteria" element={<StaffCriteriaPage />} />
             <Route path="doct000" element={<DocT000 />} />
+            <Route path="doct002" element={<DocT002 />} />
+            <Route path="doct003" element={<DocT003 />} />
             <Route path="coop-period" element={<Coopperiod />} />
+            <Route path="coop-applications" element={<CoopApplications />} />
+
+            {/* ✅ ย้ายขึ้นมา และลบ /admin/ ออก */}
+            <Route path="doc-requirements" element={<A_DocRequirements />} />
+
+            {/* ✅ ใส่ /admin/ นำหน้า เพื่อป้องกัน Infinite Loop */}
+            <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
           </Routes>
         </main>
       </div>

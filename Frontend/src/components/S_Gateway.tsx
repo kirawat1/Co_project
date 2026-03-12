@@ -1,6 +1,6 @@
 // Frontend/src/components/S_Gateway.tsx
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom"; // ✅ Import เพื่อใช้ทำปุ่ม Link
+import { useNavigate } from "react-router-dom";
 import { createCoopPDF } from "../utils/pdfGenerator";
 import StatusBadge from "../components/StatusBadge";
 
@@ -37,6 +37,7 @@ interface StudentDocument {
   id: number;
   name: string;
   path: string;
+  type?: string;
 }
 
 interface StudentProfile {
@@ -68,7 +69,7 @@ interface StudentProfile {
 }
 
 export default function CoopRequestPage() {
-  const navigate = useNavigate(); // ✅ ใช้สำหรับเปลี่ยนหน้า
+  const navigate = useNavigate();
   const [profile, setProfile] = useState<StudentProfile | null>(null);
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [coopField, setCoopField] = useState("");
@@ -159,6 +160,13 @@ export default function CoopRequestPage() {
     setUploadedFiles(prev => prev.filter((_, i) => i !== index));
   };
 
+  // ✅ 1. แก้ไขการกรอง: สมมติว่าไฟล์ที่อัปโหลดจากหน้านี้ มี type ว่า 'COOP_APPLICATION_DOC'
+  // (หรือถ้า Backend คุณไม่ได้เซ็ต type ไว้ ให้ตั้งเป็นเงื่อนไขที่เจาะจงว่า "ไม่มี type ก็ได้" แต่ต้องแน่ใจว่าไม่ซ้ำ)
+  // ในที่นี้ เราจะดึงแค่ไฟล์ที่ type เป็น 'APPLICATION_DOC' หรือคำที่คุณตั้งไว้ใน Backend ตอนยิงจากหน้านี้
+  const gatewayDocs = profile?.documents?.filter(doc =>
+    doc.type === 'APPLICATION_DOC' // ⚠️ แก้คำนี้ให้ตรงกับที่คุณส่งไปบันทึกตอนกด "ส่งคำร้องขอสหกิจศึกษา"
+  ) || [];
+
   const handleSubmitApplication = async () => {
     if (!profile?.isQualified) {
       alert("❌ คุณสมบัติของคุณยังไม่ครบถ้วนตามเกณฑ์สาขา กรุณาตรวจสอบที่หน้า Profile");
@@ -171,7 +179,8 @@ export default function CoopRequestPage() {
       return;
     }
 
-    const hasExistingDocs = profile?.documents && profile.documents.length > 0;
+    // ✅ เช็คเฉพาะไฟล์ Gateway
+    const hasExistingDocs = gatewayDocs.length > 0;
     const hasNewDocs = uploadedFiles.length > 0;
 
     if (!hasExistingDocs && !hasNewDocs) {
@@ -215,12 +224,10 @@ export default function CoopRequestPage() {
   };
 
   const isWithinPeriod = () => {
-    if (!activePeriod) return false; // ถ้าไม่มีรอบที่เปิดเลย = false
+    if (!activePeriod) return false;
     const now = new Date().getTime();
     const start = new Date(activePeriod.startDate).getTime();
-    // ปิดรับตอน 23:59:59 ของวันสุดท้าย
     const end = new Date(activePeriod.endDate).setHours(23, 59, 59, 999);
-
     return now >= start && now <= end;
   };
 
@@ -228,18 +235,13 @@ export default function CoopRequestPage() {
 
   if (!profile) return <div style={{ padding: 40, textAlign: 'center' }}>กำลังโหลดข้อมูล...</div>;
 
-
   const currentStatus = profile.coop?.status || "NOT_SUBMITTED";
   const canEdit = currentStatus === "NOT_SUBMITTED" || currentStatus === "APPLICATION_EDITS_REQUIRED" || currentStatus === "EDITS_REQUIRED";
-  const canSubmit = profile?.isQualified && canEdit && isTimeValid; // ✅ ต้องเวลาถูกต้องด้วยถึงส่งได้
+  const canSubmit = profile?.isQualified && canEdit && isTimeValid;
 
-  // Company and Mentor Info to Display
   const displayCompany = profile.coop?.company || profile.company;
   const displayMentor = profile.coop?.mentor || profile.mentor;
   const hasCompany = !!displayCompany;
-
-
-
 
   return (
     <div style={{ padding: "40px 20px", maxWidth: "1200px", margin: "0 auto", fontFamily: "sans-serif" }}>
@@ -254,7 +256,9 @@ export default function CoopRequestPage() {
       }}>
         <div>
           <strong style={{ color: profile.isQualified ? "#166534" : "#9a3412", fontSize: '16px' }}>
-            {profile.isQualified ? "✅ คุณสมบัติครบถ้วน (Qualified)" : "⚠️ คุณสมบัติยังไม่ผ่านเกณฑ์"}
+            {profile.isQualified
+              ? "✅ ผ่านเกณฑ์เบื้องต้นจากการคำนวณ (สามารถยื่นคำร้องได้)"
+              : "⚠️ คุณสมบัติยังไม่ผ่านเกณฑ์"}
           </strong>
           <div style={{ marginTop: 5, fontSize: 13, color: '#666', display: 'flex', gap: '15px' }}>
             <span>GPA: <b>{profile.gpa?.toFixed(2)}</b></span>
@@ -305,7 +309,7 @@ export default function CoopRequestPage() {
         </div>
       </div>
 
-      {/* ✅ ป้ายแจ้งเตือนเวลา (เตือนถ้านอกเวลา) */}
+      {/* ป้ายแจ้งเตือนเวลา */}
       {!isTimeValid && (
         <div style={{
           padding: "16px 24px", marginBottom: "20px", borderRadius: "12px",
@@ -327,8 +331,6 @@ export default function CoopRequestPage() {
 
       {/* ================= SECTION 2: ข้อมูลผู้สมัคร และ หน่วยงาน ================= */}
       <div className="profile-grid">
-
-        {/* ซ้าย: ข้อมูลผู้สมัคร */}
         <div className="profile-card">
           <div className="card-head">
             <h2 className="profile-title">ข้อมูลผู้สมัคร</h2>
@@ -346,7 +348,6 @@ export default function CoopRequestPage() {
           <div className="info-row"><span className="label">อีเมลติดต่อ:</span><span className="value">{profile.email || "-"}</span></div>
         </div>
 
-        {/* ขวา: ข้อมูลบริษัทและพี่เลี้ยง */}
         <div className="profile-card">
           <div className="card-head">
             <h2 className="profile-title">ข้อมูลหน่วยงานและพี่เลี้ยง</h2>
@@ -389,7 +390,7 @@ export default function CoopRequestPage() {
         </div>
       </div>
 
-      {/* ================= SECTION 3: การยื่นคำร้องและเอกสาร (เต็มกว้าง) ================= */}
+      {/* ================= SECTION 3: การยื่นคำร้องและเอกสาร ================= */}
       <div className="profile-card" style={{ marginTop: '28px' }}>
         <div className="card-head">
           <h2 className="profile-title">ฟอร์มยื่นคำร้องและอัปโหลดเอกสาร</h2>
@@ -412,12 +413,12 @@ export default function CoopRequestPage() {
           <label className="label" style={{ fontSize: 15 }}>อัปโหลดเอกสารประกอบ <span style={{ color: 'red' }}>*</span></label>
           <p style={{ fontSize: 13, color: '#64748b', margin: '4px 0 10px 0' }}>เช่น ใบคำร้อง, ทรานสคริปต์, หนังสือรับรอง ฯลฯ (รองรับ PDF, รูปภาพ)</p>
 
-          {/* Files List */}
-          {profile.documents && profile.documents.length > 0 && (
+          {/* ✅ 2. แสดงเฉพาะไฟล์ Gateway */}
+          {gatewayDocs.length > 0 && (
             <div style={{ marginBottom: 15, padding: 15, background: '#f0fdf4', borderRadius: 10, border: '1px solid #bbf7d0' }}>
               <div style={{ fontSize: 14, fontWeight: 'bold', color: '#166534', marginBottom: 8 }}>✅ ไฟล์ที่อยู่ในระบบแล้ว:</div>
               <ul className="file-list" style={{ margin: 0 }}>
-                {profile.documents.map((doc) => (
+                {gatewayDocs.map((doc) => (
                   <li key={doc.id} className="file-item" style={{ background: 'white' }}>
                     <span style={{ fontWeight: 600, color: '#334155' }}>📄 {doc.name}</span>
                     {canEdit && (
@@ -483,7 +484,7 @@ export default function CoopRequestPage() {
               <button onClick={() => setShowPDFPopup(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '28px' }}>&times;</button>
             </div>
             <iframe src={pdfDataUrl} style={{ flex: 1, border: "1px solid #e5e7eb", borderRadius: "12px", marginTop: '15px' }} title="Preview" />
-            <div className="action-row">
+            <div className="action-row" style={{ marginTop: 20 }}>
               <button className="btn-secondary" onClick={() => setShowPDFPopup(false)}>ปิดหน้าต่าง</button>
               <button className="btn" style={{ background: '#2563eb' }} onClick={() => handleGeneratePDF("download")}>ดาวน์โหลด PDF</button>
             </div>

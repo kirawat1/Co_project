@@ -24,8 +24,11 @@ export default function S_Sidebar({ profile }: { profile: StudentProfile }) {
     coop?.status === 'WAITING_FOR_STAFF_CHECK_LETTER' ||
     coop?.status === 'ACCEPTANCE_CHECKED' ||
     coop?.status === 'PLACEMENT_LETTER_ISSUED' ||
-
-    coop?.status === 'INTERNSHIP_STARTED';
+    coop?.status === 'INTERNSHIP_STARTED' ||
+    coop?.status === 'T002_SUBMITTED' ||
+    coop?.status === 'T002_EDITS_REQUIRED';
+  coop?.status === 'T003_SUBMITTED' ||
+    coop?.status === 'T003_EDITS_REQUIRED';
 
   return (
     <aside className="sidebar">
@@ -80,16 +83,32 @@ export default function S_Sidebar({ profile }: { profile: StudentProfile }) {
               className={({ isActive }) => "item" + (isActive ? " active" : "")}
             >
               <span className="ico"><IcDocs /></span>
-              <span className="text">เอกสารสหกิจ (CP-T000)</span>
+              <span className="text">เอกสารสหกิจ (CP-T001)</span>
             </NavLink>
 
             <NavLink
+              to="/student/docs-t002"
+              className={({ isActive }) => "item" + (isActive ? " active" : "")}
+            >
+              <span className="ico"><IcDocs /></span>
+              <span className="text">เอกสารรายละเอียด (CP-T002)</span>
+            </NavLink>
+
+            <NavLink
+              to="/student/docs-t003"
+              className={({ isActive }) => "item" + (isActive ? " active" : "")}
+            >
+              <span className="ico"><IcDocs /></span>
+              <span className="text">เอกสารรายละเอียด (CP-T003)</span>
+            </NavLink>
+
+            {/* <NavLink
               to="/student/daily"
               className={({ isActive }) => "item" + (isActive ? " active" : "")}
             >
               <span className="ico"><IcCalendar /></span>
               <span className="text">บันทึกประจำวัน</span>
-            </NavLink>
+            </NavLink> */}
           </>
         )}
 

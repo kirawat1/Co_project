@@ -14,6 +14,7 @@ const systemAssetController = require('../controllers/systemAssetController');
 const coopPeriodController = require("../controllers/coopPeriodController");
 const adminDashboardController = require('../controllers/adminDashboardController');
 const criteriaController = require('../controllers/criteriaController');
+const docReqController = require('../controllers/docRequirementController');
 // ==========================================
 // Group 1: จัดการเอกสารและการตั้งค่า (T000)
 // ==========================================
@@ -43,5 +44,26 @@ router.get('/criteria', criteriaController.getAllCriteria);
 router.post('/criteria', criteriaController.saveCriteria); // ใช้เซฟตอนเพิ่มสาขาใหม่ (หรือ Upsert)
 router.put('/criteria/:id', criteriaController.saveCriteria); // ใช้ตอนกดอัปเดตเกณฑ์
 router.delete('/criteria/:id', criteriaController.deleteCriteria); // ใช้ตอนกดลบสาขา
+
+
+router.get('/coop-applications', adminDocController.getCoopApplications);
+router.patch('/coop-applications/:id/status', adminDocController.updateCoopApplicationStatus);
+
+
+router.get('/doc-requirements', docReqController.getRequirements);
+router.post('/doc-requirements', docReqController.createRequirement);
+router.put('/doc-requirements/:id', docReqController.updateRequirement);
+router.delete('/doc-requirements/:id', docReqController.deleteRequirement);
+
+router.get('/config/dean-info', systemAssetController.getDeanInfo);
+router.post('/config/dean-info', systemAssetController.saveDeanInfo);
+
+router.delete('/assets/:key', systemAssetController.deleteAsset);
+
+router.get('/students', verifyToken, adminDocController.getAllStudentsForReview);
+
+router.put('/documents/review-t002', verifyToken, adminDocController.reviewT002);
+
+router.put('/documents/review-t003', verifyToken, adminDocController.reviewT003);
 
 module.exports = router;
