@@ -22,6 +22,7 @@ router.post('/upload', verifyToken, upload.single('files'), docController.upload
 router.delete('/delete/:id', verifyToken, docController.deleteDocument);
 
 router.delete('/document/type/:docType', verifyToken, docController.deleteDocumentByType);
-
+router.post('/upload', verifyToken, upload.single('files'), docController.uploadDocument);
+router.post('/t003-form', verifyToken, docController.saveT003Form);
 
 module.exports = router;

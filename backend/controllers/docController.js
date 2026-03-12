@@ -1,3 +1,4 @@
+// controllers/docController.js
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 const fs = require('fs');
@@ -135,7 +136,6 @@ exports.getMyApplication = async (req, res) => {
     res.status(500).json({ ok: false, message: "ไม่สามารถดึงข้อมูลได้" });
   }
 };
-
 // ==========================================
 // 4. อัปโหลดเอกสาร (และเปลี่ยนสถานะ)
 // ==========================================
@@ -168,18 +168,8 @@ exports.uploadDocument = async (req, res) => {
         return res.status(404).json({ ok: false, message: "ไม่พบข้อมูลนักศึกษาในระบบ" });
     }
 
-    // 4. Map ประเภทเอกสาร
-    let dbType = 'OTHER';
-    switch (docType) {
-        case 'CP-T000': dbType = 'T000_SIGNED'; break;
-        case 'CP-TRANSCRIPT': dbType = 'TRANSCRIPT'; break;
-        case 'CP-CV': dbType = 'CV'; break;
-        case 'CP-STUDENT_CARD': dbType = 'STUDENT_CARD'; break;
-        case 'CP-CITIZEN_CARD': dbType = 'CITIZEN_CARD'; break;
-        case 'CP-ACCEPTANCE': dbType = 'ACCEPTANCE_FORM'; break;
-        case 'CP-PARENTAL_CONSENT': dbType = 'PARENTAL_CONSENT'; break;
-        default: dbType = 'OTHER';
-    }
+    // ✅ 4. ใช้ docType (เช่น 'CP-T000') ตรงๆ ได้เลย ไม่ต้องใช้ Switch Case แล้ว
+    const dbType = docType;
 
     // (Optional) ลบไฟล์เก่าประเภทเดียวกันทิ้งก่อน
     const oldDoc = await prisma.document.findFirst({
@@ -197,18 +187,19 @@ exports.uploadDocument = async (req, res) => {
         studentId: student.id,
         name: originalName, 
         path: req.file.filename,
-        type: dbType,
-        status: 'PENDING'
+        type: dbType, // ใช้รหัสที่ Admin ตั้งไว้ได้เลย
+        status: 'WAITING', // ✅ เปลี่ยนจาก PENDING เป็น WAITING ให้ตรงกับ UI
+        rejectReason: null // ✅ ล้างคอมเมนต์ที่เคยโดนตีกลับทิ้ง
       }
     });
 
-    // 6. ✅ อัปเดตสถานะ StudentCoop (เฉพาะใบตอบรับ)
-    if (dbType === 'ACCEPTANCE_FORM') {
+    // 6. ✅ อัปเดตสถานะการส่งเอกสาร
+    if (dbType === 'CP-ACCEPTANCE') {
+        // กรณี: เป็นใบตอบรับ
         await prisma.studentCoop.upsert({
             where: { studentId: student.id },
             update: {
                 acceptanceFileUrl: req.file.filename,
-                // เปลี่ยนสถานะเป็น "รอเจ้าหน้าที่ตรวจใบตอบรับ"
                 status: 'WAITING_FOR_STAFF_CHECK_LETTER' 
             },
             create: {
@@ -217,6 +208,26 @@ exports.uploadDocument = async (req, res) => {
                 status: 'WAITING_FOR_STAFF_CHECK_LETTER'
             }
         });
+    } // ✅ เพิ่มส่วนนี้เข้าไป: กรณีเป็น T002 ให้อัปเดตสถานะเป็น T002_SUBMITTED
+    else if (dbType === 'T002_FORM') {
+        await prisma.studentCoop.upsert({
+            where: { studentId: student.id },
+            update: { status: 'T002_SUBMITTED' },
+            create: { studentId: student.id, status: 'T002_SUBMITTED' }
+        });
+    } 
+    else {
+        // กรณี: เป็นเอกสารทั่วไป (เช็คว่าถ้าเคยโดนตีกลับ ให้เด้งไปให้เจ้าหน้าที่ตรวจใหม่)
+        const coop = await prisma.studentCoop.findUnique({
+            where: { studentId: student.id }
+        });
+
+        if (coop && (coop.status === "EDITS_REQUIRED" || coop.status === "APPLICATION_EDITS_REQUIRED")) {
+            await prisma.studentCoop.update({
+                where: { studentId: student.id },
+                data: { status: "WAITING_FOR_STAFF_CHECK" }
+            });
+        }
     }
 
     res.json({ ok: true, message: "อัปโหลดสำเร็จ", data: newDoc });
@@ -230,8 +241,9 @@ exports.uploadDocument = async (req, res) => {
   }
 };
 
+
 // ==========================================
-// 5. ลบเอกสาร
+// (แก้ฟังก์ชันนี้ด้วย เพราะของเดิมมันติด Switch Case อยู่)
 // ==========================================
 exports.deleteDocument = async (req, res) => {
   try {
@@ -252,13 +264,13 @@ exports.deleteDocument = async (req, res) => {
       return res.status(403).json({ ok: false, message: "ไม่มีสิทธิ์ลบไฟล์นี้" });
     }
 
-    // 1. ลบไฟล์ออกจากโฟลเดอร์
+    // ลบไฟล์ออกจากโฟลเดอร์
     const filePath = path.join(__dirname, '../uploads', doc.path);
     if (fs.existsSync(filePath)) {
       try { fs.unlinkSync(filePath); } catch(e) { console.warn("Delete file error:", e); }
     }
 
-    // 2. ลบออกจาก Database
+    // ลบออกจาก Database
     await prisma.document.delete({
       where: { id: parseInt(id) }
     });
@@ -393,4 +405,39 @@ exports.deleteDocumentByType = async (req, res) => {
     console.error(err);
     res.status(500).json({ message: "Delete failed" });
   }
+};
+
+// บันทึกข้อมูลร่าง T003
+exports.saveT003Form = async (req, res) => {
+    try {
+        // หา studentId จาก user id
+        const student = await prisma.student.findUnique({ where: { userId: req.user.id } });
+        if (!student) return res.status(404).json({ ok: false, message: "Student not found" });
+
+        const { 
+            reportTitleTh, reportTitleEn, objectives, expectedOutcomes, 
+            significance, references, methodology, scope, otherSuggestions, workPlan 
+        } = req.body;
+
+        // อัปเดตหรือสร้างใหม่ (Upsert)
+        const t003 = await prisma.coopT003Form.upsert({
+            where: { studentId: student.id },
+            update: {
+                reportTitleTh, reportTitleEn, objectives, expectedOutcomes,
+                significance, references, methodology, scope, otherSuggestions,
+                workPlan: workPlan // Prisma จะแปลงเป็น JSON ให้อัตโนมัติ
+            },
+            create: {
+                studentId: student.id,
+                reportTitleTh, reportTitleEn, objectives, expectedOutcomes,
+                significance, references, methodology, scope, otherSuggestions,
+                workPlan: workPlan
+            }
+        });
+
+        res.json({ ok: true, data: t003 });
+    } catch (err) {
+        console.error("Save T003 Error:", err);
+        res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดในการบันทึกข้อมูล" });
+    }
 };

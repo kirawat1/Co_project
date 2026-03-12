@@ -16,8 +16,10 @@ exports.getMyProfile = async (req, res) => {
             mentor: true,
           },
         },
+        coopApplicationForm: true,
         documents: true,
         user: true,
+        t003Form: true, // เพิ่มการดึงข้อมูลฟอร์ม T003
       },
     });
 

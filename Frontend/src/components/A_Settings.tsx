@@ -1,14 +1,6 @@
 import React, { useState, useEffect } from "react";
 
-// --- 1. Config สำหรับปีการศึกษา ---
-const LS_YEAR = "coop.admin.academicYear";
-const YEAR_OPTIONS = ["2568/1", "2568/2", "2567/1", "2567/2", "2566/1"];
-
-function loadYear(): string {
-  return localStorage.getItem(LS_YEAR) || "2568/1";
-}
-
-// --- 2. Config สำหรับไฟล์แม่แบบ ---
+// --- Config สำหรับไฟล์แม่แบบ ---
 const ASSET_KEYS = [
   { key: "KRUT", label: "ตราสัญลักษณ์มหาวิทยาลัย", accept: "image/png, image/jpeg", desc: "แนะนำไฟล์ PNG พื้นหลังใส" },
   { key: "SIGNATURE", label: "ลายเซ็นคณบดี", accept: "image/png", desc: "ไฟล์ PNG พื้นหลังใสเท่านั้น" },
@@ -17,31 +9,37 @@ const ASSET_KEYS = [
 ];
 
 export default function A_Settings() {
-  // State: Year
-  const [year, setYear] = useState<string>(() => loadYear());
+  // State: Dean Info
+  const [deanName, setDeanName] = useState("");
+  const [deanPosition, setDeanPosition] = useState("คณบดีวิทยาลัยการคอมพิวเตอร์");
 
   // State: Assets
   const [assets, setAssets] = useState<any[]>([]);
   const [uploadingKey, setUploadingKey] = useState<string | null>(null);
 
-  // --- Effect: Save Year ---
-  useEffect(() => {
-    localStorage.setItem(LS_YEAR, year);
-  }, [year]);
+  const token = localStorage.getItem("coop.token");
 
-  // --- Effect: Load Assets from DB ---
-  const fetchAssets = async () => {
+  // --- Effect: Load Data ---
+  const loadData = async () => {
     try {
-      // เรียก API ที่เราสร้างไว้
-      const res = await fetch("http://localhost:5000/api/admin/assets");
-      const data = await res.json();
-      if (data.ok) setAssets(data.assets);
-    } catch (err) { console.error("Load assets failed", err); }
+      const resAssets = await fetch("http://localhost:5000/api/admin/assets");
+      const dataAssets = await resAssets.json();
+      if (dataAssets.ok) setAssets(dataAssets.assets);
+
+      const resDean = await fetch("http://localhost:5000/api/admin/config/dean-info", {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (resDean.ok) {
+        const dataDean = await resDean.json();
+        if (dataDean.deanName) setDeanName(dataDean.deanName);
+        if (dataDean.deanPosition) setDeanPosition(dataDean.deanPosition);
+      }
+    } catch (err) { console.error("Load data failed", err); }
   };
 
-  useEffect(() => { fetchAssets(); }, []);
+  useEffect(() => { loadData(); }, []);
 
-  // --- Handlers: Upload ---
+  // --- Handlers: Upload Assets ---
   const handleUpload = async (key: string, file: File) => {
     if (!confirm(`ยืนยันการเปลี่ยนไฟล์ "${key}"?`)) return;
 
@@ -55,11 +53,11 @@ export default function A_Settings() {
     try {
       const res = await fetch("http://localhost:5000/api/admin/assets", {
         method: "POST",
-        body: formData, // ไม่ต้องใส่ header Content-Type (browser จัดการเอง)
+        body: formData,
       });
       if (res.ok) {
         alert("✅ อัปโหลดเรียบร้อย");
-        fetchAssets(); // โหลดข้อมูลใหม่
+        loadData();
       } else {
         alert("❌ อัปโหลดล้มเหลว");
       }
@@ -67,62 +65,94 @@ export default function A_Settings() {
     finally { setUploadingKey(null); }
   };
 
-  // --- Handlers: Clear Data (Legacy) ---
-  function clearAdmin() {
-    if (!confirm("⚠️ คำเตือน: ต้องการลบข้อมูล LocalStorage ทั้งหมดหรือไม่?")) return;
-    const keys = [
-      "coop.student.profile.v1", "coop.admin.teachers.v1",
-      "coop.admin.teacherStudentsByYear.v1", "coop.admin.companies",
-      "coop.shared.announcements",
-    ];
-    keys.forEach((k) => localStorage.removeItem(k));
-    alert("ลบข้อมูลฝั่งแอดมินเรียบร้อย");
-  }
+  // --- 🆕 Handlers: Delete Assets ---
+  const handleDeleteAsset = async (key: string) => {
+    if (!confirm(`⚠️ ยืนยันการลบไฟล์แม่แบบ "${key}" ใช่หรือไม่?\n(หากลบไปแล้ว ระบบจะไม่สามารถดึงไฟล์นี้ไปสร้าง PDF ได้จนกว่าจะอัปโหลดใหม่)`)) return;
 
-  function clearStudentDaily() {
-    if (!confirm("ลบประวัติบันทึกประจำวันทั้งหมด?")) return;
-    localStorage.removeItem("coop.student.daily.v1");
-    const mentorLogs = Object.keys(localStorage).filter((k) => k.startsWith("coop.mentor.logs."));
-    mentorLogs.forEach((k) => localStorage.removeItem(k));
-    alert("ลบประวัติบันทึกประจำวันเรียบร้อย");
-  }
+    try {
+      const res = await fetch(`http://localhost:5000/api/admin/assets/${key}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        alert("🗑️ ลบไฟล์เรียบร้อยแล้ว");
+        loadData();
+      } else {
+        alert("❌ ลบไฟล์ล้มเหลว");
+      }
+    } catch (err) {
+      alert("เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์");
+    }
+  };
+
+  // --- Handlers: Save Dean Info ---
+  const handleSaveDeanInfo = async () => {
+    try {
+      const res = await fetch("http://localhost:5000/api/admin/config/dean-info", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ deanName, deanPosition })
+      });
+
+      if (res.ok) {
+        alert("✅ บันทึกข้อมูลคณบดีเรียบร้อยแล้ว");
+      } else {
+        alert("❌ บันทึกไม่สำเร็จ");
+      }
+    } catch (error) {
+      alert("เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์");
+    }
+  };
 
   return (
     <div className="page" style={{ padding: 4, margin: 28, marginLeft: 65 }}>
       <h2 style={{ marginBottom: 24, fontSize: 24, fontWeight: 800, color: '#1e293b' }}>⚙️ ตั้งค่าระบบ (System Settings)</h2>
 
       {/* ------------------------------------------------ */}
-      {/* SECTION 1: GENERAL SETTINGS (YEAR) */}
+      {/* SECTION 1: SIGNATURE INFO (DEAN) */}
       {/* ------------------------------------------------ */}
       <section className="card" style={{ padding: 24, marginBottom: 28 }}>
-        <h3 style={sectionTitle}>📅 ปีการศึกษา (Academic Year)</h3>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <h3 style={{ ...sectionTitle, marginBottom: 0 }}>✍️ ข้อมูลผู้ลงนาม (คณบดี)</h3>
+          <span style={{ fontSize: 12, color: '#64748b' }}>ใช้สำหรับพิมพ์ชื่อในหนังสือส่งตัว / ขอความอนุเคราะห์</span>
+        </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 15 }}>
-          <label className="label" style={{ fontWeight: 600 }}>เลือกปีการศึกษาปัจจุบัน:</label>
-          <div className="year-select-wrap">
-            <select
-              className="input year-select"
-              value={year}
-              onChange={(e) => setYear(e.target.value)}
-            >
-              {YEAR_OPTIONS.map((y) => (
-                <option key={y} value={y}>{y}</option>
-              ))}
-            </select>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 20, maxWidth: 800 }}>
+          <div>
+            <label className="label" style={lbl}>ชื่อ-นามสกุล (พร้อมคำนำหน้า)</label>
+            <input
+              className="input-text"
+              placeholder="เช่น รองศาสตราจารย์สิรภัทร เชี่ยวชาญวัฒนา"
+              value={deanName}
+              onChange={e => setDeanName(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="label" style={lbl}>ตำแหน่ง</label>
+            <input
+              className="input-text"
+              placeholder="เช่น คณบดีวิทยาลัยการคอมพิวเตอร์"
+              value={deanPosition}
+              onChange={e => setDeanPosition(e.target.value)}
+            />
           </div>
         </div>
-        <p style={{ fontSize: 13, color: "#64748b", marginTop: 8 }}>
-          * ค่านี้จะถูกใช้เป็น default สำหรับกรองข้อมูลนักศึกษาในหน้าอื่นๆ
-        </p>
+
+        <div style={{ marginTop: 20 }}>
+          <button className="btn" onClick={handleSaveDeanInfo}>💾 บันทึกข้อมูลผู้ลงนาม</button>
+        </div>
       </section>
 
       {/* ------------------------------------------------ */}
-      {/* SECTION 2: DOCUMENT TEMPLATES (NEW!) */}
+      {/* SECTION 2: DOCUMENT TEMPLATES */}
       {/* ------------------------------------------------ */}
       <section className="card" style={{ padding: 24, marginBottom: 28 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <h3 style={{ ...sectionTitle, marginBottom: 0 }}>📄 เอกสารแม่แบบ (Document Templates)</h3>
-          <span style={{ fontSize: 12, color: '#64748b' }}>ใช้สำหรับระบบออกหนังสือส่งตัวอัตโนมัติ</span>
+          <span style={{ fontSize: 12, color: '#64748b' }}>ใช้ประกอบการสร้างหนังสือส่งตัวอัตโนมัติ</span>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: 20 }}>
@@ -141,7 +171,6 @@ export default function A_Settings() {
                   <div style={{ fontSize: 12, color: '#94a3b8' }}>{item.desc}</div>
                 </div>
 
-                {/* Preview Box */}
                 <div style={{
                   flex: 1, background: '#f8fafc', borderRadius: 8, border: '1px dashed #cbd5e1',
                   marginBottom: 15, minHeight: 120, display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -160,7 +189,6 @@ export default function A_Settings() {
                     <div style={{ color: '#cbd5e1', fontSize: 13 }}>ยังไม่มีไฟล์</div>
                   )}
 
-                  {/* Timestamp Badge */}
                   {current && (
                     <div style={{
                       position: 'absolute', bottom: 5, right: 5, fontSize: 10,
@@ -172,69 +200,69 @@ export default function A_Settings() {
                   )}
                 </div>
 
-                {/* Upload Button */}
-                <div>
-                  <input
-                    type="file"
-                    accept={item.accept}
-                    id={`upload-${item.key}`}
-                    style={{ display: 'none' }}
-                    onChange={(e) => e.target.files?.[0] && handleUpload(item.key, e.target.files[0])}
-                    disabled={uploadingKey === item.key}
-                  />
-                  <label
-                    htmlFor={`upload-${item.key}`}
-                    className="btn"
-                    style={{
-                      display: 'block', textAlign: 'center', width: '100%', boxSizing: 'border-box',
-                      background: uploadingKey === item.key ? '#cbd5e1' : '#3b82f6',
-                      cursor: uploadingKey === item.key ? 'wait' : 'pointer',
+                {/* ปุ่มจัดการไฟล์ (แนบข้างกัน) */}
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <div style={{ flex: 1 }}>
+                    <input
+                      type="file"
+                      accept={item.accept}
+                      id={`upload-${item.key}`}
+                      style={{ display: 'none' }}
+                      onChange={(e) => {
+                        if (e.target.files?.[0]) {
+                          handleUpload(item.key, e.target.files[0]);
+                          e.target.value = ''; // เคลียร์ค่าเผื่อเลือกไฟล์เดิม
+                        }
+                      }}
+                      disabled={uploadingKey === item.key}
+                    />
+                    <label
+                      htmlFor={`upload-${item.key}`}
+                      className="btn"
+                      style={{
+                        display: 'block', textAlign: 'center', width: '100%', boxSizing: 'border-box',
+                        background: uploadingKey === item.key ? '#cbd5e1' : '#3b82f6',
+                        cursor: uploadingKey === item.key ? 'wait' : 'pointer',
+                      }}
+                    >
+                      {uploadingKey === item.key ? 'กำลังอัปโหลด...' : (current ? '🔄 เปลี่ยนไฟล์' : '📤 อัปโหลด')}
+                    </label>
+                  </div>
 
-                    }}
-                  >
-                    {uploadingKey === item.key ? 'กำลังอัปโหลด...' : '📤 อัปโหลดไฟล์ใหม่'}
-                  </label>
+                  {/* แสดงปุ่มลบเฉพาะตอนที่มีไฟล์อยู่แล้ว */}
+                  {current && (
+                    <button
+                      onClick={() => handleDeleteAsset(item.key)}
+                      style={{
+                        background: '#fee2e2', color: '#dc2626', border: '1px solid #fca5a5',
+                        borderRadius: 8, padding: '0 12px', cursor: 'pointer', fontWeight: 600,
+                        transition: '0.2s'
+                      }}
+                      onMouseOver={(e) => e.currentTarget.style.background = '#fecaca'}
+                      onMouseOut={(e) => e.currentTarget.style.background = '#fee2e2'}
+                      title="ลบไฟล์แม่แบบนี้"
+                    >
+                      🗑️
+                    </button>
+                  )}
                 </div>
+
               </div>
             );
           })}
         </div>
       </section>
 
-      {/* ------------------------------------------------ */}
-      {/* SECTION 3: SYSTEM MAINTENANCE (DANGER ZONE) */}
-      {/* ------------------------------------------------ */}
-      <section className="card" style={{ padding: 24, borderLeft: '4px solid #ef4444' }}>
-        <h3 style={{ ...sectionTitle, color: '#b91c1c' }}>⚠️ เขตอันตราย (Danger Zone)</h3>
-        <p style={{ fontSize: 13, color: "#64748b", marginBottom: 15 }}>
-          การกดปุ่มด้านล่างจะลบข้อมูลที่ถูกเก็บใน Browser (LocalStorage) ของเครื่องนี้เท่านั้น ไม่มีผลกับฐานข้อมูลหลัก
-        </p>
-
-        <div style={{ display: "flex", gap: 12, flexWrap: 'wrap' }}>
-          <button className="btn" type="button" onClick={clearAdmin} style={{ background: '#fee2e2', color: '#991b1b', border: '1px solid #fca5a5' }}>
-            🗑️ ลบ Cache แอดมิน
-          </button>
-
-          <button className="btn" type="button" onClick={clearStudentDaily} style={{ background: '#fee2e2', color: '#991b1b', border: '1px solid #fca5a5' }}>
-            🗑️ ลบ Cache บันทึกประจำวัน
-          </button>
-        </div>
-      </section>
-
-      {/* CSS Styles */}
       <style>{`
         .card { background: #fff; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03); border: 1px solid #f1f5f9; }
-        .page .year-select-wrap { display:inline-flex; align-items:center; padding:2px; border-radius:999px; background:rgba(148,163,184,.12); }
-        .page .year-select { width: 130px; border-radius: 999px; height: 32px; padding: 4px 14px; border: 1px solid rgba(148,163,184,.6); background: #f9fafb; font-size: 15px; font-weight: 600; color:#111827; appearance: none; background-image: linear-gradient(45deg, #6b7280 50%, transparent 50%), linear-gradient(-45deg, #6b7280 50%, transparent 50%); background-position: calc(100% - 13px) 50%, calc(100% - 8px) 50%; background-size: 6px 6px, 6px 6px; background-repeat: no-repeat; }
-        .page .year-select:focus { outline:none; border-color:#3b82f6; background:#ffffff; box-shadow: 0 0 0 2px rgba(59,130,246,.2); }
-        
+        .input-text { width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid #cbd5e1; font-family: inherit; font-size: 14px; color: #1e293b; transition: 0.2s; box-sizing: border-box; }
+        .input-text:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.15); }
         .btn { padding: 10px 16px; border-radius: 8px; border: none; font-weight: 600; font-size: 14px; transition: 0.2s; color: white; background: #0074B7; cursor: pointer; }
         .btn:hover { opacity: 0.9; }
-        
-        @media (max-width: 768px){ .page{ margin: 16px !important; margin-left: 16px !important; } }
       `}</style>
     </div>
   );
 }
 
 const sectionTitle: React.CSSProperties = { margin: "0 0 16px 0", fontSize: 18, fontWeight: 700, color: "#334155" };
+const lbl: React.CSSProperties = { display: "block", marginBottom: 6, fontWeight: 600, color: "#475569", fontSize: 14 };

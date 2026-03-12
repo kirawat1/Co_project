@@ -100,7 +100,6 @@ exports.updateDocStatus = async (req, res) => {
     res.status(500).json({ ok: false, message: "Error updating document" });
   }
 };
-
 // 5. อัปเดตสถานะนักศึกษา + บันทึกข้อมูลหนังสือส่งตัว
 exports.reviewStudentStatus = async (req, res) => {
   try {
@@ -113,8 +112,11 @@ exports.reviewStudentStatus = async (req, res) => {
       actualStartDate,
       actualEndDate,
       placeDocNumber,
-      placeDocDate
+      placeDocDate,
+      docType // ✅ 1. เพิ่มการรับค่า docType จาก Frontend
     } = req.body;
+
+    const parsedStudentId = parseInt(studentId);
 
     const updateData = {
       status,
@@ -133,7 +135,7 @@ exports.reviewStudentStatus = async (req, res) => {
     if (actualStartDate) updateData.actualStartDate = new Date(actualStartDate);
     if (actualEndDate) updateData.actualEndDate = new Date(actualEndDate);
 
-    //  ไฟล์ (แยกตาม status)
+    // ไฟล์ (แยกตาม status)
     if (req.file) {
       if (status === 'REQ_LETTER_ISSUED') {
         updateData.reqLetterUrl = req.file.filename;
@@ -142,13 +144,46 @@ exports.reviewStudentStatus = async (req, res) => {
       if (status === 'PLACEMENT_LETTER_ISSUED') {
         updateData.placeLetterUrl = req.file.filename;
       }
+
+      // ✅ 2. เพิ่มส่วนนี้: บันทึกไฟล์ลงตาราง Document เพื่อให้ Frontend ดึงไปโชว์ได้
+      if (docType) {
+        const existingDoc = await prisma.document.findFirst({
+          where: { 
+            studentId: parsedStudentId, 
+            type: docType 
+          }
+        });
+
+        if (existingDoc) {
+          // ถ้าเคยมีไฟล์ประเภทนี้แล้ว ให้อัปเดตทับเลย
+          await prisma.document.update({
+            where: { id: existingDoc.id },
+            data: {
+              path: req.file.filename,
+              name: req.file.originalname,
+              status: 'APPROVED'
+            }
+          });
+        } else {
+          // ถ้ายังไม่เคยมี ให้สร้าง Document ใหม่
+          await prisma.document.create({
+            data: {
+              studentId: parsedStudentId,
+              type: docType,
+              path: req.file.filename,
+              name: req.file.originalname,
+              status: 'APPROVED'
+            }
+          });
+        }
+      }
     }
 
     await prisma.studentCoop.upsert({
-      where: { studentId: parseInt(studentId) },
+      where: { studentId: parsedStudentId },
       update: updateData,
       create: {
-        studentId: parseInt(studentId),
+        studentId: parsedStudentId,
         ...updateData
       }
     });
@@ -159,7 +194,6 @@ exports.reviewStudentStatus = async (req, res) => {
     res.status(500).json({ ok: false, message: "Error" });
   }
 };
-
 
 // 6. อนุมัติทั้งหมด
 exports.approveAllDocs = async (req, res) => {
@@ -189,4 +223,149 @@ exports.approveAllDocs = async (req, res) => {
     console.error(err);
     res.status(500).json({ ok: false, message: "Error approving all" });
   }
+};
+
+exports.getCoopApplications = async (req, res) => {
+  try {
+    const applications = await prisma.studentCoop.findMany({
+      where: {
+        status: { notIn: ["NOT_SUBMITTED"] } 
+      },
+      include: {
+        student: {
+          include: { documents: true } 
+        },
+        company: true,
+        mentor: true, // ✅ เพิ่มบรรทัดนี้ เพื่อให้ส่งข้อมูลพี่เลี้ยงมาด้วย
+      },
+      orderBy: { updatedAt: "desc" }
+    });
+    res.json({ ok: true, applications });
+  } catch (error) {
+    console.error("Get Coop Apps Error:", error);
+    res.status(500).json({ ok: false, error: "Server error" });
+  }
+};
+
+// 2. อัปเดตสถานะคำร้อง (อนุมัติ / ตีกลับให้แก้ไข)
+exports.updateCoopApplicationStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, comment } = req.body;
+    
+    const updated = await prisma.studentCoop.update({
+      where: { id: Number(id) },
+      data: {
+        status: status,
+        staffCheckComment: comment || null, // บันทึกเหตุผลกรณีตีกลับ
+      }
+    });
+    res.json({ ok: true, application: updated });
+  } catch (error) {
+    console.error("Update Status Error:", error);
+    res.status(500).json({ ok: false, error: "Server error" });
+  }
+};
+
+exports.getAllStudentsForReview = async (req, res) => {
+    try {
+        const students = await prisma.student.findMany({
+            include: {
+                coop: {
+                    include: {
+                        company: true // ดึงชื่อบริษัทมาโชว์ในตารางด้วย
+                    }
+                },
+                documents: true // ดึงประวัติไฟล์แนบมาเพื่อหาไฟล์ T002_FORM
+            }
+        });
+
+        res.json({ ok: true, data: students });
+    } catch (err) {
+        console.error("Get All Students Error:", err);
+        res.status(500).json({ ok: false, message: "ไม่สามารถดึงข้อมูลนักศึกษาได้" });
+    }
+};
+
+exports.reviewT002 = async (req, res) => {
+    try {
+        const { studentId, status, comment } = req.body;
+
+        // ดักจับกรณีไม่มี studentId
+        if (!studentId) {
+            return res.status(400).json({ ok: false, message: "ไม่พบข้อมูล Student ID" });
+        }
+
+        // 1. อัปเดตสถานะหลักของนักศึกษา
+        await prisma.studentCoop.upsert({
+            where: { studentId: parseInt(studentId) },
+            update: { status: status },
+            create: { studentId: parseInt(studentId), status: status }
+        });
+
+        // 2. หาไฟล์ T002 ล่าสุด แล้วอัปเดตผลตรวจ + ใส่เหตุผล
+        // ✅ เปลี่ยนจาก createdAt เป็น id เพื่อป้องกัน Error กรณี Database ไม่มีฟิลด์ Date
+        const doc = await prisma.document.findFirst({
+            where: { studentId: parseInt(studentId), type: 'T002_FORM' },
+            orderBy: { id: 'desc' } 
+        });
+
+        if (doc) {
+            await prisma.document.update({
+                where: { id: doc.id },
+                data: {
+                    // ✅ ระวัง: หากตาราง Document มีการล็อก Enum status ไว้ ต้องให้แน่ใจว่ามีคำว่า 'APPROVED' และ 'REJECTED' ด้วย
+                    status: status === 'T002_EDITS_REQUIRED' ? 'REJECTED' : 'APPROVED',
+                    rejectReason: comment || null 
+                }
+            });
+        }
+
+        res.json({ ok: true, message: "บันทึกผลการตรวจสอบสำเร็จ" });
+    } catch (err) {
+        // ✅ พิมพ์ Error ตัวจริงออกมาที่หน้าจอดำ (Terminal) ของ Backend
+        console.error("====== REVIEW T002 ERROR ======");
+        console.error(err);
+        console.error("===============================");
+        
+        res.status(500).json({ 
+            ok: false, 
+            message: "เกิดข้อผิดพลาดที่เซิร์ฟเวอร์", 
+            error: err.message // ส่งข้อความ Error กลับไปบอก Frontend ด้วย
+        });
+    }
+};
+
+exports.reviewT003 = async (req, res) => {
+    try {
+        const { studentId, status, comment } = req.body; 
+
+        // 1. อัปเดตสถานะของนักศึกษา
+        await prisma.studentCoop.upsert({
+            where: { studentId: parseInt(studentId) },
+            update: { status: status },
+            create: { studentId: parseInt(studentId), status: status }
+        });
+
+        // 2. อัปเดตสถานะไฟล์
+        const doc = await prisma.document.findFirst({
+            where: { studentId: parseInt(studentId), type: 'T003_FORM' },
+            orderBy: { id: 'desc' } 
+        });
+
+        if (doc) {
+            await prisma.document.update({
+                where: { id: doc.id },
+                data: {
+                    status: status === 'T003_EDITS_REQUIRED' ? 'REJECTED' : 'APPROVED',
+                    rejectReason: comment || null 
+                }
+            });
+        }
+
+        res.json({ ok: true, message: "Review T003 saved successfully" });
+    } catch (err) {
+        console.error("Review T003 Error:", err);
+        res.status(500).json({ ok: false, message: "Server error" });
+    }
 };

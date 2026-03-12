@@ -85,12 +85,38 @@ export default function A_Sidebar() {
         <div className="sec-label">เอกสารและบันทึก</div>
 
         <NavLink
+          to="/admin/coop-applications"
+          className={({ isActive }) => "item" + (isActive ? " active" : "")}
+        >
+          <span className="ico"><IcDocs /></span>
+          <span className="text">ตรวจสอบคำร้องสหกิจ</span>
+        </NavLink>
+
+        <NavLink
           to="/admin/doct000"
           className={({ isActive }) => "item" + (isActive ? " active" : "")}
         >
           <span className="ico"><IcDocs /></span>
           <span className="text">T000 เอกสารใบสมัคร</span>
         </NavLink>
+
+        <NavLink
+          to="/admin/doct002"
+          className={({ isActive }) => "item" + (isActive ? " active" : "")}
+        >
+          <span className="ico"><IcDocs /></span>
+          <span className="text">T002 เอกสารรายละเอียด</span>
+        </NavLink>
+
+        <NavLink
+          to="/admin/doct003"
+          className={({ isActive }) => "item" + (isActive ? " active" : "")}
+        >
+          <span className="ico"><IcDocs /></span>
+          <span className="text">T003 เอกสารขออนุมัติ</span>
+        </NavLink>
+
+
 
         {/* <NavLink
           to="/admin/docs"
@@ -107,6 +133,12 @@ export default function A_Sidebar() {
           <span className="ico"><IcCalendar /></span>
           <span className="text">บันทึกประจำวัน</span>
         </NavLink> */}
+        <div className="sec-label">การตั้งค่ารับเอกสาร</div>
+
+        <NavLink to="/admin/doc-requirements" className={({ isActive }) => "item" + (isActive ? " active" : "")}>
+          <span className="ico"><IcDocs /></span>
+          <span className="text">เอกสารใบสมัครงาน (T000)</span>
+        </NavLink>
 
         <div className="sec-label">ระบบ</div>
 

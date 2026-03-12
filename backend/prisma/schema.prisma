@@ -72,6 +72,7 @@ model Student {
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
   coopApplicationForm CoopApplicationForm?
+  t003Form            CoopT003Form?
 }
 
 // ==========================================
@@ -195,13 +196,23 @@ model CoopCriteria {
 // ==========================================
 
 model Company {
-  id        String  @id @default(uuid())
-  name      String
-  address   String? @db.Text
-  phone     String?
-  email     String?
-  website   String?
-  pastYears String?
+  id          String  @id @default(uuid())
+  name        String
+  nameEn      String?
+  address     String? @db.Text
+  addressNo   String? // เลขที่
+  moo         String? // หมู่
+  soi         String? // ซอย
+  road        String? // ถนน
+  subDistrict String? // ตำบล/แขวง
+  district    String? // อำเภอ/เขต
+  province    String? // จังหวัด
+  zipcode     String? // รหัสไปรษณีย์
+  fax         String? // โทรสาร
+  phone       String?
+  email       String?
+  website     String?
+  pastYears   String?
 
   // เพิ่มข้อมูลผู้ติดต่อเพื่อนำไป Gen ลง PDF (เรียน คุณ...)
   contactPerson   String?
@@ -264,16 +275,27 @@ model Visit {
 }
 
 model Document {
-  id        Int     @id @default(autoincrement())
-  studentId Int
-  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  id           Int       @id @default(autoincrement())
+  studentId    Int
+  student      Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  name         String
+  path         String
+  rejectReason String?
+  type         String? // เช่น "T000", "PLACEMENT_LETTER", "OTHER"
+  status       DocStatus @default(WAITING)
+  uploadedAt   DateTime  @default(now())
+}
 
-  name String
-  path String
+model DocumentRequirement {
+  id          Int     @id @default(autoincrement())
+  docKey      String  @unique // เช่น "CP-T000", "CP-TRANSCRIPT"
+  title       String // เช่น "ใบสมัครงานสหกิจศึกษา (T000)"
+  description String? // คำอธิบายเพิ่มเติม (ถ้ามี)
+  isRequired  Boolean @default(true) // บังคับอัปโหลดหรือไม่
+  isActive    Boolean @default(true) // เปิด/ปิด การใช้งาน
 
-  type       DocumentType
-  status     DocStatus    @default(WAITING)
-  uploadedAt DateTime     @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model StudentEmail {
@@ -339,6 +361,33 @@ enum CoopStatus {
 
   // --- Zone 4: ปฏิบัติงาน ---
   INTERNSHIP_STARTED // 9. เริ่มออกฝึกสหกิจ
+
+  T002_SUBMITTED
+  T002_EDITS_REQUIRED
+  T003_SUBMITTED
+  T003_EDITS_REQUIRED
+}
+
+model CoopT003Form {
+  id        Int     @id @default(autoincrement())
+  studentId Int     @unique
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  reportTitleTh    String? @db.Text
+  reportTitleEn    String? @db.Text
+  objectives       String? @db.Text
+  expectedOutcomes String? @db.Text
+  significance     String? @db.Text
+  references       String? @db.Text
+  methodology      String? @db.Text
+  scope            String? @db.Text
+  otherSuggestions String? @db.Text
+
+  // เก็บแผนงาน 16 สัปดาห์เป็น JSON Array ไปเลย จะได้ยืดหยุ่น
+  workPlan Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 enum Role {
@@ -355,18 +404,6 @@ enum Prefix {
 enum StudyProgram {
   normal
   special
-}
-
-enum DocumentType {
-  APPLICATION_DOC // ใบคำร้องขอเข้าร่วมโครงการสหกิจศึกษา
-  T000_SIGNED // ใบสมัครติดรูป + เซ็นชื่อแล้ว (ถ้าต้องอัปโหลดกลับ)
-  TRANSCRIPT // สำเนาใบรายงานผลการศึกษา
-  STUDENT_CARD // สำเนาบัตรนักศึกษา
-  CITIZEN_CARD // สำเนาบัตรประชาชน
-  CV // ประวัติส่วนตัว
-  ACCEPTANCE_FORM // ใบตอบรับจากบริษัท
-  PARENTAL_CONSENT // ใบยินยอมผู้ปกครอง 
-  OTHER
 }
 
 enum DocStatus {

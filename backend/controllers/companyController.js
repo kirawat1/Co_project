@@ -5,7 +5,8 @@ const prisma = new PrismaClient();
 // ---------------- Company ----------------
 exports.getCompanies = async (req, res) => {
   const companies = await prisma.company.findMany({
-    include: { mentors: true }
+    include: { mentors: true },
+    orderBy: { id: 'desc' } // (แถม) เรียงจากบริษัทล่าสุดขึ้นก่อน
   });
   res.json(companies);
 };
@@ -14,53 +15,80 @@ exports.addCompany = async (req, res) => {
   try {
     const userId = req.user.id; // มาจาก auth middleware
 
+    // ✅ 1. รับค่าฟิลด์ใหม่ให้ครบตามหน้า Frontend
+    const { 
+        name, nameEn, 
+        address, addressNo, moo, soi, road, 
+        subDistrict, district, province, zipcode, 
+        email, phone, fax, website, pastYears, 
+        contactPerson, contactPosition 
+    } = req.body;
+
     const company = await prisma.company.create({
       data: {
-        name: req.body.name,
-        address: req.body.address,
-        email: req.body.email,
-        phone: req.body.phone,
-        website: req.body.website,
-        pastYears: req.body.pastYears,
-        contactPerson: req.body.contactPerson,
-        contactPosition: req.body.contactPosition,
+        name, nameEn, 
+        address, addressNo, moo, soi, road, 
+        subDistrict, district, province, zipcode, 
+        email, phone, fax, website, pastYears, 
+        contactPerson, contactPosition,
         createdById: userId, // ต้องมี
       },
     });
 
     res.json({ ok: true, company });
   } catch (err) {
-    console.error(err);
-    res.status(400).json({ ok: false, message: err.message });
+    console.error("Add Company Error:", err);
+    res.status(400).json({ ok: false, message: "เพิ่มบริษัทไม่สำเร็จ" });
   }
 };
 
-// แก้ไขบริษัท
+// แก้ไขบริษัท// แก้ไขบริษัท// แก้ไขบริษัท
 exports.updateCompany = async (req, res) => {
-  const { name, address, phone, email, contactPerson, contactPosition } = req.body;
-  const user = req.user;
-
   try {
-    // Student แก้ไขได้เฉพาะบริษัทของตัวเอง
+    // ✅ 1. ดึง ID ออกมาให้ครอบคลุม (เผื่อ Middleware ใช้ req.userId หรือ req.user.id)
+    const currentUserId = req.userId || (req.user && req.user.id);
+    
+    const { 
+        name, nameEn, 
+        address, addressNo, moo, soi, road, 
+        subDistrict, district, province, zipcode, 
+        email, phone, fax, website, pastYears, 
+        contactPerson, contactPosition 
+    } = req.body;
+
     const company = await prisma.company.findUnique({
-      where: { id: req.params.id },
+      where: { id: req.params.id }, 
     });
 
     if (!company) return res.status(404).json({ ok: false, message: "ไม่พบบริษัท" });
 
-    if (user.role !== "staff" && company.createdById !== user.id) {
+    // ✅ 2. แปลง currentUserId เป็น Number เสมอ ป้องกัน Prisma หาไม่เจอ
+    const currentUser = await prisma.user.findUnique({ 
+        where: { id: Number(currentUserId) } 
+    });
+    
+    const isStaff = currentUser && (currentUser.role === "staff" || currentUser.role === "admin");
+
+    // ถ้าไม่ใช่เจ้าหน้าที่ และไม่ใช่คนสร้างบริษัทนี้ ให้เด้งออก
+    if (!isStaff && company.createdById !== Number(currentUserId)) {
       return res.status(403).json({ ok: false, message: "ไม่มีสิทธิ์แก้ไขบริษัทนี้" });
     }
 
+    // อัปเดตข้อมูลทั้งหมด
     const updated = await prisma.company.update({
       where: { id: req.params.id },
-      data: { name, address, phone, email, contactPerson, contactPosition },
+      data: { 
+        name, nameEn, address, addressNo, moo, soi, road, 
+        subDistrict, district, province, zipcode, 
+        email, phone, fax, website, pastYears, 
+        contactPerson, contactPosition 
+      },
     });
 
     res.json({ ok: true, company: updated });
   } catch (err) {
-    console.error(err);
-    res.status(400).json({ error: err.message });
+    console.error("Update Company Error:", err);
+    res.status(400).json({ ok: false, message: "แก้ไขไม่สำเร็จ" });
   }
 };
 
@@ -68,88 +96,87 @@ exports.updateCompany = async (req, res) => {
 exports.deleteCompany = async (req, res) => {
   try {
     const { id } = req.params;
+    
+    // ✅ ใช้ Logic ดึง ID แบบเดียวกัน
+    const currentUserId = req.userId || (req.user && req.user.id);
 
+    const company = await prisma.company.findUnique({
+        where: { id }
+    });
+
+    if (!company) {
+        return res.status(404).json({ ok: false, message: "ไม่พบบริษัท" });
+    }
+
+    // ✅ ค้นหา User แบบครอบด้วย Number()
+    const currentUser = await prisma.user.findUnique({ 
+        where: { id: Number(currentUserId) } 
+    });
+    
+    const isStaff = currentUser && (currentUser.role === "staff" || currentUser.role === "admin");
+
+    if (!isStaff && company.createdById !== Number(currentUserId)) {
+      return res.status(403).json({ ok: false, message: "ไม่มีสิทธิ์ลบบริษัทนี้" });
+    }
+
+    // เมื่อเช็คสิทธิ์ผ่าน ค่อยสั่งลบ
     await prisma.company.delete({
       where: { id },
     });
 
-    if (user.role !== "staff" && company.createdById !== user.id) {
-      return res.status(403).json({ ok: false, message: "ไม่มีสิทธิ์ลบบริษัทนี้" });
-    }
-
     res.json({ ok: true, message: "ลบบริษัทและพี่เลี้ยงสำเร็จ" });
   } catch (err) {
-    console.error(err);
-    res.status(400).json({ ok: false, message: "ลบสำเร็จ" });
+    console.error("Delete Company Error:", err);
+    res.status(400).json({ ok: false, message: "ลบไม่สำเร็จ" });
   }
 };
 // ---------------- Mentor ----------------
-// controllers/companyController.js
 exports.addMentor = async (req, res) => {
   try {
     const { firstName, lastName, department, position, email, phone } = req.body;
-    const userId = req.user.id; // จาก auth middleware
-    const companyId = req.params.companyId; // จาก URL
+    const userId = req.user.id; 
+    const companyId = req.params.companyId;
 
     const mentor = await prisma.mentor.create({
       data: {
-        firstName,
-        lastName,
-        department,
-        position,
-        email,
-        phone,
-        company: { connect: { id: companyId } }, // ✅ ต้องใช้ connect
-        createdBy: { connect: { id: userId } }, // ✅ ต้องใช้ connect
+        firstName, lastName, department, position, email, phone,
+        company: { connect: { id: companyId } }, 
+        createdBy: { connect: { id: userId } }, 
       },
     });
 
     res.json({ ok: true, mentor });
   } catch (err) {
-    console.error(err);
+    console.error("Add Mentor Error:", err);
     res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดในการเพิ่มพี่เลี้ยง" });
   }
 };
 
-
 exports.updateMentor = async (req, res) => {
   try {
-    const { id } = req.params; // หรือ req.body.id แล้วแต่ Route ของคุณ
-
-    
-    const { 
-      firstName, 
-      lastName, 
-      department, 
-      position, 
-      email, 
-      phone, 
-    } = req.body;
+    const { id } = req.params;
+    const { firstName, lastName, department, position, email, phone } = req.body;
 
     const updatedMentor = await prisma.mentor.update({
-      where: { id: String(id) }, // แปลงเป็น String หรือ Int ตาม Type ใน DB
-      data: {
-        firstName,
-        lastName,
-        department,
-        position,
-        email,
-        phone,
-      },
+      where: { id: String(id) }, // เปลี่ยนเป็น Number(id) ถ้า id ใน schema เป็น Int
+      data: { firstName, lastName, department, position, email, phone },
     });
 
     res.json({ ok: true, mentor: updatedMentor });
-
   } catch (err) {
     console.error("Update Mentor Error:", err);
     res.status(500).json({ ok: false, message: "Server Error", error: err.message });
   }
 };
 
-
 exports.deleteMentor = async (req, res) => {
-  await prisma.mentor.delete({
-    where: { id: req.params.id }
-  });
-  res.json({ ok: true });
+  try {
+    await prisma.mentor.delete({
+        where: { id: req.params.id }
+    });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("Delete Mentor Error:", err);
+    res.status(500).json({ ok: false, message: "ลบพี่เลี้ยงไม่สำเร็จ" });
+  }
 };

@@ -47,9 +47,11 @@ interface StudentProfile {
   emails: { id?: number; email: string; primary: boolean }[];
   company?: StudentCompany;
   docs: any[];
+  isQualified?: boolean; // ✅ เอาไว้โชว์เฉยๆ ว่าเกรดถึงไหม
   coop?: {
     company: StudentCompany;
     mentor?: Mentor;
+    status?: string; // สถานะจริงจะอยู่ตรงนี้ (เช่น NOT_SUBMITTED, APPLYING, QUALIFIED)
   };
 }
 
@@ -77,9 +79,7 @@ export default function S_ProfilePage() {
     })
       .then(res => res.json())
       .then((data: StudentProfile) => {
-        const emails = data.emails?.length > 0
-          ? data.emails
-          : [{ email: "", primary: false }];
+        const emails = data.emails?.length > 0 ? data.emails : [{ email: "", primary: false }];
         const company = data.coop ? { ...data.coop.company, mentor: data.coop.mentor } : data.company;
         setProfile({ ...data, emails, company });
       })
@@ -140,7 +140,6 @@ export default function S_ProfilePage() {
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           major: profile.major,
-          // ✅ ส่งค่า null ไปให้ Backend ถ้า profile.company ถูกเคลียร์ทิ้ง
           companyId: profile.company?.id || null,
           mentorId: profile.company?.mentor?.id || null,
         }),
@@ -150,7 +149,7 @@ export default function S_ProfilePage() {
         setProfile(prev => ({
           ...prev!,
           ...result.student,
-          company: profile.company // ✅ คงค่า Company ไว้ตามหน้าจอ UI เพื่อไม่ให้กระพริบหาย
+          company: profile.company // คงค่าไว้ไม่ให้ UI กระพริบ
         }));
         alert("บันทึกข้อมูลสถานที่ฝึกเรียบร้อย");
       }
@@ -158,13 +157,11 @@ export default function S_ProfilePage() {
   }
 
   /* ================= OPTIONS FOR DROPDOWNS ================= */
-  // ✅ 1. เพิ่มตัวเลือก "ยกเลิก" สำหรับบริษัท
   const companyOptions = [
     { id: "clear", label: "❌ ยกเลิกการเลือก (ยังไม่มีที่ฝึก)", rawData: null },
     ...companies.map(c => ({ id: c.id, label: c.name, rawData: c }))
   ];
 
-  // ✅ 2. เพิ่มตัวเลือก "ยกเลิก" สำหรับพี่เลี้ยง
   const mentorOptions = profile.company ? [
     { id: "clear", label: "❌ ยกเลิกการเลือก (ยังไม่มีพี่เลี้ยง)", rawData: null },
     ...(profile.company.mentors?.map(m => ({
@@ -188,6 +185,19 @@ export default function S_ProfilePage() {
             </button>
           </div>
 
+          {/* ✅ แก้ไขกล่องแสดงสถานะการผ่านเกณฑ์ */}
+          <div style={{
+            padding: "12px 16px", marginBottom: "20px", borderRadius: "8px",
+            background: profile.isQualified ? "#f0fdf4" : "#fee2e2",
+            border: `1px solid ${profile.isQualified ? "#bbf7d0" : "#fecaca"}`,
+            color: profile.isQualified ? "#166534" : "#991b1b",
+            fontWeight: 700, fontSize: "14px", display: "flex", alignItems: "center", gap: "8px"
+          }}>
+            {profile.isQualified
+              ? "✅ ผ่านเกณฑ์เบื้องต้นจากการคำนวณ (เกรด/หน่วยกิต ถึงเกณฑ์ที่กำหนด)"
+              : "⚠️ คุณสมบัติยังไม่ผ่านเกณฑ์การยื่นสหกิจศึกษา"}
+          </div>
+
           <Info label="รหัสนักศึกษา" value={profile.studentId} />
           <Info label="ชื่อ–นามสกุล (TH)" value={`${prefixMapToUI[profile.prefix as keyof typeof prefixMapToUI] || ""} ${profile.firstName ?? ""} ${profile.lastName ?? ""}`} />
           <Info label="ชื่อ–นามสกุล (EN)" value={`${profile.firstNameEn ?? "-"} ${profile.lastNameEn ?? "-"}`} />
@@ -200,16 +210,19 @@ export default function S_ProfilePage() {
           <Info label="GPA" value={profile?.gpa != null ? profile.gpa.toFixed(2) : "-"} />
           <Info label="GPA หมวดวิชาเฉพาะ" value={profile.coreGpa?.toFixed(2) || "0.00"} />
           <Info label="หน่วยกิตสะสม" value={`${profile.activityUnit || 0} หน่วย`} />
-          <Info label="วิชาสหกิจศึกษา (CP002001/SC002001)" value={profile.isPassPrepCourse ? "ผ่านแล้ว (S)" : "ยังไม่ผ่าน"} />
+          <Info label="วิชาสหกิจศึกษา" value={profile.isPassPrepCourse ? "ผ่านแล้ว (S)" : "ยังไม่ผ่าน"} />
           <Info label="อีเมลมหาวิทยาลัย" value={profile.userEmail || "-"} pill />
-          <Info label="อีเมลติดต่อหลัก" value={profile.email || "-"} pill />
         </section>
 
         {/* ================= COOP (สถานที่ฝึกงาน) ================= */}
         <section className="profile-card">
-          <h3 className="profile-title">สถานที่ฝึกสหกิจ</h3>
-          <div className="profile-sub">เลือกบริษัทและพี่เลี้ยง</div>
-          <div className="divider" />
+          <div className="card-head">
+            <div>
+              <h3 className="profile-title">สถานที่ฝึกสหกิจ</h3>
+              <div className="profile-sub">เลือกบริษัทและพี่เลี้ยง</div>
+            </div>
+          </div>
+          <div className="divider" style={{ marginTop: 0 }} />
 
           <div style={{ marginBottom: 15 }}>
             <label className="label">บริษัท</label>
@@ -221,7 +234,6 @@ export default function S_ProfilePage() {
                 noOptionText="ไม่พบบริษัทที่ค้นหา"
                 onAddClick={() => navigate("/student/company")}
                 onChange={(id: string, rawData: any) => {
-                  // ✅ ถ้ากดล้างข้อมูล ให้เคลียร์ค่า profile.company เป็น undefined
                   if (id === "clear") {
                     setProfile({ ...profile, company: undefined });
                   } else {
@@ -241,7 +253,6 @@ export default function S_ProfilePage() {
                 placeholder={profile.company ? "พิมพ์ค้นหาชื่อพี่เลี้ยง..." : "กรุณาเลือกบริษัทก่อน"}
                 noOptionText="ไม่พบพี่เลี้ยงในบริษัทนี้"
                 onChange={(id: string, rawData: any) => {
-                  // ✅ ถ้ากดล้างข้อมูลพี่เลี้ยง ให้เซ็ต mentor เป็น undefined
                   if (id === "clear") {
                     setProfile({ ...profile, company: { ...profile.company!, mentor: undefined } });
                   } else {
@@ -267,8 +278,6 @@ export default function S_ProfilePage() {
               <Info label="ชื่อ" value={profile.company.name || "-"} />
               <Info label="ที่อยู่" value={profile.company.address || "-"} pill />
               <Info label="เบอร์โทร" value={profile.company.phone || "-"} />
-              <Info label="ตำแหน่งผู้ติดต่อ" value={profile.company.contactPosition || "-"} />
-              <Info label="ผู้ติดต่อ" value={profile.company.contactPerson || "-"} />
             </div>
           )}
 
@@ -276,8 +285,8 @@ export default function S_ProfilePage() {
             <div style={{ marginTop: 20 }}>
               <div className="divider" />
               <h4 className="profile-sub">รายละเอียดพี่เลี้ยง</h4>
+              <Info label="ชื่อพี่เลี้ยง" value={`${profile.company.mentor.firstName} ${profile.company.mentor.lastName}`} />
               <Info label="ตำแหน่ง" value={profile.company.mentor.position || "-"} />
-              <Info label="อีเมล" value={profile.company.mentor.email || "-"} pill />
               <Info label="เบอร์โทร" value={profile.company.mentor.phone || "-"} />
             </div>
           )}
@@ -342,11 +351,7 @@ function StudentModal({ profile, teachers, saveStudentInfo, closeModal }: any) {
 
           <div>
             <label className="label">ที่ปรึกษา</label>
-            <select
-              className="input"
-              value={form.advisorName ?? ""}
-              onChange={(e) => setForm({ ...form, advisorName: e.target.value })}
-            >
+            <select className="input" value={form.advisorName ?? ""} onChange={(e) => setForm({ ...form, advisorName: e.target.value })}>
               <option value="">-- เลือกที่ปรึกษา --</option>
               {teachers.map((t: any) => {
                 const fullName = `${t.prefix || ""}${t.firstName} ${t.lastName}`;
@@ -408,13 +413,9 @@ function SearchableDropdown({ options, value, onChange, placeholder, noOptionTex
             filtered.map((o: any) => (
               <div
                 key={o.id}
-                // ไฮไลต์สีให้ตัวเลือก "ยกเลิก" ดูแตกต่างนิดหน่อย
                 style={{
-                  padding: "10px 14px",
-                  cursor: "pointer",
-                  borderBottom: "1px solid #f1f5f9",
-                  fontSize: 14,
-                  color: o.id === "clear" ? "#dc2626" : "#1e293b",
+                  padding: "10px 14px", cursor: "pointer", borderBottom: "1px solid #f1f5f9",
+                  fontSize: 14, color: o.id === "clear" ? "#dc2626" : "#1e293b",
                   fontWeight: o.id === "clear" ? "bold" : "normal"
                 }}
                 onMouseDown={() => { onChange(o.id, o.rawData); setSearch(o.label); setIsOpen(false); }}
@@ -428,12 +429,7 @@ function SearchableDropdown({ options, value, onChange, placeholder, noOptionTex
             <div style={{ padding: "14px", textAlign: "center", color: "#64748b", fontSize: 14 }}>
               {noOptionText}
               {onAddClick && (
-                <button
-                  type="button"
-                  className="btn"
-                  style={{ width: "100%", marginTop: 10, justifyContent: "center", padding: "8px" }}
-                  onMouseDown={(e) => { e.preventDefault(); onAddClick(); }}
-                >
+                <button type="button" className="btn" style={{ width: "100%", marginTop: 10, justifyContent: "center", padding: "8px" }} onMouseDown={(e) => { e.preventDefault(); onAddClick(); }}>
                   + เพิ่มบริษัทใหม่
                 </button>
               )}
@@ -454,19 +450,7 @@ function Info({ label, value, pill }: { label: string; value: string; pill?: boo
   );
 }
 
-const editBtnStyle = {
-  background: "#2563eb",
-  border: "none",
-  padding: "6px 12px",
-  borderRadius: "8px",
-  fontSize: "13px",
-  fontWeight: 700,
-  cursor: "pointer",
-  display: "flex",
-  alignItems: "center",
-  gap: "6px",
-  color: "#fff",
-};
+const editBtnStyle = { background: "#2563eb", border: "none", padding: "6px 12px", borderRadius: "8px", fontSize: "13px", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: "6px", color: "#fff" };
 
 const PROFILE_CSS = `
 .profile-grid{ display:grid; grid-template-columns:1fr 1fr; gap:28px; }

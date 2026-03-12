@@ -11,12 +11,18 @@ export type CoopStatusType =
     | "EDITS_REQUIRED"             // แก้ T000
     | "DOCS_APPROVED"
     | "REQ_LETTER_ISSUED"
-    // ✅ เพิ่มสถานะใหม่ช่วงส่งตัว
+    // --- สถานะช่วงส่งตัว ---
     | "WAITING_FOR_PLACEMENT_LETTER"   // นศ. โหลดหนังสือแล้ว รอไปยื่นและเอาใบตอบรับมาส่ง
     | "WAITING_FOR_STAFF_CHECK_LETTER" // นศ. อัปโหลดใบตอบรับแล้ว รอ จนท. ตรวจ
     | 'ACCEPTANCE_CHECKED'          // จนท. ตรวจใบตอบรับผ่านแล้ว
     | "PLACEMENT_LETTER_ISSUED"        // จนท. ออกหนังสือส่งตัวจริงแล้ว
     | "INTERNSHIP_STARTED"             // เริ่มฝึกงาน
+    // ✅ เพิ่มสถานะใหม่
+    | "T002_SUBMITTED"                 // ส่งแบบฟอร์ม T002 แล้ว
+    | "T002_EDITS_REQUIRED"         // แก้ไขแบบฟอร์ม T002
+    | "T003_SUBMITTED"                 // ส่งแบบฟอร์ม T003 แล้ว
+    | "T003_EDITS_REQUIRED"         // แก้ไขแบบฟอร์ม T003
+    | "T003_APPROVED"
     | "REJECTED"
     | "WAITING"
     | string;
@@ -38,13 +44,19 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; 
     // --- Phase 3: ขอความอนุเคราะห์ ---
     REQ_LETTER_ISSUED: { label: "ออกหนังสือขอความอนุเคราะห์แล้ว", color: "#6b21a8", bg: "#f3e8ff", icon: "🚚" }, // ม่วง
 
-    // --- Phase 4: ส่งตัว (ใหม่) ---
+    // --- Phase 4: ส่งตัว ---
     WAITING_FOR_PLACEMENT_LETTER: { label: "รอใบตอบรับ", color: "#0891b2", bg: "#ecfeff", icon: "🏢" }, // ฟ้า Cyan
     WAITING_FOR_STAFF_CHECK_LETTER: { label: "รอตรวจใบตอบรับ", color: "#d97706", bg: "#fffbeb", icon: "🕵️" }, // เหลืองเข้ม Amber
     ACCEPTANCE_CHECKED: { label: "ตรวจใบตอบรับแล้ว", color: "#059669", bg: "#d1fae5", icon: "✨" }, // เขียวมินต์ Emerald
     PLACEMENT_LETTER_ISSUED: { label: "ออกใบส่งตัวแล้ว", color: "#047857", bg: "#d1fae5", icon: "🏁" }, // เขียวเข้ม Emerald
     INTERNSHIP_STARTED: { label: "กำลังฝึกงาน", color: "#4338ca", bg: "#e0e7ff", icon: "🚀" }, // น้ำเงินเข้ม Indigo
 
+    // --- Phase 5: ระหว่างฝึกงาน (ใหม่) ---
+    T002_SUBMITTED: { label: "ส่ง T002 แล้ว", color: "#0d9488", bg: "#ccfbf1", icon: "📄" }, // สี Teal (เขียวอมฟ้า)
+    T002_EDITS_REQUIRED: { label: "แก้ไข T002", color: "#dc2626", bg: "#fef2f2", icon: "⚠️" }, // ✅ เพิ่มบรรทัดนี้ (สีแดง)
+    T003_SUBMITTED: { label: "ส่ง T003 (โครงร่าง) แล้ว", color: "#7c3aed", bg: "#f5f3ff", icon: "📘" }, // ม่วง
+    T003_APPROVED: { label: "โครงร่างรายงานผ่านแล้ว", color: "#059669", bg: "#d1fae5", icon: "✅" },   // เขียว
+    T003_EDITS_REQUIRED: { label: "แก้ไขโครงร่าง T003", color: "#dc2626", bg: "#fef2f2", icon: "⚠️" }, // แดง
     // --- General ---
     REJECTED: { label: "ไม่ผ่าน", color: "#991b1b", bg: "#fee2e2", icon: "❌" },
     WAITING: { label: "ยังไม่ดำเนินการ", color: "#64748b", bg: "#f1f5f9", icon: "⚪" },

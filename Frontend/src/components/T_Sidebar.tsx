@@ -64,6 +64,23 @@ export default function T_Sidebar() {
           <span className="ico"><IcUser /></span>
           <span className="text">ข้อมูลอาจารย์</span>
         </NavLink>
+
+        <NavLink
+          to="/teacher/review-t002"
+          className={({ isActive }) => "item" + (isActive ? " active" : "")}
+        >
+          <span className="ico"><IcDocs /></span>
+          <span className="text">T002 เอกสารรายละเอียด</span>
+        </NavLink>
+
+        <NavLink
+          to="/teacher/review-t003"
+          className={({ isActive }) => "item" + (isActive ? " active" : "")}
+        >
+          <span className="ico"><IcDocs /></span>
+          <span className="text">T003 เอกสารโครงร่างรายงาน</span>
+        </NavLink>
+
       </nav>
 
       <style>{SIDEBAR_CSS}</style>

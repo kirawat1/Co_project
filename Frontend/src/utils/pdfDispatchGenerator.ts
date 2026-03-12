@@ -16,7 +16,19 @@ const getFontBase64 = async (url: string): Promise<string> => {
 };
 
 const getImageArrayBuffer = async (url: string): Promise<ArrayBuffer> => {
+  if (!url) throw new Error("URL is empty");
+
   const res = await fetch(url);
+  if (!res.ok) {
+    throw new Error(`ไฟล์ไม่พบหรือโหลดไม่ได้: ${url} (Status: ${res.status})`);
+  }
+
+  // ตรวจสอบ Content-Type คร่าวๆ ว่าไม่ใช่ HTML (กันกรณี Server ส่งหน้า 404 กลับมา)
+  const contentType = res.headers.get("content-type");
+  if (contentType && contentType.includes("text/html")) {
+    throw new Error(`URL นี้ส่งค่ากลับมาเป็นหน้าเว็บ ไม่ใช่ไฟล์เอกสาร: ${url}`);
+  }
+
   return await res.arrayBuffer();
 };
 
@@ -51,6 +63,8 @@ export const createDispatchPDF = async (
   staticProjectUrl: string, // 6. ไฟล์รายละเอียดโครงการ (หน้า 2-6)
   staticAcceptanceUrl: string, // 7. ไฟล์ใบตอบรับ (หน้าสุดท้าย)
   studentDocs: { type: string; url: string }[], // 8. ไฟล์เอกสารของนักศึกษา
+  deanName: string = "รองศาสตราจารย์สิรภัทร เชี่ยวชาญวัฒนา", // รับค่าชื่อ
+  deanPosition: string = "คณบดีวิทยาลัยการคอมพิวเตอร์", // รับค่าตำแหน่ง
 ) => {
   // ---------------------------------------------------------
   // PART 1: สร้างหน้าปก (Cover Letter) ด้วย jsPDF
@@ -180,21 +194,31 @@ export const createDispatchPDF = async (
   y += 5;
 
   try {
-    const sigImg = await getImageArrayBuffer(signatureUrl);
-    const sigUint8 = new Uint8Array(sigImg);
-    // ตรวจสอบนามสกุล
-    const format = signatureUrl.toLowerCase().endsWith("png") ? "PNG" : "JPEG";
-    doc.addImage(sigUint8, format, signCenter - 15, y, 30, 15);
+    // ✅ เพิ่มการเช็ค typeof ว่าต้องเป็น string และไม่ว่าง
+    if (
+      typeof signatureUrl === "string" &&
+      signatureUrl.trim() !== "" &&
+      !signatureUrl.endsWith("undefined") &&
+      !signatureUrl.endsWith("null")
+    ) {
+      const sigImg = await getImageArrayBuffer(signatureUrl);
+      const sigUint8 = new Uint8Array(sigImg);
+      const format = signatureUrl.toLowerCase().endsWith("png")
+        ? "PNG"
+        : "JPEG";
+      doc.addImage(sigUint8, format, signCenter - 15, y, 30, 15);
+    } else {
+      console.warn("⚠️ ข้ามการวาดลายเซ็น: URL ว่างเปล่า");
+    }
   } catch (e) {
     console.warn("Signature load error (อาจยังไม่อัปโหลดไฟล์)", e);
   }
-
   y += 20;
-  doc.text(`(รองศาสตราจารย์สิรภัทร เชี่ยวชาญวัฒนา)`, signCenter, y, {
+  doc.text(`(${deanName})`, signCenter, y, {
     align: "center",
   });
   y += 7;
-  doc.text(`คณบดีวิทยาลัยการคอมพิวเตอร์`, signCenter, y, { align: "center" });
+  doc.text(`${deanPosition}`, signCenter, y, { align: "center" });
 
   // 9. Footer
   y = 275;
@@ -253,20 +277,33 @@ export const createDispatchPDF = async (
 
   // ✅ 2. รายละเอียดโครงการ (2-6.pdf)
   try {
-    if (staticProjectUrl) {
+    // ✅ เพิ่ม typeof เช็คชนิดตัวแปร
+    if (
+      typeof staticProjectUrl === "string" &&
+      staticProjectUrl.trim() !== "" &&
+      !staticProjectUrl.endsWith("undefined") &&
+      !staticProjectUrl.endsWith("null")
+    ) {
       const p26 = await getImageArrayBuffer(staticProjectUrl);
       await addPdfToMerge(p26);
+    } else {
+      console.warn("⚠️ ข้ามการรวมไฟล์: ไม่พบ URL รายละเอียดโครงการ");
     }
   } catch (e) {
-    console.warn("2-6.pdf missing");
+    console.warn("⚠️ ไม่สามารถรวมไฟล์รายละเอียดโครงการ (หน้า 2-6) ได้:", e);
   }
 
   // ✅ 3. เอกสารนักศึกษา
   const orderMap: Record<string, number> = {
+    "CP-T000": 1,
     T000_SIGNED: 1,
+    "CP-TRANSCRIPT": 2,
     TRANSCRIPT: 2,
+    "CP-STUDENT_CARD": 3,
     STUDENT_CARD: 3,
+    "CP-CITIZEN_CARD": 4,
     CITIZEN_CARD: 4,
+    "CP-CV": 5,
     CV: 5,
   };
 
@@ -285,12 +322,20 @@ export const createDispatchPDF = async (
 
   // ✅ 4. ใบตอบรับสหกิจ (Acceptance Form)
   try {
-    if (staticAcceptanceUrl) {
+    // ✅ เพิ่ม typeof เช็คชนิดตัวแปร
+    if (
+      typeof staticAcceptanceUrl === "string" &&
+      staticAcceptanceUrl.trim() !== "" &&
+      !staticAcceptanceUrl.endsWith("undefined") &&
+      !staticAcceptanceUrl.endsWith("null")
+    ) {
       const accForm = await getImageArrayBuffer(staticAcceptanceUrl);
       await addPdfToMerge(accForm);
+    } else {
+      console.warn("⚠️ ข้ามการรวมไฟล์: ไม่พบ URL ใบตอบรับ");
     }
   } catch (e) {
-    console.warn("acceptance.pdf missing");
+    console.warn("⚠️ ไม่สามารถรวมไฟล์ใบตอบรับได้:", e);
   }
 
   // Return Result

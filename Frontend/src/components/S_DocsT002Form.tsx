@@ -1,0 +1,423 @@
+import React, { useState } from "react";
+import { createT002PDF } from "../utils/pdfGeneratorT002"; // เปลี่ยน path ให้ตรงกับโปรเจกต์คุณ
+import StatusBadge from "./StatusBadge"; // นำเข้า Component StatusBadge (เปลี่ยน path ให้ตรงกับไฟล์ของคุณ)
+
+interface Props {
+    profile: any;
+    onRefresh: () => void; // ฟังก์ชันดึงข้อมูลใหม่หลังอัปโหลดเสร็จ (ส่งมาจาก Router หรือ Layout)
+}
+
+export default function S_DocsT002Form({ profile, onRefresh }: Props) {
+    const [loading, setLoading] = useState(false);
+
+    // --- State สำหรับ Popup Preview ---
+    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+    const [showModal, setShowModal] = useState(false);
+
+    // --- State สำหรับอัปโหลดไฟล์ ---
+    const [selectedUploadFile, setSelectedUploadFile] = useState<File | null>(null);
+
+    // เช็คว่าเคยอัปโหลดไฟล์ T002 ไปแล้วหรือยัง
+    const uploadedT002 = profile?.documents?.find((d: any) => d.type === 'T002_FORM');
+
+    const company = profile?.coop?.company || profile?.company || {};
+
+    const mentor = profile?.coop?.mentor || profile?.mentor || {};
+
+    const appForm = profile?.coopApplicationForm || {}; // ดึงข้อมูลฉุกเฉินจากฟอร์มใบสมัคร T000
+
+    // กำหนดสถานะที่จะนำไปโชว์ใน StatusBadge
+    let currentStatusToShow = profile?.docStatus;
+
+    if (profile?.docStatus === 'T002_EDITS_REQUIRED' || uploadedT002?.status === 'REJECTED') {
+        // กรณีโดนตีกลับ ให้ขึ้นสถานะแก้ไข
+        currentStatusToShow = 'T002_EDITS_REQUIRED';
+    } else if (uploadedT002 && uploadedT002.status !== 'REJECTED') {
+        // กรณีส่งไฟล์แล้ว (และไม่ได้โดนตีกลับ) ให้ขึ้นสถานะว่าส่งแล้ว
+        currentStatusToShow = 'T002_SUBMITTED';
+    }
+
+    // --- State เก็บข้อมูลฟอร์ม ---
+    const [formData, setFormData] = useState({
+        // 1. ข้อมูลสถานประกอบการ (ดึงจากตาราง Company)
+        companyNameTh: company.name || "",
+        companyNameEn: company.nameEn || "",
+        addressNo: company.addressNo || "",
+        moo: company.moo || "",
+        soi: company.soi || "",
+        road: company.road || "",
+        subDistrict: company.subDistrict || "",
+        district: company.district || "",
+        province: company.province || "",
+        zipcode: company.zipcode || "",
+        companyPhone: company.phone || "",
+        companyFax: company.fax || "",
+        companyEmail: company.email || "",
+
+        // 2. ผู้จัดการทั่วไป (ดึงจาก contactPerson ของ Company)
+        managerName: company.contactPerson || "",
+        managerPosition: company.contactPosition || "",
+        managerPhone: company.phone || "",
+        managerFax: company.fax || "",
+        managerEmail: company.email || "",
+
+        // ผู้ประสานงาน (ตั้งค่าเริ่มต้นให้ติดต่อผู้จัดการโดยตรง)
+        coordinatorType: "MANAGER",
+        coordName: "", coordPosition: "", coordDept: "", coordPhone: "", coordFax: "", coordEmail: "",
+
+        // 3. พนักงานที่ปรึกษา / พี่เลี้ยง (ดึงจากตาราง Mentor)
+        supervisorName: mentor.firstName ? `${mentor.firstName} ${mentor.lastName}`.trim() : "",
+        supervisorPosition: mentor.position || "",
+        supervisorDept: mentor.department || "",
+        supervisorPhone: mentor.phone || "",
+        supervisorFax: "",
+        supervisorEmail: mentor.email || "",
+
+        // 4. งานที่ได้รับมอบหมาย (ดึงจาก Student หรือ StudentCoop)
+        jobPosition: profile?.coop?.jobPosition || profile?.jobPosition || "",
+        jobDescription: "",
+
+        // 5. ข้อมูลที่พักระหว่างฝึกงาน & กรณีฉุกเฉิน
+        accommodationAddress: "", // ให้นักศึกษากรอกเองเพราะที่พักตอนฝึกงานอาจจะไม่ใช่ที่อยู่ตามทะเบียนบ้าน
+        accommodationPhone: profile?.phone || "", // ใช้เบอร์มือนักศึกษาตั้งต้นไว้ก่อน
+
+        // ข้อมูลฉุกเฉิน (ดึงจากตาราง CoopApplicationForm ที่เด็กเคยกรอกตอนส่ง T000)
+        emergencyName: appForm.emergencyName || "",
+        emergencyAddress: appForm.emergencyAddress || "",
+        emergencyPhone: appForm.emergencyPhone || "",
+        emergencyFax: "",
+        emergencyEmail: appForm.emergencyEmail || ""
+    });
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
+    };
+
+    // ==========================================
+    // 1. ฟังก์ชันเปิดดูตัวอย่าง PDF
+    // ==========================================
+    const handlePreviewPDF = async () => {
+        setLoading(true);
+        try {
+            const payloadToPDF = {
+                ...formData,
+                coordinatorType: formData.coordinatorType as "MANAGER" | "OTHER"
+            };
+            const doc = await createT002PDF(profile, payloadToPDF);
+            const blob = doc.output("blob");
+            const url = URL.createObjectURL(blob);
+            setPreviewUrl(url);
+            setShowModal(true);
+        } catch (err) {
+            console.error(err);
+            alert("เกิดข้อผิดพลาดในการสร้าง PDF");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // ฟังก์ชันดาวน์โหลด PDF จาก Popup
+    const handleDownloadPDF = () => {
+        if (!previewUrl) return;
+        const link = document.createElement("a");
+        link.href = previewUrl;
+        link.download = `KKU_CP_T002_${profile?.studentId || 'form'}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    const handleCloseModal = () => {
+        setShowModal(false);
+        if (previewUrl) {
+            URL.revokeObjectURL(previewUrl);
+            setPreviewUrl(null);
+        }
+    };
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        alert("บันทึกข้อมูลแบบร่างสำเร็จ! (คุณสามารถกดดูตัวอย่าง PDF และดาวน์โหลดได้เลย)");
+        // หากมี API สำหรับเซฟร่างข้อความ สามารถเขียน fetch() ตรงนี้ได้ครับ
+    };
+
+    // ==========================================
+    // ฟังก์ชันอัปโหลดไฟล์ T002 ตัวจริง (ยิง API)
+    // ==========================================
+    const handleConfirmUpload = async () => {
+        if (!selectedUploadFile) return;
+        setLoading(true);
+        try {
+            const uploadData = new FormData();
+
+            // ✅ 1. เปลี่ยนชื่อจาก "file" เป็น "files" (มี s) ให้ตรงกับ upload.single('files') ใน docRoutes.js
+            uploadData.append("files", selectedUploadFile);
+
+            // ✅ 2. ส่ง docType ไปบอก backend ด้วยว่าเป็นฟอร์ม T002
+            uploadData.append("docType", "T002_FORM");
+
+            const token = localStorage.getItem("coop.token");
+
+            // ✅ 3. เปลี่ยน URL ให้ชี้ไปที่ docRoutes (ปกติมักจะถูกครอบด้วย /api/docs หรือ /api/document)
+            // ⚠️ หมายเหตุ: ถ้าในไฟล์ app.js (หรือ server.js) คุณตั้ง route ไว้ชื่ออื่น ให้เปลี่ยน /api/docs เป็นชื่อนั้นครับ
+            const res = await fetch("http://localhost:5000/api/docs/upload", {
+                method: "POST",
+                headers: { Authorization: `Bearer ${token}` },
+                body: uploadData
+            });
+
+            if (res.ok) {
+                alert("✅ อัปโหลดแบบฟอร์ม T002 สำเร็จ!");
+                setSelectedUploadFile(null);
+                if (typeof onRefresh === 'function') {
+                    onRefresh();
+                }
+                setTimeout(() => {
+                    window.location.reload();
+                }, 500);
+
+            } else {
+                alert("❌ เกิดข้อผิดพลาดในการอัปโหลด");
+            }
+        } catch (error) {
+            console.error(error);
+            alert("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ (โปรดเช็ค URL ของ API)");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div style={{ maxWidth: 900, margin: '0 auto', background: '#fff', padding: 30, borderRadius: 12, boxShadow: '0 4px 6px rgba(0,0,0,0.05)' }}>
+
+            {/* --- HEADER และ STATUS BADGE --- */}
+            <div style={{ borderBottom: '2px solid #6b21a8', paddingBottom: 15, marginBottom: 25, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                    <h2 style={{ color: '#4c1d95', margin: '0 0 8px 0', display: 'flex', alignItems: 'center', gap: 12 }}>
+                        แบบฟอร์ม T002
+                        {/* ✅ ใส่ StatusBadge ไว้ข้างๆ ชื่อเรื่อง */}
+                        <StatusBadge status={currentStatusToShow} />
+                    </h2>
+                    <p style={{ color: '#64748b', margin: 0 }}>แบบแจ้งรายละเอียดงานและรายละเอียดที่พัก (สัปดาห์แรกของการฝึกงาน)</p>
+                </div>
+                <div style={{ display: 'flex', gap: 10, marginTop: 5 }}>
+                    <button type="button" onClick={handlePreviewPDF} disabled={loading} style={btnOutline}>
+                        {loading ? '⏳ กำลังทำงาน...' : '👁️ ดูตัวอย่าง / โหลด PDF'}
+                    </button>
+                </div>
+            </div>
+
+            {/* --- ฟอร์มกรอกข้อมูล (STEP 1) --- */}
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+
+                {/* ส่วนที่ 1 */}
+                <Section title="1. ข้อมูลสถานประกอบการ (สถานที่ปฏิบัติงานจริง)">
+                    <div style={grid2}>
+                        <Input label="ชื่อบริษัท (ไทย)" name="companyNameTh" value={formData.companyNameTh} onChange={handleChange} required />
+                        <Input label="ชื่อบริษัท (อังกฤษ)" name="companyNameEn" value={formData.companyNameEn} onChange={handleChange} />
+                    </div>
+                    <div style={grid4}>
+                        <Input label="เลขที่" name="addressNo" value={formData.addressNo} onChange={handleChange} required />
+                        <Input label="หมู่" name="moo" value={formData.moo} onChange={handleChange} />
+                        <Input label="ซอย" name="soi" value={formData.soi} onChange={handleChange} />
+                        <Input label="ถนน" name="road" value={formData.road} onChange={handleChange} />
+                    </div>
+                    <div style={grid4}>
+                        <Input label="ตำบล/แขวง" name="subDistrict" value={formData.subDistrict} onChange={handleChange} required />
+                        <Input label="อำเภอ/เขต" name="district" value={formData.district} onChange={handleChange} required />
+                        <Input label="จังหวัด" name="province" value={formData.province} onChange={handleChange} required />
+                        <Input label="รหัสไปรษณีย์" name="zipcode" value={formData.zipcode} onChange={handleChange} required />
+                    </div>
+                    <div style={grid3}>
+                        <Input label="โทรศัพท์" name="companyPhone" value={formData.companyPhone} onChange={handleChange} required />
+                        <Input label="โทรสาร (Fax)" name="companyFax" value={formData.companyFax} onChange={handleChange} />
+                        <Input label="อีเมล" type="email" name="companyEmail" value={formData.companyEmail} onChange={handleChange} />
+                    </div>
+                </Section>
+
+                {/* ส่วนที่ 2 */}
+                <Section title="2. ผู้จัดการทั่วไป และผู้ประสานงาน">
+                    <div style={grid2}>
+                        <Input label="ชื่อผู้จัดการ" name="managerName" value={formData.managerName} onChange={handleChange} />
+                        <Input label="ตำแหน่งผู้จัดการ" name="managerPosition" value={formData.managerPosition} onChange={handleChange} />
+                    </div>
+                    <div style={{ marginTop: 15, padding: 15, background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                        <label style={{ fontWeight: 600, display: 'block', marginBottom: 10, color: '#334155' }}>การติดต่อประสานงาน ขอมอบให้:</label>
+                        <div style={{ display: 'flex', gap: 20, marginBottom: 15 }}>
+                            <label><input type="radio" name="coordinatorType" value="MANAGER" checked={formData.coordinatorType === "MANAGER"} onChange={handleChange} /> ติดต่อผู้จัดการโดยตรง</label>
+                            <label><input type="radio" name="coordinatorType" value="OTHER" checked={formData.coordinatorType === "OTHER"} onChange={handleChange} /> มอบหมายบุคคลอื่นประสานงานแทน</label>
+                        </div>
+
+                        {formData.coordinatorType === "OTHER" && (
+                            <div style={grid3}>
+                                <Input label="ชื่อผู้ประสานงาน" name="coordName" value={formData.coordName} onChange={handleChange} />
+                                <Input label="ตำแหน่ง" name="coordPosition" value={formData.coordPosition} onChange={handleChange} />
+                                <Input label="แผนก" name="coordDept" value={formData.coordDept} onChange={handleChange} />
+                                <Input label="โทรศัพท์" name="coordPhone" value={formData.coordPhone} onChange={handleChange} />
+                                <Input label="อีเมล" name="coordEmail" value={formData.coordEmail} onChange={handleChange} />
+                            </div>
+                        )}
+                    </div>
+                </Section>
+
+                {/* ส่วนที่ 3 */}
+                <Section title="3. พนักงานที่ปรึกษา (Job Supervisor / พี่เลี้ยง)">
+                    <div style={grid3}>
+                        <Input label="ชื่อ-สกุล" name="supervisorName" value={formData.supervisorName} onChange={handleChange} required />
+                        <Input label="ตำแหน่ง" name="supervisorPosition" value={formData.supervisorPosition} onChange={handleChange} required />
+                        <Input label="แผนก" name="supervisorDept" value={formData.supervisorDept} onChange={handleChange} required />
+                        <Input label="โทรศัพท์" name="supervisorPhone" value={formData.supervisorPhone} onChange={handleChange} required />
+                        <Input label="อีเมล" name="supervisorEmail" value={formData.supervisorEmail} onChange={handleChange} required />
+                    </div>
+                </Section>
+
+                {/* ส่วนที่ 4 */}
+                <Section title="4. งานที่ได้รับมอบหมาย">
+                    <Input label="ตำแหน่งงานของนักศึกษา (Job Position)" name="jobPosition" value={formData.jobPosition} onChange={handleChange} required />
+                    <div style={{ marginTop: 10 }}>
+                        <label style={lblStyle}>ลักษณะงานที่ปฏิบัติ (Job Description)</label>
+                        <textarea name="jobDescription" value={formData.jobDescription} onChange={handleChange} rows={4} style={inputStyle} required placeholder="อธิบายลักษณะงานที่ได้รับมอบหมายพอสังเขป..." />
+                    </div>
+                </Section>
+
+                {/* ส่วนที่ 5 */}
+                <Section title="5. ข้อมูลที่พักระหว่างฝึกงาน & กรณีฉุกเฉิน">
+                    <div style={{ marginBottom: 15 }}>
+                        <label style={lblStyle}>ที่อยู่หอพัก / ที่พักปัจจุบัน</label>
+                        <textarea name="accommodationAddress" value={formData.accommodationAddress} onChange={handleChange} rows={2} style={inputStyle} required />
+                        <div style={{ marginTop: 10, width: '50%' }}>
+                            <Input label="เบอร์โทรศัพท์ที่พัก/เบอร์นักศึกษา" name="accommodationPhone" value={formData.accommodationPhone} onChange={handleChange} required />
+                        </div>
+                    </div>
+
+                    <div style={{ padding: 15, background: '#fef2f2', borderRadius: 8, border: '1px solid #fecaca' }}>
+                        <h4 style={{ margin: '0 0 10px 0', color: '#991b1b' }}>บุคคลที่ติดต่อได้ในกรณีฉุกเฉิน</h4>
+                        <div style={grid2}>
+                            <Input label="ชื่อ-สกุล" name="emergencyName" value={formData.emergencyName} onChange={handleChange} required />
+                            <Input label="ความสัมพันธ์ / โทรศัพท์" name="emergencyPhone" value={formData.emergencyPhone} onChange={handleChange} required />
+                        </div>
+                        <div style={{ marginTop: 10 }}>
+                            <label style={lblStyle}>ที่อยู่กรณีฉุกเฉิน</label>
+                            <textarea name="emergencyAddress" value={formData.emergencyAddress} onChange={handleChange} rows={2} style={inputStyle} required />
+                        </div>
+                    </div>
+                </Section>
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 10 }}>
+                    <button type="submit" style={btnSubmit}>💾 บันทึกข้อมูลร่าง T002</button>
+                </div>
+            </form>
+
+            {/* --- ส่วนอัปโหลดเอกสาร (STEP 2) --- */}
+            <div style={{ marginTop: 30, padding: 24, borderRadius: 12, border: '1px solid #10b981', background: '#ecfdf5' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 15 }}>
+                    <div style={{ fontSize: 28 }}>📤</div>
+                    <div>
+                        <h3 style={{ margin: 0, color: '#047857' }}>อัปโหลดแบบฟอร์ม T002 (ฉบับลงนามแล้ว)</h3>
+                        <p style={{ margin: '4px 0 0 0', fontSize: 13, color: '#059669' }}>พิมพ์เอกสาร นำไปให้พนักงานที่ปรึกษาลงนาม แล้วนำมาอัปโหลดที่นี่</p>
+                    </div>
+                </div>
+
+                {/* ✅ กล่องแสดงเหตุผลเมื่อโดนตีกลับ */}
+                {currentStatusToShow === 'T002_EDITS_REQUIRED' && (
+                    <div style={{ padding: 16, background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8, marginBottom: 24 }}>
+                        <h4 style={{ margin: '0 0 8px 0', color: '#b91c1c', display: 'flex', alignItems: 'center', gap: 8 }}>
+                            ⚠️ เอกสารต้องแก้ไข
+                        </h4>
+                        <p style={{ margin: 0, color: '#991b1b', fontSize: 14 }}>
+                            <b>เหตุผลจากเจ้าหน้าที่:</b> {uploadedT002?.rejectReason || "กรุณาตรวจสอบและอัปโหลดไฟล์ใหม่"}
+                        </p>
+                    </div>
+                )}
+
+
+                {uploadedT002 && !selectedUploadFile ? (
+                    <div style={{ padding: 16, background: '#fff', border: '1px solid #34d399', borderRadius: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                            <div style={{ fontSize: 14, color: '#065f46', fontWeight: 'bold' }}>✅ ส่งแบบฟอร์ม T002 แล้ว</div>
+                            <div style={{ fontSize: 12, color: '#10b981', marginTop: 4 }}>ไฟล์: {uploadedT002.name}</div>
+                        </div>
+                        <div style={{ display: 'flex', gap: 10 }}>
+                            <button className="btn-outline" onClick={() => window.open(`http://localhost:5000/uploads/${uploadedT002.path}`, '_blank')} style={{ ...btnOutline, borderColor: '#10b981', color: '#10b981' }}>👁️ ดูไฟล์ที่ส่ง</button>
+
+                            {/* ✅ เช็คสถานะ: ถ้าโดนตีกลับให้โชว์คำว่า "ส่งใหม่" ถ้าแค่รอตรวจเฉยๆ ให้โชว์คำว่า "เปลี่ยนไฟล์" */}
+                            <label htmlFor="upload-t002-change" style={{ ...btnOutline, cursor: 'pointer', textAlign: 'center', borderColor: currentStatusToShow === 'T002_EDITS_REQUIRED' ? '#ef4444' : '#f59e0b', color: currentStatusToShow === 'T002_EDITS_REQUIRED' ? '#dc2626' : '#d97706' }}>
+                                {currentStatusToShow === 'T002_EDITS_REQUIRED' ? '🔄 ส่งไฟล์ใหม่' : '🔄 เปลี่ยนไฟล์'}
+                            </label>
+
+                            <input type="file" id="upload-t002-change" style={{ display: 'none' }} accept=".pdf,.jpg,.png" onChange={(e) => e.target.files?.[0] && setSelectedUploadFile(e.target.files[0])} />
+                        </div>
+                    </div>
+                ) : (
+                    <div style={{ padding: 20, background: '#fff', border: `1px dashed ${selectedUploadFile ? '#f59e0b' : '#10b981'}`, borderRadius: 8 }}>
+                        {selectedUploadFile ? (
+                            <div>
+                                <div style={{ fontSize: 14, color: '#d97706', marginBottom: 12, fontWeight: 'bold' }}>⏳ ไฟล์ที่เลือก: {selectedUploadFile.name}</div>
+                                <div style={{ display: 'flex', gap: 10 }}>
+                                    <button onClick={() => setSelectedUploadFile(null)} disabled={loading} style={{ flex: 1, padding: 10, background: '#fee2e2', color: '#b91c1c', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>ยกเลิก</button>
+                                    <button onClick={handleConfirmUpload} disabled={loading} style={{ flex: 1, padding: 10, background: '#10b981', color: 'white', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>
+                                        {loading ? '⏳ กำลังอัปโหลด...' : '🚀 ยืนยันส่งไฟล์ T002'}
+                                    </button>
+                                </div>
+                            </div>
+                        ) : (
+                            <div style={{ textAlign: 'center' }}>
+                                <input type="file" id="upload-t002" style={{ display: 'none' }} accept=".pdf,.jpg,.png" onChange={(e) => e.target.files?.[0] && setSelectedUploadFile(e.target.files[0])} />
+                                <label htmlFor="upload-t002" style={{ ...btnSubmit, background: '#10b981', display: 'inline-block' }}>📂 เลือกไฟล์ T002 เพื่ออัปโหลด</label>
+                                <div style={{ fontSize: 12, color: '#6b7280', marginTop: 8 }}>(รองรับไฟล์ .pdf, .jpg, .png)</div>
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
+
+            {/* --- Modal Popup ดูตัวอย่าง PDF --- */}
+            {showModal && previewUrl && (
+                <div style={modalBackdropStyle}>
+                    <div style={modalCardStyle}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', borderBottom: '1px solid #e2e8f0' }}>
+                            <h3 style={{ margin: 0, color: '#1e293b' }}>📄 ตัวอย่างแบบฟอร์ม CP-T002</h3>
+                            <button onClick={handleCloseModal} style={{ background: 'none', border: 'none', fontSize: 24, cursor: 'pointer', color: '#64748b' }}>&times;</button>
+                        </div>
+                        <div style={{ flex: 1, background: '#525659', padding: '10px' }}>
+                            <iframe src={previewUrl} style={{ width: '100%', height: '100%', border: 'none', borderRadius: 4 }} title="PDF Preview" />
+                        </div>
+                        <div style={{ padding: '16px 24px', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', gap: 12, background: '#f8fafc' }}>
+                            <button onClick={handleCloseModal} style={btnOutline}>ปิด</button>
+                            <button onClick={handleDownloadPDF} style={btnDownloadStyle}>⬇️ ดาวน์โหลด PDF ลงเครื่อง</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
+// --- UI Helper Components ---
+const Section = ({ title, children }: { title: string, children: React.ReactNode }) => (
+    <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, overflow: 'hidden' }}>
+        <div style={{ background: '#f8fafc', padding: '10px 15px', fontWeight: 'bold', color: '#1e293b', borderBottom: '1px solid #e2e8f0' }}>{title}</div>
+        <div style={{ padding: 15 }}>{children}</div>
+    </div>
+);
+
+const Input = ({ label, ...props }: any) => (
+    <div>
+        <label style={lblStyle}>{label} {props.required && <span style={{ color: 'red' }}>*</span>}</label>
+        <input style={inputStyle} {...props} />
+    </div>
+);
+
+// --- Styles ---
+const grid2 = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 15 };
+const grid3 = { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 15 };
+const grid4 = { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 15 };
+const lblStyle: React.CSSProperties = { display: 'block', fontSize: 13, fontWeight: 600, color: '#475569', marginBottom: 4 };
+const inputStyle: React.CSSProperties = { width: '100%', padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: 6, boxSizing: 'border-box', fontFamily: 'inherit', fontSize: 14 };
+const btnOutline: React.CSSProperties = { padding: '10px 16px', background: 'white', border: '1px solid #7c3aed', color: '#7c3aed', borderRadius: 8, cursor: 'pointer', fontWeight: 600 };
+const btnSubmit: React.CSSProperties = { padding: '10px 24px', background: '#7c3aed', border: 'none', color: 'white', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: 15 };
+const btnDownloadStyle: React.CSSProperties = { padding: '10px 20px', background: '#10b981', color: 'white', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600 };
+
+const modalBackdropStyle: React.CSSProperties = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 9999 };
+const modalCardStyle: React.CSSProperties = { background: 'white', width: '90%', maxWidth: '1000px', height: '90vh', borderRadius: 12, display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' };
