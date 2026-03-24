@@ -19,9 +19,14 @@ interface StudentProfile {
     lastName?: string;
     major?: string;
     documents?: StudentDocument[];
-    docStatus?: "WAITING" | "WAITING_FOR_STAFF_CHECK" | "EDITS_REQUIRED" | "REQ_LETTER_ISSUED" | "DOCS_APPROVED" | "WAITING_FOR_PLACEMENT_LETTER" | "WAITING_FOR_STAFF_CHECK_LETTER" | "ACCEPTANCE_CHECKED" | "PLACEMENT_LETTER_ISSUED";
+    docStatus?: "WAITING" | "WAITING_FOR_STAFF_CHECK" | "EDITS_REQUIRED" | "REQ_LETTER_ISSUED" | "DOCS_APPROVED" | "WAITING_FOR_PLACEMENT_LETTER" | "WAITING_FOR_STAFF_CHECK_LETTER" | "ACCEPTANCE_CHECKED" | "PLACEMENT_LETTER_ISSUED" | "QUALIFIED";
     teacherComment?: string;
     submittedAt?: string;
+    coopPeriodId?: number; // ไว้กรองรอบปีการศึกษา
+    coop?: {
+        coopPeriodId?: number; // เผื่อกรณี Backend ซ้อนมาใน coop
+        company?: { name: string };
+    }
 }
 
 interface DocConfig {
@@ -30,13 +35,16 @@ interface DocConfig {
     isOpen: boolean;
 }
 
-// ✅ เพิ่ม Interface สำหรับ Requirement
 interface DocRequirement {
     id: number;
     docKey: string;
     title: string;
     isRequired: boolean;
 }
+
+// 🟢 Types สำหรับการเรียงลำดับ (Sorting)
+type SortKey = 'studentId' | 'name' | 'filesCount' | 'submittedAt' | 'docStatus';
+type SortDirection = 'asc' | 'desc';
 
 const IOS_BLUE = "#0074B7";
 
@@ -49,7 +57,6 @@ const CAN_ISSUE_REQUEST_LETTER_STATUSES = [
     'PLACEMENT_LETTER_ISSUED',
 ];
 
-// ✅ Helper ตรวจสอบรหัสเอกสารใหม่ (Dynamic) และรหัสเก่า (Legacy)
 const isMatch = (docType: string, reqKey: string) => {
     if (docType === reqKey) return true;
     if (reqKey === 'CP-T000' && docType === 'T000_SIGNED') return true;
@@ -67,8 +74,11 @@ export default function A_DocT000() {
     const [students, setStudents] = useState<StudentProfile[]>([]);
     const [config, setConfig] = useState<DocConfig>({ startDate: "", endDate: "", isOpen: false });
 
-    // ✅ State สำหรับเก็บหัวข้อเอกสารที่ดึงจาก Backend
     const [reqDocs, setReqDocs] = useState<DocRequirement[]>([]);
+
+    // State ปีการศึกษา
+    const [coopPeriods, setCoopPeriods] = useState<any[]>([]);
+    const [selectedPeriod, setSelectedPeriod] = useState<string>("all");
 
     const [issueModalData, setIssueModalData] = useState<StudentProfile | null>(null);
     const [checkPhase, setCheckPhase] = useState<1 | 2>(1);
@@ -82,9 +92,12 @@ export default function A_DocT000() {
     const [previewType, setPreviewType] = useState<"pdf" | "image" | "none">("none");
     const [adminComment, setAdminComment] = useState("");
 
+    // 🟢 State สำหรับการเรียงลำดับ (Sorting)
+    const [sortKey, setSortKey] = useState<SortKey>('submittedAt');
+    const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+
     const token = localStorage.getItem("coop.token");
 
-    // ✅ แยกเอกสารออกเป็น 2 กลุ่มโดยอัตโนมัติ
     const phase1Docs = useMemo(() => {
         return reqDocs
             .filter(r => r.docKey !== 'CP-ACCEPTANCE')
@@ -92,12 +105,10 @@ export default function A_DocT000() {
     }, [reqDocs]);
 
     const phase2Docs = useMemo(() => {
-        // ถ้าแอดมินตั้งค่าหัวข้อชื่อ CP-ACCEPTANCE เอาไว้ ให้จัดอยู่ในหมวดใบตอบรับ
         const hasAcceptance = reqDocs.find(r => r.docKey === 'CP-ACCEPTANCE');
         if (hasAcceptance) {
             return [{ key: hasAcceptance.docKey, label: hasAcceptance.title, isRequired: hasAcceptance.isRequired }];
         }
-        // Fallback ถ้าแอดมินยังไม่ได้สร้างรหัสนี้
         return [{ key: 'CP-ACCEPTANCE', label: 'ใบตอบรับ (Acceptance Form)', isRequired: true }];
     }, [reqDocs]);
 
@@ -109,7 +120,7 @@ export default function A_DocT000() {
             const resConf = await fetch("http://localhost:5000/api/admin/config/t000", { headers: { Authorization: `Bearer ${token}` } });
             if (resConf.ok) setConfig(await resConf.json());
 
-            // ✅ 2. ดึงหัวข้อเอกสาร
+            // 2. ดึงหัวข้อเอกสาร
             const resReq = await fetch("http://localhost:5000/api/admin/doc-requirements", { headers: { Authorization: `Bearer ${token}` } });
             if (resReq.ok) {
                 const reqData = await resReq.json();
@@ -120,6 +131,13 @@ export default function A_DocT000() {
             const resStd = await fetch("http://localhost:5000/api/admin/t000/students", { headers: { Authorization: `Bearer ${token}` } });
             if (resStd.ok) setStudents(await resStd.json());
 
+            // 4. ดึงข้อมูลปีการศึกษา 
+            const resPeriods = await fetch("http://localhost:5000/api/admin/coop-periods/all", { headers: { Authorization: `Bearer ${token}` } });
+            if (resPeriods.ok) {
+                const periodsData = await resPeriods.json();
+                if (periodsData.ok && periodsData.periods) setCoopPeriods(periodsData.periods);
+            }
+
         } catch (err) { console.error(err); }
         finally { setLoading(false); }
     };
@@ -129,7 +147,6 @@ export default function A_DocT000() {
         setCheckPhase(phase);
         setAdminComment(s.teacherComment || "");
 
-        // ✅ เช็คไฟล์ตาม Dynamic Keys
         const targetKeys = phase === 1 ? phase1Docs.map(doc => doc.key) : phase2Docs.map(doc => doc.key);
         const firstDoc = s.documents?.find(d => targetKeys.some(reqKey => isMatch(d.type || '', reqKey)));
 
@@ -160,7 +177,6 @@ export default function A_DocT000() {
         }
     };
 
-    // ตรวจแยกรายไฟล์ + เช็ค Auto Approve
     const handleDocStatus = async (docId: number, status: "APPROVED" | "REJECTED" | "EDITS_REQUIRED") => {
         if (!selectedStudent) return;
 
@@ -176,35 +192,25 @@ export default function A_DocT000() {
                 body: JSON.stringify({ status })
             });
 
-            // ✅ Check Auto Pass (เฉพาะเอกสารที่ isRequired = true)
             if (checkPhase === 1) {
                 const reqKeys = phase1Docs.filter(d => d.isRequired).map(r => r.key);
-
                 if (reqKeys.length > 0) {
                     const isAllPassed = reqKeys.every(key => {
                         const found = updatedDocs.find(d => isMatch(d.type || '', key));
                         return found && found.status === 'APPROVED';
                     });
-
-                    if (isAllPassed) {
-                        handleSubmitReview("REQ_LETTER_ISSUED", "เอกสารครบถ้วน ผ่านการตรวจสอบอัตโนมัติ");
-                    }
+                    if (isAllPassed) handleSubmitReview("REQ_LETTER_ISSUED", "เอกสารครบถ้วน ผ่านการตรวจสอบอัตโนมัติ");
                 }
             }
 
-            // Phase 2: ใบตอบรับ ผ่าน → หนังสือส่งตัวผ่าน (รออนุมัติ)
             if (checkPhase === 2) {
                 const reqKeys = phase2Docs.filter(d => d.isRequired).map(r => r.key);
-
                 if (reqKeys.length > 0) {
                     const isAllPassed = reqKeys.every(key => {
                         const found = updatedDocs.find(d => isMatch(d.type || '', key));
                         return found && found.status === 'APPROVED';
                     });
-
-                    if (isAllPassed) {
-                        handleSubmitReview("ACCEPTANCE_CHECKED", "ใบตอบรับผ่านการตรวจสอบ รอเจ้าหน้าที่อนุมัติหนังสือส่งตัว");
-                    }
+                    if (isAllPassed) handleSubmitReview("ACCEPTANCE_CHECKED", "ใบตอบรับผ่านการตรวจสอบ รอเจ้าหน้าที่อนุมัติหนังสือส่งตัว");
                 }
             }
 
@@ -214,7 +220,6 @@ export default function A_DocT000() {
         } catch (err) { console.error("Update doc error", err); }
     };
 
-    // อนุมัติทั้งหมด
     const handleApproveAll = async () => {
         if (!selectedStudent) return;
         if (!confirm("ยืนยัน 'อนุมัติทั้งหมด' ?")) return;
@@ -236,7 +241,6 @@ export default function A_DocT000() {
         } catch (err) { console.error("Error", err); }
     };
 
-    // บันทึกผลรวม
     const handleSubmitReview = async (status: string, autoComment = "") => {
         if (!selectedStudent) return;
 
@@ -265,18 +269,6 @@ export default function A_DocT000() {
         } catch (err) { console.error("Update Status Error", err); }
     };
 
-    // ================= UTILS =================
-    const list = useMemo(() => {
-        return students.filter(s => {
-            const txt = `${s.studentId} ${s.firstName} ${s.lastName}`.toLowerCase();
-            const st = s.docStatus || (s.documents && s.documents.length > 0 ? "WAITING_FOR_STAFF_CHECK" : "WAITING");
-            const hasDoc = s.documents && s.documents.length > 0;
-            return txt.includes(q.toLowerCase()) &&
-                (statusFilter.length === 0 || statusFilter.includes(st)) &&
-                hasDoc;
-        });
-    }, [students, q, statusFilter]);
-
     const handleSelectFile = (doc: StudentDocument) => {
         const url = `http://localhost:5000/uploads/${encodeURIComponent(doc.path)}`;
         setPreviewUrl(url);
@@ -285,6 +277,64 @@ export default function A_DocT000() {
         else if (['jpg', 'jpeg', 'png'].includes(ext || "")) setPreviewType("image");
         else setPreviewType("none");
     };
+
+    // 🟢 ฟังก์ชันจัดการคลิก Header เพื่อเรียงลำดับ
+    const handleSort = (key: SortKey) => {
+        if (sortKey === key) {
+            setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+        } else {
+            setSortKey(key);
+            setSortDirection('asc');
+        }
+    };
+
+    // ================= UTILS / FILTER / SORT =================
+    const list = useMemo(() => {
+        // 1. กรองข้อมูล (Filter)
+        let filtered = students.filter(s => {
+            const txt = `${s.studentId} ${s.firstName} ${s.lastName}`.toLowerCase();
+            const st = s.docStatus || (s.documents && s.documents.length > 0 ? "WAITING_FOR_STAFF_CHECK" : "WAITING");
+            const hasDoc = s.documents && s.documents.length > 0;
+
+            // 🟢 แก้ให้ดัก coopPeriodId ได้ชัวร์ๆ
+            const pId = String(s.coopPeriodId || s.coop?.coopPeriodId || "");
+            const matchPeriod = selectedPeriod === "all" || pId === selectedPeriod;
+
+            // ถ้าไม่มีไฟล์เลย จะไม่โชว์ ยกเว้นว่ามีสถานะ QUALIFIED (ผ่านคุณสมบัติแล้วรอเอกสาร)
+            const shouldShow = hasDoc || st === "QUALIFIED";
+
+            return txt.includes(q.toLowerCase()) &&
+                (statusFilter.length === 0 || statusFilter.includes(st)) &&
+                shouldShow && matchPeriod;
+        });
+
+        // 2. เรียงลำดับข้อมูล (Sort)
+        filtered.sort((a, b) => {
+            let valA: any = '';
+            let valB: any = '';
+
+            switch (sortKey) {
+                case 'studentId':
+                    valA = a.studentId; valB = b.studentId; break;
+                case 'name':
+                    valA = a.firstName; valB = b.firstName; break;
+                case 'filesCount':
+                    valA = a.documents?.length || 0; valB = b.documents?.length || 0; break;
+                case 'submittedAt':
+                    valA = a.submittedAt ? new Date(a.submittedAt).getTime() : 0;
+                    valB = b.submittedAt ? new Date(b.submittedAt).getTime() : 0;
+                    break;
+                case 'docStatus':
+                    valA = a.docStatus || ''; valB = b.docStatus || ''; break;
+            }
+
+            if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
+            if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
+            return 0;
+        });
+
+        return filtered;
+    }, [students, q, statusFilter, selectedPeriod, sortKey, sortDirection]);
 
     const isSystemOpen = useMemo(() => {
         const now = new Date().getTime();
@@ -295,16 +345,19 @@ export default function A_DocT000() {
 
     const activeDocs = checkPhase === 1 ? phase1Docs : phase2Docs;
 
-    // Render Doc Group
+    // UI HELPER: แสดงลูกศรเรียงลำดับ
+    const SortIcon = ({ columnKey }: { columnKey: SortKey }) => {
+        if (sortKey !== columnKey) return <span style={{ color: '#cbd5e1', marginLeft: 4 }}>↕</span>;
+        return <span style={{ color: '#0ea5e9', marginLeft: 4 }}>{sortDirection === 'asc' ? '↑' : '↓'}</span>;
+    };
+
     const renderDocGroup = (title: string, isRequired: boolean, docs: StudentDocument[]) => {
         const displayTitle = isRequired ? `${title} *` : title;
 
         if (!docs || docs.length === 0) {
             return (
                 <div key={title} style={{ background: '#fff', border: '1px dashed #cbd5e1', borderRadius: 8, padding: 12, opacity: 0.7 }}>
-                    <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600, marginBottom: 4 }}>
-                        {displayTitle}
-                    </div>
+                    <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600, marginBottom: 4 }}>{displayTitle}</div>
                     <div style={{ fontSize: 13, color: '#ef4444', fontStyle: 'italic', display: 'flex', alignItems: 'center', gap: 6 }}>
                         ⚠️ ยังไม่อัปโหลดเอกสาร
                     </div>
@@ -385,29 +438,49 @@ export default function A_DocT000() {
 
             {/* 2. TABLE LIST */}
             <section className="card">
-                <h3 style={{ margin: "0 0 16px 0" }}>รายการส่งเอกสาร ({list.length})</h3>
-                <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
-                    <input className="input" placeholder="ค้นหา..." value={q} onChange={e => setQ(e.target.value)} style={{ width: 250 }} />
-                    {["WAITING_FOR_STAFF_CHECK", "EDITS_REQUIRED", "DOCS_APPROVED", "REQ_LETTER_ISSUED", "WAITING_FOR_PLACEMENT_LETTER", "WAITING_FOR_STAFF_CHECK_LETTER", "ACCEPTANCE_CHECKED", "PLACEMENT_LETTER_ISSUED"].map(st => (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                    <h3 style={{ margin: 0 }}>รายการส่งเอกสาร ({list.length})</h3>
+                    <button className="btn" style={{ background: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1' }} onClick={fetchAllData} disabled={loading}>
+                        {loading ? '⏳ กำลังรีเฟรช...' : '🔄 รีเฟรชข้อมูล'}
+                    </button>
+                </div>
+
+                <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
+                    <input className="input" placeholder="ค้นหา รหัสนักศึกษา / ชื่อ..." value={q} onChange={e => setQ(e.target.value)} style={{ width: 250 }} />
+
+                    {/* Dropdown เลือกปีการศึกษา */}
+                    <select className="input" style={{ width: 'auto', background: '#f8fafc' }} value={selectedPeriod} onChange={e => setSelectedPeriod(e.target.value)}>
+                        <option value="all">📚 ทุกปีการศึกษา</option>
+                        {coopPeriods.map(p => (
+                            <option key={p.id} value={p.id}>เทอม {p.semester} / {p.academicYear}</option>
+                        ))}
+                    </select>
+                </div>
+
+                <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+                    {/* 🟢 เพิ่ม QUALIFIED เข้าไปในตัวกรอง */}
+                    {["QUALIFIED", "WAITING_FOR_STAFF_CHECK", "EDITS_REQUIRED", "DOCS_APPROVED", "REQ_LETTER_ISSUED", "WAITING_FOR_PLACEMENT_LETTER", "WAITING_FOR_STAFF_CHECK_LETTER", "ACCEPTANCE_CHECKED", "PLACEMENT_LETTER_ISSUED"].map(st => (
                         <label key={st} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 13, cursor: 'pointer' }}>
                             <input type="checkbox" checked={statusFilter.includes(st)} onChange={e => setStatusFilter(p => e.target.checked ? [...p, st] : p.filter(x => x !== st))} />
                             {statusChip(st)}
                         </label>
                     ))}
                 </div>
+
                 <div style={{ overflowX: "auto" }}>
                     <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: "0 8px" }}>
                         <thead>
                             <tr style={{ color: '#64748b', fontSize: 13, textAlign: 'left' }}>
-                                <th style={{ padding: 10 }}>รหัสนักศึกษา</th>
-                                <th style={{ padding: 10 }}>ชื่อ-สกุล</th>
-                                <th style={{ padding: 10 }}>ไฟล์</th>
-                                <th style={{ padding: 10 }}>วันที่ส่ง</th>
-                                <th style={{ padding: 10 }}>สถานะ</th>
-                                <th style={{ padding: 10 }}>ตรวจสอบT000</th>
-                                <th style={{ padding: 10 }}>ออกหนังสือขอความอนุเคราะห์</th>
-                                <th style={{ padding: 10 }}>ตรวจสอบใบตอบรับ</th>
-                                <th style={{ padding: 10 }}>ออกหนังสือส่งตัว</th>
+                                {/* 🟢 เพิ่ม onClick เพื่อเรียงลำดับ */}
+                                <th style={{ ...th, cursor: 'pointer' }} onClick={() => handleSort('studentId')}>รหัสนักศึกษา <SortIcon columnKey="studentId" /></th>
+                                <th style={{ ...th, cursor: 'pointer' }} onClick={() => handleSort('name')}>ชื่อ-สกุล <SortIcon columnKey="name" /></th>
+                                <th style={{ ...th, cursor: 'pointer' }} onClick={() => handleSort('filesCount')}>ไฟล์ <SortIcon columnKey="filesCount" /></th>
+                                <th style={{ ...th, cursor: 'pointer' }} onClick={() => handleSort('submittedAt')}>วันที่ส่ง <SortIcon columnKey="submittedAt" /></th>
+                                <th style={{ ...th, cursor: 'pointer' }} onClick={() => handleSort('docStatus')}>สถานะ <SortIcon columnKey="docStatus" /></th>
+                                <th style={th}>ตรวจสอบT000</th>
+                                <th style={th}>ออกหนังสือขอความอนุเคราะห์</th>
+                                <th style={th}>ตรวจสอบใบตอบรับ</th>
+                                <th style={th}>ออกหนังสือส่งตัว</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -415,7 +488,7 @@ export default function A_DocT000() {
                                 <tr key={s.id} style={{ background: '#fff', borderBottom: '1px solid #eee' }}>
                                     <td style={td}>{s.studentId}</td>
                                     <td style={td}>{s.firstName} {s.lastName}</td>
-                                    <td style={td}>{s.documents?.length}</td>
+                                    <td style={td}>{s.documents?.length || 0}</td>
                                     <td style={td}>{s.submittedAt ? new Date(s.submittedAt).toLocaleDateString('th-TH') : "-"}</td>
                                     <td style={td}><StatusBadge status={s.docStatus} /></td>
                                     <td style={td}>
@@ -444,6 +517,11 @@ export default function A_DocT000() {
                                     </td>
                                 </tr>
                             ))}
+                            {list.length === 0 && !loading && (
+                                <tr>
+                                    <td colSpan={9} style={{ padding: 30, textAlign: 'center', color: '#94a3b8' }}>ไม่มีข้อมูลที่ตรงกับเงื่อนไขการค้นหา</td>
+                                </tr>
+                            )}
                         </tbody>
                     </table>
                 </div>
@@ -470,7 +548,7 @@ export default function A_DocT000() {
                         </div>
 
                         <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-                            {/* 🟢 LEFT: PDF PREVIEW */}
+                            {/* LEFT: PDF PREVIEW */}
                             <div style={{ flex: '0 0 65%', background: '#334155', position: 'relative', overflow: 'hidden' }}>
                                 {previewType === 'pdf' ? (
                                     <iframe src={previewUrl} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }} title="preview" />
@@ -486,7 +564,7 @@ export default function A_DocT000() {
                                 )}
                             </div>
 
-                            {/* 🟢 RIGHT: CONTROL PANEL */}
+                            {/* RIGHT: CONTROL PANEL */}
                             <div style={{ flex: '1', display: 'flex', flexDirection: 'column', background: '#fff', borderLeft: '1px solid #e2e8f0', minWidth: 320, overflow: 'hidden' }}>
                                 <div style={{ padding: '12px 16px', borderBottom: '1px solid #eee', background: '#f8fafc', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
                                     <div style={{ fontWeight: 600, color: '#334155', fontSize: 14 }}>รายการเอกสาร</div>
@@ -497,7 +575,6 @@ export default function A_DocT000() {
                                     )}
                                 </div>
 
-                                {/* ✅ แสดงเอกสารตามที่ Map ได้ */}
                                 <div style={{ flex: 1, overflowY: 'auto', padding: '16px', background: '#f8fafc' }}>
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                                         {activeDocs.map((req) => {
@@ -541,6 +618,7 @@ export default function A_DocT000() {
                 .chip.ACCEPTANCE_CHECKED { background: #d1fae5; color: #059669; border: 1px solid #059669; } 
                 .chip.place { background: #d1fae5; color: #047857; border: 1px solid #047857; } 
                 .chip.rej { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; } 
+                .chip.QUALIFIED { background: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; } 
 
                 .action-btn { flex: 1; padding: 6px; border-radius: 6px; border: 1px solid #e2e8f0; background: white; cursor: pointer; font-size: 12px; font-weight: 600; color: #475569; transition: 0.1s; }
                 .action-btn:hover { background: #f8fafc; border-color: #cbd5e1; }
@@ -553,6 +631,7 @@ export default function A_DocT000() {
 }
 
 const td: React.CSSProperties = { padding: "12px 10px", borderTop: "1px solid #f3f4f6", fontSize: 14 };
+const th: React.CSSProperties = { padding: "10px", userSelect: 'none' };
 const lbl: React.CSSProperties = { fontSize: 12, display: 'block', color: '#64748b', marginBottom: 4 };
 
 function statusChip(status?: string) {
@@ -560,15 +639,16 @@ function statusChip(status?: string) {
     let label = "รอเอกสาร";
     let cls = "waiting";
 
-    if (s === "WAITING_FOR_STAFF_CHECK" || s === "PENDING") { cls = "waiting"; label = "รอตรวจสอบ"; }
+    if (s === "QUALIFIED") { cls = "QUALIFIED"; label = "✅ ผ่านคุณสมบัติ (รอเอกสาร)"; }
+    else if (s === "WAITING_FOR_STAFF_CHECK" || s === "PENDING") { cls = "waiting"; label = "รอตรวจสอบ"; }
     else if (s === "REJECTED") { cls = "rej"; label = "❌ ไม่ผ่าน"; }
     else if (s === "EDITS_REQUIRED") { cls = "edit"; label = "⚠️ รอแก้ไข"; }
-    else if (s === "DOCS_APPROVED") { cls = "appr"; label = "✅ ผ่าน (รอออกหนังสือส่งตัว)"; }
+    else if (s === "DOCS_APPROVED") { cls = "appr"; label = "✅ ผ่าน (รอออกหนังสือ)"; }
     else if (s === "REQ_LETTER_ISSUED") { cls = "done"; label = "🚚 ออกหนังสือแล้ว"; }
     else if (s === "WAITING_FOR_PLACEMENT_LETTER") { cls = "WAITING_FOR_PLACEMENT_LETTER"; label = "🏢 รอใบตอบรับ"; }
-    else if (s === "WAITING_FOR_STAFF_CHECK_LETTER") { cls = "WAITING_FOR_STAFF_CHECK_LETTER"; label = "🕵️รอตรวจใบตอบรับ"; }
-    else if (s === "ACCEPTANCE_CHECKED") { cls = "ACCEPTANCE_CHECKED"; label = "✨ ใบตอบรับผ่าน"; }
-    else if (s === "PLACEMENT_LETTER_ISSUED") { cls = "place"; label = "🏁 ออกหนังสือส่งตัวแล้ว"; }
+    else if (s === "WAITING_FOR_STAFF_CHECK_LETTER") { cls = "WAITING_FOR_STAFF_CHECK_LETTER"; label = "🕵️รอตรวจตอบรับ"; }
+    else if (s === "ACCEPTANCE_CHECKED") { cls = "ACCEPTANCE_CHECKED"; label = "✨ ตอบรับผ่าน"; }
+    else if (s === "PLACEMENT_LETTER_ISSUED") { cls = "place"; label = "🏁 ออกส่งตัวแล้ว"; }
 
     return <span className={`chip ${cls}`}>{label}</span>;
 }

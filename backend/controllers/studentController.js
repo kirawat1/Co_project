@@ -108,7 +108,7 @@ exports.updateMyProfile = async (req, res) => {
       where: { userId: userId },
       update: {
         studentId: data.studentId,
-        prefix: data.prefix,
+        prefix: data.prefix === '' ? null : data.prefix,
         firstName: data.firstName,
         lastName: data.lastName,
         firstNameEn: data.firstNameEn,
@@ -116,7 +116,7 @@ exports.updateMyProfile = async (req, res) => {
         year: data.year,
         major: data.major || null,
         curriculum: data.curriculum,
-        studyProgram: data.studyProgram,
+        studyProgram: data.studyProgram === '' ? null : data.studyProgram,
         phone: data.phone,
         email: data.email,
         advisorName: data.advisorName, 
@@ -130,6 +130,8 @@ exports.updateMyProfile = async (req, res) => {
       create: {
         userId: userId,
         studentId: data.studentId || "",
+        prefix: data.prefix === '' ? null : data.prefix,
+        studyProgram: data.studyProgram === '' ? null : data.studyProgram,
         firstName: data.firstName || "",
         lastName: data.lastName || "",
         major: (data.major && data.major !== "") ? data.major : null,
@@ -191,12 +193,11 @@ exports.updateMyProfile = async (req, res) => {
 
     res.json({
       ok: true,
-      student,
+      student: student,
       emails: finalEmails,
-      // ✅ แก้ไข: เช็คให้ชัวร์ว่ามี company จริงๆ ถึงส่งข้อมูลกลับไป ไม่งั้นส่ง null
-      company: (updatedCoop && updatedCoop.company) 
-               ? { ...updatedCoop.company, mentor: updatedCoop.mentor } 
-               : null,
+      company: updatedCoop && updatedCoop.company 
+                 ? { ...updatedCoop.company, mentor: updatedCoop.mentor } 
+                 : null,
       userEmail: user ? user.email : "",
     });
 
@@ -328,3 +329,5 @@ exports.downloadPlacementLetter = async (req, res) => {
     res.status(500).json({ ok: false });
   }
 };
+
+

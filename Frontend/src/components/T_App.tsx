@@ -12,7 +12,10 @@ import T_T002Review from "./T_T002Review";
 import T_T003Review from "./T_T003Review";
 import StudentTheme from "./S_Theme";
 import coopLogo from "../assets/COOP_Logo.png";
-
+import T_SupervisionReview from "./T_SupervisionReview";
+import A_DocT005_006 from "./A_DocT005_006";
+import A_DocT007 from "./A_DocT007";
+import A_DocT008 from "./A_DocT008";
 const IOS_BLUE = "#0074B7";
 
 export default function TeacherApp() {
@@ -96,6 +99,10 @@ export default function TeacherApp() {
             <Route path="profile" element={<Profile />} />
             <Route path="review-t002" element={<T_T002Review />} />
             <Route path="review-t003" element={<T_T003Review />} />
+            <Route path="review-supervision" element={<T_SupervisionReview />} />
+            <Route path="doc-t005-006" element={<A_DocT005_006 />} />
+            <Route path="doc-t007" element={<A_DocT007 />} />
+            <Route path="doc-t008" element={<A_DocT008 />} />
 
             <Route path="*" element={<Navigate to="dashboard" replace />} />
           </Routes>

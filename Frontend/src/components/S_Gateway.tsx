@@ -1,4 +1,3 @@
-// Frontend/src/components/S_Gateway.tsx
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { createCoopPDF } from "../utils/pdfGenerator";
@@ -90,6 +89,7 @@ export default function CoopRequestPage() {
   // --- Fetch Data ---
   const fetchData = async () => {
     try {
+      // 1. ดึงข้อมูลนักศึกษา
       const res = await fetch("http://localhost:5000/api/students/me", {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -113,6 +113,7 @@ export default function CoopRequestPage() {
         }
       }
 
+      // 2. ดึงรอบรับสมัครที่เปิดอยู่ (Active Period)
       const periodRes = await fetch("http://localhost:5000/api/students/coop-periods/active", {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -120,10 +121,11 @@ export default function CoopRequestPage() {
         const pData = await periodRes.json();
         if (pData.ok && pData.period) {
           setActivePeriod(pData.period);
+        } else {
+          setActivePeriod(null);
         }
       }
     } catch (err) { console.error(err); }
-
   };
 
   useEffect(() => {
@@ -160,14 +162,26 @@ export default function CoopRequestPage() {
     setUploadedFiles(prev => prev.filter((_, i) => i !== index));
   };
 
-  // ✅ 1. แก้ไขการกรอง: สมมติว่าไฟล์ที่อัปโหลดจากหน้านี้ มี type ว่า 'COOP_APPLICATION_DOC'
-  // (หรือถ้า Backend คุณไม่ได้เซ็ต type ไว้ ให้ตั้งเป็นเงื่อนไขที่เจาะจงว่า "ไม่มี type ก็ได้" แต่ต้องแน่ใจว่าไม่ซ้ำ)
-  // ในที่นี้ เราจะดึงแค่ไฟล์ที่ type เป็น 'APPLICATION_DOC' หรือคำที่คุณตั้งไว้ใน Backend ตอนยิงจากหน้านี้
+  // กรองเฉพาะไฟล์ที่เป็นประเภท APPLICATION_DOC
   const gatewayDocs = profile?.documents?.filter(doc =>
-    doc.type === 'APPLICATION_DOC' // ⚠️ แก้คำนี้ให้ตรงกับที่คุณส่งไปบันทึกตอนกด "ส่งคำร้องขอสหกิจศึกษา"
+    doc.type === 'APPLICATION_DOC'
   ) || [];
 
+  // ฟังก์ชันตรวจสอบเวลาของรอบรับสมัคร
+  const isTimeValid = () => {
+    if (!activePeriod || !activePeriod.isActive) return false;
+    const now = new Date().getTime();
+    const start = new Date(activePeriod.startDate).getTime();
+    const end = new Date(activePeriod.endDate).setHours(23, 59, 59, 999);
+    return now >= start && now <= end;
+  };
+
   const handleSubmitApplication = async () => {
+    if (!activePeriod || !isTimeValid()) {
+      alert("❌ ไม่สามารถยื่นคำร้องได้ เนื่องจากขณะนี้ไม่มีรอบการรับสมัครที่เปิดอยู่ หรือนอกช่วงเวลา");
+      return;
+    }
+
     if (!profile?.isQualified) {
       alert("❌ คุณสมบัติของคุณยังไม่ครบถ้วนตามเกณฑ์สาขา กรุณาตรวจสอบที่หน้า Profile");
       return;
@@ -179,7 +193,6 @@ export default function CoopRequestPage() {
       return;
     }
 
-    // ✅ เช็คเฉพาะไฟล์ Gateway
     const hasExistingDocs = gatewayDocs.length > 0;
     const hasNewDocs = uploadedFiles.length > 0;
 
@@ -190,6 +203,8 @@ export default function CoopRequestPage() {
 
     const formData = new FormData();
     formData.append("jobPosition", coopField);
+    formData.append("coopPeriodId", activePeriod.id.toString()); // ส่ง ID รอบรับสมัครไปด้วย
+
     uploadedFiles.forEach((file) => formData.append("files", file));
 
     try {
@@ -217,35 +232,66 @@ export default function CoopRequestPage() {
       if (mode === "download") {
         doc.save(`KKU_Coop_${profile.studentId}.pdf`);
       } else {
-        setPdfDataUrl(doc.output("datauristring"));
+        // ใช้ bloburl เพื่อให้แสดงผลใน iframe ของ Browser ปัจจุบันได้
+        const pdfBlobUrl = doc.output("bloburl");
+        setPdfDataUrl(pdfBlobUrl.toString());
         setShowPDFPopup(true);
       }
-    } catch (error) { console.error("PDF Error:", error); alert("ไม่สามารถสร้าง PDF ได้: " + error); }
+    } catch (error) {
+      console.error("PDF Error:", error);
+      alert("ไม่สามารถสร้าง PDF ได้: ตรวจสอบไฟล์ Font หรือเปิด Console ดู Error");
+    }
   };
-
-  const isWithinPeriod = () => {
-    if (!activePeriod) return false;
-    const now = new Date().getTime();
-    const start = new Date(activePeriod.startDate).getTime();
-    const end = new Date(activePeriod.endDate).setHours(23, 59, 59, 999);
-    return now >= start && now <= end;
-  };
-
-  const isTimeValid = isWithinPeriod();
 
   if (!profile) return <div style={{ padding: 40, textAlign: 'center' }}>กำลังโหลดข้อมูล...</div>;
 
   const currentStatus = profile.coop?.status || "NOT_SUBMITTED";
   const canEdit = currentStatus === "NOT_SUBMITTED" || currentStatus === "APPLICATION_EDITS_REQUIRED" || currentStatus === "EDITS_REQUIRED";
-  const canSubmit = profile?.isQualified && canEdit && isTimeValid;
+  const canSubmit = profile?.isQualified && canEdit && isTimeValid();
 
   const displayCompany = profile.coop?.company || profile.company;
   const displayMentor = profile.coop?.mentor || profile.mentor;
   const hasCompany = !!displayCompany;
 
   return (
-    <div style={{ padding: "40px 20px", maxWidth: "1200px", margin: "0 auto", fontFamily: "sans-serif" }}>
+    <div className="page" style={{ padding: "40px 20px", maxWidth: "1200px", margin: "0 auto" }}>
       <style>{PROFILE_CSS}</style>
+
+      {/* ================= ป้ายแจ้งเตือนรอบการรับสมัคร ================= */}
+      {!isTimeValid() ? (
+        <div style={{
+          padding: "16px 24px", marginBottom: "24px", borderRadius: "12px",
+          background: "#fee2e2", border: "1px solid #fecaca", color: "#b91c1c",
+          display: "flex", gap: "15px", alignItems: "center"
+        }}>
+          <div style={{ fontSize: "32px" }}>🚫</div>
+          <div>
+            <strong style={{ fontSize: '18px' }}>ระบบปิดรับสมัคร หรือ นอกช่วงเวลาการยื่นคำร้อง</strong>
+            <div style={{ marginTop: 4, fontSize: 14 }}>
+              {activePeriod
+                ? `รอบการรับสมัครที่ตั้งไว้: เทอม ${activePeriod.semester}/${activePeriod.academicYear} (เปิดรับ: ${new Date(activePeriod.startDate).toLocaleDateString('th-TH')} - ${new Date(activePeriod.endDate).toLocaleDateString('th-TH')}) แต่สถานะระบบปิดใช้งาน หรือหมดเขตแล้ว`
+                : "ขณะนี้ยังไม่มีการเปิดรอบรับสมัครสหกิจศึกษาในระบบ กรุณาติดต่อเจ้าหน้าที่"}
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div style={{
+          padding: "16px 24px", marginBottom: "24px", borderRadius: "12px",
+          background: "#eff6ff", border: "1px solid #bfdbfe", color: "#1e3a8a",
+          display: "flex", gap: "15px", alignItems: "center"
+        }}>
+          <div style={{ fontSize: "32px" }}>📅</div>
+          <div>
+            <strong style={{ fontSize: '16px' }}>กำลังเปิดรับสมัครคำร้องสหกิจศึกษา</strong>
+            <div style={{ marginTop: 4, fontSize: 14, fontWeight: "bold" }}>
+              รอบการรับสมัคร: เทอม {activePeriod.semester} / ปีการศึกษา {activePeriod.academicYear}
+            </div>
+            <div style={{ fontSize: 13, color: "#3b82f6" }}>
+              (เปิดรับตั้งแต่: {new Date(activePeriod.startDate).toLocaleDateString('th-TH')} ถึง {new Date(activePeriod.endDate).toLocaleDateString('th-TH')})
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ================= SECTION 0: คุณสมบัติ ================= */}
       <div style={{
@@ -308,21 +354,6 @@ export default function CoopRequestPage() {
           </div>
         </div>
       </div>
-
-      {/* ป้ายแจ้งเตือนเวลา */}
-      {!isTimeValid && (
-        <div style={{
-          padding: "16px 24px", marginBottom: "20px", borderRadius: "12px",
-          background: "#fee2e2", border: "1px solid #fecaca", color: "#b91c1c"
-        }}>
-          <strong style={{ fontSize: '16px' }}>🚫 นอกช่วงเวลาการยื่นคำร้องสหกิจศึกษา</strong>
-          <div style={{ marginTop: 4, fontSize: 14 }}>
-            {activePeriod
-              ? `ขณะนี้ไม่อยู่ในช่วงเวลาที่กำหนด (เปิดรับ: ${new Date(activePeriod.startDate).toLocaleDateString('th-TH')} - ${new Date(activePeriod.endDate).toLocaleDateString('th-TH')})`
-              : "ขณะนี้ยังไม่มีการเปิดรอบรับสมัครสหกิจศึกษา"}
-          </div>
-        </div>
-      )}
 
       <div className="header-card">
         <h1>ขอเข้าร่วมโครงการสหกิจศึกษา</h1>
@@ -413,7 +444,7 @@ export default function CoopRequestPage() {
           <label className="label" style={{ fontSize: 15 }}>อัปโหลดเอกสารประกอบ <span style={{ color: 'red' }}>*</span></label>
           <p style={{ fontSize: 13, color: '#64748b', margin: '4px 0 10px 0' }}>เช่น ใบคำร้อง, ทรานสคริปต์, หนังสือรับรอง ฯลฯ (รองรับ PDF, รูปภาพ)</p>
 
-          {/* ✅ 2. แสดงเฉพาะไฟล์ Gateway */}
+          {/* ไฟล์ที่อยู่ในระบบแล้ว */}
           {gatewayDocs.length > 0 && (
             <div style={{ marginBottom: 15, padding: 15, background: '#f0fdf4', borderRadius: 10, border: '1px solid #bbf7d0' }}>
               <div style={{ fontSize: 14, fontWeight: 'bold', color: '#166534', marginBottom: 8 }}>✅ ไฟล์ที่อยู่ในระบบแล้ว:</div>
@@ -430,7 +461,7 @@ export default function CoopRequestPage() {
             </div>
           )}
 
-          {/* New Files List */}
+          {/* ไฟล์ใหม่ที่เตรียมจะอัปโหลด */}
           {uploadedFiles.length > 0 && (
             <ul className="file-list" style={{ marginTop: 8, background: '#f0f9ff', padding: 15, borderRadius: 10, border: '1px solid #bae6fd' }}>
               <div style={{ fontSize: 14, fontWeight: 'bold', color: '#0284c7', marginBottom: 8 }}>⏳ ไฟล์ใหม่ที่กำลังจะอัปโหลด:</div>
@@ -464,11 +495,11 @@ export default function CoopRequestPage() {
               padding: '12px 30px', fontSize: '16px',
               opacity: canSubmit ? 1 : 0.5,
               cursor: canSubmit ? "pointer" : "not-allowed",
-              backgroundColor: !isTimeValid ? "#94a3b8" : !profile.isQualified ? "#94a3b8" :
+              backgroundColor: !isTimeValid() ? "#94a3b8" : !profile.isQualified ? "#94a3b8" :
                 currentStatus === 'EDITS_REQUIRED' ? "#f59e0b" : "#10b981"
             }}
           >
-            {!isTimeValid ? '🚫 นอกช่วงเวลาการยื่นคำร้อง' :
+            {!isTimeValid() ? '🚫 นอกช่วงเวลาการยื่นคำร้อง' :
               !profile.isQualified ? '⚠️ คุณสมบัติไม่ครบ' :
                 currentStatus === 'EDITS_REQUIRED' ? 'ส่งแก้ไขคำร้อง' : '🚀 ส่งคำร้องขอสหกิจศึกษา'}
           </button>
@@ -494,22 +525,24 @@ export default function CoopRequestPage() {
     </div>
   );
 }
-
 const PROFILE_CSS = `
 .header-card { background: linear-gradient(135deg, #1e293b 0%, #334155 100%); color: white; border-radius: 20px; padding: 32px 40px; margin-bottom: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
 .header-card h1 { margin: 0; font-size: 26px; font-weight: 800; }
 .header-card p { margin: 10px 0 0; opacity: 0.9; font-size: 16px; line-height: 1.6; }
 .profile-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
 @media (max-width: 1024px) { .profile-grid { grid-template-columns: 1fr; } }
-.profile-card { background: #fff; border-radius: 20px; padding: 30px 35px; box-shadow: 0 8px 24px rgba(15, 23, 42, .05); border: 1px solid #f1f5f9; height: fit-content; }
+.profile-card { background: #fff; border-radius: 20px; padding: 28px 40px; box-shadow: 0 8px 24px rgba(15, 23, 42, .05); border: 1px solid #f1f5f9; height: fit-content; }
 .card-head { display: flex; justify-content: space-between; align-items: center; }
-.profile-title { font-size: 20px; font-weight: 800; margin: 0; color: #0f172a; }
-.divider { height: 1px; background: #e2e8f0; margin: 16px 0; }
-.info-row { display: grid; grid-template-columns: 150px 1fr; padding: 10px 0; border-bottom: 1px dashed #f1f5f9; align-items: start; }
+.profile-title { font-size: 18px; font-weight: 800; margin: 0; color: #0f172a; }
+.divider { height: 1px; background: #e2e8f0; margin: 14px 0 18px; }
+
+/* 🟢 ปรับ CSS ให้เส้นคั่น, ระยะห่าง และฟอนต์ เหมือนหน้า Profile 100% */
+.info-row { display: grid; grid-template-columns: 160px 1fr; padding: 10px 0; border-bottom: 1px solid #f8fafc; align-items: start; }
 .info-row:last-child { border-bottom: none; }
 .label { color: #64748b; font-weight: 700; font-size: 14px; }
-.value { font-weight: 600; color: #1e293b; font-size: 15px; }
-.input { padding: 12px 16px; border-radius: 12px; border: 1px solid #cbd5e1; width: 100%; margin-top: 8px; box-sizing: border-box; font-family: inherit; font-size: 15px; transition: 0.2s; }
+.value { font-weight: 600; color: #1e293b; font-size: 14px; }
+
+.input { padding: 12px 16px; border-radius: 10px; border: 1px solid #cbd5e1; width: 100%; margin-top: 8px; box-sizing: border-box; font-family: inherit; font-size: 14px; transition: 0.2s; font-weight: 600; }
 .input:focus { border-color: #3b82f6; outline: none; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
 .file-list { margin: 12px 0; list-style: none; padding: 0; }
 .file-item { padding: 12px 16px; border-radius: 10px; margin-bottom: 8px; font-size: 14px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #e2e8f0; }
@@ -518,11 +551,11 @@ const PROFILE_CSS = `
 .btn-link { background: none; border: none; color: #2563eb; font-weight: 700; cursor: pointer; padding: 0; display: inline-block; transition: 0.2s; }
 .btn-link:hover { color: #1d4ed8; text-decoration: underline; }
 .action-row { display: flex; justify-content: flex-end; gap: 12px; }
-.btn { display: inline-flex; justify-content: center; align-items: center; color: #fff; padding: 12px 24px; border-radius: 12px; font-weight: 700; border: none; cursor: pointer; font-size: 15px; transition: 0.2s; }
+.btn { display: inline-flex; justify-content: center; align-items: center; color: #fff; padding: 12px 24px; border-radius: 10px; font-weight: 700; border: none; cursor: pointer; font-size: 14px; transition: 0.2s; font-family: inherit; }
 .btn-success { background: #10b981; }
 .btn-success:hover:not(:disabled) { background: #059669; }
-.btn-secondary {  background: #fee2e2; border: 1px solid #fca5a5; color: #dc2626; padding: 12px 24px; border-radius: 12px; font-weight: 700; border: none; cursor: pointer; font-size: 15px; transition: 0.2s;  }
-.btn-secondary:hover { background: #fecaca; }
+.btn-secondary { background: #f1f5f9; color: #475569; padding: 12px 24px; border-radius: 10px; font-weight: 700; border: none; cursor: pointer; font-size: 14px; transition: 0.2s; font-family: inherit; }
+.btn-secondary:hover { background: #e2e8f0; }
 .modal-backdrop { position: fixed; inset: 0; background: rgba(15, 23, 42, .6); display: flex; align-items: center; justify-content: center; z-index: 50; backdrop-filter: blur(4px); }
 .modal-card { background: #fff; border-radius: 20px; padding: 32px; width: 900px; max-width: 95%; height: 90vh; display: flex; flex-direction: column; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); }
 `;

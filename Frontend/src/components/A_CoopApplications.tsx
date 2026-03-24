@@ -11,7 +11,8 @@ type Student = {
     id: number; studentId: string; prefix?: string; firstName: string; lastName: string;
     firstNameEn?: string; lastNameEn?: string; year?: string; major: string; curriculum?: string;
     advisorName?: string; phone?: string; email?: string; gpa: number;
-    isQualified?: boolean; // ✅ เพิ่มเพื่อเช็คคุณสมบัติ
+    isQualified?: boolean;
+    coopPeriodId?: number; // ✅ เพิ่มเพื่อเช็คปีการศึกษา
     documents: Document[];
 };
 type CoopApp = {
@@ -23,6 +24,13 @@ type CoopApp = {
     status: string;
     staffCheckComment: string | null;
     updatedAt: string;
+    coopPeriodId?: number; // ✅ เพิ่มเพื่อเช็คปีการศึกษา
+};
+type CoopPeriod = {
+    id: number;
+    semester: string | number;
+    academicYear: string;
+    isActive: boolean;
 };
 
 // ================= COMPONENT =================
@@ -31,6 +39,10 @@ export default function A_CoopApplications() {
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
     const [filterStatus, setFilterStatus] = useState("ALL");
+
+    // ✅ State สำหรับเก็บรอบปีการศึกษาและตัวกรอง
+    const [coopPeriods, setCoopPeriods] = useState<CoopPeriod[]>([]);
+    const [filterPeriodId, setFilterPeriodId] = useState<string>("all");
 
     // Modal & Preview State
     const [selectedApp, setSelectedApp] = useState<CoopApp | null>(null);
@@ -43,29 +55,41 @@ export default function A_CoopApplications() {
     const fetchApplications = async () => {
         setLoading(true);
         try {
-            const res = await axios.get("http://localhost:5000/api/admin/coop-applications", {
+            // 🟢 1. ดึงข้อมูลปีการศึกษา
+            const resPeriods = await axios.get("http://localhost:5000/api/admin/coop-periods/all", {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            if (res.data.ok) setApps(res.data.applications);
+            if (resPeriods.data?.periods) {
+                setCoopPeriods(resPeriods.data.periods);
+            }
+
+            // 🟢 2. ดึงข้อมูลคำร้อง
+            const resApps = await axios.get("http://localhost:5000/api/admin/coop-applications", {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (resApps.data.ok) setApps(resApps.data.applications);
         } catch (err) { console.error(err); }
         setLoading(false);
     };
 
     useEffect(() => { fetchApplications(); }, []);
 
-    // ✅ Logic: หาคนที่สถานะรอตรวจ และ ผ่านคุณสมบัติ (isQualified)
+    // ✅ Logic: หาคนที่สถานะรอตรวจ, ผ่านคุณสมบัติ (isQualified) และตรงกับปีการศึกษาที่กรองอยู่
     const qualifiedPendingList = useMemo(() => {
         return apps.filter(app => {
             const isPending = ["APPLYING", "WAITING_FOR_STAFF_CHECK"].includes(app.status);
-            return isPending && app.student.isQualified === true;
-        });
-    }, [apps]);
+            const appPeriodId = String(app.student.coopPeriodId || app.coopPeriodId || "");
+            const matchPeriod = filterPeriodId === "all" || appPeriodId === filterPeriodId;
 
-    // ✅ ฟังก์ชันอนุมัติกลุ่ม (Bulk Approve) แบบเดียวกับ T_Requests
+            return isPending && app.student.isQualified === true && matchPeriod;
+        });
+    }, [apps, filterPeriodId]);
+
+    // ฟังก์ชันอนุมัติกลุ่ม (Bulk Approve)
     const handleBulkApprove = async () => {
         const count = qualifiedPendingList.length;
         if (count === 0) return;
-        if (!confirm(`⚡ ยืนยันการอนุมัติอัตโนมัติ?\n\nระบบจะอนุมัติคำร้องของนักศึกษาที่ "ผ่านคุณสมบัติ" ทั้งหมด ${count} รายการ`)) return;
+        if (!confirm(`⚡ ยืนยันการอนุมัติอัตโนมัติ?\n\nระบบจะอนุมัติคำร้องของนักศึกษาที่ "ผ่านคุณสมบัติ" ในเทอมที่เลือกทั้งหมด ${count} รายการ`)) return;
 
         setLoading(true);
         try {
@@ -104,7 +128,6 @@ export default function A_CoopApplications() {
         }
     };
 
-    // ✅ แสดงเฉพาะไฟล์จาก Gateway (APPLICATION_DOC)
     const openReviewModal = (app: CoopApp) => {
         setSelectedApp(app);
         setComment(app.staffCheckComment || "");
@@ -131,25 +154,30 @@ export default function A_CoopApplications() {
         setPreviewType(null);
     };
 
+    // ✅ กรองตาราง
     const filteredApps = apps.filter(app => {
         const matchSearch = `${app.student.studentId} ${app.student.firstName} ${app.student.lastName} ${app.company?.name || ""}`.toLowerCase().includes(searchTerm.toLowerCase());
         const matchStatus = filterStatus === "ALL" || app.status === filterStatus;
-        if (filterStatus === "PENDING") return matchSearch && ["APPLYING", "WAITING_FOR_STAFF_CHECK"].includes(app.status);
-        return matchSearch && matchStatus;
+
+        // กรองตามปีการศึกษา
+        const appPeriodId = String(app.student.coopPeriodId || app.coopPeriodId || "");
+        const matchPeriod = filterPeriodId === "all" || appPeriodId === filterPeriodId;
+
+        if (filterStatus === "PENDING") return matchSearch && matchPeriod && ["APPLYING", "WAITING_FOR_STAFF_CHECK"].includes(app.status);
+        return matchSearch && matchStatus && matchPeriod;
     });
 
     return (
         <div className="page" style={{ padding: 4, margin: 28, marginLeft: 65 }}>
 
             {/* HEADER */}
-            <section style={{ ...card, marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <section style={{ ...card, marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 15 }}>
                 <div>
                     <h2 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: '#1e293b' }}>📂 ตรวจสอบคำร้องขอสหกิจศึกษา</h2>
                     <div style={{ color: "#64748b", fontSize: 14, marginTop: 4 }}>จัดการคำร้องเบื้องต้น และอนุมัติสถานะผ่านเกณฑ์</div>
                 </div>
 
-                <div style={{ display: 'flex', gap: 12 }}>
-                    {/* ✅ ปุ่ม Bulk Approve แบบเดียวกับ T_Requests */}
+                <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
                     <button
                         className="btn"
                         onClick={handleBulkApprove}
@@ -162,19 +190,30 @@ export default function A_CoopApplications() {
                     >
                         ⚡ อนุมัติผู้ผ่านคุณสมบัติทั้งหมด ({qualifiedPendingList.length})
                     </button>
-                    <button className="btn-ghost" onClick={fetchApplications}>🔄 รีเฟรช</button>
+                    <button className="btn-ghost" onClick={fetchApplications} disabled={loading}>
+                        {loading ? '⏳' : '🔄'} รีเฟรช
+                    </button>
                 </div>
             </section>
 
             {/* FILTER & LIST */}
             <section style={card}>
-                <div style={{ display: 'flex', gap: 16, marginBottom: 20 }}>
-                    <input className="input" placeholder="🔍 ค้นหา..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ flex: 1 }} />
-                    <select className="input" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} style={{ width: 250 }}>
-                        <option value="ALL">แสดงทุกสถานะ</option>
-                        <option value="PENDING">รอดำเนินการ</option>
-                        <option value="QUALIFIED">ผ่านเกณฑ์แล้ว</option>
-                        <option value="APPLICATION_EDITS_REQUIRED">ส่งกลับแก้ไข</option>
+                <div style={{ display: 'flex', gap: 16, marginBottom: 20, flexWrap: 'wrap' }}>
+                    <input className="input" placeholder="🔍 ค้นหารหัส / ชื่อ / บริษัท..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ flex: 1, minWidth: 200 }} />
+
+                    {/* 🟢 Dropdown เลือกปีการศึกษา */}
+                    <select className="input" value={filterPeriodId} onChange={(e) => setFilterPeriodId(e.target.value)} style={{ width: 'auto', background: '#f8fafc' }}>
+                        <option value="all">📚 ทุกปีการศึกษา</option>
+                        {coopPeriods.map(p => (
+                            <option key={p.id} value={p.id}>เทอม {p.semester}/{p.academicYear}</option>
+                        ))}
+                    </select>
+
+                    <select className="input" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} style={{ width: 'auto' }}>
+                        <option value="ALL">📋 แสดงทุกสถานะ</option>
+                        <option value="PENDING">⏳ รอดำเนินการ</option>
+                        <option value="QUALIFIED">✅ ผ่านเกณฑ์แล้ว</option>
+                        <option value="APPLICATION_EDITS_REQUIRED">⚠️ ส่งกลับแก้ไข</option>
                     </select>
                 </div>
 
@@ -189,30 +228,31 @@ export default function A_CoopApplications() {
                         </tr>
                     </thead>
                     <tbody>
-                        {filteredApps.map(app => (
+                        {filteredApps.length === 0 ? (
+                            <tr><td colSpan={5} style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>ไม่มีคำร้องในระบบ</td></tr>
+                        ) : filteredApps.map(app => (
                             <tr key={app.id} style={tr}>
                                 <td style={td}>
-                                    <div style={{ fontWeight: 700 }}>{app.student.studentId}</div>
-                                    <div style={{ fontSize: 12, color: '#64748b' }}>{app.student.firstName} {app.student.lastName}</div>
+                                    <div style={{ fontWeight: 700, color: '#0369a1' }}>{app.student.studentId}</div>
+                                    <div style={{ fontSize: 13, color: '#64748b', marginTop: 2 }}>{app.student.firstName} {app.student.lastName}</div>
                                 </td>
-                                {/* ✅ เพิ่มคอลัมน์คุณสมบัติ */}
                                 <td style={td}>
                                     {app.student.isQualified ?
-                                        <span style={{ color: '#166534', background: '#dcfce7', padding: '2px 8px', borderRadius: 4, fontSize: 12, fontWeight: 700 }}>✅ ครบ</span> :
-                                        <span style={{ color: '#991b1b', background: '#fee2e2', padding: '2px 8px', borderRadius: 4, fontSize: 12, fontWeight: 700 }}>❌ ไม่ผ่าน</span>
+                                        <span style={{ color: '#166534', background: '#dcfce7', padding: '4px 8px', borderRadius: 6, fontSize: 12, fontWeight: 700 }}>✅ ครบ</span> :
+                                        <span style={{ color: '#991b1b', background: '#fee2e2', padding: '4px 8px', borderRadius: 6, fontSize: 12, fontWeight: 700 }}>❌ ไม่ผ่าน</span>
                                     }
                                 </td>
                                 <td style={td}>
-                                    <div style={{ fontWeight: 600 }}>{app.company?.name || "-"}</div>
-                                    <div style={{ fontSize: 12, color: '#0ea5e9' }}>{app.jobPosition}</div>
+                                    <div style={{ fontWeight: 600, color: '#1e293b' }}>{app.company?.name || "-"}</div>
+                                    <div style={{ fontSize: 12, color: '#0ea5e9', marginTop: 2 }}>{app.jobPosition}</div>
                                 </td>
                                 <td style={td}>
                                     <StatusBadge status={app.status} />
                                 </td>
 
                                 <td style={{ ...td, textAlign: 'right' }}>
-                                    <button className="btn" style={{ padding: '6px 16px' }} onClick={() => openReviewModal(app)}>
-                                        ตรวจเอกสาร
+                                    <button className="btn" style={{ padding: '8px 16px', fontSize: 13 }} onClick={() => openReviewModal(app)}>
+                                        🔍 ตรวจเอกสาร
                                     </button>
                                 </td>
                             </tr>
@@ -226,9 +266,9 @@ export default function A_CoopApplications() {
                 <div className="modal-backdrop">
                     <div className="modal-card-split">
                         {/* Header */}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid #e2e8f0' }}>
-                            <h3 style={{ margin: 0 }}>พิจารณาคำร้อง: {selectedApp.student.studentId}</h3>
-                            <button onClick={closeAndResetModal} style={{ border: 'none', background: 'none', fontSize: 24, cursor: 'pointer' }}>&times;</button>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '16px 24px', borderBottom: '1px solid #e2e8f0' }}>
+                            <h3 style={{ margin: 0, color: '#0f172a' }}>พิจารณาคำร้อง: {selectedApp.student.studentId}</h3>
+                            <button onClick={closeAndResetModal} style={{ border: 'none', background: 'none', fontSize: 24, cursor: 'pointer', color: '#64748b' }}>&times;</button>
                         </div>
 
                         <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
@@ -241,16 +281,16 @@ export default function A_CoopApplications() {
                             </div>
 
                             {/* RIGHT: DETAILS */}
-                            <div style={{ flex: 1, padding: 20, overflowY: 'auto', background: '#f8fafc' }}>
-                                {/* ✅ กรองเฉพาะ APPLICATION_DOC ในรายการไฟล์ด้านขวา */}
+                            <div style={{ flex: 1, padding: 24, overflowY: 'auto', background: '#f8fafc' }}>
                                 <div style={{ marginBottom: 20 }}>
-                                    <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 10 }}>📄 เอกสารประกอบ (Gateway Only)</div>
+                                    <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 10, color: '#334155' }}>📄 เอกสารประกอบ (Gateway Only)</div>
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                                         {selectedApp.student.documents.filter(d => d.type === 'APPLICATION_DOC').map(doc => (
                                             <div key={doc.id} onClick={() => handlePreview(doc)}
                                                 style={{
-                                                    padding: 10, background: previewUrl?.includes(doc.path) ? '#e0f2fe' : '#fff',
-                                                    border: '1px solid #e2e8f0', borderRadius: 8, cursor: 'pointer', fontSize: 13
+                                                    padding: 12, background: previewUrl?.includes(doc.path) ? '#e0f2fe' : '#fff',
+                                                    border: '1px solid #e2e8f0', borderRadius: 8, cursor: 'pointer', fontSize: 13,
+                                                    borderLeft: previewUrl?.includes(doc.path) ? '4px solid #0ea5e9' : '1px solid #e2e8f0'
                                                 }}>
                                                 📄 {doc.name}
                                             </div>
@@ -259,9 +299,9 @@ export default function A_CoopApplications() {
                                 </div>
 
                                 {/* Student Info Box */}
-                                <div style={{ background: '#fff', padding: 15, borderRadius: 10, border: '1px solid #e2e8f0' }}>
-                                    <div style={{ fontWeight: 800, marginBottom: 10, borderBottom: '1px solid #eee' }}>👤 ข้อมูลผู้สมัคร</div>
-                                    <div style={{ fontSize: 13, lineHeight: 2 }}>
+                                <div style={{ background: '#fff', padding: 16, borderRadius: 12, border: '1px solid #e2e8f0' }}>
+                                    <div style={{ fontWeight: 800, marginBottom: 10, borderBottom: '1px solid #eee', paddingBottom: 8, color: '#334155' }}>👤 ข้อมูลผู้สมัคร</div>
+                                    <div style={{ fontSize: 13, lineHeight: 2, color: '#475569' }}>
                                         <b>ชื่อ:</b> {selectedApp.student.firstName} {selectedApp.student.lastName}<br />
                                         <b>GPA:</b> {selectedApp.student.gpa.toFixed(2)} | <b>สาขา:</b> {selectedApp.student.major}
                                     </div>
@@ -269,12 +309,12 @@ export default function A_CoopApplications() {
 
                                 {/* Controls */}
                                 <div style={{ marginTop: 30 }}>
-                                    <textarea className="input" rows={3} style={{ width: '100%', marginBottom: 10 }}
-                                        placeholder="ความเห็น/เหตุผลที่ตีกลับ..." value={comment} onChange={e => setComment(e.target.value)} />
+                                    <textarea className="input" rows={4} style={{ width: '100%', marginBottom: 12, resize: 'none' }}
+                                        placeholder="ความเห็น/เหตุผลที่ตีกลับ (จำเป็นต้องกรอกเมื่อตีกลับ)..." value={comment} onChange={e => setComment(e.target.value)} />
 
-                                    <button className="btn" style={{ width: '100%', background: '#10b981', padding: 12, marginBottom: 8 }} onClick={() => updateStatus("QUALIFIED")}>✅ ผ่านเกณฑ์</button>
-                                    <div style={{ display: 'flex', gap: 8 }}>
-                                        <button className="btn" style={{ flex: 1, background: '#f59e0b' }} onClick={() => updateStatus("APPLICATION_EDITS_REQUIRED")}>⚠️ ให้แก้ไข</button>
+                                    <button className="btn" style={{ width: '100%', background: '#10b981', padding: 14, marginBottom: 10, fontSize: 15 }} onClick={() => updateStatus("QUALIFIED")}>✅ คำร้องผ่านเกณฑ์</button>
+                                    <div style={{ display: 'flex', gap: 10 }}>
+                                        <button className="btn" style={{ flex: 1, background: '#f59e0b', color: '#fff' }} onClick={() => updateStatus("APPLICATION_EDITS_REQUIRED")}>⚠️ ส่งกลับให้แก้ไข</button>
                                         <button className="btn" style={{ flex: 1, background: '#ef4444' }} onClick={() => updateStatus("REJECTED")}>❌ ไม่ผ่าน</button>
                                     </div>
                                 </div>
@@ -291,25 +331,14 @@ export default function A_CoopApplications() {
 
 const STYLES = `
     .btn { border-radius: 8px; border: none; font-weight: 700; color: white; background: #0ea5e9; cursor: pointer; transition: 0.2s; padding: 10px; }
-    .btn:hover { opacity: 0.8; }
-    .btn-ghost { padding: 8px 16px; border-radius: 8px; border: 1px solid #cbd5e1; font-weight: 700; color: #475569; background: #fff; cursor: pointer; }
-    .input { padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; outline: none; font-size: 14px; }
-    .modal-backdrop { position: fixed; inset: 0; background: rgba(15, 23, 42, .6); display: flex; align-items: center; justify-content: center; z-index: 999; }
-    .modal-card-split { background: #fff; border-radius: 16px; width: 95vw; max-width: 1400px; height: 90vh; display: flex; flex-direction: column; overflow: hidden; }
-    .chip { padding: 4px 12px; border-radius: 999px; font-size: 11px; font-weight: 700; }
-    .waiting { background: #dbeafe; color: #1d4ed8; }
-    .rej { background: #fee2e2; color: #b91c1c; }
-    .edit { background: #fef3c7; color: #b45309; }
-    .appr { background: #dcfce7; color: #15803d; }
+    .btn:hover:not(:disabled) { opacity: 0.8; }
+    .btn-ghost { padding: 8px 16px; border-radius: 8px; border: 1px solid #cbd5e1; font-weight: 700; color: #475569; background: #fff; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 6px; }
+    .btn-ghost:hover:not(:disabled) { background: #f1f5f9; }
+    .input { padding: 10px 14px; border-radius: 8px; border: 1px solid #cbd5e1; outline: none; font-size: 14px; font-family: inherit; }
+    .input:focus { border-color: #0ea5e9; box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.15); }
+    .modal-backdrop { position: fixed; inset: 0; background: rgba(15, 23, 42, .6); display: flex; align-items: center; justify-content: center; z-index: 999; backdrop-filter: blur(3px); }
+    .modal-card-split { background: #fff; border-radius: 16px; width: 95vw; max-width: 1400px; height: 90vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); }
 `;
-
-function statusChip(s: string) {
-    if (["APPLYING", "WAITING_FOR_STAFF_CHECK"].includes(s)) return <span className="chip waiting">⏳ รอตรวจ</span>;
-    if (s === "REJECTED") return <span className="chip rej">❌ ไม่ผ่าน</span>;
-    if (s === "APPLICATION_EDITS_REQUIRED") return <span className="chip edit">⚠️ รอแก้ไข</span>;
-    if (s === "QUALIFIED") return <span className="chip appr">✅ ผ่านเกณฑ์</span>;
-    return <span className="chip">{s}</span>;
-}
 
 const card: CSSProperties = { background: "#fff", borderRadius: 16, padding: 24, boxShadow: "0 4px 6px -1px rgba(0,0,0,0.05)", border: '1px solid #f1f5f9' };
 const table: CSSProperties = { width: "100%", borderCollapse: "collapse" };

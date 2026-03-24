@@ -165,3 +165,236 @@ exports.updateTeacherById = async (req, res) => {
     res.status(500).json({ message: "Update failed", error: err.message });
   }
 };
+
+// ==========================================
+// อาจารย์ตรวจ T003
+// ==========================================
+exports.reviewT003 = async (req, res) => {
+    try {
+        const { studentId, status, comment } = req.body;
+
+        if (!studentId) return res.status(400).json({ ok: false, message: "ไม่พบข้อมูล Student ID" });
+
+        // 1. อัปเดตสถานะในตาราง studentCoop
+        await prisma.studentCoop.upsert({
+            where: { studentId: parseInt(studentId) },
+            update: { status: status },
+            create: { studentId: parseInt(studentId), status: status }
+        });
+
+        // 2. ค้นหาไฟล์ T003 ล่าสุดเพื่ออัปเดตสถานะไฟล์และคอมเมนต์
+        const doc = await prisma.document.findFirst({
+            where: { studentId: parseInt(studentId), type: 'T003_FORM' },
+            orderBy: { id: 'desc' }
+        });
+
+        if (doc) {
+            await prisma.document.update({
+                where: { id: doc.id },
+                data: {
+                    status: status === 'T003_EDITS_REQUIRED' ? 'REJECTED' : 'APPROVED',
+                    rejectReason: comment || null
+                }
+            });
+        }
+
+        res.json({ ok: true, message: "บันทึกผลตรวจสอบ T003 สำเร็จ" });
+    } catch (err) {
+        console.error("Teacher Review T003 Error:", err);
+        res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดที่เซิร์ฟเวอร์" });
+    }
+};
+
+exports.reviewT002 = async (req, res) => {
+    try {
+        const { studentId, status, comment } = req.body;
+
+        if (!studentId) return res.status(400).json({ ok: false, message: "ไม่พบข้อมูล Student ID" });
+
+        // 1. อัปเดตสถานะนักศึกษา
+        await prisma.studentCoop.upsert({
+            where: { studentId: parseInt(studentId) },
+            update: { status: status },
+            create: { studentId: parseInt(studentId), status: status }
+        });
+
+        // 2. อัปเดตสถานะไฟล์ T002
+        const doc = await prisma.document.findFirst({
+            where: { studentId: parseInt(studentId), type: 'T002_FORM' },
+            orderBy: { id: 'desc' }
+        });
+
+        if (doc) {
+            await prisma.document.update({
+                where: { id: doc.id },
+                data: {
+                    status: status === 'T002_EDITS_REQUIRED' ? 'REJECTED' : 'APPROVED',
+                    rejectReason: comment || null
+                }
+            });
+        }
+
+        res.json({ ok: true, message: "บันทึกผลการตรวจสอบสำเร็จ" });
+    } catch (err) {
+        console.error("Teacher Review T002 Error:", err);
+        res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดที่เซิร์ฟเวอร์" });
+    }
+};
+
+exports.getAdviseesForReview = async (req, res) => {
+    try {
+        const userId = req.user.id;
+
+        // หาข้อมูลอาจารย์จาก userId ที่ล็อกอิน
+        const teacher = await prisma.teacher.findUnique({
+            where: { userId: parseInt(userId) }
+        });
+
+        if (!teacher) {
+            return res.status(404).json({ ok: false, message: "ไม่พบข้อมูลอาจารย์" });
+        }
+
+        // ดึงเฉพาะนักศึกษาที่มี advisorId ตรงกับอาจารย์คนนี้
+        const students = await prisma.student.findMany({
+            where: { advisorId: teacher.id }, // 🟢 จุดสำคัญ: กรองเฉพาะเด็กของตัวเอง
+            include: {
+                coop: {
+                    include: { company: true }
+                },
+                documents: true // ดึงประวัติไฟล์แนบมาหา T002, T003
+            }
+        });
+
+        res.json({ ok: true, data: students });
+    } catch (err) {
+        console.error("Get Advisees Error:", err);
+        res.status(500).json({ ok: false, message: "ไม่สามารถดึงข้อมูลนักศึกษาได้" });
+    }
+};
+// ==========================================
+// 1. ดึงสถิติ Dashboard ของอาจารย์
+// ==========================================
+exports.getDashboardStats = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { semester, year } = req.query;
+
+        const teacher = await prisma.teacher.findUnique({
+            where: { userId: parseInt(userId) }
+        });
+
+        if (!teacher) {
+            return res.status(404).json({ ok: false, message: "ไม่พบข้อมูลอาจารย์" });
+        }
+
+        // แปลง semester ให้เป็นตัวเลข (Int) ตาม Schema
+        const semesterInt = semester ? parseInt(semester) : undefined;
+        const yearStr = year ? String(year) : undefined;
+
+        // 1. นับนักศึกษาทั้งหมดในดูแล
+        let myStudentsCount = 0;
+        if (semesterInt && yearStr) {
+            // ถ้าเลือกเทอม: นับจากใบสมัครของเทอมนั้น
+            myStudentsCount = await prisma.studentCoop.count({
+                where: {
+                    student: { advisorName: { contains: teacher.firstName } },
+                    coopPeriod: { semester: semesterInt, academicYear: yearStr }
+                }
+            });
+        } else {
+            // ถ้าไม่เลือกเทอม: นับ นศ. ทั้งหมดที่มีชื่ออาจารย์
+            myStudentsCount = await prisma.student.count({
+                where: { advisorName: { contains: teacher.firstName } }
+            });
+        }
+
+        // 2. คำร้องรอพิจารณา (Schema ใช้ APPLYING)
+        const pendingRequests = await prisma.studentCoop.count({
+            where: {
+                student: { advisorName: { contains: teacher.firstName } },
+                status: 'APPLYING', // 🟢 ปรับให้ตรงกับ Enum ของคุณ
+                ...(semesterInt && yearStr ? {
+                    coopPeriod: { semester: semesterInt, academicYear: yearStr }
+                } : {})
+            }
+        });
+
+        // 3. ผ่านคุณสมบัติ (Schema ใช้ QUALIFIED)
+        const approvedStudents = await prisma.studentCoop.count({
+            where: {
+                student: { advisorName: { contains: teacher.firstName } },
+                status: 'QUALIFIED', // 🟢 ปรับให้ตรงกับ Enum ของคุณ
+                ...(semesterInt && yearStr ? {
+                    coopPeriod: { semester: semesterInt, academicYear: yearStr }
+                } : {})
+            }
+        });
+
+        res.json({
+            ok: true,
+            data: { myStudentsCount, pendingRequests, approvedStudents }
+        });
+
+    } catch (err) {
+        console.error("Get Teacher Stats Error:", err);
+        res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดในการดึงสถิติ" });
+    }
+};
+
+// ==========================================
+// 2. ดึงคำร้องล่าสุดของนักศึกษา
+// ==========================================
+exports.getLatestRequests = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { semester, year } = req.query;
+
+        const teacher = await prisma.teacher.findUnique({ where: { userId: parseInt(userId) } });
+        if (!teacher) return res.status(404).json({ ok: false, message: "ไม่พบข้อมูลอาจารย์" });
+
+        const semesterInt = semester ? parseInt(semester) : undefined;
+        const yearStr = year ? String(year) : undefined;
+
+        // ดึงจากตาราง StudentCoop ตรงๆ จะได้ไม่ติด Error เรื่อง Relation
+        const studentCoops = await prisma.studentCoop.findMany({
+            where: {
+                student: { advisorName: { contains: teacher.firstName } },
+                status: { not: 'NOT_SUBMITTED' }, // เอาคนที่ยื่นแล้ว
+                ...(semesterInt && yearStr ? {
+                    coopPeriod: { semester: semesterInt, academicYear: yearStr }
+                } : {})
+            },
+            include: {
+                student: true,
+                company: true
+            },
+            orderBy: { updatedAt: 'desc' },
+            take: 10
+        });
+
+        // Map โครงสร้างกลับไปให้ Frontend แบบเนียนๆ โดยแปลงสถานะให้ Frontend เข้าใจ
+        const students = studentCoops.map(sc => {
+            const { student, company, ...coopData } = sc;
+            
+            // แปลงสถานะกลับเป็นคำที่ Frontend เข้าใจ (APPLYING -> submitted)
+            let mappedStatus = coopData.status;
+            if (mappedStatus === 'APPLYING') mappedStatus = 'submitted';
+            if (mappedStatus === 'QUALIFIED') mappedStatus = 'approved';
+            if (mappedStatus === 'QUALIFICATION_FAILED') mappedStatus = 'rejected';
+
+            return {
+                ...student,
+                coop: {
+                    ...coopData,
+                    status: mappedStatus, // ส่งสถานะที่แปลแล้วกลับไป
+                    company: company
+                }
+            };
+        });
+
+        res.json({ ok: true, students });
+    } catch (err) {
+        console.error("Get Latest Requests Error:", err);
+        res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดในการดึงคำร้อง" });
+    }
+};

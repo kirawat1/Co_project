@@ -33,13 +33,7 @@ export default function T_Sidebar() {
           <span className="text">Dashboard</span>
         </NavLink>
 
-        <NavLink
-          to="/teacher/requests"
-          className={({ isActive }) => "item" + (isActive ? " active" : "")}
-        >
-          <span className="ico"><IcDocs /></span>
-          <span className="text">คำร้องขอเข้าร่วมโครงการ</span>
-        </NavLink>
+        <div className="sec-label">ข้อมูลบุคคล</div>
 
         <NavLink
           to="/teacher/students"
@@ -49,20 +43,22 @@ export default function T_Sidebar() {
           <span className="text">นักศึกษาที่ดูแล</span>
         </NavLink>
 
-        {/* <NavLink
-          to="/teacher/exams"
-          className={({ isActive }) => "item" + (isActive ? " active" : "")}
-        >
-          <span className="ico"><IcCalendar /></span>
-          <span className="text">นัดสอบนิเทศ</span>
-        </NavLink> */}
-
         <NavLink
           to="/teacher/profile"
           className={({ isActive }) => "item" + (isActive ? " active" : "")}
         >
           <span className="ico"><IcUser /></span>
           <span className="text">ข้อมูลอาจารย์</span>
+        </NavLink>
+
+        <div className="sec-label">เอกสารและบันทึก</div>
+
+        <NavLink
+          to="/teacher/requests"
+          className={({ isActive }) => "item" + (isActive ? " active" : "")}
+        >
+          <span className="ico"><IcDocs /></span>
+          <span className="text">ตรวจสอบคำร้องสหกิจ</span>
         </NavLink>
 
         <NavLink
@@ -78,8 +74,41 @@ export default function T_Sidebar() {
           className={({ isActive }) => "item" + (isActive ? " active" : "")}
         >
           <span className="ico"><IcDocs /></span>
-          <span className="text">T003 เอกสารโครงร่างรายงาน</span>
+          <span className="text">T003 โครงร่างรายงาน</span>
         </NavLink>
+
+        <NavLink
+          to="/teacher/review-supervision"
+          className={({ isActive }) => "item" + (isActive ? " active" : "")}
+        >
+          <span className="ico"><IcCalendar /></span>
+          <span className="text">นัดหมายนิเทศ</span>
+        </NavLink>
+
+        <NavLink
+          to="/teacher/doc-t005-006"
+          className={({ isActive }) => "item" + (isActive ? " active" : "")}
+        >
+          <span className="ico"><IcDocs /></span>
+          <span className="text">T005/T006 ประเมิน</span>
+        </NavLink>
+
+        <NavLink
+          to="/teacher/doc-t007"
+          className={({ isActive }) => "item" + (isActive ? " active" : "")}
+        >
+          <span className="ico"><IcDocs /></span>
+          <span className="text">T007 ประเมิน</span>
+        </NavLink>
+
+        <NavLink
+          to="/teacher/doc-t008"
+          className={({ isActive }) => "item" + (isActive ? " active" : "")}
+        >
+          <span className="ico"><IcDocs /></span>
+          <span className="text">T008 เล่มรายงานสหกิจ </span>
+        </NavLink>
+
 
       </nav>
 
@@ -162,6 +191,14 @@ const SIDEBAR_CSS = `
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.sec-label {
+  margin: 18px 0 4px 6px;
+  font-size: 12px;
+  color: #6b7280;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+}
 
 @media (max-width: 900px) {
   .sidebar {
@@ -176,5 +213,6 @@ const SIDEBAR_CSS = `
     padding-bottom: 8px;
   }
   .item { min-width: max-content; }
+  .sec-label { display: none; }
 }
 `;

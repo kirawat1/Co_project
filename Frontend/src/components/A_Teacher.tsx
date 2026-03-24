@@ -8,16 +8,17 @@ interface Teacher {
   id: number;
   firstName: string;
   lastName: string;
-  email: string; // อาจจะดึงมาจาก relation user.email
+  email: string;
   phone: string;
   faculty: string;
-  major: string; // CS, IT, GIS
+  major: string;
   userId?: number;
 }
 
 /* =========================
    Helpers / Mappings
 ========================= */
+// เก็บ Map ไว้แสดงผลกรณีข้อมูลเก่ายังเป็นตัวย่อ
 const MAJOR_TH: Record<string, string> = {
   CS: "วิทยาการคอมพิวเตอร์",
   IT: "เทคโนโลยีสารสนเทศ",
@@ -33,6 +34,9 @@ export default function A_Teacher() {
   const [items, setItems] = useState<Teacher[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // 🟢 State สำหรับเก็บรายการสาขาวิชาจาก Database
+  const [majorOptions, setMajorOptions] = useState<string[]>([]);
+
   // Filters
   const [q, setQ] = useState("");
   const [filterMajor, setFilterMajor] = useState<string[]>([]);
@@ -40,22 +44,21 @@ export default function A_Teacher() {
   // Modal State
   const [modalData, setModalData] = useState<Teacher | null>(null);
 
+  const token = localStorage.getItem("coop.token");
+
   // --- Fetch Data (List) ---
   const fetchData = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem("coop.token");
-      // ⚠️ ต้องมี API ฝั่ง Backend: GET /api/teacher (List all teachers)
       const res = await fetch("http://localhost:5000/api/teacher", {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) {
         const data = await res.json();
-        // Map ข้อมูลให้ตรงกับ Interface ถ้าจำเป็น
         const mapped = data.map((t: any) => ({
           ...t,
-          email: t.user?.email || t.email || "", // ดึง email จาก user relation
-          major: t.major || t.department // รองรับทั้งชื่อเก่า/ใหม่
+          email: t.user?.email || t.email || "",
+          major: t.major || t.department
         }));
         setItems(mapped);
       }
@@ -66,15 +69,29 @@ export default function A_Teacher() {
     }
   };
 
+  // 🟢 ดึงข้อมูลสาขาวิชาจาก API (อิงจากตาราง CoopCriteria)
+  const fetchMajors = async () => {
+    try {
+      const res = await fetch("http://localhost:5000/api/admin/majors", {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setMajorOptions(data.majors);
+      }
+    } catch (err) {
+      console.error("Failed to load majors:", err);
+    }
+  };
+
   useEffect(() => {
     fetchData();
+    fetchMajors(); // เรียกใช้งานตอนโหลดหน้า
   }, []);
 
   // --- Update Data (Admin Edit) ---
   const handleUpdate = async (updatedData: Teacher) => {
     try {
-      const token = localStorage.getItem("coop.token");
-      // ⚠️ ต้องมี API ฝั่ง Backend: PUT /api/teacher/:id
       const res = await fetch(`http://localhost:5000/api/teacher/${updatedData.id}`, {
         method: "PUT",
         headers: {
@@ -97,6 +114,17 @@ export default function A_Teacher() {
     }
   };
 
+  // สร้าง Object สำหรับส่งเข้า FilterBox โดยดึงจากข้อมูล Database และตัวย่อดั้งเดิมเผื่อไว้
+  const majorDict = useMemo(() => {
+    const dict: Record<string, string> = {};
+    majorOptions.forEach(m => dict[m] = m);
+    // เพิ่มตัวย่อเก่าเผื่อมีในระบบ
+    if (!majorOptions.includes("CS")) dict["CS"] = "วิทยาการคอมพิวเตอร์ (CS)";
+    if (!majorOptions.includes("IT")) dict["IT"] = "เทคโนโลยีสารสนเทศ (IT)";
+    if (!majorOptions.includes("GIS")) dict["GIS"] = "ภูมิสารสนเทศศาสตร์ (GIS)";
+    return dict;
+  }, [majorOptions]);
+
   // --- Filter Logic ---
   const filtered = useMemo(() => {
     return items.filter((t) => {
@@ -108,7 +136,7 @@ export default function A_Teacher() {
     });
   }, [items, q, filterMajor]);
 
-  if (loading) return <div style={{ padding: 28, marginLeft: 35 }}>กำลังโหลดข้อมูลอาจารย์...</div>;
+  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>กำลังโหลดข้อมูลอาจารย์...</div>;
 
   return (
     <div style={{ padding: 28, marginLeft: 35 }}>
@@ -128,7 +156,7 @@ export default function A_Teacher() {
 
           <FilterBox
             title="สาขาวิชา"
-            items={MAJOR_TH}
+            items={majorDict}
             values={filterMajor}
             onChange={setFilterMajor}
           />
@@ -196,6 +224,7 @@ export default function A_Teacher() {
       {modalData && (
         <TeacherModal
           data={modalData}
+          majorOptions={majorOptions} // 🟢 ส่งตัวเลือกสาขาเข้าไปใน Modal
           onClose={() => setModalData(null)}
           onSave={handleUpdate}
         />
@@ -208,7 +237,7 @@ export default function A_Teacher() {
 /* =========================
    Modal Component
 ========================= */
-function TeacherModal({ data, onClose, onSave }: { data: Teacher, onClose: () => void, onSave: (d: Teacher) => void }) {
+function TeacherModal({ data, majorOptions, onClose, onSave }: { data: Teacher, majorOptions: string[], onClose: () => void, onSave: (d: Teacher) => void }) {
   const [form, setForm] = useState<Teacher>(data);
 
   return (
@@ -264,14 +293,20 @@ function TeacherModal({ data, onClose, onSave }: { data: Teacher, onClose: () =>
           <div style={{ gridColumn: 'span 2' }}>
             <label style={labelStyle}>สาขาวิชา</label>
             <select
-              style={inputStyle}
+              style={{ ...inputStyle, cursor: 'pointer' }}
               value={form.major || ""}
               onChange={e => setForm({ ...form, major: e.target.value })}
             >
               <option value="">-- เลือกสาขาวิชา --</option>
-              {Object.entries(MAJOR_TH).map(([k, v]) => (
-                <option key={k} value={k}>{v}</option>
+              {/* 🟢 วนลูปสร้างตัวเลือกสาขาวิชาจาก API */}
+              {majorOptions.map((major) => (
+                <option key={major} value={major}>{major}</option>
               ))}
+
+              {/* เผื่อกรณีข้อมูลเก่า เป็นรหัส CS, IT ฯลฯ และไม่ได้อยู่ใน majorOptions */}
+              {form.major && !majorOptions.includes(form.major) && (
+                <option value={form.major}>{MAJOR_TH[form.major] || form.major}</option>
+              )}
             </select>
           </div>
         </div>
@@ -311,14 +346,14 @@ function FilterBox({ title, items, values, onChange }: { title: string; items: R
   return (
     <div>
       <div style={{ fontSize: 13, color: "#475569", marginBottom: 6, fontWeight: 600 }}>{title}</div>
-      <div style={{ display: 'flex', gap: 12 }}>
+      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
         {Object.entries(items).map(([k, v]) => (
           <label key={k} style={{ fontSize: 13, cursor: 'pointer', display: 'flex', gap: 6, alignItems: 'center', color: '#334155' }}>
             <input
               type="checkbox"
               checked={values.includes(k)}
               onChange={(e) => onChange(e.target.checked ? [...values, k] : values.filter((x) => x !== k))}
-              style={{ accentColor: '#0074B7' }}
+              style={{ accentColor: '#0074B7', width: 16, height: 16 }}
             /> {v}
           </label>
         ))}

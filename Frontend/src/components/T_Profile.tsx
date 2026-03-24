@@ -11,7 +11,7 @@ export type TeacherProfile = {
   email: string;
   phone: string;
   faculty?: string;
-  major?: "CS" | "IT" | "GIS" | ""; // ✅ เปลี่ยนจาก department เป็น major ให้ตรง DB
+  major?: string; // ✅ เปลี่ยนเป็น string ธรรมดา เพื่อรองรับชื่อสาขาจาก Database
 };
 
 const EMPTY: TeacherProfile = {
@@ -20,10 +20,10 @@ const EMPTY: TeacherProfile = {
   email: "",
   phone: "",
   faculty: "",
-  major: "", // ✅
+  major: "",
 };
 
-// Map สำหรับแสดงชื่อไทย
+// ✅ เก็บ Map ไว้เผื่อกรณีมีข้อมูลเก่า (Legacy) ที่เซฟเป็นชื่อย่อไปแล้ว จะได้แสดงผลสวยงาม
 const MAJOR_MAP: Record<string, string> = {
   CS: "วิทยาการคอมพิวเตอร์",
   IT: "เทคโนโลยีสารสนเทศ",
@@ -36,8 +36,11 @@ export default function T_Profile() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [savedMsg, setSavedMsg] = useState("");
-  const timerRef = useRef<number | null>(null);
 
+  // ✅ State สำหรับเก็บรายการสาขาวิชาจาก Database
+  const [majorOptions, setMajorOptions] = useState<string[]>([]);
+
+  const timerRef = useRef<number | null>(null);
   const token = localStorage.getItem("coop.token");
 
   // ---------- Fetch Data ----------
@@ -49,7 +52,6 @@ export default function T_Profile() {
       });
       if (res.ok) {
         const data = await res.json();
-        // ถ้า Backend ส่ง department มา (โค้ดเก่า) หรือส่ง major มา ก็ให้ map ให้ถูก
         setProfile({
           ...data,
           major: data.major || data.department || ""
@@ -62,8 +64,24 @@ export default function T_Profile() {
     }
   };
 
+  // ✅ ดึงข้อมูลสาขาวิชาจาก API (อิงจากตาราง CoopCriteria)
+  const fetchMajors = async () => {
+    try {
+      const res = await fetch("http://localhost:5000/api/admin/majors", {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setMajorOptions(data.majors);
+      }
+    } catch (err) {
+      console.error("Failed to load majors:", err);
+    }
+  };
+
   useEffect(() => {
     fetchProfile();
+    fetchMajors(); // 🟢 เรียกฟังก์ชันดึงสาขาตอนโหลดหน้า
     return () => { if (timerRef.current) window.clearTimeout(timerRef.current); };
   }, []);
 
@@ -97,6 +115,9 @@ export default function T_Profile() {
   if (loading) return <div style={{ padding: 100, textAlign: 'center', color: '#64748b' }}>กำลังโหลดข้อมูลโปรไฟล์...</div>;
 
   const isFirstTime = !profile.firstName || profile.firstName === "";
+
+  // Helper สำหรับแสดงชื่อสาขา (เผื่อเจอคำย่อเก่า ให้แปลงก่อน ถ้าไม่เจอให้ใช้ชื่อตรงๆ)
+  const displayMajor = MAJOR_MAP[profile.major || ""] || profile.major || "-";
 
   return (
     <div className="page" style={{ padding: "40px 20px", maxWidth: "900px", margin: "0 auto" }}>
@@ -136,9 +157,8 @@ export default function T_Profile() {
                 </div>
                 <div>
                   <div className="profile-title">{profile.firstName} {profile.lastName}</div>
-                  {/* ✅ ใช้ major และ map ชื่อไทย */}
                   <div className="profile-sub">
-                    {profile.faculty} {profile.major ? `• ${MAJOR_MAP[profile.major]}` : ""}
+                    {profile.faculty} {profile.major ? `• ${displayMajor}` : ""}
                   </div>
                 </div>
               </div>
@@ -168,8 +188,8 @@ export default function T_Profile() {
               </div>
               <div className="info-row">
                 <span className="label">สาขาวิชา</span>
-                {/* ✅ ใช้ major และ map ชื่อไทย */}
-                <span className="value">{MAJOR_MAP[profile.major || ""] || profile.major || "-"}</span>
+                {/* ✅ แสดงสาขาวิชา */}
+                <span className="value">{displayMajor}</span>
               </div>
             </div>
           </>
@@ -187,7 +207,7 @@ export default function T_Profile() {
 
             <div className="form-grid">
               <div>
-                <label className="label">ชื่อ</label>
+                <label className="label">ชื่อ <span style={{ color: 'red' }}>*</span></label>
                 <input
                   className="input"
                   value={form.firstName}
@@ -195,7 +215,7 @@ export default function T_Profile() {
                 />
               </div>
               <div>
-                <label className="label">นามสกุล</label>
+                <label className="label">นามสกุล <span style={{ color: 'red' }}>*</span></label>
                 <input
                   className="input"
                   value={form.lastName}
@@ -217,7 +237,7 @@ export default function T_Profile() {
               </div>
 
               <div style={{ gridColumn: 'span 2' }}>
-                <label className="label">คณะ</label>
+                <label className="label">คณะ / สำนักวิชา</label>
                 <input
                   className="input"
                   value={form.faculty}
@@ -226,19 +246,19 @@ export default function T_Profile() {
                 />
               </div>
 
-              {/* ✅ Dropdown เลือก Major */}
+              {/* 🟢 Dropdown สาขาวิชาที่ดึงจาก Database */}
               <div style={{ gridColumn: 'span 2' }}>
                 <label className="label">สาขาวิชา</label>
                 <select
                   className="input"
                   value={form.major || ""}
-                  onChange={(e) => setForm({ ...form, major: e.target.value as any })}
+                  onChange={(e) => setForm({ ...form, major: e.target.value })}
                   style={{ appearance: 'none', background: '#fff url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23131313%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E") no-repeat right 12px center', backgroundSize: '12px' }}
                 >
                   <option value="">-- เลือกสาขาวิชา --</option>
-                  {Object.entries(MAJOR_MAP).map(([key, label]) => (
-                    <option key={key} value={key}>
-                      {label}
+                  {majorOptions.map((major) => (
+                    <option key={major} value={major}>
+                      {major}
                     </option>
                   ))}
                 </select>

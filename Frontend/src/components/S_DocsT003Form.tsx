@@ -1,6 +1,7 @@
-import React, { useState } from "react";
-import { createT003PDF } from "../utils/pdfGeneratorT003"; // สร้างไฟล์นี้เตรียมไว้ในอนาคต
+import React, { useState, useEffect } from "react";
+import { createT003PDF } from "../utils/pdfGeneratorT003";
 import StatusBadge from "./StatusBadge";
+import CountdownTimer from "../components/CountdownTimer"; // ✅ Import เข้ามา
 
 interface Props {
     profile: any;
@@ -9,6 +10,11 @@ interface Props {
 
 export default function S_DocsT003Form({ profile, onRefresh }: Props) {
     const [loading, setLoading] = useState(false);
+
+    // 🟢 State สำหรับ Config เวลาเปิด-ปิดระบบ
+    const [config, setConfig] = useState<any>(null);
+    const [isSystemOpen, setIsSystemOpen] = useState(true);
+
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
     const [showModal, setShowModal] = useState(false);
     const [selectedUploadFile, setSelectedUploadFile] = useState<File | null>(null);
@@ -25,8 +31,8 @@ export default function S_DocsT003Form({ profile, onRefresh }: Props) {
 
     // --- ดึงข้อมูลจาก Profile มาโชว์ (อ่านอย่างเดียว) ---
     const company = profile?.coop?.company || profile?.company || {};
-
     const savedT003 = profile?.t003Form || {};
+
     // --- State เก็บข้อมูลฟอร์ม (หน้า 2) ---
     const [formData, setFormData] = useState({
         reportTitleTh: savedT003.reportTitleTh || "",
@@ -41,8 +47,6 @@ export default function S_DocsT003Form({ profile, onRefresh }: Props) {
     });
 
     // --- State เก็บข้อมูลแผนปฏิบัติงาน 16 สัปดาห์ (หน้า 3) ---
-    // โครงสร้าง: [{ task: "ศึกษาข้อมูลระบบ", weeks: [1, 2, 3] }, ...]
-
     const initialWorkPlan = savedT003.workPlan
         ? (typeof savedT003.workPlan === 'string' ? JSON.parse(savedT003.workPlan) : savedT003.workPlan)
         : [{ task: "", weeks: [] }, { task: "", weeks: [] }, { task: "", weeks: [] }];
@@ -62,6 +66,7 @@ export default function S_DocsT003Form({ profile, onRefresh }: Props) {
     };
 
     const toggleWeek = (taskIndex: number, weekNumber: number) => {
+        if (!isSystemOpen) return; // ล็อกถ้าปิดระบบ
         const newPlan = [...workPlan];
         const weeks = newPlan[taskIndex].weeks;
         if (weeks.includes(weekNumber)) {
@@ -72,8 +77,49 @@ export default function S_DocsT003Form({ profile, onRefresh }: Props) {
         setWorkPlan(newPlan);
     };
 
-    const addWorkPlanRow = () => setWorkPlan([...workPlan, { task: "", weeks: [] }]);
-    const removeWorkPlanRow = (index: number) => setWorkPlan(workPlan.filter((_, i) => i !== index));
+    const addWorkPlanRow = () => {
+        if (isSystemOpen) setWorkPlan([...workPlan, { task: "", weeks: [] }]);
+    };
+    const removeWorkPlanRow = (index: number) => {
+        if (isSystemOpen) setWorkPlan(workPlan.filter((_, i) => i !== index));
+    };
+
+    // 🟢 Fetch Config จาก Backend ตอนโหลดหน้า (ใช้ T003)
+    useEffect(() => {
+        const loadConfig = async () => {
+            try {
+                const token = localStorage.getItem("coop.token");
+                const res = await fetch("http://localhost:5000/api/admin/config/t003", {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    setConfig(data);
+
+                    if (!data.isOpen) {
+                        setIsSystemOpen(false);
+                    } else {
+                        const now = new Date().getTime();
+
+                        const targetEnd = data.endDate ? new Date(data.endDate) : null;
+                        if (targetEnd) targetEnd.setHours(23, 59, 59, 999);
+
+                        const start = data.startDate ? new Date(data.startDate).getTime() : 0;
+                        const end = targetEnd ? targetEnd.getTime() : Infinity;
+
+                        if (start === 0 && end === Infinity) {
+                            setIsSystemOpen(true);
+                        } else {
+                            setIsSystemOpen(now >= start && now <= end);
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error("Load config error", err);
+            }
+        };
+        loadConfig();
+    }, []);
 
     // ==========================================
     // 1. ฟังก์ชันเปิดดูตัวอย่าง PDF
@@ -81,7 +127,6 @@ export default function S_DocsT003Form({ profile, onRefresh }: Props) {
     const handlePreviewPDF = async () => {
         setLoading(true);
         try {
-            // รวมข้อมูลฟอร์ม และ ตารางแผนงาน ส่งไปให้ PDF Generator
             const payloadToPDF = { ...formData, workPlan };
             const doc = await createT003PDF(profile, payloadToPDF);
 
@@ -131,7 +176,6 @@ export default function S_DocsT003Form({ profile, onRefresh }: Props) {
 
             if (res.ok) {
                 alert("💾 บันทึกข้อมูลแบบร่าง T003 เรียบร้อยแล้ว! (สามารถกลับมาแก้ไขได้ภายหลัง)");
-                // แนะนำให้เรียก onRefresh() เผื่อให้อัปเดต Profile ล่าสุด
                 if (typeof onRefresh === 'function') onRefresh();
                 setTimeout(() => window.location.reload(), 500);
             } else {
@@ -151,7 +195,7 @@ export default function S_DocsT003Form({ profile, onRefresh }: Props) {
         try {
             const uploadData = new FormData();
             uploadData.append("files", selectedUploadFile);
-            uploadData.append("docType", "T003_FORM"); // ⚠️ ระบุว่าเป็น T003
+            uploadData.append("docType", "T003_FORM");
 
             const token = localStorage.getItem("coop.token");
             const res = await fetch("http://localhost:5000/api/docs/upload", {
@@ -179,6 +223,17 @@ export default function S_DocsT003Form({ profile, onRefresh }: Props) {
     return (
         <div style={{ maxWidth: 1000, margin: '0 auto', background: '#fff', padding: 30, borderRadius: 12, boxShadow: '0 4px 6px rgba(0,0,0,0.05)' }}>
 
+            {/* 🔴 แจ้งเตือนถ้าระบบปิด (UI หลัก) */}
+            {!isSystemOpen && (
+                <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', padding: '16px', borderRadius: 8, marginBottom: 24, display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <span style={{ fontSize: 24 }}>🔒</span>
+                    <div>
+                        <h4 style={{ margin: '0 0 4px 0', color: '#991b1b', fontSize: 16 }}>ขณะนี้ระบบปิดรับเอกสาร T003</h4>
+                        <p style={{ margin: 0, color: '#b91c1c', fontSize: 13 }}>หมดเวลาการส่งเอกสาร หรือผู้ดูแลระบบได้ทำการปิดระบบชั่วคราว คุณไม่สามารถอัปโหลดไฟล์ใหม่ได้ในขณะนี้</p>
+                    </div>
+                </div>
+            )}
+
             {/* --- HEADER --- */}
             <div style={{ borderBottom: '2px solid #2563eb', paddingBottom: 15, marginBottom: 25, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
@@ -188,7 +243,11 @@ export default function S_DocsT003Form({ profile, onRefresh }: Props) {
                     </h2>
                     <p style={{ color: '#64748b', margin: 0 }}>แบบแจ้งโครงร่างรายงานการปฏิบัติงานสหกิจศึกษา (ส่งภายในสัปดาห์ที่ 3)</p>
                 </div>
-                <div style={{ display: 'flex', gap: 10, marginTop: 5 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 10 }}>
+
+                    {/* 🟢 เรียกใช้ Component นับถอยหลังตรงนี้โดยตรงเลย */}
+                    <CountdownTimer endDate={config?.endDate} isOpen={config?.isOpen} />
+
                     <button type="button" onClick={handlePreviewPDF} disabled={loading} style={{ ...btnOutline, borderColor: '#2563eb', color: '#2563eb' }}>
                         👁️ ดูตัวอย่าง / โหลด PDF
                     </button>
@@ -196,9 +255,9 @@ export default function S_DocsT003Form({ profile, onRefresh }: Props) {
             </div>
 
             {/* --- ฟอร์มกรอกข้อมูล (STEP 1) --- */}
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 24, opacity: isSystemOpen ? 1 : 0.6, pointerEvents: isSystemOpen ? 'auto' : 'none' }}>
 
-                {/* ส่วนที่ 0: ข้อมูล Auto-fill (โชว์เฉยๆ ให้นักศึกษาดู) */}
+                {/* ส่วนที่ 0: ข้อมูล Auto-fill */}
                 <Section title="ข้อมูลนักศึกษาและสถานประกอบการ (ระบบดึงข้อมูลอัตโนมัติ)">
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 15, fontSize: 14, color: '#475569' }}>
                         <div><b>ชื่อ-สกุล:</b> {profile?.firstName} {profile?.lastName}</div>
@@ -223,7 +282,7 @@ export default function S_DocsT003Form({ profile, onRefresh }: Props) {
                     </div>
                 </Section>
 
-                {/* ส่วนที่ 2: แผนปฏิบัติงาน (ตาราง 16 สัปดาห์) */}
+                {/* ส่วนที่ 2: แผนปฏิบัติงาน */}
                 <Section title="แผนปฏิบัติงานสหกิจศึกษา (คลิกเพื่อเลือกสัปดาห์ที่ทำ)">
                     <div style={{ overflowX: 'auto' }}>
                         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, textAlign: 'center' }}>
@@ -252,14 +311,14 @@ export default function S_DocsT003Form({ profile, onRefresh }: Props) {
                                                 onChange={(e) => handleTaskChange(rIndex, e.target.value)}
                                                 style={{ width: '100%', border: 'none', outline: 'none', padding: 4 }}
                                                 placeholder={`งานที่ ${rIndex + 1}`}
-
+                                                disabled={!isSystemOpen}
                                             />
                                         </td>
                                         {Array.from({ length: 16 }).map((_, wIndex) => {
                                             const weekNum = wIndex + 1;
                                             const isChecked = row.weeks.includes(weekNum);
                                             return (
-                                                <td key={wIndex} style={{ border: '1px solid #cbd5e1', padding: 0, cursor: 'pointer', background: isChecked ? '#bae6fd' : 'white' }} onClick={() => toggleWeek(rIndex, weekNum)}>
+                                                <td key={wIndex} style={{ border: '1px solid #cbd5e1', padding: 0, cursor: isSystemOpen ? 'pointer' : 'not-allowed', background: isChecked ? '#bae6fd' : 'white' }} onClick={() => toggleWeek(rIndex, weekNum)}>
                                                     <div style={{ width: '100%', height: '24px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
                                                         {isChecked && <span style={{ color: '#0284c7', fontWeight: 'bold' }}>✓</span>}
                                                     </div>
@@ -267,21 +326,25 @@ export default function S_DocsT003Form({ profile, onRefresh }: Props) {
                                             );
                                         })}
                                         <td style={{ border: '1px solid #cbd5e1', padding: 4 }}>
-                                            <button type="button" onClick={() => removeWorkPlanRow(rIndex)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontWeight: 'bold' }}>✕</button>
+                                            <button type="button" onClick={() => removeWorkPlanRow(rIndex)} disabled={!isSystemOpen} style={{ background: 'none', border: 'none', color: isSystemOpen ? '#ef4444' : '#94a3b8', cursor: isSystemOpen ? 'pointer' : 'not-allowed', fontWeight: 'bold' }}>✕</button>
                                         </td>
                                     </tr>
                                 ))}
                             </tbody>
                         </table>
                     </div>
-                    <button type="button" onClick={addWorkPlanRow} style={{ marginTop: 10, padding: '6px 12px', background: '#f1f5f9', border: '1px dashed #94a3b8', borderRadius: 6, cursor: 'pointer', fontSize: 13, width: '100%' }}>
-                        + เพิ่มหัวข้องาน
-                    </button>
+                    {isSystemOpen && (
+                        <button type="button" onClick={addWorkPlanRow} style={{ marginTop: 10, padding: '6px 12px', background: '#f1f5f9', border: '1px dashed #94a3b8', borderRadius: 6, cursor: 'pointer', fontSize: 13, width: '100%' }}>
+                            + เพิ่มหัวข้องาน
+                        </button>
+                    )}
                 </Section>
 
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 10 }}>
-                    <button type="submit" style={{ ...btnSubmit, background: '#2563eb' }}>💾 บันทึกข้อมูลร่าง T003</button>
-                </div>
+                {isSystemOpen && (
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 10 }}>
+                        <button type="submit" style={{ ...btnSubmit, background: '#2563eb' }}>💾 บันทึกข้อมูลร่าง T003</button>
+                    </div>
+                )}
             </form>
 
             {/* --- ส่วนอัปโหลดเอกสาร (STEP 2) --- */}
@@ -302,19 +365,25 @@ export default function S_DocsT003Form({ profile, onRefresh }: Props) {
                     </div>
                 )}
 
-                {/* ระบบ Upload (ทำงานเหมือน T002) */}
+                {/* ระบบ Upload */}
                 {uploadedT003 && !selectedUploadFile ? (
-                    <div style={{ padding: 16, background: '#fff', border: '1px solid #93c5fd', borderRadius: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ padding: 16, background: '#fff', border: '1px solid #93c5fd', borderRadius: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 15 }}>
                         <div>
                             <div style={{ fontSize: 14, color: '#1e40af', fontWeight: 'bold' }}>✅ ส่งแบบฟอร์ม T003 แล้ว</div>
                             <div style={{ fontSize: 12, color: '#3b82f6', marginTop: 4 }}>ไฟล์: {uploadedT003.name}</div>
                         </div>
                         <div style={{ display: 'flex', gap: 10 }}>
                             <button className="btn-outline" onClick={() => window.open(`http://localhost:5000/uploads/${uploadedT003.path}`, '_blank')} style={{ ...btnOutline, borderColor: '#3b82f6', color: '#3b82f6' }}>👁️ ดูไฟล์ที่ส่ง</button>
-                            <label htmlFor="upload-t003-change" style={{ ...btnOutline, cursor: 'pointer', textAlign: 'center', borderColor: currentStatusToShow === 'T003_EDITS_REQUIRED' ? '#ef4444' : '#f59e0b', color: currentStatusToShow === 'T003_EDITS_REQUIRED' ? '#dc2626' : '#d97706' }}>
-                                {currentStatusToShow === 'T003_EDITS_REQUIRED' ? '🔄 ส่งไฟล์ใหม่' : '🔄 เปลี่ยนไฟล์'}
-                            </label>
-                            <input type="file" id="upload-t003-change" style={{ display: 'none' }} accept=".pdf,.jpg,.png" onChange={(e) => e.target.files?.[0] && setSelectedUploadFile(e.target.files[0])} />
+
+                            {/* แสดงปุ่มแก้ไขไฟล์เฉพาะเมื่อระบบเปิด */}
+                            {isSystemOpen && (
+                                <>
+                                    <label htmlFor="upload-t003-change" style={{ ...btnOutline, cursor: 'pointer', textAlign: 'center', borderColor: currentStatusToShow === 'T003_EDITS_REQUIRED' ? '#ef4444' : '#f59e0b', color: currentStatusToShow === 'T003_EDITS_REQUIRED' ? '#dc2626' : '#d97706' }}>
+                                        {currentStatusToShow === 'T003_EDITS_REQUIRED' ? '🔄 ส่งไฟล์ใหม่' : '🔄 เปลี่ยนไฟล์'}
+                                    </label>
+                                    <input type="file" id="upload-t003-change" style={{ display: 'none' }} accept=".pdf,.jpg,.png" onChange={(e) => e.target.files?.[0] && setSelectedUploadFile(e.target.files[0])} />
+                                </>
+                            )}
                         </div>
                     </div>
                 ) : (
@@ -330,9 +399,11 @@ export default function S_DocsT003Form({ profile, onRefresh }: Props) {
                                 </div>
                             </div>
                         ) : (
-                            <div style={{ textAlign: 'center' }}>
-                                <input type="file" id="upload-t003" style={{ display: 'none' }} accept=".pdf,.jpg,.png" onChange={(e) => e.target.files?.[0] && setSelectedUploadFile(e.target.files[0])} />
-                                <label htmlFor="upload-t003" style={{ ...btnSubmit, background: '#2563eb', display: 'inline-block' }}>📂 เลือกไฟล์ T003 เพื่ออัปโหลด</label>
+                            <div style={{ textAlign: 'center', opacity: isSystemOpen ? 1 : 0.5 }}>
+                                <input type="file" id="upload-t003" style={{ display: 'none' }} accept=".pdf,.jpg,.png" onChange={(e) => e.target.files?.[0] && setSelectedUploadFile(e.target.files[0])} disabled={!isSystemOpen} />
+                                <label htmlFor="upload-t003" style={{ ...btnSubmit, background: isSystemOpen ? '#2563eb' : '#9ca3af', display: 'inline-block', cursor: isSystemOpen ? 'pointer' : 'not-allowed' }}>
+                                    {isSystemOpen ? '📂 เลือกไฟล์ T003 เพื่ออัปโหลด' : '🔒 ระบบปิดรับเอกสาร'}
+                                </label>
                                 <div style={{ fontSize: 12, color: '#6b7280', marginTop: 8 }}>(รองรับไฟล์ .pdf, .jpg, .png)</div>
                             </div>
                         )}
@@ -340,6 +411,7 @@ export default function S_DocsT003Form({ profile, onRefresh }: Props) {
                 )}
             </div>
 
+            {/* --- Modal Popup ดูตัวอย่าง PDF --- */}
             {showModal && previewUrl && (
                 <div style={modalBackdropStyle}>
                     <div style={modalCardStyle}>
@@ -371,7 +443,6 @@ const Section = ({ title, children }: { title: string, children: React.ReactNode
 
 const Input = ({ label, ...props }: any) => (
     <div>
-        {/* โชว์ดาวแดงเฉพาะเมื่อมีการส่งค่า required=true มา */}
         <label style={lblStyle}>{label} {props.required && <span style={{ color: 'red' }}>*</span>}</label>
         <input style={inputStyle} {...props} />
     </div>
@@ -380,7 +451,6 @@ const Input = ({ label, ...props }: any) => (
 const TextArea = ({ label, ...props }: any) => (
     <div>
         <label style={lblStyle}>{label} {props.required && <span style={{ color: 'red' }}>*</span>}</label>
-        {/* ⚠️ เอาคำว่า required ที่เคยฝังตัวแดงๆ ตรงนี้ออกไป */}
         <textarea style={inputStyle} rows={3} {...props} />
     </div>
 );

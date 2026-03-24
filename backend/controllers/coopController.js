@@ -22,12 +22,27 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 // 2. ฟังก์ชันยื่นคำร้อง (Submit Application)
+// 2. ฟังก์ชันยื่นคำร้อง (Submit Application)
 const submitCoopApplication = async (req, res) => {
   try {
     const userId = req.user.id;
-    // ✅ 1. เปลี่ยนมารับค่า jobPosition ตามที่ Frontend ส่งมา
-    const { jobPosition } = req.body; 
+    // ✅ 1. เพิ่มการรับค่า coopPeriodId ที่ส่งมาจาก Frontend
+    const { jobPosition, coopPeriodId } = req.body; 
     const files = req.files || [];
+
+    // เช็คว่ามีข้อมูลรอบรับสมัครส่งมาด้วยหรือไม่
+    if (!coopPeriodId) {
+      return res.status(400).json({ ok: false, message: "ไม่พบข้อมูลรอบรับสมัคร กรุณารีเฟรชหน้าเว็บแล้วลองใหม่" });
+    }
+
+    // (Option เสริมเพื่อความปลอดภัย) เช็คว่ารอบรับสมัครนี้มีอยู่จริงและยังเปิดอยู่ไหม
+    const activePeriod = await prisma.coopPeriod.findUnique({
+      where: { id: Number(coopPeriodId) }
+    });
+
+    if (!activePeriod || !activePeriod.isActive) {
+      return res.status(400).json({ ok: false, message: "ไม่สามารถยื่นคำร้องได้ เนื่องจากรอบรับสมัครนี้ถูกปิดไปแล้ว" });
+    }
 
     // หา Student ID
     const student = await prisma.student.findUnique({
@@ -55,22 +70,24 @@ const submitCoopApplication = async (req, res) => {
         });
       }
 
-      // 2.2 อัปเดตสถานะใน StudentCoop เป็น APPLYING พร้อมบันทึก Job Position
+      // 2.2 อัปเดตสถานะใน StudentCoop เป็น APPLYING พร้อมบันทึก Job Position และผูก CoopPeriodId
       await tx.studentCoop.upsert({
         where: { studentId: student.id },
         update: {
           status: "APPLYING", 
-          jobPosition: jobPosition, // ✅ 2. บันทึกลักษณะงานลงไปในการ Update
+          jobPosition: jobPosition, 
+          coopPeriodId: Number(coopPeriodId), // ✅ บันทึกว่ายื่นในเทอม/ปีไหน (กรณีเคยมี record แล้ว)
         },
         create: {
           studentId: student.id,
           status: "APPLYING",
-          jobPosition: jobPosition, // ✅ 3. บันทึกลักษณะงานลงไปในการ Create (เผื่อเพิ่งเคยยื่นครั้งแรก)
+          jobPosition: jobPosition, 
+          coopPeriodId: Number(coopPeriodId), // ✅ บันทึกว่ายื่นในเทอม/ปีไหน (กรณียื่นครั้งแรก)
         },
       });
     });
 
-    res.json({ ok: true, message: "ยื่นคำร้องให้อาจารย์ตรวจสอบเรียบร้อยแล้ว" });
+    res.json({ ok: true, message: "ยื่นคำร้องให้ตรวจสอบเรียบร้อยแล้ว" });
 
   } catch (err) {
     console.error("Submit Error:", err);

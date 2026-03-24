@@ -54,7 +54,24 @@ interface StudentProfile {
     status?: string; // สถานะจริงจะอยู่ตรงนี้ (เช่น NOT_SUBMITTED, APPLYING, QUALIFIED)
   };
 }
-
+interface StudentCompany {
+  id: string;
+  name: string;
+  address?: string; // เก็บไว้เผื่อระบบเก่า
+  addressNo?: string;
+  moo?: string;
+  soi?: string;
+  road?: string;
+  subDistrict?: string;
+  district?: string;
+  province?: string;
+  zipcode?: string;
+  contactPerson?: string;
+  contactPosition?: string;
+  phone?: string;
+  mentors: Mentor[];
+  mentor?: Mentor;
+}
 /* ================= PAGE ================= */
 export default function S_ProfilePage() {
   const navigate = useNavigate();
@@ -115,8 +132,9 @@ export default function S_ProfilePage() {
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           ...updatedProfile,
-          prefix: prefixMapToPrisma[updatedProfile.prefix as keyof typeof prefixMapToPrisma],
-          studyProgram: studyProgramMapToPrisma[updatedProfile.studyProgram as keyof typeof studyProgramMapToPrisma],
+          // ✅ ป้องกันค่าหาย ถ้า map ไม่เจอ ให้ใช้ค่าที่ผู้ใช้กรอกมาเลย
+          prefix: prefixMapToPrisma[updatedProfile.prefix as keyof typeof prefixMapToPrisma] || updatedProfile.prefix,
+          studyProgram: studyProgramMapToPrisma[updatedProfile.studyProgram as keyof typeof studyProgramMapToPrisma] || updatedProfile.studyProgram,
           gpa: updatedProfile.gpa ? Number(updatedProfile.gpa) : 0,
           coreGpa: updatedProfile.coreGpa ? Number(updatedProfile.coreGpa) : 0,
           activityUnit: updatedProfile.activityUnit ? Number(updatedProfile.activityUnit) : 0,
@@ -155,6 +173,32 @@ export default function S_ProfilePage() {
       }
     } catch (err) { alert("เกิดข้อผิดพลาดในการบันทึกบริษัท"); }
   }
+
+  // ฟังก์ชันประกอบร่างที่อยู่
+  const getFullAddress = (c?: StudentCompany) => {
+    if (!c) return "-";
+
+    // ถ้าระบบเก่าเคยพิมพ์รวมๆ ไว้ใน address แล้วยังไม่ได้อัปเดตแยกฟิลด์ ให้โชว์ของเก่า
+    if (c.address && !c.addressNo && !c.province) return c.address;
+
+    const isBKK = c.province === "กรุงเทพมหานคร" || c.province === "กรุงเทพฯ" || c.province === "กทม.";
+
+    const parts = [
+      c.addressNo && `${c.addressNo}`,
+      c.moo && `หมู่ ${c.moo}`,
+      c.soi && `ซอย${c.soi}`,
+      c.road && `ถนน${c.road}`,
+      c.subDistrict && (isBKK ? `แขวง${c.subDistrict}` : `ต.${c.subDistrict}`),
+      c.district && (isBKK ? `เขต${c.district}` : `อ.${c.district}`),
+      c.province && (isBKK ? c.province : `จ.${c.province}`),
+      c.zipcode
+    ];
+
+    // เอาเฉพาะส่วนที่มีข้อมูลมาต่อกันด้วยช่องว่าง
+    const fullAddress = parts.filter(Boolean).join(" ");
+
+    return fullAddress || c.address || "ไม่มีข้อมูลที่อยู่ในระบบ";
+  };
 
   /* ================= OPTIONS FOR DROPDOWNS ================= */
   const companyOptions = [
@@ -271,12 +315,13 @@ export default function S_ProfilePage() {
           </div>
 
           {/* รายละเอียดบริษัท / พี่เลี้ยงที่ถูกเลือก */}
-          {profile.company && (
+          {profile.company && profile.company.id && (
             <div style={{ marginTop: 20 }}>
               <div className="divider" />
               <h4 className="profile-sub">รายละเอียดบริษัท</h4>
               <Info label="ชื่อ" value={profile.company.name || "-"} />
-              <Info label="ที่อยู่" value={profile.company.address || "-"} pill />
+              <Info label="ที่อยู่" value={getFullAddress(profile.company)} />
+              <Info label="ผู้ติดต่อ" value={`${profile.company.contactPerson || "-"} ${profile.company.contactPosition ? `(${profile.company.contactPosition})` : ""}`} />
               <Info label="เบอร์โทร" value={profile.company.phone || "-"} />
             </div>
           )}
@@ -306,8 +351,20 @@ export default function S_ProfilePage() {
 }
 
 /* ================= MODAL COMPONENT ================= */
+/* ================= MODAL COMPONENT ================= */
 function StudentModal({ profile, teachers, saveStudentInfo, closeModal }: any) {
-  const [form, setForm] = useState<StudentProfile>({ ...profile });
+  // ✅ สร้าง Map สำหรับแปลงค่าจาก Database มาเป็นตัวเลือกใน UI ให้ตรงกัน
+  const prefixMapToUI = { MR: "นาย", MS: "นางสาว", นาย: "นาย", นางสาว: "นางสาว" } as any;
+  const studyProgramMapToUI = { normal: "ภาคปกติ", special: "ภาคพิเศษ", ภาคปกติ: "ภาคปกติ", ภาคพิเศษ: "ภาคพิเศษ" } as any;
+
+  // ✅ แปลงค่าก่อนนำไปตั้งเป็น State และกำหนดค่าเริ่มต้นคณะ
+  const [form, setForm] = useState<StudentProfile>(() => ({
+    ...profile,
+    prefix: prefixMapToUI[profile.prefix] || profile.prefix || "",
+    studyProgram: studyProgramMapToUI[profile.studyProgram] || profile.studyProgram || "",
+    curriculum: profile.curriculum || "วิทยาลัยการคอมพิวเตอร์" // ✅ ตั้งค่าเริ่มต้น แต่ยังลบแก้ได้
+  }));
+
   const [majorOptions, setMajorOptions] = useState<string[]>([]);
 
   useEffect(() => {
@@ -370,7 +427,10 @@ function StudentModal({ profile, teachers, saveStudentInfo, closeModal }: any) {
             <label htmlFor="prepCourse" className="label" style={{ margin: 0, cursor: 'pointer' }}>ผ่านรายวิชาเตรียมความพร้อมสหกิจศึกษา (CP002001/SC002001)</label>
           </div>
 
-          <div style={{ gridColumn: 'span 2' }}><label className="label">คณะ / หลักสูตร</label><input className="input" value={form.curriculum ?? ""} onChange={(e) => setForm({ ...form, curriculum: e.target.value })} /></div>
+          <div style={{ gridColumn: 'span 2' }}>
+            <label className="label">คณะ / หลักสูตร</label>
+            <input className="input" value={form.curriculum ?? ""} onChange={(e) => setForm({ ...form, curriculum: e.target.value })} />
+          </div>
           <div><label className="label">เบอร์โทรศัพท์</label><input className="input" value={form.phone ?? ""} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
           <div><label className="label">อีเมลติดต่อหลัก</label><input className="input" value={form.email ?? ""} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
         </div>

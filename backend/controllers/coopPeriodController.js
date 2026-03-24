@@ -116,3 +116,19 @@ exports.getActivePeriod = async (req, res) => {
     res.status(500).json({ ok: false, error: "Server error" });
   }
 };
+
+// ดึงข้อมูลปีการศึกษาทั้งหมด (เรียงจากใหม่ไปเก่า)
+exports.getAllCoopPeriods = async (req, res) => {
+  try {
+    const periods = await prisma.coopPeriod.findMany({
+      orderBy: [
+        { academicYear: 'desc' }, // เรียงปีล่าสุดขึ้นก่อน
+        { semester: 'desc' }      // เรียงเทอมล่าสุดขึ้นก่อน
+      ]
+    });
+    res.json({ ok: true, periods });
+  } catch (err) {
+    console.error("Error fetching CoopPeriods:", err);
+    res.status(500).json({ ok: false, message: "Server Error" });
+  }
+};

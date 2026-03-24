@@ -5,39 +5,50 @@ const fs = require('fs');
 const path = require('path');
 
 // ------------------------------------------------------------------
-// ✅ 1. Helper Function: เช็คว่าระบบเปิดรับเอกสารหรือไม่
+// ✅ 1. Helper Function: เช็คว่าระบบเปิดรับเอกสารหรือไม่ (แก้ให้เช็คแยก T000, T002, T003)
 // ------------------------------------------------------------------
-const checkSystemOpen = async () => {
+const checkSystemOpen = async (docType) => {
   try {
+    let configKey = "T000_CONFIG"; 
+    if (docType === 'T002_FORM') configKey = "T002_CONFIG";
+    else if (docType === 'T003_FORM') configKey = "T003_CONFIG";
+
     const config = await prisma.systemConfig.findUnique({
-      where: { key: "T000_CONFIG" }
+      where: { key: configKey }
     });
     
-    // ถ้าไม่มี Config ให้ถือว่าปิดระบบ (เพื่อความปลอดภัย)
-    if (!config) return false; 
+    if (!config) return true; // ถ้าไม่มี Config ถือว่าเปิด
 
     const { startDate, endDate, isOpen } = JSON.parse(config.value);
 
-    // เช็คสวิตช์เปิด/ปิดหลัก
-    if (!isOpen) return false;
-
-    // เช็คช่วงเวลา
-    const now = new Date();
-    
-    // ถ้ามีวันเริ่ม และยังไม่ถึง -> ปิด
-    if (startDate && new Date(startDate) > now) return false; 
-    
-    // ถ้ามีวันจบ และเลยเวลาแล้ว -> ปิด (ให้ส่งได้จนถึง 23:59:59 ของวันจบ)
-    if (endDate) {
-        const end = new Date(endDate);
-        end.setHours(23, 59, 59, 999); 
-        if (now > end) return false;
+    if (!isOpen) {
+        console.log(`❌ [Upload Blocked]: ${configKey} is set to isOpen = false`);
+        return false;
     }
 
-    return true; // ผ่านทุกเงื่อนไข -> เปิด
+    const now = new Date();
+    
+    // ดัก Error กรณีแอดมินลบวันที่ทิ้ง (เป็นค่าว่าง "")
+    if (startDate && startDate.trim() !== "") {
+        if (new Date(startDate) > now) {
+            console.log(`❌ [Upload Blocked]: ยังไม่ถึงวันเปิดรับ (${startDate})`);
+            return false;
+        }
+    }
+    
+    if (endDate && endDate.trim() !== "") {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999); 
+        if (now > end) {
+            console.log(`❌ [Upload Blocked]: เลยเวลาปิดรับแล้ว (${endDate})`);
+            return false;
+        }
+    }
+
+    return true; 
   } catch (err) {
     console.error("Check system error:", err);
-    return false; // Error -> ปิดไว้ก่อน
+    return false; 
   }
 };
 
@@ -141,37 +152,33 @@ exports.getMyApplication = async (req, res) => {
 // ==========================================
 exports.uploadDocument = async (req, res) => {
   try {
-    // 1. เช็คไฟล์ก่อน
-    if (!req.file) {
-      return res.status(400).json({ ok: false, message: "กรุณาเลือกไฟล์" });
-    }
+    if (!req.file) return res.status(400).json({ ok: false, message: "กรุณาเลือกไฟล์" });
     
-    // 2. เช็คระบบเปิดรับ (ยกเว้นใบตอบรับ ให้ส่งได้ตลอด)
     const { docType } = req.body;
-    const isOpen = await checkSystemOpen();
-    
+
+    // เช็คระบบเปิดรับ (ยกเว้นใบตอบรับ ให้ส่งได้ตลอด)
+    const isOpen = await checkSystemOpen(docType);
     if (docType !== 'CP-ACCEPTANCE' && !isOpen) {
-        fs.unlinkSync(req.file.path);
-        return res.status(403).json({ ok: false, message: "⛔ ระบบปิดรับเอกสารแล้ว (หรือยังไม่เปิด)" });
+        if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+        
+        // 🔴 ถ้าติด 403 ตรงนี้ ให้ลองดูใน Terminal ของ Backend มันจะบอกสาเหตุ
+        return res.status(403).json({ ok: false, message: "⛔ ระบบปิดรับเอกสารประเภทนี้แล้ว (หรือเกินกำหนดเวลา)" });
     }
 
     const userId = req.user.id; 
     const originalName = Buffer.from(req.file.originalname, 'latin1').toString('utf8');
 
-    // 3. ค้นหา Student ID
     const student = await prisma.student.findUnique({
       where: { userId: parseInt(userId) }
     });
 
     if (!student) {
-        fs.unlinkSync(req.file.path); 
+        if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
         return res.status(404).json({ ok: false, message: "ไม่พบข้อมูลนักศึกษาในระบบ" });
     }
 
-    // ✅ 4. ใช้ docType (เช่น 'CP-T000') ตรงๆ ได้เลย ไม่ต้องใช้ Switch Case แล้ว
     const dbType = docType;
 
-    // (Optional) ลบไฟล์เก่าประเภทเดียวกันทิ้งก่อน
     const oldDoc = await prisma.document.findFirst({
         where: { studentId: student.id, type: dbType }
     });
@@ -181,47 +188,37 @@ exports.uploadDocument = async (req, res) => {
         await prisma.document.delete({ where: { id: oldDoc.id } });
     }
 
-    // 5. บันทึกลง Database (Document Table)
     const newDoc = await prisma.document.create({
       data: {
         studentId: student.id,
         name: originalName, 
         path: req.file.filename,
-        type: dbType, // ใช้รหัสที่ Admin ตั้งไว้ได้เลย
-        status: 'WAITING', // ✅ เปลี่ยนจาก PENDING เป็น WAITING ให้ตรงกับ UI
-        rejectReason: null // ✅ ล้างคอมเมนต์ที่เคยโดนตีกลับทิ้ง
+        type: dbType, 
+        status: 'WAITING',
+        rejectReason: null 
       }
     });
 
-    // 6. ✅ อัปเดตสถานะการส่งเอกสาร
     if (dbType === 'CP-ACCEPTANCE') {
-        // กรณี: เป็นใบตอบรับ
         await prisma.studentCoop.upsert({
             where: { studentId: student.id },
-            update: {
-                acceptanceFileUrl: req.file.filename,
-                status: 'WAITING_FOR_STAFF_CHECK_LETTER' 
-            },
-            create: {
-                studentId: student.id,
-                acceptanceFileUrl: req.file.filename,
-                status: 'WAITING_FOR_STAFF_CHECK_LETTER'
-            }
+            update: { acceptanceFileUrl: req.file.filename, status: 'WAITING_FOR_STAFF_CHECK_LETTER' },
+            create: { studentId: student.id, acceptanceFileUrl: req.file.filename, status: 'WAITING_FOR_STAFF_CHECK_LETTER' }
         });
-    } // ✅ เพิ่มส่วนนี้เข้าไป: กรณีเป็น T002 ให้อัปเดตสถานะเป็น T002_SUBMITTED
-    else if (dbType === 'T002_FORM') {
+    } else if (dbType === 'T002_FORM') {
         await prisma.studentCoop.upsert({
             where: { studentId: student.id },
             update: { status: 'T002_SUBMITTED' },
             create: { studentId: student.id, status: 'T002_SUBMITTED' }
         });
-    } 
-    else {
-        // กรณี: เป็นเอกสารทั่วไป (เช็คว่าถ้าเคยโดนตีกลับ ให้เด้งไปให้เจ้าหน้าที่ตรวจใหม่)
-        const coop = await prisma.studentCoop.findUnique({
-            where: { studentId: student.id }
+    } else if (dbType === 'T003_FORM') {
+        await prisma.studentCoop.upsert({
+            where: { studentId: student.id },
+            update: { status: 'T003_SUBMITTED' },
+            create: { studentId: student.id, status: 'T003_SUBMITTED' }
         });
-
+    } else {
+        const coop = await prisma.studentCoop.findUnique({ where: { studentId: student.id } });
         if (coop && (coop.status === "EDITS_REQUIRED" || coop.status === "APPLICATION_EDITS_REQUIRED")) {
             await prisma.studentCoop.update({
                 where: { studentId: student.id },
@@ -240,7 +237,6 @@ exports.uploadDocument = async (req, res) => {
     res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดในการอัปโหลด" });
   }
 };
-
 
 // ==========================================
 // (แก้ฟังก์ชันนี้ด้วย เพราะของเดิมมันติด Switch Case อยู่)

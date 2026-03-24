@@ -1,39 +1,26 @@
 import React from "react";
 
-// Enum สถานะทั้งหมดที่มีในระบบ
 export type CoopStatusType =
-    | "NOT_SUBMITTED"               // ยังไม่ยื่นสหกิจ
-    | "APPLYING"
-    | "QUALIFICATION_FAILED"
-    | "QUALIFIED"
-    | "WAITING_FOR_STAFF_CHECK"
-    | "APPLICATION_EDITS_REQUIRED" // แก้ใบสมัคร
-    | "EDITS_REQUIRED"             // แก้ T000
-    | "DOCS_APPROVED"
-    | "REQ_LETTER_ISSUED"
-    // --- สถานะช่วงส่งตัว ---
-    | "WAITING_FOR_PLACEMENT_LETTER"   // นศ. โหลดหนังสือแล้ว รอไปยื่นและเอาใบตอบรับมาส่ง
-    | "WAITING_FOR_STAFF_CHECK_LETTER" // นศ. อัปโหลดใบตอบรับแล้ว รอ จนท. ตรวจ
-    | 'ACCEPTANCE_CHECKED'          // จนท. ตรวจใบตอบรับผ่านแล้ว
-    | "PLACEMENT_LETTER_ISSUED"        // จนท. ออกหนังสือส่งตัวจริงแล้ว
-    | "INTERNSHIP_STARTED"             // เริ่มฝึกงาน
-    // ✅ เพิ่มสถานะใหม่
-    | "T002_SUBMITTED"                 // ส่งแบบฟอร์ม T002 แล้ว
-    | "T002_EDITS_REQUIRED"         // แก้ไขแบบฟอร์ม T002
-    | "T003_SUBMITTED"                 // ส่งแบบฟอร์ม T003 แล้ว
-    | "T003_EDITS_REQUIRED"         // แก้ไขแบบฟอร์ม T003
-    | "T003_APPROVED"
-    | "REJECTED"
-    | "WAITING"
+    // --- Zone 1-3 ---
+    | "NOT_SUBMITTED" | "APPLYING" | "QUALIFICATION_FAILED" | "APPLICATION_EDITS_REQUIRED" | "QUALIFIED"
+    | "WAITING_FOR_STAFF_CHECK" | "EDITS_REQUIRED" | "DOCS_APPROVED" | "REQ_LETTER_ISSUED"
+    | "WAITING_FOR_PLACEMENT_LETTER" | "WAITING_FOR_STAFF_CHECK_LETTER" | "ACCEPTANCE_CHECKED" | "PLACEMENT_LETTER_ISSUED"
+    // --- Zone 4 (Main) ---
+    | "INTERNSHIP_STARTED"
+    // --- Sub Status (Documents & Supervision) ---
+    | "T002_SUBMITTED" | "T002_EDITS_REQUIRED"
+    | "T003_SUBMITTED" | "T003_EDITS_REQUIRED"
+    | "T004_SUBMITTED" | "T004_EDITS_REQUIRED"
+    | "PENDING_TEACHER" | "TEACHER_REJECTED" | "DATE_CONFIRMED" | "LETTER_UPLOADED" | "COMPLETED"
     | string;
 
 // Config สำหรับ Map สีและข้อความ
-const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; icon?: string }> = {
-    // --- Phase 1: ใบสมัคร ---
-    NOT_SUBMITTED: { label: "ยังไม่ยื่นสหกิจ", color: "#64748b", bg: "#f1f5f9", icon: "⚪" }, // เทา
-    APPLYING: { label: "รอตรวจสอบคุณสมบัติ", color: "#854d0e", bg: "#fef9c3", icon: "⏳" }, // เหลือง
-    QUALIFICATION_FAILED: { label: "ไม่ผ่านคุณสมบัติ", color: "#991b1b", bg: "#fee2e2", icon: "❌" }, // แดง
-    QUALIFIED: { label: "ผ่านคุณสมบัติ", color: "#166534", bg: "#dcfce7", icon: "✅" }, // เขียว
+const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; icon?: string; isInternship?: boolean }> = {
+
+    // ... (Zone 1-3 ใส่เหมือนเดิมที่คุณมี) ...
+    NOT_SUBMITTED: { label: "ยังไม่ยื่นสหกิจ", color: "#64748b", bg: "#f1f5f9", icon: "⚪" },
+    APPLYING: { label: "รอตรวจสอบคุณสมบัติ", color: "#854d0e", bg: "#fef9c3", icon: "⏳" },
+    QUALIFIED: { label: "ผ่านคุณสมบัติ", color: "#166534", bg: "#dcfce7", icon: "✅" },
     APPLICATION_EDITS_REQUIRED: { label: "แก้ไขใบสมัคร", color: "#c2410c", bg: "#fff7ed", icon: "📝" }, // ส้ม
 
     // --- Phase 2: เอกสาร T000 ---
@@ -43,52 +30,65 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; 
 
     // --- Phase 3: ขอความอนุเคราะห์ ---
     REQ_LETTER_ISSUED: { label: "ออกหนังสือขอความอนุเคราะห์แล้ว", color: "#6b21a8", bg: "#f3e8ff", icon: "🚚" }, // ม่วง
-
-    // --- Phase 4: ส่งตัว ---
+    PLACEMENT_LETTER_ISSUED: { label: "ออกหนังสือส่งตัวแล้ว", color: "#047857", bg: "#d1fae5", icon: "🏁" },
     WAITING_FOR_PLACEMENT_LETTER: { label: "รอใบตอบรับ", color: "#0891b2", bg: "#ecfeff", icon: "🏢" }, // ฟ้า Cyan
     WAITING_FOR_STAFF_CHECK_LETTER: { label: "รอตรวจใบตอบรับ", color: "#d97706", bg: "#fffbeb", icon: "🕵️" }, // เหลืองเข้ม Amber
     ACCEPTANCE_CHECKED: { label: "ตรวจใบตอบรับแล้ว", color: "#059669", bg: "#d1fae5", icon: "✨" }, // เขียวมินต์ Emerald
-    PLACEMENT_LETTER_ISSUED: { label: "ออกใบส่งตัวแล้ว", color: "#047857", bg: "#d1fae5", icon: "🏁" }, // เขียวเข้ม Emerald
-    INTERNSHIP_STARTED: { label: "กำลังฝึกงาน", color: "#4338ca", bg: "#e0e7ff", icon: "🚀" }, // น้ำเงินเข้ม Indigo
+    // ==========================================
+    // --- Zone 4: ปฏิบัติงาน (ใส่ isInternship: true) ---
+    // ==========================================
+    INTERNSHIP_STARTED: { label: "ออกฝึกสหกิจ", color: "#4338ca", bg: "#e0e7ff", icon: "🚀", isInternship: true },
 
-    // --- Phase 5: ระหว่างฝึกงาน (ใหม่) ---
-    T002_SUBMITTED: { label: "ส่ง T002 แล้ว", color: "#0d9488", bg: "#ccfbf1", icon: "📄" }, // สี Teal (เขียวอมฟ้า)
-    T002_EDITS_REQUIRED: { label: "แก้ไข T002", color: "#dc2626", bg: "#fef2f2", icon: "⚠️" }, // ✅ เพิ่มบรรทัดนี้ (สีแดง)
-    T003_SUBMITTED: { label: "ส่ง T003 (โครงร่าง) แล้ว", color: "#7c3aed", bg: "#f5f3ff", icon: "📘" }, // ม่วง
-    T003_APPROVED: { label: "โครงร่างรายงานผ่านแล้ว", color: "#059669", bg: "#d1fae5", icon: "✅" },   // เขียว
-    T003_EDITS_REQUIRED: { label: "แก้ไขโครงร่าง T003", color: "#dc2626", bg: "#fef2f2", icon: "⚠️" }, // แดง
-    // --- General ---
-    REJECTED: { label: "ไม่ผ่าน", color: "#991b1b", bg: "#fee2e2", icon: "❌" },
-    WAITING: { label: "ยังไม่ดำเนินการ", color: "#64748b", bg: "#f1f5f9", icon: "⚪" },
+    // --- เอกสาร T002 - T006 ---
+    T002_SUBMITTED: { label: "ส่งเอกสาร T002 แล้ว", color: "#0d9488", bg: "#ccfbf1", icon: "📄", isInternship: true },
+    T002_EDITS_REQUIRED: { label: "ต้องแก้ไข T002", color: "#dc2626", bg: "#fef2f2", icon: "⚠️", isInternship: true },
+    T003_SUBMITTED: { label: "ส่งโครงร่าง T003 แล้ว", color: "#0d9488", bg: "#ccfbf1", icon: "📘", isInternship: true },
+    T003_EDITS_REQUIRED: { label: "ต้องแก้ไขโครงร่าง T003", color: "#dc2626", bg: "#fef2f2", icon: "⚠️", isInternship: true },
+    T004_SUBMITTED: { label: "ส่งรายงาน T004 แล้ว", color: "#0d9488", bg: "#ccfbf1", icon: "📗", isInternship: true },
+
+    // --- การนิเทศ (Supervision) ---
+    PENDING_TEACHER: { label: "รออาจารย์เลือกวันนิเทศ", color: "#d97706", bg: "#fffbeb", icon: "⏳", isInternship: true },
+    TEACHER_REJECTED: { label: "แก้ไขวันนัดหมายนิเทศ", color: "#dc2626", bg: "#fef2f2", icon: "⚠️", isInternship: true },
+    DATE_CONFIRMED: { label: "รอเจ้าหน้าที่พิจารณาหนังสือนิเทศ", color: "#0284c7", bg: "#e0f2fe", icon: "🔍", isInternship: true },
+    LETTER_UPLOADED: { label: "อนุมัติหนังสือนิเทศแล้ว", color: "#16a34a", bg: "#dcfce7", icon: "✅", isInternship: true },
+    COMPLETED: { label: "นิเทศเสร็จสิ้น", color: "#6b21a8", bg: "#f3e8ff", icon: "🎉", isInternship: true },
+
+    WAITING: { label: "รอดำเนินการ", color: "#64748b", bg: "#f1f5f9", icon: "⚪" },
 };
 
 interface Props {
     status?: CoopStatusType | null;
     showIcon?: boolean;
+    // ✅ เพิ่ม Option ให้บังคับปิดคำว่า "กำลังฝึกสหกิจ :" ได้ เผื่อบางหน้าไม่อยากให้ยาวเกินไป
+    hidePrefix?: boolean;
 }
 
-export default function StatusBadge({ status, showIcon = true }: Props) {
-    // ถ้าไม่มี status ส่งมา หรือหาไม่เจอใน Config ให้ใช้ค่า Default
+export default function StatusBadge({ status, showIcon = true, hidePrefix = false }: Props) {
     const config = STATUS_CONFIG[status || "WAITING"] || STATUS_CONFIG["WAITING"];
+
+    // ✅ Logic: ถ้าเป็นสถานะตอนฝึกงาน และไม่ได้สั่งซ่อน Prefix ให้เติมคำนำหน้า
+    const displayLabel = (config.isInternship && !hidePrefix)
+        ? `กำลังฝึกสหกิจ : ${config.label}`
+        : config.label;
 
     return (
         <span
             style={{
                 display: "inline-flex",
                 alignItems: "center",
-                gap: "4px",
-                padding: "4px 10px",
+                gap: "6px",
+                padding: "4px 12px",
                 borderRadius: "99px",
                 fontSize: "12px",
-                fontWeight: 600,
+                fontWeight: 700,
                 whiteSpace: "nowrap",
                 color: config.color,
                 backgroundColor: config.bg,
-                border: `1px solid ${config.color}30` // ใส่ขอบจางๆ
+                border: `1px solid ${config.color}30`
             }}
         >
             {showIcon && <span>{config.icon}</span>}
-            {config.label}
+            {displayLabel}
         </span>
     );
 }

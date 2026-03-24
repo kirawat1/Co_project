@@ -29,8 +29,10 @@ model User {
 }
 
 model SystemConfig {
-  key   String @id // เช่น "T000_CONFIG"
-  value String @db.Text // เก็บ JSON เช่น { startDate: "...", endDate: "...", isOpen: true }
+  id        Int      @id @default(autoincrement())
+  key       String   @unique // เช่น 'EVALUATION_FORMS'
+  value     String   @db.Text // เก็บข้อมูลเป็น JSON String
+  updatedAt DateTime @updatedAt
 }
 
 // ==========================================
@@ -69,10 +71,11 @@ model Student {
   emails    StudentEmail[]
   visits    Visit[]
 
-  createdAt           DateTime             @default(now())
-  updatedAt           DateTime             @updatedAt
-  coopApplicationForm CoopApplicationForm?
-  t003Form            CoopT003Form?
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  coopApplicationForm    CoopApplicationForm?
+  t003Form               CoopT003Form?
+  supervisionAppointment SupervisionAppointment?
 }
 
 // ==========================================
@@ -137,8 +140,11 @@ model CoopPeriod {
   endDate      DateTime // วันที่ปิดรับสมัคร (เช่น 25-ตุลา-69)
   isActive     Boolean  @default(false) // สถานะให้เจ้าหน้าที่กด ปิด/เปิด รับสมัครแบบ Manual ได้
 
+  supervisionStartDate DateTime?
+  supervisionEndDate   DateTime?
+  isSupervisionOpen    Boolean       @default(false)
   // ความสัมพันธ์: 1 รอบการรับสมัคร มีนักศึกษาเข้าโครงการหลายคน
-  studentCoops StudentCoop[]
+  studentCoops         StudentCoop[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -246,18 +252,19 @@ model Mentor {
 }
 
 model Teacher {
-  id        Int      @id @default(autoincrement())
-  firstName String
-  lastName  String
-  email     String   @unique
-  phone     String?
-  faculty   String?
-  major     String?
-  userId    Int      @unique
-  user      User     @relation(fields: [userId], references: [id])
-  visits    Visit[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                      Int                      @id @default(autoincrement())
+  firstName               String
+  lastName                String
+  email                   String                   @unique
+  phone                   String?
+  faculty                 String?
+  major                   String?
+  userId                  Int                      @unique
+  user                    User                     @relation(fields: [userId], references: [id])
+  visits                  Visit[]
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
+  supervisionAppointments SupervisionAppointment[]
 }
 
 model Visit {
@@ -366,6 +373,7 @@ enum CoopStatus {
   T002_EDITS_REQUIRED
   T003_SUBMITTED
   T003_EDITS_REQUIRED
+  T003_APPROVED
 }
 
 model CoopT003Form {
@@ -412,4 +420,43 @@ enum DocStatus {
   APPROVED
   REJECTED
   EDITS_REQUIRED
+}
+
+enum SupervisionStatus {
+  PENDING_TEACHER // 1. นศ. เสนอวันแล้ว รออาจารย์เลือก
+  TEACHER_REJECTED // 2. อาจารย์ไม่ว่าง ให้ นศ. เลือกใหม่
+  DATE_CONFIRMED // 3. อาจารย์เลือกวันแล้ว รอ จนท. ออกหนังสือ
+  LETTER_UPLOADED // 4. จนท. อัปโหลดหนังสือที่คณบดีเซ็นแล้ว
+  COMPLETED // 5. นิเทศเสร็จสิ้น
+}
+
+enum SupervisionType {
+  ONLINE
+  ONSITE
+}
+
+model SupervisionAppointment {
+  id            Int     @id @default(autoincrement())
+  studentId     Int     @unique // 1 นศ. ต่อ 1 การนัดหมาย
+  teacherId     Int // อาจารย์ผู้นิเทศ
+  coTeacherName String? @db.Text
+  // นศ. เสนอมาเป็น Array ของวันที่และเวลา (เก็บเป็น JSON string เช่น ["2026-04-10T10:00", "2026-04-11T13:00"])
+  proposedDates String  @db.Text
+
+  supervisionType SupervisionType // ออนไลน์ หรือ ออนไซต์
+
+  // อาจารย์ตอบกลับ
+  confirmedDate DateTime? // วันที่อาจารย์เลือก (ถ้ามี)
+  rejectReason  String?   @db.Text // เหตุผลที่ให้ นศ. เลือกใหม่
+
+  status SupervisionStatus @default(PENDING_TEACHER)
+
+  // ไฟล์หนังสือขอความอนุเคราะห์นิเทศ (ที่คณบดีเซ็นแล้ว)
+  officialLetterPath String?
+  onlineLink         String?  @db.Text
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  teacher Teacher @relation(fields: [teacherId], references: [id])
 }

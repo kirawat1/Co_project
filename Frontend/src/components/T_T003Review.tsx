@@ -1,21 +1,56 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import type { CSSProperties } from "react";
 import axios from "axios";
 
+// --- Types ---
 type Document = { id: number; type: string; path: string; name: string; status: string; };
-type Student = { id: number; studentId: string; firstName: string; lastName: string; docStatus: string; coop: { company: { name: string; } }; documents: Document[]; };
+type Student = {
+    id: number;
+    studentId: string;
+    firstName: string;
+    lastName: string;
+    docStatus: string;
+    coopPeriodId?: number;
+    coop: {
+        coopPeriodId?: number; // เผื่อกรณี Backend ซ้อนมาใน coop
+        company: { name: string; };
+        status?: string;
+    };
+    documents: Document[];
+};
+
+// 🟢 Types สำหรับการเรียงลำดับ (Sorting)
+type SortKey = 'studentId' | 'name' | 'company' | 'status';
+type SortDirection = 'asc' | 'desc';
 
 export default function T_T003Review() {
     const [students, setStudents] = useState<Student[]>([]);
+
+    // ✅ State สำหรับค้นหาและตัวกรองปีการศึกษา
+    const [coopPeriods, setCoopPeriods] = useState<any[]>([]);
+    const [selectedPeriod, setSelectedPeriod] = useState<string>("all");
+    const [searchTerm, setSearchTerm] = useState("");
+
     const [modalOpen, setModalOpen] = useState(false);
     const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
     const [comment, setComment] = useState("");
     const [loading, setLoading] = useState(false);
 
+    // 🟢 State สำหรับการเรียงลำดับ (Sorting)
+    const [sortKey, setSortKey] = useState<SortKey>('studentId');
+    const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+
     const fetchStudents = async () => {
+        setLoading(true);
         try {
             const token = localStorage.getItem("coop.token");
-            // ⚠️ เปลี่ยน API เป็นของฝั่งอาจารย์
+
+            const resPeriods = await fetch("http://localhost:5000/api/admin/coop-periods/all", { headers: { Authorization: `Bearer ${token}` } });
+            if (resPeriods.ok) {
+                const periodsData = await resPeriods.json();
+                if (periodsData.ok && periodsData.periods) setCoopPeriods(periodsData.periods);
+            }
+
             const res = await axios.get("http://localhost:5000/api/admin/students", {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -23,21 +58,76 @@ export default function T_T003Review() {
             let allStudents = Array.isArray(res.data) ? res.data : (res.data?.data || res.data?.students || []);
 
             const t003Students = allStudents.filter((student: any) => {
-                const hasPendingDoc = student.documents?.some((doc: any) => doc.type === 'T003_FORM' && doc.status === 'WAITING');
-                const isStatusMatch = student.coop?.status === 'T003_SUBMITTED' || student.docStatus === 'T003_SUBMITTED';
-                return hasPendingDoc || isStatusMatch;
+                const hasT003Doc = student.documents?.some((doc: any) => doc.type === 'T003_FORM');
+                const isStatusMatch = ['T003_SUBMITTED', 'T003_EDITS_REQUIRED', 'T003_APPROVED', 'INTERNSHIP_STARTED'].includes(student.coop?.status || student.docStatus);
+                return hasT003Doc || isStatusMatch;
             });
 
             setStudents(t003Students);
         } catch (err) { console.error(err); }
+        finally { setLoading(false); }
     };
 
     useEffect(() => { fetchStudents(); }, []);
 
+    const getT003Status = (student: Student) => {
+        const t003Doc = student.documents?.find(d => d.type === "T003_FORM");
+        const docStatus = t003Doc?.status || 'WAITING';
+        const profileStatus = student.coop?.status || student.docStatus;
+
+        if (profileStatus === 'T003_APPROVED' || profileStatus === 'INTERNSHIP_STARTED' || docStatus === 'APPROVED') {
+            return { label: "✅ พิจารณาผ่านแล้ว", color: "#1d4ed8", bg: "#dbeafe", btnBg: "#64748b" };
+        }
+        if (profileStatus === 'T003_EDITS_REQUIRED' || docStatus === 'EDITS_REQUIRED' || docStatus === 'REJECTED') {
+            return { label: "⚠️ ตีกลับให้แก้ไข", color: "#dc2626", bg: "#fee2e2", btnBg: "#ef4444" };
+        }
+        return { label: "📄 รอการพิจารณา", color: "#2563eb", bg: "#bfdbfe", btnBg: "#2563eb" };
+    };
+
+    // 🟢 ฟังก์ชันสำหรับจัดการการคลิก Header เพื่อเรียงลำดับ
+    const handleSort = (key: SortKey) => {
+        if (sortKey === key) {
+            setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+        } else {
+            setSortKey(key);
+            setSortDirection('asc');
+        }
+    };
+
+    // ✅ กรองรายชื่อ (ค้นหา + ปีการศึกษา) และ เรียงลำดับ (Sort)
+    const processedStudents = useMemo(() => {
+        // 1. Filter
+        let filtered = students.filter(s => {
+            const matchSearch = `${s.studentId} ${s.firstName} ${s.lastName} ${s.coop?.company?.name || ""}`.toLowerCase().includes(searchTerm.toLowerCase());
+            const pId = String(s.coopPeriodId || s.coop?.coopPeriodId || "");
+            const matchPeriod = selectedPeriod === "all" || pId === selectedPeriod;
+            return matchSearch && matchPeriod;
+        });
+
+        // 2. Sort
+        filtered.sort((a, b) => {
+            let valA = '';
+            let valB = '';
+
+            switch (sortKey) {
+                case 'studentId': valA = a.studentId || ''; valB = b.studentId || ''; break;
+                case 'name': valA = `${a.firstName} ${a.lastName}`; valB = `${b.firstName} ${b.lastName}`; break;
+                case 'company': valA = a.coop?.company?.name || ''; valB = b.coop?.company?.name || ''; break;
+                case 'status': valA = getT003Status(a).label; valB = getT003Status(b).label; break;
+            }
+
+            if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
+            if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
+            return 0;
+        });
+
+        return filtered;
+    }, [students, selectedPeriod, searchTerm, sortKey, sortDirection]);
+
     const openReviewModal = (student: Student) => { setSelectedStudent(student); setComment(""); setModalOpen(true); };
 
     const getT003FileUrl = (docs: Document[]) => {
-        const file = docs.find(d => d.type === "T003_FORM");
+        const file = docs?.find(d => d.type === "T003_FORM");
         return file ? `http://localhost:5000/uploads/${file.path}` : null;
     };
 
@@ -50,7 +140,6 @@ export default function T_T003Review() {
             const token = localStorage.getItem("coop.token");
             const newStatus = action === 'APPROVE' ? 'T003_APPROVED' : 'T003_EDITS_REQUIRED';
 
-            // ⚠️ เปลี่ยน Endpoint เป็น API ของอาจารย์
             await axios.put(`http://localhost:5000/api/teacher/documents/review-t003`, {
                 studentId: selectedStudent?.id,
                 status: newStatus,
@@ -64,39 +153,87 @@ export default function T_T003Review() {
         finally { setLoading(false); }
     };
 
+    // UI HELPER: แสดงลูกศรเรียงลำดับ
+    const SortIcon = ({ columnKey }: { columnKey: SortKey }) => {
+        if (sortKey !== columnKey) return <span style={{ color: '#cbd5e1', marginLeft: 4 }}>↕</span>;
+        return <span style={{ color: '#2563eb', marginLeft: 4 }}>{sortDirection === 'asc' ? '↑' : '↓'}</span>;
+    };
+
     return (
         <div className="page" style={{ padding: 4, margin: 28, marginLeft: 65 }}>
-            <section style={{ ...card, marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <section style={{ ...card, marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 15 }}>
                 <div>
-                    <h2 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: '#1e3a8a' }}>📘 ตรวจสอบ T003 (สำหรับอาจารย์นิเทศ)</h2>
-                    <div style={{ color: "#64748b", fontSize: 14, marginTop: 4 }}>รายชื่อนักศึกษาที่รอพิจารณาโครงร่างรายงาน (Proposal)</div>
+                    <h2 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: '#1e3a8a' }}>📘 ตรวจสอบ T003 </h2>
+                    <div style={{ color: "#64748b", fontSize: 14, marginTop: 4 }}>รายชื่อนักศึกษาในความดูแลที่รอพิจารณาโครงร่างรายงาน (Proposal)</div>
                 </div>
-                <div style={{ background: '#dbeafe', color: '#1d4ed8', padding: '8px 16px', borderRadius: 8, fontWeight: 700 }}>รอตรวจ: {students.length} รายการ</div>
+
+                <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <input
+                        className="input"
+                        placeholder="🔍 ค้นหารหัส / ชื่อ / บริษัท..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        style={{ width: 250 }}
+                    />
+
+                    <select className="input" style={{ width: 'auto', background: '#f8fafc', padding: '10px 14px' }} value={selectedPeriod} onChange={e => setSelectedPeriod(e.target.value)}>
+                        <option value="all">📚 ทุกปีการศึกษา</option>
+                        {coopPeriods.map(p => (
+                            <option key={p.id} value={p.id}>เทอม {p.semester} / {p.academicYear}</option>
+                        ))}
+                    </select>
+
+                    <button className="btn-ghost" style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 6 }} onClick={fetchStudents} disabled={loading}>
+                        {loading ? '⏳' : '🔄'} รีเฟรช
+                    </button>
+
+                    <div style={{ background: '#dbeafe', color: '#1e40af', padding: '10px 16px', borderRadius: 8, fontWeight: 700, border: '1px solid #bfdbfe' }}>
+                        ทั้งหมด: {processedStudents.length} รายการ
+                    </div>
+                </div>
             </section>
 
             <section style={card}>
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
                         <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0', textAlign: 'left' }}>
-                            <th style={{ padding: '14px 16px', color: '#64748b', fontSize: 13 }}>รหัสนักศึกษา</th>
-                            <th style={{ padding: '14px 16px', color: '#64748b', fontSize: 13 }}>ชื่อ-นามสกุล</th>
-                            <th style={{ padding: '14px 16px', color: '#64748b', fontSize: 13 }}>สถานที่ฝึกงาน</th>
+                            {/* 🟢 หัวตารางกด Sort ได้ */}
+                            <th style={{ padding: '14px 16px', color: '#64748b', fontSize: 13, cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('studentId')}>
+                                รหัสนักศึกษา <SortIcon columnKey="studentId" />
+                            </th>
+                            <th style={{ padding: '14px 16px', color: '#64748b', fontSize: 13, cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('name')}>
+                                ชื่อ-นามสกุล <SortIcon columnKey="name" />
+                            </th>
+                            <th style={{ padding: '14px 16px', color: '#64748b', fontSize: 13, cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('company')}>
+                                สถานที่ฝึกงาน <SortIcon columnKey="company" />
+                            </th>
+                            <th style={{ padding: '14px 16px', color: '#64748b', fontSize: 13, cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('status')}>
+                                สถานะ <SortIcon columnKey="status" />
+                            </th>
                             <th style={{ padding: '14px 16px', color: '#64748b', fontSize: 13, textAlign: 'right' }}>จัดการ</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {students.length === 0 ? (
-                            <tr><td colSpan={4} style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>🎉 ไม่มีเอกสาร T003 รอตรวจ</td></tr>
-                        ) : students.map(s => (
-                            <tr key={s.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                                <td style={{ padding: '14px 16px', fontWeight: 600, color: '#2563eb' }}>{s.studentId}</td>
-                                <td style={{ padding: '14px 16px', fontWeight: 600 }}>{s.firstName} {s.lastName}</td>
-                                <td style={{ padding: '14px 16px', color: '#475569' }}>{s.coop?.company?.name || "-"}</td>
-                                <td style={{ padding: '14px 16px', textAlign: 'right' }}>
-                                    <button className="btn" style={{ padding: '8px 16px', fontSize: 13, background: '#2563eb' }} onClick={() => openReviewModal(s)}>🔍 พิจารณา</button>
-                                </td>
-                            </tr>
-                        ))}
+                        {processedStudents.length === 0 ? (
+                            <tr><td colSpan={5} style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>🎉 ไม่มีเอกสาร T003 ในระบบ</td></tr>
+                        ) : processedStudents.map(s => {
+                            const statusInfo = getT003Status(s);
+                            return (
+                                <tr key={s.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                    <td style={{ padding: '14px 16px', fontWeight: 600, color: '#2563eb' }}>{s.studentId}</td>
+                                    <td style={{ padding: '14px 16px', fontWeight: 600 }}>{s.firstName} {s.lastName}</td>
+                                    <td style={{ padding: '14px 16px', color: '#475569' }}>{s.coop?.company?.name || "-"}</td>
+                                    <td style={{ padding: '14px 16px', fontSize: 13 }}>
+                                        <span style={{ background: statusInfo.bg, color: statusInfo.color, padding: '6px 12px', borderRadius: 999, fontWeight: 700 }}>
+                                            {statusInfo.label}
+                                        </span>
+                                    </td>
+                                    <td style={{ padding: '14px 16px', textAlign: 'right' }}>
+                                        <button className="btn" style={{ padding: '8px 16px', fontSize: 13, background: statusInfo.btnBg }} onClick={() => openReviewModal(s)}>🔍 พิจารณา</button>
+                                    </td>
+                                </tr>
+                            )
+                        })}
                     </tbody>
                 </table>
             </section>
@@ -105,22 +242,22 @@ export default function T_T003Review() {
                 <div style={modalOverlay}>
                     <div style={modalContentLarge}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: 15, borderBottom: '1px solid #e2e8f0', marginBottom: 20 }}>
-                            <h3 style={{ margin: 0, fontSize: 20 }}>🔍 พิจารณา T003: {selectedStudent.firstName}</h3>
+                            <h3 style={{ margin: 0, color: '#1e3a8a', fontSize: 20 }}>🔍 พิจารณา T003: {selectedStudent.firstName}</h3>
                             <button onClick={() => setModalOpen(false)} style={{ background: 'none', border: 'none', fontSize: 24, cursor: 'pointer' }}>&times;</button>
                         </div>
                         <div style={{ display: 'flex', gap: 24, height: '70vh' }}>
                             <div style={{ flex: 1, background: '#525659', borderRadius: 8, overflow: 'hidden' }}>
-                                {getT003FileUrl(selectedStudent.documents) ? (
-                                    <iframe src={getT003FileUrl(selectedStudent.documents) as string} width="100%" height="100%" style={{ border: 'none' }} title="PDF Preview" />
-                                ) : <div style={{ color: 'white', padding: 20 }}>⚠️ ไม่พบไฟล์ T003</div>}
+                                {getT003FileUrl(selectedStudent.documents || []) ? (
+                                    <iframe src={getT003FileUrl(selectedStudent.documents || []) as string} width="100%" height="100%" style={{ border: 'none' }} title="PDF Preview" />
+                                ) : <div style={{ color: 'white', padding: 20, textAlign: 'center', marginTop: 50 }}>⚠️ ไม่พบไฟล์ T003</div>}
                             </div>
                             <div style={{ width: 350, display: 'flex', flexDirection: 'column', gap: 16 }}>
                                 <div>
                                     <label style={label}>ข้อเสนอแนะในการปรับแก้โครงร่าง</label>
-                                    <textarea className="input" rows={6} value={comment} onChange={(e) => setComment(e.target.value)} />
+                                    <textarea className="input" rows={6} value={comment} onChange={(e) => setComment(e.target.value)} style={{ resize: 'none' }} />
                                 </div>
                                 <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
-                                    <button className="btn-ghost" style={{ background: '#fef2f2', color: '#dc2626', padding: 14 }} onClick={() => submitReview('REJECT')} disabled={loading}>❌ ตีกลับให้แก้ไข</button>
+                                    <button className="btn-ghost" style={{ background: '#fef2f2', color: '#dc2626', borderColor: '#fca5a5', padding: 14 }} onClick={() => submitReview('REJECT')} disabled={loading}>❌ ตีกลับให้แก้ไข</button>
                                     <button className="btn" style={{ background: '#2563eb', padding: 14 }} onClick={() => submitReview('APPROVE')} disabled={loading}>✅ อนุมัติโครงร่างรายงาน</button>
                                 </div>
                             </div>
@@ -128,12 +265,12 @@ export default function T_T003Review() {
                     </div>
                 </div>
             )}
-            <style>{` .btn { border-radius: 8px; border: none; font-weight: 700; color: white; cursor: pointer; } .btn-ghost { border-radius: 8px; border: 1px solid #cbd5e1; font-weight: 700; cursor: pointer; } .input { padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1; width: 100%; box-sizing: border-box; } `}</style>
+            <style>{` .btn { border-radius: 8px; border: none; font-weight: 700; color: white; cursor: pointer; transition: 0.2s; } .btn:hover:not(:disabled){ opacity: 0.9; } .btn-ghost { border-radius: 8px; border: 1px solid #cbd5e1; font-weight: 700; color: #475569; background: #fff; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 6px;} .btn-ghost:hover:not(:disabled){ background: #f1f5f9; } .input { padding: 12px 14px; border-radius: 8px; border: 1px solid #cbd5e1; width: 100%; box-sizing: border-box; outline: none; font-family: inherit; } .input:focus{ border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15); } `}</style>
         </div>
     );
 }
 
 const card: CSSProperties = { background: "#fff", borderRadius: 16, padding: 24, boxShadow: "0 4px 6px -1px rgba(0,0,0,0.05)", border: '1px solid #f1f5f9' };
 const label: CSSProperties = { fontSize: 13, fontWeight: 700, color: '#334155', display: 'block', marginBottom: 6 };
-const modalOverlay: CSSProperties = { position: "fixed", inset: 0, backgroundColor: "rgba(15, 23, 42, 0.6)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 999 };
-const modalContentLarge: CSSProperties = { background: "#fff", borderRadius: 16, padding: 24, width: "95%", maxWidth: 1200 };
+const modalOverlay: CSSProperties = { position: "fixed", inset: 0, backgroundColor: "rgba(15, 23, 42, 0.6)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 999, backdropFilter: 'blur(3px)' };
+const modalContentLarge: CSSProperties = { background: "#fff", borderRadius: 16, padding: 24, width: "95%", maxWidth: 1200, boxShadow: "0 25px 50px -12px rgba(0,0,0,0.25)" };

@@ -22,6 +22,14 @@ interface Mentor {
 interface Company {
   name: string;
   address?: string;
+  addressNo?: string;
+  moo?: string;
+  soi?: string;
+  road?: string;
+  subDistrict?: string;
+  district?: string;
+  province?: string;
+  zipcode?: string;
   phone?: string;
   email?: string;
   website?: string;
@@ -55,7 +63,8 @@ interface StudentProfile {
 /* =========================
    Mapping Helpers
 ========================= */
-const MAJOR_TH: Record<string, string> = {
+// เก็บไว้เผื่อเป็น Fallback สำหรับข้อมูลเก่าในระบบ
+const LEGACY_MAJOR_TH: Record<string, string> = {
   CS: "วิทยาการคอมพิวเตอร์",
   IT: "เทคโนโลยีสารสนเทศ",
   GIS: "ภูมิสารสนเทศศาสตร์",
@@ -66,15 +75,6 @@ const CURRICULUM_TH: Record<string, string> = {
   special: "ภาคพิเศษ",
 };
 
-const STATUS_TH: Record<string, string> = {
-  draft: "ฉบับร่าง",
-  pending: "รอพิจารณา",
-  submitted: "รอพิจารณา",
-  approved: "อนุมัติ",
-  rejected: "ไม่อนุมัติ",
-  edits_required: "รอแก้ไข"
-};
-
 function getThaiPrefix(prefix?: string) {
   const p = (prefix || "").trim().toLowerCase();
   if (['mr', 'mr.', 'mister', 'นาย'].includes(p)) return "นาย";
@@ -83,10 +83,32 @@ function getThaiPrefix(prefix?: string) {
   return prefix || "";
 }
 
+function getFullAddress(c?: Company) {
+  if (!c) return "-";
+
+  if (c.address && !c.addressNo && !c.province) return c.address;
+
+  const isBKK = c.province === "กรุงเทพมหานคร" || c.province === "กรุงเทพฯ" || c.province === "กทม.";
+
+  const parts = [
+    c.addressNo && `${c.addressNo}`,
+    c.moo && `หมู่ ${c.moo}`,
+    c.soi && `ซอย${c.soi}`,
+    c.road && `ถนน${c.road}`,
+    c.subDistrict && (isBKK ? `แขวง${c.subDistrict}` : `ต.${c.subDistrict}`),
+    c.district && (isBKK ? `เขต${c.district}` : `อ.${c.district}`),
+    c.province && (isBKK ? c.province : `จ.${c.province}`),
+    c.zipcode
+  ];
+
+  const fullAddress = parts.filter(Boolean).join(" ");
+  return fullAddress || c.address || "ไม่มีข้อมูลที่อยู่";
+}
+
 function normalizeStatus(status?: string) {
   const s = (status || "draft").toLowerCase();
   if (s === "pending") return "submitted";
-  if (s === "qualified") return "approved"; // Map qualified -> approved ให้แสดงผลเหมือนกัน
+  if (s === "qualified") return "approved";
   if (s === "qualification_failed") return "rejected";
   return s;
 }
@@ -97,6 +119,9 @@ function normalizeStatus(status?: string) {
 export default function A_Students() {
   const [items, setItems] = useState<StudentProfile[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // 🟢 State สำหรับเก็บสาขาวิชาจาก API
+  const [dynamicMajors, setDynamicMajors] = useState<Record<string, string>>({});
 
   // Filters
   const [q, setQ] = useState("");
@@ -111,6 +136,8 @@ export default function A_Students() {
     try {
       setLoading(true);
       const token = localStorage.getItem("coop.token");
+
+      // 1. ดึงข้อมูลนักศึกษา
       const res = await fetch("http://localhost:5000/api/students", {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -118,6 +145,22 @@ export default function A_Students() {
         const data = await res.json();
         setItems(data);
       }
+
+      // 🟢 2. ดึงข้อมูลสาขาวิชา
+      const resMajors = await fetch("http://localhost:5000/api/admin/majors", {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (resMajors.ok) {
+        const dataMajors = await resMajors.json();
+        if (dataMajors.ok) {
+          const majorDict: Record<string, string> = { ...LEGACY_MAJOR_TH }; // ใส่ข้อมูลเก่าเผื่อไว้
+          dataMajors.majors.forEach((m: string) => {
+            majorDict[m] = m; // เซ็ต Key และ Value ให้ตรงกันสำหรับ FilterBox
+          });
+          setDynamicMajors(majorDict);
+        }
+      }
+
     } catch (err) {
       console.error(err);
     } finally {
@@ -128,37 +171,6 @@ export default function A_Students() {
   useEffect(() => {
     fetchData();
   }, []);
-
-  // --- Update Status ---
-  const handleUpdateStatus = async (studentId: number, status: string, comment: string) => {
-    try {
-      const token = localStorage.getItem("coop.token");
-      const res = await fetch("http://localhost:5000/api/coop/status", {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          studentId: studentId,
-          status: status,
-          comment: comment
-        }),
-      });
-
-      if (res.ok) {
-        alert("บันทึกสถานะเรียบร้อย");
-        setModalStudent(null);
-        fetchData();
-      } else {
-        const d = await res.json();
-        alert("Error: " + d.message);
-      }
-    } catch (err) {
-      console.error(err);
-      alert("Cannot connect to server");
-    }
-  };
 
   function resetFilters() {
     setQ("");
@@ -202,7 +214,7 @@ export default function A_Students() {
 
           <FilterBox
             title="สาขาวิชา"
-            items={MAJOR_TH}
+            items={Object.keys(dynamicMajors).length > 0 ? dynamicMajors : LEGACY_MAJOR_TH} // 🟢 ใช้ Dynamic Majors
             values={filterMajors}
             onChange={setFilterMajors}
           />
@@ -212,12 +224,6 @@ export default function A_Students() {
             values={filterCurriculums}
             onChange={setFilterCurriculums}
           />
-          {/* <FilterBox
-            title="สถานะคำร้อง"
-            items={{ submitted: "รอพิจารณา", approved: "อนุมัติ", rejected: "ไม่อนุมัติ", edits_required: "รอแก้ไข" }}
-            values={filterStatuses}
-            onChange={setFilterStatuses}
-          /> */}
 
           <button className="btn" style={saveBtn} onClick={resetFilters}>
             ล้างตัวกรอง
@@ -252,7 +258,8 @@ export default function A_Students() {
                     {getThaiPrefix(s.prefix)} {s.firstName} {s.lastName}
                   </td>
                   <td style={td}>{s.user?.email || "-"}</td>
-                  <td style={td}>{MAJOR_TH[s.major ?? ""] ?? s.major ?? "-"}</td>
+                  {/* 🟢 แสดงสาขาโดยเช็คจากข้อมูลเก่าเผื่อไว้ ถ้าไม่ตรงให้แสดงชื่อตรงๆ */}
+                  <td style={td}>{LEGACY_MAJOR_TH[s.major ?? ""] ?? s.major ?? "-"}</td>
                   <td style={td}>{CURRICULUM_TH[s.studyProgram ?? ""] ?? s.studyProgram ?? "-"}</td>
                   <td style={td}><StatusBadge status={s.coop?.status || s.docStatus} /></td>
                   <td style={td}>
@@ -276,7 +283,6 @@ export default function A_Students() {
         <StudentModal
           student={modalStudent}
           onClose={() => setModalStudent(null)}
-          onUpdateStatus={handleUpdateStatus}
         />
       )}
     </div>
@@ -289,21 +295,14 @@ export default function A_Students() {
 function StudentModal({
   student,
   onClose,
-  onUpdateStatus,
 }: {
   student: StudentProfile;
   onClose: () => void;
-  onUpdateStatus: (id: number, status: string, comment: string) => void;
 }) {
   const [tab, setTab] = useState<"profile" | "company" | "docs">("profile");
-  const [reason, setReason] = useState("");
 
   const companyData = student.coop?.company || student.company;
   const mentorData = student.coop?.mentor;
-  const currentStatus = normalizeStatus(student.coop?.status);
-
-  // ✅ แก้ไขเงื่อนไขให้ครอบคลุมสถานะที่รอตรวจ (Applying / Submitted)
-  const isPending = currentStatus === "submitted" || currentStatus === "applying" || currentStatus === "waiting_for_staff_check";
 
   const fullName = `${getThaiPrefix(student.prefix)} ${student.firstName} ${student.lastName}`.trim();
 
@@ -331,12 +330,11 @@ function StudentModal({
               <InfoRow label="ชื่อ-สกุล" value={fullName} />
               <InfoRow label="ชั้นปี" value={student.year} />
               <InfoRow label="คณะ" value={student.faculty || "วิทยาลัยการคอมพิวเตอร์"} />
-              <InfoRow label="สาขาวิชา" value={MAJOR_TH[student.major || ""] || student.major} />
+              <InfoRow label="สาขาวิชา" value={LEGACY_MAJOR_TH[student.major || ""] || student.major} />
               <InfoRow label="หลักสูตร" value={CURRICULUM_TH[student.studyProgram || ""] || student.studyProgram} />
               <InfoRow label="เบอร์โทร" value={student.phone} />
               <InfoRow label="อีเมล" value={student.user?.email} />
               <InfoRow label="GPA" value={student.gpa?.toFixed(2)} />
-              <InfoRow label="สัญชาติ" value={student.nationality} />
             </Section>
           )}
 
@@ -346,7 +344,7 @@ function StudentModal({
                 {companyData ? (
                   <>
                     <InfoRow label="ชื่อบริษัท" value={companyData.name} />
-                    <InfoRow label="ที่อยู่" value={companyData.address} />
+                    <InfoRow label="ที่อยู่" value={getFullAddress(companyData)} />
                     <InfoRow label="อีเมล" value={companyData.email} />
                     <InfoRow label="เบอร์โทร" value={companyData.phone} />
                   </>
@@ -376,7 +374,6 @@ function StudentModal({
                         <span>📄</span>
                         <span style={{ fontSize: 14 }}>{doc.name}</span>
                       </div>
-                      {/* ✅ ใส่ encodeURIComponent เพื่อรองรับชื่อไฟล์ภาษาไทย */}
                       <a href={`http://localhost:5000/uploads/${encodeURIComponent(doc.path)}`} target="_blank" rel="noreferrer" style={{ fontSize: 13, color: '#0074B7', textDecoration: 'none', fontWeight: 600 }}>
                         เปิดดู
                       </a>
@@ -387,26 +384,6 @@ function StudentModal({
             </Section>
           )}
         </div>
-
-        {/* Footer Actions */}
-        {isPending && (
-          <Section title="ผลการพิจารณา">
-            <textarea
-              style={textarea}
-              placeholder="ระบุเหตุผล (กรณีไม่อนุมัติ)"
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-            />
-            <div style={{ display: "flex", gap: 10, marginTop: 12, justifyContent: 'flex-end' }}>
-              <button className="btn" style={{ ...ghostBtn, color: "#dc2626", borderColor: '#dc2626' }} onClick={() => onUpdateStatus(student.id, "REJECTED", reason)}>
-                ไม่อนุมัติ
-              </button>
-              <button className="btn" style={saveBtn} onClick={() => onUpdateStatus(student.id, "APPROVED", reason)}>
-                อนุมัติ
-              </button>
-            </div>
-          </Section>
-        )}
 
         <div style={modalFooter}>
           <button className="btn" style={saveBtn} onClick={onClose}>
@@ -428,7 +405,6 @@ const td: React.CSSProperties = { padding: "12px 10px", fontSize: 14, color: '#1
 const overlay: React.CSSProperties = { position: "fixed", inset: 0, background: "rgba(15,23,42,.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 };
 const modal: React.CSSProperties = { background: "#fff", borderRadius: 16, padding: 28, width: "100%", maxWidth: 700, border: "1px solid #e5e7eb" };
 const modalFooter: React.CSSProperties = { display: "flex", justifyContent: "flex-end", marginTop: 24 };
-const textarea: React.CSSProperties = { width: "100%", minHeight: 90, borderRadius: 10, padding: 12, border: "1px solid #e5e7eb", fontFamily: 'inherit' };
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) { return (<div style={sectionCard}><div style={sectionTitle}>{title}</div>{children}</div>); }
 const sectionCard: React.CSSProperties = { background: "#f8fafc", borderRadius: 12, padding: 16, marginBottom: 14 };
@@ -436,22 +412,22 @@ const sectionTitle: React.CSSProperties = { fontWeight: 700, marginBottom: 10, f
 
 function InfoRow({ label, value }: { label: string; value?: React.ReactNode }) { return (<div style={{ display: "grid", gridTemplateColumns: "120px 1fr", marginBottom: 4 }}><div style={{ color: "#64748b", fontWeight: 600 }}>{label}</div><div style={{ fontWeight: 600 }}>{value || "-"}</div></div>); }
 
-function FilterBox({ title, items, values, onChange }: { title: string; items: Record<string, string>; values: string[]; onChange: (v: string[]) => void; }) { return (<div><div style={{ fontSize: 13, color: "#475569", marginBottom: 4 }}>{title}</div><div style={{ display: 'flex', gap: 10 }}>{Object.entries(items).map(([k, v]) => (<label key={k} style={{ fontSize: 13, cursor: 'pointer', display: 'flex', gap: 4, alignItems: 'center' }}><input type="checkbox" checked={values.includes(k)} onChange={(e) => onChange(e.target.checked ? [...values, k] : values.filter((x) => x !== k))} /> {v}</label>))}</div></div>); }
-
-// ✅ ปรับ StatusBadge ให้ Safe (Fallback ถ้าหา status ไม่เจอ)
-// function StatusBadge({ status }: { status?: string }) {
-//   const map: Record<string, { bg: string; color: string }> = {
-//     submitted: { bg: "#eff6ff", color: "#1e40af" },
-//     approved: { bg: "#ecfdf5", color: "#065f46" },
-//     rejected: { bg: "#fef2f2", color: "#991b1b" },
-//     edits_required: { bg: "#fff7ed", color: "#c2410c" },
-//     draft: { bg: "#f1f5f9", color: "#64748b" },
-//     // เพิ่ม qualified ให้แสดงเหมือน approved
-//     qualified: { bg: "#ecfdf5", color: "#065f46" }
-//   };
-
-//   const s = status ? (map[status] || map['draft']) : map['draft'];
-//   const label = STATUS_TH[status ?? ""] ?? STATUS_TH['draft'];
-
-//   return (<span style={{ padding: "4px 10px", borderRadius: 999, fontSize: 12, fontWeight: 600, background: s.bg, color: s.color }}>{label}</span>);
-// }
+function FilterBox({ title, items, values, onChange }: { title: string; items: Record<string, string>; values: string[]; onChange: (v: string[]) => void; }) {
+  return (
+    <div>
+      <div style={{ fontSize: 13, color: "#475569", marginBottom: 4 }}>{title}</div>
+      <div style={{ display: 'flex', gap: 10 }}>
+        {Object.entries(items).map(([k, v]) => (
+          <label key={k} style={{ fontSize: 13, cursor: 'pointer', display: 'flex', gap: 4, alignItems: 'center' }}>
+            <input
+              type="checkbox"
+              checked={values.includes(k)}
+              onChange={(e) => onChange(e.target.checked ? [...values, k] : values.filter((x) => x !== k))}
+            />
+            {v}
+          </label>
+        ))}
+      </div>
+    </div>
+  );
+}
