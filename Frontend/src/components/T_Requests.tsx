@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useEffect } from "react";
 import type { CSSProperties } from "react";
 import { loadAcademicYear } from "./store";
-import StatusBadge from "./StatusBadge";
+import StatusBadge from "../components/StatusBadge";
 import axios from "axios";
 
 // ================= TYPES =================
@@ -10,12 +10,21 @@ interface StudentProfile {
   id: number; studentId: string; prefix?: string; firstName: string; lastName: string;
   major?: string; year?: string; curriculum?: string; phone?: string; email?: string;
   gpa: number; isQualified?: boolean;
+  coopPeriodId?: number; // ✅
   coop?: {
+    coopPeriodId?: number; // ✅ เผื่อ Backend ส่งมาซ้อนในนี้
     company: { name: string; address?: string; phone?: string; contactPerson?: string; };
     mentor?: { firstName: string; lastName: string; position?: string; phone?: string; };
     status?: string; teacherComment?: string; jobPosition?: string;
   };
   documents: StudentDocument[];
+}
+
+interface CoopPeriod {
+  id: number;
+  semester: string | number;
+  academicYear: string;
+  isActive: boolean;
 }
 
 export default function T_Requests() {
@@ -27,6 +36,10 @@ export default function T_Requests() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("ALL");
 
+  // ✅ State สำหรับเก็บรอบปีการศึกษาและตัวกรอง
+  const [coopPeriods, setCoopPeriods] = useState<CoopPeriod[]>([]);
+  const [filterPeriodId, setFilterPeriodId] = useState<string>("all");
+
   // Modal & Preview State
   const [selectedStudent, setSelectedStudent] = useState<StudentProfile | null>(null);
   const [teacherComment, setTeacherComment] = useState("");
@@ -35,9 +48,18 @@ export default function T_Requests() {
 
   const token = localStorage.getItem("coop.token");
 
-  const fetchStudents = async () => {
+  const fetchData = async () => {
     setLoading(true);
     try {
+      // 🟢 1. ดึงข้อมูลปีการศึกษา
+      const resPeriods = await axios.get("http://localhost:5000/api/admin/coop-periods/all", {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (resPeriods.data?.periods) {
+        setCoopPeriods(resPeriods.data.periods);
+      }
+
+      // 🟢 2. ดึงนักศึกษาของที่ปรึกษา
       const res = await axios.get("http://localhost:5000/api/students", {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -46,20 +68,25 @@ export default function T_Requests() {
     setLoading(false);
   };
 
-  useEffect(() => { fetchStudents(); }, []);
+  useEffect(() => { fetchData(); }, []);
 
-  // ✅ Logic: หาคนที่สถานะรอตรวจ และ ผ่านคุณสมบัติ (Bulk Approve)
+  // ✅ Logic: หาคนที่สถานะรอตรวจ, ผ่านคุณสมบัติ (Bulk Approve) และกรองปีการศึกษา
   const qualifiedPendingList = useMemo(() => {
     return students.filter(s => {
       const isPending = ["APPLYING", "WAITING_FOR_STAFF_CHECK", "SUBMITTED"].includes(s.coop?.status?.toUpperCase() || "");
-      return isPending && s.isQualified === true;
+
+      // 🟢 เช็ค Period ID ให้ครอบคลุมทุกจุดที่ Backend อาจจะส่งมา
+      const appPeriodId = String(s.coopPeriodId || s.coop?.coopPeriodId || "");
+      const matchPeriod = filterPeriodId === "all" || appPeriodId === filterPeriodId;
+
+      return isPending && s.isQualified === true && matchPeriod;
     });
-  }, [students]);
+  }, [students, filterPeriodId]);
 
   const handleBulkApprove = async () => {
     const count = qualifiedPendingList.length;
     if (count === 0) return;
-    if (!confirm(`⚡ ยืนยันการอนุมัติอัตโนมัติ ${count} รายการ?`)) return;
+    if (!confirm(`⚡ ยืนยันการอนุมัติอัตโนมัติ?\n\nระบบจะอนุมัติผู้ผ่านคุณสมบัติในเทอมที่เลือกจำนวน ${count} รายการ`)) return;
 
     setLoading(true);
     try {
@@ -71,7 +98,7 @@ export default function T_Requests() {
         }, { headers: { Authorization: `Bearer ${token}` } })
       ));
       alert("ดำเนินการสำเร็จ!");
-      fetchStudents();
+      fetchData();
     } catch (err) { alert("เกิดข้อผิดพลาด"); }
     finally { setLoading(false); }
   };
@@ -104,7 +131,7 @@ export default function T_Requests() {
       }, { headers: { Authorization: `Bearer ${token}` } });
       alert("บันทึกเรียบร้อย");
       closeModal();
-      fetchStudents();
+      fetchData();
     } catch (err) { alert("เกิดข้อผิดพลาด"); }
   };
 
@@ -114,44 +141,70 @@ export default function T_Requests() {
     setTeacherComment("");
   };
 
+  // ✅ กรองรายชื่อ (ค้นหา + สถานะ + ปีการศึกษา)
   const filteredList = students.filter(s => {
     const status = s.coop?.status || "NOT_SUBMITTED";
     if (status === "DRAFT" || status === "NOT_SUBMITTED") return false;
 
     const matchSearch = `${s.studentId} ${s.firstName} ${s.lastName} ${s.coop?.company?.name || ""}`.toLowerCase().includes(searchTerm.toLowerCase());
     const matchStatus = filterStatus === "ALL" || status === filterStatus;
-    if (filterStatus === "PENDING") return matchSearch && ["APPLYING", "WAITING_FOR_STAFF_CHECK", "SUBMITTED"].includes(status.toUpperCase());
 
-    return matchSearch && matchStatus;
+    // 🟢 เช็ค Period ID ให้ครอบคลุม
+    const appPeriodId = String(s.coopPeriodId || s.coop?.coopPeriodId || "");
+    const matchPeriod = filterPeriodId === "all" || appPeriodId === filterPeriodId;
+
+    if (filterStatus === "PENDING") return matchSearch && matchPeriod && ["APPLYING", "WAITING_FOR_STAFF_CHECK", "SUBMITTED"].includes(status.toUpperCase());
+
+    return matchSearch && matchStatus && matchPeriod;
   });
 
   return (
     <div className="page" style={{ padding: 4, margin: 28, marginLeft: 65 }}>
 
       {/* HEADER */}
-      <section style={{ ...card, marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <section style={{ ...card, marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 15 }}>
         <div>
           <h2 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: '#1e293b' }}>📝 พิจารณาคำร้องขอสหกิจศึกษา</h2>
-          <div style={{ color: "#64748b", fontSize: 14, marginTop: 4 }}>ปีการศึกษา <b>{year}</b> | ตรวจสอบคำร้องและเอกสารจาก S_Gateway</div>
+          <div style={{ color: "#64748b", fontSize: 14, marginTop: 4 }}>ตรวจสอบคำร้องและเอกสารจาก S_Gateway ของนักศึกษาในที่ปรึกษา</div>
         </div>
-        <button
-          className="btn-success"
-          onClick={handleBulkApprove}
-          disabled={qualifiedPendingList.length === 0 || loading}
-        >
-          ⚡ อนุมัติผู้ผ่านเกณฑ์ทั้งหมด ({qualifiedPendingList.length})
-        </button>
+
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+          <button
+            className="btn"
+            onClick={handleBulkApprove}
+            disabled={qualifiedPendingList.length === 0 || loading}
+            style={{
+              background: qualifiedPendingList.length > 0 ? '#10b981' : '#e5e7eb',
+              color: qualifiedPendingList.length > 0 ? 'white' : '#9ca3af',
+              padding: '10px 20px'
+            }}
+          >
+            ⚡ อนุมัติผู้ผ่านเกณฑ์ทั้งหมด ({qualifiedPendingList.length})
+          </button>
+          <button className="btn-ghost" onClick={fetchData} disabled={loading}>
+            {loading ? '⏳' : '🔄'} รีเฟรช
+          </button>
+        </div>
       </section>
 
       {/* FILTER & TABLE */}
       <section style={card}>
-        <div style={{ display: 'flex', gap: 16, marginBottom: 20 }}>
-          <input className="input" placeholder="🔍 ค้นหารหัสนักศึกษา, ชื่อ, หรือบริษัท..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ flex: 1 }} />
-          <select className="input" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} style={{ width: 250 }}>
-            <option value="ALL">ทุกสถานะ</option>
-            <option value="PENDING">รอดำเนินการ</option>
-            <option value="APPROVED">ผ่านเกณฑ์แล้ว</option>
-            <option value="EDITS_REQUIRED">ส่งกลับแก้ไข</option>
+        <div style={{ display: 'flex', gap: 16, marginBottom: 20, flexWrap: 'wrap' }}>
+          <input className="input" placeholder="🔍 ค้นหารหัสนักศึกษา, ชื่อ, หรือบริษัท..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ flex: 1, minWidth: 200 }} />
+
+          {/* 🟢 Dropdown เลือกปีการศึกษา */}
+          <select className="input" value={filterPeriodId} onChange={(e) => setFilterPeriodId(e.target.value)} style={{ width: 'auto', background: '#f8fafc' }}>
+            <option value="all">📚 ทุกปีการศึกษา</option>
+            {coopPeriods.map(p => (
+              <option key={p.id} value={p.id}>เทอม {p.semester}/{p.academicYear}</option>
+            ))}
+          </select>
+
+          <select className="input" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} style={{ width: 'auto' }}>
+            <option value="ALL">📋 ทุกสถานะ</option>
+            <option value="PENDING">⏳ รอดำเนินการ</option>
+            <option value="APPROVED">✅ ผ่านเกณฑ์แล้ว</option>
+            <option value="EDITS_REQUIRED">⚠️ ส่งกลับแก้ไข</option>
           </select>
         </div>
 
@@ -166,10 +219,12 @@ export default function T_Requests() {
             </tr>
           </thead>
           <tbody>
-            {filteredList.map(s => (
+            {filteredList.length === 0 ? (
+              <tr><td colSpan={5} style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>ไม่มีคำร้องในระบบ</td></tr>
+            ) : filteredList.map(s => (
               <tr key={s.id} style={trStyle}>
                 <td style={td}>
-                  <div style={{ fontWeight: 700, color: '#0f172a' }}>{s.studentId}</div>
+                  <div style={{ fontWeight: 700, color: '#0ea5e9' }}>{s.studentId}</div>
                   <div style={{ fontSize: 13, color: '#64748b' }}>{s.firstName} {s.lastName}</div>
                 </td>
                 <td style={td}>
@@ -213,7 +268,7 @@ export default function T_Requests() {
                 {previewUrl ? (
                   previewType === 'pdf' ? <iframe src={previewUrl} style={{ width: '100%', height: '100%', border: 'none' }} title="p" />
                     : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}><img src={previewUrl} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} alt="p" /></div>
-                ) : <div style={{ color: 'white', textAlign: 'center', marginTop: '20%' }}>ไม่มีเอกสาร Gateway ให้แสดง</div>}
+                ) : <div style={{ color: 'white', textAlign: 'center', marginTop: '20%' }}>เลือกไฟล์ด้านขวาเพื่อดู</div>}
               </div>
 
               {/* RIGHT: CONTROL PANEL (40%) */}
@@ -249,7 +304,7 @@ export default function T_Requests() {
                 {/* 3. Actions */}
                 <div style={{ marginTop: 'auto' }}>
                   <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6, display: 'block' }}>ข้อความแจ้งนักศึกษา:</label>
-                  <textarea className="input" rows={2} style={{ width: '100%', marginBottom: 12, fontSize: 13 }}
+                  <textarea className="input" rows={2} style={{ width: '100%', marginBottom: 12, fontSize: 13, resize: 'none' }}
                     placeholder="ระบุสิ่งที่ต้องแก้ไข..." value={teacherComment} onChange={e => setTeacherComment(e.target.value)} />
 
                   <button className="btn" style={{ width: '100%', background: '#10b981', padding: 12, marginBottom: 8 }} onClick={() => updateStatus("APPROVED")}>✅ อนุมัติผ่านเกณฑ์</button>
@@ -272,10 +327,11 @@ export default function T_Requests() {
 
 const STYLES = `
     .btn { border-radius: 8px; border: none; font-weight: 700; color: white; background: #0ea5e9; cursor: pointer; transition: 0.2s; padding: 10px; }
-    .btn:hover { opacity: 0.8; }
-    .btn-success { background: #10b981; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 700; cursor: pointer; }
-    .btn-ghost { padding: 8px 16px; border-radius: 8px; border: 1px solid #cbd5e1; font-weight: 700; color: #475569; background: #fff; cursor: pointer; }
-    .input { padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; outline: none; font-size: 14px; box-sizing: border-box; }
+    .btn:hover:not(:disabled) { opacity: 0.8; }
+    .btn-ghost { padding: 8px 16px; border-radius: 8px; border: 1px solid #cbd5e1; font-weight: 700; color: #475569; background: #fff; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 6px; }
+    .btn-ghost:hover:not(:disabled) { background: #f1f5f9; }
+    .input { padding: 10px 14px; border-radius: 8px; border: 1px solid #cbd5e1; outline: none; font-size: 14px; font-family: inherit; }
+    .input:focus { border-color: #0ea5e9; box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.15); }
     .modal-backdrop { position: fixed; inset: 0; background: rgba(15, 23, 42, .6); display: flex; align-items: center; justify-content: center; z-index: 999; backdrop-filter: blur(3px); }
     .modal-card-split { background: #fff; border-radius: 16px; width: 95vw; max-width: 1400px; height: 90vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); }
 `;

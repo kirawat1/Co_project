@@ -41,8 +41,6 @@ interface CompanyRecord {
     mentors: MentorRecord[];
 }
 
-const YEAR_OPTIONS = ["2568", "2567", "2566", "2565", "2564"];
-
 export default function Company({ profile }: { profile: any }) {
     const userId = profile?.userId || profile?.id || Number(localStorage.getItem("coop.userId") || 0);
     const token = localStorage.getItem("coop.token");
@@ -60,19 +58,41 @@ export default function Company({ profile }: { profile: any }) {
     const [form, setForm] = useState<any>(emptyCompany());
     const [mentorForm, setMentorForm] = useState<any>(emptyMentor());
 
+    // 🟢 เพิ่ม State สำหรับเก็บปีการศึกษาที่ดึงจาก Backend
+    const [coopPeriods, setCoopPeriods] = useState<any[]>([]);
+
     useEffect(() => {
         if (!token) return;
+        // 1. ดึงข้อมูลบริษัท
         fetch("http://localhost:5000/api/companies", {
             headers: { Authorization: `Bearer ${token}` },
         })
             .then(res => res.json())
             .then(data => setItems(data))
             .catch(err => console.error(err));
-    }, []);
+
+        // 🟢 2. ดึงข้อมูลเทอม/ปีการศึกษา
+        const fetchPeriods = async () => {
+            try {
+                // เรียก Route ของฝั่งนักศึกษาที่คุณสร้างไว้
+                const res = await fetch("http://localhost:5000/api/students/coop-periods", {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                const data = await res.json();
+                if (data.ok && data.periods) {
+                    setCoopPeriods(data.periods);
+                }
+            } catch (err) {
+                console.error("Failed to fetch periods:", err);
+            }
+        };
+
+        fetchPeriods();
+    }, [token]);
 
     const filtered = useMemo(() => {
         return items.filter(c =>
-            `${c.name} ${c.nameEn} ${c.province} ${c.email} ${c.pastYears}`.toLowerCase().includes(q.toLowerCase())
+            `${c.name} ${c.nameEn} ${c.province} ${c.email} ${c.pastYears} ${c.addressNo || ''}`.toLowerCase().includes(q.toLowerCase())
         );
     }, [items, q]);
 
@@ -201,7 +221,7 @@ export default function Company({ profile }: { profile: any }) {
             <section className="card" style={{ padding: 24, marginBottom: 28 }}>
                 <h2 style={{ margin: 0 }}>🏢 ทำเนียบสถานประกอบการ</h2>
                 <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
-                    <input className="input" placeholder="ค้นหาชื่อ, จังหวัด, อีเมล..." value={q} onChange={e => setQ(e.target.value)} style={{ width: 320 }} />
+                    <input className="input" placeholder="ค้นหา: ชื่อ / จังหวัด / อีเมล / ปี / เลขที่" value={q} onChange={e => setQ(e.target.value)} style={{ width: 320 }} />
                     <button className="btn" onClick={() => { setForm(emptyCompany()); setShowAdd(true); }}>+ เพิ่มบริษัทใหม่</button>
                 </div>
             </section>
@@ -209,21 +229,22 @@ export default function Company({ profile }: { profile: any }) {
             <section className="card" style={{ padding: 24 }}>
                 <table className="tbl" style={{ width: "100%", borderCollapse: "collapse" }}>
                     <thead>
-                        <tr><th>ชื่อบริษัท</th><th>จังหวัด</th><th>อีเมล</th><th>เบอร์โทร</th><th style={{ textAlign: "right" }}>จัดการ</th></tr>
+                        <tr><th>ชื่อบริษัท</th><th>จังหวัด</th><th>อีเมล</th><th>เบอร์โทร</th><th>ปีแรกที่รับ</th><th style={{ textAlign: "right" }}>จัดการ</th></tr>
                     </thead>
                     <tbody>
                         {filtered.length === 0 ?
-                            <tr><td colSpan={5} style={{ textAlign: "center", padding: 16, color: "#6b7280" }}>— ไม่มีข้อมูล —</td></tr>
+                            <tr><td colSpan={6} style={{ textAlign: "center", padding: 16, color: "#6b7280" }}>— ไม่มีข้อมูล —</td></tr>
                             : filtered.map((c, idx) =>
                                 <tr key={c.id} className={idx % 2 ? "row-odd" : "row-even"}>
                                     <td style={{ fontWeight: 600, color: '#1e293b' }}>{c.name}</td>
                                     <td>{c.province || "-"}</td>
                                     <td>{c.email || "-"}</td>
                                     <td>{c.phone || "-"}</td>
+                                    <td>{c.pastYears || "-"}</td>
                                     <td style={{ textAlign: "right" }}>
                                         <button className="btn-secondary small" onClick={() => setViewCompany(c)}>ดูรายละเอียด</button>
 
-                                        {/* ✅ 2. ซ่อนปุ่มแก้ไข/ลบ ถ้าบริษัทนี้เราไม่ได้เป็นคนเพิ่มเอง */}
+                                        {/* 🟢 ให้โชว์ปุ่ม แก้ไข/ลบ เฉพาะคนที่ตัวเองเพิ่มมา */}
                                         {String(c.createdById) === String(userId) && (
                                             <>
                                                 <button className="btn-secondary small" onClick={() => { setForm(c); setShowEdit(true); }} style={{ marginLeft: 6 }}>แก้ไข</button>
@@ -239,10 +260,11 @@ export default function Company({ profile }: { profile: any }) {
 
             {/* Modals */}
             {showAdd && <Modal title="✨ เพิ่มบริษัทสถานประกอบการใหม่" onClose={() => setShowAdd(false)}>
-                <CompanyForm form={form} setForm={setForm} onSubmit={saveAdd} />
+                {/* 🟢 ส่ง coopPeriods ไปให้ Component ลูก */}
+                <CompanyForm form={form} setForm={setForm} onSubmit={saveAdd} coopPeriods={coopPeriods} />
             </Modal>}
             {showEdit && <Modal title="✏️ แก้ไขข้อมูลบริษัท" onClose={() => setShowEdit(false)}>
-                <CompanyForm form={form} setForm={setForm} onSubmit={saveEdit} />
+                <CompanyForm form={form} setForm={setForm} onSubmit={saveEdit} coopPeriods={coopPeriods} />
             </Modal>}
 
             {viewCompany && <Modal title="🏢 รายละเอียดสถานประกอบการ" onClose={() => setViewCompany(null)}>
@@ -277,7 +299,6 @@ export default function Company({ profile }: { profile: any }) {
                     <button className="btn-secondary small" onClick={() => setShowAddMentor(true)}>+ เพิ่มพี่เลี้ยง</button>
                 </div>
 
-                {/* ✅ 1. ป้องกันตอนเช็คความยาว (length) */}
                 {(!viewCompany.mentors || viewCompany.mentors.length === 0) ? <p style={{ color: "#6b7280", fontSize: 13 }}>ยังไม่มีข้อมูลพี่เลี้ยงในระบบ</p> :
                     <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                         <thead style={{ background: '#f1f5f9' }}>
@@ -289,7 +310,6 @@ export default function Company({ profile }: { profile: any }) {
                             </tr>
                         </thead>
                         <tbody>
-                            {/* ✅ 2. ป้องกันตอนวนลูป map */}
                             {(viewCompany.mentors || []).map(m =>
                                 <tr key={m.id} style={{ borderBottom: '1px solid #eee' }}>
                                     <td style={{ padding: 8 }}>{m.firstName} {m.lastName}</td>
@@ -358,8 +378,8 @@ function Modal({ title, onClose, children }: any) {
     )
 }
 
-// UI Form ใส่ Grid แบ่งสัดส่วน
-function CompanyForm({ form, setForm, onSubmit }: any) {
+// 🟢 3. รับค่า coopPeriods ใน CompanyForm และดึงไปสร้าง Dropdown
+function CompanyForm({ form, setForm, onSubmit, coopPeriods }: any) {
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         setForm({ ...form, [e.target.name]: e.target.value });
     };
@@ -400,10 +420,19 @@ function CompanyForm({ form, setForm, onSubmit }: any) {
                     <div><label style={lbl}>อีเมล</label><input className="input" type="email" name="email" value={form.email || ""} onChange={handleChange} /></div>
 
                     <div style={{ gridColumn: "1 / span 2" }}><label style={lbl}>เว็บไซต์</label><input className="input" name="website" value={form.website || ""} onChange={handleChange} /></div>
-                    <div><label style={lbl}>ปีที่เปิดรับ</label>
+
+                    {/* 🟢 เปลี่ยนเป็น Dropdown เทอม/ปีการศึกษา */}
+                    <div><label style={lbl}>ปีแรกที่รับสหกิจ</label>
                         <select className="input" name="pastYears" value={form.pastYears || ""} onChange={handleChange}>
-                            <option value="">-- เลือกปี --</option>
-                            {YEAR_OPTIONS.map(y => <option key={y} value={y}>{y}</option>)}
+                            <option value="">-- เลือกเทอม/ปีการศึกษา --</option>
+                            {coopPeriods && coopPeriods.map((period: any) => (
+                                <option
+                                    key={period.id}
+                                    value={`เทอม ${period.semester}/${period.academicYear}`}
+                                >
+                                    เทอม {period.semester} / ปีการศึกษา {period.academicYear}
+                                </option>
+                            ))}
                         </select>
                     </div>
                 </div>

@@ -113,31 +113,48 @@ export default function A_Sidebar() {
           className={({ isActive }) => "item" + (isActive ? " active" : "")}
         >
           <span className="ico"><IcDocs /></span>
-          <span className="text">T003 เอกสารขออนุมัติ</span>
+          <span className="text">T003 โครงร่างรายงาน</span>
         </NavLink>
 
-
-
-        {/* <NavLink
-          to="/admin/docs"
+        <NavLink
+          to="/admin/supervision-manager"
           className={({ isActive }) => "item" + (isActive ? " active" : "")}
         >
           <span className="ico"><IcDocs /></span>
-          <span className="text">เอกสาร</span>
-        </NavLink> */}
+          <span className="text">จัดการการนิเทศ</span>
+        </NavLink>
 
-        {/* <NavLink
-          to="/admin/daily"
+        <NavLink
+          to="/admin/doc-t005-006"
           className={({ isActive }) => "item" + (isActive ? " active" : "")}
         >
-          <span className="ico"><IcCalendar /></span>
-          <span className="text">บันทึกประจำวัน</span>
-        </NavLink> */}
+          <span className="ico"><IcDocs /></span>
+          <span className="text">T005/T006 ประเมิน</span>
+        </NavLink>
+
+        <NavLink
+          to="/admin/doc-t007"
+          className={({ isActive }) => "item" + (isActive ? " active" : "")}
+        >
+          <span className="ico"><IcDocs /></span>
+          <span className="text">T007 ประเมิน</span>
+        </NavLink>
+
+
+        <NavLink
+          to="/admin/doc-t008"
+          className={({ isActive }) => "item" + (isActive ? " active" : "")}
+        >
+          <span className="ico"><IcDocs /></span>
+          <span className="text">T008 เล่มรายงานสหกิจ </span>
+        </NavLink>
+
+
         <div className="sec-label">การตั้งค่ารับเอกสาร</div>
 
         <NavLink to="/admin/doc-requirements" className={({ isActive }) => "item" + (isActive ? " active" : "")}>
           <span className="ico"><IcDocs /></span>
-          <span className="text">เอกสารใบสมัครงาน (T000)</span>
+          <span className="text"> เอกสารใบสมัครงาน (T000)</span>
         </NavLink>
 
         <div className="sec-label">ระบบ</div>
@@ -149,6 +166,8 @@ export default function A_Sidebar() {
           <span className="ico"><IcCalendar /></span>
           <span className="text">รอบรับสมัครสหกิจ</span>
         </NavLink>
+
+
 
 
         <NavLink
@@ -167,6 +186,8 @@ export default function A_Sidebar() {
           <span className="text">ตั้งค่า</span>
         </NavLink>
 
+
+
       </nav>
 
       {/* CSS */}
@@ -176,8 +197,34 @@ export default function A_Sidebar() {
 }
 
 
-
 const SIDEBAR_CSS = `
+/* ===== SIDEBAR CONTAINER (เพิ่มการเลื่อนขึ้นลง) ===== */
+.sidebar {
+  /* ทำให้เลื่อนแนวตั้งได้เมื่อเมนูยาวเกินจอ */
+  overflow-y: auto; 
+  /* (แนะนำ) กำหนดความสูงให้เต็มจอเพื่อให้เลื่อนได้พอดี หาก CSS หลักยังไม่ได้กำหนดไว้ */
+  height: 100vh; 
+  
+  /* ปรับแต่ง Scrollbar สำหรับ Firefox */
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+
+/* ปรับแต่ง Scrollbar สำหรับ Chrome, Safari, Edge ให้ดูสวยงาม */
+.sidebar::-webkit-scrollbar {
+  width: 6px;
+}
+.sidebar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.sidebar::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 10px;
+}
+.sidebar::-webkit-scrollbar-thumb:hover {
+  background-color: #94a3b8;
+}
+
 /* ===== BRAND HEADER ===== */
 .brand { margin: 22px 0 26px; padding-left: 4px; }
 
@@ -228,7 +275,7 @@ const SIDEBAR_CSS = `
 
 
 /* ===== NAVIGATION ===== */
-.nav { display: grid; gap: 6px; }
+.nav { display: grid; gap: 6px; padding-bottom: 20px; /* เว้นระยะด้านล่างสุดตอนเลื่อนสุด */ }
 
 .item {
   display: flex;
@@ -283,11 +330,13 @@ const SIDEBAR_CSS = `
   .sidebar {
     padding-bottom: 10px;
     border-bottom: 1px solid rgba(0,0,0,.06);
+    height: auto; /* บนมือถือให้ความสูงเป็นออโต้ */
+    overflow-y: visible; /* ปิดการเลื่อนแนวตั้งบนมือถือ */
   }
   .nav {
     display: flex;
     flex-direction: row;
-    overflow-x: auto;
+    overflow-x: auto; /* มือถือเลื่อนซ้ายขวาแทน */
     gap: 8px;
     padding-bottom: 8px;
   }

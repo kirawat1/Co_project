@@ -39,8 +39,6 @@ interface MentorRecord {
   phone?: string;
 }
 
-const YEAR_OPTIONS = ["2568", "2567", "2566", "2565", "2564"];
-
 /* ----------------------------------------------------
    Main Component
 ---------------------------------------------------- */
@@ -57,9 +55,13 @@ export default function A_Companies() {
   const [form, setForm] = useState<any>(emptyCompany());
   const [mentorForm, setMentorForm] = useState<any>(emptyMentor());
 
+  // State สำหรับเก็บข้อมูลปีการศึกษาจาก Backend
+  const [coopPeriods, setCoopPeriods] = useState<any[]>([]);
+
   useEffect(() => {
     const token = localStorage.getItem("coop.token");
 
+    // ดึงรายชื่อบริษัท
     fetch("http://localhost:5000/api/companies", {
       headers: {
         "Content-Type": "application/json",
@@ -75,6 +77,26 @@ export default function A_Companies() {
       })
       .then(data => setItems(data))
       .catch(err => console.error("Error fetching companies:", err));
+  }, []);
+
+  useEffect(() => {
+    const token = localStorage.getItem("coop.token");
+    const fetchPeriods = async () => {
+      try {
+        // 🟢 เรียก API ของ admin ตาม Route ที่มีอยู่: /api/admin/coop-periods/all
+        const res = await fetch("http://localhost:5000/api/admin/coop-periods/all", {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (data.ok && data.periods) {
+          setCoopPeriods(data.periods);
+        }
+      } catch (err) {
+        console.error("Failed to fetch periods:", err);
+      }
+    };
+
+    fetchPeriods();
   }, []);
 
   function emptyCompany() {
@@ -97,7 +119,7 @@ export default function A_Companies() {
   const filtered = useMemo(() => {
     if (!Array.isArray(items)) return [];
     return items.filter((c) =>
-      `${c.name} ${c.nameEn} ${c.province} ${c.email} ${c.pastYears}`
+      `${c.name} ${c.nameEn} ${c.province} ${c.email} ${c.pastYears} ${c.addressNo || ''}`
         .toLowerCase()
         .includes(q.toLowerCase())
     );
@@ -136,7 +158,6 @@ export default function A_Companies() {
     }
   }
 
-  // ✅ แก้ไขฟังก์ชัน saveEdit ให้รับ Event และใช้ form.id ให้ถูกต้อง
   async function saveEdit(e: React.FormEvent) {
     e.preventDefault();
     const token = localStorage.getItem("coop.token");
@@ -264,7 +285,7 @@ export default function A_Companies() {
         <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
           <input
             className="input"
-            placeholder="ค้นหา: ชื่อ / จังหวัด / อีเมล / ปี"
+            placeholder="ค้นหา: ชื่อ / จังหวัด / อีเมล / ปี / เลขที่"
             value={q}
             onChange={(e) => setQ(e.target.value)}
             style={{ width: 320 }}
@@ -326,13 +347,15 @@ export default function A_Companies() {
       {/* ---------------- Modals ---------------- */}
       {showAdd && (
         <Modal title="✨ เพิ่มบริษัทสถานประกอบการใหม่" onClose={() => setShowAdd(false)}>
-          <CompanyForm form={form} setForm={setForm} onSubmit={saveAdd} />
+          {/* 🟢 ส่ง coopPeriods ลงไปให้แบบฟอร์มด้วย */}
+          <CompanyForm form={form} setForm={setForm} onSubmit={saveAdd} coopPeriods={coopPeriods} />
         </Modal>
       )}
 
       {showEdit && (
         <Modal title="✏️ แก้ไขข้อมูลบริษัท" onClose={() => setShowEdit(false)}>
-          <CompanyForm form={form} setForm={setForm} onSubmit={saveEdit} />
+          {/* 🟢 ส่ง coopPeriods ลงไปให้แบบฟอร์มด้วย */}
+          <CompanyForm form={form} setForm={setForm} onSubmit={saveEdit} coopPeriods={coopPeriods} />
         </Modal>
       )}
 
@@ -446,8 +469,8 @@ function Modal({ title, onClose, children }: any) {
   );
 }
 
-// ✅ อัปเดต CompanyForm ให้เป็น Grid Layout กรอกง่าย
-function CompanyForm({ form, setForm, onSubmit }: any) {
+// 🟢 2. รับค่า coopPeriods เข้ามาใช้งาน
+function CompanyForm({ form, setForm, onSubmit, coopPeriods }: any) {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
@@ -488,10 +511,19 @@ function CompanyForm({ form, setForm, onSubmit }: any) {
           <div><label style={lbl}>อีเมล</label><input className="input" type="email" name="email" value={form.email || ""} onChange={handleChange} /></div>
 
           <div style={{ gridColumn: "1 / span 2" }}><label style={lbl}>เว็บไซต์</label><input className="input" name="website" value={form.website || ""} onChange={handleChange} /></div>
-          <div><label style={lbl}>ปีที่เปิดรับ</label>
+
+          {/* 🟢 3. เปลี่ยนจาก YEAR_OPTIONS เป็นการวนลูป coopPeriods */}
+          <div><label style={lbl}>ปีแรกที่รับสหกิจ</label>
             <select className="input" name="pastYears" value={form.pastYears || ""} onChange={handleChange}>
-              <option value="">-- เลือกปี --</option>
-              {YEAR_OPTIONS.map(y => <option key={y} value={y}>{y}</option>)}
+              <option value="">-- เลือกเทอม/ปีการศึกษา --</option>
+              {coopPeriods && coopPeriods.map((period: any) => (
+                <option
+                  key={period.id}
+                  value={`เทอม ${period.semester}/${period.academicYear}`}
+                >
+                  เทอม {period.semester} / ปีการศึกษา {period.academicYear}
+                </option>
+              ))}
             </select>
           </div>
         </div>
@@ -541,4 +573,4 @@ function MentorForm({ form, setForm, onSubmit }: any) {
 
 const ghostBtn: React.CSSProperties = { background: "#fff", color: "#0074B7", boxShadow: "none", border: "1px solid rgba(10,132,255,.25)", height: 36, borderRadius: 8, padding: '0 16px', cursor: 'pointer' };
 const td: React.CSSProperties = { padding: "14px 16px", fontSize: 14, color: '#334155', verticalAlign: 'middle' };
-const lbl = { display: 'block', fontSize: 12, fontWeight: 600, color: '#64748b', marginBottom: 4 };
+const lbl = { display: 'block', fontSize: 12, fontWeight: 600, color: '#64748b', margin: "0 0 4px 0" };

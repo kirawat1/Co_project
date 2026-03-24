@@ -1,109 +1,124 @@
 import { useEffect, useMemo, useState } from "react";
+import axios from "axios";
 import { IcAnnounce, IcDocs } from "./icons";
-import {
-  loadAnnouncements,
-  loadDocPeriods,
-  loadAcademicYear,
-  loadStudents,
-} from "./store";
-import type { Announcement, DocPeriod, StudentProfile } from "./store";
 
 /* ===============================
-   Exam (นิเทศ)
+    Types
 =============================== */
-type ExamItem = {
-  id: string;
-  studentId: string;
-  round?: string;
+interface Announcement {
+  id: number;
+  title: string;
+  body: string;
   date: string;
-  time?: string;
-  location?: string;
-  note?: string;
-};
+  year: string;
+  attachments?: any[];
+}
 
-const K_EXAMS = "coop.teacher.exams.v1";
+interface SupervisionAppt {
+  id: number;
+  confirmedDate: string | null;
+  supervisionType: string;
+  status: string;
+  coTeacherName?: string;
+  teacher?: {
+    prefix: string;
+    firstName: string;
+    lastName: string;
+  };
+}
 
-/* ===============================
-   Document Name Mapping
-=============================== */
-const DOC_LABEL: Record<string, string> = {
-  T001: "แบบฟอร์มคำร้องสหกิจ",
-  T002: "หนังสือข้อตกลงบริษัท",
-  W001: "ตารางการปฏิบัติงาน",
-};
-
-/* ===============================
-   Helper
-=============================== */
-function buildDate(date?: string, time?: string): Date | null {
-  if (!date) return null;
-  return new Date(`${date}T${time || "00:00"}:00+07:00`);
+interface SystemConfig {
+  startDate: string;
+  endDate: string;
+  isOpen: boolean;
 }
 
 /* ===============================
-   Component
+    Document Name Mapping
 =============================== */
+const DOC_LABEL: Record<string, string> = {
+  t000: "แบบขออนุมัติไปปฏิบัติงานสหกิจ (T000)",
+  t002: "แบบแจ้งรายละเอียดงานและที่พัก (T002)",
+  t003: "โครงร่างรายงานและแผนปฏิบัติงาน (T003)",
+};
+
 export default function S_Dashboard() {
-  const [ann, setAnn] = useState<Announcement[]>([]);
-  const [docs, setDocs] = useState<Record<string, DocPeriod>>({});
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [supervisions, setSupervisions] = useState<SupervisionAppt | null>(null);
+  const [configs, setConfigs] = useState<Record<string, SystemConfig>>({});
+  const [studentStatus, setStudentStatus] = useState<string>("NOT_SUBMITTED");
+  const [loading, setLoading] = useState(true);
+  const [selectedAnn, setSelectedAnn] = useState<Announcement | null>(null);
+  const token = localStorage.getItem("coop.token");
 
-  const adminYear = loadAcademicYear();
-  console.debug("Academic year:", adminYear);
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      // 1. ดึงประกาศทั้งหมด
+      const annRes = await axios.get("http://localhost:5000/api/announcements");
+      if (annRes.data?.ok && Array.isArray(annRes.data.list)) {
+        setAnnouncements(annRes.data.list);
+      } else {
+        setAnnouncements([]);
+      }
 
-  /** mock login: นักศึกษาคนปัจจุบัน */
-  const student: StudentProfile | undefined = loadStudents()[0];
-  const coopStatus = student?.coopRequest?.status;
-  const canSubmit = coopStatus !== "approved";
+      // 2. ดึงข้อมูลนัดนิเทศของนักศึกษา
+      const supRes = await axios.get("http://localhost:5000/api/coop/supervision/me", {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (supRes.data?.appointment) setSupervisions(supRes.data.appointment);
+
+      // 3. ดึง Config วันที่เปิด-ปิดของแต่ละฟอร์ม (T000, T002, T003)
+      const configKeys = ['t000', 't002', 't003'];
+      const configData: Record<string, SystemConfig> = {};
+
+      for (const key of configKeys) {
+        try {
+          const res = await axios.get(`http://localhost:5000/api/admin/config/${key}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          configData[key] = res.data;
+        } catch (e) { console.error(`Error loading config for ${key}`); }
+      }
+      setConfigs(configData);
+
+      // 4. ดึงสถานะนักศึกษาคนปัจจุบัน
+      const profileRes = await axios.get("http://localhost:5000/api/students/me", {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setStudentStatus(profileRes.data?.coop?.status || "NOT_SUBMITTED");
+
+    } catch (err) {
+      console.error("Dashboard fetch error:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    setAnn(loadAnnouncements());
-    setDocs(loadDocPeriods());
+    fetchData();
   }, []);
 
   /* ===============================
-     Announcements
-  =============================== */
-  const upcomingAnnouncements = useMemo<Announcement[]>(() => {
-    return [...ann];
-  }, [ann]);
-
-  /* ===============================
-     Active Docs
+      Check Active Docs
   =============================== */
   const activeDocs = useMemo(() => {
     const now = new Date();
-    return Object.entries(docs)
-      .map(([id, p]) => {
-        const start = buildDate(p.startDate, p.startTime);
-        const end = buildDate(p.endDate, p.endTime);
-        if (!start || !end) return null;
-        if (start <= now && now <= end) {
+    return Object.entries(configs)
+      .map(([id, cfg]) => {
+        if (!cfg.isOpen || !cfg.startDate || !cfg.endDate) return null;
+        const start = new Date(cfg.startDate);
+        const end = new Date(cfg.endDate);
+        // เช็คว่าอยู่ในช่วงเวลาหรือไม่
+        if (now >= start && now <= end) {
           return { id, start, end };
         }
         return null;
       })
       .filter((v): v is { id: string; start: Date; end: Date } => v !== null);
-  }, [docs]);
+  }, [configs]);
 
-  /* ===============================
-     My Exams (นิเทศของนักศึกษา)
-  =============================== */
-  const myExams = useMemo<ExamItem[]>(() => {
-    if (!student?.studentId) return [];
-
-    try {
-      const all: ExamItem[] = JSON.parse(localStorage.getItem(K_EXAMS) || "[]");
-
-      return all
-        .filter((x) => x.studentId === student.studentId)
-        .sort((a, b) =>
-          `${a.date} ${a.time || ""}`.localeCompare(`${b.date} ${b.time || ""}`)
-        )
-        .slice(0, 3);
-    } catch {
-      return [];
-    }
-  }, [student?.studentId]);
+  if (loading) return <div style={{ padding: 40, textAlign: 'center' }}>กำลังโหลดข้อมูลภาพรวม...</div>;
 
   return (
     <div className="dashboard-wrapper">
@@ -112,7 +127,7 @@ export default function S_Dashboard() {
       {/* HEADER */}
       <div className="dashboard-header">
         <h1>ภาพรวมสำหรับนักศึกษา</h1>
-        <p>ติดตามประกาศ เอกสาร และนัดนิเทศในที่เดียว</p>
+        <p>ติดตามประกาศ เอกสาร และนัดนิเทศของสหกิจศึกษา</p>
       </div>
 
       {/* GRID */}
@@ -121,102 +136,148 @@ export default function S_Dashboard() {
         <div className="dash-card">
           <div className="dash-title">
             <IcAnnounce className="dash-icon" />
-            ประกาศ
+            ข่าวประกาศล่าสุด
           </div>
 
           <div className="dash-content">
-            {upcomingAnnouncements.length === 0 && (
-              <div className="dash-empty">ไม่มีประกาศในช่วงนี้</div>
+            {announcements.length === 0 ? (
+              <div className="dash-empty">ไม่มีประกาศในขณะนี้</div>
+            ) : (
+              announcements.slice(0, 5).map((a) => (
+                <div
+                  key={a.id}
+                  className="dash-item dash-left-info"
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => setSelectedAnn(a)} // 🟢 เมื่อคลิกให้เก็บค่าประกาศลง State
+                >
+                  <div className="dash-item-title">
+                    {a.title}
+                    {a.attachments && a.attachments.length > 0 && <span style={{ fontSize: 12, marginLeft: 8 }}>📎</span>}
+                  </div>
+                  <div className="dash-item-sub">
+                    {a.date ? new Date(a.date).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' }) : "-"}
+                  </div>
+                </div>
+              ))
             )}
-
-            {upcomingAnnouncements.map((a) => (
-              <div key={a.id} className="dash-item dash-left-info">
-                <div className="dash-item-title">{a.title}</div>
-                {"body" in a && a.body && (
-                  <div className="dash-item-sub">{a.body}</div>
-                )}
-              </div>
-            ))}
           </div>
         </div>
 
-        {/* ================= DOC PERIOD ================= */}
+        {/* ================= DOC PERIOD (OPEN NOW) ================= */}
         <div className="dash-card">
           <div className="dash-title">
             <IcDocs className="dash-icon" />
-            เอกสารที่ต้องส่ง
+            เอกสารที่เปิดรับส่ง
           </div>
 
           <div className="dash-content">
-            {activeDocs.length === 0 && (
-              <div className="dash-empty">ยังไม่มีเอกสารที่เปิดให้ส่ง</div>
+            {activeDocs.length === 0 ? (
+              <div className="dash-empty">อยู่นอกช่วงเวลาส่งเอกสาร</div>
+            ) : (
+              activeDocs.map((d) => (
+                <div key={d.id} className="dash-item dash-left-doc">
+                  <div className="dash-item-title">{DOC_LABEL[d.id] || d.id}</div>
+                  <div className="dash-item-sub">
+                    ปิดรับวันที่ {d.end.toLocaleDateString("th-TH")}
+                  </div>
+                </div>
+              ))
             )}
-
-            {activeDocs.map((d) => (
-              <div key={d.id} className="dash-item dash-left-doc">
-                <div className="dash-item-title">
-                  เอกสาร {d.id} — {DOC_LABEL[d.id]}
-                </div>
-                <div className="dash-item-sub">
-                  {d.start.toLocaleString("th-TH")} –{" "}
-                  {d.end.toLocaleString("th-TH")}
-                </div>
-              </div>
-            ))}
           </div>
         </div>
 
-        {/* ================= MY EXAMS ================= */}
+        {/* ================= SUPERVISION ================= */}
         <div className="dash-card">
-          <div className="dash-title">นัดนิเทศของฉัน</div>
+          <div className="dash-title">📅 นัดนิเทศของฉัน</div>
 
           <div className="dash-content">
-            {myExams.length === 0 && (
-              <div className="dash-empty">ยังไม่มีนัดนิเทศ</div>
-            )}
-
-            {myExams.map((x) => (
-              <div key={x.id} className="dash-item dash-left-final">
-                <div className="dash-item-title">รอบที่ {x.round || "-"}</div>
-                <div className="dash-item-sub">
-                  {new Date(`${x.date}T${x.time || "00:00"}`).toLocaleString(
-                    "th-TH"
-                  )}
+            {!supervisions || supervisions.status === "PENDING_TEACHER" ? (
+              <div className="dash-empty">ยังไม่มีกำหนดการนิเทศที่ยืนยัน</div>
+            ) : (
+              <div className="dash-item dash-left-final">
+                <div className="dash-item-title">
+                  {supervisions.supervisionType === "ONLINE" ? "🌐 ออนไลน์" : "🏢 ออนไซต์"}
                 </div>
-                <div style={{ marginTop: 4, fontSize: 14 }}>
-                  📍 {x.location || "-"}
+                <div className="dash-item-sub" style={{ fontSize: '15px', fontWeight: 'bold', color: '#0369a1' }}>
+                  {supervisions.confirmedDate ?
+                    new Date(supervisions.confirmedDate).toLocaleString("th-TH", { dateStyle: 'long', timeStyle: 'short' }) + " น."
+                    : "รอการยืนยันเวลา"}
                 </div>
-                {x.note && (
-                  <div
-                    style={{
-                      marginTop: 4,
-                      fontSize: 13,
-                      color: "#374151",
-                    }}
-                  >
-                    {x.note}
-                  </div>
-                )}
+                <div style={{ marginTop: 8, fontSize: 13, color: '#475569' }}>
+                  <b>อาจารย์:</b> {supervisions.teacher?.firstName} {supervisions.teacher?.lastName}
+                  {supervisions.coTeacherName && <><br /><b>อาจารย์ร่วม:</b> {supervisions.coTeacherName}</>}
+                </div>
               </div>
-            ))}
+            )}
           </div>
         </div>
       </div>
 
-      {/* SUBMIT BUTTON */}
-      {canSubmit && (
-        <div className="dash-btn-wrapper">
-          <a href="/student/gateway" className="dash-btn">
-            ยื่นคำร้องเข้าร่วมโครงการ
-          </a>
+      {/* SUBMIT BUTTON (ซ่อนถ้าได้รับการอนุมัติแล้ว) */}
+      <div className="dash-btn-wrapper">
+        <a href="/student/gateway" className="dash-btn">
+          ยื่นคำร้องเข้าร่วมโครงการ
+        </a>
+      </div>
+
+      {/* ANNOUNCEMENT MODAL */}
+      {/* 🟢 MODAL: รายละเอียดประกาศ */}
+      {selectedAnn && (
+        <div className="modal-overlay" onClick={() => setSelectedAnn(null)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 style={{ margin: 0 }}>{selectedAnn.title}</h3>
+              <button className="close-btn" onClick={() => setSelectedAnn(null)}>&times;</button>
+            </div>
+
+            <div className="modal-body">
+              <div style={{ color: '#64748b', fontSize: 13, marginBottom: 15 }}>
+                📅 ประกาศเมื่อ: {new Date(selectedAnn.date).toLocaleDateString('th-TH', { dateStyle: 'long' })}
+              </div>
+
+              <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.6, color: '#334155', marginBottom: 24 }}>
+                {selectedAnn.body || "ไม่มีรายละเอียดเพิ่มเติม"}
+              </div>
+
+              {/* แสดงไฟล์แนบและรูปภาพ */}
+              {selectedAnn.attachments && selectedAnn.attachments.length > 0 && (
+                <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: 20 }}>
+                  <h4 style={{ fontSize: 14, marginBottom: 12 }}>📎 ไฟล์แนบและรูปภาพ</h4>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {selectedAnn.attachments.map((file, idx) => (
+                      <div key={idx}>
+                        {file.type === 'image' ? (
+                          <div style={{ marginBottom: 10 }}>
+                            <img src={file.url} alt={file.name} style={{ maxWidth: '100%', borderRadius: 8, border: '1px solid #e2e8f0' }} />
+                            <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>{file.name}</div>
+                          </div>
+                        ) : (
+                          <a href={file.url} target="_blank" rel="noreferrer" className="attachment-link">
+                            {file.type === 'link' ? '🔗' : '📄'} {file.name}
+                          </a>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
-    </div>
+
+
+
+    </div> // ปิด dashboard-wrapper
   );
+
+
+
 }
 
+
 /* ===============================
-   CSS
+    CSS
 =============================== */
 const DASHBOARD_CSS = `
 .dashboard-wrapper {
@@ -227,13 +288,15 @@ const DASHBOARD_CSS = `
 .dashboard-header h1 {
   font-size: 28px;
   font-weight: 800;
+  color: #1e293b;
 }
 .dashboard-header p {
-  color: #6b7280;
+  color: #64748b;
+  margin-top: 4px;
 }
 .dash-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 26px;
   margin-top: 24px;
 }
@@ -241,54 +304,117 @@ const DASHBOARD_CSS = `
   background: white;
   border-radius: 18px;
   padding: 24px;
-  border: 1px solid #e7ecf5;
-  box-shadow: 0 8px 22px rgba(0,0,0,.06);
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 15px rgba(0,0,0,.05);
 }
 .dash-title {
   display: flex;
+  align-items: center;
   gap: 10px;
   font-size: 17px;
   font-weight: 700;
-  margin-bottom: 18px;
+  margin-bottom: 20px;
+  color: #1e293b;
 }
 .dash-icon {
-  width: 20px;
-  height: 20px;
-  color: #0a84ff;
+  width: 22px;
+  height: 22px;
+  color: #0ea5e9;
 }
 .dash-content {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  min-height: 260px;
+  min-height: 200px;
 }
 .dash-empty {
-  color: #a0a9b6;
+  color: #94a3b8;
   text-align: center;
-  padding-top: 30px;
+  padding-top: 40px;
+  font-size: 14px;
+  background: #f8fafc;
+  border-radius: 12px;
+  height: 100px;
 }
 .dash-item {
-  background: #f9fbff;
-  border: 1px solid #e6ecf5;
+  background: #ffffff;
+  border: 1px solid #f1f5f9;
   border-radius: 14px;
-  padding: 14px 18px;
+  padding: 16px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+  transition: transform 0.2s;
+}
+.dash-item:hover {
+  transform: translateY(-2px);
 }
 .dash-item-title {
-  font-weight: 600;
+  font-weight: 700;
+  color: #334155;
+  font-size: 15px;
 }
 .dash-item-sub {
   font-size: 13px;
-  color: #6b7280;
+  color: #64748b;
+  margin-top: 4px;
 }
-.dash-left-info { border-left: 4px solid #3b82f6; }
-.dash-left-doc { border-left: 4px solid #0ea5e9; }
-.dash-left-final { border-left: 4px solid #ef4444; }
-.dash-btn-wrapper { margin-top: 28px; }
+.dash-left-info { border-left: 5px solid #3b82f6; }
+.dash-left-doc { border-left: 5px solid #0ea5e9; }
+.dash-left-final { border-left: 5px solid #10b981; }
+.dash-btn-wrapper { margin-top: 32px; }
 .dash-btn {
-  padding: 12px 26px;
-  border-radius: 999px;
-  background: linear-gradient(90deg,#0074B7,#0A84FF,#22D3EE);
+  padding: 14px 32px;
+  border-radius: 12px;
+  background: #0ea5e9;
   color: white;
   font-weight: 700;
+  text-decoration: none;
+  display: inline-block;
+  transition: 0.3s;
 }
+.dash-btn:hover {
+  background: #0284c7;
+  box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(15, 23, 42, 0.5);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1000; backdrop-filter: blur(4px);
+}
+.modal-content {
+  background: white;
+  width: 90%; max-width: 650px;
+  max-height: 85vh;
+  border-radius: 20px;
+  overflow: hidden;
+  display: flex; flex-direction: column;
+  box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
+  animation: modalFadeIn 0.3s ease-out;
+}
+@keyframes modalFadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.modal-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid #f1f5f9;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.close-btn {
+  background: #f1f5f9; border: none; width: 32px; height: 32px;
+  border-radius: 50%; font-size: 20px; cursor: pointer; color: #64748b;
+}
+.modal-body {
+  padding: 24px;
+  overflow-y: auto;
+}
+.attachment-link {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 10px 16px; background: #f8fafc;
+  border: 1px solid #e2e8f0; border-radius: 10px;
+  text-decoration: none; color: #0ea5e9; font-weight: 600; font-size: 13px;
+}
+.attachment-link:hover { background: #f1f5f9; }
 `;

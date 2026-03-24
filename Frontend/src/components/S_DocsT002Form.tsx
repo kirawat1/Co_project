@@ -1,14 +1,19 @@
-import React, { useState } from "react";
-import { createT002PDF } from "../utils/pdfGeneratorT002"; // เปลี่ยน path ให้ตรงกับโปรเจกต์คุณ
-import StatusBadge from "./StatusBadge"; // นำเข้า Component StatusBadge (เปลี่ยน path ให้ตรงกับไฟล์ของคุณ)
+import React, { useState, useEffect } from "react";
+import { createT002PDF } from "../utils/pdfGeneratorT002";
+import StatusBadge from "./StatusBadge";
+import CountdownTimer from "../components/CountdownTimer"; // ✅ Import มาแล้ว
 
 interface Props {
     profile: any;
-    onRefresh: () => void; // ฟังก์ชันดึงข้อมูลใหม่หลังอัปโหลดเสร็จ (ส่งมาจาก Router หรือ Layout)
+    onRefresh: () => void;
 }
 
 export default function S_DocsT002Form({ profile, onRefresh }: Props) {
     const [loading, setLoading] = useState(false);
+
+    // 🟢 State สำหรับ Config เวลาเปิด-ปิดระบบ
+    const [config, setConfig] = useState<any>(null);
+    const [isSystemOpen, setIsSystemOpen] = useState(true);
 
     // --- State สำหรับ Popup Preview ---
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -17,29 +22,20 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
     // --- State สำหรับอัปโหลดไฟล์ ---
     const [selectedUploadFile, setSelectedUploadFile] = useState<File | null>(null);
 
-    // เช็คว่าเคยอัปโหลดไฟล์ T002 ไปแล้วหรือยัง
     const uploadedT002 = profile?.documents?.find((d: any) => d.type === 'T002_FORM');
-
     const company = profile?.coop?.company || profile?.company || {};
-
     const mentor = profile?.coop?.mentor || profile?.mentor || {};
+    const appForm = profile?.coopApplicationForm || {};
 
-    const appForm = profile?.coopApplicationForm || {}; // ดึงข้อมูลฉุกเฉินจากฟอร์มใบสมัคร T000
-
-    // กำหนดสถานะที่จะนำไปโชว์ใน StatusBadge
     let currentStatusToShow = profile?.docStatus;
-
     if (profile?.docStatus === 'T002_EDITS_REQUIRED' || uploadedT002?.status === 'REJECTED') {
-        // กรณีโดนตีกลับ ให้ขึ้นสถานะแก้ไข
         currentStatusToShow = 'T002_EDITS_REQUIRED';
     } else if (uploadedT002 && uploadedT002.status !== 'REJECTED') {
-        // กรณีส่งไฟล์แล้ว (และไม่ได้โดนตีกลับ) ให้ขึ้นสถานะว่าส่งแล้ว
         currentStatusToShow = 'T002_SUBMITTED';
     }
 
     // --- State เก็บข้อมูลฟอร์ม ---
     const [formData, setFormData] = useState({
-        // 1. ข้อมูลสถานประกอบการ (ดึงจากตาราง Company)
         companyNameTh: company.name || "",
         companyNameEn: company.nameEn || "",
         addressNo: company.addressNo || "",
@@ -54,18 +50,15 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
         companyFax: company.fax || "",
         companyEmail: company.email || "",
 
-        // 2. ผู้จัดการทั่วไป (ดึงจาก contactPerson ของ Company)
         managerName: company.contactPerson || "",
         managerPosition: company.contactPosition || "",
         managerPhone: company.phone || "",
         managerFax: company.fax || "",
         managerEmail: company.email || "",
 
-        // ผู้ประสานงาน (ตั้งค่าเริ่มต้นให้ติดต่อผู้จัดการโดยตรง)
         coordinatorType: "MANAGER",
         coordName: "", coordPosition: "", coordDept: "", coordPhone: "", coordFax: "", coordEmail: "",
 
-        // 3. พนักงานที่ปรึกษา / พี่เลี้ยง (ดึงจากตาราง Mentor)
         supervisorName: mentor.firstName ? `${mentor.firstName} ${mentor.lastName}`.trim() : "",
         supervisorPosition: mentor.position || "",
         supervisorDept: mentor.department || "",
@@ -73,15 +66,12 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
         supervisorFax: "",
         supervisorEmail: mentor.email || "",
 
-        // 4. งานที่ได้รับมอบหมาย (ดึงจาก Student หรือ StudentCoop)
         jobPosition: profile?.coop?.jobPosition || profile?.jobPosition || "",
         jobDescription: "",
 
-        // 5. ข้อมูลที่พักระหว่างฝึกงาน & กรณีฉุกเฉิน
-        accommodationAddress: "", // ให้นักศึกษากรอกเองเพราะที่พักตอนฝึกงานอาจจะไม่ใช่ที่อยู่ตามทะเบียนบ้าน
-        accommodationPhone: profile?.phone || "", // ใช้เบอร์มือนักศึกษาตั้งต้นไว้ก่อน
+        accommodationAddress: "",
+        accommodationPhone: profile?.phone || "",
 
-        // ข้อมูลฉุกเฉิน (ดึงจากตาราง CoopApplicationForm ที่เด็กเคยกรอกตอนส่ง T000)
         emergencyName: appForm.emergencyName || "",
         emergencyAddress: appForm.emergencyAddress || "",
         emergencyPhone: appForm.emergencyPhone || "",
@@ -94,9 +84,45 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
-    // ==========================================
+    // 🟢 Fetch Config จาก Backend ตอนโหลดหน้า
+    useEffect(() => {
+        const loadConfig = async () => {
+            try {
+                const token = localStorage.getItem("coop.token");
+                const res = await fetch("http://localhost:5000/api/admin/config/t002", {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    setConfig(data);
+
+                    if (!data.isOpen) {
+                        setIsSystemOpen(false);
+                    } else {
+                        const now = new Date().getTime();
+
+                        // เซ็ตเวลาเป้าหมายเป็น 23:59:59 ของวันสุดท้าย
+                        const targetEnd = data.endDate ? new Date(data.endDate) : null;
+                        if (targetEnd) targetEnd.setHours(23, 59, 59, 999);
+
+                        const start = data.startDate ? new Date(data.startDate).getTime() : 0;
+                        const end = targetEnd ? targetEnd.getTime() : Infinity;
+
+                        if (start === 0 && end === Infinity) {
+                            setIsSystemOpen(true);
+                        } else {
+                            setIsSystemOpen(now >= start && now <= end);
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error("Load config error", err);
+            }
+        };
+        loadConfig();
+    }, []);
+
     // 1. ฟังก์ชันเปิดดูตัวอย่าง PDF
-    // ==========================================
     const handlePreviewPDF = async () => {
         setLoading(true);
         try {
@@ -117,7 +143,6 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
         }
     };
 
-    // ฟังก์ชันดาวน์โหลด PDF จาก Popup
     const handleDownloadPDF = () => {
         if (!previewUrl) return;
         const link = document.createElement("a");
@@ -139,28 +164,18 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         alert("บันทึกข้อมูลแบบร่างสำเร็จ! (คุณสามารถกดดูตัวอย่าง PDF และดาวน์โหลดได้เลย)");
-        // หากมี API สำหรับเซฟร่างข้อความ สามารถเขียน fetch() ตรงนี้ได้ครับ
     };
 
-    // ==========================================
-    // ฟังก์ชันอัปโหลดไฟล์ T002 ตัวจริง (ยิง API)
-    // ==========================================
+    // ฟังก์ชันอัปโหลดไฟล์ T002 ตัวจริง
     const handleConfirmUpload = async () => {
         if (!selectedUploadFile) return;
         setLoading(true);
         try {
             const uploadData = new FormData();
-
-            // ✅ 1. เปลี่ยนชื่อจาก "file" เป็น "files" (มี s) ให้ตรงกับ upload.single('files') ใน docRoutes.js
             uploadData.append("files", selectedUploadFile);
-
-            // ✅ 2. ส่ง docType ไปบอก backend ด้วยว่าเป็นฟอร์ม T002
             uploadData.append("docType", "T002_FORM");
 
             const token = localStorage.getItem("coop.token");
-
-            // ✅ 3. เปลี่ยน URL ให้ชี้ไปที่ docRoutes (ปกติมักจะถูกครอบด้วย /api/docs หรือ /api/document)
-            // ⚠️ หมายเหตุ: ถ้าในไฟล์ app.js (หรือ server.js) คุณตั้ง route ไว้ชื่ออื่น ให้เปลี่ยน /api/docs เป็นชื่อนั้นครับ
             const res = await fetch("http://localhost:5000/api/docs/upload", {
                 method: "POST",
                 headers: { Authorization: `Bearer ${token}` },
@@ -182,7 +197,7 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
             }
         } catch (error) {
             console.error(error);
-            alert("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ (โปรดเช็ค URL ของ API)");
+            alert("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้");
         } finally {
             setLoading(false);
         }
@@ -191,17 +206,31 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
     return (
         <div style={{ maxWidth: 900, margin: '0 auto', background: '#fff', padding: 30, borderRadius: 12, boxShadow: '0 4px 6px rgba(0,0,0,0.05)' }}>
 
+            {/* 🔴 แจ้งเตือนถ้าระบบปิด (UI หลัก) */}
+            {!isSystemOpen && (
+                <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', padding: '16px', borderRadius: 8, marginBottom: 24, display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <span style={{ fontSize: 24 }}>🔒</span>
+                    <div>
+                        <h4 style={{ margin: '0 0 4px 0', color: '#991b1b', fontSize: 16 }}>ขณะนี้ระบบปิดรับเอกสาร T002</h4>
+                        <p style={{ margin: 0, color: '#b91c1c', fontSize: 13 }}>หมดเวลาการส่งเอกสาร หรือผู้ดูแลระบบได้ทำการปิดระบบชั่วคราว คุณไม่สามารถอัปโหลดไฟล์ใหม่ได้ในขณะนี้</p>
+                    </div>
+                </div>
+            )}
+
             {/* --- HEADER และ STATUS BADGE --- */}
             <div style={{ borderBottom: '2px solid #6b21a8', paddingBottom: 15, marginBottom: 25, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
                     <h2 style={{ color: '#4c1d95', margin: '0 0 8px 0', display: 'flex', alignItems: 'center', gap: 12 }}>
                         แบบฟอร์ม T002
-                        {/* ✅ ใส่ StatusBadge ไว้ข้างๆ ชื่อเรื่อง */}
                         <StatusBadge status={currentStatusToShow} />
                     </h2>
                     <p style={{ color: '#64748b', margin: 0 }}>แบบแจ้งรายละเอียดงานและรายละเอียดที่พัก (สัปดาห์แรกของการฝึกงาน)</p>
                 </div>
-                <div style={{ display: 'flex', gap: 10, marginTop: 5 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 10 }}>
+
+                    {/* 🟢 เรียกใช้ Component นัับถอยหลังตรงนี้โดยตรงเลย */}
+                    <CountdownTimer endDate={config?.endDate} isOpen={config?.isOpen} />
+
                     <button type="button" onClick={handlePreviewPDF} disabled={loading} style={btnOutline}>
                         {loading ? '⏳ กำลังทำงาน...' : '👁️ ดูตัวอย่าง / โหลด PDF'}
                     </button>
@@ -209,9 +238,8 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
             </div>
 
             {/* --- ฟอร์มกรอกข้อมูล (STEP 1) --- */}
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 24, opacity: isSystemOpen ? 1 : 0.6, pointerEvents: isSystemOpen ? 'auto' : 'none' }}>
 
-                {/* ส่วนที่ 1 */}
                 <Section title="1. ข้อมูลสถานประกอบการ (สถานที่ปฏิบัติงานจริง)">
                     <div style={grid2}>
                         <Input label="ชื่อบริษัท (ไทย)" name="companyNameTh" value={formData.companyNameTh} onChange={handleChange} required />
@@ -236,7 +264,6 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
                     </div>
                 </Section>
 
-                {/* ส่วนที่ 2 */}
                 <Section title="2. ผู้จัดการทั่วไป และผู้ประสานงาน">
                     <div style={grid2}>
                         <Input label="ชื่อผู้จัดการ" name="managerName" value={formData.managerName} onChange={handleChange} />
@@ -261,7 +288,6 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
                     </div>
                 </Section>
 
-                {/* ส่วนที่ 3 */}
                 <Section title="3. พนักงานที่ปรึกษา (Job Supervisor / พี่เลี้ยง)">
                     <div style={grid3}>
                         <Input label="ชื่อ-สกุล" name="supervisorName" value={formData.supervisorName} onChange={handleChange} required />
@@ -272,7 +298,6 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
                     </div>
                 </Section>
 
-                {/* ส่วนที่ 4 */}
                 <Section title="4. งานที่ได้รับมอบหมาย">
                     <Input label="ตำแหน่งงานของนักศึกษา (Job Position)" name="jobPosition" value={formData.jobPosition} onChange={handleChange} required />
                     <div style={{ marginTop: 10 }}>
@@ -281,7 +306,6 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
                     </div>
                 </Section>
 
-                {/* ส่วนที่ 5 */}
                 <Section title="5. ข้อมูลที่พักระหว่างฝึกงาน & กรณีฉุกเฉิน">
                     <div style={{ marginBottom: 15 }}>
                         <label style={lblStyle}>ที่อยู่หอพัก / ที่พักปัจจุบัน</label>
@@ -304,9 +328,11 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
                     </div>
                 </Section>
 
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 10 }}>
-                    <button type="submit" style={btnSubmit}>💾 บันทึกข้อมูลร่าง T002</button>
-                </div>
+                {isSystemOpen && (
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 10 }}>
+                        <button type="submit" style={btnSubmit}>💾 บันทึกข้อมูลร่าง T002</button>
+                    </div>
+                )}
             </form>
 
             {/* --- ส่วนอัปโหลดเอกสาร (STEP 2) --- */}
@@ -319,7 +345,6 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
                     </div>
                 </div>
 
-                {/* ✅ กล่องแสดงเหตุผลเมื่อโดนตีกลับ */}
                 {currentStatusToShow === 'T002_EDITS_REQUIRED' && (
                     <div style={{ padding: 16, background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8, marginBottom: 24 }}>
                         <h4 style={{ margin: '0 0 8px 0', color: '#b91c1c', display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -331,9 +356,8 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
                     </div>
                 )}
 
-
                 {uploadedT002 && !selectedUploadFile ? (
-                    <div style={{ padding: 16, background: '#fff', border: '1px solid #34d399', borderRadius: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ padding: 16, background: '#fff', border: '1px solid #34d399', borderRadius: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 15 }}>
                         <div>
                             <div style={{ fontSize: 14, color: '#065f46', fontWeight: 'bold' }}>✅ ส่งแบบฟอร์ม T002 แล้ว</div>
                             <div style={{ fontSize: 12, color: '#10b981', marginTop: 4 }}>ไฟล์: {uploadedT002.name}</div>
@@ -341,12 +365,15 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
                         <div style={{ display: 'flex', gap: 10 }}>
                             <button className="btn-outline" onClick={() => window.open(`http://localhost:5000/uploads/${uploadedT002.path}`, '_blank')} style={{ ...btnOutline, borderColor: '#10b981', color: '#10b981' }}>👁️ ดูไฟล์ที่ส่ง</button>
 
-                            {/* ✅ เช็คสถานะ: ถ้าโดนตีกลับให้โชว์คำว่า "ส่งใหม่" ถ้าแค่รอตรวจเฉยๆ ให้โชว์คำว่า "เปลี่ยนไฟล์" */}
-                            <label htmlFor="upload-t002-change" style={{ ...btnOutline, cursor: 'pointer', textAlign: 'center', borderColor: currentStatusToShow === 'T002_EDITS_REQUIRED' ? '#ef4444' : '#f59e0b', color: currentStatusToShow === 'T002_EDITS_REQUIRED' ? '#dc2626' : '#d97706' }}>
-                                {currentStatusToShow === 'T002_EDITS_REQUIRED' ? '🔄 ส่งไฟล์ใหม่' : '🔄 เปลี่ยนไฟล์'}
-                            </label>
-
-                            <input type="file" id="upload-t002-change" style={{ display: 'none' }} accept=".pdf,.jpg,.png" onChange={(e) => e.target.files?.[0] && setSelectedUploadFile(e.target.files[0])} />
+                            {/* ปิดปุ่มส่งใหม่ถ้าระบบปิด */}
+                            {isSystemOpen && (
+                                <>
+                                    <label htmlFor="upload-t002-change" style={{ ...btnOutline, cursor: 'pointer', textAlign: 'center', borderColor: currentStatusToShow === 'T002_EDITS_REQUIRED' ? '#ef4444' : '#f59e0b', color: currentStatusToShow === 'T002_EDITS_REQUIRED' ? '#dc2626' : '#d97706' }}>
+                                        {currentStatusToShow === 'T002_EDITS_REQUIRED' ? '🔄 ส่งไฟล์ใหม่' : '🔄 เปลี่ยนไฟล์'}
+                                    </label>
+                                    <input type="file" id="upload-t002-change" style={{ display: 'none' }} accept=".pdf,.jpg,.png" onChange={(e) => e.target.files?.[0] && setSelectedUploadFile(e.target.files[0])} />
+                                </>
+                            )}
                         </div>
                     </div>
                 ) : (
@@ -362,9 +389,11 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
                                 </div>
                             </div>
                         ) : (
-                            <div style={{ textAlign: 'center' }}>
-                                <input type="file" id="upload-t002" style={{ display: 'none' }} accept=".pdf,.jpg,.png" onChange={(e) => e.target.files?.[0] && setSelectedUploadFile(e.target.files[0])} />
-                                <label htmlFor="upload-t002" style={{ ...btnSubmit, background: '#10b981', display: 'inline-block' }}>📂 เลือกไฟล์ T002 เพื่ออัปโหลด</label>
+                            <div style={{ textAlign: 'center', opacity: isSystemOpen ? 1 : 0.5 }}>
+                                <input type="file" id="upload-t002" style={{ display: 'none' }} accept=".pdf,.jpg,.png" onChange={(e) => e.target.files?.[0] && setSelectedUploadFile(e.target.files[0])} disabled={!isSystemOpen} />
+                                <label htmlFor="upload-t002" style={{ ...btnSubmit, background: isSystemOpen ? '#10b981' : '#9ca3af', display: 'inline-block', cursor: isSystemOpen ? 'pointer' : 'not-allowed' }}>
+                                    {isSystemOpen ? '📂 เลือกไฟล์ T002 เพื่ออัปโหลด' : '🔒 ระบบปิดรับเอกสาร'}
+                                </label>
                                 <div style={{ fontSize: 12, color: '#6b7280', marginTop: 8 }}>(รองรับไฟล์ .pdf, .jpg, .png)</div>
                             </div>
                         )}

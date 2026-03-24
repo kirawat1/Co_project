@@ -21,7 +21,7 @@ const teacherRoutes = require("./routes/teacherRoutes");
 const criteriaRoutes = require("./routes/criteriaRoutes");
 const docRoutes = require('./routes/docRoutes');
 const adminRouter = require('./routes/adminRoutes');
-
+const supervisionRoutes = require('./routes/supervisionRoutes');
 // -----------------------------
 
 const PORT = process.env.PORT || 5000;
@@ -52,6 +52,7 @@ app.use("/api/criteria", criteriaRoutes);
 app.use('/api/docs', docRoutes);
 app.use('/api/admin', adminRouter);
 app.use('/api/teachers', teacherRoutes);
+app.use('/api', supervisionRoutes); //
 // -----------------------------
 // Test route
 // -----------------------------

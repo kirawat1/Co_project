@@ -26,8 +26,8 @@ export default function S_Sidebar({ profile }: { profile: StudentProfile }) {
     coop?.status === 'PLACEMENT_LETTER_ISSUED' ||
     coop?.status === 'INTERNSHIP_STARTED' ||
     coop?.status === 'T002_SUBMITTED' ||
-    coop?.status === 'T002_EDITS_REQUIRED';
-  coop?.status === 'T003_SUBMITTED' ||
+    coop?.status === 'T002_EDITS_REQUIRED' ||
+    coop?.status === 'T003_SUBMITTED' ||
     coop?.status === 'T003_EDITS_REQUIRED';
 
   return (
@@ -54,6 +54,15 @@ export default function S_Sidebar({ profile }: { profile: StudentProfile }) {
           <span className="ico"><IcDashboard /></span>
           <span className="text">Dashboard</span>
         </NavLink>
+
+        {/* <NavLink
+          to="/student/status-tracker"
+          end
+          className={({ isActive }) => "item" + (isActive ? " active" : "")}
+        >
+          <span className="ico"><IcDashboard /></span>
+          <span className="text">Status Tracker</span>
+        </NavLink> */}
 
         <NavLink
           to="/student/profile"
@@ -83,7 +92,7 @@ export default function S_Sidebar({ profile }: { profile: StudentProfile }) {
               className={({ isActive }) => "item" + (isActive ? " active" : "")}
             >
               <span className="ico"><IcDocs /></span>
-              <span className="text">เอกสารสหกิจ (CP-T001)</span>
+              <span className="text">เอกสารสหกิจ (CP-T000)</span>
             </NavLink>
 
             <NavLink
@@ -101,6 +110,41 @@ export default function S_Sidebar({ profile }: { profile: StudentProfile }) {
               <span className="ico"><IcDocs /></span>
               <span className="text">เอกสารรายละเอียด (CP-T003)</span>
             </NavLink>
+
+            <NavLink
+              to="/student/supervision"
+              className={({ isActive }) => "item" + (isActive ? " active" : "")}
+            >
+              <span className="ico"><IcDocs /></span>
+              <span className="text">นัดหมายนิเทศ</span>
+            </NavLink>
+
+            <NavLink
+              to="/student/doc-t005-006"
+              className={({ isActive }) => "item" + (isActive ? " active" : "")}
+            >
+              <span className="ico"><IcDocs /></span>
+              <span className="text">T005/T006 เอกสารประเมิน</span>
+            </NavLink>
+
+            <NavLink
+              to="/student/doc-t007"
+              className={({ isActive }) => "item" + (isActive ? " active" : "")}
+            >
+              <span className="ico"><IcDocs /></span>
+              <span className="text">T007 เอกสารประเมิน</span>
+            </NavLink>
+
+            <NavLink
+              to="/student/doc-t008"
+              className={({ isActive }) => "item" + (isActive ? " active" : "")}
+            >
+              <span className="ico"><IcDocs /></span>
+              <span className="text">เล่มรายงานสหกิจ 008</span>
+            </NavLink>
+
+
+
 
             {/* <NavLink
               to="/student/daily"

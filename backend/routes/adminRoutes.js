@@ -15,6 +15,9 @@ const coopPeriodController = require("../controllers/coopPeriodController");
 const adminDashboardController = require('../controllers/adminDashboardController');
 const criteriaController = require('../controllers/criteriaController');
 const docReqController = require('../controllers/docRequirementController');
+const configController = require('../controllers/configController');
+const supervisionController = require('../controllers/supervisionController');
+
 // ==========================================
 // Group 1: จัดการเอกสารและการตั้งค่า (T000)
 // ==========================================
@@ -36,6 +39,8 @@ router.post("/coop-periods", coopPeriodController.createPeriod);
 router.put("/coop-periods/:id", coopPeriodController.updatePeriod);
 router.patch("/coop-periods/:id/toggle", coopPeriodController.togglePeriod);
 router.delete("/coop-periods/:id", coopPeriodController.deletePeriod);
+router.get("/coop-periods/active", coopPeriodController.getActivePeriod);
+router.get("/coop-periods/all", coopPeriodController.getAllCoopPeriods);
 
 router.get('/dashboard-stats', adminDashboardController.getDashboardStats);
 
@@ -65,5 +70,22 @@ router.get('/students', verifyToken, adminDocController.getAllStudentsForReview)
 router.put('/documents/review-t002', verifyToken, adminDocController.reviewT002);
 
 router.put('/documents/review-t003', verifyToken, adminDocController.reviewT003);
+
+router.get('/config/t002', verifyToken, configController.getT002Config);
+router.post('/config/t002', verifyToken, verifyRole('admin', 'teacher', 'staff'), configController.saveT002Config);
+
+router.get('/config/t003', verifyToken, configController.getT003Config);
+router.post('/config/t003', verifyToken, verifyRole('admin', 'teacher', 'staff'), configController.saveT003Config);
+
+router.get('/config/evaluation', verifyToken, configController.getEvaluationConfig);
+router.put('/config/evaluation', verifyToken, verifyRole('teacher', 'staff'), configController.updateEvaluationConfig);
+
+router.get('/config/t007', verifyToken, configController.getT007Config);
+router.put('/config/t007', verifyToken, verifyRole('teacher', 'staff'), configController.updateT007Config);
+
+router.get('/config/t008', verifyToken, configController.getT008Config);
+router.put('/config/t008', verifyToken, systemUpload.single('image'), configController.updateT008Config);
+
+router.put('/supervisions/:id/co-teachers', verifyToken, supervisionController.assignCoTeachers);
 
 module.exports = router;
