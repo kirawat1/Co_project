@@ -496,7 +496,7 @@ export default function S_Docs({ profile, setProfile }: { profile: LocalStudentP
           <div style={{ background: '#fff', padding: 20, borderRadius: 12, border: '1px solid #93c5fd', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
               <div>
-                <h3 style={{ margin: '0 0 4px 0', color: '#0369a1', fontSize: 18 }}>📝 ใบสมัคร T000</h3>
+                <h3 style={{ margin: '0 0 4px 0', color: '#0369a1', fontSize: 18 }}>📝 ใบสมัครงานสหกิจศึกษา (T000)</h3>
                 <div style={{ fontSize: 13, color: '#64748b' }}>กรอกข้อมูลด้านบนให้ครบก่อนพิมพ์</div>
               </div>
             </div>
@@ -510,7 +510,7 @@ export default function S_Docs({ profile, setProfile }: { profile: LocalStudentP
           <div style={{ background: '#fff', padding: 20, borderRadius: 12, border: '1px solid #93c5fd', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
               <div>
-                <h3 style={{ margin: '0 0 4px 0', color: '#4c1d95', fontSize: 18 }}>👪 ใบยินยอมผู้ปกครอง</h3>
+                <h3 style={{ margin: '0 0 4px 0', color: '#4c1d95', fontSize: 18 }}>👪 ใบยินยอมผู้ปกครอง (T001)</h3>
                 <div style={{ fontSize: 13, color: '#64748b' }}>ใช้ข้อมูลจากฉุกเฉิน (ผู้ปกครอง)</div>
               </div>
             </div>
