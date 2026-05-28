@@ -1,5 +1,16 @@
 # CHANGELOG — Co_project
 
+## [2026-05-29] แก้ปัญหาระบบเก็บไฟล์ (File Storage Fixes)
+
+### Fixed
+- `backend/.gitignore`: เพิ่ม `uploads/` — ป้องกันไฟล์อัปโหลดของนักศึกษา (85+ ไฟล์) เข้า git โดยไม่ตั้งใจ
+- `supervisionController.uploadOfficialLetter`: เพิ่ม cleanup ไฟล์เมื่อ DB update ล้มเหลว ป้องกัน orphaned files
+- `docController.deleteDocumentByType`: ครอบ `fs.unlinkSync` ด้วย try/catch เพื่อป้องกัน 500 เมื่อไฟล์ถูกลบไปก่อนแล้ว
+- `uploadMiddleware.js`: ลบ dead code `fileFilter` ที่ไม่เคยถูกใช้งาน (multer ใช้ inline filter แทน)
+- `supervisionController.js`: ย้าย `require('fs')` และ `require('path')` ขึ้น top-level
+
+---
+
 ## [2026-05-29] ดูข้อมูลย้อนหลังตาม CoopPeriod
 
 ### Added
