@@ -182,22 +182,27 @@ describe('checkEligibility', () => {
     requiredCourses: ['CP001001', 'CP001002'],
     coreCourses: ['SC310001', 'SC310002', 'SC310003'],
     electiveMinCount: 2,
+    minGpa: 2.0,
+    minCoreGpa: 2.0,
   };
 
+  // gradeList now includes creditattempt (from KKU enroll_list)
   const gradeList = [
-    { course_code: 'CP002001', grade: 'S' },
-    { course_code: 'CP001001', grade: 'A' },
-    { course_code: 'CP001002', grade: 'B+' },
-    { course_code: 'SC310001', grade: 'B' },
-    { course_code: 'SC310002', grade: 'C' },
+    { course_code: 'CP002001', grade: 'S',  creditattempt: 0 },
+    { course_code: 'CP001001', grade: 'A',  creditattempt: 3 },
+    { course_code: 'CP001002', grade: 'B+', creditattempt: 3 },
+    { course_code: 'SC310001', grade: 'B',  creditattempt: 3 },
+    { course_code: 'SC310002', grade: 'C',  creditattempt: 3 },
   ];
+  // calculatedCoreGpa: SC310001 B=3.0×3=9, SC310002 C=2.0×3=6 → (9+6)/(3+3) = 2.50
 
-  test('qualified — all criteria met', () => {
+  test('qualified — all criteria met, correct coreGpa', () => {
     const result = checkEligibility(gradeList, criteria);
     expect(result.isPassPrepCourse).toBe(true);
     expect(result.passedAllRequired).toBe(true);
     expect(result.passedElectiveCount).toBe(2);
     expect(result.isQualified).toBe(true);
+    expect(result.calculatedCoreGpa).toBe(2.5);
   });
 
   test('not qualified — missing one required course', () => {
@@ -231,11 +236,38 @@ describe('checkEligibility', () => {
     const emptyCriteria = { ...criteria, coreCourses: [] };
     const result = checkEligibility(gradeList, emptyCriteria);
     expect(result.isQualified).toBe(true);
+    expect(result.calculatedCoreGpa).toBe(0);
   });
 
-  test('null gradeList returns all false', () => {
+  test('null gradeList returns all false, coreGpa 0', () => {
     const result = checkEligibility(null, criteria);
     expect(result.isPassPrepCourse).toBe(false);
     expect(result.isQualified).toBe(false);
+    expect(result.calculatedCoreGpa).toBe(0);
+  });
+
+  test('calculatedCoreGpa — S grade excluded from GPA but counts as passed', () => {
+    const withSU = [
+      { course_code: 'SC310001', grade: 'S', creditattempt: 3 },
+      { course_code: 'SC310002', grade: 'A', creditattempt: 3 },
+    ];
+    const simpleCriteria = { ...criteria, coreCourses: ['SC310001', 'SC310002'], requiredCourses: [], prepCourseCodes: [], electiveMinCount: 1 };
+    const result = checkEligibility(withSU, simpleCriteria);
+    // SC310001 grade S → excluded from GPA (not in GRADE_POINTS), but S is in PASSING_GRADES
+    // SC310002 grade A → 4.0 × 3 = 12
+    // coreGpa = 12 / 3 = 4.0
+    expect(result.calculatedCoreGpa).toBe(4.0);
+    expect(result.passedElectiveCount).toBe(2); // both S and A count as passed
+  });
+
+  test('calculatedCoreGpa — F grade counts as 0.0 in GPA', () => {
+    const withF = [
+      { course_code: 'SC310001', grade: 'F', creditattempt: 3 },
+      { course_code: 'SC310002', grade: 'B', creditattempt: 3 },
+    ];
+    const simpleCriteria = { ...criteria, coreCourses: ['SC310001', 'SC310002'], requiredCourses: [], prepCourseCodes: [], electiveMinCount: 1 };
+    const result = checkEligibility(withF, simpleCriteria);
+    // coreGpa = (0×3 + 3.0×3) / (3+3) = 9/6 = 1.5
+    expect(result.calculatedCoreGpa).toBe(1.5);
   });
 });
