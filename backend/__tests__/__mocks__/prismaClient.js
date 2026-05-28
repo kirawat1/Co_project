@@ -6,6 +6,7 @@ const prismaMock = {
     create: jest.fn(),
     upsert: jest.fn(),
     update: jest.fn(),
+    delete: jest.fn(),
   },
   student: {
     findUnique: jest.fn(),
@@ -20,6 +21,7 @@ const prismaMock = {
     findFirst: jest.fn(),
     findMany: jest.fn(),
     count: jest.fn(),
+    create: jest.fn(),
     upsert: jest.fn(),
     update: jest.fn(),
   },
