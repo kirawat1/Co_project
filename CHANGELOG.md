@@ -1,5 +1,19 @@
 # CHANGELOG — Co_project
 
+## [2026-05-29] ดูข้อมูลย้อนหลังตาม CoopPeriod
+
+### Added
+- `GET /api/students` รองรับ `?coopPeriodId=<id>` — กรองนักศึกษาตามรอบสหกิจที่ DB level (pagination ถูกต้อง)
+- `GET /api/admin/students` รองรับ `?coopPeriodId=<id>` — กรองนักศึกษาตามรอบสหกิจที่ DB level
+- `A_Students` (Staff): เพิ่ม dropdown "ปีการศึกษา" ด้านบน filter — เลือกดูนักศึกษาตามรอบสหกิจย้อนหลัง
+- `backend/__tests__/adminDocController.test.js` — 3 unit tests สำหรับ `getAllStudentsForReview`
+- `backend/__tests__/studentController.test.js` — เพิ่ม 2 test cases สำหรับ period filter
+
+### Fixed
+- `T_Students` (Teacher): แก้ period filter ที่ไม่ทำงาน — เปลี่ยนจาก client-side (ใช้ `s.coopPeriodId` ผิด field) เป็น server-side query param `?coopPeriodId=<id>` พร้อม re-fetch อัตโนมัติเมื่อเปลี่ยน period
+
+---
+
 ## [2026-05-28] เพิ่ม Test Coverage ระดับ System
 
 ### Backend Unit Tests (เพิ่มใหม่ 7 ไฟล์)
