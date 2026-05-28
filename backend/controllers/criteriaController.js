@@ -34,8 +34,10 @@ exports.getCriteria = async (req, res) => {
         minGpa: 2.00,
         minCoreGpa: 2.00,
         minActivityUnit: 60,
-        requiredCourses: [], 
-        coreCourses: []
+        requiredCourses: [],
+        coreCourses: [],
+        prepCourseCodes: [],
+        electiveMinCount: 1,
       });
     }
 
@@ -51,24 +53,32 @@ exports.getCriteria = async (req, res) => {
 // ==================================================
 exports.saveCriteria = async (req, res) => {
   try {
-    const { major, minGpa, minCoreGpa, minActivityUnit, requiredCourses, coreCourses } = req.body;
+    const {
+      major, minGpa, minCoreGpa, minActivityUnit,
+      requiredCourses, coreCourses,
+      prepCourseCodes, electiveMinCount
+    } = req.body;
 
     const criteria = await prisma.coopCriteria.upsert({
-      where: { major: major },
+      where: { major },
       update: {
         minGpa: parseFloat(minGpa),
         minCoreGpa: parseFloat(minCoreGpa),
         minActivityUnit: parseInt(minActivityUnit),
         requiredCourses: requiredCourses || [],
-        coreCourses: coreCourses || []
+        coreCourses: coreCourses || [],
+        prepCourseCodes: prepCourseCodes || [],
+        electiveMinCount: parseInt(electiveMinCount) || 1,
       },
       create: {
-        major: major,
+        major,
         minGpa: parseFloat(minGpa),
         minCoreGpa: parseFloat(minCoreGpa),
         minActivityUnit: parseInt(minActivityUnit),
         requiredCourses: requiredCourses || [],
-        coreCourses: coreCourses || []
+        coreCourses: coreCourses || [],
+        prepCourseCodes: prepCourseCodes || [],
+        electiveMinCount: parseInt(electiveMinCount) || 1,
       },
     });
 

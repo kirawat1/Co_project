@@ -91,6 +91,8 @@ describe('getCriteria', () => {
       minActivityUnit: 60,
       requiredCourses: [],
       coreCourses: [],
+      prepCourseCodes: [],
+      electiveMinCount: 1,
     });
   });
 
@@ -200,6 +202,60 @@ describe('saveCriteria', () => {
 
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith({ ok: false, message: 'Save failed' });
+  });
+
+  test('200 – saves prepCourseCodes and electiveMinCount', async () => {
+    const upserted = {
+      id: '1', major: 'CS', minGpa: 2.5, minCoreGpa: 2.5, minActivityUnit: 60,
+      requiredCourses: ['CP001001'],
+      coreCourses: ['SC310001', 'SC310002'],
+      prepCourseCodes: ['CP002001', 'SC002001'],
+      electiveMinCount: 2,
+    };
+    prisma.coopCriteria.upsert.mockResolvedValue(upserted);
+
+    const req = {
+      body: {
+        major: 'CS', minGpa: '2.5', minCoreGpa: '2.5', minActivityUnit: '60',
+        requiredCourses: ['CP001001'],
+        coreCourses: ['SC310001', 'SC310002'],
+        prepCourseCodes: ['CP002001', 'SC002001'],
+        electiveMinCount: '2',
+      },
+    };
+    const res = makeRes();
+
+    await saveCriteria(req, res);
+
+    expect(prisma.coopCriteria.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        update: expect.objectContaining({
+          prepCourseCodes: ['CP002001', 'SC002001'],
+          electiveMinCount: 2,
+        }),
+      })
+    );
+    expect(res.json).toHaveBeenCalledWith({ ok: true, criteria: upserted });
+  });
+
+  test('200 – defaults prepCourseCodes to [] and electiveMinCount to 1 when not provided', async () => {
+    prisma.coopCriteria.upsert.mockResolvedValue({ id: '2', major: 'IT' });
+
+    const req = {
+      body: { major: 'IT', minGpa: '2.0', minCoreGpa: '2.0', minActivityUnit: '60' },
+    };
+    const res = makeRes();
+
+    await saveCriteria(req, res);
+
+    expect(prisma.coopCriteria.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        update: expect.objectContaining({
+          prepCourseCodes: [],
+          electiveMinCount: 1,
+        }),
+      })
+    );
   });
 });
 
