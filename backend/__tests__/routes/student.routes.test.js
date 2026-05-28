@@ -18,6 +18,8 @@ jest.mock('../../services/kkuRegService', () => ({
   getAdvisor: jest.fn(),
   syncStudentAll: jest.fn(),
   getCurrentSemester: jest.fn(),
+  getGradeList: jest.fn(),
+  searchCourses: jest.fn(),
 }));
 
 const request = require('supertest');
