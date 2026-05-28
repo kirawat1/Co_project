@@ -437,6 +437,7 @@ exports.syncFromReg = async (req, res) => {
     const student = await prisma.student.findUnique({ where: { userId: req.userId } });
     if (!student) return res.status(404).json({ ok: false, message: "ไม่พบข้อมูลนักศึกษา" });
 
+    // 1. ดึงข้อมูลพื้นฐาน (syncStudentAll ทำ login 1 ครั้ง แล้วดึงทุกอย่างพร้อมกัน)
     const result = await kkuReg.syncStudentAll(kkuUsername, kkuPassword);
     if (!result.ok) return res.status(401).json(result);
 
@@ -457,8 +458,8 @@ exports.syncFromReg = async (req, res) => {
 
     if (result.grades) {
       const g = result.grades;
-      if (g.gpax != null)      updateData.gpa     = parseFloat(g.gpax) || 0;
-      if (g.gpax_core != null) updateData.coreGpa = parseFloat(g.gpax_core) || 0;
+      // คืนแค่ gpax รวม — ไม่มี gpax_core ใน KKU API (คำนวณเองจาก coreCourses)
+      if (g.gpax != null) updateData.gpa = parseFloat(g.gpax) || 0;
     }
 
     if (result.advisor) {
@@ -467,20 +468,37 @@ exports.syncFromReg = async (req, res) => {
       if (name) updateData.advisorName = name;
     }
 
-    const kkuToken = await kkuReg.getStudentToken(kkuUsername, kkuPassword);
-    const gradeList = (kkuToken && !kkuToken.error)
-      ? await kkuReg.getGradeList(kkuToken)
+    // 2. ดึงประวัติเกรดทุกวิชา (reuse token จาก syncStudentAll — ไม่ต้อง login ซ้ำ)
+    const gradeList = result._token
+      ? await kkuReg.getGradeList(result._token, result.grades)
       : null;
 
+    // 3. โหลด CoopCriteria ของสาขานักศึกษา
     const major = updateData.major || student.major;
     const criteria = major
       ? await prisma.coopCriteria.findUnique({ where: { major } })
       : null;
 
+    // 4. ตรวจสอบเงื่อนไขรายวิชา + คำนวณ coreGpa
     if (gradeList && criteria) {
       const eligibility = checkEligibility(gradeList, criteria);
       updateData.isPassPrepCourse = eligibility.isPassPrepCourse;
-      updateData.isQualified = eligibility.isQualified;
+
+      // coreGpa คำนวณจาก coreCourses ที่กำหนด (แทน gpax_core ที่ไม่มีใน API)
+      if (eligibility.calculatedCoreGpa > 0) {
+        updateData.coreGpa = eligibility.calculatedCoreGpa;
+      }
+
+      // isQualified = ผ่านทุกเงื่อนไข: วิชา + GPA + coreGpa + กิจกรรม
+      const currentGpa = updateData.gpa ?? student.gpa ?? 0;
+      const currentCoreGpa = updateData.coreGpa ?? student.coreGpa ?? 0;
+      const currentActivityUnit = updateData.activityUnit ?? student.activityUnit ?? 0;
+
+      updateData.isQualified =
+        eligibility.isQualified &&
+        currentGpa >= (criteria.minGpa || 0) &&
+        currentCoreGpa >= (criteria.minCoreGpa || 0) &&
+        currentActivityUnit >= (criteria.minActivityUnit || 0);
     }
 
     updateData.apiSyncedAt = new Date();
