@@ -4,6 +4,14 @@ jest.mock('@prisma/client', () => {
   return { PrismaClient: jest.fn(() => mocks) };
 });
 
+jest.mock('../services/kkuRegService', () => ({
+  isConfigured: jest.fn(() => false),
+  syncStudentAll: jest.fn(),
+  getStudentToken: jest.fn(),
+  getGradeList: jest.fn(),
+  getCurrentSemester: jest.fn(),
+}));
+
 const prisma = require('./__mocks__/prismaClient');
 const { getStudents, getMyProfile } = require('../controllers/studentController');
 
@@ -97,7 +105,7 @@ describe('getStudents', () => {
 
     expect(prisma.student.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { coop: { coopPeriodId: 3 } },
+        where: { AND: [{ coop: { coopPeriodId: 3 } }] },
       })
     );
     const body = res.json.mock.calls[0][0];
@@ -160,5 +168,74 @@ describe('getMyProfile', () => {
     const body = res.json.mock.calls[0][0];
     expect(body.studentId).toBe('');
     expect(body.userEmail).toBe('user@kku.ac.th');
+  });
+});
+
+// =====================
+// checkEligibility helper (exported for testing)
+// =====================
+const { checkEligibility } = require('../controllers/studentController');
+
+describe('checkEligibility', () => {
+  const criteria = {
+    prepCourseCodes: ['CP002001', 'SC002001'],
+    requiredCourses: ['CP001001', 'CP001002'],
+    coreCourses: ['SC310001', 'SC310002', 'SC310003'],
+    electiveMinCount: 2,
+  };
+
+  const gradeList = [
+    { course_code: 'CP002001', grade: 'S' },
+    { course_code: 'CP001001', grade: 'A' },
+    { course_code: 'CP001002', grade: 'B+' },
+    { course_code: 'SC310001', grade: 'B' },
+    { course_code: 'SC310002', grade: 'C' },
+  ];
+
+  test('qualified — all criteria met', () => {
+    const result = checkEligibility(gradeList, criteria);
+    expect(result.isPassPrepCourse).toBe(true);
+    expect(result.passedAllRequired).toBe(true);
+    expect(result.passedElectiveCount).toBe(2);
+    expect(result.isQualified).toBe(true);
+  });
+
+  test('not qualified — missing one required course', () => {
+    const partialGrades = gradeList.filter(g => g.course_code !== 'CP001002');
+    const result = checkEligibility(partialGrades, criteria);
+    expect(result.passedAllRequired).toBe(false);
+    expect(result.isQualified).toBe(false);
+  });
+
+  test('not qualified — prep course not passed', () => {
+    const noPrepGrades = gradeList.filter(g => g.course_code !== 'CP002001');
+    const result = checkEligibility(noPrepGrades, criteria);
+    expect(result.isPassPrepCourse).toBe(false);
+    expect(result.isQualified).toBe(false);
+  });
+
+  test('not qualified — only 1 elective passed (needs 2)', () => {
+    const oneElective = gradeList.filter(g => g.course_code !== 'SC310002');
+    const result = checkEligibility(oneElective, criteria);
+    expect(result.passedElectiveCount).toBe(1);
+    expect(result.isQualified).toBe(false);
+  });
+
+  test('qualified — no required courses configured (empty array)', () => {
+    const emptyCriteria = { ...criteria, requiredCourses: [] };
+    const result = checkEligibility(gradeList, emptyCriteria);
+    expect(result.passedAllRequired).toBe(true);
+  });
+
+  test('qualified — no elective courses configured (empty array)', () => {
+    const emptyCriteria = { ...criteria, coreCourses: [] };
+    const result = checkEligibility(gradeList, emptyCriteria);
+    expect(result.isQualified).toBe(true);
+  });
+
+  test('null gradeList returns all false', () => {
+    const result = checkEligibility(null, criteria);
+    expect(result.isPassPrepCourse).toBe(false);
+    expect(result.isQualified).toBe(false);
   });
 });
