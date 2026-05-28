@@ -134,8 +134,8 @@ describe('updateProfile', () => {
 describe('getAllTeachers', () => {
   test('200 — returns array with flattened email field', async () => {
     prisma.teacher.findMany.mockResolvedValue([
-      { id: 1, firstName: 'ก', user: { email: 'a@kku.ac.th' } },
-      { id: 2, firstName: 'ข', user: { email: 'b@kku.ac.th' } },
+      { id: 1, firstName: 'ก', lastName: 'ช', user: { email: 'a@kku.ac.th' } },
+      { id: 2, firstName: 'ข', lastName: 'ค', user: { email: 'b@kku.ac.th' } },
     ]);
 
     const req = {};
@@ -145,7 +145,9 @@ describe('getAllTeachers', () => {
     const body = res.json.mock.calls[0][0];
     expect(body).toHaveLength(2);
     expect(body[0].email).toBe('a@kku.ac.th');
+    expect(body[0].firstName).toBe('ก');
     expect(body[1].email).toBe('b@kku.ac.th');
+    expect(body[1].firstName).toBe('ข');
   });
 });
 
@@ -181,6 +183,7 @@ describe('reviewT002', () => {
     );
     const body = res.json.mock.calls[0][0];
     expect(body.ok).toBe(true);
+    expect(body.message).toBe('บันทึกผลการตรวจสอบสำเร็จ');
   });
 
   test('200 — no document found: skips document update', async () => {
