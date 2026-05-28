@@ -113,15 +113,18 @@ export async function setupStudentMocks(page: Page) {
   await mockRoute(page, "**/api/**", SAFE_EMPTY);
 
   // 2. specific routes (registered last = matched first due to LIFO)
-  await mockRoute(page, "**/api/students/me",       MOCK_STUDENT_ME);
-  await mockRoute(page, "**/api/auth/me",            MOCK_AUTH_ME);
-  await mockRoute(page, "**/api/coop/me",            { ok: true, data: null });
-  await mockRoute(page, "**/api/coop/daily",         SAFE_EMPTY);
-  await mockRoute(page, "**/api/coop/supervision**", SAFE_EMPTY);
-  await mockRoute(page, "**/api/students/docs**",    SAFE_EMPTY);
-  await mockRoute(page, "**/api/docs**",             SAFE_EMPTY);
-  await mockRoute(page, "**/api/companies/**",       SAFE_EMPTY);
-  await mockRoute(page, "**/api/announcements**",    SAFE_EMPTY);
+  await mockRoute(page, "**/api/students/me",            MOCK_STUDENT_ME);
+  await mockRoute(page, "**/api/auth/me",                MOCK_AUTH_ME);
+  await mockRoute(page, "**/api/coop/me",                { ok: true, data: null });
+  await mockRoute(page, "**/api/coop/daily",             SAFE_EMPTY);
+  await mockRoute(page, "**/api/coop/supervision**",     SAFE_EMPTY);
+  await mockRoute(page, "**/api/students/docs**",        SAFE_EMPTY);
+  await mockRoute(page, "**/api/students/coop-periods",  { ok: true, periods: [] });
+  await mockRoute(page, "**/api/docs**",                 SAFE_EMPTY);
+  // /api/companies (list) must return an array — component calls setItems(data) then .filter()
+  await mockRoute(page, "**/api/companies",              []);
+  await mockRoute(page, "**/api/companies/**",           SAFE_EMPTY);
+  await mockRoute(page, "**/api/announcements**",        SAFE_EMPTY);
 }
 
 export async function setupAdminMocks(page: Page) {
