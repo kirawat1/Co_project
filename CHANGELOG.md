@@ -1,5 +1,67 @@
 # CHANGELOG — Co_project
 
+## [2026-05-29] Co-op Criteria Grade Verification
+
+### Added
+- `CoopCriteria` schema: `prepCourseCodes` (JSON) — รหัสวิชาเตรียมความพร้อมที่เจ้าหน้าที่กำหนดได้ (แทนที่ hardcode)
+- `CoopCriteria` schema: `electiveMinCount` (Int, default 1) — จำนวนวิชาบังคับเลือกขั้นต่ำที่ต้องผ่าน
+- `studentController.checkEligibility()` — pure function ตรวจสอบ prepCourse / requiredCourses / coreCourses กับ grade list จาก KKU API
+- `studentController.syncFromReg` export — ย้าย sync logic ออกจาก inline route handler เพื่อ testability
+- `kkuRegService.getGradeList()` — ดึงประวัติเกรดทุกวิชา (full transcript) จาก KKU REG API
+- `kkuRegService.searchCourses()` — ค้นหาวิชาจาก KKU course catalog (ใช้ service account)
+- `GET /api/admin/courses/search?q=<text>` — proxy endpoint สำหรับ admin ค้นหารหัสวิชา
+- `A_CriteriaPage.tsx`: เพิ่ม tag-based course picker พร้อม KKU API search สำหรับทุก course criteria field
+
+### Changed
+- `POST /api/students/sync-from-reg`: ตอนนี้ตรวจสอบ `prepCourseCodes`, `requiredCourses`, `coreCourses` กับ KKU grade data และอัปเดต `isPassPrepCourse` + `isQualified`
+- `criteriaController.saveCriteria`: รับและบันทึก `prepCourseCodes`, `electiveMinCount`
+- `A_CriteriaPage.tsx`: แสดง `prepCourseCodes` และ `electiveMinCount` ในการ์ด + modal แก้ไข
+
+---
+
+## [2026-05-29] Server-side Period Filter สำหรับหน้าตรวจเอกสาร
+
+### Added
+- `GET /api/admin/students` รองรับ `?coopPeriodId=<id>` และ `?search=<text>` — กรองนักศึกษาตามปีการศึกษาและค้นหาที่ DB level
+- `A_DocT002Review.tsx`: re-fetch ข้อมูลจาก server เมื่อเปลี่ยน dropdown ปีการศึกษา (`reloadStudents` + `useEffect[selectedPeriod]`)
+- `A_DocT003Review.tsx`: เช่นเดียวกัน (T003 status filter)
+- `T_T002Review.tsx`: เช่นเดียวกัน (T002 status filter)
+- `T_T003Review.tsx`: เช่นเดียวกัน (T003 status filter)
+
+### Changed
+- ทุกหน้าตรวจเอกสาร: ลบ client-side period filter (`pId`, `matchPeriod`) ออกจาก `processedStudents` useMemo — ปีการศึกษากรองที่ server แทน
+- แก้ `value={p.id}` → `value={String(p.id)}` ใน dropdown ทุกไฟล์ — ป้องกัน number/string type mismatch
+
+---
+
+## [2026-05-29] Server-side Search สำหรับรายชื่อนักศึกษา
+
+### Added
+- `GET /api/students` รองรับ `?search=<text>` — ค้นหาด้วย studentId / ชื่อ / นามสกุล / อีเมล ที่ DB level
+- `A_Students.tsx`: ค้นหา debounce 300ms → server-side query ทุก page (เห็นผลครบทุกคน ไม่ถูกจำกัดแค่ page ปัจจุบัน)
+- `T_Students.tsx`: เพิ่ม `useDebounce` + ค้นหา server-side เช่นเดียวกัน
+
+### Changed
+- `A_Students.tsx`: ลบ client-side text filter ออก (major/status/curriculum ยังคง client-side)
+- `T_Students.tsx`: ลบ client-side text filter ออก (major ยังคง client-side)
+
+---
+
+## [2026-05-29] Code Review Fixes (9 จุด)
+
+### Fixed
+- `supervisionController.reviewSupervision`: เพิ่ม null-check สำหรับ `teacher` — ป้องกัน TypeError crash เมื่อ user มี role=teacher แต่ไม่มีแถวใน Teacher table
+- `supervisionController.reviewSupervision`: เพิ่ม `LETTER_UPLOADED` ในการตรวจ conflict วันนิเทศซ้ำ (เดิมตรวจแค่ `DATE_CONFIRMED`)
+- `supervisionController.proposeSupervisionDate`: กรองคำนำหน้า (ที่มีจุด เช่น ผศ., ดร.) ออกก่อน parse advisorName — ป้องกัน 2-token name เช่น "รศ.ดร. สมหญิง" ทำให้หาอาจารย์ไม่เจอ
+- `supervisionController.proposeSupervisionDate`: fallback teacher lookup เปลี่ยนจาก exact match เป็น `contains` (สอดคล้องกับ primary query)
+- `supervisionController.getTeacherSupervisions`: เพิ่ม guard ความยาว `firstName >= 2` ก่อนใช้ `coTeacherName: { contains: firstName }` — ป้องกัน false-positive กับชื่อสั้น
+- `studentController.updateMyProfile`: เพิ่ม unique check ก่อน upsert studentId — คืน 409 แทน 500 เมื่อรหัสซ้ำ
+- `adminDocController.getAllStudentsForReview`: เพิ่ม `take: 500` เป็น hard cap ป้องกัน unbounded query
+- `A_Students.tsx`: เพิ่ม Pagination (หน้าละ 50 คน) พร้อม UI Prev/Next และเลขหน้า — แก้บัก Staff เห็นนักศึกษาแค่ 50 คนแรก
+- `T_Students.tsx`: แก้ `value={p.id}` (number) → `value={String(p.id)}` — dropdown ปีการศึกษาแสดง selected ถูกต้อง
+
+---
+
 ## [2026-05-29] แก้ปัญหาระบบเก็บไฟล์ (File Storage Fixes)
 
 ### Fixed
