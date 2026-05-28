@@ -4,7 +4,6 @@ const prisma = new PrismaClient();
 
 // GET /api/students/me
 exports.getMyProfile = async (req, res) => {
-  console.log(`[getMyProfile] Requested by UserID: ${req.userId}`);
   try {
     const student = await prisma.student.findUnique({
       where: { userId: req.userId },
@@ -72,8 +71,12 @@ exports.updateMyProfile = async (req, res) => {
     const data = req.body;
     const userId = req.userId;
 
-    if (data.studentId && data.studentId.length > 15) {
-      return res.status(400).json({ ok: false, message: "รหัสนักศึกษาต้องไม่เกิน 15 หลัก" });
+    if (data.studentId !== undefined && data.studentId !== "") {
+      // strip ตัวอักษรที่ไม่ใช่ตัวเลขออกก่อน (เช่น "u640001" → "640001")
+      data.studentId = String(data.studentId).replace(/\D/g, "");
+      if (data.studentId.length === 0 || data.studentId.length > 10) {
+        return res.status(400).json({ ok: false, message: "รหัสนักศึกษาต้องเป็นตัวเลขไม่เกิน 10 หลัก" });
+      }
     }
 
     const currentStudent = await prisma.student.findUnique({
@@ -214,23 +217,37 @@ exports.updateMyProfile = async (req, res) => {
   }
 };
 
-// GET /api/students (สำหรับ Admin/Staff)
+// GET /api/students (สำหรับ Admin/Staff) — รองรับ pagination + coopPeriodId filter
 exports.getStudents = async (req, res) => {
   try {
-    const students = await prisma.student.findMany({
-      include: {
-        user: { select: { email: true, username: true } },
-        coop: {
-          include: {
-            company: true,
-            mentor: true,
-          },
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 50));
+    const skip = (page - 1) * limit;
+
+    const coopPeriodId = req.query.coopPeriodId
+      ? parseInt(req.query.coopPeriodId, 10)
+      : undefined;
+    const where = coopPeriodId ? { coop: { coopPeriodId } } : {};
+
+    const [students, total] = await Promise.all([
+      prisma.student.findMany({
+        skip,
+        take: limit,
+        where,
+        include: {
+          user: { select: { email: true, username: true } },
+          coop: { include: { company: true, mentor: true } },
+          documents: true,
         },
-        documents: true,
-      },
-      orderBy: { studentId: "asc" },
+        orderBy: { studentId: "asc" },
+      }),
+      prisma.student.count({ where }),
+    ]);
+
+    res.json({
+      data: students,
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
     });
-    res.json(students);
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server error" });
