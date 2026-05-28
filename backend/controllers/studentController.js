@@ -1,6 +1,37 @@
 // backend/controllers/studentController.js
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
+const kkuReg = require('../services/kkuRegService');
+
+const PASSING_GRADES = new Set(["S", "A", "B+", "B", "C+", "C", "D+", "D"]);
+
+function checkEligibility(gradeList, criteria) {
+  if (!gradeList || !criteria) {
+    return { isPassPrepCourse: false, passedAllRequired: false, passedElectiveCount: 0, isQualified: false };
+  }
+
+  const passedCodes = new Set(
+    gradeList.filter(c => PASSING_GRADES.has(c.grade)).map(c => c.course_code)
+  );
+
+  const prepCodes = criteria.prepCourseCodes || [];
+  const isPassPrepCourse = prepCodes.length === 0 || prepCodes.some(code => passedCodes.has(code));
+
+  const requiredCourses = criteria.requiredCourses || [];
+  const passedAllRequired = requiredCourses.length === 0 ||
+    requiredCourses.every(code => passedCodes.has(code));
+
+  const coreCourses = criteria.coreCourses || [];
+  const electiveMinCount = criteria.electiveMinCount ?? 1;
+  const passedElectiveCount = coreCourses.filter(code => passedCodes.has(code)).length;
+  const passedElective = coreCourses.length === 0 || passedElectiveCount >= electiveMinCount;
+
+  const isQualified = isPassPrepCourse && passedAllRequired && passedElective;
+
+  return { isPassPrepCourse, passedAllRequired, passedElectiveCount, isQualified };
+}
+
+exports.checkEligibility = checkEligibility;
 
 // GET /api/students/me
 exports.getMyProfile = async (req, res) => {
@@ -76,6 +107,13 @@ exports.updateMyProfile = async (req, res) => {
       data.studentId = String(data.studentId).replace(/\D/g, "");
       if (data.studentId.length === 0 || data.studentId.length > 10) {
         return res.status(400).json({ ok: false, message: "รหัสนักศึกษาต้องเป็นตัวเลขไม่เกิน 10 หลัก" });
+      }
+      // ป้องกัน unique constraint crash: ตรวจว่ารหัสนี้ถูกใช้โดยนักศึกษาคนอื่นหรือไม่
+      const taken = await prisma.student.findFirst({
+        where: { studentId: data.studentId, NOT: { userId } }
+      });
+      if (taken) {
+        return res.status(409).json({ ok: false, message: "รหัสนักศึกษานี้ถูกใช้งานแล้ว กรุณาตรวจสอบอีกครั้ง" });
       }
     }
 
@@ -217,7 +255,7 @@ exports.updateMyProfile = async (req, res) => {
   }
 };
 
-// GET /api/students (สำหรับ Admin/Staff) — รองรับ pagination + coopPeriodId filter
+// GET /api/students (สำหรับ Admin/Staff) — รองรับ pagination + coopPeriodId filter + search
 exports.getStudents = async (req, res) => {
   try {
     const page = Math.max(1, parseInt(req.query.page, 10) || 1);
@@ -227,7 +265,21 @@ exports.getStudents = async (req, res) => {
     const coopPeriodId = req.query.coopPeriodId
       ? parseInt(req.query.coopPeriodId, 10)
       : undefined;
-    const where = coopPeriodId ? { coop: { coopPeriodId } } : {};
+    const search = (req.query.search || "").trim();
+
+    const conditions = [];
+    if (coopPeriodId) conditions.push({ coop: { coopPeriodId } });
+    if (search) {
+      conditions.push({
+        OR: [
+          { studentId: { contains: search } },
+          { firstName: { contains: search } },
+          { lastName: { contains: search } },
+          { user: { email: { contains: search } } },
+        ],
+      });
+    }
+    const where = conditions.length > 0 ? { AND: conditions } : {};
 
     const [students, total] = await Promise.all([
       prisma.student.findMany({
@@ -347,4 +399,85 @@ exports.downloadPlacementLetter = async (req, res) => {
   }
 };
 
+exports.syncFromReg = async (req, res) => {
+  const { kkuUsername, kkuPassword } = req.body;
+
+  if (!kkuUsername || !kkuPassword) {
+    return res.status(400).json({ ok: false, message: "กรุณาระบุ KKU Username และ Password" });
+  }
+
+  if (!kkuReg.isConfigured()) {
+    return res.status(503).json({
+      ok: false,
+      message: "ฟีเจอร์นี้ยังไม่พร้อมใช้ — รอการตั้งค่า API credentials จาก KKU",
+    });
+  }
+
+  try {
+    const student = await prisma.student.findUnique({ where: { userId: req.userId } });
+    if (!student) return res.status(404).json({ ok: false, message: "ไม่พบข้อมูลนักศึกษา" });
+
+    const result = await kkuReg.syncStudentAll(kkuUsername, kkuPassword);
+    if (!result.ok) return res.status(401).json(result);
+
+    const updateData = {};
+
+    if (result.info) {
+      const info = result.info;
+      if (info.first_name_th)   updateData.firstName   = info.first_name_th;
+      if (info.last_name_th)    updateData.lastName    = info.last_name_th;
+      if (info.first_name_en)   updateData.firstNameEn = info.first_name_en;
+      if (info.last_name_en)    updateData.lastNameEn  = info.last_name_en;
+      if (info.faculty_name_th) updateData.curriculum  = info.faculty_name_th;
+      if (info.major_name_th)   updateData.major       = info.major_name_th;
+      if (info.class_year)      updateData.year        = String(info.class_year);
+      if (info.prefix_th)       updateData.prefix      = info.prefix_th;
+      if (info.activity_credit != null) updateData.activityUnit = parseFloat(info.activity_credit) || 0;
+    }
+
+    if (result.grades) {
+      const g = result.grades;
+      if (g.gpax != null)      updateData.gpa     = parseFloat(g.gpax) || 0;
+      if (g.gpax_core != null) updateData.coreGpa = parseFloat(g.gpax_core) || 0;
+    }
+
+    if (result.advisor) {
+      const adv = result.advisor;
+      const name = [adv.prefix_th, adv.first_name_th, adv.last_name_th].filter(Boolean).join(" ");
+      if (name) updateData.advisorName = name;
+    }
+
+    const kkuToken = await kkuReg.getStudentToken(kkuUsername, kkuPassword);
+    const gradeList = (kkuToken && !kkuToken.error)
+      ? await kkuReg.getGradeList(kkuToken)
+      : null;
+
+    const major = updateData.major || student.major;
+    const criteria = major
+      ? await prisma.coopCriteria.findUnique({ where: { major } })
+      : null;
+
+    if (gradeList && criteria) {
+      const eligibility = checkEligibility(gradeList, criteria);
+      updateData.isPassPrepCourse = eligibility.isPassPrepCourse;
+      updateData.isQualified = eligibility.isQualified;
+    }
+
+    updateData.apiSyncedAt = new Date();
+
+    if (Object.keys(updateData).length > 0) {
+      await prisma.student.update({ where: { id: student.id }, data: updateData });
+    }
+
+    res.json({
+      ok: true,
+      message: `ซิงค์ข้อมูลจาก KKU สำเร็จ (อัปเดต ${Object.keys(updateData).length} ฟิลด์)`,
+      updated: Object.keys(updateData),
+      image: result.image || null,
+    });
+  } catch (err) {
+    console.error("[syncFromReg]", err);
+    res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์" });
+  }
+};
 
