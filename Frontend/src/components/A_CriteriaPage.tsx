@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import axios from "axios";
 import type { CSSProperties } from "react";
 
@@ -10,7 +10,106 @@ type Criteria = {
     minActivityUnit: number;
     requiredCourses: string[];
     coreCourses: string[];
+    prepCourseCodes: string[];
+    electiveMinCount: number;
 };
+
+type CourseOption = { course_code: string; course_name?: string };
+
+function CourseTagInput({
+  label,
+  codes,
+  onChange,
+}: {
+  label: string;
+  codes: string[];
+  onChange: (codes: string[]) => void;
+}) {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<CourseOption[]>([]);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const token = localStorage.getItem("coop.token");
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const search = useCallback(async (q: string) => {
+    if (q.length < 2) { setResults([]); setShowDropdown(false); return; }
+    try {
+      const res = await axios.get(`/api/admin/courses/search?q=${encodeURIComponent(q)}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.data.ok && res.data.courses.length > 0) {
+        setResults(res.data.courses);
+        setShowDropdown(true);
+      } else {
+        setResults([]);
+        setShowDropdown(false);
+      }
+    } catch {
+      setResults([]);
+    }
+  }, [token]);
+
+  const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setQuery(val);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => search(val), 350);
+  };
+
+  const addCode = (code: string) => {
+    const trimmed = code.trim().toUpperCase();
+    if (trimmed && !codes.includes(trimmed)) {
+      onChange([...codes, trimmed]);
+    }
+    setQuery("");
+    setResults([]);
+    setShowDropdown(false);
+  };
+
+  const removeCode = (code: string) => onChange(codes.filter(c => c !== code));
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <span style={{ fontSize: 14, fontWeight: 700, color: "#334155" }}>{label}</span>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, minHeight: 38, padding: "6px 10px", border: "1px solid #cbd5e1", borderRadius: 8, background: "#fff" }}>
+        {codes.map(code => (
+          <span key={code} style={{ background: "#e0f2fe", color: "#0369a1", fontSize: 13, fontWeight: 700, padding: "3px 10px", borderRadius: 6, display: "flex", alignItems: "center", gap: 4 }}>
+            {code}
+            <button type="button" onClick={() => removeCode(code)} style={{ background: "none", border: "none", cursor: "pointer", color: "#0369a1", fontWeight: 900, fontSize: 14, padding: 0, lineHeight: 1 }}>×</button>
+          </span>
+        ))}
+      </div>
+      <div style={{ position: "relative" }}>
+        <input
+          className="input"
+          placeholder="พิมพ์รหัสวิชา หรือกด Enter เพื่อเพิ่ม"
+          value={query}
+          onChange={handleInput}
+          onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addCode(query); } }}
+          autoComplete="off"
+          style={{ width: "100%", boxSizing: "border-box" }}
+        />
+        {showDropdown && results.length > 0 && (
+          <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, boxShadow: "0 8px 16px rgba(0,0,0,0.1)", zIndex: 100, maxHeight: 200, overflowY: "auto" }}>
+            {results.map((c, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => addCode(c.course_code)}
+                style={{ display: "block", width: "100%", padding: "10px 14px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: 13 }}
+                onMouseEnter={e => (e.currentTarget.style.background = "#f1f5f9")}
+                onMouseLeave={e => (e.currentTarget.style.background = "none")}
+              >
+                <b>{c.course_code}</b>{c.course_name ? ` — ${c.course_name}` : ""}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      <span style={{ fontSize: 12, color: "#94a3b8" }}>* พิมพ์แล้วกด Enter เพื่อเพิ่ม หรือเลือกจากรายการ (ถ้า KKU API พร้อมใช้)</span>
+    </div>
+  );
+}
 
 export default function A_CriteriaPage() {
     const [criteriaList, setCriteriaList] = useState<Criteria[]>([]);
@@ -25,12 +124,14 @@ export default function A_CriteriaPage() {
     const [minGpa, setMinGpa] = useState("2.00");
     const [minCoreGpa, setMinCoreGpa] = useState("2.00");
     const [minActivityUnit, setMinActivityUnit] = useState("0");
-    const [reqCourses, setReqCourses] = useState("");
-    const [coreCourses, setCoreCourses] = useState("");
+    const [reqCourses, setReqCourses] = useState<string[]>([]);
+    const [coreCourses, setCoreCourses] = useState<string[]>([]);
+    const [prepCourseCodes, setPrepCourseCodes] = useState<string[]>([]);
+    const [electiveMinCount, setElectiveMinCount] = useState("1");
 
     const fetchCriteria = async () => {
         try {
-            const res = await axios.get("http://localhost:5000/api/admin/criteria");
+            const res = await axios.get("/api/admin/criteria");
             if (res.data.ok) setCriteriaList(res.data.criteria);
         } catch (err) { console.error(err); }
     };
@@ -51,7 +152,7 @@ export default function A_CriteriaPage() {
 
         try {
             // ส่งค่า Default เบื้องต้นไปสร้างสาขาใหม่
-            await axios.post("http://localhost:5000/api/admin/criteria", {
+            await axios.post("/api/admin/criteria", {
                 major: newMajorName.trim().toUpperCase(), // แนะนำให้เก็บเป็นตัวพิมพ์ใหญ่ (เช่น CS, IT)
                 minGpa: 2.00,
                 minCoreGpa: 2.00,
@@ -68,7 +169,7 @@ export default function A_CriteriaPage() {
     const handleRemoveMajor = async (id: string, majorName: string) => {
         if (!confirm(`⚠️ ยืนยันการลบสาขา ${majorName} และเกณฑ์ทั้งหมดของสาขานี้?`)) return;
         try {
-            await axios.delete(`http://localhost:5000/api/admin/criteria/${id}`);
+            await axios.delete(`/api/admin/criteria/${id}`);
             fetchCriteria();
         } catch (err) { alert("ลบไม่สำเร็จ"); }
     };
@@ -81,27 +182,26 @@ export default function A_CriteriaPage() {
         setMinGpa(c.minGpa.toString());
         setMinCoreGpa(c.minCoreGpa.toString());
         setMinActivityUnit(c.minActivityUnit.toString());
-        setReqCourses(c.requiredCourses.join(", "));
-        setCoreCourses(c.coreCourses.join(", "));
+        setReqCourses(c.requiredCourses || []);
+        setCoreCourses(c.coreCourses || []);
+        setPrepCourseCodes(c.prepCourseCodes || []);
+        setElectiveMinCount((c.electiveMinCount ?? 1).toString());
         setEditCriteriaModalOpen(true);
     };
 
     const handleSaveCriteria = async (e: React.FormEvent) => {
         e.preventDefault();
-
-        const reqArr = reqCourses.split(",").map(s => s.trim()).filter(s => s);
-        const coreArr = coreCourses.split(",").map(s => s.trim()).filter(s => s);
-
         try {
-            // ใช้ API ตัวเดิม (Upsert) โดยอิงจาก major
-            await axios.post("http://localhost:5000/api/admin/criteria", {
+            await axios.post("/api/admin/criteria", {
                 major: editingMajor,
                 minGpa: parseFloat(minGpa),
                 minCoreGpa: parseFloat(minCoreGpa),
                 minActivityUnit: parseInt(minActivityUnit),
-                requiredCourses: reqArr,
-                coreCourses: coreArr
-            });
+                requiredCourses: reqCourses,
+                coreCourses: coreCourses,
+                prepCourseCodes: prepCourseCodes,
+                electiveMinCount: parseInt(electiveMinCount) || 1,
+            }, { headers: { Authorization: `Bearer ${localStorage.getItem("coop.token")}` } });
             setEditCriteriaModalOpen(false);
             fetchCriteria();
         } catch (err: any) { alert(err.response?.data?.error || "เกิดข้อผิดพลาดในการบันทึกเกณฑ์"); }
@@ -158,6 +258,15 @@ export default function A_CriteriaPage() {
                             </div>
 
                             <div style={{ marginBottom: 12 }}>
+                                <div style={statLabel}>📋 วิชาเตรียมความพร้อม (ผ่านอย่างน้อย 1)</div>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+                                    {(c.prepCourseCodes || []).length
+                                        ? (c.prepCourseCodes || []).map(rc => <span key={rc} style={badgePrep}>{rc}</span>)
+                                        : <span style={emptyText}>ไม่มีกำหนด</span>}
+                                </div>
+                            </div>
+
+                            <div style={{ marginBottom: 12 }}>
                                 <div style={statLabel}>📚 รายวิชาบังคับ (ต้องผ่านทุกตัว)</div>
                                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
                                     {c.requiredCourses.length ? c.requiredCourses.map(rc => <span key={rc} style={badgeObj}>{rc}</span>) : <span style={emptyText}>ไม่มีกำหนด</span>}
@@ -165,7 +274,7 @@ export default function A_CriteriaPage() {
                             </div>
 
                             <div style={{ marginBottom: 20 }}>
-                                <div style={statLabel}>🎯 หมวดวิชาบังคับเลือก (เลือกเรียนบางตัว)</div>
+                                <div style={statLabel}>🎯 หมวดวิชาบังคับเลือก (ผ่านอย่างน้อย {c.electiveMinCount ?? 1} วิชา)</div>
                                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
                                     {c.coreCourses.length ? c.coreCourses.map(cc => <span key={cc} style={badgeCore}>{cc}</span>) : <span style={emptyText}>ไม่มีกำหนด</span>}
                                 </div>
@@ -231,15 +340,40 @@ export default function A_CriteriaPage() {
                             </div>
 
                             <div style={field}>
-                                <label style={label}>รหัสวิชาบังคับ (ต้องผ่านทุกตัว)</label>
-                                <input className="input" placeholder="เช่น CS101, CS102 (คั่นด้วยลูกน้ำ ,)" value={reqCourses} onChange={e => setReqCourses(e.target.value)} />
-                                <span style={{ fontSize: 12, color: '#94a3b8' }}>* คั่นแต่ละวิชาด้วยเครื่องหมายลูกน้ำ (,)</span>
+                                <CourseTagInput
+                                    label="📋 รหัสวิชาเตรียมความพร้อมสหกิจ (ผ่านอย่างน้อย 1 วิชา)"
+                                    codes={prepCourseCodes}
+                                    onChange={setPrepCourseCodes}
+                                />
+                                <span style={{ fontSize: 12, color: '#94a3b8' }}>เช่น CP002001, SC002001 — ผ่านวิชาใดวิชาหนึ่งก็นับว่าผ่าน</span>
                             </div>
 
                             <div style={field}>
-                                <label style={label}>รหัสหมวดวิชาบังคับเลือก (เลือกเรียนบางตัว)</label>
-                                <input className="input" placeholder="เช่น SC310001, SC310002" value={coreCourses} onChange={e => setCoreCourses(e.target.value)} />
-                                <span style={{ fontSize: 12, color: '#94a3b8' }}>* คั่นแต่ละวิชาด้วยเครื่องหมายลูกน้ำ (,)</span>
+                                <CourseTagInput
+                                    label="📚 รหัสวิชาบังคับ (ต้องผ่านทุกตัว)"
+                                    codes={reqCourses}
+                                    onChange={setReqCourses}
+                                />
+                            </div>
+
+                            <div style={field}>
+                                <CourseTagInput
+                                    label="🎯 รหัสหมวดวิชาบังคับเลือก"
+                                    codes={coreCourses}
+                                    onChange={setCoreCourses}
+                                />
+                                <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 4 }}>
+                                    <span style={{ fontSize: 13, fontWeight: 700, color: "#334155", whiteSpace: "nowrap" }}>ต้องผ่านอย่างน้อย</span>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        className="input"
+                                        value={electiveMinCount}
+                                        onChange={e => setElectiveMinCount(e.target.value)}
+                                        style={{ width: 80 }}
+                                    />
+                                    <span style={{ fontSize: 13, color: "#64748b" }}>วิชา</span>
+                                </div>
                             </div>
 
                             <div style={{ display: "flex", gap: 12, justifyContent: 'flex-end', marginTop: 16 }}>
@@ -276,6 +410,7 @@ const statValue: CSSProperties = { fontSize: 20, fontWeight: 800, color: '#0f172
 
 const badgeObj: CSSProperties = { background: '#e0f2fe', color: '#0369a1', fontSize: 13, fontWeight: 700, padding: '4px 10px', borderRadius: 6, border: '1px solid #bae6fd' };
 const badgeCore: CSSProperties = { background: '#fdf4ff', color: '#a21caf', fontSize: 13, fontWeight: 700, padding: '4px 10px', borderRadius: 6, border: '1px solid #fbcfe8' };
+const badgePrep: CSSProperties = { background: '#f0fdf4', color: '#15803d', fontSize: 13, fontWeight: 700, padding: '4px 10px', borderRadius: 6, border: '1px solid #86efac' };
 const emptyText: CSSProperties = { fontSize: 13, color: '#94a3b8', fontStyle: 'italic', background: '#f1f5f9', padding: '4px 10px', borderRadius: 6 };
 
 const delBtn: CSSProperties = { background: '#fee2e2', border: '1px solid #fecaca', color: '#dc2626', cursor: 'pointer', fontSize: 13, fontWeight: 700, padding: '6px 12px', borderRadius: 8 };
