@@ -192,9 +192,11 @@ model CoopCriteria {
   minGpa          Float    @default(2.00)
   minCoreGpa      Float    @default(2.00)
   minActivityUnit Int      @default(0)
-  requiredCourses Json
-  coreCourses     Json
-  updatedAt       DateTime @updatedAt
+  requiredCourses  Json
+  coreCourses      Json
+  prepCourseCodes  Json     @default("[]") // วิชาเตรียมความพร้อม เช่น ["CP002001","SC002001"]
+  electiveMinCount Int      @default(1)    // จำนวนวิชาบังคับเลือกขั้นต่ำ
+  updatedAt        DateTime @updatedAt
 }
 
 // ==========================================
