@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import axios from "axios";
 import StatusBadge from "../components/StatusBadge";
 
@@ -118,20 +118,34 @@ export default function T_Students() {
   const [modalStudent, setModalStudent] = useState<StudentProfile | null>(null);
 
   // --- 1. Fetch Data ---
+  const fetchStudents = async (periodId: string) => {
+    const token = localStorage.getItem("coop.token");
+    const params = periodId !== "all" ? `?coopPeriodId=${periodId}` : "";
+    try {
+      const resStd = await fetch(`/api/students${params}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (resStd.ok) {
+        const data = await resStd.json();
+        setAllStudents(Array.isArray(data) ? data : (data?.data ?? []));
+      }
+    } catch (err) {
+      console.error("Error fetching students:", err);
+    }
+  };
+
   const fetchData = async () => {
     setLoading(true);
     const token = localStorage.getItem("coop.token");
     try {
-      // 1. ดึงปีการศึกษา
-      const resPeriods = await axios.get("http://localhost:5000/api/admin/coop-periods/all", {
+      const resPeriods = await axios.get("/api/admin/coop-periods/all", {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (resPeriods.data?.periods) {
         setCoopPeriods(resPeriods.data.periods);
       }
 
-      // 2. ดึงสาขาวิชา
-      const resMajors = await fetch("http://localhost:5000/api/admin/majors", {
+      const resMajors = await fetch("/api/admin/majors", {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (resMajors.ok) {
@@ -145,16 +159,9 @@ export default function T_Students() {
         }
       }
 
-      // 3. ดึงรายชื่อนักศึกษาในที่ปรึกษา
-      const resStd = await fetch("http://localhost:5000/api/students", {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (resStd.ok) {
-        const data = await resStd.json();
-        setAllStudents(data);
-      }
+      await fetchStudents(selectedPeriod);
     } catch (err) {
-      console.error("Error fetching students:", err);
+      console.error("Error fetching data:", err);
     } finally {
       setLoading(false);
     }
@@ -164,17 +171,24 @@ export default function T_Students() {
     fetchData();
   }, []);
 
+  const initialMount = useRef(true);
+  useEffect(() => {
+    if (initialMount.current) {
+      initialMount.current = false;
+      return;
+    }
+    fetchStudents(selectedPeriod);
+  }, [selectedPeriod]);
+
   // --- 2. Filter Logic ---
   const filteredStudents = useMemo(() => {
     return allStudents.filter((s) => {
       const t = `${s.studentId} ${s.firstName || ""} ${s.lastName || ""} ${s.company?.name || s.coop?.status || ""}`.toLowerCase();
       const matchQ = t.includes(q.toLowerCase());
-      const matchPeriod = selectedPeriod === "all" || String(s.coopPeriodId) === selectedPeriod;
       const matchMajor = filterMajor === "all" || s.major === filterMajor;
-
-      return matchQ && matchPeriod && matchMajor;
+      return matchQ && matchMajor;
     });
-  }, [allStudents, q, selectedPeriod, filterMajor]);
+  }, [allStudents, q, filterMajor]);
 
   if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>กำลังโหลดข้อมูล...</div>;
 
@@ -427,7 +441,7 @@ function StudentViewModal({
                         <span style={{ fontSize: 14, fontWeight: 600, color: '#334155' }}>{doc.name}</span>
                       </div>
                       {/* เปิดดูไฟล์แท็บใหม่เหมือนของ Admin */}
-                      <a href={`http://localhost:5000/uploads/${encodeURIComponent(doc.path)}`} target="_blank" rel="noreferrer" style={{ fontSize: 13, color: '#0ea5e9', textDecoration: 'none', fontWeight: 700, background: '#f0f9ff', padding: '8px 16px', borderRadius: 8, transition: '0.2s' }}>
+                      <a href={`/uploads/${encodeURIComponent(doc.path)}`} target="_blank" rel="noreferrer" style={{ fontSize: 13, color: '#0ea5e9', textDecoration: 'none', fontWeight: 700, background: '#f0f9ff', padding: '8px 16px', borderRadius: 8, transition: '0.2s' }}>
                         เปิดดูไฟล์ ↗
                       </a>
                     </li>
