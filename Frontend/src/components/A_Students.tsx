@@ -1,9 +1,16 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import StatusBadge from "../components/StatusBadge";
+import { useDebounce } from "../hooks/useDebounce";
 
 /* =========================
    Types
 ========================= */
+interface CoopPeriod {
+  id: number;
+  semester: string | number;
+  academicYear: string;
+}
+
 interface StudentDocument {
   id: number;
   name: string;
@@ -125,42 +132,60 @@ export default function A_Students() {
 
   // Filters
   const [q, setQ] = useState("");
+  const debouncedQ = useDebounce(q, 300);
   const [filterMajors, setFilterMajors] = useState<string[]>([]);
   const [filterCurriculums, setFilterCurriculums] = useState<string[]>([]);
   const [filterStatuses, setFilterStatuses] = useState<string[]>([]);
 
   const [modalStudent, setModalStudent] = useState<StudentProfile | null>(null);
+  const [coopPeriods, setCoopPeriods] = useState<CoopPeriod[]>([]);
+  const [selectedPeriodId, setSelectedPeriodId] = useState<string>("all");
 
   // --- Fetch Data ---
+  const fetchStudents = async (periodId: string) => {
+    try {
+      const token = localStorage.getItem("coop.token");
+      const params = periodId !== "all" ? `?coopPeriodId=${periodId}` : "";
+      const res = await fetch(`/api/students${params}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setItems(Array.isArray(data) ? data : (data?.data ?? []));
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const fetchData = async () => {
     try {
       setLoading(true);
       const token = localStorage.getItem("coop.token");
 
-      // 1. ดึงข้อมูลนักศึกษา
-      const res = await fetch("http://localhost:5000/api/students", {
+      const resPeriods = await fetch("/api/admin/coop-periods/all", {
         headers: { Authorization: `Bearer ${token}` }
       });
-      if (res.ok) {
-        const data = await res.json();
-        setItems(data);
+      if (resPeriods.ok) {
+        const data = await resPeriods.json();
+        if (data?.periods) setCoopPeriods(data.periods);
       }
 
-      // 🟢 2. ดึงข้อมูลสาขาวิชา
-      const resMajors = await fetch("http://localhost:5000/api/admin/majors", {
+      const resMajors = await fetch("/api/admin/majors", {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (resMajors.ok) {
         const dataMajors = await resMajors.json();
         if (dataMajors.ok) {
-          const majorDict: Record<string, string> = { ...LEGACY_MAJOR_TH }; // ใส่ข้อมูลเก่าเผื่อไว้
+          const majorDict: Record<string, string> = { ...LEGACY_MAJOR_TH };
           dataMajors.majors.forEach((m: string) => {
-            majorDict[m] = m; // เซ็ต Key และ Value ให้ตรงกันสำหรับ FilterBox
+            majorDict[m] = m;
           });
           setDynamicMajors(majorDict);
         }
       }
 
+      await fetchStudents(selectedPeriodId);
     } catch (err) {
       console.error(err);
     } finally {
@@ -171,6 +196,15 @@ export default function A_Students() {
   useEffect(() => {
     fetchData();
   }, []);
+
+  const initialMount = useRef(true);
+  useEffect(() => {
+    if (initialMount.current) {
+      initialMount.current = false;
+      return;
+    }
+    fetchStudents(selectedPeriodId);
+  }, [selectedPeriodId]);
 
   function resetFilters() {
     setQ("");
@@ -187,13 +221,13 @@ export default function A_Students() {
       const st = normalizeStatus(s.coop?.status);
 
       return (
-        text.includes(q.toLowerCase()) &&
+        text.includes(debouncedQ.toLowerCase()) &&
         (filterMajors.length === 0 || filterMajors.includes(s.major ?? "")) &&
         (filterCurriculums.length === 0 || filterCurriculums.includes(s.studyProgram ?? "")) &&
         (filterStatuses.length === 0 || filterStatuses.includes(st))
       );
     });
-  }, [items, q, filterMajors, filterCurriculums, filterStatuses]);
+  }, [items, debouncedQ, filterMajors, filterCurriculums, filterStatuses]);
 
   if (loading) return <div style={{ padding: 28, marginLeft: 35 }}>กำลังโหลดข้อมูล...</div>;
 
@@ -204,6 +238,20 @@ export default function A_Students() {
         <h2 style={{ marginBottom: 16, marginTop: 0 }}>ข้อมูลนักศึกษา</h2>
 
         <div style={filterRow}>
+          <select
+            className="input"
+            style={{ padding: '8px', borderRadius: 8, border: '1px solid #e5e7eb' }}
+            value={selectedPeriodId}
+            onChange={e => setSelectedPeriodId(e.target.value)}
+          >
+            <option value="all">📚 ทุกปีการศึกษา</option>
+            {coopPeriods.map(p => (
+              <option key={p.id} value={String(p.id)}>
+                เทอม {p.semester} / {p.academicYear}
+              </option>
+            ))}
+          </select>
+
           <input
             className="input"
             placeholder="ค้นหา: รหัส / ชื่อ / อีเมล"
@@ -374,7 +422,7 @@ function StudentModal({
                         <span>📄</span>
                         <span style={{ fontSize: 14 }}>{doc.name}</span>
                       </div>
-                      <a href={`http://localhost:5000/uploads/${encodeURIComponent(doc.path)}`} target="_blank" rel="noreferrer" style={{ fontSize: 13, color: '#0074B7', textDecoration: 'none', fontWeight: 600 }}>
+                      <a href={`/uploads/${encodeURIComponent(doc.path)}`} target="_blank" rel="noreferrer" style={{ fontSize: 13, color: '#0074B7', textDecoration: 'none', fontWeight: 600 }}>
                         เปิดดู
                       </a>
                     </li>
