@@ -62,6 +62,12 @@ const prismaMock = {
     delete: jest.fn(),
     deleteMany: jest.fn(),
   },
+  annFile: {
+    findMany: jest.fn(),
+    create: jest.fn(),
+    delete: jest.fn(),
+    deleteMany: jest.fn(),
+  },
   company: {
     findMany: jest.fn(),
     findUnique: jest.fn(),
