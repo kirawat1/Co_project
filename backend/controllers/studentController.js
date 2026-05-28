@@ -4,31 +4,51 @@ const prisma = new PrismaClient();
 const kkuReg = require('../services/kkuRegService');
 
 const PASSING_GRADES = new Set(["S", "A", "B+", "B", "C+", "C", "D+", "D"]);
+const GRADE_POINTS = { "A": 4.0, "B+": 3.5, "B": 3.0, "C+": 2.5, "C": 2.0, "D+": 1.5, "D": 1.0, "F": 0.0, "E": 0.0 };
 
 function checkEligibility(gradeList, criteria) {
   if (!gradeList || !criteria) {
-    return { isPassPrepCourse: false, passedAllRequired: false, passedElectiveCount: 0, isQualified: false };
+    return { isPassPrepCourse: false, passedAllRequired: false, passedElectiveCount: 0, calculatedCoreGpa: 0, isQualified: false };
   }
 
   const passedCodes = new Set(
     gradeList.filter(c => PASSING_GRADES.has(c.grade)).map(c => c.course_code)
   );
 
+  // 1. วิชาเตรียมความพร้อม (ผ่านอย่างน้อย 1 วิชาจากรายการ)
   const prepCodes = criteria.prepCourseCodes || [];
   const isPassPrepCourse = prepCodes.length === 0 || prepCodes.some(code => passedCodes.has(code));
 
+  // 2. วิชาบังคับ (ต้องผ่านทุกตัว)
   const requiredCourses = criteria.requiredCourses || [];
   const passedAllRequired = requiredCourses.length === 0 ||
     requiredCourses.every(code => passedCodes.has(code));
 
+  // 3. หมวดวิชาบังคับเลือก (ผ่านอย่างน้อย electiveMinCount)
   const coreCourses = criteria.coreCourses || [];
   const electiveMinCount = criteria.electiveMinCount ?? 1;
   const passedElectiveCount = coreCourses.filter(code => passedCodes.has(code)).length;
   const passedElective = coreCourses.length === 0 || passedElectiveCount >= electiveMinCount;
 
+  // 4. คำนวณ coreGpa แบบ weighted average จาก coreCourses ที่กำหนด
+  //    S/U/W ไม่อยู่ใน GRADE_POINTS → ไม่นับในสูตร GPA (แต่นับว่าผ่านใน passedCodes)
+  let totalPoints = 0, totalCredits = 0;
+  for (const entry of gradeList) {
+    if (!coreCourses.includes(entry.course_code)) continue;
+    const pts = GRADE_POINTS[entry.grade];
+    if (pts !== undefined) {
+      const credit = entry.creditattempt || 0;
+      totalPoints += pts * credit;
+      totalCredits += credit;
+    }
+  }
+  const calculatedCoreGpa = totalCredits > 0
+    ? Math.round((totalPoints / totalCredits) * 100) / 100
+    : 0;
+
   const isQualified = isPassPrepCourse && passedAllRequired && passedElective;
 
-  return { isPassPrepCourse, passedAllRequired, passedElectiveCount, isQualified };
+  return { isPassPrepCourse, passedAllRequired, passedElectiveCount, calculatedCoreGpa, isQualified };
 }
 
 exports.checkEligibility = checkEligibility;
