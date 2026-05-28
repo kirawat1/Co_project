@@ -269,14 +269,20 @@ exports.updateCoopApplicationStatus = async (req, res) => {
 
 exports.getAllStudentsForReview = async (req, res) => {
     try {
+        const coopPeriodId = req.query.coopPeriodId
+            ? parseInt(req.query.coopPeriodId, 10)
+            : undefined;
+        const where = coopPeriodId ? { coop: { coopPeriodId } } : {};
+
         const students = await prisma.student.findMany({
+            where,
             include: {
                 coop: {
                     include: {
-                        company: true // ดึงชื่อบริษัทมาโชว์ในตารางด้วย
+                        company: true
                     }
                 },
-                documents: true // ดึงประวัติไฟล์แนบมาเพื่อหาไฟล์ T002_FORM
+                documents: true
             }
         });
 
