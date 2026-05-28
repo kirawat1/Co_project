@@ -149,25 +149,49 @@ async function getCurrentSemester() {
 
 // ──────────────────────────────────────────
 // 8. ดึงประวัติเกรดทุกวิชา (ใช้ตรวจ requiredCourses / coreCourses)
-//    NOTE: ยืนยัน endpoint กับ KKU REG API docs ก่อน deploy
-//    ลองใช้ student/enroll_list (ไม่มี year/sem = ทุก semester)
+//    ต้องส่ง gradeSummary (จาก getGradeSummary) เพื่อรู้ list ของ semester
+//    คืน array ของ { course_code, grade, creditattempt, creditsatisfy, ... }
 // ──────────────────────────────────────────
-async function getGradeList(accessToken) {
+async function getGradeList(accessToken, gradeSummary) {
   if (!accessToken) return null;
+
+  // ดึง list ของ (acadyear, semester) ที่นักศึกษาเคยลงทะเบียน
+  const summaryList = gradeSummary?.grade_summary || gradeSummary?.data?.grade_summary || [];
+  if (!summaryList.length) return [];
+
+  // deduplicate (academic year + semester)
+  const seen = new Set();
+  const semesters = summaryList.filter(s => {
+    const key = `${s.acadyear}-${s.semester}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  // ดึงพร้อมกันทุกภาคเรียน
+  const results = await Promise.all(
+    semesters.map(s => getEnrollList(accessToken, s.acadyear, s.semester))
+  );
+
+  return results.flat();
+}
+
+// ──────────────────────────────────────────
+// 8b. ดึง enroll_list สำหรับ 1 ภาคเรียน (private helper)
+// ──────────────────────────────────────────
+async function getEnrollList(accessToken, acadyear, semester) {
   try {
-    const res = await axios.get(`${BASE_URL}/student/enroll_list`, {
-      headers: { "x-access-token": accessToken },
-      timeout: 12000,
-    });
-    return (
-      res.data?.data?.enroll_list ||
-      res.data?.enroll_list ||
-      res.data?.data ||
-      null
+    const res = await axios.get(
+      `${BASE_URL}/student/enroll_list/${acadyear}/${semester}`,
+      { headers: { "x-access-token": accessToken }, timeout: 12000 }
     );
+    return res.data?.enroll_list || res.data?.data?.enroll_list || [];
   } catch (err) {
-    console.error("[KKU REG] getGradeList error:", err.response?.data || err.message);
-    return null;
+    console.error(
+      `[KKU REG] getEnrollList(${acadyear}/${semester}) error:`,
+      err.response?.data || err.message
+    );
+    return [];
   }
 }
 
@@ -215,6 +239,7 @@ async function syncStudentAll(username, password) {
 
   return {
     ok: true,
+    _token:  token,
     info:    info.status    === "fulfilled" ? info.value    : null,
     grades:  grades.status  === "fulfilled" ? grades.value  : null,
     advisor: advisor.status === "fulfilled" ? advisor.value : null,
