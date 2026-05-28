@@ -390,7 +390,7 @@ exports.deleteDocumentByType = async (req, res) => {
     // ลบไฟล์
     const filePath = path.join(__dirname, '../uploads', doc.path);
     if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
+      try { fs.unlinkSync(filePath); } catch (e) { console.warn("Delete file error:", e); }
     }
 
     // ลบ DB

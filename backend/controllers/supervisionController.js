@@ -1,12 +1,11 @@
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = require('../config/prismaClient');
 const fs = require('fs');
 const path = require('path');
 
 // ==========================================
 // ⚙️ [ADMIN] จัดการ Config ช่วงเวลานิเทศ (ผูกกับ CoopPeriod)
 // ==========================================
-exports.getSupervisionPeriods = async (req, res) => {
+exports.getSupervisionPeriods = async (_req, res) => {
     try {
         const periods = await prisma.coopPeriod.findMany({
             orderBy: [
@@ -44,7 +43,7 @@ exports.saveSupervisionPeriod = async (req, res) => {
 // ==========================================
 // 👩‍💼 [ADMIN] จัดการรายการนิเทศและอัปโหลดหนังสือ
 // ==========================================
-exports.getAllSupervisions = async (req, res) => {
+exports.getAllSupervisions = async (_req, res) => {
     try {
         const supervisions = await prisma.supervisionAppointment.findMany({
             include: {
@@ -77,6 +76,10 @@ exports.uploadOfficialLetter = async (req, res) => {
         res.json({ ok: true, appointment });
     } catch (err) {
         console.error(err);
+        if (req.file) {
+            const filePath = path.join(__dirname, '../uploads', req.file.filename);
+            try { fs.unlinkSync(filePath); } catch (_) {}
+        }
         res.status(500).json({ ok: false, message: 'Upload error' });
     }
 };
@@ -112,14 +115,39 @@ exports.proposeSupervisionDate = async (req, res) => {
             return res.status(400).json({ ok: false, message: 'ไม่พบข้อมูลอาจารย์ที่ปรึกษา กรุณาอัปเดตในหน้า Profile' });
         }
 
-        // หาชื่ออาจารย์จากนามสกุล (หรือจะเปลี่ยนเป็นค้นหาด้วยวิธีอื่นตามที่คุณออกแบบไว้)
-        const teacherName = student.advisorName.split(' ').pop(); 
-        const teacher = await prisma.teacher.findFirst({
-            where: { lastName: { contains: teacherName } }
-        });
+        // ค้นหาอาจารย์จาก advisorName: ลอง exact match ก่อน แล้วค่อย fallback
+        // ป้องกัน: whitespace-only → contains("") → จับอาจารย์คนแรก random
+        const advisorTrimmed = student.advisorName.trim();
+        if (!advisorTrimmed) {
+            return res.status(400).json({ ok: false, message: 'ไม่พบข้อมูลอาจารย์ที่ปรึกษา กรุณาอัปเดตในหน้า Profile' });
+        }
+
+        // แยก firstName + lastName จาก advisorName (รูปแบบ: "คำนำหน้า ชื่อ นามสกุล")
+        const nameParts = advisorTrimmed.split(/\s+/).filter(Boolean);
+        const lastName = nameParts.length >= 2 ? nameParts[nameParts.length - 1] : "";
+        const firstName = nameParts.length >= 2 ? nameParts[nameParts.length - 2] : nameParts[0];
+
+        // ค้นหาด้วย firstName + lastName พร้อมกัน (ป้องกันนามสกุลซ้ำ)
+        let teacher = lastName
+            ? await prisma.teacher.findFirst({
+                where: {
+                    AND: [
+                        { lastName: { contains: lastName } },
+                        { firstName: { contains: firstName } },
+                    ],
+                },
+            })
+            : null;
+
+        // fallback: ค้นด้วยนามสกุลอย่างเดียว (กรณี firstName ไม่ตรง format)
+        if (!teacher && lastName && lastName.length >= 2) {
+            teacher = await prisma.teacher.findFirst({
+                where: { lastName },  // exact match นามสกุล
+            });
+        }
 
         if (!teacher) {
-            return res.status(400).json({ ok: false, message: 'ไม่พบข้อมูลอาจารย์ที่ปรึกษาในระบบ กรุณาติดต่อเจ้าหน้าที่' });
+            return res.status(400).json({ ok: false, message: `ไม่พบอาจารย์ที่ปรึกษา "${advisorTrimmed}" ในระบบ กรุณาติดต่อเจ้าหน้าที่` });
         }
 
         const appointment = await prisma.supervisionAppointment.upsert({
@@ -157,13 +185,19 @@ exports.proposeSupervisionDate = async (req, res) => {
 exports.getTeacherSupervisions = async (req, res) => {
     try {
         const userId = req.user.id;
-        
-        // 1. เช็คก่อนว่ามีโปรไฟล์ Teacher ไหม
+
         const teacher = await prisma.teacher.findUnique({ where: { userId } });
-        
-        // 🚨 ลบเงื่อนไข where: { teacherId: teacher.id } ออกชั่วคราว เพื่อทดสอบดึงเด็กทุกคน!
+        if (!teacher) {
+            return res.json({ ok: true, supervisions: [] });
+        }
+
         const supervisions = await prisma.supervisionAppointment.findMany({
-            // where: { teacherId: teacher.id },  <--- (คอมเมนต์บรรทัดนี้ไว้ก่อน)
+            where: {
+                OR: [
+                    { teacherId: teacher.id },
+                    { coTeacherName: { contains: teacher.firstName } }
+                ]
+            },
             include: {
                 student: {
                     select: {
@@ -175,7 +209,12 @@ exports.getTeacherSupervisions = async (req, res) => {
             orderBy: { updatedAt: 'desc' }
         });
 
-        res.json({ ok: true, supervisions });
+        const mappedData = supervisions.map(sup => ({
+            ...sup,
+            isPrimaryAdvisor: sup.teacherId === teacher.id
+        }));
+
+        res.json({ ok: true, supervisions: mappedData });
     } catch (err) {
         console.error(err);
         res.status(500).json({ ok: false, message: 'Server error' });
@@ -291,9 +330,39 @@ exports.reviewSupervision = async (req, res) => {
 
         let updateData = {};
         if (action === 'APPROVE') {
+            if (!confirmedDate) {
+                return res.status(400).json({ ok: false, message: 'กรุณาระบุวันที่นิเทศ' });
+            }
+
+            const chosenDate = new Date(confirmedDate);
+
+            // ตรวจสอบวันซ้ำ: อาจารย์คนเดียวกัน ยืนยันวันเดียวกันไปแล้วกับนักศึกษาคนอื่น
+            const startOfDay = new Date(chosenDate);
+            startOfDay.setHours(0, 0, 0, 0);
+            const endOfDay = new Date(chosenDate);
+            endOfDay.setHours(23, 59, 59, 999);
+
+            const conflict = await prisma.supervisionAppointment.findFirst({
+                where: {
+                    teacherId: teacher.id,
+                    id: { not: parseInt(id) },
+                    status: 'DATE_CONFIRMED',
+                    confirmedDate: { gte: startOfDay, lte: endOfDay }
+                },
+                include: { student: { select: { firstName: true, lastName: true } } }
+            });
+
+            if (conflict) {
+                const conflictName = `${conflict.student.firstName} ${conflict.student.lastName}`;
+                return res.status(409).json({
+                    ok: false,
+                    message: `วันนี้มีการนิเทศของ ${conflictName} อยู่แล้ว กรุณาเลือกวันอื่น`
+                });
+            }
+
             updateData = {
                 status: 'DATE_CONFIRMED',
-                confirmedDate: new Date(confirmedDate),
+                confirmedDate: chosenDate,
                 rejectReason: null
             };
         } else if (action === 'REJECT') {
@@ -314,5 +383,98 @@ exports.reviewSupervision = async (req, res) => {
     } catch (err) {
         console.error("Review Supervision Error:", err);
         res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดในการบันทึกข้อมูล" });
+    }
+};
+
+// ==========================================
+// แก้ไขวันนิเทศ — admin เท่านั้น ใช้ได้เมื่อยังไม่ออก PDF
+// PUT /api/admin/supervisions/:id/confirmed-date
+// ==========================================
+exports.updateConfirmedDate = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { confirmedDate } = req.body;
+
+        if (!confirmedDate) {
+            return res.status(400).json({ ok: false, message: 'กรุณาระบุวันที่นิเทศ' });
+        }
+
+        const supervision = await prisma.supervisionAppointment.findUnique({
+            where: { id: parseInt(id) }
+        });
+        if (!supervision) {
+            return res.status(404).json({ ok: false, message: 'ไม่พบข้อมูลการนัดหมาย' });
+        }
+
+        // ป้องกัน: ถ้าออก PDF แล้วแก้ไขไม่ได้
+        if (supervision.officialLetterPath) {
+            return res.status(400).json({ ok: false, message: 'ไม่สามารถแก้ไขได้ เนื่องจากออกหนังสือนิเทศแล้ว' });
+        }
+
+        const chosenDate = new Date(confirmedDate);
+
+        // ตรวจสอบวันซ้ำกับอาจารย์คนเดียวกัน
+        const startOfDay = new Date(chosenDate); startOfDay.setHours(0, 0, 0, 0);
+        const endOfDay = new Date(chosenDate); endOfDay.setHours(23, 59, 59, 999);
+
+        const conflict = await prisma.supervisionAppointment.findFirst({
+            where: {
+                teacherId: supervision.teacherId,
+                id: { not: parseInt(id) },
+                status: { in: ['DATE_CONFIRMED', 'LETTER_UPLOADED'] },
+                confirmedDate: { gte: startOfDay, lte: endOfDay }
+            },
+            include: { student: { select: { firstName: true, lastName: true } } }
+        });
+
+        if (conflict) {
+            return res.status(409).json({
+                ok: false,
+                message: `วันนี้มีการนิเทศของ ${conflict.student.firstName} ${conflict.student.lastName} อยู่แล้ว`
+            });
+        }
+
+        const updated = await prisma.supervisionAppointment.update({
+            where: { id: parseInt(id) },
+            data: { confirmedDate: chosenDate }
+        });
+
+        res.json({ ok: true, appointment: updated });
+    } catch (err) {
+        console.error('updateConfirmedDate error:', err);
+        res.status(500).json({ ok: false, message: 'เกิดข้อผิดพลาดในการแก้ไขวันนิเทศ' });
+    }
+};
+
+// ==========================================
+// ปฏิทินนิเทศ — คืนรายการที่ยืนยันวันแล้วทั้งหมด
+// เข้าถึงได้ทุก role (student / teacher / admin)
+// ==========================================
+exports.getSupervisionCalendar = async (_req, res) => {
+    try {
+        const appointments = await prisma.supervisionAppointment.findMany({
+            where: {
+                confirmedDate: { not: null },
+                status: { in: ['DATE_CONFIRMED', 'LETTER_UPLOADED', 'COMPLETED'] }
+            },
+            include: {
+                student: { select: { studentId: true, firstName: true, lastName: true } }
+            },
+            orderBy: { confirmedDate: 'asc' }
+        });
+
+        const events = appointments.map(a => ({
+            id: a.id,
+            confirmedDate: a.confirmedDate,
+            studentId: a.student.studentId,
+            studentName: `${a.student.firstName} ${a.student.lastName}`,
+            type: a.supervisionType,
+            status: a.status
+        }));
+
+        res.json({ ok: true, events });
+    } catch (err) {
+        console.error("Get Calendar Error:", err);
+        res.status(500).json({ ok: false, message: "ไม่สามารถดึงข้อมูลปฏิทินได้" });
     }
 };
