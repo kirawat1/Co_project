@@ -44,8 +44,10 @@ const prismaMock = {
   coopPeriod: {
     findUnique: jest.fn(),
     findMany: jest.fn(),
+    findFirst: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
+    updateMany: jest.fn(),
     delete: jest.fn(),
   },
   announcement: {
@@ -55,6 +57,7 @@ const prismaMock = {
     update: jest.fn(),
     delete: jest.fn(),
     upsert: jest.fn(),
+    count: jest.fn(),
   },
   announcementFile: {
     findMany: jest.fn(),
@@ -108,6 +111,13 @@ const prismaMock = {
     findMany: jest.fn(),
     upsert: jest.fn(),
     deleteMany: jest.fn(),
+  },
+  coopCriteria: {
+    findMany: jest.fn(),
+    findUnique: jest.fn(),
+    upsert: jest.fn(),
+    delete: jest.fn(),
+    create: jest.fn(),
   },
   visit: {
     findMany: jest.fn(),
