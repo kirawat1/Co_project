@@ -23,4 +23,11 @@ dist-ssr
 *.sln
 *.sw?
 
+# Playwright test output
+test-results/
+playwright-report/
+TESTCASES.pdf
 
+# Environment files
+.env
+.env.production
