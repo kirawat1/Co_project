@@ -17,6 +17,8 @@ const configController = require('../controllers/configController');
 const supervisionController = require('../controllers/supervisionController');
 const teacherController = require('../controllers/teacherController');
 const kkuReg = require('../services/kkuRegService');
+const studentImportController = require('../controllers/studentImportController');
+const multerMemory = require('multer')({ storage: require('multer').memoryStorage() });
 
 // สิทธิ์ที่อนุญาตจัดการระบบ (ต้องตรงกับ Prisma enum — lowercase)
 const ADMIN_ROLES = ['admin', 'teacher', 'staff'];
@@ -55,6 +57,15 @@ router.get('/criteria', criteriaController.getAllCriteria);
 router.post('/criteria', verifyToken, verifyRole(...ADMIN_ROLES), criteriaController.saveCriteria);
 router.put('/criteria/:id', verifyToken, verifyRole(...ADMIN_ROLES), criteriaController.saveCriteria);
 router.delete('/criteria/:id', verifyToken, verifyRole(...ADMIN_ROLES), criteriaController.deleteCriteria);
+
+// POST /api/admin/students/import-excel — นำเข้าข้อมูลนักศึกษาจาก Excel
+router.post(
+  '/students/import-excel',
+  verifyToken,
+  verifyRole(...STAFF_ONLY),
+  multerMemory.single('file'),
+  studentImportController.importStudents
+);
 
 // GET /api/admin/students/majors — distinct majors for announcement targeting
 router.get('/students/majors', verifyToken, verifyRole(...ADMIN_ROLES), async (req, res) => {
