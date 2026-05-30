@@ -25,6 +25,7 @@ type Announcement = {
   date: string;
   year: string; // เก็บเป็น string format "semester/academicYear"
   attachments: AnnouncementAttachment[];
+  targetMajors: string[];
 };
 
 export default function A_Announcements() {
@@ -41,14 +42,26 @@ export default function A_Announcements() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [availableMajors, setAvailableMajors] = useState<string[]>([]);
+  const [targetMajors, setTargetMajors] = useState<string[]>([]);
 
   const token = localStorage.getItem("coop.token");
+
+  /* ================= 0. LOAD MAJORS ================= */
+  const fetchMajors = async () => {
+    try {
+      const res = await axios.get("/api/admin/students/majors", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.data.ok) setAvailableMajors(res.data.majors);
+    } catch { /* silent */ }
+  };
 
   /* ================= 1. LOAD PERIODS & SET ACTIVE ================= */
   const fetchPeriods = async () => {
     try {
       // ดึงรอบปีการศึกษาทั้งหมด (ใช้ Endpoint ของเจ้าหน้าที่)
-      const res = await axios.get("http://localhost:5000/api/admin/supervision-periods", {
+      const res = await axios.get("/api/admin/supervision-periods", {
         headers: { Authorization: `Bearer ${token}` }
       });
 
@@ -76,23 +89,23 @@ export default function A_Announcements() {
     setLoading(true);
     try {
       // ส่ง query parameter 'year' ในรูปแบบ "1/2569"
-      const res = await axios.get(`http://localhost:5000/api/announcements?year=${selectedPeriod}`);
+      const res = await axios.get(`/api/announcements?year=${selectedPeriod}`);
       if (res.data.ok) {
         setItems(
           res.data.list.map((a: any) => ({
             ...a,
+            targetMajors: a.targetMajors || [],
             attachments: [
               ...(a.files?.map((f: any) => ({
                 id: f.id,
                 type: f.mime?.startsWith("image/") ? "image" : "file",
                 name: f.name,
-                url: `http://localhost:5000/uploads/${f.path}`,
+                url: `/uploads/${f.path}`,
               })) || []),
-              ...(a.linkUrl ? JSON.parse(a.linkUrl).map((l: string) => ({
-                type: "link",
-                name: l,
-                url: l,
-              })) : [])
+              ...(a.linkUrl ? (() => {
+                try { return JSON.parse(a.linkUrl).map((l: string) => ({ type: "link", name: l, url: l })); }
+                catch { return []; }
+              })() : [])
             ]
           }))
         );
@@ -127,8 +140,8 @@ export default function A_Announcements() {
   function removeAttachment(index: number) {
     setAttachments(prev => prev.filter((_, i) => i !== index));
   }
-  // รันครั้งแรกเพื่อโหลด Periods
-  useEffect(() => { fetchPeriods(); }, []);
+  // รันครั้งแรกเพื่อโหลด Periods และ Majors
+  useEffect(() => { fetchPeriods(); fetchMajors(); }, []);
 
   // เมื่อเลือกปีเปลี่ยน หรือโหลด Periods เสร็จ ให้ดึงประกาศ
   useEffect(() => {
@@ -146,6 +159,7 @@ export default function A_Announcements() {
     form.append("body", body);
     form.append("date", date);
     form.append("year", selectedPeriod); // บันทึกเป็น "1/2569"
+    form.append("targetMajors", JSON.stringify(targetMajors));
 
     attachments.forEach(att => {
       if ((att.type === "file" || att.type === "image") && att.rawFile) {
@@ -160,7 +174,7 @@ export default function A_Announcements() {
     if (keepFileIds.length) form.append("keepFileIds", JSON.stringify(keepFileIds));
 
     try {
-      await axios.post("http://localhost:5000/api/announcements", form);
+      await axios.post("/api/announcements", form);
       resetForm();
       fetchAnnouncements();
     } catch (err) {
@@ -171,6 +185,7 @@ export default function A_Announcements() {
   const resetForm = () => {
     setTitle(""); setBody(""); setDate(new Date().toISOString().slice(0, 10));
     setAttachments([]); setEditingId(null); setModalOpen(false);
+    setTargetMajors([]);
   };
 
   const openEditModal = (a: Announcement) => {
@@ -179,13 +194,14 @@ export default function A_Announcements() {
     setBody(a.body || "");
     setDate(a.date);
     setAttachments(a.attachments || []);
+    setTargetMajors(a.targetMajors || []);
     setModalOpen(true);
   };
 
   const remove = async (id: string) => {
     if (!confirm("ลบประกาศนี้? ข้อมูลจะไม่สามารถกู้คืนได้")) return;
     try {
-      await axios.delete(`http://localhost:5000/api/announcements/${id}`);
+      await axios.delete(`/api/announcements/${id}`);
       fetchAnnouncements();
     } catch (err) { alert("ลบไม่สำเร็จ"); }
   };
@@ -235,6 +251,14 @@ export default function A_Announcements() {
                 <div style={annMeta}>
                   <span style={badgeYear}>เทอม {a.year}</span>
                   <span style={textMuted}>📅 {new Date(a.date).toLocaleDateString('th-TH', { dateStyle: 'medium' })}</span>
+                  {/* Target badges */}
+                  {(!a.targetMajors || a.targetMajors.length === 0) ? (
+                    <span style={{ background: "#f1f5f9", color: "#475569", padding: "3px 8px", borderRadius: 6, fontSize: 11, fontWeight: 700 }}>ทุกสาขา</span>
+                  ) : (
+                    a.targetMajors.map(m => (
+                      <span key={m} style={{ background: "#eff6ff", color: "#2563eb", padding: "3px 8px", borderRadius: 6, fontSize: 11, fontWeight: 700 }}>{m}</span>
+                    ))
+                  )}
                 </div>
                 <h3 style={annTitle}>{a.title}</h3>
                 {a.body && <p style={annBody}>{a.body.length > 150 ? a.body.substring(0, 150) + "..." : a.body}</p>}
@@ -293,6 +317,46 @@ export default function A_Announcements() {
                       </option>
                     ))}
                   </select>
+                </div>
+              </div>
+
+              {/* ส่งถึง */}
+              <div style={inputGroup}>
+                <label style={labelStyle}>ส่งถึง</label>
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 14 }}>
+                    <input
+                      type="radio"
+                      checked={targetMajors.length === 0}
+                      onChange={() => setTargetMajors([])}
+                    />
+                    <span>ทุกสาขา</span>
+                  </label>
+                  <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: availableMajors.length > 0 ? "pointer" : "not-allowed", fontSize: 14, opacity: availableMajors.length === 0 ? 0.5 : 1 }} title={availableMajors.length === 0 ? "ยังไม่มีข้อมูลสาขา" : undefined}>
+                    <input
+                      type="radio"
+                      disabled={availableMajors.length === 0}
+                      checked={targetMajors.length > 0}
+                      onChange={() => { if (availableMajors.length > 0) setTargetMajors([availableMajors[0]]); }}
+                    />
+                    <span>เลือกสาขา{availableMajors.length === 0 ? " (ยังไม่มีข้อมูลสาขา)" : ""}</span>
+                  </label>
+                  {targetMajors.length > 0 && availableMajors.length > 0 && (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8, paddingLeft: 24 }}>
+                      {availableMajors.map(m => (
+                        <label key={m} style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 13, background: targetMajors.includes(m) ? "#eff6ff" : "#f8fafc", border: `1px solid ${targetMajors.includes(m) ? "#2563eb" : "#e2e8f0"}`, borderRadius: 8, padding: "4px 12px" }}>
+                          <input
+                            type="checkbox"
+                            checked={targetMajors.includes(m)}
+                            onChange={e => setTargetMajors(prev =>
+                              e.target.checked ? [...prev, m] : prev.filter(x => x !== m)
+                            )}
+                          />
+                          {m}
+                        </label>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
 
