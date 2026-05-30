@@ -1,5 +1,16 @@
 # CHANGELOG — Co_project
 
+## [2026-05-30] Announcements Feature - Routing and Sidebar (Task 6)
+
+### Added
+- `S_Announcements` route in `S_App.tsx` at path `/student/announcements`
+- "ประกาศ" (Announcements) NavLink in `S_Sidebar.tsx` between "ข้อมูลบริษัท" (Company) and "ยื่นคำร้องสหกิจ" (Apply for Co-op) with bell icon
+
+### Changed
+- Student sidebar now displays announcements navigation link
+
+---
+
 ## [2026-05-29] KKU Grade Integration Fix
 
 ### Fixed
