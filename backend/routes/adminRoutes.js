@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 const { verifyToken, verifyRole } = require('../middlewares/authMiddleware');
+const prisma = require('../config/prismaClient');
 
 const upload = require('../middlewares/uploadMiddleware');
 const systemUpload = require('../middlewares/systemUploadMiddleware');
@@ -54,6 +55,22 @@ router.get('/criteria', criteriaController.getAllCriteria);
 router.post('/criteria', verifyToken, verifyRole(...ADMIN_ROLES), criteriaController.saveCriteria);
 router.put('/criteria/:id', verifyToken, verifyRole(...ADMIN_ROLES), criteriaController.saveCriteria);
 router.delete('/criteria/:id', verifyToken, verifyRole(...ADMIN_ROLES), criteriaController.deleteCriteria);
+
+// GET /api/admin/students/majors — distinct majors for announcement targeting
+router.get('/students/majors', verifyToken, verifyRole(...ADMIN_ROLES), async (req, res) => {
+  try {
+    const rows = await prisma.student.findMany({
+      where: { major: { not: null } },
+      select: { major: true },
+      distinct: ['major'],
+      orderBy: { major: 'asc' },
+    });
+    res.json({ ok: true, majors: rows.map(r => r.major).filter(Boolean) });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาด" });
+  }
+});
 
 // GET /api/admin/courses/search?q=<text> — ค้นหาวิชาจาก KKU course catalog สำหรับ admin เลือกใส่เกณฑ์
 router.get('/courses/search', verifyToken, verifyRole(...ADMIN_ROLES), async (req, res) => {

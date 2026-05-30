@@ -19,22 +19,40 @@ const upload = multer({ storage });
 const getAnnouncements = async (req, res) => {
   try {
     const year = req.query.year;
+    const major = req.query.major;
+
     const list = await prisma.announcement.findMany({
       where: year ? { year } : {},
       orderBy: { date: "desc" },
       include: { files: true },
     });
 
-    // map ไฟล์ให้เป็น url
-    const mapped = list.map(a => ({
+    // Application-level major filter: [] means all, otherwise check inclusion
+    const filtered = major
+      ? list.filter(a => {
+          const targets = Array.isArray(a.targetMajors) ? a.targetMajors : [];
+          return targets.length === 0 || targets.includes(major);
+        })
+      : list;
+
+    const mapped = filtered.map(a => ({
       ...a,
       attachments: [
         ...(a.files.map(f => ({
           type: f.mime.startsWith("image/") ? "image" : "file",
           name: f.name,
-          url: `http://localhost:5000/uploads/${f.path}`
+          url: `/uploads/${f.path}`,
         }))),
-        ...(a.linkUrl ? [{ type: "link", name: a.linkUrl, url: a.linkUrl }] : [])
+        ...(a.linkUrl ? (() => {
+          try {
+            const parsed = JSON.parse(a.linkUrl);
+            return Array.isArray(parsed)
+              ? parsed.map(l => ({ type: "link", name: l, url: l }))
+              : [{ type: "link", name: a.linkUrl, url: a.linkUrl }];
+          } catch {
+            return [{ type: "link", name: a.linkUrl, url: a.linkUrl }];
+          }
+        })() : [])
       ]
     }));
 
@@ -47,11 +65,16 @@ const getAnnouncements = async (req, res) => {
 
 const addOrUpdateAnnouncement = async (req, res) => {
   try {
-    const { id, title, body, date, year, linkUrls, keepFileIds } = req.body;
+    const { id, title, body, date, year, linkUrls, keepFileIds, targetMajors: rawTargetMajors } = req.body;
     const files = req.files || [];
 
     if (!title || !date || !year)
       return res.status(400).json({ ok: false, message: "ข้อมูลไม่ครบ" });
+
+    let targetMajors = [];
+    if (rawTargetMajors) {
+      try { targetMajors = JSON.parse(rawTargetMajors); } catch { targetMajors = []; }
+    }
 
     // แปลงชื่อไฟล์ใหม่
     const annFiles = files.map(f => ({
@@ -59,6 +82,15 @@ const addOrUpdateAnnouncement = async (req, res) => {
       mime: f.mimetype,
       path: f.filename,
     }));
+
+    const sharedData = {
+      title,
+      body,
+      date: new Date(date),
+      year,
+      linkUrl: linkUrls ? JSON.stringify(JSON.parse(linkUrls)) : undefined,
+      targetMajors,
+    };
 
     if (id) {
       // UPDATE
@@ -77,14 +109,7 @@ const addOrUpdateAnnouncement = async (req, res) => {
       // อัปเดตประกาศ
       const updated = await prisma.announcement.update({
         where: { id },
-        data: {
-          title,
-          body,
-          date: new Date(date),
-          year,
-          linkUrl: linkUrls ? JSON.stringify(JSON.parse(linkUrls)) : undefined,
-          files: { create: annFiles },
-        },
+        data: { ...sharedData, files: { create: annFiles } },
         include: { files: true },
       });
 
@@ -92,14 +117,7 @@ const addOrUpdateAnnouncement = async (req, res) => {
     } else {
       // CREATE ใหม่
       const ann = await prisma.announcement.create({
-        data: {
-          title,
-          body,
-          date: new Date(date),
-          year,
-          linkUrl: linkUrls ? JSON.stringify(JSON.parse(linkUrls)) : undefined,
-          files: { create: annFiles },
-        },
+        data: { ...sharedData, files: { create: annFiles } },
         include: { files: true },
       });
       return res.json({ ok: true, announcement: ann });
