@@ -1,5 +1,25 @@
 # CHANGELOG — Co_project
 
+## [2026-05-31] Google OAuth + Excel Student Import
+
+### Added
+- `POST /api/auth/login/google` — Google OAuth login สำหรับนักศึกษา (ต้องเป็น @kkumail.com หรือ @kku.ac.th)
+- `POST /api/admin/students/import-excel` — นำเข้าข้อมูลนักศึกษาจาก Excel (.xlsx/.xls)
+- `Student.generalAdvisorId` → FK to Teacher (set ตอน Excel import โดย match email อาจารย์)
+- `Student.coopAdvisorId` → FK to Teacher (นักศึกษาเลือกเองผ่าน profile page)
+- `GoogleLogin` button บนหน้า login สำหรับ role นักศึกษา (แทน KKU REG tab)
+- Excel import UI ใน `A_Students.tsx` — เลือกไฟล์ + summary ผลการนำเข้า
+- CoopAdvisor dropdown ใน `S_ProfilePage.tsx`
+
+### Changed
+- `POST /api/auth/login/kku` — ปิดแล้ว (route commented out)
+- `Frontend/src/main.tsx` — wrapped ด้วย `GoogleOAuthProvider`
+
+### Notes
+- ต้องตั้งค่า `GOOGLE_CLIENT_ID` ใน `backend/.env` และ `VITE_GOOGLE_CLIENT_ID` ใน `Frontend/.env` ก่อนใช้งาน
+
+---
+
 ## [2026-05-30] Announcement Major Targeting
 
 ### Added
