@@ -60,6 +60,11 @@ model Student {
   advisorName  String? // ชื่ออาจารย์ที่ปรึกษา
   jobPosition  String? // ตำแหน่งงานที่สนใจ/สมัคร
 
+  generalAdvisorId  Int?
+  coopAdvisorId     Int?
+  generalAdvisor    Teacher? @relation("GeneralAdvisor", fields: [generalAdvisorId], references: [id])
+  coopAdvisor       Teacher? @relation("CoopAdvisor", fields: [coopAdvisorId], references: [id])
+
   isPassPrepCourse Boolean @default(false)
   isQualified      Boolean @default(false)
 
@@ -267,6 +272,8 @@ model Teacher {
   createdAt               DateTime                 @default(now())
   updatedAt               DateTime                 @updatedAt
   supervisionAppointments SupervisionAppointment[]
+  generalAdvisees         Student[]                @relation("GeneralAdvisor")
+  coopAdvisees            Student[]                @relation("CoopAdvisor")
 }
 
 model Visit {
