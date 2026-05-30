@@ -120,6 +120,42 @@ describe('getAnnouncements', () => {
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith({ ok: false, message: 'เกิดข้อผิดพลาด' });
   });
+
+  test('200 – major filter returns all-major + matching announcements only', async () => {
+    const fakeList = [
+      { id: '1', title: 'All', body: '', date: new Date(), year: '1/2569', linkUrl: null, targetMajors: [], files: [] },
+      { id: '2', title: 'CS only', body: '', date: new Date(), year: '1/2569', linkUrl: null, targetMajors: ['CS'], files: [] },
+      { id: '3', title: 'IT only', body: '', date: new Date(), year: '1/2569', linkUrl: null, targetMajors: ['IT'], files: [] },
+    ];
+    prisma.announcement.findMany.mockResolvedValue(fakeList);
+
+    const req = { query: { major: 'CS' } };
+    const res = makeRes();
+
+    await getAnnouncements(req, res);
+
+    const body = res.json.mock.calls[0][0];
+    expect(body.ok).toBe(true);
+    expect(body.list).toHaveLength(2);
+    expect(body.list.map(a => a.id)).toEqual(expect.arrayContaining(['1', '2']));
+    expect(body.list.map(a => a.id)).not.toContain('3');
+  });
+
+  test('200 – no major param returns all announcements unfiltered', async () => {
+    const fakeList = [
+      { id: '1', title: 'All', body: '', date: new Date(), year: '1/2569', linkUrl: null, targetMajors: [], files: [] },
+      { id: '2', title: 'CS only', body: '', date: new Date(), year: '1/2569', linkUrl: null, targetMajors: ['CS'], files: [] },
+    ];
+    prisma.announcement.findMany.mockResolvedValue(fakeList);
+
+    const req = { query: {} };
+    const res = makeRes();
+
+    await getAnnouncements(req, res);
+
+    const body = res.json.mock.calls[0][0];
+    expect(body.list).toHaveLength(2);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -284,6 +320,25 @@ describe('addOrUpdateAnnouncement', () => {
   });
 
   // ---- 500 error ----
+  test('200 – saves targetMajors when provided', async () => {
+    const created = { id: 'new', title: 'Test', body: '', date: new Date(), year: '1/2569', linkUrl: null, targetMajors: ['CS','IT'], files: [] };
+    prisma.announcement.create.mockResolvedValue(created);
+
+    const req = {
+      body: { title: 'Test', date: '2026-05-29', year: '1/2569', targetMajors: JSON.stringify(['CS','IT']) },
+      files: [],
+    };
+    const res = makeRes();
+
+    await addOrUpdateAnnouncement(req, res);
+
+    expect(prisma.announcement.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ targetMajors: ['CS', 'IT'] }),
+      })
+    );
+  });
+
   test('500 – DB error on create', async () => {
     prisma.announcement.create.mockRejectedValue(new Error('DB fail'));
 
