@@ -316,15 +316,16 @@ model StudentEmail {
 }
 
 model Announcement {
-  id        String    @id @default(uuid())
-  title     String
-  body      String?   @db.Text
-  date      DateTime
-  year      String
-  linkUrl   String?
-  files     AnnFile[]
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @default(now()) @updatedAt
+  id           String    @id @default(uuid())
+  title        String
+  body         String?   @db.Text
+  date         DateTime
+  year         String
+  linkUrl      String?
+  targetMajors Json      @default("[]")
+  files        AnnFile[]
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @default(now()) @updatedAt
 }
 
 model AnnFile {
