@@ -1,5 +1,21 @@
 # CHANGELOG — Co_project
 
+## [2026-05-30] Announcement Major Targeting
+
+### Added
+- `Announcement` schema: `targetMajors Json @default("[]")` — `[]` หมายถึงทุกสาขา, `["CS","IT"]` หมายถึงเฉพาะสาขาที่ระบุ
+- `GET /api/admin/students/majors` — distinct majors จาก Student table สำหรับ dropdown ในฟอร์มประกาศ
+- `S_Announcements.tsx` — หน้าประกาศแยก สำหรับนักศึกษา แสดง stream แบบ Classroom (filter ตาม major อัตโนมัติ)
+- เมนู "ประกาศ" ใน Student Sidebar → `/student/announcements`
+
+### Changed
+- `GET /api/announcements?major=<major>` — กรองประกาศตาม major ฝั่ง server ([] = ทุกสาขา)
+- `POST /api/announcements` — รับ `targetMajors` (JSON array) และบันทึกลง DB
+- `A_Announcements.tsx` — modal เพิ่ม targeting section (ทุกสาขา / เลือกสาขา + checkbox), การ์ดแสดง badge สาขา
+- `S_Dashboard.tsx` — ดึงประกาศ filter ตาม `student.major`, แสดง 3 ล่าสุด + ลิงก์ "ดูทั้งหมด →"
+
+---
+
 ## [2026-05-30] Announcements Feature - Routing and Sidebar (Task 6)
 
 ### Added
