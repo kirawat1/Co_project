@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { IcUser, IcEdit, IcSave } from "./icons";
+import { IcEdit, IcSave } from "./icons";
+import { useToast } from "./Toast";
+import Spinner from "./Spinner";
 
 /* ================= TYPES ================= */
 interface Mentor {
@@ -48,6 +50,7 @@ interface StudentProfile {
   company?: StudentCompany;
   docs: any[];
   isQualified?: boolean; // ✅ เอาไว้โชว์เฉยๆ ว่าเกรดถึงไหม
+  coopAdvisorId?: number | null;
   coop?: {
     company: StudentCompany;
     mentor?: Mentor;
@@ -75,11 +78,57 @@ interface StudentCompany {
 /* ================= PAGE ================= */
 export default function S_ProfilePage() {
   const navigate = useNavigate();
+  const toast = useToast();
   const [profile, setProfile] = useState<StudentProfile | null>(null);
   const [companies, setCompanies] = useState<StudentCompany[]>([]);
   const [teachers, setTeachers] = useState<any[]>([]);
   const [openStudentModal, setOpenStudentModal] = useState(false);
   const token = localStorage.getItem("coop.token");
+
+  // ── KKU REG Sync ──────────────────────────────
+  const [kkuModalOpen, setKkuModalOpen] = useState(false);
+  const [kkuUser, setKkuUser] = useState("");
+  const [kkuPass, setKkuPass] = useState("");
+  const [kkuSyncing, setKkuSyncing] = useState(false);
+  const [kkuAvailable, setKkuAvailable] = useState<boolean | null>(null); // null = ยังไม่ตรวจ
+
+  // ตรวจสอบว่า KKU REG API พร้อมใช้ไหม
+  useEffect(() => {
+    fetch("/api/students/reg-status", { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) setKkuAvailable(d.configured); })
+      .catch(() => setKkuAvailable(false));
+  }, []);
+
+  const handleSyncFromKKU = async () => {
+    if (!kkuUser.trim() || !kkuPass.trim()) {
+      toast.warning("กรุณากรอก KKU Username และ Password");
+      return;
+    }
+    setKkuSyncing(true);
+    try {
+      const res = await fetch("/api/students/sync-from-reg", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ kkuUsername: kkuUser.trim(), kkuPassword: kkuPass }),
+      });
+      const data = await res.json();
+      if (res.ok && data.ok) {
+        toast.success(data.message || "ซิงค์ข้อมูลจาก KKU สำเร็จ");
+        setKkuModalOpen(false);
+        setKkuUser(""); setKkuPass("");
+        // รีโหลดข้อมูล Profile
+        fetch("/api/students/me", { headers: { Authorization: `Bearer ${token}` } })
+          .then(r => r.json()).then(d => setProfile(d)).catch(() => {});
+      } else {
+        toast.error(data.message || "ซิงค์ไม่สำเร็จ");
+      }
+    } catch {
+      toast.error("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้");
+    } finally {
+      setKkuSyncing(false);
+    }
+  };
 
   // Mapping Helpers
   const prefixMapToPrisma = { นาย: "MR", นางสาว: "MS", MR: "MR", MS: "MS" };
@@ -91,7 +140,7 @@ export default function S_ProfilePage() {
     if (!token) return;
 
     // 1. ดึงข้อมูล Profile
-    fetch("http://localhost:5000/api/students/me", {
+    fetch("/api/students/me", {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(res => res.json())
@@ -103,7 +152,7 @@ export default function S_ProfilePage() {
       .catch(err => console.error("Error fetching profile:", err));
 
     // 2. ดึงข้อมูลบริษัท
-    fetch("http://localhost:5000/api/companies", {
+    fetch("/api/companies", {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(res => res.json())
@@ -111,7 +160,7 @@ export default function S_ProfilePage() {
       .catch(err => console.error("Error fetching companies:", err));
 
     // 3. ดึงข้อมูลอาจารย์
-    fetch("http://localhost:5000/api/teachers", {
+    fetch("/api/teachers", {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(res => res.json())
@@ -127,12 +176,11 @@ export default function S_ProfilePage() {
   /* ================= SAVE ================= */
   async function saveStudentInfo(updatedProfile: StudentProfile) {
     try {
-      const res = await fetch("http://localhost:5000/api/students/me", {
+      const res = await fetch("/api/students/me", {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           ...updatedProfile,
-          // ✅ ป้องกันค่าหาย ถ้า map ไม่เจอ ให้ใช้ค่าที่ผู้ใช้กรอกมาเลย
           prefix: prefixMapToPrisma[updatedProfile.prefix as keyof typeof prefixMapToPrisma] || updatedProfile.prefix,
           studyProgram: studyProgramMapToPrisma[updatedProfile.studyProgram as keyof typeof studyProgramMapToPrisma] || updatedProfile.studyProgram,
           gpa: updatedProfile.gpa ? Number(updatedProfile.gpa) : 0,
@@ -141,19 +189,34 @@ export default function S_ProfilePage() {
         }),
       });
 
-      if (res.ok) {
-        const result = await res.json();
-        setProfile(prev => ({ ...prev!, ...result.student, emails: result.emails }));
-        alert("บันทึกข้อมูลเรียบร้อย");
-        setOpenStudentModal(false);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        alert(err.message || "บันทึกไม่สำเร็จ กรุณาลองใหม่");
+        return;
       }
-    } catch (err) { alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล"); }
+
+      // re-fetch เต็มหลัง save เพื่อให้ได้ข้อมูลครบ (firstNameEn, curriculum, coop, ฯลฯ)
+      const fresh = await fetch("/api/students/me", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (fresh.ok) {
+        const data = await fresh.json();
+        const emails = data.emails?.length > 0 ? data.emails : [{ email: "", primary: false }];
+        const company = data.coop ? { ...data.coop.company, mentor: data.coop.mentor } : data.company;
+        setProfile({ ...data, emails, company });
+      }
+
+      alert("บันทึกข้อมูลเรียบร้อย");
+      setOpenStudentModal(false);
+    } catch (err) {
+      alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล");
+    }
   }
 
   async function saveStudentCompany() {
     if (!profile) return;
     try {
-      const res = await fetch("http://localhost:5000/api/students/me", {
+      const res = await fetch("/api/students/me", {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({
@@ -224,10 +287,75 @@ export default function S_ProfilePage() {
         <section className="profile-card">
           <div className="card-head">
             <h3 className="profile-title">ข้อมูลนักศึกษา</h3>
-            <button className="btn-edit" onClick={() => setOpenStudentModal(true)} style={editBtnStyle}>
-              <IcEdit width={16} height={16} /> แก้ไขข้อมูล
-            </button>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              {/* ปุ่ม KKU Sync — แสดงเฉพาะเมื่อ API พร้อม หรือยังไม่ทราบสถานะ */}
+              {kkuAvailable !== false && (
+                <button
+                  onClick={() => setKkuModalOpen(true)}
+                  style={{
+                    display: "inline-flex", alignItems: "center", gap: 6,
+                    padding: "6px 14px", borderRadius: 8, fontSize: 13, fontWeight: 700,
+                    border: "1px solid #bfdbfe", cursor: "pointer",
+                    background: kkuAvailable ? "#eff6ff" : "#f8fafc",
+                    color: kkuAvailable ? "#1d4ed8" : "#94a3b8",
+                  }}
+                  title={kkuAvailable ? "ดึงข้อมูลจาก KKU สำนักทะเบียน" : "รอการตั้งค่า KKU API"}
+                >
+                  🏫 {kkuAvailable ? "ดึงข้อมูลจาก KKU" : "KKU Sync (เร็วๆ นี้)"}
+                </button>
+              )}
+              <button className="btn-edit" onClick={() => setOpenStudentModal(true)} style={editBtnStyle}>
+                <IcEdit width={16} height={16} /> แก้ไขข้อมูล
+              </button>
+            </div>
           </div>
+
+          {/* ── KKU Sync Modal ── */}
+          {kkuModalOpen && (
+            <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, backdropFilter: "blur(4px)" }}>
+              <div style={{ background: "var(--surface,#fff)", borderRadius: 20, padding: 32, width: 420, maxWidth: "95%", boxShadow: "0 20px 40px rgba(0,0,0,.2)" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+                  <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>🏫 ดึงข้อมูลจาก KKU</h3>
+                  <button onClick={() => setKkuModalOpen(false)} style={{ background: "none", border: "none", fontSize: 22, cursor: "pointer", color: "#94a3b8" }}>✕</button>
+                </div>
+                <p style={{ margin: "0 0 20px", fontSize: 14, color: "#64748b", lineHeight: 1.6 }}>
+                  ระบบจะดึงข้อมูล ชื่อ-นามสกุล, สาขา, คณะ, ชั้นปี, GPA และอาจารย์ที่ปรึกษา จากสำนักทะเบียน มข. มาเติมให้อัตโนมัติ
+                </p>
+                <div style={{ marginBottom: 14 }}>
+                  <label style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#64748b", marginBottom: 6 }}>KKU Username (อีเมล @kkumail.com)</label>
+                  <input
+                    type="email" value={kkuUser}
+                    onChange={e => setKkuUser(e.target.value)}
+                    placeholder="xxxxxxxxxx@kkumail.com"
+                    style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1", fontSize: 14, boxSizing: "border-box" }}
+                  />
+                </div>
+                <div style={{ marginBottom: 24 }}>
+                  <label style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#64748b", marginBottom: 6 }}>KKU Password (รหัสผ่าน KKU)</label>
+                  <input
+                    type="password" value={kkuPass}
+                    onChange={e => setKkuPass(e.target.value)}
+                    placeholder="รหัสผ่าน KKU ของคุณ"
+                    style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1", fontSize: 14, boxSizing: "border-box" }}
+                    onKeyDown={e => e.key === "Enter" && handleSyncFromKKU()}
+                  />
+                </div>
+                <div style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 8, padding: "10px 14px", marginBottom: 20, fontSize: 13, color: "#92400e" }}>
+                  🔒 รหัสผ่านของคุณจะถูกส่งไปยังเซิร์ฟเวอร์สำนักทะเบียนโดยตรง ไม่ถูกบันทึกในระบบนี้
+                </div>
+                <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+                  <button onClick={() => setKkuModalOpen(false)} style={{ padding: "10px 18px", borderRadius: 8, border: "1px solid #e2e8f0", background: "#f8fafc", cursor: "pointer", fontWeight: 700 }}>ยกเลิก</button>
+                  <button
+                    onClick={handleSyncFromKKU}
+                    disabled={kkuSyncing}
+                    style={{ padding: "10px 20px", borderRadius: 8, border: "none", background: "#1d4ed8", color: "#fff", cursor: "pointer", fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 8 }}
+                  >
+                    {kkuSyncing ? <><Spinner size={16} color="#fff" /> กำลังดึงข้อมูล...</> : "🏫 ดึงข้อมูลจาก KKU"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* ✅ แก้ไขกล่องแสดงสถานะการผ่านเกณฑ์ */}
           <div style={{
@@ -250,6 +378,14 @@ export default function S_ProfilePage() {
           <Info label="สาขาวิชา" value={profile.major || "-"} />
           <Info label="รูปแบบการศึกษา" value={studyProgramMapToUI[profile.studyProgram as string] || profile.studyProgram || "-"} />
           <Info label="ที่ปรึกษา" value={profile.advisorName || "-"} />
+          <Info label="อาจารย์ที่ปรึกษาโครงงานสหกิจ" value={
+            profile.coopAdvisorId
+              ? (() => {
+                  const t = teachers.find(t => t.id === profile.coopAdvisorId);
+                  return t ? `${t.prefix || ""}${t.firstName} ${t.lastName}` : `ID: ${profile.coopAdvisorId}`;
+                })()
+              : "-"
+          } />
           <Info label="เบอร์โทร" value={profile.phone || "-"} />
           <Info label="GPA" value={profile?.gpa != null ? profile.gpa.toFixed(2) : "-"} />
           <Info label="GPA หมวดวิชาเฉพาะ" value={profile.coreGpa?.toFixed(2) || "0.00"} />
@@ -360,15 +496,17 @@ function StudentModal({ profile, teachers, saveStudentInfo, closeModal }: any) {
   // ✅ แปลงค่าก่อนนำไปตั้งเป็น State และกำหนดค่าเริ่มต้นคณะ
   const [form, setForm] = useState<StudentProfile>(() => ({
     ...profile,
+    // normalize studentId: เก็บเฉพาะตัวเลข ≤ 10 หลัก ตั้งแต่โหลดครั้งแรก
+    studentId: (profile.studentId ?? "").replace(/\D/g, "").slice(0, 10),
     prefix: prefixMapToUI[profile.prefix] || profile.prefix || "",
     studyProgram: studyProgramMapToUI[profile.studyProgram] || profile.studyProgram || "",
-    curriculum: profile.curriculum || "วิทยาลัยการคอมพิวเตอร์" // ✅ ตั้งค่าเริ่มต้น แต่ยังลบแก้ได้
+    curriculum: profile.curriculum || "วิทยาลัยการคอมพิวเตอร์"
   }));
 
   const [majorOptions, setMajorOptions] = useState<string[]>([]);
 
   useEffect(() => {
-    fetch("http://localhost:5000/api/admin/majors")
+    fetch("/api/admin/majors")
       .then(res => res.json())
       .then(data => { if (data.ok) setMajorOptions(data.majors); })
       .catch(err => console.error("Failed to load majors", err));
@@ -385,7 +523,24 @@ function StudentModal({ profile, teachers, saveStudentInfo, closeModal }: any) {
               <option value="">เลือก</option><option value="นาย">นาย</option><option value="นางสาว">นางสาว</option>
             </select>
           </div>
-          <div><label className="label">รหัสนักศึกษา</label><input className="input" value={form.studentId} maxLength={15} onChange={(e) => setForm({ ...form, studentId: e.target.value })} /></div>
+          <div>
+            <label className="label">รหัสนักศึกษา</label>
+            <input
+              className="input"
+              value={form.studentId}
+              maxLength={10}
+              inputMode="numeric"
+              pattern="\d*"
+              placeholder="ตัวเลข 1–10 หลัก"
+              onChange={(e) => {
+                const val = e.target.value.replace(/\D/g, "").slice(0, 10);
+                setForm({ ...form, studentId: val });
+              }}
+            />
+            {form.studentId && form.studentId.length > 10 && (
+              <span style={{ color: "#dc2626", fontSize: 12 }}>รหัสนักศึกษาต้องไม่เกิน 10 หลัก</span>
+            )}
+          </div>
           <div><label className="label">ชื่อ (ภาษาไทย)</label><input className="input" value={form.firstName ?? ""} onChange={(e) => setForm({ ...form, firstName: e.target.value })} /></div>
           <div><label className="label">นามสกุล (ภาษาไทย)</label><input className="input" value={form.lastName ?? ""} onChange={(e) => setForm({ ...form, lastName: e.target.value })} /></div>
           <div><label className="label">First Name (EN)</label><input className="input" value={form.firstNameEn ?? ""} onChange={(e) => setForm({ ...form, firstNameEn: e.target.value })} /></div>
@@ -413,6 +568,25 @@ function StudentModal({ profile, teachers, saveStudentInfo, closeModal }: any) {
               {teachers.map((t: any) => {
                 const fullName = `${t.prefix || ""}${t.firstName} ${t.lastName}`;
                 return <option key={t.id} value={fullName}>{fullName}</option>;
+              })}
+            </select>
+          </div>
+
+          <div>
+            <label className="label">อาจารย์ที่ปรึกษาโครงงานสหกิจ</label>
+            <select
+              className="input"
+              value={form.coopAdvisorId ?? ""}
+              onChange={(e) => setForm({ ...form, coopAdvisorId: e.target.value ? Number(e.target.value) : null })}
+            >
+              <option value="">-- ยังไม่ได้เลือก --</option>
+              {teachers.map((t: any) => {
+                const fullName = `${t.prefix || ""}${t.firstName} ${t.lastName}`;
+                return (
+                  <option key={t.id} value={t.id}>
+                    {fullName}{t.email ? ` (${t.email})` : ""}
+                  </option>
+                );
               })}
             </select>
           </div>
