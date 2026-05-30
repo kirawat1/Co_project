@@ -140,18 +140,31 @@ export default function A_Students() {
   const [modalStudent, setModalStudent] = useState<StudentProfile | null>(null);
   const [coopPeriods, setCoopPeriods] = useState<CoopPeriod[]>([]);
   const [selectedPeriodId, setSelectedPeriodId] = useState<string>("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const PAGE_SIZE = 50;
+
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importLoading, setImportLoading] = useState(false);
+  const [importResult, setImportResult] = useState<{ total: number; created: number; updated: number; errors: number } | null>(null);
 
   // --- Fetch Data ---
-  const fetchStudents = async (periodId: string) => {
+  const fetchStudents = async (periodId: string, page = 1, search = "") => {
     try {
       const token = localStorage.getItem("coop.token");
-      const params = periodId !== "all" ? `?coopPeriodId=${periodId}` : "";
-      const res = await fetch(`/api/students${params}`, {
+      const params = new URLSearchParams({ page: String(page), limit: String(PAGE_SIZE) });
+      if (periodId !== "all") params.set("coopPeriodId", periodId);
+      if (search.trim()) params.set("search", search.trim());
+      const res = await fetch(`/api/students?${params}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) {
         const data = await res.json();
-        setItems(Array.isArray(data) ? data : (data?.data ?? []));
+        setItems(data?.data ?? []);
+        setTotalPages(data?.meta?.totalPages ?? 1);
+        setTotalCount(data?.meta?.total ?? 0);
+        setCurrentPage(data?.meta?.page ?? 1);
       }
     } catch (err) {
       console.error(err);
@@ -185,7 +198,7 @@ export default function A_Students() {
         }
       }
 
-      await fetchStudents(selectedPeriodId);
+      await fetchStudents(selectedPeriodId, 1, "");
     } catch (err) {
       console.error(err);
     } finally {
@@ -203,8 +216,19 @@ export default function A_Students() {
       initialMount.current = false;
       return;
     }
-    fetchStudents(selectedPeriodId);
+    setCurrentPage(1);
+    fetchStudents(selectedPeriodId, 1, debouncedQ);
   }, [selectedPeriodId]);
+
+  const initialSearchMount = useRef(true);
+  useEffect(() => {
+    if (initialSearchMount.current) {
+      initialSearchMount.current = false;
+      return;
+    }
+    setCurrentPage(1);
+    fetchStudents(selectedPeriodId, 1, debouncedQ);
+  }, [debouncedQ]);
 
   function resetFilters() {
     setQ("");
@@ -213,26 +237,81 @@ export default function A_Students() {
     setFilterStatuses([]);
   }
 
-  // --- Filter Logic ---
+  const handleImport = async () => {
+    if (!importFile) return;
+    setImportLoading(true);
+    setImportResult(null);
+    try {
+      const token = localStorage.getItem("coop.token");
+      const form = new FormData();
+      form.append("file", importFile);
+      const res = await fetch("/api/admin/students/import-excel", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setImportResult(data.summary);
+        setImportFile(null);
+        fetchStudents(selectedPeriodId, currentPage, debouncedQ);
+      } else {
+        alert(data.message || "นำเข้าไม่สำเร็จ");
+      }
+    } catch (err: any) {
+      alert(err.message || "เกิดข้อผิดพลาด");
+    } finally {
+      setImportLoading(false);
+    }
+  };
+
+  // --- Filter Logic (major/curriculum/status client-side; text search is server-side) ---
   const filtered = useMemo(() => {
     return items.filter((s) => {
-      const email = s.user?.email || "";
-      const text = `${s.studentId} ${getThaiPrefix(s.prefix)} ${s.firstName} ${s.lastName} ${email}`.toLowerCase();
       const st = normalizeStatus(s.coop?.status);
-
       return (
-        text.includes(debouncedQ.toLowerCase()) &&
         (filterMajors.length === 0 || filterMajors.includes(s.major ?? "")) &&
         (filterCurriculums.length === 0 || filterCurriculums.includes(s.studyProgram ?? "")) &&
         (filterStatuses.length === 0 || filterStatuses.includes(st))
       );
     });
-  }, [items, debouncedQ, filterMajors, filterCurriculums, filterStatuses]);
+  }, [items, filterMajors, filterCurriculums, filterStatuses]);
 
   if (loading) return <div style={{ padding: 28, marginLeft: 35 }}>กำลังโหลดข้อมูล...</div>;
 
   return (
     <div style={{ padding: 28, marginLeft: 35 }}>
+      {/* Excel Import Section */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16, padding: "12px 16px", background: "#f8fafc", borderRadius: 12, border: "1px solid #e2e8f0", flexWrap: "wrap" }}>
+        <span style={{ fontSize: 13, fontWeight: 700, color: "#334155" }}>📥 นำเข้าข้อมูลนักศึกษา</span>
+        <label style={{ cursor: "pointer", fontSize: 12, padding: "6px 14px", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, fontWeight: 600, color: "#475569" }}>
+          เลือกไฟล์ Excel
+          <input
+            type="file"
+            accept=".xlsx,.xls"
+            hidden
+            onChange={e => setImportFile(e.target.files?.[0] || null)}
+          />
+        </label>
+        {importFile && (
+          <>
+            <span style={{ fontSize: 12, color: "#64748b" }}>📄 {importFile.name}</span>
+            <button
+              style={{ padding: "6px 16px", background: "#2563eb", color: "#fff", border: "none", borderRadius: 8, fontWeight: 700, cursor: "pointer", fontSize: 13 }}
+              onClick={handleImport}
+              disabled={importLoading}
+            >
+              {importLoading ? "กำลังนำเข้า..." : "ยืนยันนำเข้า"}
+            </button>
+          </>
+        )}
+        {importResult && (
+          <span style={{ fontSize: 12, color: "#16a34a", fontWeight: 700 }}>
+            ✅ สร้างใหม่ {importResult.created} | อัปเดต {importResult.updated} | error {importResult.errors} จาก {importResult.total} รายการ
+          </span>
+        )}
+      </div>
+
       {/* ================= Filters ================= */}
       <section style={card}>
         <h2 style={{ marginBottom: 16, marginTop: 0 }}>ข้อมูลนักศึกษา</h2>
@@ -325,6 +404,61 @@ export default function A_Students() {
           </tbody>
         </table>
       </section>
+
+      {/* ================= Pagination ================= */}
+      {totalPages > 1 && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 16, padding: '0 4px' }}>
+          <span style={{ fontSize: 13, color: '#64748b' }}>
+            แสดง {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, totalCount)} จาก {totalCount} คน
+          </span>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            <button
+              className="btn"
+              style={{ ...ghostBtn, padding: '6px 14px' }}
+              disabled={currentPage <= 1}
+              onClick={() => { setCurrentPage(p => p - 1); fetchStudents(selectedPeriodId, currentPage - 1, debouncedQ); }}
+            >
+              ← ก่อนหน้า
+            </button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1)
+              .filter(p => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1)
+              .reduce<(number | '…')[]>((acc, p, idx, arr) => {
+                if (idx > 0 && p - (arr[idx - 1] as number) > 1) acc.push('…');
+                acc.push(p);
+                return acc;
+              }, [])
+              .map((p, i) =>
+                p === '…' ? (
+                  <span key={`ellipsis-${i}`} style={{ fontSize: 13, color: '#94a3b8', padding: '0 4px' }}>…</span>
+                ) : (
+                  <button
+                    key={p}
+                    className="btn"
+                    style={{
+                      ...ghostBtn,
+                      padding: '6px 12px',
+                      fontWeight: currentPage === p ? 800 : 600,
+                      background: currentPage === p ? '#e0f2fe' : '#fff',
+                      color: currentPage === p ? '#0284c7' : '#475569',
+                      borderColor: currentPage === p ? '#7dd3fc' : '#cbd5e1',
+                    }}
+                    onClick={() => { setCurrentPage(p as number); fetchStudents(selectedPeriodId, p as number, debouncedQ); }}
+                  >
+                    {p}
+                  </button>
+                )
+              )}
+            <button
+              className="btn"
+              style={{ ...ghostBtn, padding: '6px 14px' }}
+              disabled={currentPage >= totalPages}
+              onClick={() => { setCurrentPage(p => p + 1); fetchStudents(selectedPeriodId, currentPage + 1, debouncedQ); }}
+            >
+              ถัดไป →
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ================= Modal ================= */}
       {modalStudent && (
