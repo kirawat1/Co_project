@@ -1,14 +1,17 @@
 import { NavLink } from "react-router-dom";
-import {
-  IcDashboard,
-  IcUser,
-  IcDocs,
-  IcCalendar,
-} from "./icons";
+import { IcDashboard, IcUser, IcDocs } from "./icons";
 
 import type { StudentProfile } from "./store";
 
-export default function S_Sidebar({ profile }: { profile: StudentProfile }) {
+interface SidebarProps {
+  profile: StudentProfile;
+  isOpen?: boolean;
+  onClose?: () => void;
+}
+
+export default function S_Sidebar({ profile, isOpen = false, onClose = () => {} }: SidebarProps) {
+  // ปิด sidebar เมื่อกด NavLink (สำคัญบนมือถือ)
+  const handleNav = () => onClose();
   // ดึงข้อมูลคำร้องสหกิจ
   const coop = profile.coopRequest || profile.coop;
 
@@ -28,10 +31,16 @@ export default function S_Sidebar({ profile }: { profile: StudentProfile }) {
     coop?.status === 'T002_SUBMITTED' ||
     coop?.status === 'T002_EDITS_REQUIRED' ||
     coop?.status === 'T003_SUBMITTED' ||
-    coop?.status === 'T003_EDITS_REQUIRED';
+    coop?.status === 'T003_EDITS_REQUIRED' ||
+    coop?.status === 'T003_APPROVED' ||
+    coop?.status === 'PENDING_TEACHER' ||
+    coop?.status === 'TEACHER_REJECTED' ||
+    coop?.status === 'DATE_CONFIRMED' ||
+    coop?.status === 'LETTER_UPLOADED' ||
+    coop?.status === 'COMPLETED';
 
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar${isOpen ? " open" : ""}`}>
 
       {/* BRAND HEADER */}
       <div className="brand">
@@ -50,6 +59,7 @@ export default function S_Sidebar({ profile }: { profile: StudentProfile }) {
           to="/student/dashboard"
           end
           className={({ isActive }) => "item" + (isActive ? " active" : "")}
+          onClick={handleNav}
         >
           <span className="ico"><IcDashboard /></span>
           <span className="text">Dashboard</span>
@@ -59,6 +69,7 @@ export default function S_Sidebar({ profile }: { profile: StudentProfile }) {
           to="/student/status-tracker"
           end
           className={({ isActive }) => "item" + (isActive ? " active" : "")}
+          onClick={handleNav}
         >
           <span className="ico"><IcDashboard /></span>
           <span className="text">Status Tracker</span>
@@ -67,6 +78,7 @@ export default function S_Sidebar({ profile }: { profile: StudentProfile }) {
         <NavLink
           to="/student/profile"
           className={({ isActive }) => "item" + (isActive ? " active" : "")}
+          onClick={handleNav}
         >
           <span className="ico"><IcUser /></span>
           <span className="text">ข้อมูลนักศึกษา</span>
@@ -75,9 +87,33 @@ export default function S_Sidebar({ profile }: { profile: StudentProfile }) {
         <NavLink
           to="/student/company"
           className={({ isActive }) => "item" + (isActive ? " active" : "")}
+          onClick={handleNav}
         >
           <span className="ico"><IcUser /></span>
           <span className="text">ข้อมูลบริษัท</span>
+        </NavLink>
+
+        <NavLink
+          to="/student/announcements"
+          className={({ isActive }) => "item" + (isActive ? " active" : "")}
+          onClick={handleNav}
+        >
+          <span className="ico">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+              <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+            </svg>
+          </span>
+          <span className="text">ประกาศ</span>
+        </NavLink>
+
+        <NavLink
+          to="/student/gateway"
+          className={({ isActive }) => "item" + (isActive ? " active" : "")}
+          onClick={handleNav}
+        >
+          <span className="ico"><IcDocs /></span>
+          <span className="text">ยื่นคำร้องสหกิจ</span>
         </NavLink>
 
         {/* ✅ ใช้ตัวแปร showDocsMenu แทน */}
@@ -90,6 +126,7 @@ export default function S_Sidebar({ profile }: { profile: StudentProfile }) {
             <NavLink
               to="/student/docs"
               className={({ isActive }) => "item" + (isActive ? " active" : "")}
+          onClick={handleNav}
             >
               <span className="ico"><IcDocs /></span>
               <span className="text">เอกสารสหกิจ (CP-T000)</span>
@@ -98,6 +135,7 @@ export default function S_Sidebar({ profile }: { profile: StudentProfile }) {
             <NavLink
               to="/student/docs-t002"
               className={({ isActive }) => "item" + (isActive ? " active" : "")}
+          onClick={handleNav}
             >
               <span className="ico"><IcDocs /></span>
               <span className="text">เอกสารรายละเอียด (CP-T002)</span>
@@ -106,6 +144,7 @@ export default function S_Sidebar({ profile }: { profile: StudentProfile }) {
             <NavLink
               to="/student/docs-t003"
               className={({ isActive }) => "item" + (isActive ? " active" : "")}
+          onClick={handleNav}
             >
               <span className="ico"><IcDocs /></span>
               <span className="text">เอกสารรายละเอียด (CP-T003)</span>
@@ -114,6 +153,7 @@ export default function S_Sidebar({ profile }: { profile: StudentProfile }) {
             <NavLink
               to="/student/supervision"
               className={({ isActive }) => "item" + (isActive ? " active" : "")}
+          onClick={handleNav}
             >
               <span className="ico"><IcDocs /></span>
               <span className="text">นัดหมายนิเทศ</span>
@@ -122,6 +162,7 @@ export default function S_Sidebar({ profile }: { profile: StudentProfile }) {
             <NavLink
               to="/student/doc-t005-006"
               className={({ isActive }) => "item" + (isActive ? " active" : "")}
+          onClick={handleNav}
             >
               <span className="ico"><IcDocs /></span>
               <span className="text">T005/T006 เอกสารประเมิน</span>
@@ -130,6 +171,7 @@ export default function S_Sidebar({ profile }: { profile: StudentProfile }) {
             <NavLink
               to="/student/doc-t007"
               className={({ isActive }) => "item" + (isActive ? " active" : "")}
+          onClick={handleNav}
             >
               <span className="ico"><IcDocs /></span>
               <span className="text">T007 เอกสารประเมิน</span>
@@ -138,6 +180,7 @@ export default function S_Sidebar({ profile }: { profile: StudentProfile }) {
             <NavLink
               to="/student/doc-t008"
               className={({ isActive }) => "item" + (isActive ? " active" : "")}
+          onClick={handleNav}
             >
               <span className="ico"><IcDocs /></span>
               <span className="text">เล่มรายงานสหกิจ 008</span>
@@ -149,6 +192,7 @@ export default function S_Sidebar({ profile }: { profile: StudentProfile }) {
             {/* <NavLink
               to="/student/daily"
               className={({ isActive }) => "item" + (isActive ? " active" : "")}
+          onClick={handleNav}
             >
               <span className="ico"><IcCalendar /></span>
               <span className="text">บันทึกประจำวัน</span>
