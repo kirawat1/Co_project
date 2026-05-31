@@ -38,6 +38,7 @@ describe('importStudents', () => {
     prisma.user.upsert.mockResolvedValue({ id: 1 });
     prisma.student.upsert.mockResolvedValue({ id: 1 });
     prisma.teacher.findFirst.mockResolvedValue({ id: 10 });
+    prisma.teacher.findMany.mockResolvedValue([{ id: 10, email: 'teacher@kku.ac.th' }]);
 
     const req = { file: { buffer: Buffer.from('fake') } };
     const res = makeRes();

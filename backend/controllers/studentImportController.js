@@ -22,6 +22,18 @@ exports.importStudents = async (req, res) => {
     let created = 0, updated = 0, errors = 0;
     const errorRows = [];
 
+    // Fix 4: Pre-fetch all advisor emails to avoid N+1 queries
+    const allAdvisorEmails = rows
+      .map(r => String(r['email อาจารย์'] || '').trim())
+      .filter(Boolean);
+    const advisorTeachers = allAdvisorEmails.length > 0
+      ? await prisma.teacher.findMany({
+          where: { email: { in: allAdvisorEmails } },
+          select: { id: true, email: true },
+        })
+      : [];
+    const advisorMap = new Map(advisorTeachers.map(t => [t.email, t.id]));
+
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
       const email = String(row['email นักศึกษา'] || '').trim();
@@ -32,6 +44,9 @@ exports.importStudents = async (req, res) => {
         errorRows.push({ row: i + 2, email, reason: 'email หรือ id ว่างเปล่า' });
         continue;
       }
+
+      // Fix 2: per-row flag so counter rollback targets the right counter
+      let thisRowCountedAs = null;
 
       try {
         const firstName = String(row['ชื่อ'] || '').trim();
@@ -44,13 +59,20 @@ exports.importStudents = async (req, res) => {
         const rawProgram = String(row['รูปแบบการศึกษา'] || '').trim();
         const studyProgram = STUDY_PROGRAM_MAP[rawProgram] ?? null;
 
-        // 1. Find or create User
+        // 1. Find or create User (Fix 1: safe username collision check)
         const existingUser = await prisma.user.findFirst({ where: { email } });
         let user;
         if (existingUser) {
           user = existingUser;
           updated++;
+          thisRowCountedAs = 'updated';
         } else {
+          // Check if username is already taken by a different user (different role/email)
+          const existingByUsername = await prisma.user.findFirst({ where: { username: studentId } });
+          if (existingByUsername && existingByUsername.email !== email) {
+            // Username collision with a different account — skip, report as error
+            throw new Error(`username '${studentId}' ถูกใช้โดยบัญชีอื่นแล้ว (email: ${existingByUsername.email})`);
+          }
           user = await prisma.user.upsert({
             where: { username: studentId },
             update: { email },
@@ -63,21 +85,18 @@ exports.importStudents = async (req, res) => {
             },
           });
           created++;
+          thisRowCountedAs = 'created';
         }
 
-        // 2. Find teacher by email
-        let generalAdvisorId = null;
-        if (advisorEmail) {
-          const teacher = await prisma.teacher.findFirst({ where: { email: advisorEmail } });
-          if (teacher) generalAdvisorId = teacher.id;
-        }
+        // 2. Resolve generalAdvisorId from pre-fetched map (Fix 4)
+        const generalAdvisorId = advisorEmail ? (advisorMap.get(advisorEmail) ?? null) : null;
 
-        // 3. Upsert Student
+        // 3. Upsert Student (Fix 3: always include generalAdvisorId to allow clearing)
         await prisma.student.upsert({
           where: { studentId },
           update: {
             firstName, lastName, year, curriculum, major, advisorName, studyProgram,
-            ...(generalAdvisorId !== null && { generalAdvisorId }),
+            generalAdvisorId,  // null = clear advisor; non-null = set advisor
           },
           create: {
             studentId, firstName, lastName, year, curriculum, major,
@@ -89,9 +108,9 @@ exports.importStudents = async (req, res) => {
         console.error(`[importStudents] row ${i + 2}:`, rowErr.message);
         errors++;
         errorRows.push({ row: i + 2, email, reason: rowErr.message });
-        // revert the count increment that happened before error
-        if (updated > 0) updated--;
-        else if (created > 0) created--;
+        // Fix 2: revert only the counter that this row incremented
+        if (thisRowCountedAs === 'updated' && updated > 0) updated--;
+        else if (thisRowCountedAs === 'created' && created > 0) created--;
       }
     }
 
