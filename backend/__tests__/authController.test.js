@@ -182,7 +182,7 @@ describe('loginWithGoogle', () => {
 
   test('200 – valid kkumail token issues JWT', async () => {
     const mockVerify = jest.fn().mockResolvedValue({
-      getPayload: () => ({ email: 'test@kkumail.com' }),
+      getPayload: () => ({ email: 'test@kkumail.com', email_verified: true }),
     });
     OAuth2Client.mockImplementation(() => ({ verifyIdToken: mockVerify }));
 
@@ -198,7 +198,7 @@ describe('loginWithGoogle', () => {
 
   test('403 – non-KKU email rejected', async () => {
     const mockVerify = jest.fn().mockResolvedValue({
-      getPayload: () => ({ email: 'user@gmail.com' }),
+      getPayload: () => ({ email: 'user@gmail.com', email_verified: true }),
     });
     OAuth2Client.mockImplementation(() => ({ verifyIdToken: mockVerify }));
 
@@ -212,7 +212,7 @@ describe('loginWithGoogle', () => {
 
   test('401 – email not found in system', async () => {
     const mockVerify = jest.fn().mockResolvedValue({
-      getPayload: () => ({ email: 'notfound@kkumail.com' }),
+      getPayload: () => ({ email: 'notfound@kkumail.com', email_verified: true }),
     });
     OAuth2Client.mockImplementation(() => ({ verifyIdToken: mockVerify }));
 
