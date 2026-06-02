@@ -2,6 +2,10 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { createCoopPDF } from "../utils/pdfGenerator";
 import StatusBadge from "../components/StatusBadge";
+import S_StatusTracker from "./S_StatusTracker";
+import { useToast } from "../components/Toast";
+import ConfirmDialog from "../components/ConfirmDialog";
+import Spinner from "../components/Spinner";
 
 // --- Interfaces ---
 interface Mentor {
@@ -55,12 +59,6 @@ interface StudentProfile {
   studyProgram?: string;
   advisorName?: string;
 
-  isQualified?: boolean;
-  gpa?: number;
-  coreGpa?: number;
-  activityUnit?: number;
-  isPassPrepCourse?: boolean;
-
   company?: Company;
   mentor?: Mentor;
   coop?: CoopInfo;
@@ -69,12 +67,16 @@ interface StudentProfile {
 
 export default function CoopRequestPage() {
   const navigate = useNavigate();
+  const toast = useToast();
   const [profile, setProfile] = useState<StudentProfile | null>(null);
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [coopField, setCoopField] = useState("");
   const [showPDFPopup, setShowPDFPopup] = useState(false);
   const [pdfDataUrl, setPdfDataUrl] = useState("");
   const [activePeriod, setActivePeriod] = useState<any>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
+  const [gradeSheetUrl, setGradeSheetUrl] = useState("");
 
   const token = localStorage.getItem("coop.token");
 
@@ -90,7 +92,7 @@ export default function CoopRequestPage() {
   const fetchData = async () => {
     try {
       // 1. ดึงข้อมูลนักศึกษา
-      const res = await fetch("http://localhost:5000/api/students/me", {
+      const res = await fetch("/api/students/me", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
@@ -101,11 +103,6 @@ export default function CoopRequestPage() {
           prefix: data.prefix || "-",
           firstName: data.firstName || "",
           lastName: data.lastName || "",
-          isQualified: data.isQualified,
-          gpa: data.gpa,
-          coreGpa: data.coreGpa,
-          activityUnit: data.activityUnit,
-          isPassPrepCourse: data.isPassPrepCourse
         });
 
         if (data.coop?.jobPosition) {
@@ -114,7 +111,7 @@ export default function CoopRequestPage() {
       }
 
       // 2. ดึงรอบรับสมัครที่เปิดอยู่ (Active Period)
-      const periodRes = await fetch("http://localhost:5000/api/students/coop-periods/active", {
+      const periodRes = await fetch("/api/students/coop-periods/active", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (periodRes.ok) {
@@ -142,9 +139,13 @@ export default function CoopRequestPage() {
   };
 
   const handleRemoveExistingFile = async (docId: number) => {
-    if (!confirm("ต้องการลบไฟล์นี้ใช่หรือไม่?")) return;
+    setConfirmDelete(docId);
+  };
+
+  const doRemoveFile = async (docId: number) => {
+    setConfirmDelete(null);
     try {
-      const res = await fetch(`http://localhost:5000/api/coop/documents/${docId}`, {
+      const res = await fetch(`/api/coop/documents/${docId}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -154,8 +155,9 @@ export default function CoopRequestPage() {
           if (!prev) return null;
           return { ...prev, documents: prev.documents?.filter((d) => d.id !== docId) };
         });
-      } else alert("ลบไม่สำเร็จ: " + data.message);
-    } catch (err) { console.error(err); alert("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้"); }
+        toast.success("ลบไฟล์เรียบร้อย");
+      } else toast.error("ลบไม่สำเร็จ: " + data.message);
+    } catch { toast.error("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้"); }
   };
 
   const handleRemoveFile = (index: number) => {
@@ -178,51 +180,44 @@ export default function CoopRequestPage() {
 
   const handleSubmitApplication = async () => {
     if (!activePeriod || !isTimeValid()) {
-      alert("❌ ไม่สามารถยื่นคำร้องได้ เนื่องจากขณะนี้ไม่มีรอบการรับสมัครที่เปิดอยู่ หรือนอกช่วงเวลา");
+      toast.error("ไม่สามารถยื่นคำร้องได้ เนื่องจากขณะนี้ไม่มีรอบการรับสมัครที่เปิดอยู่ หรือนอกช่วงเวลา");
       return;
     }
-
-    if (!profile?.isQualified) {
-      alert("❌ คุณสมบัติของคุณยังไม่ครบถ้วนตามเกณฑ์สาขา กรุณาตรวจสอบที่หน้า Profile");
-      return;
-    }
-
     const hasCompany = profile?.coop?.company || profile?.company;
     if (!hasCompany) {
-      alert("❌ กรุณาเลือกบริษัทและพี่เลี้ยงก่อนยื่นคำร้อง");
+      toast.warning("กรุณาเลือกบริษัทและพี่เลี้ยงก่อนยื่นคำร้อง");
       return;
     }
-
     const hasExistingDocs = gatewayDocs.length > 0;
     const hasNewDocs = uploadedFiles.length > 0;
-
     if (!hasExistingDocs && !hasNewDocs) {
-      alert("❌ กรุณาอัปโหลดเอกสารประกอบอย่างน้อย 1 ไฟล์");
+      toast.warning("กรุณาอัปโหลดเอกสารประกอบอย่างน้อย 1 ไฟล์");
       return;
     }
 
     const formData = new FormData();
     formData.append("jobPosition", coopField);
-    formData.append("coopPeriodId", activePeriod.id.toString()); // ส่ง ID รอบรับสมัครไปด้วย
-
+    formData.append("coopPeriodId", activePeriod.id.toString());
+    if (gradeSheetUrl.trim()) formData.append("gradeSheetUrl", gradeSheetUrl.trim());
     uploadedFiles.forEach((file) => formData.append("files", file));
 
+    setSubmitting(true);
     try {
-      const res = await fetch("http://localhost:5000/api/coop/apply", {
+      const res = await fetch("/api/coop/apply", {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
       });
-
       const data = await res.json();
       if (res.ok) {
-        alert("✅ ส่งคำร้องเรียบร้อยแล้ว สถานะ: รออาจารย์ตรวจสอบ");
+        toast.success("ส่งคำร้องเรียบร้อยแล้ว สถานะ: รออาจารย์ตรวจสอบ");
         setUploadedFiles([]);
         fetchData();
       } else {
-        alert("❌ เกิดข้อผิดพลาด: " + data.message);
+        toast.error("เกิดข้อผิดพลาด: " + data.message);
       }
-    } catch (err) { console.error(err); alert("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้"); }
+    } catch { toast.error("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้"); }
+    finally { setSubmitting(false); }
   };
 
   const handleGeneratePDF = async (mode: "preview" | "download") => {
@@ -232,14 +227,12 @@ export default function CoopRequestPage() {
       if (mode === "download") {
         doc.save(`KKU_Coop_${profile.studentId}.pdf`);
       } else {
-        // ใช้ bloburl เพื่อให้แสดงผลใน iframe ของ Browser ปัจจุบันได้
         const pdfBlobUrl = doc.output("bloburl");
         setPdfDataUrl(pdfBlobUrl.toString());
         setShowPDFPopup(true);
       }
-    } catch (error) {
-      console.error("PDF Error:", error);
-      alert("ไม่สามารถสร้าง PDF ได้: ตรวจสอบไฟล์ Font หรือเปิด Console ดู Error");
+    } catch {
+      toast.error("ไม่สามารถสร้าง PDF ได้ กรุณาลองใหม่อีกครั้ง");
     }
   };
 
@@ -247,15 +240,68 @@ export default function CoopRequestPage() {
 
   const currentStatus = profile.coop?.status || "NOT_SUBMITTED";
   const canEdit = currentStatus === "NOT_SUBMITTED" || currentStatus === "APPLICATION_EDITS_REQUIRED" || currentStatus === "EDITS_REQUIRED";
-  const canSubmit = profile?.isQualified && canEdit && isTimeValid();
+  const canSubmit = canEdit && isTimeValid();
 
   const displayCompany = profile.coop?.company || profile.company;
   const displayMentor = profile.coop?.mentor || profile.mentor;
   const hasCompany = !!displayCompany;
 
+  // Step Indicator logic
+  const STEPS = [
+    { label: "ตรวจสอบคุณสมบัติ", statuses: ["NOT_SUBMITTED", "APPLYING", "QUALIFICATION_FAILED", "APPLICATION_EDITS_REQUIRED", "QUALIFIED"] },
+    { label: "ส่งเอกสาร T000", statuses: ["WAITING_FOR_STAFF_CHECK", "EDITS_REQUIRED", "DOCS_APPROVED"] },
+    { label: "รอหนังสือ & ตอบรับ", statuses: ["REQ_LETTER_ISSUED", "WAITING_FOR_PLACEMENT_LETTER", "WAITING_FOR_STAFF_CHECK_LETTER", "ACCEPTANCE_CHECKED", "PLACEMENT_LETTER_ISSUED"] },
+    { label: "ออกฝึกสหกิจ", statuses: ["INTERNSHIP_STARTED", "T002_SUBMITTED", "T002_EDITS_REQUIRED", "T003_SUBMITTED", "T003_EDITS_REQUIRED", "PENDING_TEACHER", "TEACHER_REJECTED", "DATE_CONFIRMED", "LETTER_UPLOADED", "COMPLETED"] },
+  ];
+  const currentStep = STEPS.findIndex((s) => s.statuses.includes(currentStatus));
+  const activeStep = currentStep === -1 ? 0 : currentStep;
+
   return (
     <div className="page" style={{ padding: "40px 20px", maxWidth: "1200px", margin: "0 auto" }}>
       <style>{PROFILE_CSS}</style>
+
+      {/* ================= STEP INDICATOR ================= */}
+      <div style={{ display: "flex", alignItems: "center", marginBottom: 28, gap: 0, overflowX: "auto", paddingBottom: 4 }}>
+        {STEPS.map((step, i) => {
+          const done = i < activeStep;
+          const active = i === activeStep;
+          return (
+            <div key={i} style={{ display: "flex", alignItems: "center", flex: 1, minWidth: 120 }}>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+                <div style={{
+                  width: 36, height: 36, borderRadius: "50%",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontWeight: 800, fontSize: 15,
+                  background: done ? "#22c55e" : active ? "#0074B7" : "rgba(100,116,139,.15)",
+                  color: done || active ? "#fff" : "#94a3b8",
+                  border: active ? "3px solid #bfdbfe" : "2px solid transparent",
+                  transition: ".2s", flexShrink: 0,
+                }}>
+                  {done ? "✓" : i + 1}
+                </div>
+                <span style={{ fontSize: 11, fontWeight: 700, color: active ? "#0074B7" : done ? "#16a34a" : "#94a3b8", textAlign: "center", lineHeight: 1.3, whiteSpace: "nowrap" }}>
+                  {step.label}
+                </span>
+              </div>
+              {i < STEPS.length - 1 && (
+                <div style={{ flex: 1, height: 3, margin: "0 4px", marginBottom: 20, background: done ? "#22c55e" : "rgba(100,116,139,.15)", transition: ".3s", borderRadius: 2 }} />
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* ConfirmDialog for file delete */}
+      <ConfirmDialog
+        open={confirmDelete !== null}
+        title="ยืนยันการลบไฟล์"
+        message="ต้องการลบไฟล์นี้ออกจากระบบใช่หรือไม่? การดำเนินการนี้ไม่สามารถย้อนกลับได้"
+        icon="🗑️"
+        confirmLabel="ลบไฟล์"
+        confirmColor="#ef4444"
+        onConfirm={() => confirmDelete !== null && doRemoveFile(confirmDelete)}
+        onCancel={() => setConfirmDelete(null)}
+      />
 
       {/* ================= ป้ายแจ้งเตือนรอบการรับสมัคร ================= */}
       {!isTimeValid() ? (
@@ -293,30 +339,10 @@ export default function CoopRequestPage() {
         </div>
       )}
 
-      {/* ================= SECTION 0: คุณสมบัติ ================= */}
-      <div style={{
-        padding: "16px 24px", marginBottom: "20px", borderRadius: "12px",
-        background: profile.isQualified ? "#f0fdf4" : "#fff7ed",
-        border: `1px solid ${profile.isQualified ? "#bbf7d0" : "#ffedd5"}`,
-        display: "flex", justifyContent: "space-between", alignItems: "center"
-      }}>
-        <div>
-          <strong style={{ color: profile.isQualified ? "#166534" : "#9a3412", fontSize: '16px' }}>
-            {profile.isQualified
-              ? "✅ ผ่านเกณฑ์เบื้องต้นจากการคำนวณ (สามารถยื่นคำร้องได้)"
-              : "⚠️ คุณสมบัติยังไม่ผ่านเกณฑ์"}
-          </strong>
-          <div style={{ marginTop: 5, fontSize: 13, color: '#666', display: 'flex', gap: '15px' }}>
-            <span>GPA: <b>{profile.gpa?.toFixed(2)}</b></span>
-            <span>GPA แกน: <b>{profile.coreGpa?.toFixed(2)}</b></span>
-            <span>หน่วยกิต: <b>{profile.activityUnit}</b> หน่วย</span>
-            <span>เตรียมความพร้อม: <b>{profile.isPassPrepCourse ? "ผ่าน" : "ไม่ผ่าน"}</b></span>
-          </div>
-        </div>
-        {!profile.isQualified && (
-          <button className="btn-link" onClick={() => navigate('/student/profile')}>แก้ไขข้อมูลส่วนตัว ↗</button>
-        )}
-      </div>
+      {/* ================= STATUS TRACKER ================= */}
+      {currentStatus !== "NOT_SUBMITTED" && (
+        <S_StatusTracker status={currentStatus} lastComment={profile?.coop?.teacherCheckComment || profile?.coop?.t000Comment} />
+      )}
 
       {/* ================= SECTION 1: สถานะคำร้อง ================= */}
       <div style={{
@@ -440,6 +466,36 @@ export default function CoopRequestPage() {
           />
         </div>
 
+        {/* ================= แบบฟอร์มตรวจสอบการสำเร็จการศึกษา ================= */}
+        <div style={{ marginTop: 24, padding: '16px 20px', background: '#eff6ff', borderRadius: 12, border: '1px solid #bfdbfe' }}>
+          <div style={{ fontWeight: 700, fontSize: 15, color: '#1e40af', marginBottom: 6 }}>
+            📊 แบบฟอร์มตรวจสอบการสำเร็จการศึกษา
+          </div>
+          <p style={{ fontSize: 13, color: '#3b82f6', margin: '0 0 12px' }}>
+            กรุณา Make a Copy แบบฟอร์มด้านล่าง กรอกข้อมูลให้ครบ แล้วนำลิงก์ที่แชร์มาใส่ในช่องด้านล่าง
+          </p>
+          <a
+            href="https://docs.google.com/spreadsheets/d/1HGWTsoScRc3XU0abUn6J9TgyFksAoi1V/copy"
+            target="_blank"
+            rel="noreferrer"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', background: '#2563eb', color: '#fff', borderRadius: 8, fontWeight: 700, fontSize: 13, textDecoration: 'none', marginBottom: 14 }}
+          >
+            📋 Make a Copy แบบฟอร์ม
+          </a>
+          <div>
+            <label className="label" style={{ fontSize: 14 }}>ลิงก์แบบฟอร์มที่กรอกแล้ว (Google Sheets) <span style={{ color: 'red' }}>*</span></label>
+            <input
+              className="input"
+              type="url"
+              value={gradeSheetUrl}
+              onChange={e => setGradeSheetUrl(e.target.value)}
+              placeholder="https://docs.google.com/spreadsheets/d/..."
+              disabled={!canEdit}
+            />
+            <p style={{ fontSize: 12, color: '#64748b', margin: '4px 0 0' }}>วางลิงก์ Google Sheets ที่แชร์ได้ (Share → Anyone with the link)</p>
+          </div>
+        </div>
+
         <div style={{ marginTop: "24px" }}>
           <label className="label" style={{ fontSize: 15 }}>อัปโหลดเอกสารประกอบ <span style={{ color: 'red' }}>*</span></label>
           <p style={{ fontSize: 13, color: '#64748b', margin: '4px 0 10px 0' }}>เช่น ใบคำร้อง, ทรานสคริปต์, หนังสือรับรอง ฯลฯ (รองรับ PDF, รูปภาพ)</p>
@@ -490,18 +546,21 @@ export default function CoopRequestPage() {
           <button
             className="btn btn-success"
             onClick={handleSubmitApplication}
-            disabled={!canSubmit}
+            disabled={!canSubmit || submitting}
             style={{
               padding: '12px 30px', fontSize: '16px',
-              opacity: canSubmit ? 1 : 0.5,
-              cursor: canSubmit ? "pointer" : "not-allowed",
-              backgroundColor: !isTimeValid() ? "#94a3b8" : !profile.isQualified ? "#94a3b8" :
+              display: 'inline-flex', alignItems: 'center', gap: 8,
+              opacity: canSubmit && !submitting ? 1 : 0.5,
+              cursor: canSubmit && !submitting ? "pointer" : "not-allowed",
+              backgroundColor: !isTimeValid() ? "#94a3b8" :
                 currentStatus === 'EDITS_REQUIRED' ? "#f59e0b" : "#10b981"
             }}
           >
-            {!isTimeValid() ? '🚫 นอกช่วงเวลาการยื่นคำร้อง' :
-              !profile.isQualified ? '⚠️ คุณสมบัติไม่ครบ' :
-                currentStatus === 'EDITS_REQUIRED' ? 'ส่งแก้ไขคำร้อง' : '🚀 ส่งคำร้องขอสหกิจศึกษา'}
+            {submitting
+              ? <><Spinner size={18} color="#fff" /> กำลังส่ง...</>
+              : !isTimeValid() ? '🚫 นอกช่วงเวลาการยื่นคำร้อง'
+              : currentStatus === 'EDITS_REQUIRED' ? '📤 ส่งแก้ไขคำร้อง'
+              : '🚀 ส่งคำร้องขอสหกิจศึกษา'}
           </button>
         </div>
       </div>
