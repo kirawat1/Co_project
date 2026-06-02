@@ -113,14 +113,6 @@ function getFullAddress(c?: Company) {
   return fullAddress || c.address || "ไม่มีข้อมูลที่อยู่";
 }
 
-function normalizeStatus(status?: string) {
-  const s = (status || "draft").toLowerCase();
-  if (s === "pending") return "submitted";
-  if (s === "qualified") return "approved";
-  if (s === "qualification_failed") return "rejected";
-  return s;
-}
-
 /* =========================
    Main Component
 ========================= */
@@ -275,11 +267,11 @@ export default function A_Students() {
   // --- Filter Logic (major/curriculum/status client-side; text search is server-side) ---
   const filtered = useMemo(() => {
     return items.filter((s) => {
-      const st = normalizeStatus(s.coop?.status);
+      const rawStatus = s.coop?.status ?? "";   // ใช้ raw status (uppercase) สำหรับ StatusFilterChips
       return (
         (filterMajors.length === 0 || filterMajors.includes(s.major ?? "")) &&
         (filterCurriculums.length === 0 || filterCurriculums.includes(s.studyProgram ?? "")) &&
-        (filterStatuses.length === 0 || filterStatuses.includes(st))
+        (filterStatuses.length === 0 || filterStatuses.includes(rawStatus))
       );
     });
   }, [items, filterMajors, filterCurriculums, filterStatuses]);
