@@ -1,5 +1,20 @@
 # CHANGELOG — Co_project
 
+## [2026-06-02] Teacher Types
+
+### Added
+- `Teacher.isCoopTeacher Boolean @default(false)` — เจ้าหน้าที่ toggle ได้จาก A_Teacher
+- `GET /api/teacher/my-students` — อาจารย์ประจำวิชาสหกิจคืนนักศึกษาทั้งหมด; อาจารย์ปกติคืนเฉพาะ advisees (generalAdvisor/coopAdvisor)
+- badge "ประจำวิชาสหกิจ" ใน A_Teacher teacher list + toggle switch ในฟอร์มแก้ไข
+- `AdvisorRow` component ใน S_ProfilePage — แสดงชื่อ + email + ปุ่ม mailto ติดต่อ
+
+### Changed
+- `getMyProfile` (students): include `generalAdvisor` และ `coopAdvisor` details
+- `T_Students.tsx`: ใช้ `/api/teacher/my-students` สำหรับอาจารย์ปกติ, `/api/students` สำหรับอาจารย์ประจำวิชาสหกิจ
+- `S_ProfilePage.tsx`: แสดงอาจารย์ที่ปรึกษาทั้งสองคนพร้อม email ติดต่อ
+
+---
+
 ## [2026-05-31] Google OAuth + Excel Student Import
 
 ### Added
