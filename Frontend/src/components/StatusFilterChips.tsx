@@ -1,10 +1,21 @@
+// ใช้เฉพาะ CoopStatus enum values จริงใน Prisma schema
 export const STATUS_GROUPS: Record<string, { label: string; icon: string; color: string; bg: string; statuses: string[] }> = {
   ALL:           { label:"ทั้งหมด",          icon:"📋", color:"#334155", bg:"#f1f5f9", statuses:[] },
-  PENDING_REVIEW:{ label:"รอตรวจสอบ",        icon:"⏳", color:"#92400e", bg:"#fef9c3", statuses:["APPLYING","WAITING_FOR_STAFF_CHECK","T002_SUBMITTED","T003_SUBMITTED","DATE_CONFIRMED","WAITING_FOR_STAFF_CHECK_LETTER"] },
-  NEEDS_EDIT:    { label:"ต้องแก้ไข",         icon:"📝", color:"#9a3412", bg:"#fff7ed", statuses:["APPLICATION_EDITS_REQUIRED","EDITS_REQUIRED","T002_EDITS_REQUIRED","T003_EDITS_REQUIRED","TEACHER_REJECTED"] },
-  IN_PROGRESS:   { label:"กำลังดำเนินการ",    icon:"🔄", color:"#1e40af", bg:"#eff6ff", statuses:["QUALIFIED","DOCS_APPROVED","REQ_LETTER_ISSUED","WAITING_FOR_PLACEMENT_LETTER","ACCEPTANCE_CHECKED","PLACEMENT_LETTER_ISSUED","PENDING_TEACHER","LETTER_UPLOADED"] },
-  INTERNSHIP:    { label:"ฝึกสหกิจ",          icon:"🚀", color:"#4338ca", bg:"#e0e7ff", statuses:["INTERNSHIP_STARTED","T002_SUBMITTED","T002_EDITS_REQUIRED","T003_SUBMITTED","T003_EDITS_REQUIRED","PENDING_TEACHER","TEACHER_REJECTED","DATE_CONFIRMED","LETTER_UPLOADED"] },
-  COMPLETED:     { label:"เสร็จสิ้น",          icon:"✅", color:"#166534", bg:"#dcfce7", statuses:["COMPLETED"] },
+  // รอตรวจสอบ = ก่อนฝึก (ยื่นคำร้อง / รอตรวจเอกสาร T000 / รอใบตอบรับ)
+  PENDING_REVIEW:{ label:"รอตรวจสอบ",        icon:"⏳", color:"#92400e", bg:"#fef9c3",
+    statuses:["APPLYING","WAITING_FOR_STAFF_CHECK","WAITING_FOR_STAFF_CHECK_LETTER"] },
+  // ต้องแก้ไข (ทุกขั้นตอน)
+  NEEDS_EDIT:    { label:"ต้องแก้ไข",         icon:"📝", color:"#9a3412", bg:"#fff7ed",
+    statuses:["APPLICATION_EDITS_REQUIRED","EDITS_REQUIRED","T002_EDITS_REQUIRED","T003_EDITS_REQUIRED"] },
+  // กำลังดำเนินการ = ผ่านคุณสมบัติถึงก่อนออกฝึก
+  IN_PROGRESS:   { label:"กำลังดำเนินการ",    icon:"🔄", color:"#1e40af", bg:"#eff6ff",
+    statuses:["QUALIFIED","DOCS_APPROVED","REQ_LETTER_ISSUED","WAITING_FOR_PLACEMENT_LETTER","ACCEPTANCE_CHECKED","PLACEMENT_LETTER_ISSUED"] },
+  // ฝึกสหกิจ = ออกฝึกแล้ว (รวมส่งเอกสาร T002/T003)
+  INTERNSHIP:    { label:"ฝึกสหกิจ",          icon:"🚀", color:"#4338ca", bg:"#e0e7ff",
+    statuses:["INTERNSHIP_STARTED","T002_SUBMITTED","T002_EDITS_REQUIRED","T003_SUBMITTED","T003_EDITS_REQUIRED","T003_APPROVED"] },
+  // ไม่ผ่านคุณสมบัติ
+  FAILED:        { label:"ไม่ผ่านเกณฑ์",      icon:"❌", color:"#dc2626", bg:"#fef2f2",
+    statuses:["QUALIFICATION_FAILED"] },
 };
 
 interface Props {
