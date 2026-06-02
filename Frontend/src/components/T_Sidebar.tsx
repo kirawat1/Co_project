@@ -6,99 +6,70 @@ import {
   IcCalendar,
   IcUser,
 } from "./icons";
-import NotificationBell from "./NotificationBell";
+import { useNotifCounts } from "../hooks/useNotifCounts";
 
 interface SidebarProps { isOpen?: boolean; onClose?: () => void; }
 
+function NavItem({ to, label, icon, count, onClick, end }: {
+  to: string; label: string; icon: React.ReactNode;
+  count?: number; onClick?: () => void; end?: boolean;
+}) {
+  const hasCount = (count ?? 0) > 0;
+  return (
+    <NavLink to={to} end={end}
+      className={({ isActive }) => "item" + (isActive ? " active" : "")}
+      onClick={onClick}
+      style={hasCount ? { border: "1.5px solid #ef4444", borderRadius: 10 } : undefined}
+    >
+      <span className="ico">{icon}</span>
+      <span className="text" style={{ flex: 1 }}>{label}</span>
+      {hasCount && (
+        <span style={{ background: "#ef4444", color: "#fff", borderRadius: 99, padding: "1px 7px", fontSize: 11, fontWeight: 800, flexShrink: 0 }}>
+          {count}
+        </span>
+      )}
+    </NavLink>
+  );
+}
+
 export default function T_Sidebar({ isOpen = false, onClose = () => {} }: SidebarProps) {
   const nav = () => onClose();
+  const { counts, markAllRead } = useNotifCounts();
+  const navAndRead = () => { onClose(); markAllRead(); };
   return (
     <aside className={`sidebar${isOpen ? " open" : ""}`}>
-      {/* BRAND HEADER (เหมือน S_Sidebar) */}
+      {/* BRAND HEADER */}
       <div className="brand">
         <div className="brand-sub">Co-operative:</div>
-
         <div className="brand-main">
           <span className="brand-bullet" />
           <span>Teacher</span>
         </div>
-
         <div className="brand-underline" />
-      </div>
-
-      <div style={{ display: "flex", justifyContent: "flex-end", padding: "0 4px", marginBottom: 8 }}>
-        <NotificationBell targetPath="/teacher/students" />
       </div>
 
       {/* NAVIGATION */}
       <nav className="nav" aria-label="Teacher Navigation">
-        <NavLink
-          to="/teacher/dashboard"
-          end
-          className={({ isActive }) => "item" + (isActive ? " active" : "")}
-          onClick={nav}
-        >
-          <span className="ico"><IcDashboard /></span>
-          <span className="text">Dashboard</span>
-        </NavLink>
+        <NavItem to="/teacher/dashboard" label="Dashboard" icon={<IcDashboard />} end onClick={nav} />
 
         <div className="sec-label">ข้อมูลบุคคล</div>
 
-        <NavLink
-          to="/teacher/students"
-          className={({ isActive }) => "item" + (isActive ? " active" : "")}
-          onClick={nav}
-        >
-          <span className="ico"><IcUsers /></span>
-          <span className="text">นักศึกษาที่ดูแล</span>
-        </NavLink>
-
-        <NavLink
-          to="/teacher/profile"
-          className={({ isActive }) => "item" + (isActive ? " active" : "")}
-          onClick={nav}
-        >
-          <span className="ico"><IcUser /></span>
-          <span className="text">ข้อมูลอาจารย์</span>
-        </NavLink>
+        <NavItem to="/teacher/students" label="นักศึกษาที่ดูแล" icon={<IcUsers />}
+          count={(counts.T002_SUBMITTED ?? 0) + (counts.T003_SUBMITTED ?? 0) + (counts.SUPERVISION_PROPOSED ?? 0) + (counts.COOP_APPLICATION_SUBMITTED ?? 0)}
+          onClick={navAndRead} />
+        <NavItem to="/teacher/profile" label="ข้อมูลอาจารย์" icon={<IcUser />} onClick={nav} />
 
         <div className="sec-label">เอกสารและบันทึก</div>
 
-        <NavLink
-          to="/teacher/requests"
-          className={({ isActive }) => "item" + (isActive ? " active" : "")}
-          onClick={nav}
-        >
-          <span className="ico"><IcDocs /></span>
-          <span className="text">ตรวจสอบคำร้องสหกิจ</span>
-        </NavLink>
-
-        <NavLink
-          to="/teacher/review-t002"
-          className={({ isActive }) => "item" + (isActive ? " active" : "")}
-          onClick={nav}
-        >
-          <span className="ico"><IcDocs /></span>
-          <span className="text">T002 เอกสารรายละเอียด</span>
-        </NavLink>
-
-        <NavLink
-          to="/teacher/review-t003"
-          className={({ isActive }) => "item" + (isActive ? " active" : "")}
-          onClick={nav}
-        >
-          <span className="ico"><IcDocs /></span>
-          <span className="text">T003 โครงร่างรายงาน</span>
-        </NavLink>
-
-        <NavLink
-          to="/teacher/review-supervision"
-          className={({ isActive }) => "item" + (isActive ? " active" : "")}
-          onClick={nav}
-        >
-          <span className="ico"><IcCalendar /></span>
-          <span className="text">นัดหมายนิเทศ</span>
-        </NavLink>
+        <NavItem to="/teacher/requests" label="ตรวจสอบคำร้องสหกิจ" icon={<IcDocs />}
+          count={(counts.COOP_APPLICATION_SUBMITTED ?? 0) + (counts.ACCEPTANCE_UPLOADED ?? 0)}
+          onClick={navAndRead} />
+        <NavItem to="/teacher/review-t002" label="T002 เอกสารรายละเอียด" icon={<IcDocs />}
+          count={counts.T002_SUBMITTED ?? 0} onClick={navAndRead} />
+        <NavItem to="/teacher/review-t003" label="T003 โครงร่างรายงาน" icon={<IcDocs />}
+          count={counts.T003_SUBMITTED ?? 0} onClick={navAndRead} />
+        <NavItem to="/teacher/review-supervision" label="นัดหมายนิเทศ" icon={<IcCalendar />}
+          count={counts.SUPERVISION_PROPOSED ?? 0} onClick={navAndRead} />
 
         <NavLink
           to="/teacher/doc-t005-006"
