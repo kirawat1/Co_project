@@ -65,15 +65,18 @@ export default function S_Sidebar({ profile, isOpen = false, onClose = () => {} 
           <span className="text">Dashboard</span>
         </NavLink>
 
-        {/* <NavLink
+        <NavLink
           to="/student/status-tracker"
-          end
           className={({ isActive }) => "item" + (isActive ? " active" : "")}
           onClick={handleNav}
         >
-          <span className="ico"><IcDashboard /></span>
-          <span className="text">Status Tracker</span>
-        </NavLink> */}
+          <span className="ico">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+            </svg>
+          </span>
+          <span className="text">สถานะสหกิจ</span>
+        </NavLink>
 
         <NavLink
           to="/student/profile"

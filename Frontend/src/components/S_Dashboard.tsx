@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { IcAnnounce, IcDocs } from "./icons";
-import S_StatusTracker from "./S_StatusTracker";
+import StatusBadge from "./StatusBadge";
+import { useNavigate } from "react-router-dom";
 
 /* ===============================
     Types
@@ -146,6 +147,8 @@ export default function S_Dashboard() {
   }, [nearestDeadline]);
 
 
+  const navigate = useNavigate();
+
   if (loading) return <div style={{ padding: 40, textAlign: 'center' }}>กำลังโหลดข้อมูลภาพรวม...</div>;
 
   return (
@@ -158,8 +161,24 @@ export default function S_Dashboard() {
         <p>ติดตามประกาศ เอกสาร และนัดนิเทศของสหกิจศึกษา</p>
       </div>
 
-      {/* ===== STATUS TRACKER ===== */}
-      <S_StatusTracker status={studentStatus} />
+      {/* ===== COMPACT STATUS CARD ===== */}
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", background:"#fff", borderRadius:16, padding:"14px 20px", marginBottom:16, boxShadow:"0 1px 4px rgba(0,0,0,.06)", border:"1px solid #e2e8f0" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+          <span style={{ fontSize:28 }}>
+            {["EDITS_REQUIRED","T002_EDITS_REQUIRED","T003_EDITS_REQUIRED","APPLICATION_EDITS_REQUIRED","TEACHER_REJECTED","QUALIFICATION_FAILED"].includes(studentStatus) ? "⚠️"
+              : ["COMPLETED","PLACEMENT_LETTER_ISSUED","ACCEPTANCE_CHECKED"].includes(studentStatus) ? "✅"
+              : ["INTERNSHIP_STARTED","T002_SUBMITTED","T003_SUBMITTED","PENDING_TEACHER","DATE_CONFIRMED","LETTER_UPLOADED"].includes(studentStatus) ? "🚀"
+              : "📋"}
+          </span>
+          <div>
+            <div style={{ fontSize:12, color:"#94a3b8", fontWeight:700, textTransform:"uppercase", letterSpacing:".5px", marginBottom:4 }}>สถานะปัจจุบัน</div>
+            <StatusBadge status={studentStatus} hidePrefix />
+          </div>
+        </div>
+        <button onClick={() => navigate("/student/status-tracker")} style={{ padding:"8px 18px", background:"#eff6ff", color:"#2563eb", border:"1px solid #bfdbfe", borderRadius:10, fontWeight:700, fontSize:13, cursor:"pointer", whiteSpace:"nowrap" }}>
+          ดูรายละเอียด →
+        </button>
+      </div>
 
       {/* ===== COUNTDOWN ===== */}
       {nearestDeadline && countdown && (
