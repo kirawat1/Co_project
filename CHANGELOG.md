@@ -1,5 +1,17 @@
 # CHANGELOG — Co_project
 
+## [2026-06-03] Status Display Redesign
+
+### Added
+- `S_StatusTracker.tsx` — horizontal 4-phase stepper (ยื่นคำร้อง → เอกสาร T000 → ฝึกสหกิจ → รายงาน T008) พร้อม sub-steps ของเฟสปัจจุบัน และ action card "ต้องทำอะไรตอนนี้" พร้อมลิงก์
+- `StatusFilterChips.tsx` — chips แสดงจำนวนนักศึกษาต่อกลุ่มสถานะ (รอตรวจสอบ / ต้องแก้ไข / กำลังดำเนินการ / ฝึกสหกิจ / เสร็จสิ้น) กดกรองตาราง
+
+### Changed
+- `S_Dashboard.tsx` — แทนที่ status-banner เดิมด้วย `S_StatusTracker`
+- `S_Gateway.tsx` — เพิ่ม `S_StatusTracker` ด้านบน section สถานะ (แสดงเมื่อยื่นคำร้องแล้ว)
+- `A_Students.tsx` — เพิ่ม `StatusFilterChips` ด้านบนตาราง
+- `T_Students.tsx` — เพิ่ม `StatusFilterChips` ด้านบนตาราง + filter logic
+
 ## [2026-06-02] Teacher Types
 
 ### Added
