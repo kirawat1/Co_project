@@ -266,6 +266,7 @@ model Teacher {
   phone                   String?
   faculty                 String?
   major                   String?
+  isCoopTeacher           Boolean                  @default(false)
   userId                  Int                      @unique
   user                    User                     @relation(fields: [userId], references: [id])
   visits                  Visit[]
