@@ -1,5 +1,6 @@
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
+const { createNotifications } = require('../utils/notificationHelper');
 
 // 1. ดึงค่า Config
 exports.getT000Config = async (req, res) => {
@@ -189,6 +190,34 @@ exports.reviewStudentStatus = async (req, res) => {
     });
 
     res.json({ ok: true });
+
+    // Notify student when their status changes
+    const statusMessages = {
+      QUALIFIED: 'คำร้องของคุณผ่านการพิจารณา ✅',
+      QUALIFICATION_FAILED: 'คำร้องของคุณไม่ผ่านการพิจารณา',
+      DOCS_APPROVED: 'เอกสาร T000 ผ่านการตรวจสอบ ✅',
+      EDITS_REQUIRED: 'เอกสาร T000 ต้องแก้ไข กรุณาตรวจสอบความคิดเห็น',
+      REQ_LETTER_ISSUED: 'ออกหนังสือขอความอนุเคราะห์แล้ว',
+      ACCEPTANCE_CHECKED: 'ตรวจสอบใบตอบรับแล้ว',
+      PLACEMENT_LETTER_ISSUED: 'ออกหนังสือส่งตัวแล้ว 🎉',
+      APPLICATION_EDITS_REQUIRED: 'คำร้องของคุณต้องแก้ไข กรุณาตรวจสอบ',
+    };
+    const msg = statusMessages[status];
+    if (msg) {
+      prisma.student.findUnique({ where: { id: parsedStudentId }, select: { userId: true } })
+        .then(student => {
+          if (student?.userId) {
+            return createNotifications([student.userId], {
+              type: 'STATUS_UPDATED',
+              title: 'สถานะสหกิจศึกษาอัปเดต',
+              message: msg,
+              link: '/student/status-tracker',
+              relatedId: String(status),
+            });
+          }
+        })
+        .catch(console.error);
+    }
   } catch (err) {
     console.error(err);
     res.status(500).json({ ok: false, message: "Error" });
@@ -272,10 +301,24 @@ exports.getAllStudentsForReview = async (req, res) => {
         const coopPeriodId = req.query.coopPeriodId
             ? parseInt(req.query.coopPeriodId, 10)
             : undefined;
-        const where = coopPeriodId ? { coop: { coopPeriodId } } : {};
+        const search = (req.query.search || "").trim();
+
+        const conditions = [];
+        if (coopPeriodId) conditions.push({ coop: { coopPeriodId } });
+        if (search) {
+            conditions.push({
+                OR: [
+                    { studentId: { contains: search } },
+                    { firstName: { contains: search } },
+                    { lastName: { contains: search } },
+                ],
+            });
+        }
+        const where = conditions.length > 0 ? { AND: conditions } : {};
 
         const students = await prisma.student.findMany({
             where,
+            take: 500,
             include: {
                 coop: {
                     include: {
@@ -328,6 +371,21 @@ exports.reviewT002 = async (req, res) => {
         }
 
         res.json({ ok: true, message: "บันทึกผลการตรวจสอบสำเร็จ" });
+
+        // Notify student
+        prisma.student.findUnique({ where: { id: parseInt(studentId) }, select: { userId: true } })
+          .then(student => {
+            if (student?.userId) {
+              return createNotifications([student.userId], {
+                type: 'T002_REVIEWED',
+                title: 'T002 ได้รับการตรวจสอบ',
+                message: 'เอกสาร T002 ของคุณได้รับการตรวจสอบแล้ว กรุณาตรวจสอบสถานะ',
+                link: '/student/docs-t002',
+                relatedId: null,
+              });
+            }
+          })
+          .catch(console.error);
     } catch (err) {
         // ✅ พิมพ์ Error ตัวจริงออกมาที่หน้าจอดำ (Terminal) ของ Backend
         console.error("====== REVIEW T002 ERROR ======");
@@ -370,6 +428,21 @@ exports.reviewT003 = async (req, res) => {
         }
 
         res.json({ ok: true, message: "Review T003 saved successfully" });
+
+        // Notify student
+        prisma.student.findUnique({ where: { id: parseInt(studentId) }, select: { userId: true } })
+          .then(student => {
+            if (student?.userId) {
+              return createNotifications([student.userId], {
+                type: 'T003_REVIEWED',
+                title: 'T003 ได้รับการตรวจสอบ',
+                message: 'เอกสาร T003 ของคุณได้รับการตรวจสอบแล้ว กรุณาตรวจสอบสถานะ',
+                link: '/student/docs-t003',
+                relatedId: null,
+              });
+            }
+          })
+          .catch(console.error);
     } catch (err) {
         console.error("Review T003 Error:", err);
         res.status(500).json({ ok: false, message: "Server error" });

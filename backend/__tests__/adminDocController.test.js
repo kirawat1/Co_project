@@ -3,6 +3,7 @@ jest.mock('@prisma/client', () => {
   const mocks = require('./__mocks__/prismaClient');
   return { PrismaClient: jest.fn(() => mocks) };
 });
+jest.mock('../config/prismaClient', () => require('./__mocks__/prismaClient'));
 
 const prisma = require('./__mocks__/prismaClient');
 const { getAllStudentsForReview } = require('../controllers/adminDocController');
@@ -44,7 +45,7 @@ describe('getAllStudentsForReview', () => {
     await getAllStudentsForReview(req, res);
 
     expect(prisma.student.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { coop: { coopPeriodId: 3 } } })
+      expect.objectContaining({ where: { AND: [{ coop: { coopPeriodId: 3 } }] } })
     );
     expect(res.json.mock.calls[0][0].data).toHaveLength(1);
   });
