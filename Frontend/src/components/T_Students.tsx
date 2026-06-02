@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect, useRef } from "react";
 import axios from "axios";
 import StatusBadge from "../components/StatusBadge";
+import { useDebounce } from "../hooks/useDebounce";
 
 // --- Interfaces ---
 interface StudentDocument {
@@ -102,12 +103,15 @@ function getFullAddress(c?: Company) {
   return fullAddress || c.address || "ไม่มีข้อมูลที่อยู่";
 }
 
-export default function T_Students() {
+interface Props { isCoopTeacher?: boolean; }
+
+export default function T_Students({ isCoopTeacher = false }: Props) {
   const [allStudents, setAllStudents] = useState<StudentProfile[]>([]);
   const [loading, setLoading] = useState(true);
 
   // ✅ States สำหรับค้นหาและตัวกรอง
   const [q, setQ] = useState("");
+  const debouncedQ = useDebounce(q, 300);
   const [coopPeriods, setCoopPeriods] = useState<CoopPeriod[]>([]);
   const [selectedPeriod, setSelectedPeriod] = useState<string>("all");
 
@@ -118,16 +122,24 @@ export default function T_Students() {
   const [modalStudent, setModalStudent] = useState<StudentProfile | null>(null);
 
   // --- 1. Fetch Data ---
-  const fetchStudents = async (periodId: string) => {
+  const fetchStudents = async (periodId: string, search = "") => {
     const token = localStorage.getItem("coop.token");
-    const params = periodId !== "all" ? `?coopPeriodId=${periodId}` : "";
+    const params = new URLSearchParams({ limit: "50" });
+    if (periodId !== "all") params.set("coopPeriodId", periodId);
+    if (search.trim()) params.set("search", search.trim());
+
+    // isCoopTeacher=true → all students; false → advisees only
+    const endpoint = isCoopTeacher
+      ? `/api/students?${params}`
+      : `/api/teacher/my-students?${params}`;
+
     try {
-      const resStd = await fetch(`/api/students${params}`, {
+      const resStd = await fetch(endpoint, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (resStd.ok) {
         const data = await resStd.json();
-        setAllStudents(Array.isArray(data) ? data : (data?.data ?? []));
+        setAllStudents(data?.data ?? []);
       }
     } catch (err) {
       console.error("Error fetching students:", err);
@@ -159,7 +171,7 @@ export default function T_Students() {
         }
       }
 
-      await fetchStudents(selectedPeriod);
+      await fetchStudents(selectedPeriod, "");
     } catch (err) {
       console.error("Error fetching data:", err);
     } finally {
@@ -177,18 +189,25 @@ export default function T_Students() {
       initialMount.current = false;
       return;
     }
-    fetchStudents(selectedPeriod);
+    fetchStudents(selectedPeriod, debouncedQ);
   }, [selectedPeriod]);
 
-  // --- 2. Filter Logic ---
+  const initialSearchMount = useRef(true);
+  useEffect(() => {
+    if (initialSearchMount.current) {
+      initialSearchMount.current = false;
+      return;
+    }
+    fetchStudents(selectedPeriod, debouncedQ);
+  }, [debouncedQ]);
+
+  // --- 2. Filter Logic (text search is server-side; only major filtered client-side) ---
   const filteredStudents = useMemo(() => {
     return allStudents.filter((s) => {
-      const t = `${s.studentId} ${s.firstName || ""} ${s.lastName || ""} ${s.company?.name || s.coop?.status || ""}`.toLowerCase();
-      const matchQ = t.includes(q.toLowerCase());
       const matchMajor = filterMajor === "all" || s.major === filterMajor;
-      return matchQ && matchMajor;
+      return matchMajor;
     });
-  }, [allStudents, q, filterMajor]);
+  }, [allStudents, filterMajor]);
 
   if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>กำลังโหลดข้อมูล...</div>;
 
@@ -224,7 +243,7 @@ export default function T_Students() {
           <select className="input soft" style={{ width: 'auto' }} value={selectedPeriod} onChange={e => setSelectedPeriod(e.target.value)}>
             <option value="all">📚 ทุกปีการศึกษา</option>
             {coopPeriods.map(p => (
-              <option key={p.id} value={p.id}>เทอม {p.semester} / {p.academicYear}</option>
+              <option key={p.id} value={String(p.id)}>เทอม {p.semester} / {p.academicYear}</option>
             ))}
           </select>
 

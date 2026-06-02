@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
+import { ThemeToggleBtn } from "./ThemeContext";
 
 import Sidebar from "./T_Sidebar";
 import Dashboard from "./T_Dashboard";
@@ -20,6 +21,8 @@ const IOS_BLUE = "#0074B7";
 
 export default function TeacherApp() {
   const navigate = useNavigate();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isCoopTeacher, setIsCoopTeacher] = useState(false);
 
   /* =========================
      Display name (pattern เดียวกับ S_App)
@@ -42,46 +45,71 @@ export default function TeacherApp() {
   });
 
   useEffect(() => {
-    const n = localStorage.getItem("coop.teacher.displayName");
-    if (n && n.trim()) setDisplayName(n);
+    const token = localStorage.getItem("coop.token");
+
+    // fetch ชื่อจาก API เสมอ เพื่อให้ได้ข้อมูลของ user ปัจจุบัน (ไม่ใช่ user เก่าที่ค้างใน localStorage)
+    if (token) {
+      fetch("/api/teacher/me", { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => r.ok ? r.json() : null)
+        .then(data => {
+          if (data) {
+            const name = `${data.firstName || ""} ${data.lastName || ""}`.trim() || data.email || "อาจารย์";
+            setDisplayName(name);
+            localStorage.setItem("coop.teacher.displayName", name);
+            setIsCoopTeacher(data.isCoopTeacher ?? false);
+          }
+        })
+        .catch(() => {
+          // fallback: ใช้ค่าจาก localStorage ถ้า fetch ไม่ได้
+          const n = localStorage.getItem("coop.teacher.displayName");
+          if (n && n.trim()) setDisplayName(n);
+        });
+    }
+
+    // รับ event เมื่อ T_Profile บันทึกชื่อใหม่ในหน้าเดียวกัน
+    const handler = (e: Event) => {
+      const name = (e as CustomEvent<string>).detail;
+      if (name) setDisplayName(name);
+    };
+    window.addEventListener("teacherNameUpdated", handler);
+    return () => window.removeEventListener("teacherNameUpdated", handler);
   }, []);
 
   function onLogout() {
+    // ลบ key ทั้งหมดที่เกี่ยวกับ teacher เพื่อไม่ให้ชื่อเก่าค้างข้ามการ login
     localStorage.removeItem("coop.token");
     localStorage.removeItem("coop.teacher.id");
+    localStorage.removeItem("coop.teacher.displayName");
+    localStorage.removeItem("coop.teacher.profile");
     navigate("/", { replace: true });
   }
 
   return (
     <div className="app-bg">
-      {/* ---------- Topbar (เหมือน S_App) ---------- */}
       <header className="topbar">
-        <div className="brand-badge">
-          <img src={coopLogo} alt="Co-op Logo" className="brand-img" />
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <button className="btn-ico btn-hamburger" onClick={() => setSidebarOpen(o => !o)} aria-label="เมนู">
+            <HamburgerIcon />
+          </button>
+          <div className="brand-badge">
+            <img src={coopLogo} alt="Co-op Logo" className="brand-img" />
+          </div>
         </div>
-
         <div className="topbar-right">
           <div className="user-mini">
             <div className="user-ava" />
             <div className="user-name">{displayName}</div>
           </div>
-
-          <button
-            className="btn-ico"
-            onClick={onLogout}
-            aria-label="ออกจากระบบ"
-            title="ออกจากระบบ"
-          >
+          <ThemeToggleBtn />
+          <button className="btn-ico" onClick={onLogout} aria-label="ออกจากระบบ" title="ออกจากระบบ">
             <LogoutIcon />
           </button>
         </div>
       </header>
 
-      {/* ---------- Layout (เหมือน S_App) ---------- */}
       <div className="layout">
-        {/* Sidebar */}
-        <Sidebar />
-
+        <div className={`sidebar-overlay${sidebarOpen ? " open" : ""}`} onClick={() => setSidebarOpen(false)} />
+        <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
         <main className="main">
           <Routes>
             <Route index element={<Navigate to="dashboard" replace />} />
@@ -89,7 +117,7 @@ export default function TeacherApp() {
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="requests" element={<Requests />} />
 
-            <Route path="students" element={<Students />} />
+            <Route path="students" element={<Students isCoopTeacher={isCoopTeacher} />} />
             <Route
               path="students/:studentId"
               element={<StudentDetail />}
@@ -104,62 +132,26 @@ export default function TeacherApp() {
             <Route path="doc-t007" element={<A_DocT007 />} />
             <Route path="doc-t008" element={<A_DocT008 />} />
 
-            <Route path="*" element={<Navigate to="dashboard" replace />} />
+            <Route path="*" element={<Navigate to="/teacher/dashboard" replace />} />
           </Routes>
         </main>
       </div>
 
-      {/* ---------- Theme (ใช้ชุดเดียวกับ Student) ---------- */}
       <StudentTheme IOS_BLUE={IOS_BLUE} />
-
-      {/* ---------- CSS (copy จาก S_App) ---------- */}
-      <style>{`
-        .topbar{
-          position: sticky;
-          top: 0;
-          z-index: 10;
-          display:flex;
-          align-items:center;
-          justify-content:space-between;
-          gap:16px;
-          padding:10px 16px;
-          background:#fff;
-          border-bottom:1px solid rgba(0,0,0,.06);
-        }
-        .brand-badge{
-          display:flex; align-items:center; justify-content:center;
-          background:#E6F0FF; border-radius:14px; padding:2px;
-          border:1px solid rgba(0,0,0,.05);
-        }
-        .brand-img{ height:40px; width:auto; }
-
-        .topbar-right{ display:flex; align-items:center; gap:12px; }
-        .user-mini{ display:flex; align-items:center; gap:10px; }
-        .user-ava{ width:28px; height:28px; border-radius:50%; background:#cfe4ff; }
-        .user-name{ font-weight:700; }
-
-        .btn-ico{
-          width:38px; height:38px;
-          display:inline-flex; align-items:center; justify-content:center;
-          border-radius:10px; border:1px solid rgba(0,0,0,.08);
-          background:#fff; color:#0f172a; cursor:pointer;
-          transition:.12s;
-        }
-        .btn-ico:hover{
-          background:#f8fafc;
-          border-color:#c7d2fe;
-          color:${IOS_BLUE};
-          box-shadow:0 2px 10px rgba(0,116,183,.14);
-        }
-        .btn-ico svg{ width:20px; height:20px; }
-      `}</style>
     </div>
   );
 }
 
-/* =========================
-   Icon (เหมือน S_App)
-========================= */
+function HamburgerIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+      <line x1="3" y1="6" x2="21" y2="6" />
+      <line x1="3" y1="12" x2="21" y2="12" />
+      <line x1="3" y1="18" x2="21" y2="18" />
+    </svg>
+  );
+}
+
 function LogoutIcon() {
   return (
     <svg
