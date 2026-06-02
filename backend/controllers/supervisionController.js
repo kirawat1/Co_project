@@ -1,6 +1,7 @@
 const prisma = require('../config/prismaClient');
 const fs = require('fs');
 const path = require('path');
+const { createNotifications, getStaffAndCoopTeacherIds } = require('../utils/notificationHelper');
 
 // ==========================================
 // ⚙️ [ADMIN] จัดการ Config ช่วงเวลานิเทศ (ผูกกับ CoopPeriod)
@@ -122,27 +123,30 @@ exports.proposeSupervisionDate = async (req, res) => {
             return res.status(400).json({ ok: false, message: 'ไม่พบข้อมูลอาจารย์ที่ปรึกษา กรุณาอัปเดตในหน้า Profile' });
         }
 
-        // แยก firstName + lastName จาก advisorName (รูปแบบ: "คำนำหน้า ชื่อ นามสกุล")
-        const nameParts = advisorTrimmed.split(/\s+/).filter(Boolean);
-        const lastName = nameParts.length >= 2 ? nameParts[nameParts.length - 1] : "";
-        const firstName = nameParts.length >= 2 ? nameParts[nameParts.length - 2] : nameParts[0];
+        // แยก firstName + lastName จาก advisorName โดยกรองคำนำหน้า (ที่มีจุด เช่น ผศ., ดร.) ออกก่อน
+        const rawParts = advisorTrimmed.split(/\s+/).filter(Boolean);
+        const nameParts = rawParts.filter(p => !p.includes('.'));
+        const lastName = nameParts.length >= 1 ? nameParts[nameParts.length - 1] : "";
+        const firstName = nameParts.length >= 2 ? nameParts[nameParts.length - 2] : "";
 
         // ค้นหาด้วย firstName + lastName พร้อมกัน (ป้องกันนามสกุลซ้ำ)
         let teacher = lastName
             ? await prisma.teacher.findFirst({
-                where: {
-                    AND: [
-                        { lastName: { contains: lastName } },
-                        { firstName: { contains: firstName } },
-                    ],
-                },
+                where: firstName
+                    ? {
+                        AND: [
+                            { lastName: { contains: lastName } },
+                            { firstName: { contains: firstName } },
+                        ],
+                    }
+                    : { lastName: { contains: lastName } },
             })
             : null;
 
-        // fallback: ค้นด้วยนามสกุลอย่างเดียว (กรณี firstName ไม่ตรง format)
+        // fallback: ค้นด้วยนามสกุลอย่างเดียวแบบ contains (กรณี firstName ไม่ตรง format)
         if (!teacher && lastName && lastName.length >= 2) {
             teacher = await prisma.teacher.findFirst({
-                where: { lastName },  // exact match นามสกุล
+                where: { lastName: { contains: lastName } },
             });
         }
 
@@ -173,6 +177,17 @@ exports.proposeSupervisionDate = async (req, res) => {
         });
 
         res.json({ ok: true, appointment });
+
+        // Fire notification async without blocking response
+        getStaffAndCoopTeacherIds().then(ids =>
+          createNotifications(ids, {
+            type: 'SUPERVISION_PROPOSED',
+            title: 'นักศึกษาเสนอวันนิเทศ',
+            message: 'มีนักศึกษาเสนอวันนิเทศสหกิจศึกษา กรุณาตรวจสอบและยืนยัน',
+            link: '/admin/students',
+            relatedId: String(req.user.id),
+          })
+        ).catch(console.error);
     } catch (err) {
         console.error("Propose Supervision Error:", err);
         res.status(500).json({ ok: false, message: 'เกิดข้อผิดพลาดในการบันทึก' });
@@ -195,7 +210,10 @@ exports.getTeacherSupervisions = async (req, res) => {
             where: {
                 OR: [
                     { teacherId: teacher.id },
-                    { coTeacherName: { contains: teacher.firstName } }
+                    // ตรวจสอบความยาว firstName ก่อน ป้องกัน false-positive กับชื่อสั้น
+                    ...(teacher.firstName && teacher.firstName.length >= 2
+                        ? [{ coTeacherName: { contains: teacher.firstName } }]
+                        : [])
                 ]
             },
             include: {
@@ -310,6 +328,10 @@ exports.reviewSupervision = async (req, res) => {
             where: { userId: parseInt(userId) }
         });
 
+        if (!teacher) {
+            return res.status(404).json({ ok: false, message: 'ไม่พบข้อมูลอาจารย์ในระบบ กรุณาติดต่อ Admin' });
+        }
+
         // 2. ดึงข้อมูลการนิเทศรายการนี้
         const supervision = await prisma.supervisionAppointment.findUnique({
             where: { id: parseInt(id) }
@@ -346,7 +368,7 @@ exports.reviewSupervision = async (req, res) => {
                 where: {
                     teacherId: teacher.id,
                     id: { not: parseInt(id) },
-                    status: 'DATE_CONFIRMED',
+                    status: { in: ['DATE_CONFIRMED', 'LETTER_UPLOADED'] },
                     confirmedDate: { gte: startOfDay, lte: endOfDay }
                 },
                 include: { student: { select: { firstName: true, lastName: true } } }
