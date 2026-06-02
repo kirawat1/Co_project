@@ -20,13 +20,14 @@ const PHASES: Phase[] = [
   },
   {
     id: 3, label: "ออกฝึกสหกิจ", icon: "🚀",
-    entryStatuses: ["INTERNSHIP_STARTED","T002_SUBMITTED","T002_EDITS_REQUIRED","T003_SUBMITTED","T003_EDITS_REQUIRED","PENDING_TEACHER","TEACHER_REJECTED","DATE_CONFIRMED","LETTER_UPLOADED","COMPLETED"],
+    // ใช้เฉพาะ statuses ที่มีใน CoopStatus enum จริง
+    entryStatuses: ["INTERNSHIP_STARTED","T002_SUBMITTED","T002_EDITS_REQUIRED","T003_SUBMITTED","T003_EDITS_REQUIRED","T003_APPROVED"],
     subSteps: [
-      { key:"t002", label:"3.1 T002 แบบแจ้งรายละเอียดงาน", statuses:["T002_SUBMITTED","T002_EDITS_REQUIRED","T003_SUBMITTED","T003_EDITS_REQUIRED","PENDING_TEACHER","TEACHER_REJECTED","DATE_CONFIRMED","LETTER_UPLOADED","COMPLETED"], doneStatuses:["T003_SUBMITTED","T003_EDITS_REQUIRED","PENDING_TEACHER","TEACHER_REJECTED","DATE_CONFIRMED","LETTER_UPLOADED","COMPLETED"] },
-      { key:"t003", label:"3.2 T003 โครงร่างรายงาน", statuses:["T003_SUBMITTED","T003_EDITS_REQUIRED","PENDING_TEACHER","TEACHER_REJECTED","DATE_CONFIRMED","LETTER_UPLOADED","COMPLETED"], doneStatuses:["PENDING_TEACHER","TEACHER_REJECTED","DATE_CONFIRMED","LETTER_UPLOADED","COMPLETED"] },
-      { key:"supervision", label:"3.3 นัดหมายนิเทศสหกิจ", statuses:["PENDING_TEACHER","TEACHER_REJECTED","DATE_CONFIRMED","LETTER_UPLOADED","COMPLETED"], doneStatuses:["COMPLETED"] },
-      { key:"t005t006", label:"3.4 แบบประเมิน T005 / T006", statuses:["LETTER_UPLOADED","COMPLETED"], doneStatuses:["COMPLETED"] },
-      { key:"t007", label:"3.5 แบบประเมินสถานประกอบการ T007", statuses:["COMPLETED"], doneStatuses:["COMPLETED"] },
+      { key:"t002", label:"3.1 T002 แบบแจ้งรายละเอียดงาน", statuses:["T002_SUBMITTED","T002_EDITS_REQUIRED","T003_SUBMITTED","T003_EDITS_REQUIRED","T003_APPROVED"], doneStatuses:["T003_SUBMITTED","T003_EDITS_REQUIRED","T003_APPROVED"] },
+      { key:"t003", label:"3.2 T003 โครงร่างรายงาน", statuses:["T003_SUBMITTED","T003_EDITS_REQUIRED","T003_APPROVED"], doneStatuses:["T003_APPROVED"] },
+      { key:"supervision", label:"3.3 นัดหมายนิเทศสหกิจ", statuses:["T003_APPROVED"], doneStatuses:[] },
+      { key:"t005t006", label:"3.4 แบบประเมิน T005 / T006", statuses:[], doneStatuses:[] },
+      { key:"t007", label:"3.5 แบบประเมินสถานประกอบการ T007", statuses:[], doneStatuses:[] },
     ],
   },
   {
@@ -55,6 +56,7 @@ const ACTION_CONFIG: Record<string, { text: string; link?: string; linkText?: st
   T002_EDITS_REQUIRED:         { text: "ต้องแก้ไข T002 — แบบแจ้งรายละเอียดงานและที่พัก", link: "/student/docs-t002", linkText: "ไปแก้ไข", isWarning: true },
   T003_SUBMITTED:              { text: "รออาจารย์ตรวจสอบ T003 โครงร่างรายงาน" },
   T003_EDITS_REQUIRED:         { text: "ต้องแก้ไข T003 — โครงร่างรายงานสหกิจ", link: "/student/docs-t003", linkText: "ไปแก้ไข", isWarning: true },
+  T003_APPROVED:               { text: "T003 ผ่านแล้ว — นัดหมายนิเทศสหกิจกับอาจารย์", link: "/student/supervision", linkText: "ไปนัดหมาย" },
   PENDING_TEACHER:             { text: "รออาจารย์เลือกวันนัดหมายนิเทศ", link: "/student/supervision", linkText: "ดูการนิเทศ" },
   TEACHER_REJECTED:            { text: "ต้องแก้ไขวันนัดหมายนิเทศ", link: "/student/supervision", linkText: "ไปแก้ไข", isWarning: true },
   DATE_CONFIRMED:              { text: "วันนิเทศได้รับการยืนยัน รอเจ้าหน้าที่ออกหนังสือนิเทศ" },

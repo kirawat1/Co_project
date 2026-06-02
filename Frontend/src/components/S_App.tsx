@@ -107,7 +107,7 @@ export default function StudentApp() {
             <Route path="docs-t002" element={<DocT002 profile={profile} onRefresh={fetchProfile} />} />
             <Route path="docs-t003" element={<DocT003 profile={profile} onRefresh={fetchProfile} />} />
             <Route path="supervision" element={<S_Supervision />} />
-            <Route path="status-tracker" element={<StatusTraker />} />
+            <Route path="status-tracker" element={<StatusTraker status={profile?.coop?.status || "NOT_SUBMITTED"} />} />
             <Route path="doc-t005-006" element={<S_DocT005_006 />} />
             <Route path="doc-t007" element={<S_DocT007 />} />
             <Route path="doc-t008" element={<S_DocT008 />} />
