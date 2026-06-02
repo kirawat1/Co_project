@@ -10,12 +10,37 @@ import {
   IcAnnounce,
   IcSettings,
 } from "./icons";
-import NotificationBell from "./NotificationBell";
+import { useNotifCounts } from "../hooks/useNotifCounts";
 
 interface SidebarProps { isOpen?: boolean; onClose?: () => void; }
 
+function NavItem({ to, label, icon, count, onClick }: {
+  to: string; label: string; icon: React.ReactNode;
+  count?: number; onClick?: () => void;
+}) {
+  const hasCount = (count ?? 0) > 0;
+  return (
+    <NavLink
+      to={to}
+      className={({ isActive }) => "item" + (isActive ? " active" : "")}
+      onClick={onClick}
+      style={hasCount ? { border: "1.5px solid #ef4444", borderRadius: 10 } : undefined}
+    >
+      <span className="ico">{icon}</span>
+      <span className="text" style={{ flex: 1 }}>{label}</span>
+      {hasCount && (
+        <span style={{ background: "#ef4444", color: "#fff", borderRadius: 99, padding: "1px 7px", fontSize: 11, fontWeight: 800, flexShrink: 0 }}>
+          {count}
+        </span>
+      )}
+    </NavLink>
+  );
+}
+
 export default function A_Sidebar({ isOpen = false, onClose = () => {} }: SidebarProps) {
   const nav = () => onClose();
+  const { counts, markAllRead } = useNotifCounts();
+  const navAndRead = () => { onClose(); markAllRead(); };
   return (
     <aside className={`sidebar${isOpen ? " open" : ""}`}>
       {/* BRAND BLOCK */}
@@ -30,118 +55,37 @@ export default function A_Sidebar({ isOpen = false, onClose = () => {} }: Sideba
         <div className="brand-underline" />
       </div>
 
-      <div style={{ display: "flex", justifyContent: "flex-end", padding: "0 4px", marginBottom: 8 }}>
-        <NotificationBell targetPath="/admin/students" />
-      </div>
-
       {/* NAVIGATION */}
       <nav className="nav" aria-label="Admin Navigation">
 
-        <NavLink
-          to="/admin/dashboard"
-          end
-          className={({ isActive }) => "item" + (isActive ? " active" : "")}
-          onClick={nav}
-        >
-          <span className="ico"><IcDashboard /></span>
-          <span className="text">Dashboard</span>
-        </NavLink>
-
-        <NavLink
-          to="/admin/announcements"
-          className={({ isActive }) => "item" + (isActive ? " active" : "")}
-          onClick={nav}
-        >
-          <span className="ico"><IcAnnounce /></span>
-          <span className="text">ประกาศ</span>
-        </NavLink>
+        <NavItem to="/admin/dashboard" label="Dashboard" icon={<IcDashboard />} onClick={nav} />
+        <NavItem to="/admin/announcements" label="ประกาศ" icon={<IcAnnounce />} onClick={nav} />
 
         <div className="sec-label">ข้อมูลบุคคล</div>
 
-        <NavLink
-          to="/admin/students"
-          className={({ isActive }) => "item" + (isActive ? " active" : "")}
-          onClick={nav}
-        >
-          <span className="ico"><IcUsers /></span>
-          <span className="text">นักศึกษา</span>
-        </NavLink>
-
-        <NavLink
-          to="/admin/teachers"
-          className={({ isActive }) => "item" + (isActive ? " active" : "")}
-          onClick={nav}
-        >
-          <span className="ico"><IcTeacher /></span>
-          <span className="text">อาจารย์</span>
-        </NavLink>
-
-        <NavLink
-          to="/admin/mentors"
-          className={({ isActive }) => "item" + (isActive ? " active" : "")}
-          onClick={nav}
-        >
-          <span className="ico"><IcUser /></span>
-          <span className="text">พี่เลี้ยง</span>
-        </NavLink>
+        <NavItem to="/admin/students" label="นักศึกษา" icon={<IcUsers />}
+          count={(counts.COOP_APPLICATION_SUBMITTED ?? 0) + (counts.ACCEPTANCE_UPLOADED ?? 0)}
+          onClick={navAndRead} />
+        <NavItem to="/admin/teachers" label="อาจารย์" icon={<IcTeacher />} onClick={nav} />
+        <NavItem to="/admin/mentors" label="พี่เลี้ยง" icon={<IcUser />} onClick={nav} />
 
         <div className="sec-label">ข้อมูลสถานประกอบการ</div>
 
-        <NavLink
-          to="/admin/company"
-          className={({ isActive }) => "item" + (isActive ? " active" : "")}
-          onClick={nav}
-        >
-          <span className="ico"><IcBuilding /></span>
-          <span className="text">บริษัท</span>
-        </NavLink>
+        <NavItem to="/admin/company" label="บริษัท" icon={<IcBuilding />} onClick={nav} />
 
         <div className="sec-label">เอกสารและบันทึก</div>
 
-        <NavLink
-          to="/admin/coop-applications"
-          className={({ isActive }) => "item" + (isActive ? " active" : "")}
-          onClick={nav}
-        >
-          <span className="ico"><IcDocs /></span>
-          <span className="text">ตรวจสอบคำร้องสหกิจ</span>
-        </NavLink>
-
-        <NavLink
-          to="/admin/doct000"
-          className={({ isActive }) => "item" + (isActive ? " active" : "")}
-          onClick={nav}
-        >
-          <span className="ico"><IcDocs /></span>
-          <span className="text">T000 เอกสารใบสมัคร</span>
-        </NavLink>
-
-        <NavLink
-          to="/admin/doct002"
-          className={({ isActive }) => "item" + (isActive ? " active" : "")}
-          onClick={nav}
-        >
-          <span className="ico"><IcDocs /></span>
-          <span className="text">T002 เอกสารรายละเอียด</span>
-        </NavLink>
-
-        <NavLink
-          to="/admin/doct003"
-          className={({ isActive }) => "item" + (isActive ? " active" : "")}
-          onClick={nav}
-        >
-          <span className="ico"><IcDocs /></span>
-          <span className="text">T003 โครงร่างรายงาน</span>
-        </NavLink>
-
-        <NavLink
-          to="/admin/supervision-manager"
-          className={({ isActive }) => "item" + (isActive ? " active" : "")}
-          onClick={nav}
-        >
-          <span className="ico"><IcDocs /></span>
-          <span className="text">จัดการการนิเทศ</span>
-        </NavLink>
+        <NavItem to="/admin/coop-applications" label="ตรวจสอบคำร้องสหกิจ" icon={<IcDocs />}
+          count={(counts.COOP_APPLICATION_SUBMITTED ?? 0) + (counts.ACCEPTANCE_UPLOADED ?? 0)}
+          onClick={navAndRead} />
+        <NavItem to="/admin/doct000" label="T000 เอกสารใบสมัคร" icon={<IcDocs />}
+          count={counts.T000_SUBMITTED ?? 0} onClick={navAndRead} />
+        <NavItem to="/admin/doct002" label="T002 เอกสารรายละเอียด" icon={<IcDocs />}
+          count={counts.T002_SUBMITTED ?? 0} onClick={navAndRead} />
+        <NavItem to="/admin/doct003" label="T003 โครงร่างรายงาน" icon={<IcDocs />}
+          count={counts.T003_SUBMITTED ?? 0} onClick={navAndRead} />
+        <NavItem to="/admin/supervision-manager" label="จัดการการนิเทศ" icon={<IcDocs />}
+          count={counts.SUPERVISION_PROPOSED ?? 0} onClick={navAndRead} />
 
         <NavLink
           to="/admin/doc-t005-006"

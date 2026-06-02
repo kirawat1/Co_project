@@ -1,6 +1,28 @@
 import { NavLink } from "react-router-dom";
 import { IcDashboard, IcUser, IcDocs } from "./icons";
-import NotificationBell from "./NotificationBell";
+import { useNotifCounts } from "../hooks/useNotifCounts";
+
+function NavItem({ to, label, icon, count, onClick, end }: {
+  to: string; label: string; icon: React.ReactNode;
+  count?: number; onClick?: () => void; end?: boolean;
+}) {
+  const hasCount = (count ?? 0) > 0;
+  return (
+    <NavLink to={to} end={end}
+      className={({ isActive }) => "item" + (isActive ? " active" : "")}
+      onClick={onClick}
+      style={hasCount ? { border: "1.5px solid #ef4444", borderRadius: 10 } : undefined}
+    >
+      <span className="ico">{icon}</span>
+      <span className="text" style={{ flex: 1 }}>{label}</span>
+      {hasCount && (
+        <span style={{ background: "#ef4444", color: "#fff", borderRadius: 99, padding: "1px 7px", fontSize: 11, fontWeight: 800, flexShrink: 0 }}>
+          {count}
+        </span>
+      )}
+    </NavLink>
+  );
+}
 
 import type { StudentProfile } from "./store";
 
@@ -15,6 +37,8 @@ export default function S_Sidebar({ profile, isOpen = false, onClose = () => {} 
   const handleNav = () => onClose();
   // ดึงข้อมูลคำร้องสหกิจ
   const coop = profile.coopRequest || profile.coop;
+  const { counts, markAllRead } = useNotifCounts();
+  const navAndRead = () => { handleNav(); markAllRead(); };
 
   // ✅ แก้ไขเงื่อนไข: เปิดเมนูเมื่อสถานะเป็น "QUALIFIED" (หรือขั้นตอนถัดๆ ไป)
   // เราต้องรวมสถานะหลังจาก QUALIFIED ด้วย ไม่อย่างนั้นพอไปขั้นตอนถัดไปเมนูจะหาย
@@ -53,119 +77,42 @@ export default function S_Sidebar({ profile, isOpen = false, onClose = () => {} 
         <div className="brand-underline" />
       </div>
 
-      <div style={{ display: "flex", justifyContent: "flex-end", padding: "0 4px", marginBottom: 8 }}>
-        <NotificationBell targetPath="/student/status-tracker" />
-      </div>
-
       {/* NAVIGATION */}
       <nav className="nav" aria-label="Student Navigation">
 
-        <NavLink
-          to="/student/dashboard"
-          end
-          className={({ isActive }) => "item" + (isActive ? " active" : "")}
-          onClick={handleNav}
-        >
-          <span className="ico"><IcDashboard /></span>
-          <span className="text">Dashboard</span>
-        </NavLink>
+        <NavItem to="/student/dashboard" label="Dashboard" icon={<IcDashboard />} end onClick={handleNav} />
 
-        <NavLink
-          to="/student/status-tracker"
-          className={({ isActive }) => "item" + (isActive ? " active" : "")}
-          onClick={handleNav}
-        >
-          <span className="ico">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-            </svg>
-          </span>
-          <span className="text">สถานะสหกิจ</span>
-        </NavLink>
+        <NavItem to="/student/status-tracker" label="สถานะสหกิจ" onClick={navAndRead}
+          count={(counts.STATUS_UPDATED ?? 0) + (counts.REQ_LETTER_ISSUED ?? 0) + (counts.PLACEMENT_LETTER_ISSUED ?? 0)}
+          icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>} />
 
-        <NavLink
-          to="/student/profile"
-          className={({ isActive }) => "item" + (isActive ? " active" : "")}
-          onClick={handleNav}
-        >
-          <span className="ico"><IcUser /></span>
-          <span className="text">ข้อมูลนักศึกษา</span>
-        </NavLink>
+        <NavItem to="/student/profile" label="ข้อมูลนักศึกษา" icon={<IcUser />} onClick={handleNav} />
+        <NavItem to="/student/company" label="ข้อมูลบริษัท" icon={<IcUser />} onClick={handleNav} />
 
-        <NavLink
-          to="/student/company"
-          className={({ isActive }) => "item" + (isActive ? " active" : "")}
-          onClick={handleNav}
-        >
-          <span className="ico"><IcUser /></span>
-          <span className="text">ข้อมูลบริษัท</span>
-        </NavLink>
-
-        <NavLink
-          to="/student/announcements"
-          className={({ isActive }) => "item" + (isActive ? " active" : "")}
-          onClick={handleNav}
-        >
-          <span className="ico">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-              <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-            </svg>
-          </span>
+        <NavLink to="/student/announcements" className={({ isActive }) => "item" + (isActive ? " active" : "")} onClick={handleNav}>
+          <span className="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /></svg></span>
           <span className="text">ประกาศ</span>
         </NavLink>
 
-        <NavLink
-          to="/student/gateway"
-          className={({ isActive }) => "item" + (isActive ? " active" : "")}
-          onClick={handleNav}
-        >
-          <span className="ico"><IcDocs /></span>
-          <span className="text">ยื่นคำร้องสหกิจ</span>
-        </NavLink>
+        <NavItem to="/student/gateway" label="ยื่นคำร้องสหกิจ" icon={<IcDocs />} onClick={handleNav} />
 
-        {/* ✅ ใช้ตัวแปร showDocsMenu แทน */}
         {showDocsMenu && (
           <>
             <div style={{ margin: "16px 0 8px 12px", fontSize: "11px", fontWeight: "800", color: "#94a3b8", letterSpacing: "0.5px", textTransform: "uppercase" }}>
               COOP PROCESS
             </div>
 
-            <NavLink
-              to="/student/docs"
-              className={({ isActive }) => "item" + (isActive ? " active" : "")}
-          onClick={handleNav}
-            >
-              <span className="ico"><IcDocs /></span>
-              <span className="text">เอกสารสหกิจ (CP-T000)</span>
-            </NavLink>
+            <NavItem to="/student/docs" label="เอกสารสหกิจ (CP-T000)" icon={<IcDocs />} onClick={handleNav} />
 
-            <NavLink
-              to="/student/docs-t002"
-              className={({ isActive }) => "item" + (isActive ? " active" : "")}
-          onClick={handleNav}
-            >
-              <span className="ico"><IcDocs /></span>
-              <span className="text">เอกสารรายละเอียด (CP-T002)</span>
-            </NavLink>
+            <NavItem to="/student/docs-t002" label="เอกสารรายละเอียด (CP-T002)" icon={<IcDocs />}
+              count={counts.T002_REVIEWED ?? 0} onClick={navAndRead} />
 
-            <NavLink
-              to="/student/docs-t003"
-              className={({ isActive }) => "item" + (isActive ? " active" : "")}
-          onClick={handleNav}
-            >
-              <span className="ico"><IcDocs /></span>
-              <span className="text">เอกสารรายละเอียด (CP-T003)</span>
-            </NavLink>
+            <NavItem to="/student/docs-t003" label="เอกสารรายละเอียด (CP-T003)" icon={<IcDocs />}
+              count={counts.T003_REVIEWED ?? 0} onClick={navAndRead} />
 
-            <NavLink
-              to="/student/supervision"
-              className={({ isActive }) => "item" + (isActive ? " active" : "")}
-          onClick={handleNav}
-            >
-              <span className="ico"><IcDocs /></span>
-              <span className="text">นัดหมายนิเทศ</span>
-            </NavLink>
+            <NavItem to="/student/supervision" label="นัดหมายนิเทศ" icon={<IcDocs />}
+              count={(counts.SUPERVISION_DATE_UPDATED ?? 0) + (counts.SUPERVISION_LETTER_UPLOADED ?? 0)}
+              onClick={navAndRead} />
 
             <NavLink
               to="/student/doc-t005-006"
