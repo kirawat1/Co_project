@@ -1,4 +1,5 @@
 const prisma = require("../config/prismaClient");
+const { createNotifications } = require('../utils/notificationHelper');
 
 // ✅ 1. getProfile: เลียนแบบ logic ของ Student
 exports.getProfile = async (req, res) => {
@@ -198,6 +199,22 @@ exports.reviewT003 = async (req, res) => {
         }
 
         res.json({ ok: true, message: "บันทึกผลตรวจสอบ T003 สำเร็จ" });
+
+        // Notify student
+        prisma.student.findUnique({ where: { id: parseInt(studentId) }, select: { userId: true } })
+          .then(student => {
+            if (student?.userId) {
+              return createNotifications([student.userId], {
+                type: 'T003_REVIEWED',
+                title: 'T003 ได้รับการตรวจสอบ',
+                message: status === 'T003_EDITS_REQUIRED'
+                  ? 'T003 ของคุณต้องแก้ไข กรุณาตรวจสอบความคิดเห็น'
+                  : 'T003 ของคุณผ่านการตรวจสอบ ✅',
+                link: '/student/docs-t003',
+                relatedId: String(studentId),
+              });
+            }
+          }).catch(console.error);
     } catch (err) {
         console.error("Teacher Review T003 Error:", err);
         res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดที่เซิร์ฟเวอร์" });
@@ -234,6 +251,22 @@ exports.reviewT002 = async (req, res) => {
         }
 
         res.json({ ok: true, message: "บันทึกผลการตรวจสอบสำเร็จ" });
+
+        // Notify student
+        prisma.student.findUnique({ where: { id: parseInt(studentId) }, select: { userId: true } })
+          .then(student => {
+            if (student?.userId) {
+              return createNotifications([student.userId], {
+                type: 'T002_REVIEWED',
+                title: 'T002 ได้รับการตรวจสอบ',
+                message: status === 'T002_EDITS_REQUIRED'
+                  ? 'T002 ของคุณต้องแก้ไข กรุณาตรวจสอบความคิดเห็น'
+                  : 'T002 ของคุณผ่านการตรวจสอบ ✅',
+                link: '/student/docs-t002',
+                relatedId: String(studentId),
+              });
+            }
+          }).catch(console.error);
     } catch (err) {
         console.error("Teacher Review T002 Error:", err);
         res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดที่เซิร์ฟเวอร์" });

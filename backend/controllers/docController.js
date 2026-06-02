@@ -3,6 +3,7 @@ const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 const fs = require('fs');
 const path = require('path');
+const { createNotifications, getStaffAndCoopTeacherIds } = require('../utils/notificationHelper');
 
 // ------------------------------------------------------------------
 // ✅ 1. Helper Function: เช็คว่าระบบเปิดรับเอกสารหรือไม่ (แก้ให้เช็คแยก T000, T002, T003)
@@ -228,6 +229,19 @@ exports.uploadDocument = async (req, res) => {
     }
 
     res.json({ ok: true, message: "อัปโหลดสำเร็จ", data: newDoc });
+
+    // Notify staff + isCoopTeacher เมื่อนักศึกษาส่งเอกสาร
+    const notifyTypes = {
+      'T002_FORM': { type: 'T002_SUBMITTED', title: 'นักศึกษาส่ง T002', message: 'มีนักศึกษาส่งเอกสาร T002 แบบแจ้งรายละเอียดงาน กรุณาตรวจสอบ', link: '/admin/students' },
+      'T003_FORM': { type: 'T003_SUBMITTED', title: 'นักศึกษาส่ง T003', message: 'มีนักศึกษาส่งเอกสาร T003 โครงร่างรายงาน กรุณาตรวจสอบ', link: '/admin/students' },
+      'CP-ACCEPTANCE': { type: 'ACCEPTANCE_UPLOADED', title: 'นักศึกษาอัปโหลดใบตอบรับ', message: 'มีนักศึกษาอัปโหลดใบตอบรับจากบริษัท กรุณาตรวจสอบ', link: '/admin/students' },
+    };
+    const notif = notifyTypes[dbType] || (newDoc.status === 'WAITING_FOR_STAFF_CHECK' ? { type: 'T000_SUBMITTED', title: 'นักศึกษาส่งเอกสาร T000', message: 'มีนักศึกษาส่งเอกสาร T000 กรุณาตรวจสอบ', link: '/admin/students' } : null);
+    if (notif) {
+      getStaffAndCoopTeacherIds().then(ids =>
+        createNotifications(ids, { ...notif, relatedId: String(student.userId) })
+      ).catch(console.error);
+    }
 
   } catch (err) {
     console.error("Upload Error:", err);
