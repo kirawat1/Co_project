@@ -37,6 +37,8 @@ interface StudentProfile {
   major?: string;
   curriculum?: string;
   advisorName?: string;
+  generalAdvisor?: { firstName: string; lastName: string; email: string } | null;
+  coopAdvisor?: { firstName: string; lastName: string; email: string } | null;
   phone?: string;
   studyProgram?: "ภาคปกติ" | "ภาคพิเศษ" | "normal" | "special";
   gpa?: number;
@@ -75,6 +77,45 @@ interface StudentCompany {
   mentors: Mentor[];
   mentor?: Mentor;
 }
+/* ================= ADVISOR ROW ================= */
+function AdvisorRow({
+  label,
+  advisor,
+  fallback,
+}: {
+  label: string;
+  advisor?: { firstName: string; lastName: string; email: string } | null;
+  fallback?: string | null;
+}) {
+  const name = advisor
+    ? `${advisor.firstName} ${advisor.lastName}`
+    : (fallback || null);
+
+  if (!name) return null;
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #f1f5f9' }}>
+      <div>
+        <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 2 }}>{label}</div>
+        <div style={{ fontWeight: 600, fontSize: 14, color: '#1e293b' }}>
+          อาจารย์ {name}
+        </div>
+        {advisor?.email && (
+          <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>{advisor.email}</div>
+        )}
+      </div>
+      {advisor?.email && (
+        <a
+          href={`mailto:${advisor.email}`}
+          style={{ padding: '6px 14px', background: '#eff6ff', color: '#2563eb', borderRadius: 8, fontSize: 12, fontWeight: 700, textDecoration: 'none', border: '1px solid #bfdbfe' }}
+        >
+          ติดต่อ
+        </a>
+      )}
+    </div>
+  );
+}
+
 /* ================= PAGE ================= */
 export default function S_ProfilePage() {
   const navigate = useNavigate();
@@ -377,15 +418,21 @@ export default function S_ProfilePage() {
           <Info label="คณะ" value={profile.curriculum || "-"} />
           <Info label="สาขาวิชา" value={profile.major || "-"} />
           <Info label="รูปแบบการศึกษา" value={studyProgramMapToUI[profile.studyProgram as string] || profile.studyProgram || "-"} />
-          <Info label="ที่ปรึกษา" value={profile.advisorName || "-"} />
-          <Info label="อาจารย์ที่ปรึกษาโครงงานสหกิจ" value={
-            profile.coopAdvisorId
-              ? (() => {
-                  const t = teachers.find(t => t.id === profile.coopAdvisorId);
-                  return t ? `${t.prefix || ""}${t.firstName} ${t.lastName}` : `ID: ${profile.coopAdvisorId}`;
-                })()
-              : "-"
-          } />
+          {/* อาจารย์ที่ปรึกษา */}
+          <div style={{ marginTop: 16 }}>
+            <div style={{ fontWeight: 700, fontSize: 14, color: '#334155', marginBottom: 10 }}>
+              อาจารย์ที่ปรึกษา
+            </div>
+            <AdvisorRow
+              label="ที่ปรึกษาทั่วไป"
+              advisor={profile.generalAdvisor}
+              fallback={profile.advisorName}
+            />
+            <AdvisorRow
+              label="ที่ปรึกษาโปรเจ็ค"
+              advisor={profile.coopAdvisor}
+            />
+          </div>
           <Info label="เบอร์โทร" value={profile.phone || "-"} />
           <Info label="GPA" value={profile?.gpa != null ? profile.gpa.toFixed(2) : "-"} />
           <Info label="GPA หมวดวิชาเฉพาะ" value={profile.coreGpa?.toFixed(2) || "0.00"} />
