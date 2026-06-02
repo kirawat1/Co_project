@@ -85,7 +85,7 @@ exports.uploadOfficialLetter = async (req, res) => {
                 title: 'หนังสือนิเทศอนุมัติแล้ว',
                 message: 'หนังสือนิเทศได้รับการอนุมัติ เตรียมพร้อมรับการนิเทศ',
                 link: '/student/supervision',
-                relatedId: null,
+                relatedId: String(appointment.studentId),
               });
             }
           })

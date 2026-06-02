@@ -239,7 +239,8 @@ exports.uploadDocument = async (req, res) => {
     const notif = notifyTypes[dbType] || (newDoc.status === 'WAITING_FOR_STAFF_CHECK' ? { type: 'T000_SUBMITTED', title: 'นักศึกษาส่งเอกสาร T000', message: 'มีนักศึกษาส่งเอกสาร T000 กรุณาตรวจสอบ', link: '/admin/students' } : null);
     if (notif) {
       getStaffAndCoopTeacherIds().then(ids =>
-        createNotifications(ids, { ...notif, relatedId: String(student.userId) })
+        // relatedId = Student.id (PK) เพื่อ dedup ต่อนักศึกษา ไม่ใช่ userId
+        createNotifications(ids, { ...notif, relatedId: String(student.id) })
       ).catch(console.error);
     }
 

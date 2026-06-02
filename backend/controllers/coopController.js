@@ -139,6 +139,28 @@ const updateCoopStatus = async (req, res) => {
 
     res.json({ ok: true, message: "บันทึกสถานะเรียบร้อยแล้ว", data: updated });
 
+    // Notify student เมื่ออาจารย์เปลี่ยนสถานะ
+    const statusMessages = {
+      QUALIFIED: 'คำร้องของคุณผ่านการพิจารณา ✅',
+      QUALIFICATION_FAILED: 'คำร้องของคุณไม่ผ่านการพิจารณา',
+      APPLICATION_EDITS_REQUIRED: 'คำร้องของคุณต้องแก้ไข กรุณาตรวจสอบ',
+    };
+    const msg = statusMessages[dbStatus];
+    if (msg) {
+      prisma.student.findUnique({ where: { id: parsedId }, select: { userId: true } })
+        .then(student => {
+          if (student?.userId) {
+            return createNotifications([student.userId], {
+              type: 'STATUS_UPDATED',
+              title: 'สถานะสหกิจศึกษาอัปเดต',
+              message: msg,
+              link: '/student/status-tracker',
+              relatedId: String(parsedId),
+            });
+          }
+        }).catch(console.error);
+    }
+
   } catch (err) {
     console.error("Update Status Error:", err);
     res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดในการบันทึกสถานะ" });

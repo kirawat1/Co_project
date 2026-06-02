@@ -212,7 +212,7 @@ exports.reviewStudentStatus = async (req, res) => {
               title: 'สถานะสหกิจศึกษาอัปเดต',
               message: msg,
               link: '/student/status-tracker',
-              relatedId: String(status),
+              relatedId: String(parsedStudentId),
             });
           }
         })
