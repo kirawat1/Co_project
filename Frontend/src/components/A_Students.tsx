@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import StatusBadge from "../components/StatusBadge";
+import StatusFilterChips, { STATUS_GROUPS } from "./StatusFilterChips";
 import { useDebounce } from "../hooks/useDebounce";
 
 /* =========================
@@ -136,6 +137,12 @@ export default function A_Students() {
   const [filterMajors, setFilterMajors] = useState<string[]>([]);
   const [filterCurriculums, setFilterCurriculums] = useState<string[]>([]);
   const [filterStatuses, setFilterStatuses] = useState<string[]>([]);
+  const [activeStatusGroup, setActiveStatusGroup] = useState<string>("ALL");
+
+  const handleStatusGroupChange = (group: string) => {
+    setActiveStatusGroup(group);
+    setFilterStatuses(group === "ALL" ? [] : STATUS_GROUPS[group]?.statuses ?? []);
+  };
 
   const [modalStudent, setModalStudent] = useState<StudentProfile | null>(null);
   const [coopPeriods, setCoopPeriods] = useState<CoopPeriod[]>([]);
@@ -282,6 +289,13 @@ export default function A_Students() {
   return (
     <div style={{ padding: 28, marginLeft: 35 }}>
       {/* Excel Import Section */}
+      {/* Status Filter Chips */}
+      <StatusFilterChips
+        students={items}
+        activeFilter={activeStatusGroup}
+        onFilterChange={handleStatusGroupChange}
+      />
+
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16, padding: "12px 16px", background: "#f8fafc", borderRadius: 12, border: "1px solid #e2e8f0", flexWrap: "wrap" }}>
         <span style={{ fontSize: 13, fontWeight: 700, color: "#334155" }}>📥 นำเข้าข้อมูลนักศึกษา</span>
         <label style={{ cursor: "pointer", fontSize: 12, padding: "6px 14px", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, fontWeight: 600, color: "#475569" }}>
