@@ -6,10 +6,14 @@ import {
   IcCalendar,
   IcUser,
 } from "./icons";
+import NotificationBell from "./NotificationBell";
 
-export default function T_Sidebar() {
+interface SidebarProps { isOpen?: boolean; onClose?: () => void; }
+
+export default function T_Sidebar({ isOpen = false, onClose = () => {} }: SidebarProps) {
+  const nav = () => onClose();
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar${isOpen ? " open" : ""}`}>
       {/* BRAND HEADER (เหมือน S_Sidebar) */}
       <div className="brand">
         <div className="brand-sub">Co-operative:</div>
@@ -22,12 +26,17 @@ export default function T_Sidebar() {
         <div className="brand-underline" />
       </div>
 
+      <div style={{ display: "flex", justifyContent: "flex-end", padding: "0 4px", marginBottom: 8 }}>
+        <NotificationBell targetPath="/teacher/students" />
+      </div>
+
       {/* NAVIGATION */}
       <nav className="nav" aria-label="Teacher Navigation">
         <NavLink
           to="/teacher/dashboard"
           end
           className={({ isActive }) => "item" + (isActive ? " active" : "")}
+          onClick={nav}
         >
           <span className="ico"><IcDashboard /></span>
           <span className="text">Dashboard</span>
@@ -38,6 +47,7 @@ export default function T_Sidebar() {
         <NavLink
           to="/teacher/students"
           className={({ isActive }) => "item" + (isActive ? " active" : "")}
+          onClick={nav}
         >
           <span className="ico"><IcUsers /></span>
           <span className="text">นักศึกษาที่ดูแล</span>
@@ -46,6 +56,7 @@ export default function T_Sidebar() {
         <NavLink
           to="/teacher/profile"
           className={({ isActive }) => "item" + (isActive ? " active" : "")}
+          onClick={nav}
         >
           <span className="ico"><IcUser /></span>
           <span className="text">ข้อมูลอาจารย์</span>
@@ -56,6 +67,7 @@ export default function T_Sidebar() {
         <NavLink
           to="/teacher/requests"
           className={({ isActive }) => "item" + (isActive ? " active" : "")}
+          onClick={nav}
         >
           <span className="ico"><IcDocs /></span>
           <span className="text">ตรวจสอบคำร้องสหกิจ</span>
@@ -64,6 +76,7 @@ export default function T_Sidebar() {
         <NavLink
           to="/teacher/review-t002"
           className={({ isActive }) => "item" + (isActive ? " active" : "")}
+          onClick={nav}
         >
           <span className="ico"><IcDocs /></span>
           <span className="text">T002 เอกสารรายละเอียด</span>
@@ -72,6 +85,7 @@ export default function T_Sidebar() {
         <NavLink
           to="/teacher/review-t003"
           className={({ isActive }) => "item" + (isActive ? " active" : "")}
+          onClick={nav}
         >
           <span className="ico"><IcDocs /></span>
           <span className="text">T003 โครงร่างรายงาน</span>
@@ -80,6 +94,7 @@ export default function T_Sidebar() {
         <NavLink
           to="/teacher/review-supervision"
           className={({ isActive }) => "item" + (isActive ? " active" : "")}
+          onClick={nav}
         >
           <span className="ico"><IcCalendar /></span>
           <span className="text">นัดหมายนิเทศ</span>
@@ -88,6 +103,7 @@ export default function T_Sidebar() {
         <NavLink
           to="/teacher/doc-t005-006"
           className={({ isActive }) => "item" + (isActive ? " active" : "")}
+          onClick={nav}
         >
           <span className="ico"><IcDocs /></span>
           <span className="text">T005/T006 ประเมิน</span>
@@ -96,6 +112,7 @@ export default function T_Sidebar() {
         <NavLink
           to="/teacher/doc-t007"
           className={({ isActive }) => "item" + (isActive ? " active" : "")}
+          onClick={nav}
         >
           <span className="ico"><IcDocs /></span>
           <span className="text">T007 ประเมิน</span>
@@ -104,6 +121,7 @@ export default function T_Sidebar() {
         <NavLink
           to="/teacher/doc-t008"
           className={({ isActive }) => "item" + (isActive ? " active" : "")}
+          onClick={nav}
         >
           <span className="ico"><IcDocs /></span>
           <span className="text">T008 เล่มรายงานสหกิจ </span>

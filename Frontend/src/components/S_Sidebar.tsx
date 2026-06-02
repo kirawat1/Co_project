@@ -1,5 +1,6 @@
 import { NavLink } from "react-router-dom";
 import { IcDashboard, IcUser, IcDocs } from "./icons";
+import NotificationBell from "./NotificationBell";
 
 import type { StudentProfile } from "./store";
 
@@ -50,6 +51,10 @@ export default function S_Sidebar({ profile, isOpen = false, onClose = () => {} 
           <span>Student</span>
         </div>
         <div className="brand-underline" />
+      </div>
+
+      <div style={{ display: "flex", justifyContent: "flex-end", padding: "0 4px", marginBottom: 8 }}>
+        <NotificationBell targetPath="/student/status-tracker" />
       </div>
 
       {/* NAVIGATION */}

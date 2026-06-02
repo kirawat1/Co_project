@@ -10,10 +10,14 @@ import {
   IcAnnounce,
   IcSettings,
 } from "./icons";
+import NotificationBell from "./NotificationBell";
 
-export default function A_Sidebar() {
+interface SidebarProps { isOpen?: boolean; onClose?: () => void; }
+
+export default function A_Sidebar({ isOpen = false, onClose = () => {} }: SidebarProps) {
+  const nav = () => onClose();
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar${isOpen ? " open" : ""}`}>
       {/* BRAND BLOCK */}
       <div className="brand">
         <div className="brand-sub">Co-operative:</div>
@@ -26,6 +30,10 @@ export default function A_Sidebar() {
         <div className="brand-underline" />
       </div>
 
+      <div style={{ display: "flex", justifyContent: "flex-end", padding: "0 4px", marginBottom: 8 }}>
+        <NotificationBell targetPath="/admin/students" />
+      </div>
+
       {/* NAVIGATION */}
       <nav className="nav" aria-label="Admin Navigation">
 
@@ -33,6 +41,7 @@ export default function A_Sidebar() {
           to="/admin/dashboard"
           end
           className={({ isActive }) => "item" + (isActive ? " active" : "")}
+          onClick={nav}
         >
           <span className="ico"><IcDashboard /></span>
           <span className="text">Dashboard</span>
@@ -41,6 +50,7 @@ export default function A_Sidebar() {
         <NavLink
           to="/admin/announcements"
           className={({ isActive }) => "item" + (isActive ? " active" : "")}
+          onClick={nav}
         >
           <span className="ico"><IcAnnounce /></span>
           <span className="text">ประกาศ</span>
@@ -51,6 +61,7 @@ export default function A_Sidebar() {
         <NavLink
           to="/admin/students"
           className={({ isActive }) => "item" + (isActive ? " active" : "")}
+          onClick={nav}
         >
           <span className="ico"><IcUsers /></span>
           <span className="text">นักศึกษา</span>
@@ -59,6 +70,7 @@ export default function A_Sidebar() {
         <NavLink
           to="/admin/teachers"
           className={({ isActive }) => "item" + (isActive ? " active" : "")}
+          onClick={nav}
         >
           <span className="ico"><IcTeacher /></span>
           <span className="text">อาจารย์</span>
@@ -67,6 +79,7 @@ export default function A_Sidebar() {
         <NavLink
           to="/admin/mentors"
           className={({ isActive }) => "item" + (isActive ? " active" : "")}
+          onClick={nav}
         >
           <span className="ico"><IcUser /></span>
           <span className="text">พี่เลี้ยง</span>
@@ -77,6 +90,7 @@ export default function A_Sidebar() {
         <NavLink
           to="/admin/company"
           className={({ isActive }) => "item" + (isActive ? " active" : "")}
+          onClick={nav}
         >
           <span className="ico"><IcBuilding /></span>
           <span className="text">บริษัท</span>
@@ -87,6 +101,7 @@ export default function A_Sidebar() {
         <NavLink
           to="/admin/coop-applications"
           className={({ isActive }) => "item" + (isActive ? " active" : "")}
+          onClick={nav}
         >
           <span className="ico"><IcDocs /></span>
           <span className="text">ตรวจสอบคำร้องสหกิจ</span>
@@ -95,6 +110,7 @@ export default function A_Sidebar() {
         <NavLink
           to="/admin/doct000"
           className={({ isActive }) => "item" + (isActive ? " active" : "")}
+          onClick={nav}
         >
           <span className="ico"><IcDocs /></span>
           <span className="text">T000 เอกสารใบสมัคร</span>
@@ -103,6 +119,7 @@ export default function A_Sidebar() {
         <NavLink
           to="/admin/doct002"
           className={({ isActive }) => "item" + (isActive ? " active" : "")}
+          onClick={nav}
         >
           <span className="ico"><IcDocs /></span>
           <span className="text">T002 เอกสารรายละเอียด</span>
@@ -111,6 +128,7 @@ export default function A_Sidebar() {
         <NavLink
           to="/admin/doct003"
           className={({ isActive }) => "item" + (isActive ? " active" : "")}
+          onClick={nav}
         >
           <span className="ico"><IcDocs /></span>
           <span className="text">T003 โครงร่างรายงาน</span>
@@ -119,6 +137,7 @@ export default function A_Sidebar() {
         <NavLink
           to="/admin/supervision-manager"
           className={({ isActive }) => "item" + (isActive ? " active" : "")}
+          onClick={nav}
         >
           <span className="ico"><IcDocs /></span>
           <span className="text">จัดการการนิเทศ</span>
@@ -127,6 +146,7 @@ export default function A_Sidebar() {
         <NavLink
           to="/admin/doc-t005-006"
           className={({ isActive }) => "item" + (isActive ? " active" : "")}
+          onClick={nav}
         >
           <span className="ico"><IcDocs /></span>
           <span className="text">T005/T006 ประเมิน</span>
@@ -135,6 +155,7 @@ export default function A_Sidebar() {
         <NavLink
           to="/admin/doc-t007"
           className={({ isActive }) => "item" + (isActive ? " active" : "")}
+          onClick={nav}
         >
           <span className="ico"><IcDocs /></span>
           <span className="text">T007 ประเมิน</span>
@@ -144,6 +165,7 @@ export default function A_Sidebar() {
         <NavLink
           to="/admin/doc-t008"
           className={({ isActive }) => "item" + (isActive ? " active" : "")}
+          onClick={nav}
         >
           <span className="ico"><IcDocs /></span>
           <span className="text">T008 เล่มรายงานสหกิจ </span>
@@ -162,6 +184,7 @@ export default function A_Sidebar() {
         <NavLink
           to="/admin/coop-period"
           className={({ isActive }) => "item" + (isActive ? " active" : "")}
+          onClick={nav}
         >
           <span className="ico"><IcCalendar /></span>
           <span className="text">รอบรับสมัครสหกิจ</span>
@@ -173,6 +196,7 @@ export default function A_Sidebar() {
         <NavLink
           to="/admin/criteria"
           className={({ isActive }) => "item" + (isActive ? " active" : "")}
+          onClick={nav}
         >
           <span className="ico"><IcSettings /></span>
           <span className="text">เงื่อนไขออกสหกิจศึกษา</span>
@@ -181,6 +205,7 @@ export default function A_Sidebar() {
         <NavLink
           to="/admin/settings"
           className={({ isActive }) => "item" + (isActive ? " active" : "")}
+          onClick={nav}
         >
           <span className="ico"><IcSettings /></span>
           <span className="text">ตั้งค่า</span>
