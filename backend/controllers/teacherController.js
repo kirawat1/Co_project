@@ -1,5 +1,4 @@
-const { PrismaClient } = require("@prisma/client");
-const prisma = new PrismaClient();
+const prisma = require("../config/prismaClient");
 
 // ✅ 1. getProfile: เลียนแบบ logic ของ Student
 exports.getProfile = async (req, res) => {
@@ -283,8 +282,9 @@ exports.getDashboardStats = async (req, res) => {
             where: { userId: parseInt(userId) }
         });
 
+        // คืนค่าศูนย์แทน 404 เมื่อยังไม่มีข้อมูล Teacher (ป้องกัน 404 Error บน frontend)
         if (!teacher) {
-            return res.status(404).json({ ok: false, message: "ไม่พบข้อมูลอาจารย์" });
+            return res.json({ ok: true, data: { myStudentsCount: 0, pendingRequests: 0, approvedStudents: 0 } });
         }
 
         // แปลง semester ให้เป็นตัวเลข (Int) ตาม Schema
@@ -350,7 +350,7 @@ exports.getLatestRequests = async (req, res) => {
         const { semester, year } = req.query;
 
         const teacher = await prisma.teacher.findUnique({ where: { userId: parseInt(userId) } });
-        if (!teacher) return res.status(404).json({ ok: false, message: "ไม่พบข้อมูลอาจารย์" });
+        if (!teacher) return res.json({ ok: true, students: [] });
 
         const semesterInt = semester ? parseInt(semester) : undefined;
         const yearStr = year ? String(year) : undefined;
@@ -397,4 +397,205 @@ exports.getLatestRequests = async (req, res) => {
         console.error("Get Latest Requests Error:", err);
         res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดในการดึงคำร้อง" });
     }
+};
+// ==========================================
+// ADMIN: สร้างอาจารย์ใหม่ + User account
+// POST /api/admin/teachers
+// ==========================================
+const bcrypt = require("bcryptjs");
+
+exports.createTeacher = async (req, res) => {
+  try {
+    const { firstName, lastName, email, phone, faculty, major, prefix } = req.body;
+    if (!firstName || !lastName || !email) {
+      return res.status(400).json({ ok: false, message: "กรุณากรอก ชื่อ นามสกุล และอีเมล" });
+    }
+
+    // ตรวจ email ซ้ำ
+    const existing = await prisma.user.findFirst({ where: { OR: [{ username: email }, { email }] } });
+    if (existing) return res.status(409).json({ ok: false, message: `อีเมล ${email} มีในระบบแล้ว` });
+
+    const hashed = await bcrypt.hash("1111111111111", 10);
+
+    const user = await prisma.user.create({
+      data: {
+        username: email,
+        email,
+        password: hashed,
+        role: "teacher",
+      },
+    });
+
+    const teacher = await prisma.teacher.create({
+      data: {
+        userId: user.id,
+        firstName,
+        lastName,
+        email,
+        phone: phone || null,
+        faculty: faculty || "วิทยาลัยการคอมพิวเตอร์",
+        major: major || null,
+      },
+    });
+
+    res.json({ ok: true, teacher });
+  } catch (err) {
+    console.error("CREATE TEACHER ERROR:", err);
+    res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาด: " + err.message });
+  }
+};
+
+// ==========================================
+// ADMIN: ลบอาจารย์ + User account
+// DELETE /api/admin/teachers/:id
+// ==========================================
+exports.deleteTeacher = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const teacher = await prisma.teacher.findUnique({ where: { id: parseInt(id) } });
+    if (!teacher) return res.status(404).json({ ok: false, message: "ไม่พบอาจารย์" });
+
+    // ลบ User (cascade ลบ Teacher ตาม relation)
+    await prisma.user.delete({ where: { id: teacher.userId } });
+    res.json({ ok: true, message: "ลบอาจารย์เรียบร้อย" });
+  } catch (err) {
+    console.error("DELETE TEACHER ERROR:", err);
+    res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาด" });
+  }
+};
+
+// ==========================================
+// ADMIN: รีเซ็ตรหัสผ่านอาจารย์
+// PUT /api/admin/teachers/:id/password
+// ==========================================
+exports.resetTeacherPassword = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { newPassword } = req.body;
+    if (!newPassword || newPassword.length < 6) {
+      return res.status(400).json({ ok: false, message: "รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร" });
+    }
+    const teacher = await prisma.teacher.findUnique({ where: { id: parseInt(id) } });
+    if (!teacher) return res.status(404).json({ ok: false, message: "ไม่พบอาจารย์" });
+
+    const hashed = await bcrypt.hash(newPassword, 10);
+    await prisma.user.update({ where: { id: teacher.userId }, data: { password: hashed } });
+    res.json({ ok: true, message: "รีเซ็ตรหัสผ่านเรียบร้อย" });
+  } catch (err) {
+    console.error("RESET PASSWORD ERROR:", err);
+    res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาด" });
+  }
+};
+
+// ==========================================
+// ADMIN: แก้ไขข้อมูลอาจารย์ (รวม email)
+// PUT /api/admin/teachers/:id
+// ==========================================
+exports.adminUpdateTeacher = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { firstName, lastName, email, phone, faculty, major, prefix } = req.body;
+
+    const teacher = await prisma.teacher.findUnique({ where: { id: parseInt(id) } });
+    if (!teacher) return res.status(404).json({ ok: false, message: "ไม่พบอาจารย์" });
+
+    // ตรวจ email ซ้ำก่อน update (เฉพาะกรณีเปลี่ยน email และ email ใหม่ไม่ใช่ email เดิม)
+    if (email && email !== teacher.email) {
+      const conflict = await prisma.user.findFirst({
+        where: {
+          OR: [{ email }, { username: email }],
+          NOT: { id: teacher.userId },
+        },
+      });
+      if (conflict) {
+        return res.status(409).json({ ok: false, message: `อีเมล ${email} มีในระบบแล้ว` });
+      }
+    }
+
+    // อัปเดต Teacher + User ใน transaction เดียว (ป้องกัน inconsistent state)
+    const [updated] = await prisma.$transaction([
+      prisma.teacher.update({
+        where: { id: parseInt(id) },
+        data: { firstName, lastName, email, phone, faculty, major },
+      }),
+      ...(email
+        ? [prisma.user.update({
+            where: { id: teacher.userId },
+            data: { email, username: email },
+          })]
+        : []),
+    ]);
+
+    res.json({ ok: true, data: updated });
+  } catch (err) {
+    console.error("ADMIN UPDATE TEACHER ERROR:", err);
+    res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาด: " + err.message });
+  }
+};
+
+// GET /api/teacher/my-students
+exports.getMyStudents = async (req, res) => {
+  try {
+    const teacher = await prisma.teacher.findUnique({
+      where: { userId: req.userId },
+      select: { id: true, isCoopTeacher: true },
+    });
+
+    if (!teacher) {
+      return res.status(404).json({ ok: false, message: "ไม่พบข้อมูลอาจารย์" });
+    }
+
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 50;
+    const skip = (page - 1) * limit;
+    const search = (req.query.search || "").trim();
+    const coopPeriodId = req.query.coopPeriodId ? parseInt(req.query.coopPeriodId) : undefined;
+
+    const baseWhere = {
+      ...(search && {
+        OR: [
+          { firstName: { contains: search } },
+          { lastName: { contains: search } },
+          { studentId: { contains: search } },
+        ],
+      }),
+      ...(coopPeriodId && { coop: { coopPeriodId } }),
+    };
+
+    // อาจารย์ปกติ — เฉพาะ advisees ของตัวเอง
+    const where = teacher.isCoopTeacher
+      ? baseWhere
+      : {
+          AND: [
+            baseWhere,
+            {
+              OR: [
+                { generalAdvisorId: teacher.id },
+                { coopAdvisorId: teacher.id },
+              ],
+            },
+          ],
+        };
+
+    const include = {
+      user: { select: { email: true } },
+      coop: { include: { company: true } },
+      generalAdvisor: { select: { firstName: true, lastName: true, email: true } },
+      coopAdvisor: { select: { firstName: true, lastName: true, email: true } },
+    };
+
+    const [students, total] = await Promise.all([
+      prisma.student.findMany({ where, include, skip, take: limit, orderBy: { createdAt: 'desc' } }),
+      prisma.student.count({ where }),
+    ]);
+
+    res.json({
+      ok: true,
+      data: students,
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+    });
+  } catch (err) {
+    console.error('[getMyStudents]', err);
+    res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาด" });
+  }
 };
