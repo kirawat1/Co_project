@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { IcAnnounce, IcDocs } from "./icons";
-import StatusBadge from "./StatusBadge";
+import S_StatusTracker from "./S_StatusTracker";
 
 /* ===============================
     Types
@@ -145,32 +145,6 @@ export default function S_Dashboard() {
     return () => clearInterval(iv);
   }, [nearestDeadline]);
 
-  // ข้อความแนะนำตามสถานะ
-  const STATUS_HINT: Record<string, { icon: string; hint: string; link?: string; linkText?: string }> = {
-    NOT_SUBMITTED:   { icon: "📋", hint: "ยังไม่ได้ยื่นคำร้องสหกิจ กรุณากรอกข้อมูลและส่งคำร้อง", link: "/student/gateway", linkText: "ยื่นคำร้องเลย" },
-    APPLYING:        { icon: "⏳", hint: "คำร้องอยู่ระหว่างการตรวจสอบคุณสมบัติ กรุณารอ" },
-    QUALIFICATION_FAILED: { icon: "❌", hint: "ไม่ผ่านเกณฑ์คุณสมบัติ กรุณาติดต่อเจ้าหน้าที่" },
-    APPLICATION_EDITS_REQUIRED: { icon: "📝", hint: "ต้องแก้ไขคำร้อง กรุณาดูความคิดเห็นและแก้ไข", link: "/student/gateway", linkText: "แก้ไขคำร้อง" },
-    QUALIFIED:       { icon: "✅", hint: "ผ่านคุณสมบัติแล้ว กรุณาอัปโหลดเอกสาร T000", link: "/student/docs", linkText: "ไปหน้าเอกสาร" },
-    WAITING_FOR_STAFF_CHECK: { icon: "🔍", hint: "เอกสารส่งแล้ว กำลังรอเจ้าหน้าที่ตรวจสอบ" },
-    EDITS_REQUIRED:  { icon: "⚠️", hint: "ต้องแก้ไขเอกสาร T000 กรุณาดูความคิดเห็น", link: "/student/docs", linkText: "แก้ไขเอกสาร" },
-    DOCS_APPROVED:   { icon: "✨", hint: "เอกสารผ่านแล้ว รอเจ้าหน้าที่ออกหนังสือขอความอนุเคราะห์" },
-    REQ_LETTER_ISSUED: { icon: "🚚", hint: "ออกหนังสือแล้ว รอบริษัทตอบรับและส่งหนังสือตอบกลับ" },
-    WAITING_FOR_PLACEMENT_LETTER: { icon: "🏢", hint: "รอบริษัทส่งหนังสือตอบรับ", link: "/student/docs", linkText: "อัปโหลดหนังสือตอบรับ" },
-    WAITING_FOR_STAFF_CHECK_LETTER: { icon: "🕵️", hint: "หนังสือตอบรับอยู่ระหว่างการตรวจสอบ" },
-    ACCEPTANCE_CHECKED: { icon: "🚀", hint: "ผ่านแล้ว รอเจ้าหน้าที่ออกหนังสือส่งตัว" },
-    PLACEMENT_LETTER_ISSUED: { icon: "🏁", hint: "ออกหนังสือส่งตัวแล้ว ขอให้โชคดีในการฝึกงาน!" },
-    INTERNSHIP_STARTED: { icon: "💼", hint: "กำลังฝึกสหกิจ อย่าลืมส่งเอกสาร T002 และ T003", link: "/student/docs-t002", linkText: "ไปส่ง T002" },
-    T002_SUBMITTED:  { icon: "📄", hint: "ส่ง T002 แล้ว รออาจารย์ตรวจสอบ" },
-    T002_EDITS_REQUIRED: { icon: "⚠️", hint: "ต้องแก้ไข T002", link: "/student/docs-t002", linkText: "แก้ไข T002" },
-    T003_SUBMITTED:  { icon: "📘", hint: "ส่ง T003 แล้ว รออาจารย์ตรวจสอบ" },
-    T003_EDITS_REQUIRED: { icon: "⚠️", hint: "ต้องแก้ไข T003", link: "/student/docs-t003", linkText: "แก้ไข T003" },
-    PENDING_TEACHER: { icon: "⏳", hint: "รออาจารย์เลือกวันนิเทศ", link: "/student/supervision", linkText: "ดูสถานะนิเทศ" },
-    DATE_CONFIRMED:  { icon: "🔍", hint: "รอเจ้าหน้าที่อนุมัติหนังสือนิเทศ" },
-    LETTER_UPLOADED: { icon: "✅", hint: "อนุมัติหนังสือนิเทศแล้ว เตรียมพบอาจารย์ตามนัด", link: "/student/supervision", linkText: "ดูวันนิเทศ" },
-    COMPLETED:       { icon: "🎉", hint: "นิเทศเสร็จสิ้น ขอแสดงความยินดี!" },
-  };
-  const hint = STATUS_HINT[studentStatus] ?? { icon: "📋", hint: "ดำเนินการตามขั้นตอนที่กำหนด" };
 
   if (loading) return <div style={{ padding: 40, textAlign: 'center' }}>กำลังโหลดข้อมูลภาพรวม...</div>;
 
@@ -184,28 +158,20 @@ export default function S_Dashboard() {
         <p>ติดตามประกาศ เอกสาร และนัดนิเทศของสหกิจศึกษา</p>
       </div>
 
-      {/* ===== STATUS CARD ===== */}
-      <div className="status-banner">
-        <div className="status-banner-left">
-          <span className="status-banner-icon">{hint.icon}</span>
-          <div>
-            <div className="status-banner-label">สถานะปัจจุบัน</div>
-            <StatusBadge status={studentStatus} hidePrefix />
-            <div className="status-banner-hint">{hint.hint}</div>
-          </div>
-        </div>
-        <div className="status-banner-right">
-          {nearestDeadline && countdown && (
+      {/* ===== STATUS TRACKER ===== */}
+      <S_StatusTracker status={studentStatus} />
+
+      {/* ===== COUNTDOWN ===== */}
+      {nearestDeadline && countdown && (
+        <div className="status-banner" style={{ marginBottom: 20 }}>
+          <div className="status-banner-right">
             <div className="countdown-box">
               <div className="countdown-label">ปิดรับ {DOC_LABEL[nearestDeadline.id] ?? nearestDeadline.id}</div>
               <div className="countdown-timer">⏱ {countdown}</div>
             </div>
-          )}
-          {hint.link && (
-            <a href={hint.link} className="status-action-btn">{hint.linkText} →</a>
-          )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* GRID */}
       <div className="dash-grid">
