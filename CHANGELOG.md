@@ -1,5 +1,20 @@
 # CHANGELOG — Co_project
 
+## [2026-06-03] Notification System
+
+### Added
+- `Notification` Prisma model — userId, type, title, message, link, isRead, relatedId (dedup key)
+- `backend/utils/notificationHelper.js` — createNotifications (with dedup), getStaffAndCoopTeacherIds
+- `GET /api/notifications/unread-count` — คืน unread count ของ user
+- `POST /api/notifications/mark-all-read` — mark ทั้งหมดของ user เป็น read
+- `NotificationBell.tsx` — badge ตัวเลขสีแดงใน sidebar กดแล้ว navigate + mark all read
+
+### Changed
+- `coopController.js` — notify staff+isCoopTeacher เมื่อนักศึกษายื่นคำร้อง
+- `supervisionController.js` — notify staff+isCoopTeacher เมื่อเสนอวัน; notify student เมื่อยืนยัน/ปฏิเสธ/อัปโหลดหนังสือ
+- `adminDocController.js` — notify student เมื่อ review T002/T003/status
+- `A_Sidebar.tsx`, `T_Sidebar.tsx`, `S_Sidebar.tsx` — เพิ่ม NotificationBell
+
 ## [2026-06-03] Status Display Redesign
 
 ### Added
