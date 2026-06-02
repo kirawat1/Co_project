@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect, useRef } from "react";
 import axios from "axios";
 import StatusBadge from "../components/StatusBadge";
+import StatusFilterChips, { STATUS_GROUPS } from "./StatusFilterChips";
 import { useDebounce } from "../hooks/useDebounce";
 
 // --- Interfaces ---
@@ -201,13 +202,22 @@ export default function T_Students({ isCoopTeacher = false }: Props) {
     fetchStudents(selectedPeriod, debouncedQ);
   }, [debouncedQ]);
 
-  // --- 2. Filter Logic (text search is server-side; only major filtered client-side) ---
+  const [activeStatusGroup, setActiveStatusGroup] = useState<string>("ALL");
+  const [statusGroupFilter, setStatusGroupFilter] = useState<string[]>([]);
+
+  const handleStatusGroupChange = (group: string) => {
+    setActiveStatusGroup(group);
+    setStatusGroupFilter(group === "ALL" ? [] : STATUS_GROUPS[group]?.statuses ?? []);
+  };
+
+  // --- 2. Filter Logic ---
   const filteredStudents = useMemo(() => {
     return allStudents.filter((s) => {
       const matchMajor = filterMajor === "all" || s.major === filterMajor;
-      return matchMajor;
+      const matchGroup = statusGroupFilter.length === 0 || statusGroupFilter.includes(s.coop?.status ?? "");
+      return matchMajor && matchGroup;
     });
-  }, [allStudents, filterMajor]);
+  }, [allStudents, filterMajor, statusGroupFilter]);
 
   if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>กำลังโหลดข้อมูล...</div>;
 
@@ -229,6 +239,13 @@ export default function T_Students({ isCoopTeacher = false }: Props) {
             </div>
           </div>
         </div>
+
+        {/* Status Filter Chips */}
+        <StatusFilterChips
+          students={allStudents}
+          activeFilter={activeStatusGroup}
+          onFilterChange={handleStatusGroupChange}
+        />
 
         {/* Filters */}
         <div style={{ marginTop: 24, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
