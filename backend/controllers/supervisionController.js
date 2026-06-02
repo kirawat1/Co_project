@@ -75,6 +75,21 @@ exports.uploadOfficialLetter = async (req, res) => {
         });
 
         res.json({ ok: true, appointment });
+
+        // Notify student
+        prisma.student.findUnique({ where: { id: appointment.studentId }, select: { userId: true } })
+          .then(student => {
+            if (student?.userId) {
+              return createNotifications([student.userId], {
+                type: 'SUPERVISION_LETTER_UPLOADED',
+                title: 'หนังสือนิเทศอนุมัติแล้ว',
+                message: 'หนังสือนิเทศได้รับการอนุมัติ เตรียมพร้อมรับการนิเทศ',
+                link: '/student/supervision',
+                relatedId: null,
+              });
+            }
+          })
+          .catch(console.error);
     } catch (err) {
         console.error(err);
         if (req.file) {
@@ -402,6 +417,22 @@ exports.reviewSupervision = async (req, res) => {
         });
 
         res.json({ ok: true, message: "บันทึกผลพิจารณาสำเร็จ" });
+
+        // Notify student
+        const approved = action === 'APPROVE';
+        prisma.student.findUnique({ where: { id: supervision.studentId }, select: { userId: true } })
+          .then(student => {
+            if (student?.userId) {
+              return createNotifications([student.userId], {
+                type: 'SUPERVISION_DATE_UPDATED',
+                title: approved ? 'วันนิเทศได้รับการยืนยัน' : 'วันนิเทศถูกปฏิเสธ',
+                message: approved ? 'อาจารย์ยืนยันวันนิเทศแล้ว' : 'อาจารย์ปฏิเสธวันที่เสนอ กรุณาเสนอวันใหม่',
+                link: '/student/supervision',
+                relatedId: null,
+              });
+            }
+          })
+          .catch(console.error);
     } catch (err) {
         console.error("Review Supervision Error:", err);
         res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดในการบันทึกข้อมูล" });

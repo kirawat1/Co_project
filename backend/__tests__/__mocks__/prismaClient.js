@@ -132,6 +132,15 @@ const prismaMock = {
     upsert: jest.fn(),
     update: jest.fn(),
   },
+  notification: {
+    findMany: jest.fn(),
+    create: jest.fn(),
+    createMany: jest.fn(),
+    update: jest.fn(),
+    updateMany: jest.fn(),
+    delete: jest.fn(),
+    count: jest.fn(),
+  },
   $transaction: jest.fn((fn) => fn(prismaMock)),
 };
 
