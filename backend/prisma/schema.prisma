@@ -19,10 +19,11 @@ model User {
   provider       String  @default("credentials")
   kkuAccessToken String? @db.Text
 
-  student   Student?
-  teacher   Teacher?
-  companies Company[]
-  mentors   Mentor[]
+  student        Student?
+  teacher        Teacher?
+  companies      Company[]
+  mentors        Mentor[]
+  notifications  Notification[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -184,6 +185,9 @@ model CoopApplicationForm {
   careerObjective1 String?
   careerObjective2 String?
   careerObjective3 String?
+
+  // --- แบบฟอร์มตรวจสอบการสำเร็จการศึกษา (Google Sheets link) ---
+  gradeSheetUrl String?
 
   updatedAt DateTime @updatedAt
 }
@@ -470,4 +474,19 @@ model SupervisionAppointment {
 
   student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
   teacher Teacher @relation(fields: [teacherId], references: [id])
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String
+  title     String
+  message   String
+  link      String
+  isRead    Boolean  @default(false)
+  relatedId String?
+  createdAt DateTime @default(now())
+
+  @@index([userId, isRead])
 }
