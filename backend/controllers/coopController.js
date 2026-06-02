@@ -4,6 +4,7 @@ const prisma = new PrismaClient();
 const path = require("path");
 const fs = require("fs");
 const multer = require("multer");
+const { createNotifications, getStaffAndCoopTeacherIds } = require('../utils/notificationHelper');
 
 // 1. ตั้งค่าการเก็บไฟล์ (Multer)
 const storage = multer.diskStorage({
@@ -89,6 +90,17 @@ const submitCoopApplication = async (req, res) => {
 
     res.json({ ok: true, message: "ยื่นคำร้องให้ตรวจสอบเรียบร้อยแล้ว" });
 
+    // Fire notification async without blocking response
+    getStaffAndCoopTeacherIds().then(ids =>
+      createNotifications(ids, {
+        type: 'COOP_APPLICATION_SUBMITTED',
+        title: 'นักศึกษายื่นคำร้องสหกิจ',
+        message: 'มีนักศึกษายื่น/แก้ไขคำร้องสหกิจศึกษา กรุณาตรวจสอบ',
+        link: '/admin/students',
+        relatedId: String(userId),
+      })
+    ).catch(console.error);
+
   } catch (err) {
     console.error("Submit Error:", err);
     res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดในการบันทึกข้อมูล" });
@@ -99,21 +111,24 @@ const updateCoopStatus = async (req, res) => {
   try {
     const { studentId, status, comment } = req.body;
 
-    // 1. แปลงค่า Status จาก Frontend ให้ตรงกับ Database Enum
-    let dbStatus = status;
-    
-    if (status === 'APPROVED') {
-      dbStatus = 'QUALIFIED'; // ✅ APPROVED -> QUALIFIED
-    } else if (status === 'REJECTED') {
-      dbStatus = 'QUALIFICATION_FAILED'; // ✅ REJECTED -> QUALIFICATION_FAILED
-    } else if (status === 'EDITS_REQUIRED') {
-      dbStatus = 'EDITS_REQUIRED'; // อันนี้ตรงกันอยู่แล้ว
+    const parsedId = parseInt(studentId, 10);
+    if (!studentId || isNaN(parsedId) || parsedId <= 0) {
+      return res.status(400).json({ ok: false, message: "studentId ไม่ถูกต้อง" });
     }
 
-    // 2. อัปเดตข้อมูล (แก้ชื่อฟิลด์ teacherComment -> teacherCheckComment)
+    const ALLOWED_STATUSES = ['APPROVED', 'REJECTED', 'EDITS_REQUIRED', 'APPLICATION_EDITS_REQUIRED', 'QUALIFIED', 'QUALIFICATION_FAILED'];
+    if (!status || !ALLOWED_STATUSES.includes(status)) {
+      return res.status(400).json({ ok: false, message: "status ไม่ถูกต้อง" });
+    }
+
+    // แปลงค่า Status จาก Frontend ให้ตรงกับ Database Enum
+    let dbStatus = status;
+    if (status === 'APPROVED') dbStatus = 'QUALIFIED';
+    else if (status === 'REJECTED') dbStatus = 'QUALIFICATION_FAILED';
+
     const updated = await prisma.studentCoop.update({
       where: {
-        studentId: parseInt(studentId) // มั่นใจว่าเป็น Int
+        studentId: parsedId
       },
       data: {
         status: dbStatus, // ใช้ค่าที่แปลงแล้ว
