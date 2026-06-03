@@ -1,5 +1,4 @@
-const { PrismaClient } = require("@prisma/client");
-const prisma = new PrismaClient();
+const prisma = require('../config/prismaClient');
 const { createNotifications } = require('../utils/notificationHelper');
 
 // 1. ดึงค่า Config
