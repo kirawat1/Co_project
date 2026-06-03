@@ -16,7 +16,7 @@ export default function A_DocT007() {
         const fetchConfig = async () => {
             setIsFetching(true);
             try {
-                const res = await axios.get("http://localhost:5000/api/admin/config/t007", {
+                const res = await axios.get("/api/admin/config/t007", {
                     headers: { Authorization: `Bearer ${token}` }
                 });
 
@@ -41,7 +41,7 @@ export default function A_DocT007() {
         setIsSaving(true);
         try {
             const payload = { instructionText, t007Link };
-            await axios.put("http://localhost:5000/api/admin/config/t007", payload, {
+            await axios.put("/api/admin/config/t007", payload, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             alert("✅ บันทึกข้อมูลสำเร็จ");

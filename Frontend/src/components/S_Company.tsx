@@ -64,7 +64,7 @@ export default function Company({ profile }: { profile: any }) {
     useEffect(() => {
         if (!token) return;
         // 1. ดึงข้อมูลบริษัท
-        fetch("http://localhost:5000/api/companies", {
+        fetch("/api/companies", {
             headers: { Authorization: `Bearer ${token}` },
         })
             .then(res => res.json())
@@ -75,7 +75,7 @@ export default function Company({ profile }: { profile: any }) {
         const fetchPeriods = async () => {
             try {
                 // เรียก Route ของฝั่งนักศึกษาที่คุณสร้างไว้
-                const res = await fetch("http://localhost:5000/api/students/coop-periods", {
+                const res = await fetch("/api/students/coop-periods", {
                     headers: { Authorization: `Bearer ${token}` }
                 });
                 const data = await res.json();
@@ -102,7 +102,7 @@ export default function Company({ profile }: { profile: any }) {
         if (!token) return alert("กรุณาเข้าสู่ระบบ");
 
         try {
-            const res = await fetch("http://localhost:5000/api/companies", {
+            const res = await fetch("/api/companies", {
                 method: "POST",
                 headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
                 body: JSON.stringify({ ...form, createdBy: userId }),
@@ -124,7 +124,7 @@ export default function Company({ profile }: { profile: any }) {
             return alert("คุณไม่มีสิทธิ์แก้ไขข้อมูลบริษัทที่เพิ่มโดยผู้อื่นครับ");
         }
         try {
-            const res = await fetch(`http://localhost:5000/api/companies/${form.id}`, {
+            const res = await fetch(`/api/companies/${form.id}`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
                 body: JSON.stringify(form),
@@ -147,7 +147,7 @@ export default function Company({ profile }: { profile: any }) {
         if (!token) return alert("กรุณาเข้าสู่ระบบ");
 
         try {
-            const res = await fetch(`http://localhost:5000/api/companies/${id}`, {
+            const res = await fetch(`/api/companies/${id}`, {
                 method: "DELETE",
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -172,7 +172,7 @@ export default function Company({ profile }: { profile: any }) {
 
         try {
             if (!editingMentor) {
-                const res = await fetch(`http://localhost:5000/api/companies/${viewCompany.id}/mentors`, {
+                const res = await fetch(`/api/companies/${viewCompany.id}/mentors`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
                     body: JSON.stringify(mentorForm)
@@ -183,7 +183,7 @@ export default function Company({ profile }: { profile: any }) {
                 setViewCompany(prev => prev ? { ...prev, mentors: [...prev.mentors, data.mentor] } : prev);
                 setItems(prev => prev.map(c => c.id === viewCompany?.id ? { ...c, mentors: [...c.mentors, data.mentor] } : c));
             } else {
-                const res = await fetch(`http://localhost:5000/api/companies/mentors/${editingMentor.id}`, {
+                const res = await fetch(`/api/companies/mentors/${editingMentor.id}`, {
                     method: "PUT",
                     headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
                     body: JSON.stringify(mentorForm)
@@ -206,7 +206,7 @@ export default function Company({ profile }: { profile: any }) {
         if (!token) return alert("กรุณาเข้าสู่ระบบ");
 
         try {
-            const res = await fetch(`http://localhost:5000/api/companies/mentors/${mentorId}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+            const res = await fetch(`/api/companies/mentors/${mentorId}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
             const data = await res.json();
             if (!data.ok) return alert(data.message);
 

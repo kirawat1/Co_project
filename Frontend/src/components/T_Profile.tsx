@@ -47,7 +47,7 @@ export default function T_Profile() {
   const fetchProfile = async () => {
     try {
       setLoading(true);
-      const res = await fetch("http://localhost:5000/api/teacher/me", {
+      const res = await fetch("/api/teacher/me", {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) {
@@ -67,7 +67,7 @@ export default function T_Profile() {
   // ✅ ดึงข้อมูลสาขาวิชาจาก API (อิงจากตาราง CoopCriteria)
   const fetchMajors = async () => {
     try {
-      const res = await fetch("http://localhost:5000/api/admin/majors", {
+      const res = await fetch("/api/admin/majors", {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
@@ -87,7 +87,7 @@ export default function T_Profile() {
 
   const handleSave = async () => {
     try {
-      const res = await fetch("http://localhost:5000/api/teacher/me", {
+      const res = await fetch("/api/teacher/me", {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -101,7 +101,10 @@ export default function T_Profile() {
         const updatedData = result.data || form;
         setProfile(updatedData);
         setSavedMsg("บันทึกข้อมูลสำเร็จ");
-        localStorage.setItem("coop.teacher.displayName", `${updatedData.firstName} ${updatedData.lastName}`);
+        const newName = `${updatedData.firstName || ""} ${updatedData.lastName || ""}`.trim();
+        localStorage.setItem("coop.teacher.displayName", newName);
+        // แจ้ง T_App.tsx ให้อัปเดต displayName (storage event ไม่ยิงใน tab เดียวกัน)
+        window.dispatchEvent(new CustomEvent("teacherNameUpdated", { detail: newName }));
 
         if (timerRef.current) window.clearTimeout(timerRef.current);
         timerRef.current = window.setTimeout(() => setSavedMsg(""), 3000);

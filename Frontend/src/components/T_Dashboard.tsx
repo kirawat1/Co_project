@@ -86,6 +86,9 @@ export default function T_Dashboard() {
   const [pendingStudents, setPendingStudents] = useState<StudentRequest[]>([]);
   const [approvedStudents, setApprovedStudents] = useState<StudentRequest[]>([]);
   const [supervisions, setSupervisions] = useState<SupervisionAppt[]>([]);
+  const [t002Count, setT002Count] = useState(0);
+  const [t003Count, setT003Count] = useState(0);
+  const [supPendingCount, setSupPendingCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
   const token = localStorage.getItem("coop.token");
@@ -95,7 +98,7 @@ export default function T_Dashboard() {
      ========================================== */
   const fetchPeriods = async () => {
     try {
-      const res = await axios.get("http://localhost:5000/api/admin/coop-periods", {
+      const res = await axios.get("/api/admin/coop-periods", {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.ok) {
@@ -124,13 +127,13 @@ export default function T_Dashboard() {
       }
 
       // 2.1 ดึงสถิติ
-      const statsRes = await axios.get(`http://localhost:5000/api/teacher/stats${query}`, {
+      const statsRes = await axios.get(`/api/teacher/stats${query}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (statsRes.data?.ok) setStats(statsRes.data.data);
 
       // 2.2 ดึงคำร้อง
-      const listRes = await axios.get(`http://localhost:5000/api/teacher/latest-requests${query}`, {
+      const listRes = await axios.get(`/api/teacher/latest-requests${query}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (listRes.data?.ok) {
@@ -143,14 +146,25 @@ export default function T_Dashboard() {
 
       // 2.3 ดึงนัดนิเทศของอาจารย์
       try {
-        const supRes = await axios.get(`http://localhost:5000/api/teacher/supervisions${query}`, {
+        const supRes = await axios.get(`/api/teacher/supervisions${query}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         if (supRes.data?.ok) {
-          // ใช้ fallback ให้รองรับรูปแบบข้อมูลที่ Backend อาจจะส่งมา
-          setSupervisions(supRes.data.supervisions || supRes.data.list || []);
+          const supList = supRes.data.supervisions || supRes.data.list || [];
+          setSupervisions(supList);
+          setSupPendingCount(supList.filter((s: SupervisionAppt) => s.status === "PENDING_TEACHER").length);
         }
       } catch (err) { console.warn("Supervision API not ready or error", err); }
+
+      // 2.4 ดึงจำนวน T002/T003 รอตรวจ
+      try {
+        const [t002Res, t003Res] = await Promise.allSettled([
+          axios.get(`/api/admin/students${query ? query + "&" : "?"}status=T002_SUBMITTED&limit=1`, { headers: { Authorization: `Bearer ${token}` } }),
+          axios.get(`/api/admin/students${query ? query + "&" : "?"}status=T003_SUBMITTED&limit=1`, { headers: { Authorization: `Bearer ${token}` } }),
+        ]);
+        if (t002Res.status === "fulfilled" && t002Res.value.data?.meta) setT002Count(t002Res.value.data.meta.total ?? 0);
+        if (t003Res.status === "fulfilled" && t003Res.value.data?.meta) setT003Count(t003Res.value.data.meta.total ?? 0);
+      } catch { /* silent */ }
 
     } catch (err) {
       console.error("Teacher Dashboard Fetch Error:", err);
@@ -193,6 +207,35 @@ export default function T_Dashboard() {
         <div style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>กำลังโหลดข้อมูล...</div>
       ) : (
         <>
+          {/* ================= ACTION REQUIRED ================= */}
+          {(stats.pendingRequests > 0 || t002Count > 0 || t003Count > 0 || supPendingCount > 0) && (
+            <section className="card" style={{ borderLeft: `5px solid #f59e0b`, background: 'linear-gradient(135deg,#fffbeb,#fef3c7)' }}>
+              <div style={{ fontWeight: 800, fontSize: 16, color: '#92400e', marginBottom: 14 }}>⚡ สิ่งที่ต้องดำเนินการ</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                {stats.pendingRequests > 0 && (
+                  <Link to="/teacher/requests" style={actionChip('#ef4444')}>
+                    📋 คำร้องสหกิจ <strong>{stats.pendingRequests}</strong> รายการ →
+                  </Link>
+                )}
+                {t002Count > 0 && (
+                  <Link to="/teacher/review-t002" style={actionChip('#0ea5e9')}>
+                    📄 T002 รอตรวจ <strong>{t002Count}</strong> ราย →
+                  </Link>
+                )}
+                {t003Count > 0 && (
+                  <Link to="/teacher/review-t003" style={actionChip('#8b5cf6')}>
+                    📘 T003 รอตรวจ <strong>{t003Count}</strong> ราย →
+                  </Link>
+                )}
+                {supPendingCount > 0 && (
+                  <Link to="/teacher/review-supervision" style={actionChip('#10b981')}>
+                    📅 นิเทศรอยืนยัน <strong>{supPendingCount}</strong> ราย →
+                  </Link>
+                )}
+              </div>
+            </section>
+          )}
+
           {/* ================= Stats ================= */}
           <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: 16 }}>
             <CardStat title="นักศึกษาในดูแล" value={stats.myStudentsCount} hint="นักศึกษาที่คุณเป็นที่ปรึกษา" color="#0ea5e9" />
@@ -314,4 +357,15 @@ function CardStat({ title, value, hint, color }: { title: string; value: number;
 
 function td(customStyle?: React.CSSProperties): React.CSSProperties {
   return { padding: "14px 8px", fontSize: 14, color: "#334155", ...customStyle };
+}
+
+function actionChip(color: string): React.CSSProperties {
+  return {
+    display: "inline-flex", alignItems: "center", gap: 6,
+    padding: "8px 16px", borderRadius: 10,
+    background: color, color: "#fff",
+    fontWeight: 700, fontSize: 14,
+    textDecoration: "none", transition: ".15s",
+    boxShadow: `0 4px 12px ${color}40`,
+  };
 }

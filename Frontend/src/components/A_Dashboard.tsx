@@ -45,7 +45,7 @@ export default function A_Dashboard() {
      ========================================== */
   const fetchPeriods = async () => {
     try {
-      const res = await axios.get("http://localhost:5000/api/admin/coop-periods", {
+      const res = await axios.get("/api/admin/coop-periods", {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.ok) {
@@ -73,7 +73,7 @@ export default function A_Dashboard() {
     setLoading(true);
     try {
       // แยก semester และ year ออกจาก string "1/2569"
-      let url = "http://localhost:5000/api/admin/dashboard-stats";
+      let url = "/api/admin/dashboard-stats";
       if (periodKey !== "all") {
         const [semester, year] = periodKey.split("/");
         url += `?semester=${semester}&year=${year}`;

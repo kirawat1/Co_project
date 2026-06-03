@@ -3,6 +3,11 @@ import type { CSSProperties } from "react";
 import axios from "axios";
 import IssueSupervisionLetterModal from "./IssueSupervisionLetterModal";
 import StatusBadge from "./StatusBadge";
+import SupervisionCalendar from "./SupervisionCalendar";
+import type { CalendarEvent } from "./SupervisionCalendar";
+import { useToast } from "./Toast";
+import ConfirmDialog from "./ConfirmDialog";
+import Spinner from "./Spinner";
 
 // --- Types ---
 type SupervisionStatus = "PENDING_TEACHER" | "TEACHER_REJECTED" | "DATE_CONFIRMED" | "LETTER_UPLOADED" | "COMPLETED";
@@ -24,6 +29,19 @@ interface Teacher {
     prefix: string;
     firstName: string;
     lastName: string;
+}
+
+// แปลง proposedDates JSON string → array แล้ว format แต่ละวัน
+function parseProposedList(raw: string): { dmy: string; time: string }[] {
+    try {
+        const arr: string[] = JSON.parse(raw || "[]");
+        return arr.map(entry => {
+            const [dPart = "", tPart = ""] = entry.includes("|") ? entry.split("|") : [entry, ""];
+            const d = new Date(dPart);
+            const dmy = isNaN(d.getTime()) ? dPart : `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}`;
+            return { dmy, time: tPart || "" };
+        });
+    } catch { return []; }
 }
 
 interface Supervision {
@@ -55,8 +73,9 @@ type SortKey = 'student' | 'company' | 'teacher' | 'datetime' | 'status';
 type SortDirection = 'asc' | 'desc';
 
 export default function A_SupervisionManage() {
+    const toast = useToast();
     const [supervisions, setSupervisions] = useState<Supervision[]>([]);
-    const [teachersList, setTeachersList] = useState<Teacher[]>([]); // 🟢 เก็บรายชื่ออาจารย์ทั้งหมด
+    const [teachersList, setTeachersList] = useState<Teacher[]>([]);
     const [loading, setLoading] = useState(true);
 
     // Config State
@@ -71,15 +90,23 @@ export default function A_SupervisionManage() {
     // Modals State
     const [selectedSupForModal, setSelectedSupForModal] = useState<Supervision | null>(null);
     const [assignTeacherModalOpen, setAssignTeacherModalOpen] = useState(false);
-    const [selectedCoTeachers, setSelectedCoTeachers] = useState<string[]>([]); // เก็บชื่ออาจารย์ร่วมที่ถูกเลือก
+    const [selectedCoTeachers, setSelectedCoTeachers] = useState<string[]>([]);
+
+    // Edit confirmed date modal
+    const [editDateSup, setEditDateSup] = useState<Supervision | null>(null);
+    const [editDateValue, setEditDateValue] = useState("");
+    const [editDateTime, setEditDateTime] = useState("09:00");
+    const [savingDate, setSavingDate] = useState(false);
+    const [confirmEditOpen, setConfirmEditOpen] = useState(false);
 
     const token = localStorage.getItem("coop.token");
 
     // State สำหรับค้นหาและกรองตาราง
     const [q, setQ] = useState("");
     const [filterPeriodId, setFilterPeriodId] = useState<string>("all");
+    const [filterCompany, setFilterCompany] = useState<string>("all");
 
-    // 🟢 State สำหรับการเรียงลำดับ (Sorting)
+    // State สำหรับการเรียงลำดับ (Sorting)
     const [sortKey, setSortKey] = useState<SortKey>('student');
     const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
@@ -87,7 +114,7 @@ export default function A_SupervisionManage() {
         setLoading(true);
         try {
             // 1. ดึงรอบสหกิจศึกษาทั้งหมด
-            const periodRes = await axios.get("http://localhost:5000/api/admin/supervision-periods", {
+            const periodRes = await axios.get("/api/admin/supervision-periods", {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
@@ -103,13 +130,13 @@ export default function A_SupervisionManage() {
             }
 
             // 2. ดึงรายชื่อการนิเทศ
-            const supRes = await axios.get("http://localhost:5000/api/admin/supervisions", {
+            const supRes = await axios.get("/api/admin/supervisions", {
                 headers: { Authorization: `Bearer ${token}` }
             });
             if (supRes.data?.supervisions) setSupervisions(supRes.data.supervisions);
 
             // 3. ดึงรายชื่ออาจารย์ทั้งหมด (สำหรับเลือกอาจารย์นิเทศร่วม)
-            const teacherRes = await axios.get("http://localhost:5000/api/teachers", {
+            const teacherRes = await axios.get("/api/teachers", {
                 headers: { Authorization: `Bearer ${token}` }
             });
             if (teacherRes.data?.teachers) {
@@ -140,20 +167,19 @@ export default function A_SupervisionManage() {
     };
 
     const handleSaveConfig = async () => {
-        if (!selectedPeriodId) return alert("กรุณาเลือกรอบสหกิจศึกษาก่อน");
+        if (!selectedPeriodId) { toast.warning("กรุณาเลือกรอบสหกิจศึกษาก่อน"); return; }
         setSavingConfig(true);
         try {
-            await axios.post("http://localhost:5000/api/admin/supervision-periods", {
+            await axios.post("/api/admin/supervision-periods", {
                 periodId: selectedPeriodId,
                 isSupervisionOpen: periodOpen,
                 supervisionStartDate: startDate || null,
                 supervisionEndDate: endDate || null
             }, { headers: { Authorization: `Bearer ${token}` } });
-
-            alert("บันทึกช่วงเวลานิเทศเรียบร้อยแล้ว");
+            toast.success("บันทึกช่วงเวลานิเทศเรียบร้อยแล้ว");
             fetchData();
-        } catch (err) {
-            alert("เกิดข้อผิดพลาดในการบันทึก");
+        } catch {
+            toast.error("เกิดข้อผิดพลาดในการบันทึก");
         } finally {
             setSavingConfig(false);
         }
@@ -169,22 +195,21 @@ export default function A_SupervisionManage() {
         }
     };
 
-    // 🟢 กรองตารางและเรียงลำดับ (Filter & Sort)
+    // กรองตารางและเรียงลำดับ (Filter & Sort)
     const processedSupervisions = useMemo(() => {
-        // 1. Filter
         let filtered = supervisions.filter(sup => {
             const searchStr = `${sup.student.studentId} ${sup.student.firstName} ${sup.student.lastName} ${sup.student.coop?.company?.name || ""} ${sup.teacher?.firstName || ""} ${sup.teacher?.lastName || ""}`.toLowerCase();
             const matchesQ = searchStr.includes(q.toLowerCase());
 
-            // ดักจับ ID ปีการศึกษา (ใส่ ?. ทุกจุดที่อาจจะเป็น null)
             const pIdFromSup = sup.coopPeriodId;
             const pIdFromStudent = sup.student?.coopPeriodId;
-            const pIdFromCoop = sup.student?.coop?.coopPeriodId; // 🟢 ตอนนี้ TypeScript จะไม่ฟ้อง Error แล้ว
-
+            const pIdFromCoop = sup.student?.coop?.coopPeriodId;
             const supPeriodId = String(pIdFromSup || pIdFromStudent || pIdFromCoop || "");
             const matchesPeriod = filterPeriodId === "all" || supPeriodId === String(filterPeriodId);
 
-            return matchesQ && matchesPeriod;
+            const matchesCompany = filterCompany === "all" || sup.student.coop?.company?.name === filterCompany;
+
+            return matchesQ && matchesPeriod && matchesCompany;
         });
 
         // 2. Sort
@@ -213,7 +238,49 @@ export default function A_SupervisionManage() {
         return filtered;
     }, [supervisions, q, filterPeriodId, sortKey, sortDirection]);
 
-    // 🟢 ฟังก์ชันเปิด Modal จัดการอาจารย์
+    // ─── handleEditDate ─────────────────────────────────────────
+    const openEditDateModal = (sup: Supervision) => {
+        setEditDateSup(sup);
+        if (sup.confirmedDate) {
+            const d = new Date(sup.confirmedDate);
+            setEditDateValue(d.toISOString().split('T')[0]);
+            setEditDateTime(d.toTimeString().slice(0, 5));
+        } else {
+            setEditDateValue("");
+            setEditDateTime("09:00");
+        }
+    };
+
+    const handleSaveEditDate = async () => {
+        if (!editDateSup || !editDateValue) return;
+        setSavingDate(true);
+        setConfirmEditOpen(false);
+        try {
+            const iso = new Date(`${editDateValue}T${editDateTime}:00`).toISOString();
+            await axios.put(
+                `/api/admin/supervisions/${editDateSup.id}/confirmed-date`,
+                { confirmedDate: iso },
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            toast.success("แก้ไขวันนิเทศเรียบร้อยแล้ว");
+            setEditDateSup(null);
+            fetchData();
+        } catch (err: any) {
+            toast.error(err?.response?.data?.message || "เกิดข้อผิดพลาด");
+        } finally {
+            setSavingDate(false);
+        }
+    };
+
+    // ─── unique company list ─────────────────────────────────────
+    const companyList = useMemo(() => {
+        const names = supervisions
+            .map(s => s.student.coop?.company?.name)
+            .filter((n): n is string => !!n);
+        return [...new Set(names)].sort();
+    }, [supervisions]);
+
+    // ─── ฟังก์ชันเปิด Modal จัดการอาจารย์
     const openAssignTeacherModal = (sup: Supervision) => {
         setSelectedSupForModal(sup);
         // แปลง string ชื่ออาจารย์ร่วม ให้เป็น array เพื่อนำไปติ๊กถูกใน checkbox
@@ -241,16 +308,15 @@ export default function A_SupervisionManage() {
             // รวมชื่ออาจารย์ที่เลือกด้วยลูกน้ำ
             const coTeacherString = selectedCoTeachers.length > 0 ? selectedCoTeachers.join(', ') : null;
 
-            await axios.put(`http://localhost:5000/api/admin/supervisions/${selectedSupForModal.id}/co-teachers`, {
+            await axios.put(`/api/admin/supervisions/${selectedSupForModal.id}/co-teachers`, {
                 coTeacherName: coTeacherString
             }, { headers: { Authorization: `Bearer ${token}` } });
 
-            alert("✅ บันทึกรายชื่ออาจารย์นิเทศเรียบร้อยแล้ว");
+            toast.success("บันทึกรายชื่ออาจารย์นิเทศเรียบร้อยแล้ว");
             setAssignTeacherModalOpen(false);
             fetchData();
-        } catch (error) {
-            console.error(error);
-            alert("❌ เกิดข้อผิดพลาดในการบันทึกข้อมูลอาจารย์นิเทศ");
+        } catch {
+            toast.error("เกิดข้อผิดพลาดในการบันทึกข้อมูลอาจารย์นิเทศ");
         }
     };
 
@@ -261,6 +327,21 @@ export default function A_SupervisionManage() {
         if (sortKey !== columnKey) return <span style={{ color: '#cbd5e1', marginLeft: 4 }}>↕</span>;
         return <span style={{ color: '#0ea5e9', marginLeft: 4 }}>{sortDirection === 'asc' ? '↑' : '↓'}</span>;
     };
+
+    // แปลง supervisions → CalendarEvent (เฉพาะที่ยืนยันวันแล้ว)
+    const calendarEvents = useMemo<CalendarEvent[]>(() =>
+        supervisions
+            .filter(s => s.confirmedDate && ["DATE_CONFIRMED","LETTER_UPLOADED","COMPLETED"].includes(s.status))
+            .map(s => ({
+                id: s.id,
+                confirmedDate: s.confirmedDate!,
+                studentId: s.student.studentId,
+                studentName: `${s.student.firstName} ${s.student.lastName}`,
+                type: s.supervisionType,
+                status: s.status,
+            })),
+        [supervisions]
+    );
 
     if (loading) return <div style={{ padding: 40, textAlign: 'center' }}>กำลังโหลดข้อมูล...</div>;
 
@@ -330,6 +411,11 @@ export default function A_SupervisionManage() {
                 </div>
             </section>
 
+            {/* ================= ปฏิทินนิเทศ ================= */}
+            <div style={{ marginBottom: 24 }}>
+                <SupervisionCalendar events={calendarEvents} title="📅 ปฏิทินนิเทศสหกิจ (วันที่ยืนยันแล้ว)" />
+            </div>
+
             {/* ================= SECTION 2: รายการนิเทศ ================= */}
             <section style={card}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
@@ -343,18 +429,17 @@ export default function A_SupervisionManage() {
                         placeholder="ค้นหา รหัส / ชื่อ / บริษัท / อาจารย์..."
                         value={q}
                         onChange={e => setQ(e.target.value)}
-                        style={{ width: 320 }}
+                        style={{ flex: 1, minWidth: 220 }}
                     />
-                    <select
-                        className="input"
-                        style={{ width: 'auto', background: '#f8fafc' }}
-                        value={filterPeriodId}
-                        onChange={e => setFilterPeriodId(e.target.value)}
-                    >
+                    <select className="input" style={{ width: 'auto' }} value={filterPeriodId} onChange={e => setFilterPeriodId(e.target.value)}>
                         <option value="all">📚 ทุกปีการศึกษา</option>
                         {coopPeriods.map(p => (
                             <option key={p.id} value={p.id}>เทอม {p.semester}/{p.academicYear}</option>
                         ))}
+                    </select>
+                    <select className="input" style={{ width: 'auto' }} value={filterCompany} onChange={e => setFilterCompany(e.target.value)}>
+                        <option value="all">🏢 ทุกบริษัท</option>
+                        {companyList.map(c => <option key={c} value={c}>{c}</option>)}
                     </select>
                 </div>
 
@@ -403,19 +488,26 @@ export default function A_SupervisionManage() {
                                         )}
                                     </td>
                                     <td style={td}>
-                                        {sup.status === 'PENDING_TEACHER' ? (
-                                            <span style={{ color: '#d97706', fontSize: 13 }}>⏳ รออาจารย์เลือกวัน</span>
-                                        ) : sup.confirmedDate ? (
+                                        {sup.confirmedDate ? (
                                             <>
                                                 <div style={{ fontWeight: 700, color: '#166534', fontSize: 13 }}>
-                                                    {new Date(sup.confirmedDate).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' })} น.
+                                                    ✅ {new Date(sup.confirmedDate).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' })} น.
                                                 </div>
                                                 <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>
                                                     {sup.supervisionType === 'ONLINE' ? '🌐 ออนไลน์' : '🏢 ออนไซต์'}
                                                 </div>
                                             </>
+                                        ) : sup.proposedDates ? (
+                                            <>
+                                                <div style={{ fontSize: 11, color: '#92400e', fontWeight: 700, marginBottom: 4 }}>⏳ วันที่เสนอ (รออาจารย์เลือก)</div>
+                                                {parseProposedList(sup.proposedDates).map((p, i) => (
+                                                    <div key={i} style={{ fontSize: 12, color: '#78350f', background: '#fef3c7', padding: '2px 6px', borderRadius: 4, marginBottom: 2 }}>
+                                                        {p.dmy}{p.time ? ` · ${p.time}` : ""}
+                                                    </div>
+                                                ))}
+                                            </>
                                         ) : (
-                                            <span style={{ color: '#dc2626', fontSize: 13 }}>ไม่ระบุ</span>
+                                            <span style={{ color: '#94a3b8', fontSize: 13 }}>ยังไม่เสนอวัน</span>
                                         )}
                                     </td>
                                     <td style={td}>
@@ -429,6 +521,15 @@ export default function A_SupervisionManage() {
                                             </button>
 
                                             {/* ปุ่มจัดการเอกสาร */}
+                                            {sup.status === "DATE_CONFIRMED" && !sup.officialLetterPath && (
+                                                <button
+                                                    className="btn-ghost"
+                                                    style={{ fontSize: 12, padding: '6px 10px', color: '#d97706', borderColor: '#d97706' }}
+                                                    onClick={() => openEditDateModal(sup)}
+                                                >
+                                                    ✏️ แก้ไขวัน
+                                                </button>
+                                            )}
                                             {sup.status === "DATE_CONFIRMED" && (
                                                 <button className="btn" style={{ background: '#2563eb', color: 'white', padding: '6px 10px', fontSize: 12 }} onClick={() => setSelectedSupForModal(sup)}>
                                                     📄 ออกหนังสือ
@@ -463,6 +564,56 @@ export default function A_SupervisionManage() {
                 .teacher-checkbox-label:hover { background: #f1f5f9; border-color: #94a3b8;}
             `}</style>
 
+            {/* ================= ConfirmDialog: ยืนยันแก้ไขวัน ================= */}
+            <ConfirmDialog
+                open={confirmEditOpen}
+                title="ยืนยันการแก้ไขวันนิเทศ"
+                message={`เปลี่ยนวันนิเทศเป็น ${editDateValue} เวลา ${editDateTime} น.?`}
+                icon="✏️"
+                confirmLabel="บันทึก"
+                confirmColor="#d97706"
+                onConfirm={handleSaveEditDate}
+                onCancel={() => setConfirmEditOpen(false)}
+            />
+
+            {/* ================= MODAL: แก้ไขวันนิเทศ ================= */}
+            {editDateSup && (
+                <div style={modalOverlay} onClick={() => setEditDateSup(null)}>
+                    <div style={{ ...modalContentLarge, maxWidth: 480 }} onClick={e => e.stopPropagation()}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, paddingBottom: 16, borderBottom: '1px solid #e2e8f0' }}>
+                            <h3 style={{ margin: 0, fontSize: 20, color: '#0f172a' }}>✏️ แก้ไขวัน-เวลานิเทศ</h3>
+                            <button onClick={() => setEditDateSup(null)} style={{ background: 'none', border: 'none', fontSize: 24, cursor: 'pointer', color: '#64748b' }}>&times;</button>
+                        </div>
+                        <div style={{ fontSize: 14, color: '#475569', marginBottom: 20, padding: 12, background: '#f8fafc', borderRadius: 8 }}>
+                            <div>นักศึกษา: <b>{editDateSup.student.firstName} {editDateSup.student.lastName}</b></div>
+                            <div style={{ marginTop: 4 }}>บริษัท: <b>{editDateSup.student.coop?.company?.name || '-'}</b></div>
+                            <div style={{ marginTop: 4 }}>อาจารย์: <b>{editDateSup.teacher.prefix}{editDateSup.teacher.firstName} {editDateSup.teacher.lastName}</b></div>
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
+                            <div>
+                                <label style={labelStyle}>วันที่นิเทศ *</label>
+                                <input type="date" className="input" value={editDateValue} onChange={e => setEditDateValue(e.target.value)} />
+                            </div>
+                            <div>
+                                <label style={labelStyle}>เวลา *</label>
+                                <input type="time" className="input" value={editDateTime} onChange={e => setEditDateTime(e.target.value)} />
+                            </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+                            <button className="btn-ghost" onClick={() => setEditDateSup(null)}>ยกเลิก</button>
+                            <button
+                                className="btn"
+                                style={{ background: '#d97706', padding: '10px 20px', display: 'flex', alignItems: 'center', gap: 8 }}
+                                disabled={!editDateValue || savingDate}
+                                onClick={() => setConfirmEditOpen(true)}
+                            >
+                                {savingDate ? <><Spinner size={16} color="#fff" /> กำลังบันทึก...</> : '💾 บันทึกวันใหม่'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* ================= MODAL: ออกเอกสาร ================= */}
             {selectedSupForModal && !assignTeacherModalOpen && (
                 <IssueSupervisionLetterModal
@@ -481,7 +632,7 @@ export default function A_SupervisionManage() {
                     <div style={{ ...modalContentLarge, maxWidth: 600 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 15, borderBottom: '1px solid #e2e8f0', marginBottom: 20 }}>
                             <h3 style={{ margin: 0, fontSize: 20, color: '#0f172a' }}>👥 จัดการอาจารย์นิเทศ</h3>
-                            <button onClick={() => setAssignTeacherModalOpen(false)} style={{ background: 'none', border: 'none', fontSize: 24, cursor: 'pointer', color: '#64748b' }}>&times;</button>
+                            <button onClick={() => { setAssignTeacherModalOpen(false); setSelectedSupForModal(null); }} style={{ background: 'none', border: 'none', fontSize: 24, cursor: 'pointer', color: '#64748b' }}>&times;</button>
                         </div>
 
                         <div style={{ marginBottom: 16 }}>
@@ -526,7 +677,7 @@ export default function A_SupervisionManage() {
                         </div>
 
                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 24, paddingTop: 16, borderTop: '1px solid #e2e8f0' }}>
-                            <button className="btn-ghost" onClick={() => setAssignTeacherModalOpen(false)}>ยกเลิก</button>
+                            <button className="btn-ghost" onClick={() => { setAssignTeacherModalOpen(false); setSelectedSupForModal(null); }}>ยกเลิก</button>
                             <button className="btn" style={{ background: '#2563eb', padding: '10px 20px' }} onClick={handleSaveCoTeachers}>💾 บันทึกการเปลี่ยนแปลง</button>
                         </div>
                     </div>

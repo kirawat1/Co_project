@@ -44,13 +44,14 @@ export default function A_Announcements() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [availableMajors, setAvailableMajors] = useState<string[]>([]);
   const [targetMajors, setTargetMajors] = useState<string[]>([]);
+  const [filterMajor, setFilterMajor] = useState<string>(""); // "" = ทั้งหมด, "ALL" = ทุกสาขา, "<major>" = เฉพาะสาขา
 
   const token = localStorage.getItem("coop.token");
 
   /* ================= 0. LOAD MAJORS ================= */
   const fetchMajors = async () => {
     try {
-      const res = await axios.get("/api/admin/students/majors", {
+      const res = await axios.get("/api/admin/majors", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.data.ok) setAvailableMajors(res.data.majors);
@@ -232,6 +233,17 @@ export default function A_Announcements() {
               );
             })}
           </select>
+          <select
+            style={selectYear}
+            value={filterMajor}
+            onChange={e => setFilterMajor(e.target.value)}
+          >
+            <option value="">ทุกประกาศ</option>
+            <option value="ALL">ทุกสาขา (ไม่จำกัดสาขา)</option>
+            {availableMajors.map(m => (
+              <option key={m} value={m}>{m}</option>
+            ))}
+          </select>
           <button style={btnPrimary} onClick={() => { resetForm(); setModalOpen(true); }}>
             + สร้างประกาศใหม่
           </button>
@@ -242,10 +254,18 @@ export default function A_Announcements() {
       <main style={mainList}>
         {loading ? (
           <div style={emptyState}>กำลังโหลดประกาศ...</div>
-        ) : items.length === 0 ? (
-          <div style={emptyState}>📭 ยังไม่มีประกาศในเทอม {selectedPeriod}</div>
+        ) : items.filter(a => {
+          if (!filterMajor) return true;
+          if (filterMajor === "ALL") return !a.targetMajors || a.targetMajors.length === 0;
+          return a.targetMajors?.includes(filterMajor);
+        }).length === 0 ? (
+          <div style={emptyState}>📭 ไม่มีประกาศสำหรับตัวกรองนี้</div>
         ) : (
-          items.map(a => (
+          items.filter(a => {
+            if (!filterMajor) return true;
+            if (filterMajor === "ALL") return !a.targetMajors || a.targetMajors.length === 0;
+            return a.targetMajors?.includes(filterMajor);
+          }).map(a => (
             <article key={a.id} style={annCard} className="ann-card">
               <div style={annContent}>
                 <div style={annMeta}>

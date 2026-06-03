@@ -95,7 +95,7 @@ export default function T_StudentDetail() {
   const mentorData = student?.coop?.mentor;
 
   const handleViewFile = (doc: StudentDocument) => {
-    const url = `http://localhost:5000/uploads/${doc.path}`;
+    const url = `/uploads/${doc.path}`;
     setPreviewUrl(url);
     setCurrentDocName(doc.name);
 
@@ -114,16 +114,17 @@ export default function T_StudentDetail() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const resStd = await fetch("http://localhost:5000/api/students", {
+      const resStd = await fetch("/api/students", {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (resStd.ok) {
-        const allData: StudentProfile[] = await resStd.json();
+        const raw = await resStd.json();
+        const allData: StudentProfile[] = Array.isArray(raw) ? raw : (raw?.data ?? []);
         const found = allData.find(s => s.studentId === studentId);
         setStudent(found || null);
       }
 
-      const resVisit = await fetch(`http://localhost:5000/api/visits/student/${studentId}`, {
+      const resVisit = await fetch(`/api/visits/student/${studentId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (resVisit.ok) {
@@ -151,7 +152,7 @@ export default function T_StudentDetail() {
   const addVisit = async () => {
     if (!visitForm.date) return alert("กรุณาเลือกวันที่");
     try {
-      const res = await fetch("http://localhost:5000/api/visits", {
+      const res = await fetch("/api/visits", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ studentId: studentId, ...visitForm }),
@@ -166,7 +167,7 @@ export default function T_StudentDetail() {
 
   const toggleDone = async (id: number) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/visits/${id}/toggle`, {
+      const res = await fetch(`/api/visits/${id}/toggle`, {
         method: "PUT",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -177,7 +178,7 @@ export default function T_StudentDetail() {
   const removeVisit = async (id: number) => {
     if (!confirm("ยืนยันลบรายการนี้?")) return;
     try {
-      const res = await fetch(`http://localhost:5000/api/visits/${id}`, {
+      const res = await fetch(`/api/visits/${id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });

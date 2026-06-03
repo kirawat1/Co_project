@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import type { CSSProperties } from "react";
 import axios from "axios";
 
@@ -46,14 +46,14 @@ export default function T_T002Review() {
             const token = localStorage.getItem("coop.token");
 
             // ดึงรอบปีการศึกษามาแสดงใน Dropdown
-            const resPeriods = await fetch("http://localhost:5000/api/admin/coop-periods/all", { headers: { Authorization: `Bearer ${token}` } });
+            const resPeriods = await fetch("/api/admin/coop-periods/all", { headers: { Authorization: `Bearer ${token}` } });
             if (resPeriods.ok) {
                 const periodsData = await resPeriods.json();
                 if (periodsData.ok && periodsData.periods) setCoopPeriods(periodsData.periods);
             }
 
             // ดึงเฉพาะเด็กในที่ปรึกษาตัวเอง
-            const res = await axios.get("http://localhost:5000/api/admin/students", {
+            const res = await axios.get("/api/admin/students", {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
@@ -71,6 +71,26 @@ export default function T_T002Review() {
     };
 
     useEffect(() => { fetchStudents(); }, []);
+
+    const reloadStudents = async (period: string) => {
+        try {
+            const token = localStorage.getItem("coop.token");
+            const params = new URLSearchParams();
+            if (period !== "all") params.set("coopPeriodId", period);
+            const res = await axios.get(`/api/admin/students?${params}`, { headers: { Authorization: `Bearer ${token}` } });
+            const allStudents: any[] = Array.isArray(res.data) ? res.data : (res.data?.data || res.data?.students || []);
+            setStudents(allStudents.filter((s: any) => {
+                const hasT002Doc = s.documents?.some((d: any) => d.type === 'T002_FORM');
+                const isStatusMatch = ['T002_SUBMITTED', 'T002_EDITS_REQUIRED', 'INTERNSHIP_STARTED'].includes(s.coop?.status || s.docStatus);
+                return hasT002Doc || isStatusMatch;
+            }));
+        } catch (err) { console.error(err); }
+    };
+    const initialPeriodMount = useRef(true);
+    useEffect(() => {
+        if (initialPeriodMount.current) { initialPeriodMount.current = false; return; }
+        reloadStudents(selectedPeriod);
+    }, [selectedPeriod]);
 
     const getT002Status = (student: Student) => {
         const t002Doc = student.documents?.find(d => d.type === "T002_FORM");
@@ -97,9 +117,7 @@ export default function T_T002Review() {
         // 1. Filter
         let filtered = students.filter(s => {
             const matchSearch = `${s.studentId} ${s.firstName} ${s.lastName} ${s.coop?.company?.name || ""}`.toLowerCase().includes(searchTerm.toLowerCase());
-            const pId = String(s.coopPeriodId || s.coop?.coopPeriodId || "");
-            const matchPeriod = selectedPeriod === "all" || pId === selectedPeriod;
-            return matchSearch && matchPeriod;
+            return matchSearch;
         });
 
         // 2. Sort
@@ -120,13 +138,13 @@ export default function T_T002Review() {
         });
 
         return filtered;
-    }, [students, selectedPeriod, searchTerm, sortKey, sortDirection]);
+    }, [students, searchTerm, sortKey, sortDirection]);
 
     const openReviewModal = (student: Student) => { setSelectedStudent(student); setComment(""); setModalOpen(true); };
 
     const getT002FileUrl = (docs: Document[]) => {
         const file = docs?.find(d => d.type === "T002_FORM");
-        return file ? `http://localhost:5000/uploads/${file.path}` : null;
+        return file ? `/uploads/${file.path}` : null;
     };
 
     const submitReview = async (action: 'APPROVE' | 'REJECT') => {
@@ -138,7 +156,7 @@ export default function T_T002Review() {
             const token = localStorage.getItem("coop.token");
             const newStatus = action === 'APPROVE' ? 'INTERNSHIP_STARTED' : 'T002_EDITS_REQUIRED';
 
-            await axios.put(`http://localhost:5000/api/teacher/documents/review-t002`, {
+            await axios.put(`/api/teacher/documents/review-t002`, {
                 studentId: selectedStudent?.id,
                 status: newStatus,
                 comment: action === 'REJECT' ? comment : null
@@ -177,7 +195,7 @@ export default function T_T002Review() {
                     <select className="input" style={{ width: 'auto', background: '#f8fafc', padding: '10px 14px' }} value={selectedPeriod} onChange={e => setSelectedPeriod(e.target.value)}>
                         <option value="all">📚 ทุกปีการศึกษา</option>
                         {coopPeriods.map(p => (
-                            <option key={p.id} value={p.id}>เทอม {p.semester} / {p.academicYear}</option>
+                            <option key={p.id} value={String(p.id)}>เทอม {p.semester} / {p.academicYear}</option>
                         ))}
                     </select>
 

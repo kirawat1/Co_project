@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { ThemeToggleBtn } from "./ThemeContext";
 import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import Sidebar from "./A_Sidebar";
 import Dashboard from "./A_Dashboard";
@@ -36,9 +37,9 @@ type AdminProfile = {
 
 export default function AdminApp() {
   const navigate = useNavigate();
-
   const [profile, setProfile] = useState<AdminProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
 
   const displayName = profile?.email || "เจ้าหน้าที่";
@@ -50,7 +51,7 @@ export default function AdminApp() {
       return;
     }
 
-    fetch("http://localhost:5000/api/auth/me", {
+    fetch("/api/auth/me", {
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -78,31 +79,30 @@ export default function AdminApp() {
 
   return (
     <div className="app-bg">
-      {/* Topbar (เหมือน S_App) */}
       <header className="topbar">
-        <div className="brand-badge">
-          <img src={coopLogo} alt="Co-op Logo" className="brand-img" />
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <button className="btn-ico btn-hamburger" onClick={() => setSidebarOpen(o => !o)} aria-label="เมนู">
+            <HamburgerIcon />
+          </button>
+          <div className="brand-badge">
+            <img src={coopLogo} alt="Co-op Logo" className="brand-img" />
+          </div>
         </div>
-
         <div className="topbar-right">
           <div className="user-mini">
             <div className="user-ava" />
             <div className="user-name">{displayName}</div>
           </div>
-          <button
-            className="btn-ico"
-            onClick={onLogout}
-            aria-label={`ออกจากระบบ (${displayName})`}
-            title="ออกจากระบบ"
-          >
+          <ThemeToggleBtn />
+          <button className="btn-ico" onClick={onLogout} aria-label="ออกจากระบบ" title="ออกจากระบบ">
             <LogoutIcon />
           </button>
         </div>
       </header>
 
-      {/* Layout */}
       <div className="layout">
-        <Sidebar />
+        <div className={`sidebar-overlay${sidebarOpen ? " open" : ""}`} onClick={() => setSidebarOpen(false)} />
+        <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
         <main className="main">
           <Routes>
             <Route index element={<Navigate to="/admin/dashboard" replace />} />
@@ -134,47 +134,21 @@ export default function AdminApp() {
         </main>
       </div>
 
-      {/* ธีมหลัก */}
       <StudentTheme IOS_BLUE={IOS_BLUE} />
-
-      {/* สไตล์ Topbar/โลโก้/ปุ่มไอคอน (ยกมาจาก S_App) */}
-      <style>{`
-        .topbar{
-          position: sticky; top: 0; z-index: 10;
-          display:flex; align-items:center; justify-content:space-between;
-          gap:16px; padding:10px 16px; background:#fff;
-          border-bottom:1px solid rgba(0,0,0,.06);
-        }
-        .brand-badge{
-          display:flex; align-items:center; justify-content:center;
-          background:#E6F0FF; border-radius:14px; padding:2px 2px;
-          border:1px solid rgba(0,0,0,.05);
-        }
-        .brand-img{ height:25px; width:auto; display:block; }
-        @media (min-width:1024px){ .brand-img{ height:40px; } }
-
-        .topbar-right{ display:flex; align-items:center; gap:12px; }
-        .user-mini{ display:flex; align-items:center; gap:10px; }
-        .user-ava{ width:28px; height:28px; border-radius:50%; background:#cfe4ff; }
-        .user-name{ font-weight:700; }
-
-        .btn-ico{
-          width:38px; height:38px; display:inline-flex; align-items:center; justify-content:center;
-          border-radius:10px; border:1px solid rgba(0,0,0,.08);
-          background:#fff; color:#0f172a; cursor:pointer;
-          transition: background .12s ease, border-color .12s ease, box-shadow .12s ease, color .12s ease;
-        }
-        .btn-ico:hover{
-          background:#f8fafc; border-color:#c7d2fe; color:${IOS_BLUE};
-          box-shadow:0 1px 0 rgba(0,0,0,.02), 0 6px 14px rgba(0,116,183,.14);
-        }
-        .btn-ico svg{ width:20px; height:20px; display:block; }
-      `}</style>
     </div>
   );
 }
 
-/* ไอคอนออกจากระบบ */
+function HamburgerIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+      <line x1="3" y1="6" x2="21" y2="6" />
+      <line x1="3" y1="12" x2="21" y2="12" />
+      <line x1="3" y1="18" x2="21" y2="18" />
+    </svg>
+  );
+}
+
 function LogoutIcon() {
   return (
     <svg

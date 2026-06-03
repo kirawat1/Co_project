@@ -1,6 +1,10 @@
 // backend/middlewares/authMiddleware.js
 const jwt = require('jsonwebtoken');
 
+if (!process.env.JWT_SECRET) {
+  throw new Error('FATAL: JWT_SECRET environment variable is not set');
+}
+
 exports.verifyToken = (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
@@ -13,27 +17,27 @@ exports.verifyToken = (req, res, next) => {
       return res.status(401).json({ message: "Invalid token format" });
     }
 
-    // ตรวจสอบ Token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'MySecretKey123');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // แนบข้อมูล user ลง req
-    req.user = decoded;      // { id: 1, role: 'STUDENT', ... }
-    req.userId = decoded.id; // ใช้สะดวกใน controller อื่น
+    req.user = decoded;
+    req.userId = decoded.id;
 
     next();
   } catch (err) {
-    console.error("Auth Error:", err.message);
-    return res.status(403).json({ message: "Invalid or expired token" });
+    // 401 = token หมดอายุ / ผิด secret → frontend ควร logout อัตโนมัติ
+    return res.status(401).json({ message: "Token expired or invalid — please log in again" });
   }
 };
 
 exports.verifyRole = (...allowedRoles) => {
+  // normalize ครั้งเดียวตอนสร้าง middleware — รองรับทั้ง 'teacher' และ 'TEACHER'
+  const allowed = new Set(allowedRoles.map(r => r.toLowerCase()));
   return (req, res, next) => {
-    // เช็คว่ามี User จาก verifyToken ไหม และ Role ตรงกับที่อนุญาตไหม
-    if (!req.user || !allowedRoles.includes(req.user.role)) {
-      return res.status(403).json({ 
-        ok: false, 
-        message: "Access Denied: You do not have permission." 
+    const role = (req.user?.role ?? '').toLowerCase();
+    if (!req.user || !allowed.has(role)) {
+      return res.status(403).json({
+        ok: false,
+        message: "Access Denied: You do not have permission."
       });
     }
     next();

@@ -90,7 +90,7 @@ const DispatchManagementCard = ({ profile, onUpload, onRefresh }: { profile: any
 
   const uploadedAcceptance = profile.documents?.find((d: any) => d.type === 'CP-ACCEPTANCE' || d.type === 'ACCEPTANCE_FORM');
   const dispatchDoc = profile.documents?.find((d: any) => d.type === 'DISPATCH_LETTER');
-  const dispatchUrl = dispatchDoc ? `http://localhost:5000/uploads/${dispatchDoc.path}` : null;
+  const dispatchUrl = dispatchDoc ? `/uploads/${dispatchDoc.path}` : null;
   const dispatchFileName = dispatchDoc ? dispatchDoc.name : "หนังสือขอความอนุเคราะห์.pdf";
 
   const currentStatus = profile.docStatus;
@@ -114,7 +114,7 @@ const DispatchManagementCard = ({ profile, onUpload, onRefresh }: { profile: any
     try {
       window.open(dispatchUrl, '_blank');
       const token = localStorage.getItem("coop.token");
-      await fetch("http://localhost:5000/api/students/acknowledge-dispatch", {
+      await fetch("/api/students/acknowledge-dispatch", {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -201,7 +201,7 @@ const DispatchManagementCard = ({ profile, onUpload, onRefresh }: { profile: any
               <div style={{ padding: 16, background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8 }}>
                 <div style={{ fontSize: 14, color: '#166534', marginBottom: 12 }}>✅ <strong>อัปโหลดสำเร็จ:</strong> {uploadedAcceptance.name}</div>
                 <div style={{ display: 'flex', gap: 10 }}>
-                  <button className="btn-secondary" style={{ flex: 1, fontSize: 13, padding: '10px' }} onClick={() => handlePreview(`http://localhost:5000/uploads/${uploadedAcceptance.path}`, "ใบตอบรับที่ส่งแล้ว")}>👁️ ดูไฟล์ที่ส่ง</button>
+                  <button className="btn-secondary" style={{ flex: 1, fontSize: 13, padding: '10px' }} onClick={() => handlePreview(`/uploads/${uploadedAcceptance.path}`, "ใบตอบรับที่ส่งแล้ว")}>👁️ ดูไฟล์ที่ส่ง</button>
                   <label htmlFor="upload-acceptance-change" className="btn-secondary" style={{ flex: 1, cursor: 'pointer', textAlign: 'center', fontSize: 13, padding: '10px' }}>🔄 เปลี่ยนไฟล์</label>
                   <input type="file" id="upload-acceptance-change" style={{ display: 'none' }} accept=".pdf,.jpg,.png" onChange={(e) => e.target.files?.[0] && setSelectedFile(e.target.files[0])} />
                 </div>
@@ -274,7 +274,7 @@ export default function S_Docs({ profile, setProfile }: { profile: LocalStudentP
 
   const refreshProfile = async () => {
     try {
-      const res = await fetch("http://localhost:5000/api/students/me", { headers: { Authorization: `Bearer ${token}` } });
+      const res = await fetch("/api/students/me", { headers: { Authorization: `Bearer ${token}` } });
       if (res.ok) {
         const data = await res.json();
         setProfile({ ...data, docStatus: data.coop?.status || "WAITING", teacherComment: data.coop?.t000Comment || data.coop?.teacherCheckComment });
@@ -285,10 +285,10 @@ export default function S_Docs({ profile, setProfile }: { profile: LocalStudentP
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const resConf = await fetch("http://localhost:5000/api/admin/config/t000", { headers: { Authorization: `Bearer ${token}` } });
+        const resConf = await fetch("/api/admin/config/t000", { headers: { Authorization: `Bearer ${token}` } });
         if (resConf.ok) setConfig(await resConf.json());
 
-        const resReq = await fetch("http://localhost:5000/api/students/doc-requirements", { headers: { Authorization: `Bearer ${token}` } });
+        const resReq = await fetch("/api/students/doc-requirements", { headers: { Authorization: `Bearer ${token}` } });
         if (resReq.ok) {
           const reqData = await resReq.json();
           if (reqData.ok) {
@@ -300,7 +300,7 @@ export default function S_Docs({ profile, setProfile }: { profile: LocalStudentP
           }
         }
 
-        const resForm = await fetch("http://localhost:5000/api/docs/my-application", { headers: { Authorization: `Bearer ${token}` } });
+        const resForm = await fetch("/api/docs/my-application", { headers: { Authorization: `Bearer ${token}` } });
         if (resForm.ok) {
           const data = await resForm.json();
           if (data.form) setFormData(prev => ({ ...prev, ...data.form }));
@@ -316,14 +316,14 @@ export default function S_Docs({ profile, setProfile }: { profile: LocalStudentP
     const newProfile = { ...profile, [field]: value };
     setProfile(newProfile);
     try {
-      await fetch("http://localhost:5000/api/students/me", { method: "PUT", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify(newProfile) });
+      await fetch("/api/students/me", { method: "PUT", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify(newProfile) });
     } catch (err) { console.error("Auto-save failed", err); }
   };
 
   const handleSaveForm = async (silent = false) => {
     try {
       if (!silent) setLoading(true);
-      const res = await fetch("http://localhost:5000/api/docs/save-form", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify(formData) });
+      const res = await fetch("/api/docs/save-form", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify(formData) });
       if (!silent && res.ok) alert("✅ บันทึกข้อมูลแบบฟอร์มเรียบร้อยแล้ว");
     } catch (err) { if (!silent) alert("Connection Error"); }
     finally { if (!silent) setLoading(false); }
@@ -374,8 +374,14 @@ export default function S_Docs({ profile, setProfile }: { profile: LocalStudentP
     data.append("files", file);
     data.append("docType", docTypeId);
     try {
-      const res = await fetch("http://localhost:5000/api/docs/upload", { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: data });
-      if (res.ok) { alert("✅ อัปโหลดไฟล์สำเร็จ"); await refreshProfile(); } else alert("❌ อัปโหลดล้มเหลว");
+      const res = await fetch("/api/docs/upload", { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: data });
+      if (res.ok) {
+        alert("✅ อัปโหลดไฟล์สำเร็จ");
+        await refreshProfile();
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        alert(errData.message || "❌ อัปโหลดล้มเหลว");
+      }
     } catch (err) { alert("Connect Error"); }
     finally { setLoading(false); }
   };
@@ -385,7 +391,7 @@ export default function S_Docs({ profile, setProfile }: { profile: LocalStudentP
     if (!window.confirm("คุณต้องการลบไฟล์นี้ใช่หรือไม่?")) return;
     setLoading(true);
     try {
-      const res = await fetch(`http://localhost:5000/api/docs/delete/${documentId}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+      const res = await fetch(`/api/docs/delete/${documentId}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
       if (res.ok) { alert("🗑️ ลบไฟล์เรียบร้อยแล้ว"); await refreshProfile(); }
     } finally { setLoading(false); }
   };
