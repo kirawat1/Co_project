@@ -4,9 +4,12 @@ const path = require("path");
 const fs = require("fs");
 const multer = require("multer");
 
-// Storage multer
+// Storage multer — ใช้ absolute path เพื่อให้ทำงานได้ไม่ว่า CWD จะเป็นอะไร
+const UPLOAD_DIR = path.join(__dirname, '../uploads');
+if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, "uploads/"),
+  destination: (req, file, cb) => cb(null, UPLOAD_DIR),
   filename: (req, file, cb) => {
     const ext = path.extname(file.originalname);
     const uniqueName = `${Date.now()}-${Math.round(Math.random()*1e9)}${ext}`;
@@ -100,7 +103,7 @@ const addOrUpdateAnnouncement = async (req, res) => {
       // ลบไฟล์ที่ไม่อยู่ใน keepFileIds
       for (const f of ann.files) {
         if (!keepFileIds?.includes(f.id)) {
-          const filePath = path.join("uploads", f.path);
+          const filePath = path.join(__dirname, '../uploads', f.path);
           if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
           await prisma.annFile.delete({ where: { id: f.id } });
         }

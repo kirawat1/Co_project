@@ -8,7 +8,7 @@ const rateLimit = require("express-rate-limit");
 dotenv.config();
 
 // ตรวจสอบ env ที่จำเป็นก่อน start server
-const REQUIRED_ENV = ["JWT_SECRET", "DATABASE_URL"];
+const REQUIRED_ENV = ["JWT_SECRET", "DATABASE_URL", "FRONTEND_URL"];
 for (const key of REQUIRED_ENV) {
   if (!process.env[key]) {
     console.error(`FATAL: Missing required environment variable: ${key}`);

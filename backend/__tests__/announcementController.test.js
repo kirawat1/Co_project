@@ -4,7 +4,8 @@ jest.mock('../config/prismaClient', () => require('./__mocks__/prismaClient'));
 
 // Mock fs to prevent actual file I/O
 jest.mock('fs', () => ({
-  existsSync: jest.fn().mockReturnValue(false),
+  existsSync: jest.fn().mockReturnValue(true),
+  mkdirSync: jest.fn(),
   unlinkSync: jest.fn(),
 }));
 
