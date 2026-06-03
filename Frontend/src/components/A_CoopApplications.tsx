@@ -2,6 +2,10 @@ import React, { useMemo, useState, useEffect } from "react";
 import type { CSSProperties } from "react";
 import axios from "axios";
 import StatusBadge from "./StatusBadge";
+import { useToast } from "./Toast";
+import ConfirmDialog from "./ConfirmDialog";
+import Spinner from "./Spinner";
+import { useDebounce } from "../hooks/useDebounce";
 
 // ================= TYPES =================
 type Document = { id: number; name: string; path: string; type: string };
@@ -12,8 +16,9 @@ type Student = {
     firstNameEn?: string; lastNameEn?: string; year?: string; major: string; curriculum?: string;
     advisorName?: string; phone?: string; email?: string; gpa: number;
     isQualified?: boolean;
-    coopPeriodId?: number; // ✅ เพิ่มเพื่อเช็คปีการศึกษา
+    coopPeriodId?: number;
     documents: Document[];
+    coopApplicationForm?: { gradeSheetUrl?: string | null } | null;
 };
 type CoopApp = {
     id: number;
@@ -35,9 +40,11 @@ type CoopPeriod = {
 
 // ================= COMPONENT =================
 export default function A_CoopApplications() {
+    const toast = useToast();
     const [apps, setApps] = useState<CoopApp[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
+    const debouncedSearch = useDebounce(searchTerm, 300);
     const [filterStatus, setFilterStatus] = useState("ALL");
 
     // ✅ State สำหรับเก็บรอบปีการศึกษาและตัวกรอง
@@ -50,13 +57,24 @@ export default function A_CoopApplications() {
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
     const [previewType, setPreviewType] = useState<'pdf' | 'image' | null>(null);
 
+    // ConfirmDialog state
+    const [confirmState, setConfirmState] = useState<{
+        open: boolean; title: string; message: string; icon?: string;
+        confirmLabel?: string; confirmColor?: string; onConfirm: () => void;
+    }>({ open: false, title: "", message: "", onConfirm: () => {} });
+
     const token = localStorage.getItem("coop.token");
+
+    const openConfirm = (opts: Omit<typeof confirmState, "open">) =>
+        setConfirmState({ ...opts, open: true });
+    const closeConfirm = () =>
+        setConfirmState(s => ({ ...s, open: false }));
 
     const fetchApplications = async () => {
         setLoading(true);
         try {
             // 🟢 1. ดึงข้อมูลปีการศึกษา
-            const resPeriods = await axios.get("http://localhost:5000/api/admin/coop-periods/all", {
+            const resPeriods = await axios.get("/api/admin/coop-periods/all", {
                 headers: { Authorization: `Bearer ${token}` }
             });
             if (resPeriods.data?.periods) {
@@ -64,7 +82,7 @@ export default function A_CoopApplications() {
             }
 
             // 🟢 2. ดึงข้อมูลคำร้อง
-            const resApps = await axios.get("http://localhost:5000/api/admin/coop-applications", {
+            const resApps = await axios.get("/api/admin/coop-applications", {
                 headers: { Authorization: `Bearer ${token}` }
             });
             if (resApps.data.ok) setApps(resApps.data.applications);
@@ -86,46 +104,68 @@ export default function A_CoopApplications() {
     }, [apps, filterPeriodId]);
 
     // ฟังก์ชันอนุมัติกลุ่ม (Bulk Approve)
-    const handleBulkApprove = async () => {
+    const handleBulkApprove = () => {
         const count = qualifiedPendingList.length;
         if (count === 0) return;
-        if (!confirm(`⚡ ยืนยันการอนุมัติอัตโนมัติ?\n\nระบบจะอนุมัติคำร้องของนักศึกษาที่ "ผ่านคุณสมบัติ" ในเทอมที่เลือกทั้งหมด ${count} รายการ`)) return;
-
-        setLoading(true);
-        try {
-            await Promise.all(qualifiedPendingList.map(app =>
-                axios.patch(`http://localhost:5000/api/admin/coop-applications/${app.id}/status`, {
-                    status: "QUALIFIED",
-                    comment: "อนุมัติโดยระบบ (ผ่านคุณสมบัติครบถ้วน)"
-                }, { headers: { Authorization: `Bearer ${token}` } })
-            ));
-            alert(`ดำเนินการสำเร็จ! อนุมัติแล้ว ${count} รายการ`);
-            fetchApplications();
-        } catch (err) {
-            alert("เกิดข้อผิดพลาดในการอนุมัติกลุ่ม");
-        } finally {
-            setLoading(false);
-        }
+        openConfirm({
+            title: "ยืนยันอนุมัติกลุ่ม",
+            message: `ระบบจะอนุมัติคำร้องของนักศึกษาที่ผ่านคุณสมบัติ จำนวน ${count} รายการ ดำเนินการต่อหรือไม่?`,
+            icon: "⚡",
+            confirmLabel: `อนุมัติ ${count} ราย`,
+            confirmColor: "#10b981",
+            onConfirm: async () => {
+                closeConfirm();
+                setLoading(true);
+                try {
+                    await Promise.all(qualifiedPendingList.map(app =>
+                        axios.patch(`/api/admin/coop-applications/${app.id}/status`, {
+                            status: "QUALIFIED",
+                            comment: "อนุมัติโดยระบบ (ผ่านคุณสมบัติครบถ้วน)"
+                        }, { headers: { Authorization: `Bearer ${token}` } })
+                    ));
+                    toast.success(`อนุมัติสำเร็จ ${count} รายการ`);
+                    fetchApplications();
+                } catch {
+                    toast.error("เกิดข้อผิดพลาดในการอนุมัติกลุ่ม");
+                } finally {
+                    setLoading(false);
+                }
+            },
+        });
     };
 
-    const updateStatus = async (status: string) => {
+    const updateStatus = (status: string) => {
         if (!selectedApp) return;
         if (status === "APPLICATION_EDITS_REQUIRED" && !comment.trim()) {
-            return alert("กรุณาระบุสิ่งที่ต้องแก้ไข เพื่อให้นักศึกษาทราบ");
+            toast.warning("กรุณาระบุสิ่งที่ต้องแก้ไข เพื่อให้นักศึกษาทราบ");
+            return;
         }
-        if (!confirm(`ยืนยันการเปลี่ยนสถานะเป็น: ${status} ?`)) return;
-
-        try {
-            await axios.patch(`http://localhost:5000/api/admin/coop-applications/${selectedApp.id}/status`, {
-                status,
-                comment: status === "APPLICATION_EDITS_REQUIRED" ? comment : null
-            }, { headers: { Authorization: `Bearer ${token}` } });
-            alert("บันทึกสถานะเรียบร้อย");
-            closeAndResetModal();
-            fetchApplications();
-        } catch (err) {
-            alert("เกิดข้อผิดพลาดในการอัปเดตสถานะ");
-        }
+        const statusLabel: Record<string, string> = {
+            QUALIFIED: "ผ่านคุณสมบัติ",
+            APPLICATION_EDITS_REQUIRED: "ขอให้แก้ไข",
+            QUALIFICATION_FAILED: "ไม่ผ่านคุณสมบัติ",
+        };
+        openConfirm({
+            title: "ยืนยันการเปลี่ยนสถานะ",
+            message: `เปลี่ยนสถานะเป็น "${statusLabel[status] ?? status}" สำหรับ ${selectedApp.student.firstName} ${selectedApp.student.lastName}?`,
+            icon: "📋",
+            confirmLabel: "ยืนยัน",
+            confirmColor: status === "QUALIFICATION_FAILED" ? "#ef4444" : "#0074B7",
+            onConfirm: async () => {
+                closeConfirm();
+                try {
+                    await axios.patch(`/api/admin/coop-applications/${selectedApp.id}/status`, {
+                        status,
+                        comment: status === "APPLICATION_EDITS_REQUIRED" ? comment : null
+                    }, { headers: { Authorization: `Bearer ${token}` } });
+                    toast.success("บันทึกสถานะเรียบร้อย");
+                    closeAndResetModal();
+                    fetchApplications();
+                } catch {
+                    toast.error("เกิดข้อผิดพลาดในการอัปเดตสถานะ");
+                }
+            },
+        });
     };
 
     const openReviewModal = (app: CoopApp) => {
@@ -142,7 +182,7 @@ export default function A_CoopApplications() {
     };
 
     const handlePreview = (doc: Document) => {
-        const url = `http://localhost:5000/uploads/${doc.path}`;
+        const url = `/uploads/${doc.path}`;
         setPreviewUrl(url);
         setPreviewType(doc.path.toLowerCase().endsWith('.pdf') ? 'pdf' : 'image');
     };
@@ -156,7 +196,7 @@ export default function A_CoopApplications() {
 
     // ✅ กรองตาราง
     const filteredApps = apps.filter(app => {
-        const matchSearch = `${app.student.studentId} ${app.student.firstName} ${app.student.lastName} ${app.company?.name || ""}`.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchSearch = `${app.student.studentId} ${app.student.firstName} ${app.student.lastName} ${app.company?.name || ""}`.toLowerCase().includes(debouncedSearch.toLowerCase());
         const matchStatus = filterStatus === "ALL" || app.status === filterStatus;
 
         // กรองตามปีการศึกษา
@@ -169,6 +209,16 @@ export default function A_CoopApplications() {
 
     return (
         <div className="page" style={{ padding: 4, margin: 28, marginLeft: 65 }}>
+        <ConfirmDialog
+            open={confirmState.open}
+            title={confirmState.title}
+            message={confirmState.message}
+            icon={confirmState.icon}
+            confirmLabel={confirmState.confirmLabel}
+            confirmColor={confirmState.confirmColor}
+            onConfirm={confirmState.onConfirm}
+            onCancel={closeConfirm}
+        />
 
             {/* HEADER */}
             <section style={{ ...card, marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 15 }}>
@@ -188,10 +238,11 @@ export default function A_CoopApplications() {
                             padding: '10px 20px'
                         }}
                     >
-                        ⚡ อนุมัติผู้ผ่านคุณสมบัติทั้งหมด ({qualifiedPendingList.length})
+                        {loading ? <Spinner size={16} color={qualifiedPendingList.length > 0 ? "#fff" : "#9ca3af"} /> : "⚡"}
+                        {" "}อนุมัติผู้ผ่านคุณสมบัติทั้งหมด ({qualifiedPendingList.length})
                     </button>
-                    <button className="btn-ghost" onClick={fetchApplications} disabled={loading}>
-                        {loading ? '⏳' : '🔄'} รีเฟรช
+                    <button className="btn-ghost" onClick={fetchApplications} disabled={loading} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        {loading ? <Spinner size={15} /> : "🔄"} รีเฟรช
                     </button>
                 </div>
             </section>
@@ -303,8 +354,20 @@ export default function A_CoopApplications() {
                                     <div style={{ fontWeight: 800, marginBottom: 10, borderBottom: '1px solid #eee', paddingBottom: 8, color: '#334155' }}>👤 ข้อมูลผู้สมัคร</div>
                                     <div style={{ fontSize: 13, lineHeight: 2, color: '#475569' }}>
                                         <b>ชื่อ:</b> {selectedApp.student.firstName} {selectedApp.student.lastName}<br />
-                                        <b>GPA:</b> {selectedApp.student.gpa.toFixed(2)} | <b>สาขา:</b> {selectedApp.student.major}
+                                        <b>สาขา:</b> {selectedApp.student.major}
                                     </div>
+                                    {selectedApp.student.coopApplicationForm?.gradeSheetUrl ? (
+                                        <a
+                                            href={selectedApp.student.coopApplicationForm.gradeSheetUrl}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            style={{ display: "inline-flex", alignItems: "center", gap: 6, marginTop: 10, padding: "8px 14px", background: "#eff6ff", color: "#2563eb", border: "1px solid #bfdbfe", borderRadius: 8, fontWeight: 700, fontSize: 13, textDecoration: "none" }}
+                                        >
+                                            📊 ดูแบบฟอร์มตรวจสอบการสำเร็จการศึกษา
+                                        </a>
+                                    ) : (
+                                        <div style={{ marginTop: 10, fontSize: 12, color: "#94a3b8" }}>ยังไม่ได้แนบแบบฟอร์มตรวจสอบการสำเร็จการศึกษา</div>
+                                    )}
                                 </div>
 
                                 {/* Controls */}

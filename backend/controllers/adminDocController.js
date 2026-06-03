@@ -261,10 +261,13 @@ exports.getCoopApplications = async (req, res) => {
       },
       include: {
         student: {
-          include: { documents: true } 
+          include: {
+            documents: true,
+            coopApplicationForm: { select: { gradeSheetUrl: true } },
+          }
         },
         company: true,
-        mentor: true, // ✅ เพิ่มบรรทัดนี้ เพื่อให้ส่งข้อมูลพี่เลี้ยงมาด้วย
+        mentor: true,
       },
       orderBy: { updatedAt: "desc" }
     });
