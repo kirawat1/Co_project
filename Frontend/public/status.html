@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Co-op System Status</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0f1117;
+      color: #e2e8f0;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh;
+      padding: 2rem 1rem;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 2.5rem;
+    }
+    header h1 {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: #f8fafc;
+      letter-spacing: -0.5px;
+    }
+    header p {
+      margin-top: 0.4rem;
+      font-size: 0.85rem;
+      color: #64748b;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1rem;
+      max-width: 960px;
+      margin: 0 auto 1.5rem;
+    }
+
+    .card {
+      background: #1e2330;
+      border: 1px solid #2d3748;
+      border-radius: 12px;
+      padding: 1.25rem 1.5rem;
+      position: relative;
+      transition: border-color 0.2s;
+    }
+    .card.ok    { border-color: #22543d; }
+    .card.error { border-color: #742a2a; }
+    .card.offline { border-color: #744210; }
+    .card.checking { border-color: #2d3748; }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+    .icon {
+      font-size: 1.5rem;
+      line-height: 1;
+    }
+    .card-title {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #cbd5e0;
+    }
+
+    .badge {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 0.2rem 0.6rem;
+      border-radius: 99px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .badge.ok       { background: #1a4731; color: #68d391; }
+    .badge.error    { background: #4a1515; color: #fc8181; }
+    .badge.offline  { background: #4a3000; color: #f6ad55; }
+    .badge.checking { background: #1e2330; color: #4a5568; border: 1px solid #2d3748; }
+
+    .dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .dot.ok       { background: #48bb78; box-shadow: 0 0 6px #48bb78; }
+    .dot.error    { background: #fc8181; box-shadow: 0 0 6px #fc8181; }
+    .dot.offline  { background: #f6ad55; box-shadow: 0 0 6px #f6ad55; }
+    .dot.checking { background: #4a5568; }
+
+    .metrics {
+      display: flex;
+      flex-direction: column;
+      gap: 0.45rem;
+    }
+    .metric {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.8rem;
+    }
+    .metric-label { color: #718096; }
+    .metric-value { color: #a0aec0; font-variant-numeric: tabular-nums; }
+    .metric-value.highlight { color: #90cdf4; }
+
+    .ngrok-url {
+      margin-top: 0.75rem;
+      padding: 0.5rem 0.75rem;
+      background: #131720;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      color: #63b3ed;
+      word-break: break-all;
+      text-decoration: none;
+      display: block;
+      border: 1px solid #2d3748;
+    }
+    .ngrok-url:hover { border-color: #63b3ed; }
+
+    .footer {
+      text-align: center;
+      font-size: 0.78rem;
+      color: #4a5568;
+      max-width: 960px;
+      margin: 0 auto;
+    }
+    .countdown {
+      display: inline-block;
+      margin-left: 0.3rem;
+      color: #63b3ed;
+      font-variant-numeric: tabular-nums;
+      min-width: 1.2em;
+    }
+
+    .pulse {
+      animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .error-msg {
+      margin-top: 0.6rem;
+      font-size: 0.75rem;
+      color: #fc8181;
+      background: #2d1010;
+      padding: 0.4rem 0.6rem;
+      border-radius: 6px;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Co-op System Status</h1>
+  <p id="last-updated">กำลังโหลด...</p>
+</header>
+
+<div class="grid">
+
+  <!-- Backend -->
+  <div class="card checking" id="card-backend">
+    <div class="card-header">
+      <span class="icon">⚙️</span>
+      <span class="card-title">Backend (Node.js)</span>
+      <span class="badge checking" id="badge-backend"><span class="dot checking pulse"></span>...</span>
+    </div>
+    <div class="metrics" id="metrics-backend">
+      <div class="metric"><span class="metric-label">Port</span><span class="metric-value">5000</span></div>
+      <div class="metric"><span class="metric-label">Uptime</span><span class="metric-value" id="backend-uptime">-</span></div>
+      <div class="metric"><span class="metric-label">Memory</span><span class="metric-value" id="backend-mem">-</span></div>
+      <div class="metric"><span class="metric-label">Node</span><span class="metric-value" id="backend-node">-</span></div>
+      <div class="metric"><span class="metric-label">PID</span><span class="metric-value" id="backend-pid">-</span></div>
+    </div>
+  </div>
+
+  <!-- Database -->
+  <div class="card checking" id="card-db">
+    <div class="card-header">
+      <span class="icon">🗄️</span>
+      <span class="card-title">MySQL Database</span>
+      <span class="badge checking" id="badge-db"><span class="dot checking pulse"></span>...</span>
+    </div>
+    <div class="metrics">
+      <div class="metric"><span class="metric-label">Host</span><span class="metric-value">localhost:3306</span></div>
+      <div class="metric"><span class="metric-label">Latency</span><span class="metric-value" id="db-latency">-</span></div>
+    </div>
+  </div>
+
+  <!-- Nginx -->
+  <div class="card checking" id="card-nginx">
+    <div class="card-header">
+      <span class="icon">🌐</span>
+      <span class="card-title">Nginx</span>
+      <span class="badge checking" id="badge-nginx"><span class="dot checking pulse"></span>...</span>
+    </div>
+    <div class="metrics">
+      <div class="metric"><span class="metric-label">Port</span><span class="metric-value">80</span></div>
+      <div class="metric"><span class="metric-label">Latency</span><span class="metric-value" id="nginx-latency">-</span></div>
+    </div>
+  </div>
+
+  <!-- ngrok -->
+  <div class="card checking" id="card-ngrok">
+    <div class="card-header">
+      <span class="icon">🔗</span>
+      <span class="card-title">ngrok Tunnel</span>
+      <span class="badge checking" id="badge-ngrok"><span class="dot checking pulse"></span>...</span>
+    </div>
+    <div class="metrics">
+      <div class="metric"><span class="metric-label">Local API</span><span class="metric-value">port 4040</span></div>
+      <div class="metric"><span class="metric-label">Tunnels</span><span class="metric-value" id="ngrok-count">-</span></div>
+    </div>
+    <a id="ngrok-url" class="ngrok-url" href="#" target="_blank" style="display:none">-</a>
+  </div>
+
+</div>
+
+<div class="footer">
+  รีเฟรชทุก 10 วินาที — ครั้งหน้าใน <span class="countdown" id="countdown">10</span> วินาที
+</div>
+
+<script>
+  const REFRESH_INTERVAL = 10;
+  let countdown = REFRESH_INTERVAL;
+
+  function formatUptime(sec) {
+    const d = Math.floor(sec / 86400);
+    const h = Math.floor((sec % 86400) / 3600);
+    const m = Math.floor((sec % 3600) / 60);
+    const s = sec % 60;
+    if (d > 0) return `${d}d ${h}h ${m}m`;
+    if (h > 0) return `${h}h ${m}m ${s}s`;
+    if (m > 0) return `${m}m ${s}s`;
+    return `${s}s`;
+  }
+
+  function setCard(id, status) {
+    const card = document.getElementById('card-' + id);
+    const badge = document.getElementById('badge-' + id);
+    card.className = `card ${status}`;
+    const labels = { ok: 'Online', error: 'Error', offline: 'Offline', checking: '...' };
+    badge.className = `badge ${status}`;
+    badge.innerHTML = `<span class="dot ${status}${status === 'checking' ? ' pulse' : ''}"></span>${labels[status] || status}`;
+  }
+
+  async function fetchStatus() {
+    try {
+      const res = await fetch('/api/status');
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const d = await res.json();
+
+      // Backend
+      setCard('backend', d.backend.status);
+      document.getElementById('backend-uptime').textContent = formatUptime(d.backend.uptime);
+      document.getElementById('backend-mem').textContent = d.backend.memoryMB + ' MB';
+      document.getElementById('backend-node').textContent = d.backend.nodeVersion;
+      document.getElementById('backend-pid').textContent = d.backend.pid;
+
+      // DB
+      setCard('db', d.database.status);
+      document.getElementById('db-latency').textContent =
+        d.database.latency != null ? d.database.latency + ' ms' : 'N/A';
+
+      // Nginx
+      setCard('nginx', d.nginx.status);
+      document.getElementById('nginx-latency').textContent =
+        d.nginx.latency != null ? d.nginx.latency + ' ms' : 'N/A';
+
+      // ngrok
+      setCard('ngrok', d.ngrok.status);
+      document.getElementById('ngrok-count').textContent = d.ngrok.tunnelCount;
+      const urlEl = document.getElementById('ngrok-url');
+      if (d.ngrok.url) {
+        urlEl.style.display = 'block';
+        urlEl.href = d.ngrok.url;
+        urlEl.textContent = d.ngrok.url;
+      } else {
+        urlEl.style.display = 'none';
+      }
+
+      // Timestamp
+      const ts = new Date(d.timestamp);
+      document.getElementById('last-updated').textContent =
+        'อัปเดตล่าสุด: ' + ts.toLocaleTimeString('th-TH');
+
+    } catch (err) {
+      // Backend unreachable — mark backend as error, rest unknown
+      ['backend', 'db', 'nginx', 'ngrok'].forEach(id => setCard(id, 'error'));
+      document.getElementById('last-updated').textContent = 'ไม่สามารถเชื่อมต่อ backend ได้';
+    }
+  }
+
+  function startCountdown() {
+    countdown = REFRESH_INTERVAL;
+    const el = document.getElementById('countdown');
+    const timer = setInterval(() => {
+      countdown--;
+      el.textContent = countdown;
+      if (countdown <= 0) {
+        clearInterval(timer);
+        fetchStatus().then(startCountdown);
+      }
+    }, 1000);
+  }
+
+  fetchStatus().then(startCountdown);
+</script>
+</body>
+</html>
