@@ -66,6 +66,7 @@ interface StudentProfile {
     teacherComment?: string;
   };
   documents?: StudentDocument[];
+  coopApplicationForm?: { gradeSheetUrl?: string | null } | null;
 }
 
 /* =========================
@@ -396,13 +397,25 @@ export default function A_Students() {
                   <td style={td}>{CURRICULUM_TH[s.studyProgram ?? ""] ?? s.studyProgram ?? "-"}</td>
                   <td style={td}><StatusBadge status={s.coop?.status || s.docStatus} /></td>
                   <td style={td}>
-                    <button
-                      className="btn"
-                      style={ghostBtn}
-                      onClick={() => setModalStudent(s)}
-                    >
-                      ดูข้อมูล
-                    </button>
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                      <button
+                        className="btn"
+                        style={ghostBtn}
+                        onClick={() => setModalStudent(s)}
+                      >
+                        ดูข้อมูล
+                      </button>
+                      {s.coopApplicationForm?.gradeSheetUrl ? (
+                        <a
+                          href={s.coopApplicationForm.gradeSheetUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          style={{ ...ghostBtn, padding: "5px 10px", borderRadius: 7, fontSize: 12, background: "#eff6ff", color: "#2563eb", border: "1px solid #bfdbfe", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4, fontWeight: 700 }}
+                        >
+                          📊 แบบฟอร์มเกรด
+                        </a>
+                      ) : null}
+                    </div>
                   </td>
                 </tr>
               ))

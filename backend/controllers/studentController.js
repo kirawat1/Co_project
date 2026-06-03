@@ -313,6 +313,7 @@ exports.getStudents = async (req, res) => {
           user: { select: { email: true, username: true } },
           coop: { include: { company: true, mentor: true } },
           documents: true,
+          coopApplicationForm: { select: { gradeSheetUrl: true } },
         },
         orderBy: { studentId: "asc" },
       }),
