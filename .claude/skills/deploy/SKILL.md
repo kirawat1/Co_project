@@ -1,23 +1,27 @@
 ---
 name: deploy
-description: Deploy Co-op system บน VM — pull code จาก GitHub, migrate DB, build frontend, restart services. ใช้เมื่อต้องการ update โปรเจกต์หรือหลัง VM reboot
+description: Deploy Co-op system on VM - pull from GitHub, migrate DB, build frontend, restart services. Use after code push or VM reboot.
 allowed-tools: Bash PowerShell
 ---
 
-# Deploy Co-op System — VM Production
+# Deploy Co-op System - VM Production
 
-ใช้ skill นี้เมื่อ:
-- ต้องการ update โปรเจกต์หลัง push code ขึ้น GitHub
-- หลัง VM reboot ต้องการ start ทุก service ใหม่
+Use this skill to:
+- Update the project after pushing code to GitHub
+- Start all services after VM reboot
 
 ## Checklist
 
-### 0. Start Services หลัง Reboot (ถ้า VM เพิ่ง restart)
+### 0. Start Services After Reboot (if VM just restarted)
 
 - [ ] Start MySQL:
   ```powershell
   Start-Service MySQL84
   Start-Sleep 3
+  ```
+  If service name is wrong, find it:
+  ```powershell
+  Get-Service | Where-Object { $_.Name -like "*mysql*" }
   ```
 
 - [ ] Start PM2 + Backend:
@@ -27,7 +31,7 @@ allowed-tools: Bash PowerShell
   Start-Sleep 3
   pm2 status
   ```
-  ถ้า `coop-backend` ไม่อยู่ในรายการ:
+  If coop-backend is not listed:
   ```powershell
   cd C:\Co_project\backend
   pm2 start server.js --name coop-backend
@@ -42,38 +46,47 @@ allowed-tools: Bash PowerShell
   tasklist | findstr nginx
   ```
 
-- [ ] Start ngrok tunnel:
+- [ ] Start ngrok tunnel (keep this window open):
   ```powershell
   ngrok http 80 --domain=apply-happiness-margarine.ngrok-free.dev
   ```
-  **เปิดหน้าต่างนี้ทิ้งไว้** อย่าปิด
 
 ---
 
-### 1. Pull code ใหม่จาก GitHub (ถ้ามี code update)
+### 1. Pull latest code from GitHub
 
-- [ ] Pull latest code:
+- [ ] Pull:
   ```powershell
   cd C:\Co_project
   git pull origin main
   ```
 
-### 2. Install dependencies (ถ้ามี package ใหม่)
+### 2. Install dependencies (if packages changed)
 
-- [ ] Backend + Frontend:
+- [ ] Backend:
   ```powershell
   cd C:\Co_project\backend
   npm install
-  cd ..\Frontend
+  ```
+
+- [ ] Frontend:
+  ```powershell
+  cd C:\Co_project\Frontend
   npm install
   ```
 
 ### 3. Run database migrations
 
-- [ ] Apply migrations:
+- [ ] Migrate:
   ```powershell
   cd C:\Co_project\backend
   npx prisma migrate deploy
+  ```
+  If EPERM error (DLL locked), stop PM2 first:
+  ```powershell
+  pm2 stop coop-backend
+  npx prisma migrate deploy
+  pm2 start coop-backend
   ```
 
 ### 4. Build frontend
@@ -83,6 +96,7 @@ allowed-tools: Bash PowerShell
   cd C:\Co_project\Frontend
   npx vite build
   ```
+  Expected: built in X.XXs with dist/ folder created
 
 ### 5. Restart backend
 
@@ -91,20 +105,21 @@ allowed-tools: Bash PowerShell
   pm2 restart coop-backend
   pm2 logs coop-backend --lines 10 --nostream
   ```
+  Expected: Server running at http://localhost:5000
 
 ### 6. Verify
 
-- [ ] เปิด browser → `https://apply-happiness-margarine.ngrok-free.dev`
-- [ ] Login ได้ปกติ
-- [ ] แจ้ง user ว่า deploy สำเร็จ
+- [ ] Open browser: https://apply-happiness-margarine.ngrok-free.dev
+- [ ] Login works normally
+- [ ] Report to user: deploy complete
 
 ## Troubleshooting
 
-| ปัญหา | วิธีแก้ |
+| Problem | Fix |
 |---|---|
-| MySQL ไม่ start | `Start-Service MySQL84` หรือ `Get-Service \| Where-Object { $_.Name -like "*mysql*" }` หาชื่อจริง |
-| Backend crash | `pm2 logs coop-backend --lines 30` ดู error |
-| Nginx ไม่ start | `Set-Location C:\nginx` แล้ว `.\nginx.exe -t` ตรวจ config |
-| ngrok offline | รัน `ngrok http 80 --domain=apply-happiness-margarine.ngrok-free.dev` ใหม่ |
-| CORS error | ตรวจ `FRONTEND_URL` ใน `C:\Co_project\backend\.env` ให้ตรงกับ ngrok URL |
-| DB migration EPERM | `pm2 stop coop-backend` ก่อน แล้ว migrate แล้วค่อย start ใหม่ |
+| MySQL not starting | `Start-Service MySQL84` |
+| Backend crash | `pm2 logs coop-backend --lines 30` |
+| Nginx not starting | `Set-Location C:\nginx` then `.\nginx.exe -t` |
+| ngrok offline | Re-run `ngrok http 80 --domain=apply-happiness-margarine.ngrok-free.dev` |
+| CORS error | Check `FRONTEND_URL` in `C:\Co_project\backend\.env` matches ngrok URL |
+| Frontend blank page | Check `C:\Co_project\Frontend\dist\index.html` exists |
