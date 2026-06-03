@@ -8,8 +8,9 @@ const { createNotifications, getStaffAndCoopTeacherIds } = require('../utils/not
 // 1. ตั้งค่าการเก็บไฟล์ (Multer)
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    if (!fs.existsSync("uploads")) fs.mkdirSync("uploads");
-    cb(null, "uploads/");
+    const dir = path.join(__dirname, '../uploads');
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    cb(null, dir);
   },
   filename: (req, file, cb) => {
     // ตั้งชื่อไฟล์: เวลาปัจจุบัน-เลขสุ่ม.นามสกุลเดิม
@@ -206,7 +207,7 @@ const deleteDocument = async (req, res) => {
     }
 
     // 2. ลบไฟล์ออกจาก Server (ถ้ามี)
-    const filePath = path.join("uploads", doc.path);
+    const filePath = path.join(__dirname, '../uploads', doc.path);
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
     }
