@@ -1,6 +1,5 @@
 // backend/controllers/studentController.js
-const { PrismaClient } = require("@prisma/client");
-const prisma = new PrismaClient();
+const prisma = require('../config/prismaClient');
 const kkuReg = require('../services/kkuRegService');
 
 const PASSING_GRADES = new Set(["S", "A", "B+", "B", "C+", "C", "D+", "D"]);

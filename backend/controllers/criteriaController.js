@@ -1,5 +1,4 @@
-const { PrismaClient } = require("@prisma/client");
-const prisma = new PrismaClient();
+const prisma = require('../config/prismaClient');
 
 // ==================================================
 // 1. (เพิ่มใหม่) ดึงข้อมูล "ทุกสาขา" สำหรับหน้า Admin (A_CriteriaPage)

@@ -1,6 +1,5 @@
 // backend/controllers/coopController.js
-const { PrismaClient } = require("@prisma/client");
-const prisma = new PrismaClient();
+const prisma = require('../config/prismaClient');
 const path = require("path");
 const fs = require("fs");
 const multer = require("multer");
@@ -52,6 +51,13 @@ const submitCoopApplication = async (req, res) => {
 
     if (!student) {
       return res.status(404).json({ ok: false, message: "ไม่พบข้อมูลนักศึกษา" });
+    }
+
+    // ตรวจสถานะปัจจุบัน — ไม่อนุญาตให้ re-apply หากผ่านขั้นตอนไปแล้ว
+    const REAPPLY_ALLOWED = new Set(['NOT_SUBMITTED', 'APPLYING', 'QUALIFICATION_FAILED', 'APPLICATION_EDITS_REQUIRED']);
+    const existingCoop = await prisma.studentCoop.findUnique({ where: { studentId: student.id }, select: { status: true } });
+    if (existingCoop && !REAPPLY_ALLOWED.has(existingCoop.status)) {
+      return res.status(409).json({ ok: false, message: "ไม่สามารถยื่นคำร้องใหม่ได้ เนื่องจากกระบวนการสหกิจดำเนินไปแล้ว" });
     }
 
     // เตรียมข้อมูลไฟล์ (แก้ชื่อภาษาไทยเพี้ยน)

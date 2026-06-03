@@ -1,6 +1,5 @@
 // backend/controllers/configController.js
-const { PrismaClient } = require("@prisma/client");
-const prisma = new PrismaClient();
+const prisma = require('../config/prismaClient');
 
 // 1. ดึง Config
 exports.getDocConfig = async (req, res) => {
