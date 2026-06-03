@@ -27,7 +27,7 @@ const submitCoopApplication = async (req, res) => {
   try {
     const userId = req.user.id;
     // ✅ 1. เพิ่มการรับค่า coopPeriodId ที่ส่งมาจาก Frontend
-    const { jobPosition, coopPeriodId } = req.body; 
+    const { jobPosition, coopPeriodId, gradeSheetUrl } = req.body;
     const files = req.files || [];
 
     // เช็คว่ามีข้อมูลรอบรับสมัครส่งมาด้วยหรือไม่
@@ -93,6 +93,15 @@ const submitCoopApplication = async (req, res) => {
         },
       });
     });
+
+    // บันทึก gradeSheetUrl ลง CoopApplicationForm (ถ้ามี)
+    if (gradeSheetUrl) {
+      await prisma.coopApplicationForm.upsert({
+        where: { studentId: student.id },
+        update: { gradeSheetUrl },
+        create: { studentId: student.id, gradeSheetUrl },
+      });
+    }
 
     res.json({ ok: true, message: "ยื่นคำร้องให้ตรวจสอบเรียบร้อยแล้ว" });
 
