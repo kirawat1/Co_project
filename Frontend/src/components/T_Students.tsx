@@ -62,6 +62,7 @@ interface StudentProfile {
     status: string;
   };
   documents?: StudentDocument[];
+  coopApplicationForm?: { gradeSheetUrl?: string | null } | null;
 }
 
 interface CoopPeriod {
@@ -307,9 +308,21 @@ export default function T_Students({ isCoopTeacher = false }: Props) {
                   <td><StatusBadge status={st} /></td>
                   <td style={{ textAlign: 'right' }}>
                     {/* ✅ เปลี่ยนเป็นปุ่มเปิด Modal แทน Link */}
-                    <button className="btn-edit" onClick={() => setModalStudent(s)}>
-                      🔍 ดูข้อมูล
-                    </button>
+                    <div style={{ display: "flex", gap: 6, justifyContent: "flex-end", flexWrap: "wrap" }}>
+                      <button className="btn-edit" onClick={() => setModalStudent(s)}>
+                        🔍 ดูข้อมูล
+                      </button>
+                      {s.coopApplicationForm?.gradeSheetUrl ? (
+                        <a
+                          href={s.coopApplicationForm.gradeSheetUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          style={{ padding: "6px 10px", borderRadius: 7, fontSize: 12, background: "#eff6ff", color: "#2563eb", border: "1px solid #bfdbfe", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4, fontWeight: 700 }}
+                        >
+                          📊 แบบฟอร์มเกรด
+                        </a>
+                      ) : null}
+                    </div>
                   </td>
                 </tr>
               );

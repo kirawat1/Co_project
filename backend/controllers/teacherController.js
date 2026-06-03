@@ -615,6 +615,7 @@ exports.getMyStudents = async (req, res) => {
       coop: { include: { company: true } },
       generalAdvisor: { select: { firstName: true, lastName: true, email: true } },
       coopAdvisor: { select: { firstName: true, lastName: true, email: true } },
+      coopApplicationForm: { select: { gradeSheetUrl: true } },
     };
 
     const [students, total] = await Promise.all([
