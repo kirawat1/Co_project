@@ -15,7 +15,6 @@ type Student = {
     id: number; studentId: string; prefix?: string; firstName: string; lastName: string;
     firstNameEn?: string; lastNameEn?: string; year?: string; major: string; curriculum?: string;
     advisorName?: string; phone?: string; email?: string; gpa: number;
-    isQualified?: boolean;
     coopPeriodId?: number;
     documents: Document[];
     coopApplicationForm?: { gradeSheetUrl?: string | null } | null;
@@ -92,14 +91,14 @@ export default function A_CoopApplications() {
 
     useEffect(() => { fetchApplications(); }, []);
 
-    // ✅ Logic: หาคนที่สถานะรอตรวจ, ผ่านคุณสมบัติ (isQualified) และตรงกับปีการศึกษาที่กรองอยู่
+    // รายการรอตรวจที่ตรงกับปีการศึกษา
     const qualifiedPendingList = useMemo(() => {
         return apps.filter(app => {
             const isPending = ["APPLYING", "WAITING_FOR_STAFF_CHECK"].includes(app.status);
             const appPeriodId = String(app.student.coopPeriodId || app.coopPeriodId || "");
             const matchPeriod = filterPeriodId === "all" || appPeriodId === filterPeriodId;
 
-            return isPending && app.student.isQualified === true && matchPeriod;
+            return isPending && matchPeriod;
         });
     }, [apps, filterPeriodId]);
 
@@ -272,7 +271,6 @@ export default function A_CoopApplications() {
                     <thead>
                         <tr style={thRow}>
                             <th style={th}>รหัสนักศึกษา / ชื่อ</th>
-                            <th style={th}>คุณสมบัติ</th>
                             <th style={th}>หน่วยงาน / ตำแหน่ง</th>
                             <th style={th}>สถานะ</th>
                             <th style={{ ...th, textAlign: 'right' }}>จัดการ</th>
@@ -280,18 +278,12 @@ export default function A_CoopApplications() {
                     </thead>
                     <tbody>
                         {filteredApps.length === 0 ? (
-                            <tr><td colSpan={5} style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>ไม่มีคำร้องในระบบ</td></tr>
+                            <tr><td colSpan={4} style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>ไม่มีคำร้องในระบบ</td></tr>
                         ) : filteredApps.map(app => (
                             <tr key={app.id} style={tr}>
                                 <td style={td}>
                                     <div style={{ fontWeight: 700, color: '#0369a1' }}>{app.student.studentId}</div>
                                     <div style={{ fontSize: 13, color: '#64748b', marginTop: 2 }}>{app.student.firstName} {app.student.lastName}</div>
-                                </td>
-                                <td style={td}>
-                                    {app.student.isQualified ?
-                                        <span style={{ color: '#166534', background: '#dcfce7', padding: '4px 8px', borderRadius: 6, fontSize: 12, fontWeight: 700 }}>✅ ครบ</span> :
-                                        <span style={{ color: '#991b1b', background: '#fee2e2', padding: '4px 8px', borderRadius: 6, fontSize: 12, fontWeight: 700 }}>❌ ไม่ผ่าน</span>
-                                    }
                                 </td>
                                 <td style={td}>
                                     <div style={{ fontWeight: 600, color: '#1e293b' }}>{app.company?.name || "-"}</div>
