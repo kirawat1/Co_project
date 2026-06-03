@@ -463,6 +463,154 @@ pause
 
 ---
 
+## Task 9: เปิดให้ภายนอกเข้าได้ด้วย Cloudflare Tunnel
+
+**ทำบน VM — ต้องการ Cloudflare account (ฟรี)**
+
+### วิธีที่ 1: Quick Tunnel (ทดสอบด่วน — ไม่ต้องสมัคร)
+
+- [ ] **Step 1: ดาวน์โหลด cloudflared**
+
+ไปที่ https://github.com/cloudflare/cloudflared/releases/latest → ดาวน์โหลด `cloudflared-windows-amd64.exe`
+
+บันทึกไว้ที่ `C:\cloudflared\cloudflared.exe`
+
+- [ ] **Step 2: รัน Quick Tunnel**
+
+```
+C:\cloudflared\cloudflared.exe tunnel --url http://localhost:80
+```
+
+Expected output (ภายใน 30 วินาที):
+```
+Your quick Tunnel has been created! Visit it at:
+https://xxxx-xxxx-xxxx.trycloudflare.com
+```
+
+URL นี้ใช้ได้ทันที เข้าได้จากทุกที่ในโลก — แต่จะหมดเมื่อปิด terminal
+
+---
+
+### วิธีที่ 2: Permanent Tunnel (ใช้งานจริง — ต้องมี Cloudflare account + domain)
+
+**ต้องการ:**
+- Cloudflare account (ฟรี): https://dash.cloudflare.com/sign-up
+- Domain ที่ผูกกับ Cloudflare (ย้าย NS มา Cloudflare) เช่น `yourdomain.com`
+- หรือใช้ subdomain ฟรีจาก Cloudflare Pages (ถ้ามี plan)
+
+- [ ] **Step 1: Login Cloudflare**
+
+```
+C:\cloudflared\cloudflared.exe tunnel login
+```
+
+Browser จะเปิดขึ้น → เลือก domain ที่ต้องการ → Authorize
+
+Expected: `You have successfully logged in.`
+
+- [ ] **Step 2: สร้าง Tunnel**
+
+```
+C:\cloudflared\cloudflared.exe tunnel create coop-tunnel
+```
+
+Expected: จะแสดง Tunnel ID เช่น `a1b2c3d4-xxxx-xxxx-xxxx-xxxxxxxxxxxx` และสร้างไฟล์ credential ที่ `C:\Users\<username>\.cloudflared\`
+
+- [ ] **Step 3: สร้าง config file**
+
+สร้างไฟล์ `C:\Users\<username>\.cloudflared\config.yml`:
+
+```yaml
+tunnel: a1b2c3d4-xxxx-xxxx-xxxx-xxxxxxxxxxxx  # Tunnel ID จาก step 2
+credentials-file: C:\Users\<username>\.cloudflared\a1b2c3d4-xxxx-xxxx-xxxx-xxxxxxxxxxxx.json
+
+ingress:
+  - hostname: coop.yourdomain.com   # subdomain ที่ต้องการ
+    service: http://localhost:80
+  - service: http_status:404
+```
+
+**แก้:**
+- `tunnel:` ใส่ Tunnel ID จาก step 2
+- `credentials-file:` ใส่ path ไฟล์ .json ที่สร้างใน step 2
+- `hostname:` ใส่ subdomain ที่ต้องการ เช่น `coop.kku.ac.th` หรือ `app.yourdomain.com`
+
+- [ ] **Step 4: ผูก DNS**
+
+```
+C:\cloudflared\cloudflared.exe tunnel route dns coop-tunnel coop.yourdomain.com
+```
+
+Expected: `Added CNAME coop.yourdomain.com which will route to this tunnel.`
+
+- [ ] **Step 5: ทดสอบ Tunnel ทำงาน**
+
+```
+C:\cloudflared\cloudflared.exe tunnel run coop-tunnel
+```
+
+Expected: เห็น `Registered tunnel connection` ไม่มี error
+
+เปิด browser → `https://coop.yourdomain.com`
+
+Expected: เห็นหน้า Login ของระบบ พร้อม HTTPS อัตโนมัติ
+
+- [ ] **Step 6: ติดตั้ง cloudflared เป็น Windows Service (auto-start)**
+
+```
+C:\cloudflared\cloudflared.exe service install
+net start cloudflared
+```
+
+Expected: `The cloudflared service has been successfully installed.`
+
+ตรวจ:
+```
+sc query cloudflared
+```
+Expected: `STATE: 4  RUNNING`
+
+- [ ] **Step 7: อัปเดต Google OAuth**
+
+ใน Google Cloud Console → OAuth Client ID → เพิ่ม **Authorized JavaScript origins**:
+```
+https://coop.yourdomain.com
+```
+
+Rebuild Frontend เพื่อให้ใช้ URL ใหม่ (ถ้า VITE_GOOGLE_CLIENT_ID เดิมอยู่แล้ว ไม่ต้องแก้):
+```
+cd C:\Co_project\Frontend
+npm run build
+```
+
+- [ ] **Step 8: อัปเดต backend CORS**
+
+แก้ `C:\Co_project\backend\.env`:
+```
+FRONTEND_URL=https://coop.yourdomain.com
+```
+
+Restart backend:
+```
+pm2 restart coop-backend
+```
+
+---
+
+### สรุปความแตกต่าง
+
+| | Quick Tunnel | Permanent Tunnel |
+|---|---|---|
+| ต้องสมัคร | ไม่ต้อง | ต้องมี Cloudflare account |
+| ต้องมี domain | ไม่ต้อง | ต้องมี |
+| URL | สุ่มทุกครั้ง | คงที่ |
+| HTTPS | ✅ อัตโนมัติ | ✅ อัตโนมัติ |
+| Auto-start | ❌ | ✅ (service) |
+| ค่าใช้จ่าย | ฟรี | ฟรี (ถ้าใช้ plan ฟรี) |
+| เหมาะกับ | ทดสอบ / demo | ใช้งานจริง |
+
+---
+
 ## Verification Checklist
 
 หลัง deploy เสร็จ ตรวจทั้งหมดนี้:
