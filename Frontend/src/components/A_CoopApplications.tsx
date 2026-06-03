@@ -326,7 +326,7 @@ export default function A_CoopApplications() {
                             {/* RIGHT: DETAILS */}
                             <div style={{ flex: 1, padding: 24, overflowY: 'auto', background: '#f8fafc' }}>
                                 <div style={{ marginBottom: 20 }}>
-                                    <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 10, color: '#334155' }}>📄 เอกสารประกอบ (Gateway Only)</div>
+                                    <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 10, color: '#334155' }}>📄 เอกสารประกอบ</div>
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                                         {selectedApp.student.documents.filter(d => d.type === 'APPLICATION_DOC').map(doc => (
                                             <div key={doc.id} onClick={() => handlePreview(doc)}
@@ -338,6 +338,21 @@ export default function A_CoopApplications() {
                                                 📄 {doc.name}
                                             </div>
                                         ))}
+                                        {/* แบบฟอร์มตรวจสอบการสำเร็จการศึกษา */}
+                                        {selectedApp.student.coopApplicationForm?.gradeSheetUrl ? (
+                                            <a
+                                                href={selectedApp.student.coopApplicationForm.gradeSheetUrl}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                style={{ display: "flex", alignItems: "center", gap: 8, padding: 12, background: "#eff6ff", border: "1px solid #bfdbfe", borderLeft: "4px solid #2563eb", borderRadius: 8, fontSize: 13, fontWeight: 700, color: "#2563eb", textDecoration: "none" }}
+                                            >
+                                                📊 แบบฟอร์มตรวจสอบการสำเร็จการศึกษา
+                                            </a>
+                                        ) : (
+                                            <div style={{ padding: 12, background: "#f8fafc", border: "1px dashed #cbd5e1", borderRadius: 8, fontSize: 12, color: "#94a3b8" }}>
+                                                📊 ยังไม่ได้แนบแบบฟอร์มตรวจสอบการสำเร็จการศึกษา
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
 
@@ -348,18 +363,6 @@ export default function A_CoopApplications() {
                                         <b>ชื่อ:</b> {selectedApp.student.firstName} {selectedApp.student.lastName}<br />
                                         <b>สาขา:</b> {selectedApp.student.major}
                                     </div>
-                                    {selectedApp.student.coopApplicationForm?.gradeSheetUrl ? (
-                                        <a
-                                            href={selectedApp.student.coopApplicationForm.gradeSheetUrl}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            style={{ display: "inline-flex", alignItems: "center", gap: 6, marginTop: 10, padding: "8px 14px", background: "#eff6ff", color: "#2563eb", border: "1px solid #bfdbfe", borderRadius: 8, fontWeight: 700, fontSize: 13, textDecoration: "none" }}
-                                        >
-                                            📊 ดูแบบฟอร์มตรวจสอบการสำเร็จการศึกษา
-                                        </a>
-                                    ) : (
-                                        <div style={{ marginTop: 10, fontSize: 12, color: "#94a3b8" }}>ยังไม่ได้แนบแบบฟอร์มตรวจสอบการสำเร็จการศึกษา</div>
-                                    )}
                                 </div>
 
                                 {/* Controls */}
