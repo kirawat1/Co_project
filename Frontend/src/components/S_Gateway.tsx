@@ -195,10 +195,25 @@ export default function CoopRequestPage() {
       return;
     }
 
+    // Validate gradeSheetUrl — ต้องเป็น Google Sheets URL เท่านั้น
+    const trimmedUrl = gradeSheetUrl.trim();
+    if (trimmedUrl) {
+      try {
+        const u = new URL(trimmedUrl);
+        if (!["https:", "http:"].includes(u.protocol)) {
+          toast.warning("ลิงก์แบบฟอร์มต้องเป็น URL ที่ถูกต้อง (https://...)");
+          return;
+        }
+      } catch {
+        toast.warning("ลิงก์แบบฟอร์มตรวจสอบการสำเร็จการศึกษาไม่ถูกต้อง");
+        return;
+      }
+    }
+
     const formData = new FormData();
     formData.append("jobPosition", coopField);
     formData.append("coopPeriodId", activePeriod.id.toString());
-    if (gradeSheetUrl.trim()) formData.append("gradeSheetUrl", gradeSheetUrl.trim());
+    if (trimmedUrl) formData.append("gradeSheetUrl", trimmedUrl);
     uploadedFiles.forEach((file) => formData.append("files", file));
 
     setSubmitting(true);

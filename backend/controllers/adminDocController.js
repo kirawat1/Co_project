@@ -401,7 +401,8 @@ exports.reviewT002 = async (req, res) => {
 
 exports.reviewT003 = async (req, res) => {
     try {
-        const { studentId, status, comment } = req.body; 
+        const { studentId, status, comment } = req.body;
+        if (!studentId) return res.status(400).json({ ok: false, message: "ไม่พบ studentId" });
 
         // 1. อัปเดตสถานะของนักศึกษา
         await prisma.studentCoop.upsert({

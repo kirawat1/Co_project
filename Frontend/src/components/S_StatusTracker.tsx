@@ -32,8 +32,9 @@ const PHASES: Phase[] = [
   },
   {
     id: 4, label: "รายงาน T008", icon: "📚",
-    entryStatuses: [],
-    subSteps: [{ key:"t008", label:"4. อัปโหลดเล่มรายงานสหกิจ T008", statuses:[], doneStatuses:[] }],
+    // T003_APPROVED = นิเทศเสร็จ พร้อมส่งเล่มรายงาน
+    entryStatuses: ["T003_APPROVED", "COMPLETED"],
+    subSteps: [{ key:"t008", label:"4. อัปโหลดเล่มรายงานสหกิจ T008", statuses:["T003_APPROVED","COMPLETED"], doneStatuses:["COMPLETED"] }],
   },
 ];
 
