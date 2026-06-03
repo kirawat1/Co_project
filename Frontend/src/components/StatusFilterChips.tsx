@@ -4,9 +4,9 @@ export const STATUS_GROUPS: Record<string, { label: string; icon: string; color:
   // รอตรวจสอบ = ก่อนฝึก (ยื่นคำร้อง / รอตรวจเอกสาร T000 / รอใบตอบรับ)
   PENDING_REVIEW:{ label:"รอตรวจสอบ",        icon:"⏳", color:"#92400e", bg:"#fef9c3",
     statuses:["APPLYING","WAITING_FOR_STAFF_CHECK","WAITING_FOR_STAFF_CHECK_LETTER"] },
-  // ต้องแก้ไข (ทุกขั้นตอน)
+  // ต้องแก้ไข — เฉพาะก่อนฝึก (T002/T003_EDITS_REQUIRED อยู่ใน INTERNSHIP แล้ว ไม่ซ้ำ)
   NEEDS_EDIT:    { label:"ต้องแก้ไข",         icon:"📝", color:"#9a3412", bg:"#fff7ed",
-    statuses:["APPLICATION_EDITS_REQUIRED","EDITS_REQUIRED","T002_EDITS_REQUIRED","T003_EDITS_REQUIRED"] },
+    statuses:["APPLICATION_EDITS_REQUIRED","EDITS_REQUIRED"] },
   // กำลังดำเนินการ = ผ่านคุณสมบัติถึงก่อนออกฝึก
   IN_PROGRESS:   { label:"กำลังดำเนินการ",    icon:"🔄", color:"#1e40af", bg:"#eff6ff",
     statuses:["QUALIFIED","DOCS_APPROVED","REQ_LETTER_ISSUED","WAITING_FOR_PLACEMENT_LETTER","ACCEPTANCE_CHECKED","PLACEMENT_LETTER_ISSUED"] },
