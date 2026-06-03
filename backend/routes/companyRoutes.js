@@ -2,15 +2,15 @@
 const express = require("express");
 const router = express.Router();
 const companyController = require("../controllers/companyController");
-const authMiddleware = require("../middlewares/auth"); // จาก auth.js
+const { verifyToken } = require("../middlewares/authMiddleware");
 
-router.get("/", authMiddleware, companyController.getCompanies);
-router.post("/", authMiddleware, companyController.addCompany);
-router.put("/:id", authMiddleware, companyController.updateCompany);
-router.delete("/:id", authMiddleware, companyController.deleteCompany);
+router.get("/", verifyToken, companyController.getCompanies);
+router.post("/", verifyToken, companyController.addCompany);
+router.put("/:id", verifyToken, companyController.updateCompany);
+router.delete("/:id", verifyToken, companyController.deleteCompany);
 
-router.post("/:companyId/mentors", authMiddleware, companyController.addMentor);
-router.put("/mentors/:id", authMiddleware, companyController.updateMentor);
-router.delete("/mentors/:id", authMiddleware, companyController.deleteMentor);
+router.post("/:companyId/mentors", verifyToken, companyController.addMentor);
+router.put("/mentors/:id", verifyToken, companyController.updateMentor);
+router.delete("/mentors/:id", verifyToken, companyController.deleteMentor);
 
 module.exports = router;

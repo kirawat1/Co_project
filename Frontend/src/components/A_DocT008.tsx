@@ -19,7 +19,7 @@ export default function A_DocT008() {
         const fetchConfig = async () => {
             setIsFetching(true);
             try {
-                const res = await axios.get("http://localhost:5000/api/admin/config/t008", {
+                const res = await axios.get("/api/admin/config/t008", {
                     headers: { Authorization: `Bearer ${token}` }
                 });
 
@@ -30,7 +30,7 @@ export default function A_DocT008() {
                     setExistingImage(cfg.imagePath || "");
                     if (cfg.imagePath) {
                         // กำหนด URL พรีวิวรูปเดิมที่อยู่บน Server
-                        setImagePreview(`http://localhost:5000/uploads/system/${cfg.imagePath}`);
+                        setImagePreview(`/uploads/system/${cfg.imagePath}`);
                     }
                 }
             } catch (err) {
@@ -65,7 +65,7 @@ export default function A_DocT008() {
                 formData.append("image", imageFile); // แนบไฟล์รูปใหม่
             }
 
-            const res = await axios.put("http://localhost:5000/api/admin/config/t008", formData, {
+            const res = await axios.put("/api/admin/config/t008", formData, {
                 headers: {
                     Authorization: `Bearer ${token}`,
                     "Content-Type": "multipart/form-data"

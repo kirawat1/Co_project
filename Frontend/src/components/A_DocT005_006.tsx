@@ -21,7 +21,7 @@ export default function A_DocT005_006() {
         const fetchConfig = async () => {
             setIsFetching(true); // เริ่มโหลด
             try {
-                const res = await axios.get("http://localhost:5000/api/admin/config/evaluation", {
+                const res = await axios.get("/api/admin/config/evaluation", {
                     headers: { Authorization: `Bearer ${token}` }
                 });
 
@@ -49,7 +49,7 @@ export default function A_DocT005_006() {
         setIsSaving(true);
         try {
             const payload = { instructionText, ccEmails, t005Link, t006Link, templateLink };
-            await axios.put("http://localhost:5000/api/admin/config/evaluation", payload, {
+            await axios.put("/api/admin/config/evaluation", payload, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             alert("✅ บันทึกข้อมูลสำเร็จ");

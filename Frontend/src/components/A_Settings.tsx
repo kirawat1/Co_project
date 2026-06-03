@@ -22,11 +22,11 @@ export default function A_Settings() {
   // --- Effect: Load Data ---
   const loadData = async () => {
     try {
-      const resAssets = await fetch("http://localhost:5000/api/admin/assets");
+      const resAssets = await fetch("/api/admin/assets");
       const dataAssets = await resAssets.json();
       if (dataAssets.ok) setAssets(dataAssets.assets);
 
-      const resDean = await fetch("http://localhost:5000/api/admin/config/dean-info", {
+      const resDean = await fetch("/api/admin/config/dean-info", {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (resDean.ok) {
@@ -51,7 +51,7 @@ export default function A_Settings() {
     formData.append("label", label);
 
     try {
-      const res = await fetch("http://localhost:5000/api/admin/assets", {
+      const res = await fetch("/api/admin/assets", {
         method: "POST",
         body: formData,
       });
@@ -70,7 +70,7 @@ export default function A_Settings() {
     if (!confirm(`⚠️ ยืนยันการลบไฟล์แม่แบบ "${key}" ใช่หรือไม่?\n(หากลบไปแล้ว ระบบจะไม่สามารถดึงไฟล์นี้ไปสร้าง PDF ได้จนกว่าจะอัปโหลดใหม่)`)) return;
 
     try {
-      const res = await fetch(`http://localhost:5000/api/admin/assets/${key}`, {
+      const res = await fetch(`/api/admin/assets/${key}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -88,7 +88,7 @@ export default function A_Settings() {
   // --- Handlers: Save Dean Info ---
   const handleSaveDeanInfo = async () => {
     try {
-      const res = await fetch("http://localhost:5000/api/admin/config/dean-info", {
+      const res = await fetch("/api/admin/config/dean-info", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -158,7 +158,7 @@ export default function A_Settings() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: 20 }}>
           {ASSET_KEYS.map((item) => {
             const current = assets.find(a => a.key === item.key);
-            const fileUrl = current ? `http://localhost:5000/uploads/system/${current.path}` : null;
+            const fileUrl = current ? `/uploads/system/${current.path}` : null;
             const isImage = item.accept.includes("image");
 
             return (

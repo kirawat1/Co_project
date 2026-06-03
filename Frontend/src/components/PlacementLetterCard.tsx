@@ -15,7 +15,7 @@ export default function PlacementLetterCard({
     docStatus,
     onRefresh
 }: Props) {
-    const baseUrl = "http://localhost:5000/uploads";
+    const baseUrl = "/uploads";
     const fileUrl = placeLetterUrl ? `${baseUrl}/${placeLetterUrl}` : null;
 
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -38,7 +38,7 @@ export default function PlacementLetterCard({
             const token = localStorage.getItem("coop.token");
 
             await fetch(
-                "http://localhost:5000/api/students/acknowledge-placement-letter",
+                "/api/students/acknowledge-placement-letter",
                 {
                     method: "POST",
                     headers: {

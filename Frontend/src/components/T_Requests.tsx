@@ -3,6 +3,9 @@ import type { CSSProperties } from "react";
 import { loadAcademicYear } from "./store";
 import StatusBadge from "../components/StatusBadge";
 import axios from "axios";
+import { useToast } from "./Toast";
+import ConfirmDialog from "./ConfirmDialog";
+import Spinner from "./Spinner";
 
 // ================= TYPES =================
 interface StudentDocument { id: number; name: string; path: string; type?: string; }
@@ -28,6 +31,7 @@ interface CoopPeriod {
 }
 
 export default function T_Requests() {
+  const toast = useToast();
   const year = loadAcademicYear();
   const [students, setStudents] = useState<StudentProfile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -46,13 +50,22 @@ export default function T_Requests() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewType, setPreviewType] = useState<'pdf' | 'image' | null>(null);
 
+  // ConfirmDialog state
+  const [confirmState, setConfirmState] = useState<{
+    open: boolean; title: string; message: string; icon?: string;
+    confirmLabel?: string; confirmColor?: string; onConfirm: () => void;
+  }>({ open: false, title: "", message: "", onConfirm: () => {} });
+  const openConfirm = (opts: Omit<typeof confirmState, "open">) =>
+    setConfirmState({ ...opts, open: true });
+  const closeConfirm = () => setConfirmState(s => ({ ...s, open: false }));
+
   const token = localStorage.getItem("coop.token");
 
   const fetchData = async () => {
     setLoading(true);
     try {
       // 🟢 1. ดึงข้อมูลปีการศึกษา
-      const resPeriods = await axios.get("http://localhost:5000/api/admin/coop-periods/all", {
+      const resPeriods = await axios.get("/api/admin/coop-periods/all", {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (resPeriods.data?.periods) {
@@ -60,10 +73,12 @@ export default function T_Requests() {
       }
 
       // 🟢 2. ดึงนักศึกษาของที่ปรึกษา
-      const res = await axios.get("http://localhost:5000/api/students", {
+      const res = await axios.get("/api/students", {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setStudents(res.data);
+      // API คืน { data: [...], meta: {...} } หลัง pagination — unwrap ให้ถูกต้อง
+      const studentArray = Array.isArray(res.data) ? res.data : (res.data?.data ?? []);
+      setStudents(studentArray);
     } catch (err) { console.error(err); }
     setLoading(false);
   };
@@ -83,56 +98,75 @@ export default function T_Requests() {
     });
   }, [students, filterPeriodId]);
 
-  const handleBulkApprove = async () => {
+  const handleBulkApprove = () => {
     const count = qualifiedPendingList.length;
     if (count === 0) return;
-    if (!confirm(`⚡ ยืนยันการอนุมัติอัตโนมัติ?\n\nระบบจะอนุมัติผู้ผ่านคุณสมบัติในเทอมที่เลือกจำนวน ${count} รายการ`)) return;
-
-    setLoading(true);
-    try {
-      await Promise.all(qualifiedPendingList.map(s =>
-        axios.put("http://localhost:5000/api/coop/status", {
-          studentId: s.id,
-          status: "APPROVED",
-          comment: "อนุมัติโดยระบบ (ผ่านคุณสมบัติครบถ้วน)"
-        }, { headers: { Authorization: `Bearer ${token}` } })
-      ));
-      alert("ดำเนินการสำเร็จ!");
-      fetchData();
-    } catch (err) { alert("เกิดข้อผิดพลาด"); }
-    finally { setLoading(false); }
+    openConfirm({
+      title: "ยืนยันอนุมัติกลุ่ม",
+      message: `ระบบจะอนุมัติคำร้องของนักศึกษาที่ผ่านคุณสมบัติ จำนวน ${count} รายการ`,
+      icon: "⚡",
+      confirmLabel: `อนุมัติ ${count} ราย`,
+      confirmColor: "#10b981",
+      onConfirm: async () => {
+        closeConfirm();
+        setLoading(true);
+        try {
+          await Promise.all(qualifiedPendingList.map(s =>
+            axios.put("/api/coop/status", {
+              studentId: s.id, status: "APPROVED",
+              comment: "อนุมัติโดยระบบ (ผ่านคุณสมบัติครบถ้วน)"
+            }, { headers: { Authorization: `Bearer ${token}` } })
+          ));
+          toast.success("อนุมัติสำเร็จทั้งหมด!");
+          fetchData();
+        } catch { toast.error("เกิดข้อผิดพลาดในการอนุมัติกลุ่ม"); }
+        finally { setLoading(false); }
+      },
+    });
   };
 
   const handleViewRequest = (student: StudentProfile) => {
     setSelectedStudent(student);
     setTeacherComment(student.coop?.teacherComment || "");
-
     const gatewayDocs = student.documents.filter(d => d.type === 'APPLICATION_DOC');
     if (gatewayDocs.length > 0) handlePreview(gatewayDocs[0]);
     else { setPreviewUrl(null); setPreviewType(null); }
   };
 
   const handlePreview = (doc: StudentDocument) => {
-    const url = `http://localhost:5000/uploads/${doc.path}`;
-    setPreviewUrl(url);
+    setPreviewUrl(`/uploads/${doc.path}`);
     setPreviewType(doc.path.toLowerCase().endsWith('.pdf') ? 'pdf' : 'image');
   };
 
-  const updateStatus = async (status: string) => {
+  const updateStatus = (status: string) => {
     if (!selectedStudent) return;
-    if (status !== "APPROVED" && !teacherComment.trim()) return alert("กรุณาระบุเหตุผล");
-    if (!confirm(`ยืนยันการเปลี่ยนสถานะ?`)) return;
-
-    try {
-      await axios.put("http://localhost:5000/api/coop/status", {
-        studentId: selectedStudent.id,
-        status,
-        comment: teacherComment
-      }, { headers: { Authorization: `Bearer ${token}` } });
-      alert("บันทึกเรียบร้อย");
-      closeModal();
-      fetchData();
-    } catch (err) { alert("เกิดข้อผิดพลาด"); }
+    if (status !== "APPROVED" && !teacherComment.trim()) {
+      toast.warning("กรุณาระบุเหตุผล/ข้อความก่อนส่งกลับ");
+      return;
+    }
+    const labelMap: Record<string, string> = {
+      APPROVED: "อนุมัติผ่านเกณฑ์",
+      APPLICATION_EDITS_REQUIRED: "ส่งกลับให้แก้ไข",
+      REJECTED: "ไม่ผ่านเกณฑ์",
+    };
+    openConfirm({
+      title: "ยืนยันการเปลี่ยนสถานะ",
+      message: `"${labelMap[status] ?? status}" สำหรับ ${selectedStudent.firstName} ${selectedStudent.lastName}?`,
+      icon: "📋",
+      confirmLabel: "ยืนยัน",
+      confirmColor: status === "REJECTED" ? "#ef4444" : status === "APPLICATION_EDITS_REQUIRED" ? "#f59e0b" : "#10b981",
+      onConfirm: async () => {
+        closeConfirm();
+        try {
+          await axios.put("/api/coop/status", {
+            studentId: selectedStudent.id, status, comment: teacherComment
+          }, { headers: { Authorization: `Bearer ${token}` } });
+          toast.success("บันทึกเรียบร้อย");
+          closeModal();
+          fetchData();
+        } catch { toast.error("เกิดข้อผิดพลาด"); }
+      },
+    });
   };
 
   const closeModal = () => {
@@ -204,7 +238,7 @@ export default function T_Requests() {
             <option value="ALL">📋 ทุกสถานะ</option>
             <option value="PENDING">⏳ รอดำเนินการ</option>
             <option value="APPROVED">✅ ผ่านเกณฑ์แล้ว</option>
-            <option value="EDITS_REQUIRED">⚠️ ส่งกลับแก้ไข</option>
+            <option value="APPLICATION_EDITS_REQUIRED">⚠️ ส่งกลับแก้ไข</option>
           </select>
         </div>
 
@@ -296,7 +330,7 @@ export default function T_Requests() {
                   <div style={{ fontSize: 14, fontWeight: 800, borderBottom: '1px solid #f1f5f9', paddingBottom: 8, marginBottom: 12 }}>👤 ข้อมูลผู้สมัคร</div>
                   <div style={{ display: 'grid', gridTemplateColumns: '100px 1fr', gap: '6px 8px', fontSize: 13 }}>
                     <span style={{ fontWeight: 700, color: '#64748b' }}>ชื่อ-สกุล:</span> <span>{selectedStudent.prefix}{selectedStudent.firstName} {selectedStudent.lastName}</span>
-                    <span style={{ fontWeight: 700, color: '#64748b' }}>GPA:</span> <span style={{ fontWeight: 700 }}>{selectedStudent.gpa.toFixed(2)}</span>
+                    <span style={{ fontWeight: 700, color: '#64748b' }}>GPA:</span> <span style={{ fontWeight: 700 }}>{selectedStudent.gpa?.toFixed(2) ?? "-"}</span>
                     <span style={{ fontWeight: 700, color: '#64748b' }}>คุณสมบัติ:</span> <span>{selectedStudent.isQualified ? "✅ ผ่าน" : "❌ ไม่ผ่าน"}</span>
                   </div>
                 </div>
@@ -309,7 +343,7 @@ export default function T_Requests() {
 
                   <button className="btn" style={{ width: '100%', background: '#10b981', padding: 12, marginBottom: 8 }} onClick={() => updateStatus("APPROVED")}>✅ อนุมัติผ่านเกณฑ์</button>
                   <div style={{ display: 'flex', gap: 8 }}>
-                    <button className="btn" style={{ flex: 1, background: '#f59e0b' }} onClick={() => updateStatus("EDITS_REQUIRED")}>⚠️ ส่งกลับแก้ไข</button>
+                    <button className="btn" style={{ flex: 1, background: '#f59e0b' }} onClick={() => updateStatus("APPLICATION_EDITS_REQUIRED")}>⚠️ ส่งกลับแก้ไข</button>
                     <button className="btn" style={{ flex: 1, background: '#ef4444' }} onClick={() => updateStatus("REJECTED")}>❌ ไม่ผ่าน</button>
                   </div>
                 </div>
@@ -320,6 +354,16 @@ export default function T_Requests() {
         </div>
       )}
 
+      <ConfirmDialog
+        open={confirmState.open}
+        title={confirmState.title}
+        message={confirmState.message}
+        icon={confirmState.icon}
+        confirmLabel={confirmState.confirmLabel}
+        confirmColor={confirmState.confirmColor}
+        onConfirm={confirmState.onConfirm}
+        onCancel={closeConfirm}
+      />
       <style>{STYLES}</style>
     </div>
   );

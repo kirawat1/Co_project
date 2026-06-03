@@ -27,7 +27,7 @@ export default function A_CoopPeriod() {
     const fetchPeriods = async () => {
         try {
             // 💡 อย่าลืมไปสร้าง API เส้นนี้ใน Backend นะครับ
-            const res = await axios.get("http://localhost:5000/api/admin/coop-periods");
+            const res = await axios.get("/api/admin/coop-periods");
             if (res.data.ok) {
                 setPeriods(res.data.periods);
             }
@@ -70,9 +70,9 @@ export default function A_CoopPeriod() {
 
         try {
             if (editingId) {
-                await axios.put(`http://localhost:5000/api/admin/coop-periods/${editingId}`, payload);
+                await axios.put(`/api/admin/coop-periods/${editingId}`, payload);
             } else {
-                await axios.post("http://localhost:5000/api/admin/coop-periods", payload);
+                await axios.post("/api/admin/coop-periods", payload);
             }
             setModalOpen(false);
             fetchPeriods();
@@ -97,7 +97,7 @@ export default function A_CoopPeriod() {
         }
 
         try {
-            await axios.patch(`http://localhost:5000/api/admin/coop-periods/${id}/toggle`, {
+            await axios.patch(`/api/admin/coop-periods/${id}/toggle`, {
                 isActive: !currentStatus
             });
             fetchPeriods();
@@ -110,7 +110,7 @@ export default function A_CoopPeriod() {
     const remove = async (id: number) => {
         if (!confirm("ลบรอบการรับสมัครนี้? (คำเตือน: หากมีนักศึกษาอยู่ในรอบนี้อาจเกิดปัญหา)")) return;
         try {
-            await axios.delete(`http://localhost:5000/api/admin/coop-periods/${id}`);
+            await axios.delete(`/api/admin/coop-periods/${id}`);
             fetchPeriods();
         } catch (err) {
             console.error(err);

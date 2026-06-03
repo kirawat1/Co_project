@@ -41,10 +41,6 @@ interface StudentProfile {
   coopAdvisor?: { firstName: string; lastName: string; email: string } | null;
   phone?: string;
   studyProgram?: "ภาคปกติ" | "ภาคพิเศษ" | "normal" | "special";
-  gpa?: number;
-  coreGpa?: number;
-  activityUnit?: number;
-  isPassPrepCourse?: boolean;
   email?: string;
   nationality?: string;
   userEmail?: string;
@@ -224,9 +220,6 @@ export default function S_ProfilePage() {
           ...updatedProfile,
           prefix: prefixMapToPrisma[updatedProfile.prefix as keyof typeof prefixMapToPrisma] || updatedProfile.prefix,
           studyProgram: studyProgramMapToPrisma[updatedProfile.studyProgram as keyof typeof studyProgramMapToPrisma] || updatedProfile.studyProgram,
-          gpa: updatedProfile.gpa ? Number(updatedProfile.gpa) : 0,
-          coreGpa: updatedProfile.coreGpa ? Number(updatedProfile.coreGpa) : 0,
-          activityUnit: updatedProfile.activityUnit ? Number(updatedProfile.activityUnit) : 0,
         }),
       });
 
@@ -434,10 +427,6 @@ export default function S_ProfilePage() {
             />
           </div>
           <Info label="เบอร์โทร" value={profile.phone || "-"} />
-          <Info label="GPA" value={profile?.gpa != null ? profile.gpa.toFixed(2) : "-"} />
-          <Info label="GPA หมวดวิชาเฉพาะ" value={profile.coreGpa?.toFixed(2) || "0.00"} />
-          <Info label="หน่วยกิตสะสม" value={`${profile.activityUnit || 0} หน่วย`} />
-          <Info label="วิชาสหกิจศึกษา" value={profile.isPassPrepCourse ? "ผ่านแล้ว (S)" : "ยังไม่ผ่าน"} />
           <Info label="อีเมลมหาวิทยาลัย" value={profile.userEmail || "-"} pill />
         </section>
 
@@ -639,14 +628,6 @@ function StudentModal({ profile, teachers, saveStudentInfo, closeModal }: any) {
           </div>
 
           <div><label className="label">ชั้นปี</label><input className="input" value={form.year ?? ""} onChange={(e) => setForm({ ...form, year: e.target.value })} /></div>
-          <div><label className="label">GPA</label><input className="input" type="number" step="0.01" value={form.gpa ?? ""} onChange={(e) => setForm({ ...form, gpa: parseFloat(e.target.value) })} /></div>
-          <div><label className="label">เกรดเฉลี่ยวิชาแกน (Core GPA)</label><input className="input" type="number" step="0.01" value={form.coreGpa ?? ""} onChange={(e) => setForm({ ...form, coreGpa: e.target.value === "" ? 0 : Number(e.target.value) })} /></div>
-          <div><label className="label">หน่วยกิตสะสม (หน่วย)</label><input className="input" type="number" value={form.activityUnit ?? ""} onChange={(e) => setForm({ ...form, activityUnit: e.target.value === "" ? 0 : Number(e.target.value) })} /></div>
-
-          <div style={{ gridColumn: 'span 2', display: 'flex', alignItems: 'center', gap: '10px', marginTop: '10px' }}>
-            <input type="checkbox" id="prepCourse" style={{ width: '20px', height: '20px', cursor: 'pointer' }} checked={form.isPassPrepCourse || false} onChange={(e) => setForm({ ...form, isPassPrepCourse: e.target.checked })} />
-            <label htmlFor="prepCourse" className="label" style={{ margin: 0, cursor: 'pointer' }}>ผ่านรายวิชาเตรียมความพร้อมสหกิจศึกษา (CP002001/SC002001)</label>
-          </div>
 
           <div style={{ gridColumn: 'span 2' }}>
             <label className="label">คณะ / หลักสูตร</label>

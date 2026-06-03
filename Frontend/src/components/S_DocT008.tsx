@@ -40,7 +40,7 @@ export default function S_DocT008() {
     useEffect(() => {
         const fetchConfig = async () => {
             try {
-                const res = await axios.get("http://localhost:5000/api/admin/config/t008", {
+                const res = await axios.get("/api/admin/config/t008", {
                     headers: { Authorization: `Bearer ${token}` }
                 });
                 if (res.data?.config) {
@@ -121,7 +121,7 @@ export default function S_DocT008() {
                         <h3 style={{ margin: '0 0 16px 0', color: '#0f172a', fontSize: 18 }}>🖼️ รูปภาพประกอบ</h3>
                         <div style={{ textAlign: 'center', background: '#f8fafc', padding: 20, borderRadius: 12, border: '1px dashed #cbd5e1' }}>
                             <img
-                                src={`http://localhost:5000/uploads/system/${config.imagePath}`}
+                                src={`/uploads/system/${config.imagePath}`}
                                 alt="คู่มือหรือภาพประกอบ"
                                 style={{ maxWidth: '100%', maxHeight: '600px', borderRadius: 8, boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}
                             />

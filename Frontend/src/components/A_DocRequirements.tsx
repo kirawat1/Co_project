@@ -18,7 +18,7 @@ export default function A_DocRequirements() {
 
     const fetchReqs = async () => {
         try {
-            const res = await axios.get("http://localhost:5000/api/admin/doc-requirements");
+            const res = await axios.get("/api/admin/doc-requirements");
             if (res.data.ok) setReqs(res.data.requirements);
         } catch (err) { console.error(err); }
     };
@@ -39,9 +39,9 @@ export default function A_DocRequirements() {
         e.preventDefault();
         try {
             if (form.id) {
-                await axios.put(`http://localhost:5000/api/admin/doc-requirements/${form.id}`, form);
+                await axios.put(`/api/admin/doc-requirements/${form.id}`, form);
             } else {
-                await axios.post("http://localhost:5000/api/admin/doc-requirements", form);
+                await axios.post("/api/admin/doc-requirements", form);
             }
             alert("บันทึกข้อมูลเรียบร้อย");
             setModalOpen(false);
@@ -54,7 +54,7 @@ export default function A_DocRequirements() {
     const removeRequirement = async (id: number, title: string) => {
         if (!confirm(`⚠️ ยืนยันการลบหัวข้อเอกสาร "${title}"?\n(ไฟล์ที่นักศึกษาเคยอัปโหลดในหัวข้อนี้จะยังอยู่ในระบบ แต่จะไม่แสดงในหน้าจออัปโหลดอีก)`)) return;
         try {
-            await axios.delete(`http://localhost:5000/api/admin/doc-requirements/${id}`);
+            await axios.delete(`/api/admin/doc-requirements/${id}`);
             fetchReqs();
         } catch (err) {
             alert("ลบไม่สำเร็จ");

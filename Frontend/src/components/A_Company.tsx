@@ -62,7 +62,7 @@ export default function A_Companies() {
     const token = localStorage.getItem("coop.token");
 
     // ดึงรายชื่อบริษัท
-    fetch("http://localhost:5000/api/companies", {
+    fetch("/api/companies", {
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
@@ -84,7 +84,7 @@ export default function A_Companies() {
     const fetchPeriods = async () => {
       try {
         // 🟢 เรียก API ของ admin ตาม Route ที่มีอยู่: /api/admin/coop-periods/all
-        const res = await fetch("http://localhost:5000/api/admin/coop-periods/all", {
+        const res = await fetch("/api/admin/coop-periods/all", {
           headers: { Authorization: `Bearer ${token}` }
         });
         const data = await res.json();
@@ -133,7 +133,7 @@ export default function A_Companies() {
     if (!token) return alert("กรุณาเข้าสู่ระบบ");
 
     try {
-      const res = await fetch("http://localhost:5000/api/companies", {
+      const res = await fetch("/api/companies", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -164,7 +164,7 @@ export default function A_Companies() {
     if (!token || !form.id) return alert("ข้อมูลไม่ครบถ้วน");
 
     try {
-      const res = await fetch(`http://localhost:5000/api/companies/${form.id}`, {
+      const res = await fetch(`/api/companies/${form.id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -188,7 +188,7 @@ export default function A_Companies() {
 
     const token = localStorage.getItem("coop.token");
 
-    const res = await fetch(`http://localhost:5000/api/companies/${id}`, {
+    const res = await fetch(`/api/companies/${id}`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -222,7 +222,7 @@ export default function A_Companies() {
     try {
       if (!editingMentor) {
         // ---- ADD ----
-        const res = await fetch(`http://localhost:5000/api/companies/${viewCompany.id}/mentors`, {
+        const res = await fetch(`/api/companies/${viewCompany.id}/mentors`, {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           body: JSON.stringify(mentorForm),
@@ -235,7 +235,7 @@ export default function A_Companies() {
 
       } else {
         // ---- EDIT ----
-        const res = await fetch(`http://localhost:5000/api/companies/mentors/${editingMentor.id}`, {
+        const res = await fetch(`/api/companies/mentors/${editingMentor.id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           body: JSON.stringify(mentorForm),
@@ -262,7 +262,7 @@ export default function A_Companies() {
     const token = localStorage.getItem("coop.token");
 
     try {
-      const res = await fetch(`http://localhost:5000/api/companies/mentors/${mentorId}`, {
+      const res = await fetch(`/api/companies/mentors/${mentorId}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });

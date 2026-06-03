@@ -1,6 +1,8 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import type { CSSProperties } from "react";
 import axios from "axios";
+import { useToast } from "./Toast";
+import ConfirmDialog from "./ConfirmDialog";
 
 // --- Types ---
 type Document = {
@@ -33,7 +35,15 @@ type SortKey = 'studentId' | 'name' | 'company' | 'status';
 type SortDirection = 'asc' | 'desc';
 
 export default function A_DocT003Review() {
+    const toast = useToast();
     const [students, setStudents] = useState<Student[]>([]);
+    const [confirmState, setConfirmState] = useState<{
+        open: boolean; title: string; message: string; icon?: string;
+        confirmLabel?: string; confirmColor?: string; onConfirm: () => void;
+    }>({ open: false, title: "", message: "", onConfirm: () => {} });
+    const openConfirm = (opts: Omit<typeof confirmState, "open">) =>
+        setConfirmState({ ...opts, open: true });
+    const closeConfirm = () => setConfirmState(s => ({ ...s, open: false }));
 
     // ✅ State สำหรับเก็บรอบปีการศึกษาและคำค้นหา
     const [coopPeriods, setCoopPeriods] = useState<any[]>([]);
@@ -60,7 +70,7 @@ export default function A_DocT003Review() {
     const loadConfig = async () => {
         try {
             const token = localStorage.getItem("coop.token");
-            const res = await fetch("http://localhost:5000/api/admin/config/t003", {
+            const res = await fetch("/api/admin/config/t003", {
                 headers: { Authorization: `Bearer ${token}` }
             });
             if (res.ok) setConfig(await res.json());
@@ -72,13 +82,14 @@ export default function A_DocT003Review() {
     const handleSaveConfig = async () => {
         try {
             const token = localStorage.getItem("coop.token");
-            const res = await fetch("http://localhost:5000/api/admin/config/t003", {
+            const res = await fetch("/api/admin/config/t003", {
                 method: "POST",
                 headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
                 body: JSON.stringify(config)
             });
-            if (res.ok) alert("✅ บันทึกการตั้งค่าวันเวลาเรียบร้อยแล้ว");
-        } catch (err) { alert("เกิดข้อผิดพลาดในการบันทึก"); }
+            if (res.ok) toast.success("บันทึกการตั้งค่าวันเวลาเรียบร้อยแล้ว");
+            else toast.error("บันทึกไม่สำเร็จ");
+        } catch { toast.error("เกิดข้อผิดพลาดในการบันทึก"); }
     };
 
     const fetchAllData = async () => {
@@ -86,13 +97,13 @@ export default function A_DocT003Review() {
         try {
             const token = localStorage.getItem("coop.token");
 
-            const resPeriods = await fetch("http://localhost:5000/api/admin/coop-periods/all", { headers: { Authorization: `Bearer ${token}` } });
+            const resPeriods = await fetch("/api/admin/coop-periods/all", { headers: { Authorization: `Bearer ${token}` } });
             if (resPeriods.ok) {
                 const periodsData = await resPeriods.json();
                 if (periodsData.ok && periodsData.periods) setCoopPeriods(periodsData.periods);
             }
 
-            const res = await axios.get("http://localhost:5000/api/admin/students", {
+            const res = await axios.get("/api/admin/students", {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
@@ -120,6 +131,26 @@ export default function A_DocT003Review() {
     };
 
     useEffect(() => { fetchAllData(); }, []);
+
+    const reloadStudents = async (period: string) => {
+        try {
+            const token = localStorage.getItem("coop.token");
+            const params = new URLSearchParams();
+            if (period !== "all") params.set("coopPeriodId", period);
+            const res = await axios.get(`/api/admin/students?${params}`, { headers: { Authorization: `Bearer ${token}` } });
+            const allStudents: any[] = Array.isArray(res.data) ? res.data : (res.data?.data || res.data?.students || []);
+            setStudents(allStudents.filter((s: any) => {
+                const hasT003Doc = s.documents?.some((d: any) => d.type === 'T003_FORM');
+                const isStatusMatch = ['T003_SUBMITTED', 'T003_EDITS_REQUIRED', 'T003_APPROVED', 'INTERNSHIP_STARTED'].includes(s.coop?.status || s.docStatus);
+                return hasT003Doc || isStatusMatch;
+            }));
+        } catch (err) { console.error(err); }
+    };
+    const initialPeriodMount = useRef(true);
+    useEffect(() => {
+        if (initialPeriodMount.current) { initialPeriodMount.current = false; return; }
+        reloadStudents(selectedPeriod);
+    }, [selectedPeriod]);
 
     // Helper หาระดับสถานะของ T003
     const getT003Status = (student: Student) => {
@@ -151,12 +182,7 @@ export default function A_DocT003Review() {
         // 1. กรองข้อมูล (Filter)
         let filtered = students.filter(s => {
             const matchSearch = `${s.studentId} ${s.firstName} ${s.lastName} ${s.coop?.company?.name || ""}`.toLowerCase().includes(searchTerm.toLowerCase());
-
-            // 🟢 แก้ไขให้จับ coopPeriodId ได้ชัวร์ๆ
-            const pId = String(s.coopPeriodId || s.coop?.coopPeriodId || "");
-            const matchPeriod = selectedPeriod === "all" || pId === selectedPeriod;
-
-            return matchSearch && matchPeriod;
+            return matchSearch;
         });
 
         // 2. เรียงลำดับ (Sort)
@@ -181,7 +207,7 @@ export default function A_DocT003Review() {
         });
 
         return filtered;
-    }, [students, selectedPeriod, searchTerm, sortKey, sortDirection]);
+    }, [students, searchTerm, sortKey, sortDirection]);
 
     const openReviewModal = (student: Student) => {
         setSelectedStudent(student);
@@ -191,37 +217,40 @@ export default function A_DocT003Review() {
 
     const getT003FileUrl = (docs: Document[]) => {
         const file = docs.find(d => d.type === "T003_FORM");
-        return file ? `http://localhost:5000/uploads/${file.path}` : null;
+        return file ? `/uploads/${file.path}` : null;
     };
 
-    const submitReview = async (action: 'APPROVE' | 'REJECT') => {
+    const submitReview = (action: 'APPROVE' | 'REJECT') => {
         if (action === 'REJECT' && !comment.trim()) {
-            return alert("กรุณาระบุเหตุผลที่ตีกลับ เพื่อให้นักศึกษาแก้ไข (เช่น แก้ไขหัวข้อ, แผนงานไม่ชัดเจน ฯลฯ)");
+            toast.warning("กรุณาระบุเหตุผลที่ตีกลับ เพื่อให้นักศึกษาแก้ไข");
+            return;
         }
-        if (!confirm(`ยืนยันการ ${action === 'APPROVE' ? 'อนุมัติ' : 'ตีกลับ'} โครงร่างรายงาน (T003) ?`)) return;
-
-        setLoading(true);
-        try {
-            const token = localStorage.getItem("coop.token");
-            const newStatus = action === 'APPROVE' ? 'INTERNSHIP_STARTED' : 'T003_EDITS_REQUIRED';
-
-            await axios.put(`http://localhost:5000/api/admin/documents/review-t003`, {
-                studentId: selectedStudent?.id,
-                status: newStatus,
-                comment: action === 'REJECT' ? comment : null
-            }, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-
-            alert(`บันทึกผลเรียบร้อย (${action === 'APPROVE' ? 'อนุมัติ' : 'ตีกลับ'})`);
-            setModalOpen(false);
-            fetchAllData();
-        } catch (err) {
-            console.error(err);
-            alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล โปรดตรวจสอบ API Endpoint");
-        } finally {
-            setLoading(false);
-        }
+        openConfirm({
+            title: action === 'APPROVE' ? "ยืนยันอนุมัติ T003" : "ยืนยันตีกลับ T003",
+            message: `${action === 'APPROVE' ? 'อนุมัติ' : 'ตีกลับ'} โครงร่างรายงานของ ${selectedStudent?.firstName} ${selectedStudent?.lastName}?`,
+            icon: action === 'APPROVE' ? "✅" : "⚠️",
+            confirmLabel: action === 'APPROVE' ? "อนุมัติ" : "ตีกลับ",
+            confirmColor: action === 'APPROVE' ? "#10b981" : "#f59e0b",
+            onConfirm: async () => {
+                closeConfirm();
+                setLoading(true);
+                try {
+                    const token = localStorage.getItem("coop.token");
+                    const newStatus = action === 'APPROVE' ? 'INTERNSHIP_STARTED' : 'T003_EDITS_REQUIRED';
+                    await axios.put(`/api/admin/documents/review-t003`, {
+                        studentId: selectedStudent?.id, status: newStatus,
+                        comment: action === 'REJECT' ? comment : null
+                    }, { headers: { Authorization: `Bearer ${token}` } });
+                    toast.success(`บันทึกผลเรียบร้อย (${action === 'APPROVE' ? 'อนุมัติ' : 'ตีกลับ'})`);
+                    setModalOpen(false);
+                    fetchAllData();
+                } catch {
+                    toast.error("เกิดข้อผิดพลาดในการบันทึกข้อมูล");
+                } finally {
+                    setLoading(false);
+                }
+            },
+        });
     };
 
     // UI HELPER: แสดงลูกศรเรียงลำดับ
@@ -261,7 +290,7 @@ export default function A_DocT003Review() {
                         <select className="input" style={{ width: 'auto', background: '#f8fafc', padding: '10px 14px' }} value={selectedPeriod} onChange={e => setSelectedPeriod(e.target.value)}>
                             <option value="all">📚 ทุกปีการศึกษา</option>
                             {coopPeriods.map(p => (
-                                <option key={p.id} value={p.id}>เทอม {p.semester} / {p.academicYear}</option>
+                                <option key={p.id} value={String(p.id)}>เทอม {p.semester} / {p.academicYear}</option>
                             ))}
                         </select>
 
@@ -417,6 +446,16 @@ export default function A_DocT003Review() {
                 .input { padding: 12px 14px; border-radius: 8px; border: 1px solid #cbd5e1; outline: none; font-family: inherit; font-size: 14px; width: 100%; box-sizing: border-box; }
                 .input:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15); }
             `}</style>
+            <ConfirmDialog
+                open={confirmState.open}
+                title={confirmState.title}
+                message={confirmState.message}
+                icon={confirmState.icon}
+                confirmLabel={confirmState.confirmLabel}
+                confirmColor={confirmState.confirmColor}
+                onConfirm={confirmState.onConfirm}
+                onCancel={closeConfirm}
+            />
         </div>
     );
 }

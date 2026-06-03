@@ -21,7 +21,8 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; 
     NOT_SUBMITTED: { label: "ยังไม่ยื่นสหกิจ", color: "#64748b", bg: "#f1f5f9", icon: "⚪" },
     APPLYING: { label: "รอตรวจสอบคุณสมบัติ", color: "#854d0e", bg: "#fef9c3", icon: "⏳" },
     QUALIFIED: { label: "ผ่านคุณสมบัติ", color: "#166534", bg: "#dcfce7", icon: "✅" },
-    APPLICATION_EDITS_REQUIRED: { label: "แก้ไขใบสมัคร", color: "#c2410c", bg: "#fff7ed", icon: "📝" }, // ส้ม
+    QUALIFICATION_FAILED: { label: "ไม่ผ่านคุณสมบัติ", color: "#dc2626", bg: "#fef2f2", icon: "❌" },
+    APPLICATION_EDITS_REQUIRED: { label: "แก้ไขใบสมัคร", color: "#c2410c", bg: "#fff7ed", icon: "📝" },
 
     // --- Phase 2: เอกสาร T000 ---
     WAITING_FOR_STAFF_CHECK: { label: "รอตรวจเอกสาร", color: "#1e40af", bg: "#eff6ff", icon: "🔍" }, // น้ำเงิน
@@ -45,6 +46,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; 
     T003_SUBMITTED: { label: "ส่งโครงร่าง T003 แล้ว", color: "#0d9488", bg: "#ccfbf1", icon: "📘", isInternship: true },
     T003_EDITS_REQUIRED: { label: "ต้องแก้ไขโครงร่าง T003", color: "#dc2626", bg: "#fef2f2", icon: "⚠️", isInternship: true },
     T004_SUBMITTED: { label: "ส่งรายงาน T004 แล้ว", color: "#0d9488", bg: "#ccfbf1", icon: "📗", isInternship: true },
+    T004_EDITS_REQUIRED: { label: "ต้องแก้ไขรายงาน T004", color: "#dc2626", bg: "#fef2f2", icon: "⚠️", isInternship: true },
 
     // --- การนิเทศ (Supervision) ---
     PENDING_TEACHER: { label: "รออาจารย์เลือกวันนิเทศ", color: "#d97706", bg: "#fffbeb", icon: "⏳", isInternship: true },

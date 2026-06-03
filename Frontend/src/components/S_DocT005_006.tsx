@@ -9,10 +9,27 @@ interface EvalConfig {
     templateLink: string;
 }
 
+interface StudentInfo {
+    studentId: string;
+    prefix?: string;
+    firstName: string;
+    lastName: string;
+    firstNameEn?: string;
+    lastNameEn?: string;
+    major?: string;
+    coop?: {
+        company?: { name: string; contactPerson?: string; phone?: string; address?: string };
+        mentor?: { firstName: string; lastName: string; email?: string; position?: string };
+        jobPosition?: string;
+    };
+    advisorName?: string;
+}
+
 export default function S_DocT005_006() {
     const [loading, setLoading] = useState(true);
     const [config, setConfig] = useState<EvalConfig | null>(null);
-    const [copiedKey, setCopiedKey] = useState<string>(""); // State สำหรับแสดงว่าก็อปปี้แล้ว
+    const [copiedKey, setCopiedKey] = useState<string>("");
+    const [studentInfo, setStudentInfo] = useState<StudentInfo | null>(null);
 
     const token = localStorage.getItem("coop.token");
 
@@ -26,24 +43,22 @@ export default function S_DocT005_006() {
     };
 
     useEffect(() => {
-        const fetchConfig = async () => {
+        const fetchAll = async () => {
             try {
-                const res = await axios.get("http://localhost:5000/api/admin/config/evaluation", {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
-                if (res.data?.config) {
-                    setConfig(res.data.config);
-                } else {
-                    setConfig(defaultConfig);
-                }
-            } catch (err) {
-                console.warn("ไม่สามารถดึงข้อมูลได้ ใช้ค่าเริ่มต้นแทน");
+                const [configRes, profileRes] = await Promise.allSettled([
+                    axios.get("/api/admin/config/evaluation", { headers: { Authorization: `Bearer ${token}` } }),
+                    axios.get("/api/students/me", { headers: { Authorization: `Bearer ${token}` } }),
+                ]);
+                setConfig(configRes.status === "fulfilled" && configRes.value.data?.config
+                    ? configRes.value.data.config : defaultConfig);
+                if (profileRes.status === "fulfilled") setStudentInfo(profileRes.value.data);
+            } catch {
                 setConfig(defaultConfig);
             } finally {
                 setLoading(false);
             }
         };
-        fetchConfig();
+        fetchAll();
     }, [token]);
 
     // ฟังก์ชันสำหรับ Copy ข้อความ

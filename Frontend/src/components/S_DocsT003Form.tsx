@@ -48,7 +48,9 @@ export default function S_DocsT003Form({ profile, onRefresh }: Props) {
 
     // --- State เก็บข้อมูลแผนปฏิบัติงาน 16 สัปดาห์ (หน้า 3) ---
     const initialWorkPlan = savedT003.workPlan
-        ? (typeof savedT003.workPlan === 'string' ? JSON.parse(savedT003.workPlan) : savedT003.workPlan)
+        ? (typeof savedT003.workPlan === 'string'
+            ? (() => { try { return JSON.parse(savedT003.workPlan); } catch { return []; } })()
+            : savedT003.workPlan)
         : [{ task: "", weeks: [] }, { task: "", weeks: [] }, { task: "", weeks: [] }];
 
     const [workPlan, setWorkPlan] = useState<{ task: string; weeks: number[] }[]>(initialWorkPlan);
@@ -89,7 +91,7 @@ export default function S_DocsT003Form({ profile, onRefresh }: Props) {
         const loadConfig = async () => {
             try {
                 const token = localStorage.getItem("coop.token");
-                const res = await fetch("http://localhost:5000/api/admin/config/t003", {
+                const res = await fetch("/api/admin/config/t003", {
                     headers: { Authorization: `Bearer ${token}` }
                 });
                 if (res.ok) {
@@ -165,7 +167,7 @@ export default function S_DocsT003Form({ profile, onRefresh }: Props) {
         setLoading(true);
         try {
             const token = localStorage.getItem("coop.token");
-            const res = await fetch("http://localhost:5000/api/docs/t003-form", {
+            const res = await fetch("/api/docs/t003-form", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -198,7 +200,7 @@ export default function S_DocsT003Form({ profile, onRefresh }: Props) {
             uploadData.append("docType", "T003_FORM");
 
             const token = localStorage.getItem("coop.token");
-            const res = await fetch("http://localhost:5000/api/docs/upload", {
+            const res = await fetch("/api/docs/upload", {
                 method: "POST",
                 headers: { Authorization: `Bearer ${token}` },
                 body: uploadData
@@ -373,7 +375,7 @@ export default function S_DocsT003Form({ profile, onRefresh }: Props) {
                             <div style={{ fontSize: 12, color: '#3b82f6', marginTop: 4 }}>ไฟล์: {uploadedT003.name}</div>
                         </div>
                         <div style={{ display: 'flex', gap: 10 }}>
-                            <button className="btn-outline" onClick={() => window.open(`http://localhost:5000/uploads/${uploadedT003.path}`, '_blank')} style={{ ...btnOutline, borderColor: '#3b82f6', color: '#3b82f6' }}>👁️ ดูไฟล์ที่ส่ง</button>
+                            <button className="btn-outline" onClick={() => window.open(`/uploads/${uploadedT003.path}`, '_blank')} style={{ ...btnOutline, borderColor: '#3b82f6', color: '#3b82f6' }}>👁️ ดูไฟล์ที่ส่ง</button>
 
                             {/* แสดงปุ่มแก้ไขไฟล์เฉพาะเมื่อระบบเปิด */}
                             {isSystemOpen && (

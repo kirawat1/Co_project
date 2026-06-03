@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import StatusBadge from "./StatusBadge";
+import SupervisionCalendar from "./SupervisionCalendar";
+import type { CalendarEvent } from "./SupervisionCalendar";
 
 // --- Types ---
 type SupervisionStatus =
@@ -48,8 +50,8 @@ export default function S_Supervision() {
     const [supType, setSupType] = useState<"ONLINE" | "ONSITE">("ONLINE");
     const [onlineLink, setOnlineLink] = useState<string>("");
 
-    // 🟢 State สำหรับโหมดแก้ไข
     const [isEditing, setIsEditing] = useState(false);
+    const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
 
     const token = localStorage.getItem("coop.token");
 
@@ -77,7 +79,7 @@ export default function S_Supervision() {
         setLoading(true);
         try {
             // 1. Profile Status & Advisor
-            const profileRes = await axios.get("http://localhost:5000/api/students/me", {
+            const profileRes = await axios.get("/api/students/me", {
                 headers: { Authorization: `Bearer ${token}` }
             });
             if (profileRes.data) {
@@ -87,14 +89,14 @@ export default function S_Supervision() {
 
             // 2. Active Period
             try {
-                const periodRes = await axios.get("http://localhost:5000/api/students/coop-periods/active", {
+                const periodRes = await axios.get("/api/students/coop-periods/active", {
                     headers: { Authorization: `Bearer ${token}` }
                 });
                 if (periodRes.data?.period) setActivePeriod(periodRes.data.period);
             } catch (e) { console.warn("No active coop period found"); }
 
             // 3. Supervision Data
-            const apptRes = await axios.get("http://localhost:5000/api/coop/supervision/me", {
+            const apptRes = await axios.get("/api/coop/supervision/me", {
                 headers: { Authorization: `Bearer ${token}` }
             });
             if (apptRes.data?.appointment) {
@@ -112,6 +114,14 @@ export default function S_Supervision() {
                     }
                 }
             }
+            // 4. ปฏิทินนิเทศ — วันที่จองทั้งหมดของทุกคน
+            try {
+                const calRes = await axios.get("/api/coop/supervision/calendar", {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                if (calRes.data?.events) setCalendarEvents(calRes.data.events);
+            } catch { /* ไม่ร้าย ถ้าดึงไม่ได้ */ }
+
         } catch (err) {
             console.error(err);
         } finally {
@@ -166,7 +176,7 @@ export default function S_Supervision() {
         if (!confirm(confirmMsg)) return;
 
         try {
-            await axios.post("http://localhost:5000/api/coop/supervision/propose", {
+            await axios.post("/api/coop/supervision/propose", {
                 proposedDates: JSON.stringify(validDates),
                 supervisionType: supType,
                 onlineLink: supType === "ONLINE" ? onlineLink : null,
@@ -459,7 +469,7 @@ export default function S_Supervision() {
                                                 </div>
                                                 <button
                                                     className="btn btn-primary"
-                                                    onClick={() => window.open(`http://localhost:5000/uploads/supervision/${appointment.officialLetterPath}`, '_blank')}
+                                                    onClick={() => window.open(`/uploads/supervision/${appointment.officialLetterPath}`, '_blank')}
                                                     style={{ width: '100%', justifyContent: 'center' }}
                                                 >
                                                     ⬇️ ดาวน์โหลดหนังสือนิเทศ (PDF)
@@ -486,6 +496,14 @@ export default function S_Supervision() {
                 .btn-secondary { background: #f8fafc; color: #475569; border: 1px solid #cbd5e1; }
                 .btn-secondary:hover { background: #f1f5f9; }
             `}</style>
+
+            {/* ปฏิทินนิเทศ — แสดงวันที่จองทั้งหมด */}
+            <div style={{ marginTop: 24 }}>
+                <SupervisionCalendar
+                    events={calendarEvents}
+                    title="📅 ปฏิทินนิเทศสหกิจ (วันที่ยืนยันแล้วทั้งหมด)"
+                />
+            </div>
         </div>
     );
 }

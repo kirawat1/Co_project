@@ -41,7 +41,7 @@ export default function A_Mentors() {
       setLoading(true);
       const token = localStorage.getItem("coop.token");
 
-      const res = await fetch("http://localhost:5000/api/companies", {
+      const res = await fetch("/api/companies", {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -74,7 +74,7 @@ export default function A_Mentors() {
     try {
       const token = localStorage.getItem("coop.token");
       // ใช้ API update mentor (ต้องมี route นี้ที่ backend)
-      const res = await fetch(`http://localhost:5000/api/companies/mentors/${updatedData.id}`, {
+      const res = await fetch(`/api/companies/mentors/${updatedData.id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -102,7 +102,7 @@ export default function A_Mentors() {
     if (!confirm("ต้องการลบพี่เลี้ยงคนนี้ใช่หรือไม่?")) return;
     try {
       const token = localStorage.getItem("coop.token");
-      const res = await fetch(`http://localhost:5000/api/companies/mentors/${id}`, {
+      const res = await fetch(`/api/companies/mentors/${id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });

@@ -89,7 +89,7 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
         const loadConfig = async () => {
             try {
                 const token = localStorage.getItem("coop.token");
-                const res = await fetch("http://localhost:5000/api/admin/config/t002", {
+                const res = await fetch("/api/admin/config/t002", {
                     headers: { Authorization: `Bearer ${token}` }
                 });
                 if (res.ok) {
@@ -176,7 +176,7 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
             uploadData.append("docType", "T002_FORM");
 
             const token = localStorage.getItem("coop.token");
-            const res = await fetch("http://localhost:5000/api/docs/upload", {
+            const res = await fetch("/api/docs/upload", {
                 method: "POST",
                 headers: { Authorization: `Bearer ${token}` },
                 body: uploadData
@@ -363,7 +363,7 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
                             <div style={{ fontSize: 12, color: '#10b981', marginTop: 4 }}>ไฟล์: {uploadedT002.name}</div>
                         </div>
                         <div style={{ display: 'flex', gap: 10 }}>
-                            <button className="btn-outline" onClick={() => window.open(`http://localhost:5000/uploads/${uploadedT002.path}`, '_blank')} style={{ ...btnOutline, borderColor: '#10b981', color: '#10b981' }}>👁️ ดูไฟล์ที่ส่ง</button>
+                            <button className="btn-outline" onClick={() => window.open(`/uploads/${uploadedT002.path}`, '_blank')} style={{ ...btnOutline, borderColor: '#10b981', color: '#10b981' }}>👁️ ดูไฟล์ที่ส่ง</button>
 
                             {/* ปิดปุ่มส่งใหม่ถ้าระบบปิด */}
                             {isSystemOpen && (

@@ -117,22 +117,22 @@ export default function A_DocT000() {
         setLoading(true);
         try {
             // 1. ดึงตั้งค่าเวลา
-            const resConf = await fetch("http://localhost:5000/api/admin/config/t000", { headers: { Authorization: `Bearer ${token}` } });
+            const resConf = await fetch("/api/admin/config/t000", { headers: { Authorization: `Bearer ${token}` } });
             if (resConf.ok) setConfig(await resConf.json());
 
             // 2. ดึงหัวข้อเอกสาร
-            const resReq = await fetch("http://localhost:5000/api/admin/doc-requirements", { headers: { Authorization: `Bearer ${token}` } });
+            const resReq = await fetch("/api/admin/doc-requirements", { headers: { Authorization: `Bearer ${token}` } });
             if (resReq.ok) {
                 const reqData = await resReq.json();
                 if (reqData.ok) setReqDocs(reqData.requirements);
             }
 
             // 3. ดึงรายชื่อนักศึกษา
-            const resStd = await fetch("http://localhost:5000/api/admin/t000/students", { headers: { Authorization: `Bearer ${token}` } });
+            const resStd = await fetch("/api/admin/t000/students", { headers: { Authorization: `Bearer ${token}` } });
             if (resStd.ok) setStudents(await resStd.json());
 
             // 4. ดึงข้อมูลปีการศึกษา 
-            const resPeriods = await fetch("http://localhost:5000/api/admin/coop-periods/all", { headers: { Authorization: `Bearer ${token}` } });
+            const resPeriods = await fetch("/api/admin/coop-periods/all", { headers: { Authorization: `Bearer ${token}` } });
             if (resPeriods.ok) {
                 const periodsData = await resPeriods.json();
                 if (periodsData.ok && periodsData.periods) setCoopPeriods(periodsData.periods);
@@ -161,7 +161,7 @@ export default function A_DocT000() {
     // ================= ACTIONS =================
     const handleSaveConfig = async () => {
         try {
-            const res = await fetch("http://localhost:5000/api/admin/config/t000", {
+            const res = await fetch("/api/admin/config/t000", {
                 method: "POST",
                 headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
                 body: JSON.stringify(config)
@@ -186,7 +186,7 @@ export default function A_DocT000() {
         updateStudentState(selectedStudent.id, { documents: updatedDocs });
 
         try {
-            await fetch(`http://localhost:5000/api/admin/doc/${docId}/status`, {
+            await fetch(`/api/admin/doc/${docId}/status`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
                 body: JSON.stringify({ status })
@@ -232,7 +232,7 @@ export default function A_DocT000() {
         setAdminComment("เอกสารครบถ้วน (รอออกหนังสือ)");
 
         try {
-            await fetch(`http://localhost:5000/api/admin/t000/approve-all`, {
+            await fetch(`/api/admin/t000/approve-all`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
                 body: JSON.stringify({ studentId: selectedStudent.id })
@@ -253,7 +253,7 @@ export default function A_DocT000() {
         if (autoComment) setAdminComment(autoComment);
 
         try {
-            await fetch("http://localhost:5000/api/admin/t000/review", {
+            await fetch("/api/admin/t000/review", {
                 method: "PUT",
                 headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
                 body: JSON.stringify({
@@ -270,7 +270,7 @@ export default function A_DocT000() {
     };
 
     const handleSelectFile = (doc: StudentDocument) => {
-        const url = `http://localhost:5000/uploads/${encodeURIComponent(doc.path)}`;
+        const url = `/uploads/${encodeURIComponent(doc.path)}`;
         setPreviewUrl(url);
         const ext = doc.name.split('.').pop()?.toLowerCase();
         if (ext === 'pdf') setPreviewType("pdf");
