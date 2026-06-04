@@ -77,7 +77,7 @@ if (-not $UpdateOnly) {
         Write-OK "ngrok already running: https://$NGROK_DOMAIN"
     } else {
         pm2 delete ngrok-tunnel 2>$null
-        pm2 start "ngrok http 80 --domain=$NGROK_DOMAIN" --name ngrok-tunnel 2>$null
+        pm2 start "$PROJECT_DIR\docs\start-ngrok.js" --name ngrok-tunnel 2>$null
         pm2 save 2>$null
         Start-Sleep 4
         Write-OK "ngrok started: https://$NGROK_DOMAIN"
@@ -85,6 +85,7 @@ if (-not $UpdateOnly) {
 }
 
 if ($ServicesOnly) {
+    Write-OK "https://$NGROK_DOMAIN"
     exit 0
 }
 
