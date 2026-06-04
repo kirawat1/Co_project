@@ -69,13 +69,31 @@ if (-not $UpdateOnly) {
             Write-ERR "Nginx failed to start - check C:\nginx\conf\nginx.conf"
         }
     }
+
+    Write-Step "Starting ngrok tunnel via PM2..."
+    $ngrokProc = pm2 jlist 2>$null | ConvertFrom-Json -ErrorAction SilentlyContinue | Where-Object { $_.name -eq "ngrok-tunnel" }
+    if ($ngrokProc -and $ngrokProc.pm2_env.status -eq "online") {
+        Write-OK "ngrok already running: https://$NGROK_DOMAIN"
+    } else {
+        pm2 delete ngrok-tunnel 2>$null
+        pm2 start "ngrok http 80 --domain=$NGROK_DOMAIN" --name ngrok-tunnel 2>$null
+        pm2 save 2>$null
+        Start-Sleep 4
+        Write-OK "ngrok started: https://$NGROK_DOMAIN"
+    }
 }
 
 if ($ServicesOnly) {
-    Write-Step "Starting ngrok tunnel..."
-    Write-Host "    Run in a separate window:" -ForegroundColor Gray
-    Write-Host "    ngrok http 80 --domain=$NGROK_DOMAIN" -ForegroundColor White
-    Write-Host ""
+    Write-Step "Starting ngrok tunnel via PM2..."
+    $ngrokProc = pm2 jlist 2>$null | ConvertFrom-Json -ErrorAction SilentlyContinue | Where-Object { $_.name -eq "ngrok-tunnel" }
+    if ($ngrokProc -and $ngrokProc.pm2_env.status -eq "online") {
+        Write-OK "ngrok already running"
+    } else {
+        pm2 start "ngrok http 80 --domain=$NGROK_DOMAIN" --name ngrok-tunnel 2>$null
+        pm2 save 2>$null
+        Start-Sleep 3
+        Write-OK "ngrok started via PM2"
+    }
     Write-OK "https://$NGROK_DOMAIN"
     exit 0
 }
