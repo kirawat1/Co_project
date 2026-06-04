@@ -21,7 +21,13 @@ function Write-OK($msg)   { Write-Host "    [OK] $msg" -ForegroundColor Green }
 function Write-WARN($msg) { Write-Host "    [!!] $msg" -ForegroundColor Yellow }
 function Write-ERR($msg)  { Write-Host "    [ERR] $msg" -ForegroundColor Red }
 
-Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force
+# Check if PM2 process is online using text output (avoids ConvertFrom-Json duplicate key bug)
+function Get-PM2Online($name) {
+    $lines = pm2 list --no-color 2>$null
+    return ($lines | Where-Object { $_ -match [regex]::Escape($name) -and $_ -match "online" }).Count -gt 0
+}
+
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force 2>$null
 
 # ─── START SERVICES ────────────────────────────────
 if (-not $UpdateOnly) {
@@ -38,17 +44,13 @@ if (-not $UpdateOnly) {
     }
 
     Write-Step "Starting Backend (PM2)..."
-    $pm2Status = pm2 jlist 2>$null | ConvertFrom-Json -ErrorAction SilentlyContinue
-    $backend = $pm2Status | Where-Object { $_.name -eq "coop-backend" } | Select-Object -First 1
-    if ($backend -and $backend.pm2_env.status -eq "online") {
+    if (Get-PM2Online "coop-backend") {
         Write-OK "Backend already online"
     } else {
         pm2 resurrect 2>$null
         Start-Sleep 2
-        $pm2Status = pm2 jlist 2>$null | ConvertFrom-Json -ErrorAction SilentlyContinue
-        $backend = $pm2Status | Where-Object { $_.name -eq "coop-backend" } | Select-Object -First 1
-        if (-not $backend) {
-            cd $PROJECT_DIR\backend
+        if (-not (Get-PM2Online "coop-backend")) {
+            Set-Location $PROJECT_DIR\backend
             pm2 start server.js --name coop-backend 2>$null
             pm2 save 2>$null
         }
@@ -71,8 +73,7 @@ if (-not $UpdateOnly) {
     }
 
     Write-Step "Starting ngrok tunnel via PM2..."
-    $ngrokProc = pm2 jlist 2>$null | ConvertFrom-Json -ErrorAction SilentlyContinue | Where-Object { $_.name -eq "ngrok-tunnel" }
-    if ($ngrokProc -and $ngrokProc.pm2_env.status -eq "online") {
+    if (Get-PM2Online "ngrok-tunnel") {
         Write-OK "ngrok already running: https://$NGROK_DOMAIN"
     } else {
         pm2 delete ngrok-tunnel 2>$null
@@ -84,17 +85,6 @@ if (-not $UpdateOnly) {
 }
 
 if ($ServicesOnly) {
-    Write-Step "Starting ngrok tunnel via PM2..."
-    $ngrokProc = pm2 jlist 2>$null | ConvertFrom-Json -ErrorAction SilentlyContinue | Where-Object { $_.name -eq "ngrok-tunnel" }
-    if ($ngrokProc -and $ngrokProc.pm2_env.status -eq "online") {
-        Write-OK "ngrok already running"
-    } else {
-        pm2 start "ngrok http 80 --domain=$NGROK_DOMAIN" --name ngrok-tunnel 2>$null
-        pm2 save 2>$null
-        Start-Sleep 3
-        Write-OK "ngrok started via PM2"
-    }
-    Write-OK "https://$NGROK_DOMAIN"
     exit 0
 }
 
@@ -135,8 +125,7 @@ if (Test-Path "$PROJECT_DIR\Frontend\dist\index.html") {
 Write-Step "Restarting backend..."
 pm2 restart coop-backend 2>$null
 Start-Sleep 2
-$status = pm2 jlist 2>$null | ConvertFrom-Json -ErrorAction SilentlyContinue | Where-Object { $_.name -eq "coop-backend" }
-if ($status -and $status.pm2_env.status -eq "online") {
+if (Get-PM2Online "coop-backend") {
     Write-OK "Backend online"
 } else {
     Write-ERR "Backend may have crashed - run: pm2 logs coop-backend"
@@ -149,7 +138,4 @@ Write-Host "  Deploy Complete!" -ForegroundColor Green
 Write-Host "  Site: https://$NGROK_DOMAIN" -ForegroundColor White
 Write-Host "  Status: https://$NGROK_DOMAIN/api/status" -ForegroundColor Gray
 Write-Host "=============================================" -ForegroundColor Cyan
-Write-Host ""
-Write-Host "  If ngrok is not running, open a new window and run:" -ForegroundColor Yellow
-Write-Host "  ngrok http 80 --domain=$NGROK_DOMAIN" -ForegroundColor White
 Write-Host ""
