@@ -13,15 +13,13 @@ param(
 $NGROK_DOMAIN = "apply-happiness-margarine.ngrok-free.dev"
 $PROJECT_DIR  = "C:\Co_project"
 $NGINX_DIR    = "C:\nginx"
-$DB_USER      = "coopuser"
-$DB_NAME      = "coop_mysql_db"
 
 function Write-Step($msg) { Write-Host "`n==> $msg" -ForegroundColor Cyan }
 function Write-OK($msg)   { Write-Host "    [OK] $msg" -ForegroundColor Green }
 function Write-WARN($msg) { Write-Host "    [!!] $msg" -ForegroundColor Yellow }
 function Write-ERR($msg)  { Write-Host "    [ERR] $msg" -ForegroundColor Red }
 
-# Check if PM2 process is online using text output (avoids ConvertFrom-Json duplicate key bug)
+# Check if PM2 process is online using text output (avoids ConvertFrom-Json duplicate key bug in PS5.1)
 function Get-PM2Online($name) {
     $lines = pm2 list --no-color 2>$null
     return ($lines | Where-Object { $_ -match [regex]::Escape($name) -and $_ -match "online" }).Count -gt 0
@@ -102,12 +100,17 @@ npm install --silent 2>$null
 Write-OK "Done"
 
 Write-Step "Running database migrations..."
-$migrateResult = npx prisma migrate deploy 2>&1
-if ($migrateResult -match "error") {
-    Write-WARN "Migration error - stopping backend first..."
+npx prisma migrate deploy 2>&1 | Out-Null
+if ($LASTEXITCODE -ne 0) {
+    Write-WARN "Migration failed - stopping backend and retrying..."
     pm2 stop coop-backend 2>$null
     npx prisma migrate deploy 2>&1 | Out-Null
     pm2 start coop-backend 2>$null
+    pm2 save 2>$null
+    if ($LASTEXITCODE -ne 0) {
+        Write-ERR "Migration failed - check DB connection and schema"
+        exit 1
+    }
 } else {
     Write-OK "Migrations applied"
 }

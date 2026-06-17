@@ -1,29 +1,23 @@
 const prisma = require('../config/prismaClient');
-const http = require('http');
-const os = require('os');
+const axios = require('axios');
 
-function checkHttp(url, timeout = 3000) {
-  return new Promise((resolve) => {
-    const start = Date.now();
-    const req = http.get(url, { timeout }, (res) => {
-      res.resume();
-      resolve({ ok: true, latency: Date.now() - start, statusCode: res.statusCode });
-    });
-    req.on('error', () => resolve({ ok: false, latency: Date.now() - start }));
-    req.on('timeout', () => { req.destroy(); resolve({ ok: false, latency: timeout }); });
-  });
+async function checkHttp(url) {
+  const start = Date.now();
+  try {
+    await axios.get(url, { timeout: 3000 });
+    return { ok: true, latency: Date.now() - start };
+  } catch {
+    return { ok: false, latency: Date.now() - start };
+  }
 }
 
-function fetchJson(url, timeout = 3000) {
-  return new Promise((resolve) => {
-    const req = http.get(url, { timeout }, (res) => {
-      let body = '';
-      res.on('data', d => body += d);
-      res.on('end', () => { try { resolve(JSON.parse(body)); } catch { resolve(null); } });
-    });
-    req.on('error', () => resolve(null));
-    req.on('timeout', () => { req.destroy(); resolve(null); });
-  });
+async function fetchJson(url) {
+  try {
+    const res = await axios.get(url, { timeout: 3000 });
+    return res.data;
+  } catch {
+    return null;
+  }
 }
 
 exports.getStatus = async (req, res) => {
@@ -42,6 +36,7 @@ exports.getStatus = async (req, res) => {
   ]);
 
   const tunnel = ngrokData?.tunnels?.find(t => t.proto === 'https');
+  const ngrokOk = !!(ngrokData && tunnel);
 
   res.json({
     ok: true,
@@ -62,7 +57,7 @@ exports.getStatus = async (req, res) => {
       latency: nginxResult.latency,
     },
     ngrok: {
-      status: ngrokData ? 'ok' : 'offline',
+      status: ngrokOk ? 'ok' : 'offline',
       url: tunnel?.public_url ?? null,
       tunnelCount: ngrokData?.tunnels?.length ?? 0,
     },
