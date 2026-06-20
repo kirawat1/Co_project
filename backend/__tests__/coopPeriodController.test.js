@@ -312,4 +312,27 @@ describe('getActivePeriod', () => {
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: false }));
   });
+
+  test('200 – auto-closes and returns period: null when endDate has passed but isActive still true', async () => {
+    const expiredPeriod = {
+      id: 5,
+      academicYear: '2566',
+      semester: 1,
+      isActive: true,
+      endDate: new Date('2020-01-01'),
+    };
+    prisma.coopPeriod.findFirst.mockResolvedValue(expiredPeriod);
+    prisma.coopPeriod.update.mockResolvedValue({});
+
+    const req = {};
+    const res = makeRes();
+
+    await getActivePeriod(req, res);
+
+    expect(prisma.coopPeriod.update).toHaveBeenCalledWith({
+      where: { id: 5 },
+      data: { isActive: false },
+    });
+    expect(res.json).toHaveBeenCalledWith({ ok: true, period: null });
+  });
 });

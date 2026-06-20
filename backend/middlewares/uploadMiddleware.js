@@ -2,6 +2,7 @@
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const { pdfOrImageFileFilter } = require('../utils/fileFilters');
 
 // ตรวจสอบว่ามีโฟลเดอร์ uploads หรือไม่ ถ้าไม่มีให้สร้าง
 const uploadDir = path.join(__dirname, '../uploads');
@@ -27,13 +28,7 @@ const storage = multer.diskStorage({
 const upload = multer({
     storage: storage,
     limits: { fileSize: 50 * 1024 * 1024 }, // จำกัด 50MB
-    fileFilter: (req, file, cb) => {
-        if (file.mimetype === 'application/pdf' || file.mimetype.startsWith('image/')) {
-            cb(null, true);
-        } else {
-            cb(new Error('รองรับเฉพาะไฟล์ PDF และรูปภาพเท่านั้น'), false);
-        }
-    }
+    fileFilter: pdfOrImageFileFilter,
 });
 
 module.exports = upload;

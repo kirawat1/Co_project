@@ -4,6 +4,8 @@ const path = require("path");
 const fs = require("fs");
 const multer = require("multer");
 const { createNotifications, getStaffAndCoopTeacherIds } = require('../utils/notificationHelper');
+const { autoCloseIfExpired } = require('../utils/coopPeriodHelper');
+const { pdfOrImageFileFilter } = require('../utils/fileFilters');
 
 // 1. ตั้งค่าการเก็บไฟล์ (Multer)
 const storage = multer.diskStorage({
@@ -20,7 +22,7 @@ const storage = multer.diskStorage({
   },
 });
 
-const upload = multer({ storage });
+const upload = multer({ storage, fileFilter: pdfOrImageFileFilter, limits: { fileSize: 50 * 1024 * 1024 } });
 
 // 2. ฟังก์ชันยื่นคำร้อง (Submit Application)
 // 2. ฟังก์ชันยื่นคำร้อง (Submit Application)
@@ -37,9 +39,10 @@ const submitCoopApplication = async (req, res) => {
     }
 
     // (Option เสริมเพื่อความปลอดภัย) เช็คว่ารอบรับสมัครนี้มีอยู่จริงและยังเปิดอยู่ไหม
-    const activePeriod = await prisma.coopPeriod.findUnique({
+    let activePeriod = await prisma.coopPeriod.findUnique({
       where: { id: Number(coopPeriodId) }
     });
+    activePeriod = await autoCloseIfExpired(activePeriod);
 
     if (!activePeriod || !activePeriod.isActive) {
       return res.status(400).json({ ok: false, message: "ไม่สามารถยื่นคำร้องได้ เนื่องจากรอบรับสมัครนี้ถูกปิดไปแล้ว" });

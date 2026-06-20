@@ -40,6 +40,25 @@ describe('submitCoopApplication', () => {
     expect(res.status).toHaveBeenCalledWith(400);
   });
 
+  test('400 — auto-close: isActive=true แต่ endDate ผ่านไปแล้ว (เจ้าหน้าที่ลืมกดปิด)', async () => {
+    prisma.coopPeriod.findUnique.mockResolvedValue({
+      id: 1,
+      isActive: true,
+      endDate: new Date('2020-01-01'),
+    });
+    prisma.coopPeriod.update.mockResolvedValue({});
+    const req = { user: { id: 1 }, body: { coopPeriodId: '1' }, files: [] };
+    const res = makeRes();
+
+    await submitCoopApplication(req, res);
+
+    expect(prisma.coopPeriod.update).toHaveBeenCalledWith({
+      where: { id: 1 },
+      data: { isActive: false },
+    });
+    expect(res.status).toHaveBeenCalledWith(400);
+  });
+
   test('404 — ไม่พบข้อมูลนักศึกษา', async () => {
     prisma.coopPeriod.findUnique.mockResolvedValue({ id: 1, isActive: true });
     prisma.student.findUnique.mockResolvedValue(null);
