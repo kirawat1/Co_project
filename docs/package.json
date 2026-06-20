@@ -1,0 +1,9 @@
+{
+  "name": "coop-vm-ops",
+  "version": "1.0.0",
+  "private": true,
+  "description": "VM operational scripts (ngrok wrapper, KKU network captive-portal login) - not part of the app build",
+  "dependencies": {
+    "playwright": "^1.48.0"
+  }
+}
