@@ -10,6 +10,7 @@ const {
   getDashboardStats,
   createTeacher,
   deleteTeacher,
+  exportMyStudents,
 } = require('../controllers/teacherController');
 
 function makeRes() {
@@ -308,5 +309,67 @@ describe('deleteTeacher', () => {
 
     const body = res.json.mock.calls[0][0];
     expect(body.ok).toBe(true);
+  });
+});
+
+// =====================
+// exportMyStudents
+// =====================
+describe('exportMyStudents', () => {
+  test('404 — ไม่พบข้อมูลอาจารย์', async () => {
+    prisma.teacher.findUnique.mockResolvedValue(null);
+
+    const req = { userId: 1, query: {} };
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis(), setHeader: jest.fn(), send: jest.fn() };
+
+    await exportMyStudents(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(404);
+  });
+
+  test('200 — อาจารย์ปกติ: where filter เฉพาะ advisees ของตัวเอง', async () => {
+    prisma.teacher.findUnique.mockResolvedValue({ id: 7, isCoopTeacher: false });
+    prisma.student.findMany.mockResolvedValue([]);
+
+    const req = { userId: 1, query: {} };
+    const res = { setHeader: jest.fn(), send: jest.fn(), status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() };
+
+    await exportMyStudents(req, res);
+
+    expect(prisma.student.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: {
+        OR: [{ generalAdvisorId: 7 }, { coopAdvisorId: 7 }],
+      },
+    }));
+    expect(res.setHeader).toHaveBeenCalledWith(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    );
+  });
+
+  test('200 — อาจารย์ประจำวิชาสหกิจ (isCoopTeacher): ไม่ filter ตาม advisor', async () => {
+    prisma.teacher.findUnique.mockResolvedValue({ id: 7, isCoopTeacher: true });
+    prisma.student.findMany.mockResolvedValue([]);
+
+    const req = { userId: 1, query: {} };
+    const res = { setHeader: jest.fn(), send: jest.fn(), status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() };
+
+    await exportMyStudents(req, res);
+
+    expect(prisma.student.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: {},
+    }));
+  });
+
+  test('500 — DB error คืน { ok: false }', async () => {
+    prisma.teacher.findUnique.mockRejectedValue(new Error('DB fail'));
+
+    const req = { userId: 1, query: {} };
+    const res = { setHeader: jest.fn(), send: jest.fn(), status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() };
+
+    await exportMyStudents(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: false }));
   });
 });

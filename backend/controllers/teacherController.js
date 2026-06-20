@@ -1,5 +1,6 @@
 const prisma = require("../config/prismaClient");
 const { createNotifications } = require('../utils/notificationHelper');
+const { buildStudentExportWorkbook } = require('../utils/studentExport');
 
 // ✅ 1. getProfile: เลียนแบบ logic ของ Student
 exports.getProfile = async (req, res) => {
@@ -631,5 +632,52 @@ exports.getMyStudents = async (req, res) => {
   } catch (err) {
     console.error('[getMyStudents]', err);
     res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาด" });
+  }
+};
+
+// GET /api/teacher/students/export
+exports.exportMyStudents = async (req, res) => {
+  try {
+    const teacher = await prisma.teacher.findUnique({
+      where: { userId: req.userId },
+      select: { id: true, isCoopTeacher: true },
+    });
+
+    if (!teacher) {
+      return res.status(404).json({ ok: false, message: "ไม่พบข้อมูลอาจารย์" });
+    }
+
+    const coopPeriodId = req.query.coopPeriodId && req.query.coopPeriodId !== 'all'
+      ? parseInt(req.query.coopPeriodId, 10)
+      : undefined;
+
+    const advisorFilter = { OR: [{ generalAdvisorId: teacher.id }, { coopAdvisorId: teacher.id }] };
+    const periodFilter = coopPeriodId ? { coop: { coopPeriodId } } : null;
+
+    let where;
+    if (teacher.isCoopTeacher) {
+      where = periodFilter || {};
+    } else {
+      where = periodFilter ? { AND: [periodFilter, advisorFilter] } : advisorFilter;
+    }
+
+    const students = await prisma.student.findMany({
+      where,
+      include: {
+        coop: { include: { company: true } },
+        generalAdvisor: { select: { firstName: true, lastName: true } },
+        coopAdvisor: { select: { firstName: true, lastName: true } },
+      },
+      orderBy: { studentId: 'asc' },
+    });
+
+    const buffer = buildStudentExportWorkbook(students);
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="students_${coopPeriodId || 'all'}.xlsx"`);
+    res.send(buffer);
+  } catch (err) {
+    console.error('[exportMyStudents]', err);
+    res.status(500).json({ ok: false, message: 'Server error' });
   }
 };
