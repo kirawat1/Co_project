@@ -23,8 +23,19 @@ function loadCredentials() {
 async function main() {
   const { username, password } = loadCredentials();
 
-  const browser = await chromium.launch({ headless: true });
-  const page = await browser.newPage();
+  const browser = await chromium.launch({
+    headless: true,
+    args: ['--disable-blink-features=AutomationControlled'],
+  });
+  const context = await browser.newContext({
+    userAgent:
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+    viewport: { width: 1280, height: 800 },
+  });
+  await context.addInitScript(() => {
+    Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+  });
+  const page = await context.newPage();
 
   try {
     await page.goto('https://login.kku.ac.th/', { waitUntil: 'load', timeout: 30000 });
@@ -36,8 +47,10 @@ async function main() {
       return;
     }
 
-    await page.fill('#username', username);
-    await page.fill('#password', password);
+    await page.click('#username');
+    await page.type('#username', username, { delay: 50 });
+    await page.click('#password');
+    await page.type('#password', password, { delay: 50 });
 
     await Promise.all([
       page.waitForLoadState('networkidle', { timeout: 20000 }).catch(() => {}),
