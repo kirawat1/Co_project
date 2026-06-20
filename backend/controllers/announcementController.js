@@ -3,6 +3,7 @@ const prisma = require("../config/prismaClient");
 const path = require("path");
 const fs = require("fs");
 const multer = require("multer");
+const { pdfOrImageFileFilter } = require('../utils/fileFilters');
 
 // Storage multer — ใช้ absolute path เพื่อให้ทำงานได้ไม่ว่า CWD จะเป็นอะไร
 const UPLOAD_DIR = path.join(__dirname, '../uploads');
@@ -17,7 +18,7 @@ const storage = multer.diskStorage({
   },
 });
 
-const upload = multer({ storage });
+const upload = multer({ storage, fileFilter: pdfOrImageFileFilter, limits: { fileSize: 50 * 1024 * 1024 } });
 
 const getAnnouncements = async (req, res) => {
   try {

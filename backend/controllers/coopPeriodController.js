@@ -1,4 +1,5 @@
 const prisma = require('../config/prismaClient');
+const { autoCloseIfExpired } = require('../utils/coopPeriodHelper');
 
 // ดึงข้อมูลรอบทั้งหมด
 exports.getPeriods = async (req, res) => {
@@ -107,10 +108,11 @@ exports.deletePeriod = async (req, res) => {
 
 exports.getActivePeriod = async (req, res) => {
   try {
-    const period = await prisma.coopPeriod.findFirst({
+    let period = await prisma.coopPeriod.findFirst({
       where: { isActive: true },
     });
-    res.json({ ok: true, period });
+    period = await autoCloseIfExpired(period);
+    res.json({ ok: true, period: period?.isActive ? period : null });
   } catch (error) {
     res.status(500).json({ ok: false, error: "Server error" });
   }

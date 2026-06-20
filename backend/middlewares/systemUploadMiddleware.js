@@ -2,6 +2,7 @@
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const { pdfOrImageFileFilter } = require('../utils/fileFilters');
 
 // สร้างโฟลเดอร์ uploads/system ถ้ายังไม่มี
 const uploadDir = path.join(__dirname, '../uploads/system');
@@ -21,19 +22,10 @@ const storage = multer.diskStorage({
     }
 });
 
-const fileFilter = (req, file, cb) => {
-    // อนุญาต PDF และรูปภาพ
-    if (file.mimetype === 'application/pdf' || file.mimetype.startsWith('image/')) {
-        cb(null, true);
-    } else {
-        cb(new Error('รองรับเฉพาะไฟล์ PDF และรูปภาพเท่านั้น'), false);
-    }
-};
-
-const systemUpload = multer({ 
+const systemUpload = multer({
     storage: storage,
-    fileFilter: fileFilter,
-    limits: { fileSize: 5 * 1024 * 1024 } 
+    fileFilter: pdfOrImageFileFilter,
+    limits: { fileSize: 5 * 1024 * 1024 }
 });
 
 module.exports = systemUpload;

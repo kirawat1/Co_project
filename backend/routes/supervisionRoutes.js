@@ -5,6 +5,7 @@ const path = require('path');
 const fs = require('fs');
 const supervisionController = require('../controllers/supervisionController');
 const { verifyToken, verifyRole } = require('../middlewares/authMiddleware');
+const { pdfOrImageFileFilter } = require('../utils/fileFilters');
 
 const ADMIN_ROLES = ['admin', 'staff'];
 
@@ -21,7 +22,7 @@ const storage = multer.diskStorage({
         cb(null, 'SUPERVISION_LETTER_' + uniqueSuffix + '.pdf');
     }
 });
-const upload = multer({ storage: storage });
+const upload = multer({ storage, fileFilter: pdfOrImageFileFilter, limits: { fileSize: 50 * 1024 * 1024 } });
 
 
 // ================= ROUTE สำหรับ ADMIN =================
