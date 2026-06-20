@@ -93,6 +93,7 @@ app.use('/api/admin', adminRouter);
 app.use('/api/teachers', teacherRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/status', require('./routes/statusRoutes'));
+app.use('/api/internal-status', require('./routes/internalStatusRoutes'));
 app.use('/api', supervisionRoutes); //
 // -----------------------------
 // Test route
