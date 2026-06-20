@@ -271,3 +271,80 @@ describe('checkEligibility', () => {
     expect(result.calculatedCoreGpa).toBe(1.5);
   });
 });
+
+// =====================
+// exportStudents
+// =====================
+describe('exportStudents', () => {
+  test('200 — ส่งไฟล์ xlsx กลับ พร้อม Content-Type และ Content-Disposition ที่ถูกต้อง', async () => {
+    prisma.student.findMany.mockResolvedValue([
+      {
+        studentId: '643021218',
+        prefix: 'MR',
+        firstName: 'สมชาย',
+        lastName: 'ใจดี',
+        major: 'CS',
+        year: '4',
+        coop: { status: 'QUALIFIED', company: { name: 'บริษัท ทดสอบ' } },
+        generalAdvisor: null,
+        coopAdvisor: null,
+      },
+    ]);
+
+    const req = { query: {} };
+    const res = {
+      setHeader: jest.fn(),
+      send: jest.fn(),
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn().mockReturnThis(),
+    };
+
+    const { exportStudents } = require('../controllers/studentController');
+    await exportStudents(req, res);
+
+    expect(prisma.student.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: {},
+      include: {
+        coop: { include: { company: true } },
+        generalAdvisor: { select: { firstName: true, lastName: true } },
+        coopAdvisor: { select: { firstName: true, lastName: true } },
+      },
+    }));
+    expect(res.setHeader).toHaveBeenCalledWith(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    );
+    expect(res.setHeader).toHaveBeenCalledWith(
+      'Content-Disposition',
+      expect.stringContaining('attachment; filename="students_')
+    );
+    expect(res.send).toHaveBeenCalledWith(expect.any(Buffer));
+  });
+
+  test('200 — filter ตาม coopPeriodId เมื่อระบุ (ไม่ใช่ "all")', async () => {
+    prisma.student.findMany.mockResolvedValue([]);
+
+    const req = { query: { coopPeriodId: '5' } };
+    const res = { setHeader: jest.fn(), send: jest.fn(), status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() };
+
+    const { exportStudents } = require('../controllers/studentController');
+    await exportStudents(req, res);
+
+    expect(prisma.student.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { coop: { coopPeriodId: 5 } },
+    }));
+  });
+
+  test('500 — DB error คืน { ok: false }', async () => {
+    prisma.student.findMany.mockRejectedValue(new Error('DB fail'));
+
+    const req = { query: {} };
+    const res = { setHeader: jest.fn(), send: jest.fn(), status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() };
+
+    const { exportStudents } = require('../controllers/studentController');
+    await exportStudents(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: false }));
+  });
+});

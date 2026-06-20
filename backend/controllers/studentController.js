@@ -1,6 +1,7 @@
 // backend/controllers/studentController.js
 const prisma = require('../config/prismaClient');
 const kkuReg = require('../services/kkuRegService');
+const { buildStudentExportWorkbook } = require('../utils/studentExport');
 
 const PASSING_GRADES = new Set(["S", "A", "B+", "B", "C+", "C", "D+", "D"]);
 const GRADE_POINTS = { "A": 4.0, "B+": 3.5, "B": 3.0, "C+": 2.5, "C": 2.0, "D+": 1.5, "D": 1.0, "F": 0.0, "E": 0.0 };
@@ -327,6 +328,36 @@ exports.getStudents = async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server error" });
+  }
+};
+
+// GET /api/admin/students/export — export รายชื่อนักศึกษาเป็น Excel
+exports.exportStudents = async (req, res) => {
+  try {
+    const coopPeriodId = req.query.coopPeriodId && req.query.coopPeriodId !== 'all'
+      ? parseInt(req.query.coopPeriodId, 10)
+      : undefined;
+
+    const where = coopPeriodId ? { coop: { coopPeriodId } } : {};
+
+    const students = await prisma.student.findMany({
+      where,
+      include: {
+        coop: { include: { company: true } },
+        generalAdvisor: { select: { firstName: true, lastName: true } },
+        coopAdvisor: { select: { firstName: true, lastName: true } },
+      },
+      orderBy: { studentId: 'asc' },
+    });
+
+    const buffer = buildStudentExportWorkbook(students);
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="students_${coopPeriodId || 'all'}.xlsx"`);
+    res.send(buffer);
+  } catch (err) {
+    console.error('[exportStudents]', err);
+    res.status(500).json({ ok: false, message: 'Server error' });
   }
 };
 

@@ -18,6 +18,7 @@ const supervisionController = require('../controllers/supervisionController');
 const teacherController = require('../controllers/teacherController');
 const kkuReg = require('../services/kkuRegService');
 const studentImportController = require('../controllers/studentImportController');
+const studentController = require('../controllers/studentController');
 const multerMemory = require('multer')({ storage: require('multer').memoryStorage() });
 
 // สิทธิ์ที่อนุญาตจัดการระบบ (ต้องตรงกับ Prisma enum — lowercase)
@@ -65,6 +66,14 @@ router.post(
   verifyRole(...STAFF_ONLY),
   multerMemory.single('file'),
   studentImportController.importStudents
+);
+
+// GET /api/admin/students/export — export รายชื่อนักศึกษาเป็น Excel
+router.get(
+  '/students/export',
+  verifyToken,
+  verifyRole(...STAFF_ONLY),
+  studentController.exportStudents
 );
 
 // GET /api/admin/students/majors — distinct majors for announcement targeting

@@ -1,5 +1,12 @@
 # CHANGELOG — Co_project
 
+## [2026-06-21] Export Student Roster to Excel — Admin Endpoint
+
+### Added
+- `GET /api/admin/students/export?coopPeriodId=<id|all>` — admin/staff endpoint คืนไฟล์ .xlsx รายชื่อนักศึกษา (ใช้ `buildStudentExportWorkbook` จาก `backend/utils/studentExport.js`)
+- `exports.exportStudents` ใน `backend/controllers/studentController.js`
+- Tests: `describe('exportStudents', ...)` ใน `backend/__tests__/studentController.test.js` (200 ส่งไฟล์, 200 filter coopPeriodId, 500 DB error)
+
 ## [2026-06-03] Notification System
 
 ### Added
