@@ -93,6 +93,36 @@ export default function A_Dashboard() {
     }
   };
 
+  /* ==========================================
+      3. ส่งออกข้อมูลนักศึกษาเป็นไฟล์ Excel
+     ========================================== */
+  const handleExport = async () => {
+    try {
+      let coopPeriodId: string = "all";
+      if (selectedPeriod !== "all") {
+        const match = periods.find(p => `${p.semester}/${p.academicYear}` === selectedPeriod);
+        if (match) coopPeriodId = String(match.id);
+      }
+
+      const res = await axios.get(`/api/admin/students/export?coopPeriodId=${coopPeriodId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+        responseType: "blob",
+      });
+
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `students_${coopPeriodId}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Export failed", err);
+      alert("ดาวน์โหลดไฟล์ไม่สำเร็จ กรุณาลองใหม่");
+    }
+  };
+
   // ทำงานครั้งแรกเพื่อโหลดเทอม
   useEffect(() => {
     fetchPeriods();
@@ -142,6 +172,21 @@ export default function A_Dashboard() {
               );
             })}
           </select>
+          <button
+            onClick={handleExport}
+            style={{
+              padding: '8px 14px',
+              borderRadius: 8,
+              border: '1px solid #16a34a',
+              background: '#16a34a',
+              color: '#fff',
+              fontWeight: 700,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            📥 Export Excel
+          </button>
         </div>
       </div>
 
