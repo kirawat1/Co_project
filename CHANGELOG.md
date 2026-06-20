@@ -1,11 +1,21 @@
 # CHANGELOG — Co_project
 
-## [2026-06-21] Export Student Roster to Excel — Admin Endpoint
+## [2026-06-21] Export Student Roster to Excel — Full Feature (6 commits)
 
 ### Added
-- `GET /api/admin/students/export?coopPeriodId=<id|all>` — admin/staff endpoint คืนไฟล์ .xlsx รายชื่อนักศึกษา (ใช้ `buildStudentExportWorkbook` จาก `backend/utils/studentExport.js`)
-- `exports.exportStudents` ใน `backend/controllers/studentController.js`
+- `backend/utils/coopStatusLabels.js` — `getStatusLabelTh()` function แปลง CoopStatus enum เป็นป้ายกำกับภาษาไทย (25+ statuses)
+- `backend/utils/studentExport.js` — `buildStudentExportWorkbook()` สร้างไฟล์ workbook (.xlsx) buffer พร้อม styling (header, column widths, borders)
+- `GET /api/admin/students/export?coopPeriodId=<id|all>` — admin/staff endpoint (ทุกนักศึกษา) คืนไฟล์ .xlsx รายชื่อนักศึกษาพร้อม status ที่แปลเป็นไทยแล้ว
+- `GET /api/teacher/students/export?coopPeriodId=<id|all>` — teacher endpoint (อาจารย์ปกติ=advisees เท่านั้น, isCoopTeacher=ทุกคน) คืนไฟล์ .xlsx เช่นเดียวกัน
+- `exports.exportStudents` ใน `backend/controllers/studentController.js` — handle logic export admin
+- `exports.teacherExportStudents` ใน `backend/controllers/teacherController.js` — handle logic export teacher (permission check advisee/all students)
+- "📥 Export Excel" button ใน `Frontend/src/components/A_Dashboard.tsx` — เรียก admin export endpoint
+- "📥 Export Excel" button ใน `Frontend/src/components/T_Dashboard.tsx` — เรียก teacher export endpoint
 - Tests: `describe('exportStudents', ...)` ใน `backend/__tests__/studentController.test.js` (200 ส่งไฟล์, 200 filter coopPeriodId, 500 DB error)
+
+### Changed
+- `backend/routes/adminRoutes.js` — เพิ่ม `GET /students/export` route ที่เรียก `studentController.exportStudents`
+- `backend/routes/teacherRoutes.js` — เพิ่ม `GET /students/export` route ที่เรียก `teacherController.teacherExportStudents`
 
 ## [2026-06-03] Notification System
 
