@@ -109,6 +109,9 @@ http {
         server_name $VM_IP;
         root   C:/Co_project/Frontend/dist;
         index  index.html;
+        # Blocked on the public (ngrok-tunneled) listener — only reachable via
+        # the 127.0.0.1-only server block below.
+        location = /api/internal-status { return 404; }
         location /api/ {
             proxy_pass http://localhost:5000;
             proxy_http_version 1.1;
@@ -117,6 +120,18 @@ http {
         }
         location /uploads/ {
             proxy_pass http://localhost:5000;
+        }
+        location / {
+            try_files `$uri `$uri/ /index.html;
+        }
+    }
+    # VM-local-only status dashboard — ngrok never tunnels this port,
+    # so it is reachable only from inside the VM (e.g. http://localhost:8888/status.html).
+    server {
+        listen 127.0.0.1:8888;
+        root   C:/Co_project/Frontend/dist;
+        location /api/internal-status {
+            proxy_pass http://localhost:5000/api/internal-status;
         }
         location / {
             try_files `$uri `$uri/ /index.html;
