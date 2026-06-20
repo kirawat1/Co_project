@@ -10,6 +10,7 @@ const supervisionController = require('../controllers/supervisionController');
 router.get("/me", verifyToken, teacherController.getProfile);
 router.put("/me", verifyToken, teacherController.updateProfile);
 router.get('/my-students', verifyToken, teacherController.getMyStudents);
+router.get('/students/export', verifyToken, teacherController.exportMyStudents);
 
 // --- Route สำหรับ Admin จัดการอาจารย์ ---
 router.get("/", verifyToken, teacherController.getAllTeachers); 
