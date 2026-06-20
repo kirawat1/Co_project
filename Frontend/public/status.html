@@ -254,7 +254,23 @@
 
   async function fetchStatus() {
     try {
-      const res = await fetch('/api/status');
+      const token = localStorage.getItem('coop.token');
+      if (!token) {
+        ['backend', 'db', 'nginx', 'ngrok'].forEach(id => setCard(id, 'error'));
+        document.getElementById('last-updated').textContent =
+          'กรุณา login เข้าระบบหลัก (เจ้าหน้าที่) ในแท็บนี้ก่อนดู status';
+        return;
+      }
+
+      const res = await fetch('/api/status', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.status === 401 || res.status === 403) {
+        ['backend', 'db', 'nginx', 'ngrok'].forEach(id => setCard(id, 'error'));
+        document.getElementById('last-updated').textContent =
+          'ไม่มีสิทธิ์ดู status (ต้อง login เป็นเจ้าหน้าที่)';
+        return;
+      }
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const d = await res.json();
 
