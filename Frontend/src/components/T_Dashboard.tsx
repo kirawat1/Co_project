@@ -173,6 +173,33 @@ export default function T_Dashboard() {
     }
   };
 
+  const handleExport = async () => {
+    try {
+      let coopPeriodId: string = "all";
+      if (selectedPeriod !== "all") {
+        const match = periods.find(p => `${p.semester}/${p.academicYear}` === selectedPeriod);
+        if (match) coopPeriodId = String(match.id);
+      }
+
+      const res = await axios.get(`/api/teacher/students/export?coopPeriodId=${coopPeriodId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+        responseType: "blob",
+      });
+
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `students_${coopPeriodId}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Export failed", err);
+      alert("ดาวน์โหลดไฟล์ไม่สำเร็จ กรุณาลองใหม่");
+    }
+  };
+
   useEffect(() => { fetchPeriods(); }, []);
   useEffect(() => { fetchData(selectedPeriod); }, [selectedPeriod]);
 
@@ -199,6 +226,21 @@ export default function T_Dashboard() {
                 return <option key={p.id} value={val}>เทอม {val} {p.isActive ? "⭐" : ""}</option>;
               })}
             </select>
+            <button
+              onClick={handleExport}
+              style={{
+                padding: '6px 12px',
+                borderRadius: 6,
+                border: '1px solid #16a34a',
+                background: '#16a34a',
+                color: '#fff',
+                fontWeight: 700,
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              📥 Export Excel
+            </button>
           </div>
         </div>
       </section>
