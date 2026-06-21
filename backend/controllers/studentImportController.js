@@ -52,7 +52,6 @@ exports.importStudents = async (req, res) => {
         const firstName = String(row['ชื่อ'] || '').trim();
         const lastName = String(row['สกุล'] || '').trim();
         const year = String(row['ปี'] || '').trim();
-        const curriculum = String(row['คณะ'] || '').trim();
         const major = String(row['สาขาวิชา'] || '').trim() || null;
         const advisorName = String(row['อาจารย์ที่ปรึกษาทั่วไป'] || '').trim() || null;
         const advisorEmail = String(row['email อาจารย์'] || '').trim() || null;
@@ -95,11 +94,11 @@ exports.importStudents = async (req, res) => {
         await prisma.student.upsert({
           where: { studentId },
           update: {
-            firstName, lastName, year, curriculum, major, advisorName, studyProgram,
+            firstName, lastName, year, major, advisorName, studyProgram,
             generalAdvisorId,  // null = clear advisor; non-null = set advisor
           },
           create: {
-            studentId, firstName, lastName, year, curriculum, major,
+            studentId, firstName, lastName, year, major,
             advisorName, generalAdvisorId, studyProgram,
             userId: user.id,
           },

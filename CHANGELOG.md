@@ -1,5 +1,14 @@
 # CHANGELOG — Co_project
 
+## [2026-06-22] Remove curriculum from student Excel import (Task 4/11 refactor)
+
+### Removed
+- `backend/controllers/studentImportController.js`: ลบ `const curriculum = String(row['คณะ'] || '').trim();` เนื่องจากไม่เก็บฟิลด์นี้อีกต่อไป ลบ `curriculum` จาก `prisma.student.upsert()` ทั้ง `update` และ `create` block
+- `backend/__tests__/studentImportController.test.js`: ลบ `'คณะ': 'คณะวิทยาการคอมพิวเตอร์'` จากมอกแถวข้อมูล test ทำให้ 3 tests ผ่านหมด
+
+### Why
+Task 4 ของแผน refactor 11 tasks ที่ลบ curriculum field ทั้งระบบ (ต่อจาก Task 3 ที่แก้ authController) — DB columns ที่เกี่ยวข้อง (`curriculum`) ยังอยู่ใน schema (migration ที่ลบจะอยู่ใน task สุดท้ายของแผน)
+
 ## [2026-06-22] Remove curriculum field + eligibility defaults from authController (Task 3/11 refactor)
 
 ### Removed
