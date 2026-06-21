@@ -16,6 +16,7 @@ testcases_*.txt
 
 # DB dumps (may contain real student PII - never commit)
 *.sql
+!backend/prisma/migrations/**/*.sql
 
 # OS files
 .DS_Store

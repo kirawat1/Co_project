@@ -25,8 +25,8 @@ beforeEach(() => jest.clearAllMocks());
 describe('getAllCriteria', () => {
   test('200 – returns { ok: true, criteria }', async () => {
     const fakeCriteria = [
-      { id: 1, major: 'CS', minGpa: 2.5, minCoreGpa: 2.5, minActivityUnit: 60 },
-      { id: 2, major: 'IT', minGpa: 2.0, minCoreGpa: 2.0, minActivityUnit: 60 },
+      { id: 1, major: 'CS' },
+      { id: 2, major: 'IT' },
     ];
     prisma.coopCriteria.findMany.mockResolvedValue(fakeCriteria);
 

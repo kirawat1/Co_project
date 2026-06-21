@@ -1,5 +1,23 @@
 # CHANGELOG — Co_project
 
+## [2026-06-22] Drop CoopCriteria GPA/course fields and Student.curriculum/isQualified/coreGpa columns (Task 11/11 refactor — final)
+
+### Removed
+- `backend/prisma/schema.prisma`: shrunk `CoopCriteria` model down to `id`, `major`, `updatedAt` — dropped `minGpa`, `minCoreGpa`, `minActivityUnit`, `requiredCourses`, `coreCourses`, `prepCourseCodes`, `electiveMinCount`
+- `backend/prisma/schema.prisma`: removed `curriculum`, `coreGpa`, `isPassPrepCourse`, `isQualified` from `Student` model
+- Ran migration `20260621210012_simplify_criteria_drop_curriculum` against the local dev MySQL DB (`coop_mysql_db`) dropping the 11 now-unused columns across `coopcriteria` and `student` tables. DB only contains test/dev data — confirmed safe to drop without backfill/preservation.
+- `backend/controllers/studentController.js`: found and fixed two leftover references that earlier tasks (1-10) missed and that the migration would have broken at runtime:
+  - `updateMyProfile` (`PUT /api/students/me`) still computed `calculatedQualified` from `coopCriteria.minGpa/minCoreGpa/minActivityUnit` and wrote `curriculum`/`coreGpa`/`isPassPrepCourse`/`isQualified` into the `student.upsert()` payload — removed all of it
+  - `getMyProfile`'s null-student placeholder response still included `curriculum`/`coreGpa`/`isPassPrepCourse` — removed
+  - Deleted the orphaned, unreachable `exports.syncKkuData` function (no route ever imported it, and it referenced an unimported `axios` — dead code superseded by `syncFromReg`) which also wrote `curriculum`/`isPassPrepCourse`
+- `backend/__tests__/criteriaController.test.js`: cleaned stale `minGpa`/`minCoreGpa`/`minActivityUnit` properties out of mock fixture objects
+
+### Fixed
+- `.gitignore`: the blanket `*.sql` DB-dump-exclusion rule was silently also matching `backend/prisma/migrations/**/*.sql`, which would have made every future migration's SQL file untracked by default. Added `!backend/prisma/migrations/**/*.sql` negation so migration files stay tracked while root-level DB dumps (e.g. `coop_data_utf8.sql`) remain ignored.
+
+### Why
+Task 11 (final) of the 11-task refactor that removed the GPA/course "eligibility" feature and the "curriculum" field system-wide. This is the only task that touches `schema.prisma` and runs the actual DB migration — it ran last because every consumer of these columns had to be removed first (Tasks 1-10) so the columns were genuinely unused and safe to drop. While cross-checking with the full backend test suite, found `studentController.js` still had two live references that Tasks 1-10 missed (not covered by existing tests) — fixed them as part of this final pass since the migration would otherwise have broken `PUT /api/students/me` in production. Full backend test suite (175/175 across 17 suites) and frontend `tsc --noEmit` both pass after the migration and fixes.
+
 ## [2026-06-22] Remove curriculum type field from S_Docs, A_CoopApplications, store (Task 9/11 refactor)
 
 ### Removed
