@@ -157,7 +157,7 @@ describe('getProfile', () => {
         studentId: 'u640001', firstName: 'ทดสอบ', lastName: 'ระบบ',
         firstNameEn: 'Test', lastNameEn: 'System',
         prefix: 'MR', phone: null, email: null,
-        year: '4', gpa: 3.5, major: 'CS', curriculum: null, studyProgram: null,
+        year: '4', gpa: 3.5, major: 'CS', studyProgram: null,
       },
       teacher: null,
     });
