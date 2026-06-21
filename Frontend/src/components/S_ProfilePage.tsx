@@ -35,7 +35,6 @@ interface StudentProfile {
   lastNameEn?: string;
   year?: string;
   major?: string;
-  curriculum?: string;
   advisorName?: string;
   generalAdvisor?: { firstName: string; lastName: string; email: string } | null;
   coopAdvisor?: { firstName: string; lastName: string; email: string } | null;
@@ -47,7 +46,6 @@ interface StudentProfile {
   emails: { id?: number; email: string; primary: boolean }[];
   company?: StudentCompany;
   docs: any[];
-  isQualified?: boolean; // ✅ เอาไว้โชว์เฉยๆ ว่าเกรดถึงไหม
   coopAdvisorId?: number | null;
   coop?: {
     company: StudentCompany;
@@ -391,24 +389,10 @@ export default function S_ProfilePage() {
             </div>
           )}
 
-          {/* ✅ แก้ไขกล่องแสดงสถานะการผ่านเกณฑ์ */}
-          <div style={{
-            padding: "12px 16px", marginBottom: "20px", borderRadius: "8px",
-            background: profile.isQualified ? "#f0fdf4" : "#fee2e2",
-            border: `1px solid ${profile.isQualified ? "#bbf7d0" : "#fecaca"}`,
-            color: profile.isQualified ? "#166534" : "#991b1b",
-            fontWeight: 700, fontSize: "14px", display: "flex", alignItems: "center", gap: "8px"
-          }}>
-            {profile.isQualified
-              ? "✅ ผ่านเกณฑ์เบื้องต้นจากการคำนวณ (เกรด/หน่วยกิต ถึงเกณฑ์ที่กำหนด)"
-              : "⚠️ คุณสมบัติยังไม่ผ่านเกณฑ์การยื่นสหกิจศึกษา"}
-          </div>
-
           <Info label="รหัสนักศึกษา" value={profile.studentId} />
           <Info label="ชื่อ–นามสกุล (TH)" value={`${prefixMapToUI[profile.prefix as keyof typeof prefixMapToUI] || ""} ${profile.firstName ?? ""} ${profile.lastName ?? ""}`} />
           <Info label="ชื่อ–นามสกุล (EN)" value={`${profile.firstNameEn ?? "-"} ${profile.lastNameEn ?? "-"}`} />
           <Info label="ชั้นปี" value={profile.year || "-"} />
-          <Info label="คณะ" value={profile.curriculum || "-"} />
           <Info label="สาขาวิชา" value={profile.major || "-"} />
           <Info label="รูปแบบการศึกษา" value={studyProgramMapToUI[profile.studyProgram as string] || profile.studyProgram || "-"} />
           {/* อาจารย์ที่ปรึกษา */}
@@ -536,7 +520,6 @@ function StudentModal({ profile, teachers, saveStudentInfo, closeModal }: any) {
     studentId: (profile.studentId ?? "").replace(/\D/g, "").slice(0, 10),
     prefix: prefixMapToUI[profile.prefix] || profile.prefix || "",
     studyProgram: studyProgramMapToUI[profile.studyProgram] || profile.studyProgram || "",
-    curriculum: profile.curriculum || "วิทยาลัยการคอมพิวเตอร์"
   }));
 
   const [majorOptions, setMajorOptions] = useState<string[]>([]);
@@ -629,10 +612,6 @@ function StudentModal({ profile, teachers, saveStudentInfo, closeModal }: any) {
 
           <div><label className="label">ชั้นปี</label><input className="input" value={form.year ?? ""} onChange={(e) => setForm({ ...form, year: e.target.value })} /></div>
 
-          <div style={{ gridColumn: 'span 2' }}>
-            <label className="label">คณะ / หลักสูตร</label>
-            <input className="input" value={form.curriculum ?? ""} onChange={(e) => setForm({ ...form, curriculum: e.target.value })} />
-          </div>
           <div><label className="label">เบอร์โทรศัพท์</label><input className="input" value={form.phone ?? ""} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
           <div><label className="label">อีเมลติดต่อหลัก</label><input className="input" value={form.email ?? ""} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
         </div>

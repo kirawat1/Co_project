@@ -1,5 +1,16 @@
 # CHANGELOG — Co_project
 
+## [2026-06-22] Remove qualification badge + curriculum field from S_ProfilePage (Task 6/11 refactor)
+
+### Removed
+- `Frontend/src/components/S_ProfilePage.tsx`: ลบ `curriculum?: string` และ `isQualified?: boolean` จาก `StudentProfile` interface
+- ลบกล่องแสดงสถานะ "ผ่านเกณฑ์เบื้องต้นจากการคำนวณ" (badge ที่อ่าน `profile.isQualified`) และแถว `<Info label="คณะ" .../>` ที่อ่าน `profile.curriculum`
+- ลบ default `curriculum: profile.curriculum || "วิทยาลัยการคอมพิวเตอร์"` จาก initial state ของ edit-modal form
+- ลบ form field "คณะ / หลักสูตร" (input ที่ผูกกับ `form.curriculum`) จาก edit modal
+
+### Why
+Task 6 ของแผน refactor 11 tasks ที่ลบ GPA/course-based eligibility calculation และ curriculum field ทั้งระบบ (ต่อจาก Task 5 ที่แก้ A_CriteriaPage) — DB columns ที่เกี่ยวข้อง (`curriculum`, `isQualified`) ยังอยู่ใน schema (migration ที่ลบจะอยู่ใน task สุดท้ายของแผน)
+
 ## [2026-06-22] Simplify A_CriteriaPage to a plain major list (Task 5/11 refactor)
 
 ### Changed
