@@ -1,5 +1,17 @@
 # CHANGELOG — Co_project
 
+## [2026-06-22] Remove curriculum field + eligibility defaults from authController (Task 3/11 refactor)
+
+### Removed
+- `backend/controllers/authController.js`: ลบ `curriculum: extraInfo.program_name` จาก `prisma.student.upsert()` ทั้ง `update` และ `create` block (KKU API sync), ลบ default values `isPassPrepCourse: false`/`isQualified: false` จาก `create` block (eligibility ไม่ได้ใช้แล้ว)
+- ลบ `curriculum: user.student.curriculum` จาก profile response mapping ใน `getProfile`
+- ลบ `curriculum: studentInfo.faculty_name_th || null` จาก auto-registration `create` block (KKU login auto-create student)
+- ลบ `if (studentInfo.faculty_name_th) updateData.curriculum = ...` จาก REG sync update block
+- อัปเดต mock test data ใน `backend/__tests__/authController.test.js` ให้ตรงกับ shape ใหม่ (ลบ `curriculum: null`) — 13 tests ผ่านหมด
+
+### Why
+Task 3 ของแผน refactor 11 tasks ที่ลบ GPA/course-based eligibility calculation และ curriculum field ทั้งระบบ (ต่อจาก Task 2 ที่แก้ studentController/criteriaController) — DB columns ที่เกี่ยวข้อง (`curriculum`, `isPassPrepCourse`, `isQualified`) ยังอยู่ใน schema (migration ที่ลบจะอยู่ใน task สุดท้ายของแผน)
+
 ## [2026-06-22] Remove checkEligibility + curriculum sync from studentController (Task 2/11 refactor)
 
 ### Removed

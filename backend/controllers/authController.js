@@ -189,36 +189,31 @@ exports.loginWithSSO = async (req, res) => {
            email: kkuUser.mail,
            
            // ข้อมูลจาก API Info
-           curriculum: extraInfo.program_name,
            year: extraInfo.student_year ? extraInfo.student_year.toString() : undefined,
            gpa: extraInfo.gpa ? parseFloat(extraInfo.gpa) : undefined,
            major: majorEnum || undefined,
-           
+
            apiSyncedAt: new Date()
         },
         create: {
            userId: user.id,
            studentId: kkuUser.student_id,
-           
+
            prefix: prefixEnum,
            firstName: kkuUser.firstname_th,
            lastName: kkuUser.lastname_th,
            firstNameEn: kkuUser.firstname,
            lastNameEn: kkuUser.lastname,
            email: kkuUser.mail,
-           
+
            // ข้อมูลการศึกษา
-           curriculum: extraInfo.program_name,
            year: extraInfo.student_year ? extraInfo.student_year.toString() : null,
            gpa: extraInfo.gpa ? parseFloat(extraInfo.gpa) : 0.00,
            major: majorEnum,
-           
+
            // Default Values
-           coreGpa: 0.00,
            activityUnit: 0,
-           isPassPrepCourse: false,
-           isQualified: false,
-           
+
            apiSyncedAt: new Date()
         }
       });
@@ -321,7 +316,6 @@ exports.getProfile = async (req, res) => {
         year: user.student.year,            // 4
         gpa: user.student.gpa,              // 4
         major: user.student.major,          // CS
-        curriculum: user.student.curriculum,// CS
         studyProgram: user.student.studyProgram // normal
       };
     } else if (user.role === "teacher" && user.teacher) {
@@ -458,7 +452,6 @@ exports.loginWithKKU = async (req, res) => {
               lastName:    studentInfo.last_name_th   || "ใหม่",
               firstNameEn: studentInfo.first_name_en  || null,
               lastNameEn:  studentInfo.last_name_en   || null,
-              curriculum:  studentInfo.faculty_name_th || null,
               major:       studentInfo.major_name_th   || null,
               year:        studentInfo.class_year ? String(studentInfo.class_year) : null,
               advisorName: advName,
@@ -478,7 +471,6 @@ exports.loginWithKKU = async (req, res) => {
       if (studentInfo.last_name_th)   updateData.lastName    = studentInfo.last_name_th;
       if (studentInfo.first_name_en)  updateData.firstNameEn = studentInfo.first_name_en;
       if (studentInfo.last_name_en)   updateData.lastNameEn  = studentInfo.last_name_en;
-      if (studentInfo.faculty_name_th) updateData.curriculum = studentInfo.faculty_name_th;
       if (studentInfo.major_name_th)  updateData.major       = studentInfo.major_name_th;
       if (studentInfo.class_year)     updateData.year        = String(studentInfo.class_year);
       if (advisorInfo) {
