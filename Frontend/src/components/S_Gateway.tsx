@@ -56,7 +56,6 @@ interface StudentProfile {
   lastNameEn?: string;
   year?: string;
   major?: string;
-  curriculum?: string;
   studyProgram?: string;
   advisorName?: string;
 
@@ -415,7 +414,6 @@ export default function CoopRequestPage() {
           <div className="info-row"><span className="label">ชื่อ-นามสกุล (EN):</span><span className="value">{profile.firstNameEn || "-"} {profile.lastNameEn || "-"}</span></div>
           <div className="info-row"><span className="label">รหัสนักศึกษา:</span><span className="value">{profile.studentId}</span></div>
           <div className="info-row"><span className="label">สาขาวิชา:</span><span className="value">{profile.major || "-"} (ปี {profile.year || "-"})</span></div>
-          <div className="info-row"><span className="label">คณะ:</span><span className="value">{profile.curriculum || "-"}</span></div>
           <div className="info-row"><span className="label">ที่ปรึกษา:</span><span className="value">{profile.advisorName || "-"}</span></div>
           <div className="info-row"><span className="label">เบอร์โทรศัพท์:</span><span className="value">{profile.phone || "-"}</span></div>
           <div className="info-row"><span className="label">อีเมลติดต่อ:</span><span className="value">{profile.email || "-"}</span></div>
