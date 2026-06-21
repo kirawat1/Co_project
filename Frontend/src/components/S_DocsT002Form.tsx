@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { createT002PDF } from "../utils/pdfGeneratorT002";
 import StatusBadge from "./StatusBadge";
 import CountdownTimer from "../components/CountdownTimer"; // ✅ Import มาแล้ว
+import AutoTextarea from "./AutoTextarea";
 
 interface Props {
     profile: any;
@@ -302,14 +303,14 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
                     <Input label="ตำแหน่งงานของนักศึกษา (Job Position)" name="jobPosition" value={formData.jobPosition} onChange={handleChange} required />
                     <div style={{ marginTop: 10 }}>
                         <label style={lblStyle}>ลักษณะงานที่ปฏิบัติ (Job Description)</label>
-                        <textarea name="jobDescription" value={formData.jobDescription} onChange={handleChange} rows={4} style={inputStyle} required placeholder="อธิบายลักษณะงานที่ได้รับมอบหมายพอสังเขป..." />
+                        <AutoTextarea name="jobDescription" value={formData.jobDescription} onChange={handleChange} rows={4} style={inputStyle} required placeholder="อธิบายลักษณะงานที่ได้รับมอบหมายพอสังเขป..." />
                     </div>
                 </Section>
 
                 <Section title="5. ข้อมูลที่พักระหว่างฝึกงาน & กรณีฉุกเฉิน">
                     <div style={{ marginBottom: 15 }}>
                         <label style={lblStyle}>ที่อยู่หอพัก / ที่พักปัจจุบัน</label>
-                        <textarea name="accommodationAddress" value={formData.accommodationAddress} onChange={handleChange} rows={2} style={inputStyle} required />
+                        <AutoTextarea name="accommodationAddress" value={formData.accommodationAddress} onChange={handleChange} rows={2} style={inputStyle} required />
                         <div style={{ marginTop: 10, width: '50%' }}>
                             <Input label="เบอร์โทรศัพท์ที่พัก/เบอร์นักศึกษา" name="accommodationPhone" value={formData.accommodationPhone} onChange={handleChange} required />
                         </div>
@@ -323,7 +324,7 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
                         </div>
                         <div style={{ marginTop: 10 }}>
                             <label style={lblStyle}>ที่อยู่กรณีฉุกเฉิน</label>
-                            <textarea name="emergencyAddress" value={formData.emergencyAddress} onChange={handleChange} rows={2} style={inputStyle} required />
+                            <AutoTextarea name="emergencyAddress" value={formData.emergencyAddress} onChange={handleChange} rows={2} style={inputStyle} required />
                         </div>
                     </div>
                 </Section>

@@ -4,6 +4,7 @@ import { loadAcademicYear } from "./store";
 import StatusBadge from "../components/StatusBadge";
 import axios from "axios";
 import { useToast } from "./Toast";
+import AutoTextarea from "./AutoTextarea";
 import ConfirmDialog from "./ConfirmDialog";
 import Spinner from "./Spinner";
 
@@ -338,7 +339,7 @@ export default function T_Requests() {
                 {/* 3. Actions */}
                 <div style={{ marginTop: 'auto' }}>
                   <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6, display: 'block' }}>ข้อความแจ้งนักศึกษา:</label>
-                  <textarea className="input" rows={2} style={{ width: '100%', marginBottom: 12, fontSize: 13, resize: 'none' }}
+                  <AutoTextarea className="input" rows={2} style={{ width: '100%', marginBottom: 12, fontSize: 13 }}
                     placeholder="ระบุสิ่งที่ต้องแก้ไข..." value={teacherComment} onChange={e => setTeacherComment(e.target.value)} />
 
                   <button className="btn" style={{ width: '100%', background: '#10b981', padding: 12, marginBottom: 8 }} onClick={() => updateStatus("APPROVED")}>✅ อนุมัติผ่านเกณฑ์</button>

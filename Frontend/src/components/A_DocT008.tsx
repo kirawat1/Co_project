@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+import AutoTextarea from "./AutoTextarea";
 
 export default function A_DocT008() {
     const [isFetching, setIsFetching] = useState(true);
@@ -48,6 +49,12 @@ export default function A_DocT008() {
             setImageFile(file);
             setImagePreview(URL.createObjectURL(file)); // สร้าง URL พรีวิวรูปใหม่ชั่วคราว
         }
+    };
+
+    const handleRemoveImage = () => {
+        setImageFile(null);
+        setExistingImage("");
+        setImagePreview("");
     };
 
     const handleSave = async () => {
@@ -104,7 +111,7 @@ export default function A_DocT008() {
                 {/* 1. ส่วนคำชี้แจง */}
                 <div>
                     <label style={labelStyle}>📝 ข้อความคำชี้แจง / ขั้นตอนปฏิบัติ</label>
-                    <textarea
+                    <AutoTextarea
                         className="input"
                         rows={14}
                         value={instructionText}
@@ -134,6 +141,11 @@ export default function A_DocT008() {
                         <div style={{ marginTop: 15 }}>
                             <div style={{ fontSize: 13, color: '#92400e', marginBottom: 5, fontWeight: 'bold' }}>พรีวิวรูปภาพ:</div>
                             <img src={imagePreview} alt="Preview" style={{ maxWidth: '100%', maxHeight: '400px', borderRadius: 8, border: '1px solid #fcd34d' }} />
+                            <div>
+                                <button type="button" className="btn" onClick={handleRemoveImage} style={{ marginTop: 10, background: '#ef4444', color: 'white', padding: '8px 16px' }}>
+                                    🗑️ ลบภาพ
+                                </button>
+                            </div>
                         </div>
                     )}
                 </div>

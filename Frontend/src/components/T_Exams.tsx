@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { StudentProfile } from "./store";
+import AutoTextarea from "./AutoTextarea";
 
 const K_EXAMS = "coop.teacher.exams.v1";
 const K_STUDENTS_NEW = "coop.students";
@@ -390,7 +391,7 @@ export default function T_Exams() {
 
               <div className="full">
                 <label className="label">หมายเหตุ</label>
-                <textarea
+                <AutoTextarea
                   className="input"
                   rows={3}
                   value={edit.note || ""}

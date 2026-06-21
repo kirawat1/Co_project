@@ -2,6 +2,7 @@ import React, { useMemo, useState, useEffect } from "react";
 import type { CSSProperties } from "react";
 import axios from "axios";
 import StatusBadge from "./StatusBadge";
+import AutoTextarea from "./AutoTextarea";
 import { useToast } from "./Toast";
 import ConfirmDialog from "./ConfirmDialog";
 import Spinner from "./Spinner";
@@ -367,7 +368,7 @@ export default function A_CoopApplications() {
 
                                 {/* Controls */}
                                 <div style={{ marginTop: 30 }}>
-                                    <textarea className="input" rows={4} style={{ width: '100%', marginBottom: 12, resize: 'none' }}
+                                    <AutoTextarea className="input" rows={4} style={{ width: '100%', marginBottom: 12 }}
                                         placeholder="ความเห็น/เหตุผลที่ตีกลับ (จำเป็นต้องกรอกเมื่อตีกลับ)..." value={comment} onChange={e => setComment(e.target.value)} />
 
                                     <button className="btn" style={{ width: '100%', background: '#10b981', padding: 14, marginBottom: 10, fontSize: 15 }} onClick={() => updateStatus("QUALIFIED")}>✅ คำร้องผ่านเกณฑ์</button>

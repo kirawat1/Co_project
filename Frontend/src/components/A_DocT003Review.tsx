@@ -3,6 +3,7 @@ import type { CSSProperties } from "react";
 import axios from "axios";
 import { useToast } from "./Toast";
 import ConfirmDialog from "./ConfirmDialog";
+import AutoTextarea from "./AutoTextarea";
 
 // --- Types ---
 type Document = {
@@ -420,7 +421,7 @@ export default function A_DocT003Review() {
 
                                 <div>
                                     <label style={label}>ข้อเสนอแนะ / เหตุผลที่ให้แก้ไข</label>
-                                    <textarea className="input" rows={6} placeholder="เช่น หัวข้อยังกว้างเกินไป, กรุณาเพิ่มรายละเอียดในสัปดาห์ที่ 2..." value={comment} onChange={(e) => setComment(e.target.value)} style={{ resize: 'none' }} />
+                                    <AutoTextarea className="input" rows={6} placeholder="เช่น หัวข้อยังกว้างเกินไป, กรุณาเพิ่มรายละเอียดในสัปดาห์ที่ 2..." value={comment} onChange={(e) => setComment(e.target.value)} />
                                     <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 6 }}>* หากอนุมัติ ไม่จำเป็นต้องกรอกข้อความ</div>
                                 </div>
 

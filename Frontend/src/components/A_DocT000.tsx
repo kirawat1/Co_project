@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import StatusBadge from "../components/StatusBadge";
 import IssueLetterModal from "./IssueLetterModal";
 import IssuePlacementLetterModal from "./IssuePlacementLetterModal";
+import AutoTextarea from "./AutoTextarea";
 
 // --- Interfaces ---
 interface StudentDocument {
@@ -585,7 +586,7 @@ export default function A_DocT000() {
                                 </div>
 
                                 <div style={{ padding: '16px', borderTop: '1px solid #e2e8f0', background: '#fff', flexShrink: 0 }}>
-                                    <textarea className="input" rows={2} style={{ width: '100%', marginBottom: 8, fontSize: 13 }}
+                                    <AutoTextarea className="input" rows={2} style={{ width: '100%', marginBottom: 8, fontSize: 13 }}
                                         placeholder="ระบุเหตุผล (กรณีแก้ไข/ไม่ผ่าน)"
                                         value={adminComment} onChange={e => setAdminComment(e.target.value)}
                                     />

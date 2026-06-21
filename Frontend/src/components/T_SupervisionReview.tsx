@@ -4,6 +4,7 @@ import axios from "axios";
 import StatusBadge from "./StatusBadge";
 import SupervisionCalendar from "./SupervisionCalendar";
 import type { CalendarEvent } from "./SupervisionCalendar";
+import AutoTextarea from "./AutoTextarea";
 
 // --- Types ---
 interface SupervisionAppt {
@@ -451,7 +452,7 @@ export default function T_SupervisionReview() {
                                         <div style={{ margin: "24px 0", borderTop: "1px dashed #cbd5e1" }} />
                                         <h4 style={{ margin: "0 0 10px 0", color: "#991b1b", fontSize: 16 }}>⚠️ กรณีไม่สะดวกทุกวัน</h4>
                                         <label style={{ fontSize: 13, color: "#475569", marginBottom: 8, display: "block" }}>ระบุเหตุผลหรือวันที่สะดวก เพื่อให้นักศึกษาเสนอใหม่</label>
-                                        <textarea className="input" rows={3} placeholder="เช่น ขอเลื่อนเป็นสัปดาห์หน้า..." value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} />
+                                        <AutoTextarea className="input" rows={3} placeholder="เช่น ขอเลื่อนเป็นสัปดาห์หน้า..." value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} />
                                         <button className="btn" style={{ background: "#dc2626", width: "100%", marginTop: 12 }} onClick={() => handleAction("REJECT")} disabled={isSubmitting}>
                                             ปฏิเสธให้เลือกวันใหม่
                                         </button>

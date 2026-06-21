@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import type { CSSProperties } from "react";
 import axios from "axios";
+import AutoTextarea from "./AutoTextarea";
 
 // --- Types ---
 type Document = { id: number; type: string; path: string; name: string; status: string; };
@@ -270,7 +271,7 @@ export default function T_T002Review() {
                             <div style={{ width: 350, display: 'flex', flexDirection: 'column', gap: 16 }}>
                                 <div>
                                     <label style={label}>ข้อเสนอแนะ / เหตุผลที่ตีกลับ</label>
-                                    <textarea className="input" rows={6} value={comment} onChange={(e) => setComment(e.target.value)} style={{ resize: 'none' }} />
+                                    <AutoTextarea className="input" rows={6} value={comment} onChange={(e) => setComment(e.target.value)} />
                                 </div>
                                 <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
                                     <button className="btn-ghost" style={{ background: '#fef2f2', color: '#dc2626', borderColor: '#fca5a5', padding: 14 }} onClick={() => submitReview('REJECT')} disabled={loading}>❌ ตีกลับให้แก้ไข</button>

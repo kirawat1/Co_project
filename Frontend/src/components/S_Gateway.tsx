@@ -4,6 +4,7 @@ import { createCoopPDF } from "../utils/pdfGenerator";
 import StatusBadge from "../components/StatusBadge";
 import S_StatusTracker from "./S_StatusTracker";
 import { useToast } from "../components/Toast";
+import AutoTextarea from "./AutoTextarea";
 import ConfirmDialog from "../components/ConfirmDialog";
 import Spinner from "../components/Spinner";
 
@@ -471,7 +472,7 @@ export default function CoopRequestPage() {
 
         <div>
           <label className="label" style={{ fontSize: 15 }}>ระบุลักษณะงาน (Job Position) <span style={{ color: 'red' }}>*</span></label>
-          <textarea
+          <AutoTextarea
             className="input"
             rows={2}
             value={coopField}
