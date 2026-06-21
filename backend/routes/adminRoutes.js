@@ -16,7 +16,6 @@ const docReqController = require('../controllers/docRequirementController');
 const configController = require('../controllers/configController');
 const supervisionController = require('../controllers/supervisionController');
 const teacherController = require('../controllers/teacherController');
-const kkuReg = require('../services/kkuRegService');
 const studentImportController = require('../controllers/studentImportController');
 const studentController = require('../controllers/studentController');
 const multerMemory = require('multer')({ storage: require('multer').memoryStorage() });
@@ -89,24 +88,6 @@ router.get('/students/majors', verifyToken, verifyRole(...ADMIN_ROLES), async (r
   } catch (err) {
     console.error(err);
     res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาด" });
-  }
-});
-
-// GET /api/admin/courses/search?q=<text> — ค้นหาวิชาจาก KKU course catalog สำหรับ admin เลือกใส่เกณฑ์
-router.get('/courses/search', verifyToken, verifyRole(...ADMIN_ROLES), async (req, res) => {
-  const q = (req.query.q || "").trim();
-  if (q.length < 2) return res.json({ ok: true, courses: [] });
-
-  if (!kkuReg.isConfigured()) {
-    return res.json({ ok: false, courses: [], message: "KKU REG API ยังไม่ได้ตั้งค่า — กรอกรหัสวิชาด้วยตนเอง" });
-  }
-
-  try {
-    const courses = await kkuReg.searchCourses(q);
-    res.json({ ok: true, courses });
-  } catch (err) {
-    console.error("[admin course search]", err);
-    res.json({ ok: false, courses: [], message: "ค้นหาไม่สำเร็จ" });
   }
 });
 
