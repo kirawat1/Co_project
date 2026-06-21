@@ -1,5 +1,15 @@
 # CHANGELOG — Co_project
 
+## [2026-06-22] Remove checkEligibility + curriculum sync from studentController (Task 2/11 refactor)
+
+### Removed
+- `studentController.checkEligibility()` และ constants `PASSING_GRADES`/`GRADE_POINTS` ลบออกทั้งหมด (ส่วนของแผน "ลบ eligibility calculation + curriculum field")
+- `syncFromReg`: ลบบรรทัด sync `curriculum` จาก `info.faculty_name_th`, ลบ eligibility block ทั้งหมด (`gradeList`/`criteria` lookup, การคำนวณ `isPassPrepCourse`/`coreGpa`/`isQualified`) — ตอนนี้ sync เฉพาะ firstName/lastName/major/year/prefix/activityUnit/gpa/advisorName จาก KKU API ตรงๆ
+- `describe('checkEligibility', ...)` test suite ทั้งหมดใน `backend/__tests__/studentController.test.js` ลบออก (11 tests เหลือ ผ่านหมด)
+
+### Why
+Task 2 ของแผน refactor 11 tasks ที่ลบ GPA/course-based eligibility calculation และ curriculum field ทั้งระบบ — DB columns ที่เกี่ยวข้อง (`isPassPrepCourse`, `coreGpa`, `isQualified`, `curriculum`) ยังอยู่ใน schema (migration ที่ลบจะอยู่ใน task สุดท้ายของแผน)
+
 ## [2026-06-22] T008 Image Removal + Auto-Resizing Textareas
 
 ### Added
