@@ -1,133 +1,16 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import axios from "axios";
 import type { CSSProperties } from "react";
 
 type Criteria = {
     id: string;
     major: string;
-    minGpa: number;
-    minCoreGpa: number;
-    minActivityUnit: number;
-    requiredCourses: string[];
-    coreCourses: string[];
-    prepCourseCodes: string[];
-    electiveMinCount: number;
 };
-
-type CourseOption = { course_code: string; course_name?: string };
-
-function CourseTagInput({
-  label,
-  codes,
-  onChange,
-}: {
-  label: string;
-  codes: string[];
-  onChange: (codes: string[]) => void;
-}) {
-  const [query, setQuery] = useState("");
-  const [results, setResults] = useState<CourseOption[]>([]);
-  const [showDropdown, setShowDropdown] = useState(false);
-  const token = localStorage.getItem("coop.token");
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const search = useCallback(async (q: string) => {
-    if (q.length < 2) { setResults([]); setShowDropdown(false); return; }
-    try {
-      const res = await axios.get(`/api/admin/courses/search?q=${encodeURIComponent(q)}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.data.ok && res.data.courses.length > 0) {
-        setResults(res.data.courses);
-        setShowDropdown(true);
-      } else {
-        setResults([]);
-        setShowDropdown(false);
-      }
-    } catch {
-      setResults([]);
-    }
-  }, [token]);
-
-  const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value;
-    setQuery(val);
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => search(val), 350);
-  };
-
-  const addCode = (code: string) => {
-    const trimmed = code.trim().toUpperCase();
-    if (trimmed && !codes.includes(trimmed)) {
-      onChange([...codes, trimmed]);
-    }
-    setQuery("");
-    setResults([]);
-    setShowDropdown(false);
-  };
-
-  const removeCode = (code: string) => onChange(codes.filter(c => c !== code));
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-      <span style={{ fontSize: 14, fontWeight: 700, color: "#334155" }}>{label}</span>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, minHeight: 38, padding: "6px 10px", border: "1px solid #cbd5e1", borderRadius: 8, background: "#fff" }}>
-        {codes.map(code => (
-          <span key={code} style={{ background: "#e0f2fe", color: "#0369a1", fontSize: 13, fontWeight: 700, padding: "3px 10px", borderRadius: 6, display: "flex", alignItems: "center", gap: 4 }}>
-            {code}
-            <button type="button" onClick={() => removeCode(code)} style={{ background: "none", border: "none", cursor: "pointer", color: "#0369a1", fontWeight: 900, fontSize: 14, padding: 0, lineHeight: 1 }}>×</button>
-          </span>
-        ))}
-      </div>
-      <div style={{ position: "relative" }}>
-        <input
-          className="input"
-          placeholder="พิมพ์รหัสวิชา หรือกด Enter เพื่อเพิ่ม"
-          value={query}
-          onChange={handleInput}
-          onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addCode(query); } }}
-          autoComplete="off"
-          style={{ width: "100%", boxSizing: "border-box" }}
-        />
-        {showDropdown && results.length > 0 && (
-          <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, boxShadow: "0 8px 16px rgba(0,0,0,0.1)", zIndex: 100, maxHeight: 200, overflowY: "auto" }}>
-            {results.map((c, i) => (
-              <button
-                key={i}
-                type="button"
-                onClick={() => addCode(c.course_code)}
-                style={{ display: "block", width: "100%", padding: "10px 14px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: 13 }}
-                onMouseEnter={e => (e.currentTarget.style.background = "#f1f5f9")}
-                onMouseLeave={e => (e.currentTarget.style.background = "none")}
-              >
-                <b>{c.course_code}</b>{c.course_name ? ` — ${c.course_name}` : ""}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-      <span style={{ fontSize: 12, color: "#94a3b8" }}>* พิมพ์แล้วกด Enter เพื่อเพิ่ม หรือเลือกจากรายการ (ถ้า KKU API พร้อมใช้)</span>
-    </div>
-  );
-}
 
 export default function A_CriteriaPage() {
     const [criteriaList, setCriteriaList] = useState<Criteria[]>([]);
-
-    // State สำหรับ Modal เพิ่มสาขา
     const [addMajorModalOpen, setAddMajorModalOpen] = useState(false);
     const [newMajorName, setNewMajorName] = useState("");
-
-    // State สำหรับ Modal แก้ไขเกณฑ์
-    const [editCriteriaModalOpen, setEditCriteriaModalOpen] = useState(false);
-    const [editingMajor, setEditingMajor] = useState(""); // เก็บชื่อสาขาที่กำลังแก้
-    const [minGpa, setMinGpa] = useState("2.00");
-    const [minCoreGpa, setMinCoreGpa] = useState("2.00");
-    const [minActivityUnit, setMinActivityUnit] = useState("0");
-    const [reqCourses, setReqCourses] = useState<string[]>([]);
-    const [coreCourses, setCoreCourses] = useState<string[]>([]);
-    const [prepCourseCodes, setPrepCourseCodes] = useState<string[]>([]);
-    const [electiveMinCount, setElectiveMinCount] = useState("1");
 
     const fetchCriteria = async () => {
         try {
@@ -138,166 +21,68 @@ export default function A_CriteriaPage() {
 
     useEffect(() => { fetchCriteria(); }, []);
 
-    // ==========================================
-    // 1. จัดการสาขา (เพิ่ม / ลบ)
-    // ==========================================
     const handleAddMajor = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!newMajorName.trim()) return alert("กรุณากรอกชื่อสาขา");
 
-        // เช็คซ้ำในฝั่ง Frontend เบื้องต้น
         if (criteriaList.some(c => c.major.toLowerCase() === newMajorName.trim().toLowerCase())) {
             return alert("สาขานี้มีอยู่ในระบบแล้ว!");
         }
 
         try {
-            // ส่งค่า Default เบื้องต้นไปสร้างสาขาใหม่
             await axios.post("/api/admin/criteria", {
                 major: newMajorName.trim().toUpperCase(), // แนะนำให้เก็บเป็นตัวพิมพ์ใหญ่ (เช่น CS, IT)
-                minGpa: 2.00,
-                minCoreGpa: 2.00,
-                minActivityUnit: 0,
-                requiredCourses: [],
-                coreCourses: []
             });
             setAddMajorModalOpen(false);
             setNewMajorName("");
             fetchCriteria();
-        } catch (err: any) { alert(err.response?.data?.error || "เกิดข้อผิดพลาดในการเพิ่มสาขา"); }
+        } catch (err: any) { alert(err.response?.data?.message || "เกิดข้อผิดพลาดในการเพิ่มสาขา"); }
     };
 
     const handleRemoveMajor = async (id: string, majorName: string) => {
-        if (!confirm(`⚠️ ยืนยันการลบสาขา ${majorName} และเกณฑ์ทั้งหมดของสาขานี้?`)) return;
+        if (!confirm(`⚠️ ยืนยันการลบสาขา ${majorName}?`)) return;
         try {
             await axios.delete(`/api/admin/criteria/${id}`);
             fetchCriteria();
         } catch (err) { alert("ลบไม่สำเร็จ"); }
     };
 
-    // ==========================================
-    // 2. จัดการเกณฑ์ (แก้ไข)
-    // ==========================================
-    const openEditCriteriaModal = (c: Criteria) => {
-        setEditingMajor(c.major);
-        setMinGpa(c.minGpa.toString());
-        setMinCoreGpa(c.minCoreGpa.toString());
-        setMinActivityUnit(c.minActivityUnit.toString());
-        setReqCourses(c.requiredCourses || []);
-        setCoreCourses(c.coreCourses || []);
-        setPrepCourseCodes(c.prepCourseCodes || []);
-        setElectiveMinCount((c.electiveMinCount ?? 1).toString());
-        setEditCriteriaModalOpen(true);
-    };
-
-    const handleSaveCriteria = async (e: React.FormEvent) => {
-        e.preventDefault();
-        try {
-            await axios.post("/api/admin/criteria", {
-                major: editingMajor,
-                minGpa: parseFloat(minGpa),
-                minCoreGpa: parseFloat(minCoreGpa),
-                minActivityUnit: parseInt(minActivityUnit),
-                requiredCourses: reqCourses,
-                coreCourses: coreCourses,
-                prepCourseCodes: prepCourseCodes,
-                electiveMinCount: parseInt(electiveMinCount) || 1,
-            }, { headers: { Authorization: `Bearer ${localStorage.getItem("coop.token")}` } });
-            setEditCriteriaModalOpen(false);
-            fetchCriteria();
-        } catch (err: any) { alert(err.response?.data?.error || "เกิดข้อผิดพลาดในการบันทึกเกณฑ์"); }
-    };
-
-    // ==========================================
-    // RENDER
-    // ==========================================
     return (
         <div className="page" style={{ padding: 4, margin: 28, marginLeft: 65 }}>
 
             {/* HEADER */}
             <section style={{ ...card, marginBottom: 28, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
-                    <h2 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: '#1e293b' }}>⚙️ จัดการเกณฑ์สหกิจศึกษา</h2>
-                    <div style={{ color: "#64748b", fontSize: 14, marginTop: 4 }}>เพิ่มสาขาวิชา และกำหนดเงื่อนไขการออกสหกิจฯ แยกตามสาขา</div>
+                    <h2 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: '#1e293b' }}>⚙️ จัดการสาขาวิชาสหกิจศึกษา</h2>
+                    <div style={{ color: "#64748b", fontSize: 14, marginTop: 4 }}>รายชื่อสาขาวิชาที่นักศึกษาสามารถยื่นสมัครสหกิจศึกษาได้</div>
                 </div>
                 <button className="btn" onClick={() => setAddMajorModalOpen(true)}>+ เพิ่มสาขาวิชาใหม่</button>
             </section>
 
-            {/* MAJOR CARDS GRID */}
+            {/* MAJOR LIST */}
             {criteriaList.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '40px', color: '#94a3b8', background: '#fff', borderRadius: 16 }}>
                     ยังไม่มีข้อมูลสาขาวิชา กรุณากดปุ่ม "+ เพิ่มสาขาวิชาใหม่"
                 </div>
             ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: 24 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 20 }}>
                     {criteriaList.map(c => (
                         <div key={c.id} style={majorCard}>
-
-                            {/* Card Header: แสดงชื่อสาขา และปุ่มลบ */}
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '2px dashed #e2e8f0', paddingBottom: 16, marginBottom: 16 }}>
-                                <div>
-                                    <span style={{ fontSize: 12, fontWeight: 800, color: '#0ea5e9', textTransform: 'uppercase', letterSpacing: 1 }}>หลักสูตร / สาขาวิชา</span>
-                                    <div style={{ fontSize: 28, fontWeight: 900, color: '#0f172a', marginTop: 2 }}>{c.major}</div>
-                                </div>
-                                <button style={delBtn} onClick={() => handleRemoveMajor(c.id, c.major)}>🗑️ ลบสาขา</button>
+                            <div>
+                                <span style={{ fontSize: 12, fontWeight: 800, color: '#0ea5e9', textTransform: 'uppercase', letterSpacing: 1 }}>สาขาวิชา</span>
+                                <div style={{ fontSize: 28, fontWeight: 900, color: '#0f172a', marginTop: 2 }}>{c.major}</div>
                             </div>
-
-                            {/* Card Body: แสดงเกณฑ์ปัจจุบัน */}
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
-                                <div style={statBox}>
-                                    <div style={statLabel}>GPA รวมขั้นต่ำ</div>
-                                    <div style={statValue}>{c.minGpa.toFixed(2)}</div>
-                                </div>
-                                <div style={statBox}>
-                                    <div style={statLabel}>GPA วิชาแกนขั้นต่ำ</div>
-                                    <div style={statValue}>{c.minCoreGpa.toFixed(2)}</div>
-                                </div>
-                                <div style={{ ...statBox, gridColumn: 'span 2' }}>
-                                    <div style={statLabel}>หน่วยกิตขั้นต่ำ </div>
-                                    <div style={statValue}>{c.minActivityUnit} หน่วย</div>
-                                </div>
-                            </div>
-
-                            <div style={{ marginBottom: 12 }}>
-                                <div style={statLabel}>📋 วิชาเตรียมความพร้อม (ผ่านอย่างน้อย 1)</div>
-                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
-                                    {(c.prepCourseCodes || []).length
-                                        ? (c.prepCourseCodes || []).map(rc => <span key={rc} style={badgePrep}>{rc}</span>)
-                                        : <span style={emptyText}>ไม่มีกำหนด</span>}
-                                </div>
-                            </div>
-
-                            <div style={{ marginBottom: 12 }}>
-                                <div style={statLabel}>📚 รายวิชาบังคับ (ต้องผ่านทุกตัว)</div>
-                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
-                                    {c.requiredCourses.length ? c.requiredCourses.map(rc => <span key={rc} style={badgeObj}>{rc}</span>) : <span style={emptyText}>ไม่มีกำหนด</span>}
-                                </div>
-                            </div>
-
-                            <div style={{ marginBottom: 20 }}>
-                                <div style={statLabel}>🎯 หมวดวิชาบังคับเลือก (ผ่านอย่างน้อย {c.electiveMinCount ?? 1} วิชา)</div>
-                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
-                                    {c.coreCourses.length ? c.coreCourses.map(cc => <span key={cc} style={badgeCore}>{cc}</span>) : <span style={emptyText}>ไม่มีกำหนด</span>}
-                                </div>
-                            </div>
-
-                            {/* Card Footer: ปุ่มแก้ไขเกณฑ์ */}
-                            <button className="btn-outline" style={{ width: '100%' }} onClick={() => openEditCriteriaModal(c)}>
-                                ⚙️ ตั้งค่าเกณฑ์ของสาขา {c.major}
-                            </button>
-
+                            <button style={delBtn} onClick={() => handleRemoveMajor(c.id, c.major)}>🗑️ ลบสาขา</button>
                         </div>
                     ))}
                 </div>
             )}
 
-            {/* ========================================================= */}
-            {/* MODAL 1: เพิ่มสาขาใหม่ (แสดงแค่ช่องกรอกชื่อ) */}
-            {/* ========================================================= */}
+            {/* MODAL: เพิ่มสาขาใหม่ */}
             {addMajorModalOpen && (
                 <div style={modalOverlay}>
                     <div style={{ ...modalContent, width: 400 }}>
                         <h3 style={{ marginTop: 0, marginBottom: 8, color: '#0f172a' }}>✨ เพิ่มสาขาวิชาใหม่</h3>
-                        <p style={{ fontSize: 13, color: '#64748b', marginBottom: 20 }}>เมื่อเพิ่มสาขาแล้ว คุณจะสามารถตั้งค่าเกณฑ์ต่างๆ ได้ภายหลัง</p>
 
                         <form onSubmit={handleAddMajor}>
                             <div style={field}>
@@ -321,79 +106,12 @@ export default function A_CriteriaPage() {
                 </div>
             )}
 
-            {/* ========================================================= */}
-            {/* MODAL 2: ตั้งค่าเกณฑ์ (ไม่ให้แก้ชื่อสาขา แก้ได้เฉพาะตัวเลข/วิชา) */}
-            {/* ========================================================= */}
-            {editCriteriaModalOpen && (
-                <div style={modalOverlay}>
-                    <div style={modalContent}>
-                        <h3 style={{ marginTop: 0, marginBottom: 20, color: '#0f172a' }}>
-                            ⚙️ ตั้งค่าเกณฑ์สำหรับสาขา <span style={{ color: '#0ea5e9' }}>{editingMajor}</span>
-                        </h3>
-
-                        <form onSubmit={handleSaveCriteria} style={{ display: 'grid', gap: 16 }}>
-
-                            <div style={{ display: 'flex', gap: 16 }}>
-                                <div style={field}><label style={label}>GPA รวมขั้นต่ำ</label><input required type="number" step="0.01" className="input" value={minGpa} onChange={e => setMinGpa(e.target.value)} /></div>
-                                <div style={field}><label style={label}>GPA วิชาแกนขั้นต่ำ</label><input required type="number" step="0.01" className="input" value={minCoreGpa} onChange={e => setMinCoreGpa(e.target.value)} /></div>
-                                <div style={field}><label style={label}>หน่วยกิตขั้นต่ำ</label><input required type="number" className="input" value={minActivityUnit} onChange={e => setMinActivityUnit(e.target.value)} /></div>
-                            </div>
-
-                            <div style={field}>
-                                <CourseTagInput
-                                    label="📋 รหัสวิชาเตรียมความพร้อมสหกิจ (ผ่านอย่างน้อย 1 วิชา)"
-                                    codes={prepCourseCodes}
-                                    onChange={setPrepCourseCodes}
-                                />
-                                <span style={{ fontSize: 12, color: '#94a3b8' }}>เช่น CP002001, SC002001 — ผ่านวิชาใดวิชาหนึ่งก็นับว่าผ่าน</span>
-                            </div>
-
-                            <div style={field}>
-                                <CourseTagInput
-                                    label="📚 รหัสวิชาบังคับ (ต้องผ่านทุกตัว)"
-                                    codes={reqCourses}
-                                    onChange={setReqCourses}
-                                />
-                            </div>
-
-                            <div style={field}>
-                                <CourseTagInput
-                                    label="🎯 รหัสหมวดวิชาบังคับเลือก"
-                                    codes={coreCourses}
-                                    onChange={setCoreCourses}
-                                />
-                                <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 4 }}>
-                                    <span style={{ fontSize: 13, fontWeight: 700, color: "#334155", whiteSpace: "nowrap" }}>ต้องผ่านอย่างน้อย</span>
-                                    <input
-                                        type="number"
-                                        min="0"
-                                        className="input"
-                                        value={electiveMinCount}
-                                        onChange={e => setElectiveMinCount(e.target.value)}
-                                        style={{ width: 80 }}
-                                    />
-                                    <span style={{ fontSize: 13, color: "#64748b" }}>วิชา</span>
-                                </div>
-                            </div>
-
-                            <div style={{ display: "flex", gap: 12, justifyContent: 'flex-end', marginTop: 16 }}>
-                                <button type="button" className="btn-ghost" onClick={() => setEditCriteriaModalOpen(false)}>ยกเลิก</button>
-                                <button type="submit" className="btn">💾 บันทึกการตั้งค่า</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
-
             {/* CSS STYLES */}
             <style>{`
         .btn { padding: 10px 18px; border-radius: 8px; border: none; font-weight: 700; font-size: 14px; color: white; background: #0074B7; cursor: pointer; transition: 0.2s; }
         .btn:hover { background: #005f96; }
-        .btn-outline { padding: 10px 16px; border-radius: 8px; border: 1px solid #cbd5e1; font-weight: 700; font-size: 14px; color: #475569; background: #fff; cursor: pointer; transition: 0.2s; }
-        .btn-outline:hover { background: #f8fafc; border-color: #94a3b8; color: #0f172a; }
         .btn-ghost { padding: 10px 16px; border-radius: 8px; border: none; font-weight: 700; font-size: 14px; color: #64748b; background: #f1f5f9; cursor: pointer; transition: 0.2s; }
         .btn-ghost:hover { background: #e2e8f0; color: #334155; }
-        
         .input { padding: 10px 14px; border-radius: 8px; border: 1px solid #cbd5e1; outline: none; font-family: inherit; font-size: 14px; }
         .input:focus { border-color: #0ea5e9; box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.15); }
       `}</style>
@@ -403,18 +121,8 @@ export default function A_CriteriaPage() {
 
 /* UI Variables */
 const card: CSSProperties = { background: "#fff", borderRadius: 16, padding: 24, boxShadow: "0 4px 6px -1px rgba(0,0,0,0.05)", border: '1px solid #f1f5f9' };
-const majorCard: CSSProperties = { background: "#fff", borderRadius: 18, padding: 28, border: "1px solid #e2e8f0", boxShadow: "0 10px 15px -3px rgba(0,0,0,0.05)" };
-const statBox: CSSProperties = { background: '#f8fafc', padding: '12px 16px', borderRadius: 10, border: '1px solid #f1f5f9' };
-const statLabel: CSSProperties = { fontSize: 13, fontWeight: 700, color: '#64748b' };
-const statValue: CSSProperties = { fontSize: 20, fontWeight: 800, color: '#0f172a', marginTop: 4 };
-
-const badgeObj: CSSProperties = { background: '#e0f2fe', color: '#0369a1', fontSize: 13, fontWeight: 700, padding: '4px 10px', borderRadius: 6, border: '1px solid #bae6fd' };
-const badgeCore: CSSProperties = { background: '#fdf4ff', color: '#a21caf', fontSize: 13, fontWeight: 700, padding: '4px 10px', borderRadius: 6, border: '1px solid #fbcfe8' };
-const badgePrep: CSSProperties = { background: '#f0fdf4', color: '#15803d', fontSize: 13, fontWeight: 700, padding: '4px 10px', borderRadius: 6, border: '1px solid #86efac' };
-const emptyText: CSSProperties = { fontSize: 13, color: '#94a3b8', fontStyle: 'italic', background: '#f1f5f9', padding: '4px 10px', borderRadius: 6 };
-
+const majorCard: CSSProperties = { background: "#fff", borderRadius: 18, padding: 24, border: "1px solid #e2e8f0", boxShadow: "0 10px 15px -3px rgba(0,0,0,0.05)", display: 'flex', justifyContent: 'space-between', alignItems: 'center' };
 const delBtn: CSSProperties = { background: '#fee2e2', border: '1px solid #fecaca', color: '#dc2626', cursor: 'pointer', fontSize: 13, fontWeight: 700, padding: '6px 12px', borderRadius: 8 };
-
 const modalOverlay: CSSProperties = { position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(15, 23, 42, 0.6)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 999, backdropFilter: 'blur(3px)' };
 const modalContent: CSSProperties = { background: "#fff", borderRadius: 20, padding: 32, width: 650, maxWidth: "90%", boxShadow: "0 25px 50px -12px rgba(0,0,0,0.25)" };
 const field: CSSProperties = { display: "flex", flexDirection: "column", gap: 8, flex: 1 };
