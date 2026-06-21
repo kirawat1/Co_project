@@ -12,8 +12,8 @@ import Spinner from "./Spinner";
 interface StudentDocument { id: number; name: string; path: string; type?: string; }
 interface StudentProfile {
   id: number; studentId: string; prefix?: string; firstName: string; lastName: string;
-  major?: string; year?: string; curriculum?: string; phone?: string; email?: string;
-  gpa: number; isQualified?: boolean;
+  major?: string; year?: string; phone?: string; email?: string;
+  gpa: number;
   coopPeriodId?: number; // ✅
   coop?: {
     coopPeriodId?: number; // ✅ เผื่อ Backend ส่งมาซ้อนในนี้
@@ -87,7 +87,7 @@ export default function T_Requests() {
   useEffect(() => { fetchData(); }, []);
 
   // ✅ Logic: หาคนที่สถานะรอตรวจ, ผ่านคุณสมบัติ (Bulk Approve) และกรองปีการศึกษา
-  const qualifiedPendingList = useMemo(() => {
+  const pendingList = useMemo(() => {
     return students.filter(s => {
       const isPending = ["APPLYING", "WAITING_FOR_STAFF_CHECK", "SUBMITTED"].includes(s.coop?.status?.toUpperCase() || "");
 
@@ -95,16 +95,16 @@ export default function T_Requests() {
       const appPeriodId = String(s.coopPeriodId || s.coop?.coopPeriodId || "");
       const matchPeriod = filterPeriodId === "all" || appPeriodId === filterPeriodId;
 
-      return isPending && s.isQualified === true && matchPeriod;
+      return isPending && matchPeriod;
     });
   }, [students, filterPeriodId]);
 
   const handleBulkApprove = () => {
-    const count = qualifiedPendingList.length;
+    const count = pendingList.length;
     if (count === 0) return;
     openConfirm({
       title: "ยืนยันอนุมัติกลุ่ม",
-      message: `ระบบจะอนุมัติคำร้องของนักศึกษาที่ผ่านคุณสมบัติ จำนวน ${count} รายการ`,
+      message: `ระบบจะอนุมัติคำร้องที่รอดำเนินการ จำนวน ${count} รายการ`,
       icon: "⚡",
       confirmLabel: `อนุมัติ ${count} ราย`,
       confirmColor: "#10b981",
@@ -112,10 +112,10 @@ export default function T_Requests() {
         closeConfirm();
         setLoading(true);
         try {
-          await Promise.all(qualifiedPendingList.map(s =>
+          await Promise.all(pendingList.map(s =>
             axios.put("/api/coop/status", {
               studentId: s.id, status: "APPROVED",
-              comment: "อนุมัติโดยระบบ (ผ่านคุณสมบัติครบถ้วน)"
+              comment: "อนุมัติโดยระบบ"
             }, { headers: { Authorization: `Bearer ${token}` } })
           ));
           toast.success("อนุมัติสำเร็จทั้งหมด!");
@@ -207,14 +207,14 @@ export default function T_Requests() {
           <button
             className="btn"
             onClick={handleBulkApprove}
-            disabled={qualifiedPendingList.length === 0 || loading}
+            disabled={pendingList.length === 0 || loading}
             style={{
-              background: qualifiedPendingList.length > 0 ? '#10b981' : '#e5e7eb',
-              color: qualifiedPendingList.length > 0 ? 'white' : '#9ca3af',
+              background: pendingList.length > 0 ? '#10b981' : '#e5e7eb',
+              color: pendingList.length > 0 ? 'white' : '#9ca3af',
               padding: '10px 20px'
             }}
           >
-            ⚡ อนุมัติผู้ผ่านเกณฑ์ทั้งหมด ({qualifiedPendingList.length})
+            ⚡ อนุมัติทั้งหมด ({pendingList.length})
           </button>
           <button className="btn-ghost" onClick={fetchData} disabled={loading}>
             {loading ? '⏳' : '🔄'} รีเฟรช
@@ -247,7 +247,6 @@ export default function T_Requests() {
           <thead>
             <tr style={thRow}>
               <th style={th}>รหัสนักศึกษา / ชื่อ-สกุล</th>
-              <th style={th}>คุณสมบัติ</th>
               <th style={th}>หน่วยงาน / ตำแหน่ง</th>
               <th style={th}>สถานะ</th>
               <th style={{ ...th, textAlign: 'right' }}>จัดการ</th>
@@ -255,18 +254,12 @@ export default function T_Requests() {
           </thead>
           <tbody>
             {filteredList.length === 0 ? (
-              <tr><td colSpan={5} style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>ไม่มีคำร้องในระบบ</td></tr>
+              <tr><td colSpan={4} style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>ไม่มีคำร้องในระบบ</td></tr>
             ) : filteredList.map(s => (
               <tr key={s.id} style={trStyle}>
                 <td style={td}>
                   <div style={{ fontWeight: 700, color: '#0ea5e9' }}>{s.studentId}</div>
                   <div style={{ fontSize: 13, color: '#64748b' }}>{s.firstName} {s.lastName}</div>
-                </td>
-                <td style={td}>
-                  {s.isQualified ?
-                    <span style={{ color: '#166534', background: '#dcfce7', padding: '2px 8px', borderRadius: 4, fontSize: 12, fontWeight: 700 }}>✅ ครบ</span> :
-                    <span style={{ color: '#991b1b', background: '#fee2e2', padding: '2px 8px', borderRadius: 4, fontSize: 12, fontWeight: 700 }}>❌ ไม่ผ่าน</span>
-                  }
                 </td>
                 <td style={td}>
                   <div style={{ fontWeight: 600 }}>{s.coop?.company?.name || "-"}</div>
@@ -332,7 +325,6 @@ export default function T_Requests() {
                   <div style={{ display: 'grid', gridTemplateColumns: '100px 1fr', gap: '6px 8px', fontSize: 13 }}>
                     <span style={{ fontWeight: 700, color: '#64748b' }}>ชื่อ-สกุล:</span> <span>{selectedStudent.prefix}{selectedStudent.firstName} {selectedStudent.lastName}</span>
                     <span style={{ fontWeight: 700, color: '#64748b' }}>GPA:</span> <span style={{ fontWeight: 700 }}>{selectedStudent.gpa?.toFixed(2) ?? "-"}</span>
-                    <span style={{ fontWeight: 700, color: '#64748b' }}>คุณสมบัติ:</span> <span>{selectedStudent.isQualified ? "✅ ผ่าน" : "❌ ไม่ผ่าน"}</span>
                   </div>
                 </div>
 

@@ -1,6 +1,17 @@
 # CHANGELOG — Co_project
 
-## [2026-06-22] Remove qualification badge + curriculum field from S_ProfilePage (Task 6/11 refactor)
+## [2026-06-22] Remove qualification column/filter + curriculum field from T_Requests (Task 8/11 refactor)
+
+### Removed
+- `Frontend/src/components/T_Requests.tsx`: ลบ `curriculum?: string` และ `isQualified?: boolean` จาก `StudentProfile` interface
+- ลบเงื่อนไข `s.isQualified === true` จาก filter ที่หาคนที่สถานะรอตรวจ — ตอนนี้ bulk approve ครอบคลุมคำร้อง pending ทั้งหมด ไม่กรองตามคุณสมบัติแล้ว
+- เปลี่ยนชื่อตัวแปร `qualifiedPendingList` → `pendingList` (ใช้ใน `handleBulkApprove` และปุ่ม bulk-approve) เพื่อให้ตรงกับความหมายใหม่
+- ลบคอลัมน์ "คุณสมบัติ" จากตาราง (table header + cell ที่แสดง badge "✅ ครบ" / "❌ ไม่ผ่าน") และปรับ `colSpan` จาก 5 → 4
+- ลบแถว "คุณสมบัติ" จาก modal รายละเอียดคำร้อง (ที่อ่าน `selectedStudent.isQualified`)
+- ปรับ copy ปุ่ม bulk-approve จาก "อนุมัติผู้ผ่านเกณฑ์ทั้งหมด" → "อนุมัติทั้งหมด" และข้อความยืนยัน/comment ที่ส่งไป backend ให้ไม่อ้างถึงคุณสมบัติอีกต่อไป
+
+### Why
+Task 8 ของแผน refactor 11 tasks ที่ลบ GPA/course-based eligibility calculation และ curriculum field ทั้งระบบ (ต่อจาก Task 6 ที่แก้ S_ProfilePage) — DB columns ที่เกี่ยวข้อง (`curriculum`, `isQualified`) ยังอยู่ใน schema (migration ที่ลบจะอยู่ใน task สุดท้ายของแผน)
 
 ### Removed
 - `Frontend/src/components/S_ProfilePage.tsx`: ลบ `curriculum?: string` และ `isQualified?: boolean` จาก `StudentProfile` interface
