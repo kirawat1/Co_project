@@ -19,7 +19,6 @@ export interface LocalStudentProfile {
   gpa?: number;
   year?: string;
   major?: string;
-  curriculum?: string;
   advisorName?: string;
   jobPosition?: string;
 

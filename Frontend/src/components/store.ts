@@ -155,7 +155,6 @@ export interface StudentProfile {
   gpa?: number; // เพิ่ม GPA
   year?: string;
   major?: string;
-  curriculum?: string;
   studyProgram?: "normal" | "special";
 
   emails?: { id?: number; email: string; primary: boolean }[];
