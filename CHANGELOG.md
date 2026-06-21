@@ -1,5 +1,15 @@
 # CHANGELOG — Co_project
 
+## [2026-06-22] Remove curriculum type field from S_Docs, A_CoopApplications, store (Task 9/11 refactor)
+
+### Removed
+- `Frontend/src/components/S_Docs.tsx`: ลบ `curriculum?: string` จาก `LocalStudentProfile` interface (line 22)
+- `Frontend/src/components/A_CoopApplications.tsx`: ลบ `curriculum?: string` จาก `Student` type definition (line 17)
+- `Frontend/src/components/store.ts`: ลบ `curriculum?: string` จาก `StudentProfile` interface (line 158)
+
+### Why
+Task 9 ของแผน refactor 11 tasks ที่ลบ curriculum field ทั้งระบบ — เป็นการเอา dead type fields ที่ไม่ได้ใช้แล้วออกจากกลุ่มคอมโพเนนต์ที่เหลือ ต่อเนื่องจาก Task 8 ที่แก้ T_Requests — DB columns ที่เกี่ยวข้อง ยังอยู่ใน schema (migration ที่ลบจะอยู่ใน task สุดท้ายของแผน)
+
 ## [2026-06-22] Remove qualification column/filter + curriculum field from T_Requests (Task 8/11 refactor)
 
 ### Removed
