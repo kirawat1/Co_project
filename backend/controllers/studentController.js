@@ -3,56 +3,6 @@ const prisma = require('../config/prismaClient');
 const kkuReg = require('../services/kkuRegService');
 const { buildStudentExportWorkbook } = require('../utils/studentExport');
 
-const PASSING_GRADES = new Set(["S", "A", "B+", "B", "C+", "C", "D+", "D"]);
-const GRADE_POINTS = { "A": 4.0, "B+": 3.5, "B": 3.0, "C+": 2.5, "C": 2.0, "D+": 1.5, "D": 1.0, "F": 0.0, "E": 0.0 };
-
-function checkEligibility(gradeList, criteria) {
-  if (!gradeList || !criteria) {
-    return { isPassPrepCourse: false, passedAllRequired: false, passedElectiveCount: 0, calculatedCoreGpa: 0, isQualified: false };
-  }
-
-  const passedCodes = new Set(
-    gradeList.filter(c => PASSING_GRADES.has(c.grade)).map(c => c.course_code)
-  );
-
-  // 1. วิชาเตรียมความพร้อม (ผ่านอย่างน้อย 1 วิชาจากรายการ)
-  const prepCodes = criteria.prepCourseCodes || [];
-  const isPassPrepCourse = prepCodes.length === 0 || prepCodes.some(code => passedCodes.has(code));
-
-  // 2. วิชาบังคับ (ต้องผ่านทุกตัว)
-  const requiredCourses = criteria.requiredCourses || [];
-  const passedAllRequired = requiredCourses.length === 0 ||
-    requiredCourses.every(code => passedCodes.has(code));
-
-  // 3. หมวดวิชาบังคับเลือก (ผ่านอย่างน้อย electiveMinCount)
-  const coreCourses = criteria.coreCourses || [];
-  const electiveMinCount = criteria.electiveMinCount ?? 1;
-  const passedElectiveCount = coreCourses.filter(code => passedCodes.has(code)).length;
-  const passedElective = coreCourses.length === 0 || passedElectiveCount >= electiveMinCount;
-
-  // 4. คำนวณ coreGpa แบบ weighted average จาก coreCourses ที่กำหนด
-  //    S/U/W ไม่อยู่ใน GRADE_POINTS → ไม่นับในสูตร GPA (แต่นับว่าผ่านใน passedCodes)
-  let totalPoints = 0, totalCredits = 0;
-  for (const entry of gradeList) {
-    if (!coreCourses.includes(entry.course_code)) continue;
-    const pts = GRADE_POINTS[entry.grade];
-    if (pts !== undefined) {
-      const credit = entry.creditattempt || 0;
-      totalPoints += pts * credit;
-      totalCredits += credit;
-    }
-  }
-  const calculatedCoreGpa = totalCredits > 0
-    ? Math.round((totalPoints / totalCredits) * 100) / 100
-    : 0;
-
-  const isQualified = isPassPrepCourse && passedAllRequired && passedElective;
-
-  return { isPassPrepCourse, passedAllRequired, passedElectiveCount, calculatedCoreGpa, isQualified };
-}
-
-exports.checkEligibility = checkEligibility;
-
 // GET /api/students/me
 exports.getMyProfile = async (req, res) => {
   try {
@@ -484,7 +434,6 @@ exports.syncFromReg = async (req, res) => {
       if (info.last_name_th)    updateData.lastName    = info.last_name_th;
       if (info.first_name_en)   updateData.firstNameEn = info.first_name_en;
       if (info.last_name_en)    updateData.lastNameEn  = info.last_name_en;
-      if (info.faculty_name_th) updateData.curriculum  = info.faculty_name_th;
       if (info.major_name_th)   updateData.major       = info.major_name_th;
       if (info.class_year)      updateData.year        = String(info.class_year);
       if (info.prefix_th)       updateData.prefix      = info.prefix_th;
@@ -493,7 +442,7 @@ exports.syncFromReg = async (req, res) => {
 
     if (result.grades) {
       const g = result.grades;
-      // คืนแค่ gpax รวม — ไม่มี gpax_core ใน KKU API (คำนวณเองจาก coreCourses)
+      // คืนแค่ gpax รวมจาก KKU API
       if (g.gpax != null) updateData.gpa = parseFloat(g.gpax) || 0;
     }
 
@@ -501,39 +450,6 @@ exports.syncFromReg = async (req, res) => {
       const adv = result.advisor;
       const name = [adv.prefix_th, adv.first_name_th, adv.last_name_th].filter(Boolean).join(" ");
       if (name) updateData.advisorName = name;
-    }
-
-    // 2. ดึงประวัติเกรดทุกวิชา (reuse token จาก syncStudentAll — ไม่ต้อง login ซ้ำ)
-    const gradeList = result._token
-      ? await kkuReg.getGradeList(result._token, result.grades)
-      : null;
-
-    // 3. โหลด CoopCriteria ของสาขานักศึกษา
-    const major = updateData.major || student.major;
-    const criteria = major
-      ? await prisma.coopCriteria.findUnique({ where: { major } })
-      : null;
-
-    // 4. ตรวจสอบเงื่อนไขรายวิชา + คำนวณ coreGpa
-    if (gradeList && criteria) {
-      const eligibility = checkEligibility(gradeList, criteria);
-      updateData.isPassPrepCourse = eligibility.isPassPrepCourse;
-
-      // coreGpa คำนวณจาก coreCourses ที่กำหนด (แทน gpax_core ที่ไม่มีใน API)
-      if (eligibility.calculatedCoreGpa > 0) {
-        updateData.coreGpa = eligibility.calculatedCoreGpa;
-      }
-
-      // isQualified = ผ่านทุกเงื่อนไข: วิชา + GPA + coreGpa + กิจกรรม
-      const currentGpa = updateData.gpa ?? student.gpa ?? 0;
-      const currentCoreGpa = updateData.coreGpa ?? student.coreGpa ?? 0;
-      const currentActivityUnit = updateData.activityUnit ?? student.activityUnit ?? 0;
-
-      updateData.isQualified =
-        eligibility.isQualified &&
-        currentGpa >= (criteria.minGpa || 0) &&
-        currentCoreGpa >= (criteria.minCoreGpa || 0) &&
-        currentActivityUnit >= (criteria.minActivityUnit || 0);
     }
 
     updateData.apiSyncedAt = new Date();
