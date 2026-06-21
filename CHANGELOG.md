@@ -1,5 +1,14 @@
 # CHANGELOG — Co_project
 
+## [2026-06-21] KKU Network Keep-Alive Task (every 2h)
+
+### Added
+- `docs/network-keepalive.ps1` — รัน `network-login.js` ซ้ำ log ผลลง `docs/network-keepalive.log` (gitignored)
+- Task Scheduler `CoopNetworkKeepAlive` บน VM — รัน `network-keepalive.ps1` ทุก 2 ชม. รันเป็น user `project` (ไม่ใช่ SYSTEM)
+
+### Why
+KKU-Net captive-portal session หลุดได้ระหว่างที่ VM เปิดอยู่ปกติ (ไม่ใช่แค่ตอน reboot) ทำให้ ngrok ขึ้น `ERR_NGROK_3200` แม้ PM2 process ยัง online ปกติ — เดิมมีแค่ auto-login ตอนบูตเครื่อง (`startup.ps1`) ไม่ครอบคลุมกรณีนี้
+
 ## [2026-06-21] Export Student Roster to Excel — Full Feature (6 commits)
 
 ### Added
