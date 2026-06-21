@@ -8,7 +8,6 @@ jest.mock('@prisma/client', () => {
 const prisma = require('./__mocks__/prismaClient');
 const {
   getAllCriteria,
-  getCriteria,
   saveCriteria,
   deleteCriteria,
   getMajorList,
@@ -59,203 +58,47 @@ describe('getAllCriteria', () => {
 });
 
 // ---------------------------------------------------------------------------
-// getCriteria
-// ---------------------------------------------------------------------------
-describe('getCriteria', () => {
-  test('400 – missing major query param', async () => {
-    const req = { query: {} };
-    const res = makeRes();
-
-    await getCriteria(req, res);
-
-    expect(res.status).toHaveBeenCalledWith(400);
-    expect(res.json).toHaveBeenCalledWith({ message: 'Major is required' });
-    expect(prisma.coopCriteria.findUnique).not.toHaveBeenCalled();
-  });
-
-  test('200 – returns default values when no record found', async () => {
-    prisma.coopCriteria.findUnique.mockResolvedValue(null);
-
-    const req = { query: { major: 'SE' } };
-    const res = makeRes();
-
-    await getCriteria(req, res);
-
-    expect(prisma.coopCriteria.findUnique).toHaveBeenCalledWith({
-      where: { major: 'SE' },
-    });
-    expect(res.json).toHaveBeenCalledWith({
-      major: 'SE',
-      minGpa: 2.00,
-      minCoreGpa: 2.00,
-      minActivityUnit: 60,
-      requiredCourses: [],
-      coreCourses: [],
-      prepCourseCodes: [],
-      electiveMinCount: 1,
-    });
-  });
-
-  test('200 – returns existing criteria when found', async () => {
-    const fakeCriteria = {
-      id: 1,
-      major: 'CS',
-      minGpa: 2.5,
-      minCoreGpa: 2.5,
-      minActivityUnit: 60,
-      requiredCourses: ['CS101'],
-      coreCourses: ['CS201'],
-    };
-    prisma.coopCriteria.findUnique.mockResolvedValue(fakeCriteria);
-
-    const req = { query: { major: 'CS' } };
-    const res = makeRes();
-
-    await getCriteria(req, res);
-
-    expect(res.json).toHaveBeenCalledWith(fakeCriteria);
-    expect(res.status).not.toHaveBeenCalled();
-  });
-
-  test('500 – DB error returns { message: "Server error" }', async () => {
-    prisma.coopCriteria.findUnique.mockRejectedValue(new Error('DB fail'));
-
-    const req = { query: { major: 'CS' } };
-    const res = makeRes();
-
-    await getCriteria(req, res);
-
-    expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.json).toHaveBeenCalledWith({ message: 'Server error' });
-  });
-});
-
-// ---------------------------------------------------------------------------
 // saveCriteria
 // ---------------------------------------------------------------------------
 describe('saveCriteria', () => {
-  test('200 – upserts criteria and returns { ok: true, criteria }', async () => {
-    const upserted = {
-      id: 1,
-      major: 'CS',
-      minGpa: 2.5,
-      minCoreGpa: 2.5,
-      minActivityUnit: 60,
-      requiredCourses: ['CS101'],
-      coreCourses: [],
-    };
+  test('200 – creates major and returns { ok: true, criteria }', async () => {
+    const upserted = { id: '1', major: 'CS' };
     prisma.coopCriteria.upsert.mockResolvedValue(upserted);
 
-    const req = {
-      body: {
-        major: 'CS',
-        minGpa: '2.5',
-        minCoreGpa: '2.5',
-        minActivityUnit: '60',
-        requiredCourses: ['CS101'],
-        coreCourses: [],
-      },
-    };
+    const req = { body: { major: 'CS' } };
     const res = makeRes();
 
     await saveCriteria(req, res);
 
-    expect(prisma.coopCriteria.upsert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { major: 'CS' },
-        update: expect.objectContaining({ minGpa: 2.5, minActivityUnit: 60 }),
-        create: expect.objectContaining({ major: 'CS', minGpa: 2.5 }),
-      })
-    );
+    expect(prisma.coopCriteria.upsert).toHaveBeenCalledWith({
+      where: { major: 'CS' },
+      update: {},
+      create: { major: 'CS' },
+    });
     expect(res.json).toHaveBeenCalledWith({ ok: true, criteria: upserted });
     expect(res.status).not.toHaveBeenCalled();
   });
 
-  test('200 – defaults requiredCourses and coreCourses to [] when not provided', async () => {
-    const upserted = { id: 2, major: 'IT', minGpa: 2.0, minCoreGpa: 2.0, minActivityUnit: 60, requiredCourses: [], coreCourses: [] };
-    prisma.coopCriteria.upsert.mockResolvedValue(upserted);
-
-    const req = {
-      body: { major: 'IT', minGpa: '2.0', minCoreGpa: '2.0', minActivityUnit: '60' },
-    };
+  test('400 – missing major', async () => {
+    const req = { body: {} };
     const res = makeRes();
 
     await saveCriteria(req, res);
 
-    expect(prisma.coopCriteria.upsert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        update: expect.objectContaining({ requiredCourses: [], coreCourses: [] }),
-      })
-    );
-    expect(res.json).toHaveBeenCalledWith({ ok: true, criteria: upserted });
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(prisma.coopCriteria.upsert).not.toHaveBeenCalled();
   });
 
   test('500 – DB error returns { ok: false, message }', async () => {
     prisma.coopCriteria.upsert.mockRejectedValue(new Error('DB fail'));
 
-    const req = {
-      body: { major: 'CS', minGpa: '2.5', minCoreGpa: '2.5', minActivityUnit: '60' },
-    };
+    const req = { body: { major: 'CS' } };
     const res = makeRes();
 
     await saveCriteria(req, res);
 
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith({ ok: false, message: 'Save failed' });
-  });
-
-  test('200 – saves prepCourseCodes and electiveMinCount', async () => {
-    const upserted = {
-      id: '1', major: 'CS', minGpa: 2.5, minCoreGpa: 2.5, minActivityUnit: 60,
-      requiredCourses: ['CP001001'],
-      coreCourses: ['SC310001', 'SC310002'],
-      prepCourseCodes: ['CP002001', 'SC002001'],
-      electiveMinCount: 2,
-    };
-    prisma.coopCriteria.upsert.mockResolvedValue(upserted);
-
-    const req = {
-      body: {
-        major: 'CS', minGpa: '2.5', minCoreGpa: '2.5', minActivityUnit: '60',
-        requiredCourses: ['CP001001'],
-        coreCourses: ['SC310001', 'SC310002'],
-        prepCourseCodes: ['CP002001', 'SC002001'],
-        electiveMinCount: '2',
-      },
-    };
-    const res = makeRes();
-
-    await saveCriteria(req, res);
-
-    expect(prisma.coopCriteria.upsert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        update: expect.objectContaining({
-          prepCourseCodes: ['CP002001', 'SC002001'],
-          electiveMinCount: 2,
-        }),
-      })
-    );
-    expect(res.json).toHaveBeenCalledWith({ ok: true, criteria: upserted });
-  });
-
-  test('200 – defaults prepCourseCodes to [] and electiveMinCount to 1 when not provided', async () => {
-    prisma.coopCriteria.upsert.mockResolvedValue({ id: '2', major: 'IT' });
-
-    const req = {
-      body: { major: 'IT', minGpa: '2.0', minCoreGpa: '2.0', minActivityUnit: '60' },
-    };
-    const res = makeRes();
-
-    await saveCriteria(req, res);
-
-    expect(prisma.coopCriteria.upsert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        update: expect.objectContaining({
-          prepCourseCodes: [],
-          electiveMinCount: 1,
-        }),
-      })
-    );
   });
 });
 
