@@ -1,5 +1,14 @@
 # CHANGELOG — Co_project
 
+## [2026-06-22] Simplify A_CriteriaPage to a plain major list (Task 5/11 refactor)
+
+### Changed
+- `Frontend/src/components/A_CriteriaPage.tsx`: ลบ components ทั้งหมด ที่เกี่ยวข้องกับ GPA/course eligibility calculation และแทนที่ด้วย simple "add/remove major" interface — ลบ `CourseTagInput` component, ลบ modal สำหรับแก้ไขเกณฑ์ (`editCriteriaModalOpen`, `openEditCriteriaModal`, `handleSaveCriteria`), ลบ state ทั้งหมด ที่เกี่ยวกับ `minGpa`, `minCoreGpa`, `minActivityUnit`, `requiredCourses`, `coreCourses`, `prepCourseCodes`, `electiveMinCount` — ยังคงเหลือเฉพาะการเพิ่ม/ลบสาขา (major) ตามคำขอจาก backend `POST /api/admin/criteria { major }` และ `DELETE /api/admin/criteria/:id`
+- UI ปรับเป็น grid card layout ขนาดเล็กลง (`minmax(240px, 1fr)` แทน `minmax(380px, 1fr)`)
+
+### Why
+Task 5 ของแผน refactor 11 tasks ที่ลบ GPA/course-based eligibility calculation ทั้งระบบ — backend ได้แก้ไข `criteriaController` ไป เหลือเฉพาะ major list แล้ว ต่อเนื่องจาก Task 2-4
+
 ## [2026-06-22] Remove curriculum from student Excel import (Task 4/11 refactor)
 
 ### Removed
