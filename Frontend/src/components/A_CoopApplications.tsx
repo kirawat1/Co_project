@@ -14,7 +14,7 @@ type Mentor = { id: string; firstName: string; lastName: string; email: string; 
 type Company = { id: string; name: string; address?: string; phone?: string; contactPerson?: string; contactPosition?: string; };
 type Student = {
     id: number; studentId: string; prefix?: string; firstName: string; lastName: string;
-    firstNameEn?: string; lastNameEn?: string; year?: string; major: string; curriculum?: string;
+    firstNameEn?: string; lastNameEn?: string; year?: string; major: string;
     advisorName?: string; phone?: string; email?: string; gpa: number;
     coopPeriodId?: number;
     documents: Document[];
