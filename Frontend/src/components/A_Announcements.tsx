@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import type { CSSProperties } from "react";
+import AutoTextarea from "./AutoTextarea";
 
 // --- Types ---
 interface CoopPeriod {
@@ -320,7 +321,7 @@ export default function A_Announcements() {
 
               <div style={inputGroup}>
                 <label style={labelStyle}>เนื้อหารายละเอียด</label>
-                <textarea className="custom-input" rows={5} placeholder="รายละเอียด..." value={body} onChange={e => setBody(e.target.value)} />
+                <AutoTextarea className="custom-input" rows={5} placeholder="รายละเอียด..." value={body} onChange={e => setBody(e.target.value)} />
               </div>
 
               <div style={rowGrid}>

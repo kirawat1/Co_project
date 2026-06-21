@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import type { StudentProfile, DailyLog } from "./store";
 import { loadDaily, saveDaily } from "./store";
+import AutoTextarea from "./AutoTextarea";
 
 /* =========================
    Constants
@@ -181,7 +182,7 @@ export default function S_DailyPage({ profile }: { profile: StudentProfile }) {
 
         <div className="field" style={{ width: "97%" }}>
           <label className="label">สรุปงาน / สิ่งที่ทำ</label>
-          <textarea
+          <AutoTextarea
             className="input"
             rows={4}
             value={note}

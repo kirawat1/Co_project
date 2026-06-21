@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import type { CSSProperties } from "react";
 import axios from "axios";
+import AutoTextarea from "./AutoTextarea";
 
 // --- Types ---
 type Document = {
@@ -402,7 +403,7 @@ export default function A_T002Review() {
 
                                 <div>
                                     <label style={label}>ข้อความแจ้งนักศึกษา / เหตุผลที่ตีกลับ</label>
-                                    <textarea className="input" rows={5} placeholder="เช่น ลายเซ็นไม่ครบ, โปรดระบุเบอร์โทรฉุกเฉิน..." value={comment} onChange={(e) => setComment(e.target.value)} style={{ resize: 'none' }} />
+                                    <AutoTextarea className="input" rows={5} placeholder="เช่น ลายเซ็นไม่ครบ, โปรดระบุเบอร์โทรฉุกเฉิน..." value={comment} onChange={(e) => setComment(e.target.value)} />
                                 </div>
 
                                 <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 10 }}>

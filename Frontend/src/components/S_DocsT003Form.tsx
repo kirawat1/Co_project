@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { createT003PDF } from "../utils/pdfGeneratorT003";
 import StatusBadge from "./StatusBadge";
 import CountdownTimer from "../components/CountdownTimer"; // ✅ Import เข้ามา
+import AutoTextarea from "./AutoTextarea";
 
 interface Props {
     profile: any;
@@ -453,7 +454,7 @@ const Input = ({ label, ...props }: any) => (
 const TextArea = ({ label, ...props }: any) => (
     <div>
         <label style={lblStyle}>{label} {props.required && <span style={{ color: 'red' }}>*</span>}</label>
-        <textarea style={inputStyle} rows={3} {...props} />
+        <AutoTextarea style={inputStyle} rows={3} {...props} />
     </div>
 );
 

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+import AutoTextarea from "./AutoTextarea";
 
 export default function A_DocT005_006() {
     const [isFetching, setIsFetching] = useState(true); // ✅ State สำหรับตอนดึงข้อมูลครั้งแรก
@@ -83,7 +84,7 @@ export default function A_DocT005_006() {
                 {/* 1. ส่วนคำชี้แจง */}
                 <div>
                     <label style={labelStyle}>📝 ข้อความคำชี้แจง / ขั้นตอนการปฏิบัติ (แสดงบนสุดของหน้า)</label>
-                    <textarea
+                    <AutoTextarea
                         className="input"
                         rows={10}
                         value={instructionText}

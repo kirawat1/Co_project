@@ -1,5 +1,11 @@
 # CHANGELOG — Co_project
 
+## [2026-06-22] T008 Image Removal + Auto-Resizing Textareas
+
+### Added
+- `Frontend/src/components/AutoTextarea.tsx` — drop-in replacement for `<textarea>` ที่ปรับ `height` ตาม `scrollHeight` อัตโนมัติทุกครั้งที่ `value` เปลี่ยน (ปิด resize handle มือ) ใช้แทน `<textarea>` ทั้งระบบ (21 ที่ใน 18 ไฟล์: A_Announcements, A_CoopApplications, A_DocT000/T002Review/T003Review/T005_006/T007/T008, S_DailyPage, S_Docs, S_DocsT002Form, S_DocsT003Form, S_Gateway, T_Exams, T_Requests, T_SupervisionReview, T_T002Review, T_T003Review)
+- ปุ่ม "🗑️ ลบภาพ" ใน `A_DocT008.tsx` — เคลียร์รูปที่เลือก/อัปโหลดไว้ (`imageFile`, `existingImage`, `imagePreview`) ต้องกด "บันทึกการเปลี่ยนแปลง" เพื่อให้มีผลจริงที่ server (backend เดิมรองรับ `existingImage=""` → set `imagePath = null` อยู่แล้ว ไม่ต้องแก้ backend)
+
 ## [2026-06-21] KKU Network Keep-Alive Task (every 2h)
 
 ### Added

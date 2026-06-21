@@ -4,6 +4,7 @@ import { createT000PDF, type T000FormData } from "../utils/pdfGeneratorT000";
 import PlacementLetterCard from "./PlacementLetterCard";
 import { createParentalConsentPDF } from "../utils/pdfGeneratorParentalConsent";
 import StatusBadge from "../components/StatusBadge";
+import AutoTextarea from "./AutoTextarea";
 import CountdownTimer from "../components/CountdownTimer";
 
 // ✅ Interface
@@ -453,7 +454,7 @@ export default function S_Docs({ profile, setProfile }: { profile: LocalStudentP
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: 24 }}>
             <div style={{ background: '#fff', padding: 20, borderRadius: 12, border: '1px solid #e2e8f0', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
               <h4 style={{ margin: '0 0 16px 0', color: '#334155', borderBottom: '1px dashed #cbd5e1', paddingBottom: 8 }}>📍 ข้อมูลติดต่อของนักศึกษา (ปัจจุบัน)</h4>
-              <label style={lbl}>ที่อยู่:</label><textarea className="input" rows={2} value={formData.contactAddress || ""} onChange={e => setFormData({ ...formData, contactAddress: e.target.value })} />
+              <label style={lbl}>ที่อยู่:</label><AutoTextarea className="input" rows={2} value={formData.contactAddress || ""} onChange={e => setFormData({ ...formData, contactAddress: e.target.value })} />
               <label style={lbl}>เบอร์โทร:</label><input className="input" value={formData.contactPhone || ""} onChange={e => setFormData({ ...formData, contactPhone: e.target.value })} />
               <label style={lbl}>อีเมล:</label><input className="input" value={formData.contactEmail || ""} onChange={e => setFormData({ ...formData, contactEmail: e.target.value })} />
             </div>
@@ -465,7 +466,7 @@ export default function S_Docs({ profile, setProfile }: { profile: LocalStudentP
                 <div><label style={lbl}>ความเกี่ยวข้อง:</label><input className="input" value={formData.emergencyRelation || ""} onChange={e => setFormData({ ...formData, emergencyRelation: e.target.value })} /></div>
               </div>
               <label style={lbl}>อาชีพ / สถานที่ทำงาน:</label><input className="input" value={formData.emergencyJob || ""} onChange={e => setFormData({ ...formData, emergencyJob: e.target.value })} />
-              <label style={lbl}>ที่อยู่:</label><textarea className="input" rows={2} value={formData.emergencyAddress || ""} onChange={e => setFormData({ ...formData, emergencyAddress: e.target.value })} />
+              <label style={lbl}>ที่อยู่:</label><AutoTextarea className="input" rows={2} value={formData.emergencyAddress || ""} onChange={e => setFormData({ ...formData, emergencyAddress: e.target.value })} />
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div><label style={lbl}>เบอร์โทร:</label><input className="input" value={formData.emergencyPhone || ""} onChange={e => setFormData({ ...formData, emergencyPhone: e.target.value })} /></div>
                 <div><label style={lbl}>อีเมล:</label><input className="input" value={formData.emergencyEmail || ""} onChange={e => setFormData({ ...formData, emergencyEmail: e.target.value })} /></div>
