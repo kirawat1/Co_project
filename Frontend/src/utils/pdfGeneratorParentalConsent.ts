@@ -67,8 +67,7 @@ export const createParentalConsentPDF = async (
   const studentName = `${studentPrefix}${profile.firstName} ${profile.lastName}`;
   const studentId = profile.studentId || "...................................";
   const major = profile.major || "...................................";
-  const curriculum =
-    profile.curriculum || "...................................";
+  const curriculum = "วิทยาลัยการคอมพิวเตอร์";
   const companyName =
     profile.company?.name ||
     profile.coop?.company?.name ||

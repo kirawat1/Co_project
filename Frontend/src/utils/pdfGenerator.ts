@@ -9,7 +9,6 @@ interface ProfileData {
   firstName?: string;
   lastName?: string;
   year?: string;
-  curriculum?: string;
   studyProgram?: string;
   company?: any;
   mentor?: any;
@@ -133,7 +132,7 @@ export const createCoopPDF = async (
     y,
   );
   doc.setFont("THSarabun", "bold");
-  doc.text(profile.curriculum || "", leftMargin + 100, y);
+  doc.text("วิทยาลัยการคอมพิวเตอร์", leftMargin + 100, y);
   doc.setFont("THSarabun", "normal");
 
   // Line 4

@@ -62,7 +62,6 @@ export interface ProfileData {
   phone?: string;
   email?: string;
   major?: string;
-  curriculum?: string;
 
   // ✅ เพิ่ม jobPosition ใน ProfileData ด้วย
   jobPosition?: string;
@@ -302,7 +301,7 @@ export const createT000PDF = async (
   drawText("คณะ", leftX + 95, y);
   drawText("Faculty", leftX + 95, y + 3.5, "left", false, 9);
   doc.line(leftX + 105, y + 1, 185, y + 1);
-  doc.text(profile.curriculum || "วิทยาลัยการคอมพิวเตอร์", leftX + 110, y);
+  doc.text("วิทยาลัยการคอมพิวเตอร์", leftX + 110, y);
 
   // Row 4: Year / Advisor
   y += 8;
