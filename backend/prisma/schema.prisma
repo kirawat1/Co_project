@@ -49,13 +49,11 @@ model Student {
   firstNameEn  String?
   lastNameEn   String?
   major        String?
-  curriculum   String?
   year         String?
   phone        String?
   email        String?
   studyProgram StudyProgram?
   gpa          Float?        @default(0.00)
-  coreGpa      Float?        @default(0.00)
   activityUnit Int           @default(0)
   apiSyncedAt  DateTime?
   advisorName  String? // ชื่ออาจารย์ที่ปรึกษา
@@ -65,9 +63,6 @@ model Student {
   coopAdvisorId     Int?
   generalAdvisor    Teacher? @relation("GeneralAdvisor", fields: [generalAdvisorId], references: [id])
   coopAdvisor       Teacher? @relation("CoopAdvisor", fields: [coopAdvisorId], references: [id])
-
-  isPassPrepCourse Boolean @default(false)
-  isQualified      Boolean @default(false)
 
   userId Int  @unique
   user   User @relation(fields: [userId], references: [id])
@@ -196,16 +191,9 @@ model CoopApplicationForm {
 // 4. Admin Configuration (คงเดิม)
 // ==========================================
 model CoopCriteria {
-  id              String   @id @default(uuid())
-  major           String   @unique
-  minGpa          Float    @default(2.00)
-  minCoreGpa      Float    @default(2.00)
-  minActivityUnit Int      @default(0)
-  requiredCourses  Json
-  coreCourses      Json
-  prepCourseCodes  Json     @default("[]") // วิชาเตรียมความพร้อม เช่น ["CP002001","SC002001"]
-  electiveMinCount Int      @default(1)    // จำนวนวิชาบังคับเลือกขั้นต่ำ
-  updatedAt        DateTime @updatedAt
+  id        String   @id @default(uuid())
+  major     String   @unique
+  updatedAt DateTime @updatedAt
 }
 
 // ==========================================

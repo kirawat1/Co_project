@@ -38,15 +38,12 @@ exports.getMyProfile = async (req, res) => {
         lastNameEn: "",
         year: "",
         major: null,
-        curriculum: "",
         studyProgram: null,
         phone: "",
         gpa: 0.0,
-        coreGpa: 0.0,       
-        activityUnit: 0,    
-        isPassPrepCourse: false, 
-        advisorName: "",   
-        jobPosition: "",   
+        activityUnit: 0,
+        advisorName: "",
+        jobPosition: "",
         emails: [],
         userEmail: user ? user.email : "",
         company: undefined,
@@ -93,29 +90,8 @@ exports.updateMyProfile = async (req, res) => {
       where: { userId: userId }
     });
 
-    const targetMajor = data.major || currentStudent?.major;
     const gpa = data.gpa !== undefined ? parseFloat(data.gpa) : (currentStudent?.gpa || 0);
-    const coreGpa = data.coreGpa !== undefined ? parseFloat(data.coreGpa) : (currentStudent?.coreGpa || 0);
     const activityUnit = data.activityUnit !== undefined ? parseInt(data.activityUnit) : (currentStudent?.activityUnit || 0);
-    const isPassPrepCourse = data.isPassPrepCourse !== undefined ? 
-      (data.isPassPrepCourse === true || data.isPassPrepCourse === 'true') : 
-      (currentStudent?.isPassPrepCourse || false);
-
-    let calculatedQualified = currentStudent?.isQualified || false;
-
-    if (targetMajor) {
-      const criteria = await prisma.coopCriteria.findUnique({
-        where: { major: targetMajor }
-      });
-
-      if (criteria) {
-        calculatedQualified = 
-          gpa >= criteria.minGpa && 
-          coreGpa >= criteria.minCoreGpa && 
-          activityUnit >= criteria.minActivityUnit && 
-          isPassPrepCourse === true;
-      }
-    }
 
     const student = await prisma.student.upsert({
       where: { userId: userId },
@@ -128,7 +104,6 @@ exports.updateMyProfile = async (req, res) => {
         lastNameEn: data.lastNameEn,
         year: data.year,
         major: data.major || null,
-        curriculum: data.curriculum,
         studyProgram: data.studyProgram === '' ? null : data.studyProgram,
         phone: data.phone,
         email: data.email,
@@ -136,10 +111,7 @@ exports.updateMyProfile = async (req, res) => {
         jobPosition: data.jobPosition,
         coopAdvisorId: data.coopAdvisorId !== undefined ? (data.coopAdvisorId ? Number(data.coopAdvisorId) : null) : undefined,
         gpa: data.gpa !== undefined ? parseFloat(data.gpa) : undefined,
-        coreGpa: data.coreGpa !== undefined ? parseFloat(data.coreGpa) : undefined,
         activityUnit: data.activityUnit !== undefined ? parseInt(data.activityUnit) : undefined,
-        isPassPrepCourse: data.isPassPrepCourse !== undefined ? (data.isPassPrepCourse === true || data.isPassPrepCourse === 'true') : undefined,
-        isQualified: calculatedQualified,
       },
       create: {
         userId: userId,
@@ -150,13 +122,10 @@ exports.updateMyProfile = async (req, res) => {
         lastName: data.lastName || "",
         major: (data.major && data.major !== "") ? data.major : null,
         gpa: gpa,
-        coreGpa: coreGpa,
         activityUnit: activityUnit,
         advisorName: data.advisorName,
         jobPosition: data.jobPosition,
         coopAdvisorId: data.coopAdvisorId ? Number(data.coopAdvisorId) : null,
-        isPassPrepCourse: isPassPrepCourse,
-        isQualified: calculatedQualified,
       },
     });
 
@@ -311,80 +280,6 @@ exports.exportStudents = async (req, res) => {
   }
 };
 
-
-// ฟังก์ชันสำหรับ Sync ข้อมูลจาก KKU REG
-exports.syncKkuData = async (req, res) => {
-  try {
-    const userId = req.userId;
-
-    // 1. ดึงข้อมูล User เพื่อเอา kkuAccessToken
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { kkuAccessToken: true }
-    });
-
-    if (!user || !user.kkuAccessToken) {
-      return res.status(400).json({ message: "ไม่พบ KKU Access Token กรุณาล็อกอินใหม่" });
-    }
-
-    const KKU_API_URL = "https://reg2.kku.ac.th/api/v1.2";
-    const headers = { "x-access-token": user.kkuAccessToken };
-
-    // 2. ยิง API ดึงข้อมูลพื้นฐาน (Info) และ ข้อมูลรายวิชา (Enroll List)
-    // ใช้ Promise.all เพื่อความรวดเร็ว
-    const [infoRes, enrollRes] = await Promise.all([
-      axios.get(`${KKU_API_URL}/student/info`, { headers }),
-      axios.get(`${KKU_API_URL}/student/enroll_list/2567/1`, { headers }) // ระบุปี/เทอมปัจจุบัน
-    ]);
-
-    if (infoRes.data.status.code !== 200) {
-      return res.status(400).json({ message: "ดึงข้อมูลจาก KKU REG ไม่สำเร็จ" });
-    }
-
-    const info = infoRes.data.student_info;
-    const enrolls = enrollRes.data.data.enroll_list;
-
-    // 3. Logic ตรวจสอบวิชาเตรียมความพร้อม (CP002001 หรือ SC002001)
-    // ตรวจหาว่ามีวิชาเหล่านี้ในรายการที่สอบผ่าน (Grade S หรือ A-D) หรือไม่
-    const prepCourseCodes = ["CP002001", "SC002001", "CP123001"]; // เพิ่มรหัสตามจริง
-    const hasPassedPrep = enrolls.some(course => 
-      prepCourseCodes.includes(course.course_code) && 
-      ["S", "A", "B+", "B", "C+", "C"].includes(course.grade)
-    );
-
-    // 4. บันทึกข้อมูลที่ดึงมาลงฐานข้อมูล
-    const updatedStudent = await prisma.student.upsert({
-      where: { userId: userId },
-      update: {
-        firstName: info.firstname_th,
-        lastName: info.lastname_th,
-        firstNameEn: info.firstname,
-        lastNameEn: info.lastname,
-        gpa: parseFloat(info.gpa),
-        year: info.student_year.toString(),
-        curriculum: info.faculty_name,
-        email: info.email,
-        // ข้อมูลที่คำนวณ/ดึงมาเพิ่ม
-        isPassPrepCourse: hasPassedPrep,
-        apiSyncedAt: new Date(),
-      },
-      create: {
-        userId: userId,
-        studentId: info.student_code,
-        firstName: info.firstname_th,
-        lastName: info.lastname_th,
-        gpa: parseFloat(info.gpa),
-        isPassPrepCourse: hasPassedPrep,
-      }
-    });
-
-    res.json({ ok: true, message: "ซิงค์ข้อมูลสำเร็จ", student: updatedStudent });
-
-  } catch (err) {
-    console.error("Sync Error:", err.message);
-    res.status(500).json({ message: "เกิดข้อผิดพลาดในการเชื่อมต่อ REG API" });
-  }
-};
 
 exports.downloadPlacementLetter = async (req, res) => {
   try {
