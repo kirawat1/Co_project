@@ -99,6 +99,22 @@ Set-Location $PROJECT_DIR\backend
 npm install --silent 2>$null
 Write-OK "Done"
 
+Write-Step "Generating Prisma Client..."
+npx prisma generate 2>&1 | Out-Null
+if ($LASTEXITCODE -ne 0) {
+    Write-WARN "Prisma generate failed - stopping backend and retrying..."
+    pm2 stop coop-backend 2>$null
+    npx prisma generate 2>&1 | Out-Null
+    pm2 start coop-backend 2>$null
+    pm2 save 2>$null
+    if ($LASTEXITCODE -ne 0) {
+        Write-ERR "Prisma generate failed - check file locks on node_modules\.prisma"
+        exit 1
+    }
+} else {
+    Write-OK "Prisma Client generated"
+}
+
 Write-Step "Running database migrations..."
 npx prisma migrate deploy 2>&1 | Out-Null
 if ($LASTEXITCODE -ne 0) {
