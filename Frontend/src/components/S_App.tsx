@@ -20,6 +20,7 @@ import S_DocT007 from "./S_DocT007";
 import S_DocT008 from './S_DocT008';
 import S_Announcements from './S_Announcements';
 import { ThemeToggleBtn } from "./ThemeContext";
+import { apiFetch } from "../utils/apiFetch";
 
 const IOS_BLUE = "#0074B7";
 
@@ -36,7 +37,7 @@ export default function StudentApp() {
   const fetchProfile = useCallback(async () => {
     if (!token) return;
     try {
-      const res = await fetch("/api/students/me", {
+      const res = await apiFetch("/api/students/me", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) return;

@@ -296,9 +296,12 @@ exports.getSupervisionsForTeacher = async (req, res) => {
                 OR: [
                     // 🟢 เงื่อนไขที่ 1: เป็นที่ปรึกษาหลัก (ดูจาก teacherId ตรงๆ ได้เลย!)
                     { teacherId: teacher.id },
-                    
+
                     // 🟢 เงื่อนไขที่ 2: เป็นอาจารย์นิเทศร่วม (ค้นหาจากชื่อใน coTeacherName)
-                    { coTeacherName: { contains: teacher.firstName } }
+                    // ตรวจสอบความยาว firstName ก่อน ป้องกัน false-positive กับชื่อสั้น
+                    ...(teacher.firstName && teacher.firstName.length >= 2
+                        ? [{ coTeacherName: { contains: teacher.firstName } }]
+                        : [])
                 ]
             },
             include: {

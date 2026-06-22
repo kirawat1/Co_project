@@ -257,7 +257,9 @@ exports.exportStudents = async (req, res) => {
       ? parseInt(req.query.coopPeriodId, 10)
       : undefined;
 
-    const where = coopPeriodId ? { coop: { coopPeriodId } } : {};
+    const where = coopPeriodId
+      ? { deletedAt: null, coop: { coopPeriodId } }
+      : { deletedAt: null };
 
     const students = await prisma.student.findMany({
       where,
@@ -422,7 +424,11 @@ exports.permanentlyDeleteStudent = async (req, res) => {
       return res.status(400).json({ ok: false, message: "ต้องย้ายไปถังขยะก่อนจึงจะลบถาวรได้" });
     }
 
-    await prisma.student.delete({ where: { id } });
+    // ลบ Student และ User (บัญชี login) คู่กัน ป้องกัน User เหลือค้างเป็น "ผี" ที่บล็อก username เดิมไว้
+    await prisma.$transaction(async (tx) => {
+      await tx.student.delete({ where: { id } });
+      await tx.user.delete({ where: { id: student.userId } });
+    });
     res.json({ ok: true, message: "ลบถาวรเรียบร้อย" });
   } catch (err) {
     console.error("PERMANENTLY DELETE STUDENT ERROR:", err);

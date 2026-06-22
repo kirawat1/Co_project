@@ -299,6 +299,7 @@ describe('addMentor', () => {
       phone: '0812345678',
     };
     prisma.mentor.create.mockResolvedValue(newMentor);
+    prisma.user.findUnique.mockResolvedValue({ id: 42, role: 'staff' });
 
     const req = {
       params: { companyId: 'c1' },
@@ -333,6 +334,7 @@ describe('addMentor', () => {
 
   test('500 – DB error returns { ok: false, message }', async () => {
     prisma.mentor.create.mockRejectedValue(new Error('DB fail'));
+    prisma.user.findUnique.mockResolvedValue({ id: 1, role: 'staff' });
 
     const req = {
       params: { companyId: 'c1' },
@@ -355,5 +357,130 @@ describe('addMentor', () => {
       ok: false,
       message: 'เกิดข้อผิดพลาดในการเพิ่มพี่เลี้ยง',
     });
+  });
+
+  test('403 – ไม่ใช่ staff และไม่ใช่เจ้าของบริษัท', async () => {
+    prisma.user.findUnique.mockResolvedValue({ id: 5, role: 'student' });
+    prisma.company.findUnique.mockResolvedValue({ id: 'c1', createdById: 99 });
+
+    const req = {
+      params: { companyId: 'c1' },
+      user: { id: 5 },
+      body: { firstName: 'X', lastName: 'Y' },
+    };
+    const res = makeRes();
+
+    await addMentor(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(prisma.mentor.create).not.toHaveBeenCalled();
+  });
+
+  test('200 – เจ้าของบริษัท (ไม่ใช่ staff) เพิ่มพี่เลี้ยงของบริษัทตัวเองได้', async () => {
+    prisma.user.findUnique.mockResolvedValue({ id: 7, role: 'student' });
+    prisma.company.findUnique.mockResolvedValue({ id: 'c1', createdById: 7 });
+    prisma.mentor.create.mockResolvedValue({ id: 'm2' });
+
+    const req = {
+      params: { companyId: 'c1' },
+      user: { id: 7 },
+      body: { firstName: 'X', lastName: 'Y' },
+    };
+    const res = makeRes();
+
+    await addMentor(req, res);
+
+    expect(prisma.mentor.create).toHaveBeenCalled();
+    expect(res.json).toHaveBeenCalledWith({ ok: true, mentor: { id: 'm2' } });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// updateMentor / deleteMentor
+// ---------------------------------------------------------------------------
+const { updateMentor, deleteMentor } = require('../controllers/companyController');
+
+describe('updateMentor', () => {
+  test('404 – ไม่พบพี่เลี้ยง', async () => {
+    prisma.mentor.findUnique.mockResolvedValue(null);
+
+    const req = { params: { id: 'm1' }, user: { id: 1 }, body: {} };
+    const res = makeRes();
+
+    await updateMentor(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(prisma.mentor.update).not.toHaveBeenCalled();
+  });
+
+  test('403 – ไม่ใช่ staff และไม่ใช่เจ้าของบริษัทที่พี่เลี้ยงคนนี้ผูกอยู่', async () => {
+    prisma.mentor.findUnique.mockResolvedValue({ id: 'm1', companyId: 'c1' });
+    prisma.user.findUnique.mockResolvedValue({ id: 5, role: 'student' });
+    prisma.company.findUnique.mockResolvedValue({ id: 'c1', createdById: 99 });
+
+    const req = { params: { id: 'm1' }, user: { id: 5 }, body: { firstName: 'X' } };
+    const res = makeRes();
+
+    await updateMentor(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(prisma.mentor.update).not.toHaveBeenCalled();
+  });
+
+  test('200 – staff แก้พี่เลี้ยงของบริษัทใดก็ได้', async () => {
+    prisma.mentor.findUnique.mockResolvedValue({ id: 'm1', companyId: 'c1' });
+    prisma.user.findUnique.mockResolvedValue({ id: 10, role: 'staff' });
+    prisma.mentor.update.mockResolvedValue({ id: 'm1', firstName: 'Updated' });
+
+    const req = { params: { id: 'm1' }, user: { id: 10 }, body: { firstName: 'Updated' } };
+    const res = makeRes();
+
+    await updateMentor(req, res);
+
+    expect(prisma.mentor.update).toHaveBeenCalled();
+    expect(res.json).toHaveBeenCalledWith({ ok: true, mentor: { id: 'm1', firstName: 'Updated' } });
+  });
+});
+
+describe('deleteMentor', () => {
+  test('404 – ไม่พบพี่เลี้ยง', async () => {
+    prisma.mentor.findUnique.mockResolvedValue(null);
+
+    const req = { params: { id: 'm1' }, user: { id: 1 } };
+    const res = makeRes();
+
+    await deleteMentor(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(prisma.mentor.delete).not.toHaveBeenCalled();
+  });
+
+  test('403 – ไม่ใช่ staff และไม่ใช่เจ้าของบริษัทที่พี่เลี้ยงคนนี้ผูกอยู่', async () => {
+    prisma.mentor.findUnique.mockResolvedValue({ id: 'm1', companyId: 'c1' });
+    prisma.user.findUnique.mockResolvedValue({ id: 5, role: 'teacher' });
+    prisma.company.findUnique.mockResolvedValue({ id: 'c1', createdById: 99 });
+
+    const req = { params: { id: 'm1' }, user: { id: 5 } };
+    const res = makeRes();
+
+    await deleteMentor(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(prisma.mentor.delete).not.toHaveBeenCalled();
+  });
+
+  test('200 – เจ้าของบริษัทลบพี่เลี้ยงของบริษัทตัวเองได้', async () => {
+    prisma.mentor.findUnique.mockResolvedValue({ id: 'm1', companyId: 'c1' });
+    prisma.user.findUnique.mockResolvedValue({ id: 7, role: 'student' });
+    prisma.company.findUnique.mockResolvedValue({ id: 'c1', createdById: 7 });
+    prisma.mentor.delete.mockResolvedValue({});
+
+    const req = { params: { id: 'm1' }, user: { id: 7 } };
+    const res = makeRes();
+
+    await deleteMentor(req, res);
+
+    expect(prisma.mentor.delete).toHaveBeenCalledWith({ where: { id: 'm1' } });
+    expect(res.json).toHaveBeenCalledWith({ ok: true });
   });
 });

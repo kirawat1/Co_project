@@ -53,6 +53,7 @@ export default function A_Settings() {
     try {
       const res = await fetch("/api/admin/assets", {
         method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
         body: formData,
       });
       if (res.ok) {

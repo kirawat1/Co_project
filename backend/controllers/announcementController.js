@@ -139,7 +139,7 @@ const deleteAnnouncement = async (req, res) => {
     if (!ann) return res.status(404).json({ ok: false, message: "ไม่พบประกาศ" });
 
     for (const f of ann.files) {
-      const filePath = path.join("uploads", f.path);
+      const filePath = path.join(__dirname, '../uploads', f.path);
       if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
     }
 

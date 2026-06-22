@@ -1,5 +1,35 @@
 # CHANGELOG — Co_project
 
+## [2026-06-22] Whole-system code review: fix all findings (auth gaps, soft-delete leaks, frontend 401 bypass)
+
+### Fixed (Security / Auth)
+- `announcementRoutes.js`: POST/DELETE were completely unauthenticated — anyone could add or delete announcements. Added `verifyToken` + `verifyRole('admin','staff')`.
+- Removed dead, unauthenticated duplicate route `routes/criteriaRoutes.js` (frontend only calls the already-protected `/api/admin/criteria`).
+- `companyController.js`: mentor add/update/delete had no ownership check — any logged-in user could edit mentors on any company. Added an `isStaffOrCompanyOwner` helper, consistent with the existing company update/delete pattern.
+- `teacherRoutes.js`: `PUT /:id` (edit any teacher's profile) was open to any authenticated role. Restricted to staff; `GET /` stays open since students need it to pick an advisor.
+- `studentRoutes.js`: `GET /` let any student enumerate the full student roster. Restricted to staff/teacher.
+- `adminRoutes.js`: 4 destructive student endpoints (update/soft-delete/restore/permanent-delete/trash-list) allowed `teacher` role via the shared `ADMIN_ROLES` constant. Scoped down to the existing `STAFF_ONLY` constant.
+- `visitController.js`: added ownership checks (`toggleVisitStatus`, `deleteVisit` now require the requesting teacher to own the visit) and a conflict check in `createVisit` (duplicate same-day visit for the same student now returns 409).
+- `authController.js` `signIn`: email lookup was case-sensitive, inconsistent with `registerStudent`/`loginWithKKU` which always lowercase. Now lowercases before the `findFirst` query.
+
+### Fixed (Data integrity)
+- `studentImportController.js`: re-importing a soft-deleted (trashed) student's `studentId` silently revived them via upsert. Now blocks the row with an `errorRows` entry instructing staff to restore first.
+- `studentController.js` `permanentlyDeleteStudent`: deleted the `Student` row but left the linked `User` (login account) row orphaned. Now wraps both deletes in a `$transaction`.
+- `studentController.js` `exportStudents`: Excel export had no `deletedAt` filter, so trashed students appeared in exports. Added the filter, matching `getStudents`.
+- `adminDocController.js` `getCoopApplications`: no `deletedAt` filter on the related student, so soft-deleted students' coop applications stayed visible/actionable to staff. Added the filter.
+- `adminDocController.js` `getAllStudentsForReview`: hardcoded `take: 500` with no pagination silently truncated beyond 500 students and never returned a `meta` envelope — `T_Dashboard.tsx`'s T002/T003 pending counts were reading `data.meta.total`, which never existed, so those counts were silently stuck. Added `page`/`limit`/`status` query support and a `meta: { total, page, limit, totalPages }` response, while defaulting `limit` to 1000 (not a small page) so existing callers that rely on getting the full list for client-side filtering are unaffected.
+- `announcementController.js` `deleteAnnouncement`: used a relative path (`path.join("uploads", f.path)`) to locate attachment files for deletion, which only works if the process's CWD happens to be `backend/`. Fixed to use the same absolute-path pattern (`path.join(__dirname, '../uploads', f.path)`) already used elsewhere in the file — under PM2 (CWD often not `backend/`), attachment files were never actually deleted from disk on announcement deletion.
+- `supervisionController.js` `getSupervisionsForTeacher`: matched co-teachers via `coTeacherName.contains(teacher.firstName)` with no minimum-length guard, so a 1-character first name could match unrelated appointments. Added the same `length >= 2` guard already present on the sibling function `getTeacherSupervisions`.
+
+### Fixed (Frontend)
+- Added missing `Authorization` headers (functionally broken — requests silently 401'd) in `A_CoopPeriod.tsx` (create/update/toggle/delete), `A_DocRequirements.tsx` (create/update/delete), `A_CriteriaPage.tsx` (create/delete), and `A_Settings.tsx`'s `handleUpload` (the sibling `handleDeleteAsset`/`handleSaveDeanInfo` already had it).
+- Added `Frontend/src/utils/apiFetch.ts`: a `fetch()` wrapper that mirrors the global axios 401-interceptor in `main.tsx` (clears the token and forces re-login). Raw `fetch()` calls bypassed that interceptor entirely, so an expired token caused those calls to fail silently instead of logging the user out. Applied to all `fetch()` call sites in `S_App.tsx`, `S_Docs.tsx`, `S_DocsT002Form.tsx`, and `T_StudentDetail.tsx`.
+- `T_StudentDetail.tsx` `fetchData`: had no guard against stale responses — navigating to a different student while a fetch for the previous student was still in flight could let the old response overwrite the new student's state. Added an `isStale()` check before each `setState` call.
+- `A_DocT000.tsx` `handleApproveAll`: applied an optimistic UI update (mark all docs approved) before the API call, but never checked `res.ok` or rolled back on failure — a failed approve-all silently left the UI showing "approved" while the backend still showed the old status. Now checks `res.ok`, rolls back to the captured previous state on any failure, and alerts the user.
+
+### Testing
+- Added/updated tests across `visitController`, `studentImportController`, `studentController`, `companyController` (mentor ownership + existing addMentor tests updated for the new check), `adminDocController` (new `getCoopApplications` + extended `getAllStudentsForReview` tests), `authController` (case-insensitive signIn), `announcementController` (absolute-path assertion), and `supervisionController` (short-name guard). Full backend suite: 217/217 passing. Frontend `tsc --noEmit`: clean.
+
 ## [2026-06-22] Code review follow-up: advisor-matching safety + deploy script exit-code bug
 
 ### Fixed

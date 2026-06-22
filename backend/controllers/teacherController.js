@@ -118,6 +118,8 @@ exports.updateProfile = async (req, res) => {
 // ... (โค้ดเดิม getProfile, updateProfile เก็บไว้เหมือนเดิม ห้ามลบ) ...
 
 // ✅ 3. [ADMIN] ดึงรายชื่ออาจารย์ทั้งหมด
+// หมายเหตุ: endpoint นี้เปิดให้ทุก role ที่ login แล้วเรียกได้โดยตั้งใจ — นักศึกษาใช้
+// ดึงรายชื่อ+อีเมลอาจารย์ไปแสดงในหน้าเลือกอาจารย์ที่ปรึกษา (S_ProfilePage.tsx)
 exports.getAllTeachers = async (req, res) => {
   try {
     const teachers = await prisma.teacher.findMany({

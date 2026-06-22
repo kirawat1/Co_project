@@ -91,14 +91,14 @@ router.get('/students/majors', verifyToken, verifyRole(...ADMIN_ROLES), async (r
   }
 });
 
-// Students: Edit basic info
-router.put('/students/:id', verifyToken, verifyRole(...ADMIN_ROLES), studentController.updateStudentBasicInfo);
+// Students: Edit basic info — staff only (ไม่ใช่ teacher แม้ ADMIN_ROLES ปกติจะรวม teacher ด้วย)
+router.put('/students/:id', verifyToken, verifyRole(...STAFF_ONLY), studentController.updateStudentBasicInfo);
 
-// Students: Trash (soft delete / restore / permanent delete)
-router.delete('/students/:id', verifyToken, verifyRole(...ADMIN_ROLES), studentController.softDeleteStudent);
-router.get('/students/trash', verifyToken, verifyRole(...ADMIN_ROLES), studentController.getTrashedStudents);
-router.post('/students/:id/restore', verifyToken, verifyRole(...ADMIN_ROLES), studentController.restoreStudent);
-router.delete('/students/:id/permanent', verifyToken, verifyRole(...ADMIN_ROLES), studentController.permanentlyDeleteStudent);
+// Students: Trash (soft delete / restore / permanent delete) — staff only
+router.delete('/students/:id', verifyToken, verifyRole(...STAFF_ONLY), studentController.softDeleteStudent);
+router.get('/students/trash', verifyToken, verifyRole(...STAFF_ONLY), studentController.getTrashedStudents);
+router.post('/students/:id/restore', verifyToken, verifyRole(...STAFF_ONLY), studentController.restoreStudent);
+router.delete('/students/:id/permanent', verifyToken, verifyRole(...STAFF_ONLY), studentController.permanentlyDeleteStudent);
 
 // Coop Applications
 router.get('/coop-applications', verifyToken, verifyRole(...ADMIN_ROLES), adminDocController.getCoopApplications);

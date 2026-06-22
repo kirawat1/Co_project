@@ -223,9 +223,10 @@ describe('restoreStudent', () => {
 });
 
 describe('permanentlyDeleteStudent', () => {
-  test('200 — ลบจริงเมื่ออยู่ในถังขยะแล้ว', async () => {
-    prisma.student.findUnique.mockResolvedValue({ id: 1, deletedAt: new Date() });
+  test('200 — ลบจริงเมื่ออยู่ในถังขยะแล้ว และลบ User (บัญชี login) คู่กันด้วย', async () => {
+    prisma.student.findUnique.mockResolvedValue({ id: 1, userId: 10, deletedAt: new Date() });
     prisma.student.delete.mockResolvedValue({ id: 1 });
+    prisma.user.delete.mockResolvedValue({ id: 10 });
 
     const req = { params: { id: '1' } };
     const res = makeRes();
@@ -233,6 +234,7 @@ describe('permanentlyDeleteStudent', () => {
     await permanentlyDeleteStudent(req, res);
 
     expect(prisma.student.delete).toHaveBeenCalledWith({ where: { id: 1 } });
+    expect(prisma.user.delete).toHaveBeenCalledWith({ where: { id: 10 } });
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: true }));
   });
 
@@ -430,7 +432,7 @@ describe('exportStudents', () => {
     await exportStudents(req, res);
 
     expect(prisma.student.findMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: {},
+      where: { deletedAt: null },
       include: {
         coop: { include: { company: true } },
         generalAdvisor: { select: { firstName: true, lastName: true } },
@@ -458,7 +460,7 @@ describe('exportStudents', () => {
     await exportStudents(req, res);
 
     expect(prisma.student.findMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: { coop: { coopPeriodId: 5 } },
+      where: { deletedAt: null, coop: { coopPeriodId: 5 } },
     }));
   });
 

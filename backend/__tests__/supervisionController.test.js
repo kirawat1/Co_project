@@ -14,6 +14,7 @@ const {
   getStudentSupervision,
   reviewSupervision,
   getSupervisionCalendar,
+  getSupervisionsForTeacher,
 } = require('../controllers/supervisionController');
 
 function makeRes() {
@@ -364,5 +365,50 @@ describe('getSupervisionCalendar', () => {
 
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: false }));
+  });
+});
+
+// ===========================
+// getSupervisionsForTeacher
+// ===========================
+describe('getSupervisionsForTeacher', () => {
+  test('404 — ไม่พบข้อมูลอาจารย์', async () => {
+    prisma.teacher.findUnique.mockResolvedValue(null);
+
+    const req = { user: { id: 1 } };
+    const res = makeRes();
+    await getSupervisionsForTeacher(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(404);
+  });
+
+  test('ชื่ออาจารย์สั้นกว่า 2 ตัวอักษร — ไม่เพิ่มเงื่อนไข coTeacherName (กัน false-positive)', async () => {
+    prisma.teacher.findUnique.mockResolvedValue({ id: 5, firstName: 'ก' });
+    prisma.supervisionAppointment.findMany.mockResolvedValue([]);
+
+    const req = { user: { id: 1 } };
+    const res = makeRes();
+    await getSupervisionsForTeacher(req, res);
+
+    expect(prisma.supervisionAppointment.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { OR: [{ teacherId: 5 }] },
+      })
+    );
+  });
+
+  test('ชื่ออาจารย์ปกติ — เพิ่มเงื่อนไข coTeacherName ค้นหาอาจารย์นิเทศร่วม', async () => {
+    prisma.teacher.findUnique.mockResolvedValue({ id: 5, firstName: 'สมชาย' });
+    prisma.supervisionAppointment.findMany.mockResolvedValue([]);
+
+    const req = { user: { id: 1 } };
+    const res = makeRes();
+    await getSupervisionsForTeacher(req, res);
+
+    expect(prisma.supervisionAppointment.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { OR: [{ teacherId: 5 }, { coTeacherName: { contains: 'สมชาย' } }] },
+      })
+    );
   });
 });

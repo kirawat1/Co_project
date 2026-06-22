@@ -417,6 +417,23 @@ describe('deleteAnnouncement', () => {
     expect(res.json).toHaveBeenCalledWith({ ok: true });
   });
 
+  test('200 – ใช้ absolute path (ไม่ใช่ relative path ที่ผิดตาม CWD)', async () => {
+    const path = require('path');
+    const ann = { id: 'del-uuid-abs', files: [{ id: 'f1', path: 'file1.pdf' }] };
+    prisma.announcement.findUnique.mockResolvedValue(ann);
+    prisma.announcement.delete.mockResolvedValue({});
+    fs.existsSync.mockReturnValue(true);
+
+    const req = { params: { id: 'del-uuid-abs' } };
+    const res = makeRes();
+
+    await deleteAnnouncement(req, res);
+
+    const expectedPath = path.join(__dirname, '../uploads', 'file1.pdf');
+    expect(fs.existsSync).toHaveBeenCalledWith(expectedPath);
+    expect(fs.unlinkSync).toHaveBeenCalledWith(expectedPath);
+  });
+
   test('200 – deletes announcement with no attached files', async () => {
     const ann = { id: 'del-uuid-no-files', files: [] };
     prisma.announcement.findUnique.mockResolvedValue(ann);

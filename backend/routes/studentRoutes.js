@@ -3,7 +3,7 @@ const express = require("express");
 const router = express.Router();
 
 // ✅ 1. Import verifyToken ให้ถูกต้อง (ลบ authMiddleware ตัวเก่าออก)
-const { verifyToken } = require('../middlewares/authMiddleware');
+const { verifyToken, verifyRole } = require('../middlewares/authMiddleware');
 
 const studentController = require('../controllers/studentController');
 const docController = require('../controllers/docController');
@@ -18,8 +18,8 @@ router.get("/me", verifyToken, studentController.getMyProfile);
 // อัปเดตข้อมูลโปรไฟล์ตัวเอง
 router.put("/me", verifyToken, studentController.updateMyProfile);
 
-// ดึงรายชื่อนักศึกษา (ถ้ามี)
-router.get("/", verifyToken, studentController.getStudents);
+// ดึงรายชื่อนักศึกษาทั้งหมด — staff/teacher เท่านั้น (ไม่ใช่นักศึกษาคนอื่นมาดูข้อมูลกัน)
+router.get("/", verifyToken, verifyRole('admin', 'staff', 'teacher'), studentController.getStudents);
 
 // ✅ Route สำหรับกดดาวน์โหลดหนังสือส่งตัว (ที่เพิ่มใหม่)
 router.post('/acknowledge-dispatch', verifyToken, docController.acknowledgeDispatchDownload);
