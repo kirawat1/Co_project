@@ -31,7 +31,7 @@ describe('getAllStudentsForReview', () => {
     await getAllStudentsForReview(req, res);
 
     expect(prisma.student.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: {} })
+      expect.objectContaining({ where: { AND: [{ deletedAt: null }] } })
     );
     expect(res.json.mock.calls[0][0].ok).toBe(true);
     expect(res.json.mock.calls[0][0].data).toHaveLength(2);
@@ -45,7 +45,7 @@ describe('getAllStudentsForReview', () => {
     await getAllStudentsForReview(req, res);
 
     expect(prisma.student.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { AND: [{ coop: { coopPeriodId: 3 } }] } })
+      expect.objectContaining({ where: { AND: [{ deletedAt: null }, { coop: { coopPeriodId: 3 } }] } })
     );
     expect(res.json.mock.calls[0][0].data).toHaveLength(1);
   });

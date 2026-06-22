@@ -210,7 +210,7 @@ exports.getStudents = async (req, res) => {
       : undefined;
     const search = (req.query.search || "").trim();
 
-    const conditions = [];
+    const conditions = [{ deletedAt: null }];
     if (coopPeriodId) conditions.push({ coop: { coopPeriodId } });
     if (search) {
       conditions.push({
@@ -222,7 +222,7 @@ exports.getStudents = async (req, res) => {
         ],
       });
     }
-    const where = conditions.length > 0 ? { AND: conditions } : {};
+    const where = { AND: conditions };
 
     const [students, total] = await Promise.all([
       prisma.student.findMany({

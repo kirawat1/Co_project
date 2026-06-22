@@ -37,10 +37,13 @@ exports.getStudentsForT000 = async (req, res) => {
   try {
     const students = await prisma.student.findMany({
       where: {
-        OR: [
-            { coop: { isNot: null } },
-            { documents: { some: { type: 'T000_SIGNED' } } }
-        ]
+        AND: [
+          { OR: [
+              { coop: { isNot: null } },
+              { documents: { some: { type: 'T000_SIGNED' } } }
+          ] },
+          { deletedAt: null },
+        ],
       },
       include: {
         documents: {
@@ -305,7 +308,7 @@ exports.getAllStudentsForReview = async (req, res) => {
             : undefined;
         const search = (req.query.search || "").trim();
 
-        const conditions = [];
+        const conditions = [{ deletedAt: null }];
         if (coopPeriodId) conditions.push({ coop: { coopPeriodId } });
         if (search) {
             conditions.push({
@@ -316,7 +319,7 @@ exports.getAllStudentsForReview = async (req, res) => {
                 ],
             });
         }
-        const where = conditions.length > 0 ? { AND: conditions } : {};
+        const where = { AND: conditions };
 
         const students = await prisma.student.findMany({
             where,
