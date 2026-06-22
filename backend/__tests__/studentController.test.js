@@ -105,14 +105,14 @@ describe('getStudents', () => {
 
     expect(prisma.student.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { AND: [{ coop: { coopPeriodId: 3 } }] },
+        where: { AND: [{ deletedAt: null }, { coop: { coopPeriodId: 3 } }] },
       })
     );
     const body = res.json.mock.calls[0][0];
     expect(body.data).toHaveLength(1);
   });
 
-  test('200 — ไม่มี coopPeriodId ส่ง where เป็น {}', async () => {
+  test('200 — ไม่มี coopPeriodId ก็ยังกรอง deletedAt: null เสมอ', async () => {
     prisma.student.findMany.mockResolvedValue([]);
     prisma.student.count.mockResolvedValue(0);
 
@@ -122,7 +122,7 @@ describe('getStudents', () => {
     await getStudents(req, res);
 
     expect(prisma.student.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: {} })
+      expect.objectContaining({ where: { AND: [{ deletedAt: null }] } })
     );
   });
 });

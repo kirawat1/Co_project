@@ -79,7 +79,7 @@ router.get(
 router.get('/students/majors', verifyToken, verifyRole(...ADMIN_ROLES), async (req, res) => {
   try {
     const rows = await prisma.student.findMany({
-      where: { major: { not: null } },
+      where: { major: { not: null }, deletedAt: null },
       select: { major: true },
       distinct: ['major'],
       orderBy: { major: 'asc' },

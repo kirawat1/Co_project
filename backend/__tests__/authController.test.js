@@ -226,6 +226,25 @@ describe('loginWithGoogle', () => {
     expect(res.status).toHaveBeenCalledWith(401);
   });
 
+  test('401 – student is soft-deleted (in trash)', async () => {
+    const mockVerify = jest.fn().mockResolvedValue({
+      getPayload: () => ({ email: 'trashed@kkumail.com', email_verified: true }),
+    });
+    OAuth2Client.mockImplementation(() => ({ verifyIdToken: mockVerify }));
+
+    prisma.user.findFirst.mockResolvedValue({
+      id: 1, email: 'trashed@kkumail.com', role: 'student',
+      student: { deletedAt: new Date('2026-01-01') },
+    });
+
+    const req = { body: { id_token: 'valid-token' } };
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() };
+
+    await loginWithGoogle(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(401);
+  });
+
   test('400 – missing id_token', async () => {
     const req = { body: {} };
     const res = { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() };

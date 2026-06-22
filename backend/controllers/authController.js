@@ -605,8 +605,11 @@ exports.loginWithGoogle = async (req, res) => {
       return res.status(403).json({ ok: false, message: "กรุณาใช้ KKU Mail (@kkumail.com หรือ @kku.ac.th)" });
     }
 
-    const user = await prisma.user.findFirst({ where: { email, role: 'student' } });
-    if (!user) {
+    const user = await prisma.user.findFirst({
+      where: { email, role: 'student' },
+      include: { student: true },
+    });
+    if (!user || user.student?.deletedAt) {
       return res.status(401).json({ ok: false, message: "ไม่พบรายชื่อในระบบ กรุณาติดต่อเจ้าหน้าที่" });
     }
 
