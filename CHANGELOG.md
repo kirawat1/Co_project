@@ -1,5 +1,11 @@
 # CHANGELOG — Co_project
 
+## [2026-06-22] Set Express trust proxy for accurate rate-limit IPs
+
+### Fixed
+- Express never called `app.set('trust proxy', ...)`, so behind nginx, `express-rate-limit` couldn't determine each user's real IP from `X-Forwarded-For` — logged `ERR_ERL_UNEXPECTED_X_FORWARDED_FOR` on every login/register attempt and risked bucketing all users behind nginx under one shared rate-limit count.
+- Added `app.set('trust proxy', 1)` (trust the first hop — nginx) in `server.js`. Confirmed the warning no longer fires and the full test suite (193/193) still passes.
+
 ## [2026-06-22] Fix Excel import header detection (real file has title row above headers)
 
 ### Fixed
