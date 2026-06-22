@@ -91,6 +91,9 @@ router.get('/students/majors', verifyToken, verifyRole(...ADMIN_ROLES), async (r
   }
 });
 
+// Students: Edit basic info
+router.put('/students/:id', verifyToken, verifyRole(...ADMIN_ROLES), studentController.updateStudentBasicInfo);
+
 // Students: Trash (soft delete / restore / permanent delete)
 router.delete('/students/:id', verifyToken, verifyRole(...ADMIN_ROLES), studentController.softDeleteStudent);
 router.get('/students/trash', verifyToken, verifyRole(...ADMIN_ROLES), studentController.getTrashedStudents);
