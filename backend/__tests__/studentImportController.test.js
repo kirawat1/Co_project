@@ -9,6 +9,29 @@ function makeRes() {
   return { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() };
 }
 
+const HEADER_KEYS = [
+  'รหัสนักศึกษา', 'คำนำหน้าชื่อ', 'ชื่อ-นามสกุล (ภาษาไทย)', 'ชื่อ-นามสกุล (ภาษาอังกฤษ)',
+  'สาขาวิชา / แผนกการศึกษา', 'ชั้นปี', 'เบอร์โทรศัพท์', 'อีเมล',
+  'ภาคการศึกษา (ปกติ/พิเศษ)', 'เกรดเฉลี่ยสะสม (GPA)', 'ชื่ออาจารย์ที่ปรึกษา',
+];
+
+// จำลองไฟล์ Excel จริง: มีแถวหัวข้อฟอร์ม + แถวว่าง อยู่เหนือแถวหัวคอลัมน์
+function mockSheet(dataRows) {
+  XLSX.read = jest.fn().mockReturnValue({ SheetNames: ['Sheet1'], Sheets: { Sheet1: {} } });
+  XLSX.utils = {
+    sheet_to_json: jest.fn((sheet, opts) => {
+      if (opts && opts.header === 1) {
+        return [
+          ['แบบฟอร์มข้อมูลนักศึกษาสำหรับนำเข้าระบบบริหารจัดการสหกิจศึกษา'],
+          [],
+          HEADER_KEYS,
+        ];
+      }
+      return dataRows;
+    }),
+  };
+}
+
 describe('importStudents', () => {
   beforeEach(() => jest.clearAllMocks());
 
@@ -19,9 +42,19 @@ describe('importStudents', () => {
     expect(res.status).toHaveBeenCalledWith(400);
   });
 
-  test('200 – imports valid row, returns summary', async () => {
+  test('400 – ไม่พบหัวคอลัมน์ "รหัสนักศึกษา" ในไฟล์', async () => {
     XLSX.read = jest.fn().mockReturnValue({ SheetNames: ['Sheet1'], Sheets: { Sheet1: {} } });
-    XLSX.utils = { sheet_to_json: jest.fn().mockReturnValue([{
+    XLSX.utils = { sheet_to_json: jest.fn().mockReturnValue([['อะไรก็ไม่รู้'], ['อะไรก็ไม่รู้']]) };
+
+    const req = { file: { buffer: Buffer.from('fake') } };
+    const res = makeRes();
+    await importStudents(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+  });
+
+  test('200 – ไฟล์มีแถวหัวข้อฟอร์ม + แถวว่างเหนือแถวหัวคอลัมน์ → ยังอ่านข้อมูลได้ถูกต้อง', async () => {
+    mockSheet([{
       'รหัสนักศึกษา': '645040001-1',
       'คำนำหน้าชื่อ': 'นาย',
       'ชื่อ-นามสกุล (ภาษาไทย)': 'สมชาย ใจดี',
@@ -33,7 +66,7 @@ describe('importStudents', () => {
       'ภาคการศึกษา (ปกติ/พิเศษ)': 'ปกติ',
       'เกรดเฉลี่ยสะสม (GPA)': '3.45',
       'ชื่ออาจารย์ที่ปรึกษา': 'สมหญิง รักเรียน',
-    }]) };
+    }]);
 
     prisma.user.findFirst.mockResolvedValue(null);
     prisma.user.upsert.mockResolvedValue({ id: 1 });
@@ -72,12 +105,11 @@ describe('importStudents', () => {
   });
 
   test('200 – skips row with missing email, counts as error', async () => {
-    XLSX.read = jest.fn().mockReturnValue({ SheetNames: ['Sheet1'], Sheets: { Sheet1: {} } });
-    XLSX.utils = { sheet_to_json: jest.fn().mockReturnValue([{
+    mockSheet([{
       'อีเมล': '',
       'รหัสนักศึกษา': '',
       'ชื่อ-นามสกุล (ภาษาไทย)': 'test',
-    }]) };
+    }]);
 
     const req = { file: { buffer: Buffer.from('fake') } };
     const res = makeRes();
@@ -90,13 +122,12 @@ describe('importStudents', () => {
   });
 
   test('200 – ไม่พบอาจารย์ที่ปรึกษาตามชื่อ → generalAdvisorId เป็น null', async () => {
-    XLSX.read = jest.fn().mockReturnValue({ SheetNames: ['Sheet1'], Sheets: { Sheet1: {} } });
-    XLSX.utils = { sheet_to_json: jest.fn().mockReturnValue([{
+    mockSheet([{
       'รหัสนักศึกษา': '645040002-1',
       'ชื่อ-นามสกุล (ภาษาไทย)': 'สมศรี มีสุข',
       'อีเมล': 'stu2@kkumail.com',
       'ชื่ออาจารย์ที่ปรึกษา': 'ไม่มีใครชื่อนี้ เลย',
-    }]) };
+    }]);
 
     prisma.user.findFirst.mockResolvedValue(null);
     prisma.user.upsert.mockResolvedValue({ id: 2 });
@@ -113,12 +144,11 @@ describe('importStudents', () => {
   });
 
   test('200 – ชื่อ-นามสกุลแบบคำเดียว (ไม่มีเว้นวรรค) → lastName เป็นค่าว่าง', async () => {
-    XLSX.read = jest.fn().mockReturnValue({ SheetNames: ['Sheet1'], Sheets: { Sheet1: {} } });
-    XLSX.utils = { sheet_to_json: jest.fn().mockReturnValue([{
+    mockSheet([{
       'รหัสนักศึกษา': '645040003-1',
       'ชื่อ-นามสกุล (ภาษาไทย)': 'เดี่ยว',
       'อีเมล': 'stu3@kkumail.com',
-    }]) };
+    }]);
 
     prisma.user.findFirst.mockResolvedValue(null);
     prisma.user.upsert.mockResolvedValue({ id: 3 });

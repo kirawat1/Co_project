@@ -40,7 +40,15 @@ exports.importStudents = async (req, res) => {
 
     const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
     const sheetName = workbook.SheetNames[0];
-    const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+    const sheet = workbook.Sheets[sheetName];
+
+    // ไฟล์จริงมีแถวหัวข้อ/ว่าง อยู่เหนือแถวหัวคอลัมน์ → หาแถวหัวคอลัมน์จริงก่อน แทนการสมมติว่าเป็นแถวแรก
+    const rawRows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+    const headerRowIndex = rawRows.findIndex(r => r.some(cell => String(cell).trim() === 'รหัสนักศึกษา'));
+    if (headerRowIndex === -1) {
+      return res.status(400).json({ ok: false, message: 'ไม่พบหัวคอลัมน์ "รหัสนักศึกษา" ในไฟล์ Excel' });
+    }
+    const rows = XLSX.utils.sheet_to_json(sheet, { range: headerRowIndex, defval: '' });
 
     let created = 0, updated = 0, errors = 0;
     const errorRows = [];

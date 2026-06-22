@@ -1,5 +1,11 @@
 # CHANGELOG — Co_project
 
+## [2026-06-22] Fix Excel import header detection (real file has title row above headers)
+
+### Fixed
+- After fixing the column header names, a real import still failed every row with "email หรือ id ว่างเปล่า". Root cause: the real template has a merged title row and a blank row above the actual header row, but `studentImportController.js` assumed the header was row 1 (`XLSX.utils.sheet_to_json(sheet)` default behavior), so it parsed the title text as a single bogus header and never found the real columns.
+- Now scans the sheet for the row containing `รหัสนักศึกษา` and uses that as the header row, regardless of how many title/blank rows precede it. Returns 400 if no such row is found.
+
 ## [2026-06-22] Add explicit `prisma generate` step to deploy script
 
 ### Fixed
