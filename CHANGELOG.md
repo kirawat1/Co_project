@@ -1,5 +1,18 @@
 # CHANGELOG — Co_project
 
+## [2026-06-22] Student Edit + Soft-Delete (Trash/Restore) for Staff/Teacher
+
+### Added
+- Staff/teacher can now edit a student's basic info (name, studentId, major, study program, year, phone, email, advisor, job position) via a new edit modal on the admin student list (`A_Students.tsx`).
+- Staff/teacher can soft-delete a student (moves to a new "ถังขยะ" trash tab), restore it, or permanently delete it. Permanent delete is gated — a student must be in the trash first, and the UI requires typing the student's ID to confirm.
+- New `Student.deletedAt` field. Trashed students are hidden from every existing student listing and blocked from logging in (Google OAuth), but their data (documents, visits, coop application, etc.) is untouched until a staff/teacher explicitly permanently deletes them — no auto-purge.
+
+### Fixed
+- `CoopApplicationForm` and `Visit` were missing `onDelete: Cascade` on their `Student` relation — permanently deleting a student with a submitted coop application or a scheduled visit would have thrown a foreign-key error. Both now cascade correctly.
+
+### Why
+Staff previously had no way to correct mistaken Excel imports, duplicate enrollments, or remove withdrawn students without direct DB access. Soft-delete (rather than instant hard-delete) avoids irreversible mistakes; permanent delete is opt-in and requires the record to already be in the trash.
+
 ## [2026-06-22] Drop CoopCriteria GPA/course fields and Student.curriculum/isQualified/coreGpa columns (Task 11/11 refactor — final)
 
 ### Removed
