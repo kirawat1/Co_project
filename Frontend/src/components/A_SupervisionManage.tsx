@@ -55,6 +55,7 @@ interface Supervision {
     coTeacherName?: string | null;
     status: SupervisionStatus;
     officialLetterPath: string | null;
+    onlineLink?: string | null;
     student: {
         studentId: string;
         firstName: string;
@@ -339,6 +340,8 @@ export default function A_SupervisionManage() {
                 studentName: `${s.student.firstName} ${s.student.lastName}`,
                 type: s.supervisionType,
                 status: s.status,
+                companyName: s.student.coop?.company?.name,
+                onlineLink: s.onlineLink ?? null,
             })),
         [supervisions]
     );
