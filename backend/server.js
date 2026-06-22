@@ -18,6 +18,10 @@ for (const key of REQUIRED_ENV) {
 
 const app = express();
 
+// เชื่อใจ reverse proxy ชั้นแรก (nginx) เพื่อให้ req.ip / X-Forwarded-For
+// เป็น IP จริงของผู้ใช้ ไม่ใช่ IP ของ nginx เอง — จำเป็นสำหรับ rate-limit ให้แม่นยำต่อคน
+app.set('trust proxy', 1);
+
 // -----------------------------
 // Routes import
 // -----------------------------
