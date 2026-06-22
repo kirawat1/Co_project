@@ -1,5 +1,11 @@
 # CHANGELOG — Co_project
 
+## [2026-06-22] Add explicit `prisma generate` step to deploy script
+
+### Fixed
+- `docs/deploy.ps1` ran `npm install` but never explicitly ran `npx prisma generate`, relying on npm's implicit postinstall hook. On the VM, that postinstall silently failed (PM2 holding the query engine DLL open), leaving a stale Prisma Client after deploy and causing `POST /api/auth/signin` to 500 with `P2022` on a column that had already been dropped from the schema.
+- Added an explicit "Generating Prisma Client..." step (same stop-backend/retry-on-failure pattern already used for `prisma migrate deploy`), placed before migrations run.
+
 ## [2026-06-22] Fix Excel import column headers to match real template
 
 ### Fixed
