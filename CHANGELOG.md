@@ -1,5 +1,16 @@
 # CHANGELOG — Co_project
 
+## [2026-06-22] Fix Excel import column headers to match real template
+
+### Fixed
+- `studentImportController.js` was reading column headers (`id`, `ชื่อ`, `สกุล`, `ปี`, `สาขาวิชา`, `รูปแบบการศึกษา`, `อาจารย์ที่ปรึกษาทั่วไป`, `email อาจารย์`, `email นักศึกษา`) that didn't match the Excel template actually used by staff (`รหัสนักศึกษา`, `คำนำหน้าชื่อ`, `ชื่อ-นามสกุล (ภาษาไทย)`, `ชื่อ-นามสกุล (ภาษาอังกฤษ)`, `สาขาวิชา / แผนกการศึกษา`, `ชั้นปี`, `เบอร์โทรศัพท์`, `อีเมล`, `ภาคการศึกษา (ปกติ/พิเศษ)`, `เกรดเฉลี่ยสะสม (GPA)`, `ชื่ออาจารย์ที่ปรึกษา`) — every row would fail with "email หรือ id ว่างเปล่า" since `id`/`email นักศึกษา` never matched anything in the real file.
+
+### Changed
+- Column headers updated to match the real template.
+- Combined "ชื่อ-นามสกุล" columns (Thai and English) are now split into `firstName`/`lastName` and `firstNameEn`/`lastNameEn` on the first space.
+- `คำนำหน้าชื่อ`, `เบอร์โทรศัพท์`, and `เกรดเฉลี่ยสะสม (GPA)` are now imported (previously ignored).
+- Advisor lookup (`generalAdvisorId`) now matches by the advisor's name against the `Teacher` table, since the template has no advisor-email column. Previously matched by email.
+
 ## [2026-06-22] Student Edit + Soft-Delete (Trash/Restore) for Staff/Teacher
 
 ### Added
