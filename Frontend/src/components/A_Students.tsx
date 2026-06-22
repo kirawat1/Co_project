@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import StatusBadge from "../components/StatusBadge";
 import StatusFilterChips, { STATUS_GROUPS } from "./StatusFilterChips";
 import { useDebounce } from "../hooks/useDebounce";
+import A_StudentEditModal from "./A_StudentEditModal";
 
 /* =========================
    Types
@@ -43,11 +44,13 @@ interface Company {
   website?: string;
 }
 
-interface StudentProfile {
+export interface StudentProfile {
   id: number;
   studentId: string;
   firstName?: string;
   lastName?: string;
+  firstNameEn?: string;
+  lastNameEn?: string;
   prefix?: string;
   year?: string;
   faculty?: string;
@@ -55,6 +58,8 @@ interface StudentProfile {
   studyProgram?: string;
   gpa?: number;
   phone?: string;
+  advisorName?: string;
+  jobPosition?: string;
   user?: { email: string };
   nationality?: string;
   company?: Company;
@@ -138,6 +143,7 @@ export default function A_Students() {
   };
 
   const [modalStudent, setModalStudent] = useState<StudentProfile | null>(null);
+  const [editStudent, setEditStudent] = useState<StudentProfile | null>(null);
   const [coopPeriods, setCoopPeriods] = useState<CoopPeriod[]>([]);
   const [selectedPeriodId, setSelectedPeriodId] = useState<string>("all");
   const [currentPage, setCurrentPage] = useState(1);
@@ -236,6 +242,26 @@ export default function A_Students() {
     setFilterCurriculums([]);
     setFilterStatuses([]);
   }
+
+  const handleDeleteStudent = async (s: StudentProfile) => {
+    const fullName = `${s.firstName ?? ""} ${s.lastName ?? ""}`.trim();
+    if (!window.confirm(`ย้าย "${fullName || s.studentId}" ไปถังขยะ?`)) return;
+    try {
+      const token = localStorage.getItem("coop.token");
+      const res = await fetch(`/api/admin/students/${s.id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        alert(data.message || "ลบไม่สำเร็จ");
+        return;
+      }
+      fetchStudents(selectedPeriodId, currentPage, debouncedQ);
+    } catch (err: any) {
+      alert(err.message || "เกิดข้อผิดพลาด");
+    }
+  };
 
   const handleImport = async () => {
     if (!importFile) return;
@@ -405,6 +431,20 @@ export default function A_Students() {
                       >
                         ดูข้อมูล
                       </button>
+                      <button
+                        className="btn"
+                        style={ghostBtn}
+                        onClick={() => setEditStudent(s)}
+                      >
+                        แก้ไข
+                      </button>
+                      <button
+                        className="btn"
+                        style={{ ...ghostBtn, color: "#dc2626", borderColor: "#fecaca" }}
+                        onClick={() => handleDeleteStudent(s)}
+                      >
+                        ลบ
+                      </button>
                       {s.coopApplicationForm?.gradeSheetUrl ? (
                         <a
                           href={s.coopApplicationForm.gradeSheetUrl}
@@ -484,6 +524,14 @@ export default function A_Students() {
         <StudentModal
           student={modalStudent}
           onClose={() => setModalStudent(null)}
+        />
+      )}
+      {editStudent && (
+        <A_StudentEditModal
+          student={editStudent}
+          majors={Object.keys(dynamicMajors).length > 0 ? dynamicMajors : LEGACY_MAJOR_TH}
+          onClose={() => setEditStudent(null)}
+          onSaved={() => fetchStudents(selectedPeriodId, currentPage, debouncedQ)}
         />
       )}
     </div>
