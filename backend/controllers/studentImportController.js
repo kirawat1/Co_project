@@ -9,6 +9,29 @@ const STUDY_PROGRAM_MAP = {
   'special': 'special',
 };
 
+// Prefix enum values: MR | MS
+const PREFIX_MAP = {
+  'นาย': 'MR', 'mr': 'MR', 'mr.': 'MR', 'mister': 'MR',
+  'นาง': 'MS', 'นางสาว': 'MS', 'ms': 'MS', 'ms.': 'MS', 'mrs': 'MS', 'mrs.': 'MS', 'miss': 'MS',
+};
+
+function mapPrefix(raw) {
+  const key = (raw || '').trim().toLowerCase();
+  return PREFIX_MAP[key] ?? null;
+}
+
+// คอลัมน์ "ชื่อ-นามสกุล" เป็นช่องเดียว — แยกเป็น firstName/lastName โดยตัดที่เว้นวรรคแรก
+function splitFullName(fullName) {
+  const trimmed = (fullName || '').trim();
+  if (!trimmed) return { firstName: '', lastName: '' };
+  const spaceIdx = trimmed.indexOf(' ');
+  if (spaceIdx === -1) return { firstName: trimmed, lastName: '' };
+  return {
+    firstName: trimmed.slice(0, spaceIdx).trim(),
+    lastName: trimmed.slice(spaceIdx + 1).trim(),
+  };
+}
+
 exports.importStudents = async (req, res) => {
   try {
     if (!req.file) {
@@ -22,22 +45,22 @@ exports.importStudents = async (req, res) => {
     let created = 0, updated = 0, errors = 0;
     const errorRows = [];
 
-    // Fix 4: Pre-fetch all advisor emails to avoid N+1 queries
-    const allAdvisorEmails = rows
-      .map(r => String(r['email อาจารย์'] || '').trim())
-      .filter(Boolean);
-    const advisorTeachers = allAdvisorEmails.length > 0
+    // Pre-fetch all candidate advisor teachers by (firstName, lastName) to avoid N+1 queries
+    const advisorNamePairs = rows
+      .map(r => splitFullName(String(r['ชื่ออาจารย์ที่ปรึกษา'] || '').trim()))
+      .filter(p => p.firstName);
+    const advisorTeachers = advisorNamePairs.length > 0
       ? await prisma.teacher.findMany({
-          where: { email: { in: allAdvisorEmails } },
-          select: { id: true, email: true },
+          where: { OR: advisorNamePairs.map(p => ({ firstName: p.firstName, lastName: p.lastName })) },
+          select: { id: true, firstName: true, lastName: true },
         })
       : [];
-    const advisorMap = new Map(advisorTeachers.map(t => [t.email, t.id]));
+    const advisorMap = new Map(advisorTeachers.map(t => [`${t.firstName}|${t.lastName}`, t.id]));
 
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
-      const email = String(row['email นักศึกษา'] || '').trim();
-      const studentId = String(row['id'] || '').trim();
+      const email = String(row['อีเมล'] || '').trim();
+      const studentId = String(row['รหัสนักศึกษา'] || '').trim();
 
       if (!email || !studentId) {
         errors++;
@@ -45,20 +68,23 @@ exports.importStudents = async (req, res) => {
         continue;
       }
 
-      // Fix 2: per-row flag so counter rollback targets the right counter
+      // per-row flag so counter rollback targets the right counter
       let thisRowCountedAs = null;
 
       try {
-        const firstName = String(row['ชื่อ'] || '').trim();
-        const lastName = String(row['สกุล'] || '').trim();
-        const year = String(row['ปี'] || '').trim();
-        const major = String(row['สาขาวิชา'] || '').trim() || null;
-        const advisorName = String(row['อาจารย์ที่ปรึกษาทั่วไป'] || '').trim() || null;
-        const advisorEmail = String(row['email อาจารย์'] || '').trim() || null;
-        const rawProgram = String(row['รูปแบบการศึกษา'] || '').trim();
+        const prefix = mapPrefix(row['คำนำหน้าชื่อ']);
+        const { firstName, lastName } = splitFullName(row['ชื่อ-นามสกุล (ภาษาไทย)']);
+        const { firstName: firstNameEn, lastName: lastNameEn } = splitFullName(row['ชื่อ-นามสกุล (ภาษาอังกฤษ)']);
+        const year = String(row['ชั้นปี'] || '').trim();
+        const major = String(row['สาขาวิชา / แผนกการศึกษา'] || '').trim() || null;
+        const phone = String(row['เบอร์โทรศัพท์'] || '').trim() || null;
+        const advisorName = String(row['ชื่ออาจารย์ที่ปรึกษา'] || '').trim() || null;
+        const rawProgram = String(row['ภาคการศึกษา (ปกติ/พิเศษ)'] || '').trim();
         const studyProgram = STUDY_PROGRAM_MAP[rawProgram] ?? null;
+        const rawGpa = String(row['เกรดเฉลี่ยสะสม (GPA)'] || '').trim();
+        const gpa = rawGpa && !Number.isNaN(parseFloat(rawGpa)) ? parseFloat(rawGpa) : null;
 
-        // 1. Find or create User (Fix 1: safe username collision check)
+        // 1. Find or create User (safe username collision check)
         const existingUser = await prisma.user.findFirst({ where: { email } });
         let user;
         if (existingUser) {
@@ -87,18 +113,23 @@ exports.importStudents = async (req, res) => {
           thisRowCountedAs = 'created';
         }
 
-        // 2. Resolve generalAdvisorId from pre-fetched map (Fix 4)
-        const generalAdvisorId = advisorEmail ? (advisorMap.get(advisorEmail) ?? null) : null;
+        // 2. Resolve generalAdvisorId by matching advisor name against pre-fetched teachers
+        const advisorNameParts = splitFullName(advisorName);
+        const generalAdvisorId = advisorNameParts.firstName
+          ? (advisorMap.get(`${advisorNameParts.firstName}|${advisorNameParts.lastName}`) ?? null)
+          : null;
 
-        // 3. Upsert Student (Fix 3: always include generalAdvisorId to allow clearing)
+        // 3. Upsert Student (always include generalAdvisorId to allow clearing)
         await prisma.student.upsert({
           where: { studentId },
           update: {
-            firstName, lastName, year, major, advisorName, studyProgram,
+            prefix, firstName, lastName, firstNameEn, lastNameEn,
+            year, major, phone, email, gpa, advisorName, studyProgram,
             generalAdvisorId,  // null = clear advisor; non-null = set advisor
           },
           create: {
-            studentId, firstName, lastName, year, major,
+            studentId, prefix, firstName, lastName, firstNameEn, lastNameEn,
+            year, major, phone, email, gpa,
             advisorName, generalAdvisorId, studyProgram,
             userId: user.id,
           },
@@ -107,7 +138,7 @@ exports.importStudents = async (req, res) => {
         console.error(`[importStudents] row ${i + 2}:`, rowErr.message);
         errors++;
         errorRows.push({ row: i + 2, email, reason: rowErr.message });
-        // Fix 2: revert only the counter that this row incremented
+        // revert only the counter that this row incremented
         if (thisRowCountedAs === 'updated' && updated > 0) updated--;
         else if (thisRowCountedAs === 'created' && created > 0) created--;
       }
