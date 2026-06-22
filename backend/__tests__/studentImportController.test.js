@@ -121,7 +121,7 @@ describe('importStudents', () => {
     expect(body.summary.created).toBe(0);
   });
 
-  test('200 – ไม่พบอาจารย์ที่ปรึกษาตามชื่อ → generalAdvisorId เป็น null', async () => {
+  test('200 – ไม่พบอาจารย์ที่ปรึกษาตามชื่อ (นักศึกษาใหม่) → generalAdvisorId เป็น null และมี errorRows แจ้งเตือน', async () => {
     mockSheet([{
       'รหัสนักศึกษา': '645040002-1',
       'ชื่อ-นามสกุล (ภาษาไทย)': 'สมศรี มีสุข',
@@ -141,6 +141,57 @@ describe('importStudents', () => {
     expect(prisma.student.upsert).toHaveBeenCalledWith(expect.objectContaining({
       create: expect.objectContaining({ generalAdvisorId: null }),
     }));
+
+    const body = res.json.mock.calls[0][0];
+    expect(body.summary.errors).toBe(0); // ไม่ใช่ hard error — แค่ไม่ได้ผูกอาจารย์
+    expect(body.errorRows[0].reason).toMatch(/ไม่พบอาจารย์ที่ปรึกษา/);
+  });
+
+  test('200 – นักศึกษาเดิม + ไม่พบอาจารย์ที่ปรึกษาตามชื่อ → ไม่แก้ไขอาจารย์ที่ปรึกษาเดิม (generalAdvisorId ไม่ถูกส่งไปอัปเดต)', async () => {
+    mockSheet([{
+      'รหัสนักศึกษา': '645040002-1',
+      'ชื่อ-นามสกุล (ภาษาไทย)': 'สมศรี มีสุข',
+      'อีเมล': 'stu2@kkumail.com',
+      'ชื่ออาจารย์ที่ปรึกษา': 'พิมพ์ชื่อผิด ไปนิดนึง',
+    }]);
+
+    prisma.user.findFirst.mockResolvedValue({ id: 2, email: 'stu2@kkumail.com' }); // นักศึกษาเดิม → เข้า update path
+    prisma.student.upsert.mockResolvedValue({ id: 2 });
+    prisma.teacher.findMany.mockResolvedValue([]);
+
+    const req = { file: { buffer: Buffer.from('fake') } };
+    const res = makeRes();
+    await importStudents(req, res);
+
+    const call = prisma.student.upsert.mock.calls[0][0];
+    expect(call.update.generalAdvisorId).toBeUndefined();
+  });
+
+  test('200 – อาจารย์ชื่อซ้ำกันหลายคนในระบบ → ไม่เดาว่าเป็นคนไหน', async () => {
+    mockSheet([{
+      'รหัสนักศึกษา': '645040004-1',
+      'ชื่อ-นามสกุล (ภาษาไทย)': 'สมปอง ดีใจ',
+      'อีเมล': 'stu4@kkumail.com',
+      'ชื่ออาจารย์ที่ปรึกษา': 'สมหญิง รักเรียน',
+    }]);
+
+    prisma.user.findFirst.mockResolvedValue(null);
+    prisma.user.upsert.mockResolvedValue({ id: 4 });
+    prisma.student.upsert.mockResolvedValue({ id: 4 });
+    prisma.teacher.findMany.mockResolvedValue([
+      { id: 10, firstName: 'สมหญิง', lastName: 'รักเรียน' },
+      { id: 20, firstName: 'สมหญิง', lastName: 'รักเรียน' },
+    ]);
+
+    const req = { file: { buffer: Buffer.from('fake') } };
+    const res = makeRes();
+    await importStudents(req, res);
+
+    expect(prisma.student.upsert).toHaveBeenCalledWith(expect.objectContaining({
+      create: expect.objectContaining({ generalAdvisorId: null }),
+    }));
+    const body = res.json.mock.calls[0][0];
+    expect(body.errorRows[0].reason).toMatch(/ซ้ำกันหลายคน/);
   });
 
   test('200 – ชื่อ-นามสกุลแบบคำเดียว (ไม่มีเว้นวรรค) → lastName เป็นค่าว่าง', async () => {
