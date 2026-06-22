@@ -1,5 +1,18 @@
 # CHANGELOG — Co_project
 
+## [2026-06-22] Redesign supervision calendar (stats strip, filters, agenda view)
+
+### Changed
+- `Frontend/src/components/SupervisionCalendar.tsx` redesigned (shared by admin/staff, teacher, and student supervision pages): added a stats strip (total/online/onsite this month + today's count), filter chips (ทั้งหมด/ออนไลน์/ออนไซต์), and replaced the old "click a day → detail panel below" layout with a split view — a compact month grid on the left and a chronological agenda of the month's appointments on the right. Clicking a day now narrows the agenda instead of opening a separate panel; a "ดูทั้งเดือน" link resets it. Below ~768px the grid and agenda stack vertically.
+- Each agenda row now shows the student's company name and, for online appointments, a clickable meeting link (or "ยังไม่ระบุลิงก์" if none was saved) — previously the calendar only showed student name, time, and an online/onsite emoji.
+
+### Fixed
+- `backend/controllers/supervisionController.js` `getSupervisionCalendar` (used by the student-facing calendar) was hand-picking response fields and never included company name or online link, even though the data existed on the appointment/student records. Extended the Prisma query and mapping to include both. The other two calendar data sources (admin's `getAllSupervisions`, teacher's `getSupervisionsForTeacher`) already returned this data via Prisma's default `include` behavior — only their frontend `.map()` calls needed to start passing it through to the calendar component.
+
+### Process notes
+- Went through full brainstorming (visual mockup comparison via the brainstorming companion) → spec → plan → inline execution flow for this UI redesign; spec and plan committed under `docs/superpowers/specs/` and `docs/superpowers/plans/`.
+- Verified via Jest (backend field changes) and an ad-hoc Playwright script exercising all three pages with synthetic data covering every edge case (online+link, online without link, multiple appointments same day, today, responsive stacking) — script was temporary and removed after manual visual review, not part of the permanent suite.
+
 ## [2026-06-22] Whole-system code review: fix all findings (auth gaps, soft-delete leaks, frontend 401 bypass)
 
 ### Fixed (Security / Auth)
