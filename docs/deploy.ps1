@@ -101,13 +101,15 @@ Write-OK "Done"
 
 Write-Step "Generating Prisma Client..."
 npx prisma generate 2>&1 | Out-Null
-if ($LASTEXITCODE -ne 0) {
+$prismaGenerateOk = ($LASTEXITCODE -eq 0)
+if (-not $prismaGenerateOk) {
     Write-WARN "Prisma generate failed - stopping backend and retrying..."
     pm2 stop coop-backend 2>$null
     npx prisma generate 2>&1 | Out-Null
+    $prismaGenerateOk = ($LASTEXITCODE -eq 0)
     pm2 start coop-backend 2>$null
     pm2 save 2>$null
-    if ($LASTEXITCODE -ne 0) {
+    if (-not $prismaGenerateOk) {
         Write-ERR "Prisma generate failed - check file locks on node_modules\.prisma"
         exit 1
     }
@@ -117,13 +119,15 @@ if ($LASTEXITCODE -ne 0) {
 
 Write-Step "Running database migrations..."
 npx prisma migrate deploy 2>&1 | Out-Null
-if ($LASTEXITCODE -ne 0) {
+$migrateOk = ($LASTEXITCODE -eq 0)
+if (-not $migrateOk) {
     Write-WARN "Migration failed - stopping backend and retrying..."
     pm2 stop coop-backend 2>$null
     npx prisma migrate deploy 2>&1 | Out-Null
+    $migrateOk = ($LASTEXITCODE -eq 0)
     pm2 start coop-backend 2>$null
     pm2 save 2>$null
-    if ($LASTEXITCODE -ne 0) {
+    if (-not $migrateOk) {
         Write-ERR "Migration failed - check DB connection and schema"
         exit 1
     }

@@ -21,6 +21,9 @@ function mapPrefix(raw) {
 }
 
 // คอลัมน์ "ชื่อ-นามสกุล" เป็นช่องเดียว — แยกเป็น firstName/lastName โดยตัดที่เว้นวรรคแรก
+// (ถูกสำหรับชื่อไทย: ชื่อตัวคำเดียว + นามสกุลที่อาจมีหลายคำ — แต่ชื่อกลางภาษาอังกฤษ เช่น
+// "Mary Jane Smith" จะถูกตัดเป็น first="Mary", last="Jane Smith" ซึ่งไม่มีกฎตัดที่ถูกต้องกว่านี้
+// ได้โดยไม่มีข้อมูลเพิ่ม เพราะคอลัมน์ต้นทางรวมชื่อมาในช่องเดียว)
 function splitFullName(fullName) {
   const trimmed = (fullName || '').trim();
   if (!trimmed) return { firstName: '', lastName: '' };
@@ -63,7 +66,17 @@ exports.importStudents = async (req, res) => {
           select: { id: true, firstName: true, lastName: true },
         })
       : [];
-    const advisorMap = new Map(advisorTeachers.map(t => [`${t.firstName}|${t.lastName}`, t.id]));
+    // ถ้ามีอาจารย์ชื่อซ้ำกันหลายคน ห้ามเดาว่าเป็นคนไหน — ทำเครื่องหมายไว้ว่า "กำกวม" แทนการสุ่มเลือก
+    const advisorMap = new Map();
+    const advisorAmbiguous = new Set();
+    for (const t of advisorTeachers) {
+      const key = `${t.firstName}|${t.lastName}`;
+      if (advisorMap.has(key)) {
+        advisorAmbiguous.add(key);
+      } else {
+        advisorMap.set(key, t.id);
+      }
+    }
 
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
@@ -121,24 +134,38 @@ exports.importStudents = async (req, res) => {
           thisRowCountedAs = 'created';
         }
 
-        // 2. Resolve generalAdvisorId by matching advisor name against pre-fetched teachers
+        // 2. Resolve generalAdvisorId by matching advisor name against pre-fetched teachers.
+        // ไม่ได้กรอกชื่ออาจารย์ → null (ล้างค่า). กรอกชื่อแต่หาไม่เจอ/ชื่อซ้ำกันหลายคน →
+        // undefined (ไม่แก้ค่าเดิม — กันไม่ให้พิมพ์ชื่อผิด/เว้นวรรคต่างไปลบอาจารย์ที่ตั้งไว้แล้วโดยไม่ตั้งใจ)
         const advisorNameParts = splitFullName(advisorName);
-        const generalAdvisorId = advisorNameParts.firstName
-          ? (advisorMap.get(`${advisorNameParts.firstName}|${advisorNameParts.lastName}`) ?? null)
-          : null;
+        let generalAdvisorId;
+        if (!advisorNameParts.firstName) {
+          generalAdvisorId = null;
+        } else {
+          const advisorKey = `${advisorNameParts.firstName}|${advisorNameParts.lastName}`;
+          if (advisorAmbiguous.has(advisorKey)) {
+            generalAdvisorId = undefined;
+            errorRows.push({ row: i + 2, email, reason: `ชื่ออาจารย์ที่ปรึกษา "${advisorName}" ซ้ำกันหลายคนในระบบ — ไม่ได้แก้ไขอาจารย์ที่ปรึกษาเดิม` });
+          } else if (advisorMap.has(advisorKey)) {
+            generalAdvisorId = advisorMap.get(advisorKey);
+          } else {
+            generalAdvisorId = undefined;
+            errorRows.push({ row: i + 2, email, reason: `ไม่พบอาจารย์ที่ปรึกษา "${advisorName}" ในระบบ — ไม่ได้แก้ไขอาจารย์ที่ปรึกษาเดิม` });
+          }
+        }
 
-        // 3. Upsert Student (always include generalAdvisorId to allow clearing)
+        // 3. Upsert Student. generalAdvisorId: null = clear, undefined = leave existing value untouched (Prisma ignores undefined fields).
         await prisma.student.upsert({
           where: { studentId },
           update: {
             prefix, firstName, lastName, firstNameEn, lastNameEn,
             year, major, phone, email, gpa, advisorName, studyProgram,
-            generalAdvisorId,  // null = clear advisor; non-null = set advisor
+            generalAdvisorId,
           },
           create: {
             studentId, prefix, firstName, lastName, firstNameEn, lastNameEn,
             year, major, phone, email, gpa,
-            advisorName, generalAdvisorId, studyProgram,
+            advisorName, generalAdvisorId: generalAdvisorId ?? null, studyProgram,
             userId: user.id,
           },
         });

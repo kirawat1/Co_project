@@ -1,5 +1,12 @@
 # CHANGELOG — Co_project
 
+## [2026-06-22] Code review follow-up: advisor-matching safety + deploy script exit-code bug
+
+### Fixed
+- **Excel import advisor matching** (`studentImportController.js`): a typo or extra space in the advisor name column (e.g. missing academic title, double space) caused a silent no-match, which unconditionally wrote `generalAdvisorId: null` — wiping a previously-assigned advisor on re-import with no error reported. Now distinguishes "no advisor given" (clears the field) from "advisor given but unmatched" (leaves the existing value untouched, Prisma ignores `undefined` fields) and adds a non-fatal `errorRows` entry so it's visible via the API response.
+- **Duplicate teacher names**: if two teachers share the same first/last name, the code previously picked whichever `findMany` happened to return last, silently linking the wrong teacher. Now treats same-name collisions as ambiguous and refuses to guess, also surfaced via `errorRows`.
+- **`docs/deploy.ps1` retry blocks** (both the new `prisma generate` step and the pre-existing `prisma migrate deploy` step): `$LASTEXITCODE` was being overwritten by `pm2 start`/`pm2 save` running between the retried command and the success check, so the script was actually checking PM2's exit code, not the retried command's. Now captures the exit code into a dedicated variable immediately after each `npx` call.
+
 ## [2026-06-22] Set Express trust proxy for accurate rate-limit IPs
 
 ### Fixed
