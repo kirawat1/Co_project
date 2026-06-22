@@ -15,6 +15,7 @@ const prismaMock = {
     create: jest.fn(),
     upsert: jest.fn(),
     update: jest.fn(),
+    delete: jest.fn(),
   },
   teacher: {
     findUnique: jest.fn(),

@@ -58,6 +58,7 @@ model Student {
   apiSyncedAt  DateTime?
   advisorName  String? // ชื่ออาจารย์ที่ปรึกษา
   jobPosition  String? // ตำแหน่งงานที่สนใจ/สมัคร
+  deletedAt    DateTime? // null = active, set = soft-deleted (in trash)
 
   generalAdvisorId  Int?
   coopAdvisorId     Int?
@@ -156,7 +157,7 @@ model CoopPeriod {
 model CoopApplicationForm {
   id        Int     @id @default(autoincrement())
   studentId Int     @unique
-  student   Student @relation(fields: [studentId], references: [id])
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   // --- ข้อมูลที่อยู่ที่ติดต่อได้ ---
   contactAddress String? @db.Text
@@ -277,7 +278,7 @@ model Visit {
   note      String?
   status    String   @default("scheduled")
   studentId Int
-  student   Student  @relation(fields: [studentId], references: [id])
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
   teacherId Int
   teacher   Teacher  @relation(fields: [teacherId], references: [id])
   createdAt DateTime @default(now())
