@@ -216,6 +216,8 @@ export default function T_SupervisionReview() {
                 studentName: `${s.student.firstName} ${s.student.lastName}`,
                 type: s.supervisionType,
                 status: s.status,
+                companyName: s.student.coop?.company?.name,
+                onlineLink: s.onlineLink,
             })),
         [supervisions]
     );
