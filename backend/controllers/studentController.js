@@ -365,3 +365,68 @@ exports.syncFromReg = async (req, res) => {
   }
 };
 
+// DELETE /api/admin/students/:id — ย้ายนักศึกษาไปถังขยะ (soft delete)
+exports.softDeleteStudent = async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const student = await prisma.student.findUnique({ where: { id } });
+    if (!student) return res.status(404).json({ ok: false, message: "ไม่พบนักศึกษา" });
+    if (student.deletedAt) return res.status(404).json({ ok: false, message: "นักศึกษาอยู่ในถังขยะแล้ว" });
+
+    await prisma.student.update({ where: { id }, data: { deletedAt: new Date() } });
+    res.json({ ok: true, message: "ย้ายไปถังขยะเรียบร้อย" });
+  } catch (err) {
+    console.error("SOFT DELETE STUDENT ERROR:", err);
+    res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดที่ Server" });
+  }
+};
+
+// GET /api/admin/students/trash — รายชื่อนักศึกษาในถังขยะ
+exports.getTrashedStudents = async (req, res) => {
+  try {
+    const students = await prisma.student.findMany({
+      where: { deletedAt: { not: null } },
+      include: { user: { select: { email: true } } },
+      orderBy: { deletedAt: 'desc' },
+    });
+    res.json({ ok: true, data: students });
+  } catch (err) {
+    console.error("GET TRASHED STUDENTS ERROR:", err);
+    res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดที่ Server" });
+  }
+};
+
+// POST /api/admin/students/:id/restore — กู้คืนนักศึกษาจากถังขยะ
+exports.restoreStudent = async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const student = await prisma.student.findUnique({ where: { id } });
+    if (!student) return res.status(404).json({ ok: false, message: "ไม่พบนักศึกษา" });
+    if (!student.deletedAt) return res.status(404).json({ ok: false, message: "นักศึกษาไม่ได้อยู่ในถังขยะ" });
+
+    await prisma.student.update({ where: { id }, data: { deletedAt: null } });
+    res.json({ ok: true, message: "กู้คืนเรียบร้อย" });
+  } catch (err) {
+    console.error("RESTORE STUDENT ERROR:", err);
+    res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดที่ Server" });
+  }
+};
+
+// DELETE /api/admin/students/:id/permanent — ลบนักศึกษาถาวร (ต้องอยู่ในถังขยะก่อน)
+exports.permanentlyDeleteStudent = async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const student = await prisma.student.findUnique({ where: { id } });
+    if (!student) return res.status(404).json({ ok: false, message: "ไม่พบนักศึกษา" });
+    if (!student.deletedAt) {
+      return res.status(400).json({ ok: false, message: "ต้องย้ายไปถังขยะก่อนจึงจะลบถาวรได้" });
+    }
+
+    await prisma.student.delete({ where: { id } });
+    res.json({ ok: true, message: "ลบถาวรเรียบร้อย" });
+  } catch (err) {
+    console.error("PERMANENTLY DELETE STUDENT ERROR:", err);
+    res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดที่ Server" });
+  }
+};
+

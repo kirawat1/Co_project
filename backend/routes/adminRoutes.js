@@ -91,6 +91,12 @@ router.get('/students/majors', verifyToken, verifyRole(...ADMIN_ROLES), async (r
   }
 });
 
+// Students: Trash (soft delete / restore / permanent delete)
+router.delete('/students/:id', verifyToken, verifyRole(...ADMIN_ROLES), studentController.softDeleteStudent);
+router.get('/students/trash', verifyToken, verifyRole(...ADMIN_ROLES), studentController.getTrashedStudents);
+router.post('/students/:id/restore', verifyToken, verifyRole(...ADMIN_ROLES), studentController.restoreStudent);
+router.delete('/students/:id/permanent', verifyToken, verifyRole(...ADMIN_ROLES), studentController.permanentlyDeleteStudent);
+
 // Coop Applications
 router.get('/coop-applications', verifyToken, verifyRole(...ADMIN_ROLES), adminDocController.getCoopApplications);
 router.patch('/coop-applications/:id/status', verifyToken, verifyRole(...ADMIN_ROLES), adminDocController.updateCoopApplicationStatus);

@@ -671,7 +671,7 @@ exports.permanentlyDeleteStudent = async (req, res) => {
 - [ ] **Step 4: Run tests to verify they pass**
 
 Run: `cd backend && npx jest __tests__/studentController.test.js -v`
-Expected: all tests PASS (11 new tests added).
+Expected: all tests PASS (9 new tests added).
 
 - [ ] **Step 5: Wire the 4 routes**
 
@@ -688,7 +688,7 @@ router.delete('/students/:id/permanent', verifyToken, verifyRole(...ADMIN_ROLES)
 - [ ] **Step 6: Run the full backend suite**
 
 Run: `cd backend && npm test`
-Expected: all suites pass, total test count is 176 + 11 = 187.
+Expected: all suites pass, total test count is 176 + 9 = 185.
 
 - [ ] **Step 7: Commit**
 
@@ -887,7 +887,7 @@ router.put('/students/:id', verifyToken, verifyRole(...ADMIN_ROLES), studentCont
 - [ ] **Step 6: Run the full backend suite**
 
 Run: `cd backend && npm test`
-Expected: all suites pass, total test count is 187 + 5 = 192.
+Expected: all suites pass, total test count is 185 + 5 = 190.
 
 - [ ] **Step 7: Commit**
 
@@ -1462,7 +1462,7 @@ Staff previously had no way to correct mistaken Excel imports, duplicate enrollm
 - [ ] **Step 5: Run the full verification suite**
 
 Run: `cd backend && npm test`
-Expected: 192 tests pass (no change from Task 4 — this task is frontend + docs only).
+Expected: 190 tests pass (no change from Task 4 — this task is frontend + docs only).
 
 Run: `cd Frontend && npx tsc --noEmit -p tsconfig.json`
 Expected: no errors.

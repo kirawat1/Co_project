@@ -127,6 +127,140 @@ describe('getStudents', () => {
   });
 });
 
+const {
+  softDeleteStudent,
+  getTrashedStudents,
+  restoreStudent,
+  permanentlyDeleteStudent,
+} = require('../controllers/studentController');
+
+describe('softDeleteStudent', () => {
+  test('200 — ตั้ง deletedAt ให้นักศึกษาที่มีอยู่', async () => {
+    prisma.student.findUnique.mockResolvedValue({ id: 1, deletedAt: null });
+    prisma.student.update.mockResolvedValue({ id: 1 });
+
+    const req = { params: { id: '1' } };
+    const res = makeRes();
+
+    await softDeleteStudent(req, res);
+
+    expect(prisma.student.update).toHaveBeenCalledWith({
+      where: { id: 1 },
+      data: { deletedAt: expect.any(Date) },
+    });
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: true }));
+  });
+
+  test('404 — ไม่พบนักศึกษา', async () => {
+    prisma.student.findUnique.mockResolvedValue(null);
+
+    const req = { params: { id: '999' } };
+    const res = makeRes();
+
+    await softDeleteStudent(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(prisma.student.update).not.toHaveBeenCalled();
+  });
+
+  test('404 — อยู่ในถังขยะอยู่แล้ว', async () => {
+    prisma.student.findUnique.mockResolvedValue({ id: 1, deletedAt: new Date() });
+
+    const req = { params: { id: '1' } };
+    const res = makeRes();
+
+    await softDeleteStudent(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(prisma.student.update).not.toHaveBeenCalled();
+  });
+});
+
+describe('getTrashedStudents', () => {
+  test('200 — คืนรายชื่อที่ deletedAt ไม่เป็น null', async () => {
+    prisma.student.findMany.mockResolvedValue([{ id: 1, deletedAt: new Date() }]);
+
+    const req = {};
+    const res = makeRes();
+
+    await getTrashedStudents(req, res);
+
+    expect(prisma.student.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { deletedAt: { not: null } },
+    }));
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: true, data: expect.any(Array) }));
+  });
+});
+
+describe('restoreStudent', () => {
+  test('200 — ล้าง deletedAt', async () => {
+    prisma.student.findUnique.mockResolvedValue({ id: 1, deletedAt: new Date() });
+    prisma.student.update.mockResolvedValue({ id: 1, deletedAt: null });
+
+    const req = { params: { id: '1' } };
+    const res = makeRes();
+
+    await restoreStudent(req, res);
+
+    expect(prisma.student.update).toHaveBeenCalledWith({
+      where: { id: 1 },
+      data: { deletedAt: null },
+    });
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: true }));
+  });
+
+  test('404 — ไม่ได้อยู่ในถังขยะ', async () => {
+    prisma.student.findUnique.mockResolvedValue({ id: 1, deletedAt: null });
+
+    const req = { params: { id: '1' } };
+    const res = makeRes();
+
+    await restoreStudent(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(prisma.student.update).not.toHaveBeenCalled();
+  });
+});
+
+describe('permanentlyDeleteStudent', () => {
+  test('200 — ลบจริงเมื่ออยู่ในถังขยะแล้ว', async () => {
+    prisma.student.findUnique.mockResolvedValue({ id: 1, deletedAt: new Date() });
+    prisma.student.delete.mockResolvedValue({ id: 1 });
+
+    const req = { params: { id: '1' } };
+    const res = makeRes();
+
+    await permanentlyDeleteStudent(req, res);
+
+    expect(prisma.student.delete).toHaveBeenCalledWith({ where: { id: 1 } });
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: true }));
+  });
+
+  test('400 — ปฏิเสธถ้ายังไม่ได้ย้ายไปถังขยะ', async () => {
+    prisma.student.findUnique.mockResolvedValue({ id: 1, deletedAt: null });
+
+    const req = { params: { id: '1' } };
+    const res = makeRes();
+
+    await permanentlyDeleteStudent(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(prisma.student.delete).not.toHaveBeenCalled();
+  });
+
+  test('404 — ไม่พบนักศึกษา', async () => {
+    prisma.student.findUnique.mockResolvedValue(null);
+
+    const req = { params: { id: '999' } };
+    const res = makeRes();
+
+    await permanentlyDeleteStudent(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(prisma.student.delete).not.toHaveBeenCalled();
+  });
+});
+
 // =====================
 // getMyProfile
 // =====================
