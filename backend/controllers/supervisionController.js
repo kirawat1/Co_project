@@ -514,7 +514,12 @@ exports.getSupervisionCalendar = async (_req, res) => {
                 status: { in: ['DATE_CONFIRMED', 'LETTER_UPLOADED', 'COMPLETED'] }
             },
             include: {
-                student: { select: { studentId: true, firstName: true, lastName: true } }
+                student: {
+                    select: {
+                        studentId: true, firstName: true, lastName: true,
+                        coop: { select: { company: { select: { name: true } } } }
+                    }
+                }
             },
             orderBy: { confirmedDate: 'asc' }
         });
@@ -525,7 +530,9 @@ exports.getSupervisionCalendar = async (_req, res) => {
             studentId: a.student.studentId,
             studentName: `${a.student.firstName} ${a.student.lastName}`,
             type: a.supervisionType,
-            status: a.status
+            status: a.status,
+            companyName: a.student.coop?.company?.name ?? null,
+            onlineLink: a.onlineLink ?? null,
         }));
 
         res.json({ ok: true, events });

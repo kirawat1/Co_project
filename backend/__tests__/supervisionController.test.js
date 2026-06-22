@@ -310,14 +310,22 @@ describe('getSupervisionCalendar', () => {
         confirmedDate,
         supervisionType: 'ONSITE',
         status: 'DATE_CONFIRMED',
-        student: { studentId: 'CS001', firstName: 'ก', lastName: 'ข' },
+        onlineLink: null,
+        student: {
+          studentId: 'CS001', firstName: 'ก', lastName: 'ข',
+          coop: { company: { name: 'บริษัท เอบีซี จำกัด' } },
+        },
       },
       {
         id: 8,
         confirmedDate: new Date('2024-04-15'),
         supervisionType: 'ONLINE',
         status: 'LETTER_UPLOADED',
-        student: { studentId: 'CS002', firstName: 'จ', lastName: 'ฉ' },
+        onlineLink: 'https://meet.google.com/abc-defg',
+        student: {
+          studentId: 'CS002', firstName: 'จ', lastName: 'ฉ',
+          coop: null,
+        },
       },
     ];
     prisma.supervisionAppointment.findMany.mockResolvedValue(appointments);
@@ -335,6 +343,8 @@ describe('getSupervisionCalendar', () => {
           studentName: 'ก ข',
           type: 'ONSITE',
           status: 'DATE_CONFIRMED',
+          companyName: 'บริษัท เอบีซี จำกัด',
+          onlineLink: null,
         },
         {
           id: 8,
@@ -343,6 +353,8 @@ describe('getSupervisionCalendar', () => {
           studentName: 'จ ฉ',
           type: 'ONLINE',
           status: 'LETTER_UPLOADED',
+          companyName: null,
+          onlineLink: 'https://meet.google.com/abc-defg',
         },
       ],
     });
