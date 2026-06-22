@@ -3,6 +3,7 @@ import StatusBadge from "../components/StatusBadge";
 import StatusFilterChips, { STATUS_GROUPS } from "./StatusFilterChips";
 import { useDebounce } from "../hooks/useDebounce";
 import A_StudentEditModal from "./A_StudentEditModal";
+import A_StudentTrash from "./A_StudentTrash";
 
 /* =========================
    Types
@@ -144,6 +145,7 @@ export default function A_Students() {
 
   const [modalStudent, setModalStudent] = useState<StudentProfile | null>(null);
   const [editStudent, setEditStudent] = useState<StudentProfile | null>(null);
+  const [pageTab, setPageTab] = useState<"list" | "trash">("list");
   const [coopPeriods, setCoopPeriods] = useState<CoopPeriod[]>([]);
   const [selectedPeriodId, setSelectedPeriodId] = useState<string>("all");
   const [currentPage, setCurrentPage] = useState(1);
@@ -345,6 +347,23 @@ export default function A_Students() {
         )}
       </div>
 
+      <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
+        <button
+          style={pageTab === "list" ? saveBtn : ghostBtn}
+          onClick={() => setPageTab("list")}
+        >
+          รายชื่อนักศึกษา
+        </button>
+        <button
+          style={pageTab === "trash" ? saveBtn : ghostBtn}
+          onClick={() => setPageTab("trash")}
+        >
+          ถังขยะ
+        </button>
+      </div>
+
+      {pageTab === "list" && (
+        <>
       {/* ================= Filters ================= */}
       <section style={card}>
         <h2 style={{ marginBottom: 16, marginTop: 0 }}>ข้อมูลนักศึกษา</h2>
@@ -518,6 +537,9 @@ export default function A_Students() {
           </div>
         </div>
       )}
+        </>
+      )}
+      {pageTab === "trash" && <A_StudentTrash />}
 
       {/* ================= Modal ================= */}
       {modalStudent && (
