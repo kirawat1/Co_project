@@ -430,3 +430,54 @@ exports.permanentlyDeleteStudent = async (req, res) => {
   }
 };
 
+// PUT /api/admin/students/:id — แก้ไขข้อมูลพื้นฐานนักศึกษา (staff/teacher)
+exports.updateStudentBasicInfo = async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const {
+      prefix, firstName, lastName, firstNameEn, lastNameEn,
+      studentId, major, studyProgram, year, phone, email,
+      advisorName, jobPosition,
+    } = req.body;
+
+    const student = await prisma.student.findUnique({ where: { id }, include: { user: true } });
+    if (!student) return res.status(404).json({ ok: false, message: "ไม่พบนักศึกษา" });
+
+    if (email && email !== student.user.email) {
+      const conflict = await prisma.user.findFirst({
+        where: { email, NOT: { id: student.userId } },
+      });
+      if (conflict) {
+        return res.status(409).json({ ok: false, message: `อีเมล ${email} มีในระบบแล้ว` });
+      }
+    }
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const updatedStudent = await tx.student.update({
+        where: { id },
+        data: {
+          prefix, firstName, lastName, firstNameEn, lastNameEn,
+          studentId, major, studyProgram, year, phone,
+          advisorName, jobPosition,
+        },
+      });
+      if (email && email !== student.user.email) {
+        await tx.user.update({ where: { id: student.userId }, data: { email } });
+      }
+      return updatedStudent;
+    });
+
+    res.json({ ok: true, data: updated });
+  } catch (err) {
+    if (err.code === 'P2002') {
+      const target = err.meta?.target;
+      if (typeof target === 'string' && target.includes('studentId')) {
+        return res.status(400).json({ ok: false, message: "รหัสนักศึกษานี้มีอยู่ในระบบแล้ว (ซ้ำกับบัญชีอื่น)" });
+      }
+      return res.status(400).json({ ok: false, message: "ข้อมูลบางอย่างซ้ำกับในระบบ" });
+    }
+    console.error("UPDATE STUDENT BASIC INFO ERROR:", err);
+    res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดที่ Server" });
+  }
+};
+

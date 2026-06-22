@@ -261,6 +261,100 @@ describe('permanentlyDeleteStudent', () => {
   });
 });
 
+const { updateStudentBasicInfo } = require('../controllers/studentController');
+
+describe('updateStudentBasicInfo', () => {
+  test('200 — แก้ไขข้อมูลพื้นฐาน ไม่แก้ email', async () => {
+    prisma.student.findUnique.mockResolvedValue({
+      id: 1, userId: 10, user: { email: 'old@kkumail.com' },
+    });
+    prisma.$transaction.mockImplementation((fn) => fn(prisma));
+    prisma.student.update.mockResolvedValue({ id: 1, firstName: 'ใหม่' });
+
+    const req = {
+      params: { id: '1' },
+      body: { firstName: 'ใหม่', lastName: 'สกุล', studentId: 'u640099' },
+    };
+    const res = makeRes();
+
+    await updateStudentBasicInfo(req, res);
+
+    expect(prisma.student.update).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: 1 },
+      data: expect.objectContaining({ firstName: 'ใหม่', lastName: 'สกุล', studentId: 'u640099' }),
+    }));
+    expect(prisma.user.update).not.toHaveBeenCalled();
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: true }));
+  });
+
+  test('200 — แก้ email ด้วย → อัปเดต User.email ด้วย', async () => {
+    prisma.student.findUnique.mockResolvedValue({
+      id: 1, userId: 10, user: { email: 'old@kkumail.com' },
+    });
+    prisma.user.findFirst.mockResolvedValue(null); // ไม่ชนกับใคร
+    prisma.$transaction.mockImplementation((fn) => fn(prisma));
+    prisma.student.update.mockResolvedValue({ id: 1 });
+    prisma.user.update.mockResolvedValue({ id: 10, email: 'new@kkumail.com' });
+
+    const req = {
+      params: { id: '1' },
+      body: { firstName: 'ก', lastName: 'ข', email: 'new@kkumail.com' },
+    };
+    const res = makeRes();
+
+    await updateStudentBasicInfo(req, res);
+
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: 10 },
+      data: { email: 'new@kkumail.com' },
+    });
+  });
+
+  test('409 — email ใหม่ชนกับ user อื่น', async () => {
+    prisma.student.findUnique.mockResolvedValue({
+      id: 1, userId: 10, user: { email: 'old@kkumail.com' },
+    });
+    prisma.user.findFirst.mockResolvedValue({ id: 99 });
+
+    const req = {
+      params: { id: '1' },
+      body: { firstName: 'ก', lastName: 'ข', email: 'taken@kkumail.com' },
+    };
+    const res = makeRes();
+
+    await updateStudentBasicInfo(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(prisma.student.update).not.toHaveBeenCalled();
+  });
+
+  test('404 — ไม่พบนักศึกษา', async () => {
+    prisma.student.findUnique.mockResolvedValue(null);
+
+    const req = { params: { id: '999' }, body: { firstName: 'ก' } };
+    const res = makeRes();
+
+    await updateStudentBasicInfo(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(404);
+  });
+
+  test('400 — studentId ซ้ำ (P2002)', async () => {
+    prisma.student.findUnique.mockResolvedValue({
+      id: 1, userId: 10, user: { email: 'old@kkumail.com' },
+    });
+    const p2002 = Object.assign(new Error('unique'), { code: 'P2002', meta: { target: 'studentId' } });
+    prisma.$transaction.mockRejectedValue(p2002);
+
+    const req = { params: { id: '1' }, body: { firstName: 'ก', studentId: 'u640001' } };
+    const res = makeRes();
+
+    await updateStudentBasicInfo(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+  });
+});
+
 // =====================
 // getMyProfile
 // =====================
