@@ -154,7 +154,17 @@ exports.importStudents = async (req, res) => {
           }
         }
 
-        // 3. Upsert Student. generalAdvisorId: null = clear, undefined = leave existing value untouched (Prisma ignores undefined fields).
+        // 3. ถ้า studentId นี้ถูก soft-delete (อยู่ในถังขยะ) อยู่ ห้ามอัปเดตทับเงียบๆ —
+        // จะทำให้ข้อมูลถูกแก้แต่ยังหายไปจากรายชื่อหลัก (deletedAt ไม่ถูกล้าง) staff ต้องกู้คืนจากถังขยะก่อน
+        const existingStudent = await prisma.student.findUnique({
+          where: { studentId },
+          select: { deletedAt: true },
+        });
+        if (existingStudent?.deletedAt) {
+          throw new Error(`นักศึกษารหัส ${studentId} อยู่ในถังขยะ — กรุณากู้คืนก่อนนำเข้าข้อมูลใหม่`);
+        }
+
+        // 4. Upsert Student. generalAdvisorId: null = clear, undefined = leave existing value untouched (Prisma ignores undefined fields).
         await prisma.student.upsert({
           where: { studentId },
           update: {

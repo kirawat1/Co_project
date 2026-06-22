@@ -104,6 +104,27 @@ describe('signIn', () => {
     expect(decoded.id).toBe(1);
   });
 
+  test('200 — login สำเร็จแม้กรอก email ตัวพิมพ์ใหญ่ผสม (lowercase ก่อนค้นหา)', async () => {
+    const hashed = await bcrypt.hash('secret', 10);
+    prisma.user.findFirst.mockResolvedValue({
+      id: 1,
+      email: 'student@kku.ac.th',
+      role: 'student',
+      password: hashed,
+      student: { studentId: 'u640001', firstName: 'ทดสอบ', lastName: 'ระบบ' },
+    });
+
+    const req = { body: { email: 'Student@KKU.ac.th', password: 'secret', role: 'student' } };
+    const res = makeRes();
+
+    await signIn(req, res);
+
+    expect(prisma.user.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+      where: { email: 'student@kku.ac.th', role: 'student' },
+    }));
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: true }));
+  });
+
   test('ไม่ส่ง password กลับไปใน response', async () => {
     const hashed = await bcrypt.hash('secret', 10);
     prisma.user.findFirst.mockResolvedValue({

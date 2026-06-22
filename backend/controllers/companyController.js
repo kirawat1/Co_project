@@ -3,11 +3,16 @@ const prisma = require('../config/prismaClient');
 
 // ---------------- Company ----------------
 exports.getCompanies = async (req, res) => {
-  const companies = await prisma.company.findMany({
-    include: { mentors: true },
-    orderBy: { id: 'desc' } // (แถม) เรียงจากบริษัทล่าสุดขึ้นก่อน
-  });
-  res.json(companies);
+  try {
+    const companies = await prisma.company.findMany({
+      include: { mentors: true },
+      orderBy: { id: 'desc' } // (แถม) เรียงจากบริษัทล่าสุดขึ้นก่อน
+    });
+    res.json(companies);
+  } catch (err) {
+    console.error("Get Companies Error:", err);
+    res.status(500).json({ ok: false, message: "ดึงข้อมูลบริษัทไม่สำเร็จ" });
+  }
 };
 
 exports.addCompany = async (req, res) => {
@@ -130,17 +135,29 @@ exports.deleteCompany = async (req, res) => {
   }
 };
 // ---------------- Mentor ----------------
+// เช็คสิทธิ์แบบเดียวกับ company: staff/admin หรือเจ้าของบริษัทที่ mentor ผูกอยู่เท่านั้น
+async function isStaffOrCompanyOwner(currentUserId, companyId) {
+  const currentUser = await prisma.user.findUnique({ where: { id: Number(currentUserId) } });
+  if (currentUser && (currentUser.role === "staff" || currentUser.role === "admin")) return true;
+  const company = await prisma.company.findUnique({ where: { id: companyId } });
+  return !!company && company.createdById === Number(currentUserId);
+}
+
 exports.addMentor = async (req, res) => {
   try {
     const { firstName, lastName, department, position, email, phone } = req.body;
-    const userId = req.user.id; 
+    const userId = req.user.id;
     const companyId = req.params.companyId;
+
+    if (!(await isStaffOrCompanyOwner(userId, companyId))) {
+      return res.status(403).json({ ok: false, message: "ไม่มีสิทธิ์เพิ่มพี่เลี้ยงของบริษัทนี้" });
+    }
 
     const mentor = await prisma.mentor.create({
       data: {
         firstName, lastName, department, position, email, phone,
-        company: { connect: { id: companyId } }, 
-        createdBy: { connect: { id: userId } }, 
+        company: { connect: { id: companyId } },
+        createdBy: { connect: { id: userId } },
       },
     });
 
@@ -155,6 +172,13 @@ exports.updateMentor = async (req, res) => {
   try {
     const { id } = req.params;
     const { firstName, lastName, department, position, email, phone } = req.body;
+    const currentUserId = req.userId || (req.user && req.user.id);
+
+    const mentor = await prisma.mentor.findUnique({ where: { id: String(id) } });
+    if (!mentor) return res.status(404).json({ ok: false, message: "ไม่พบพี่เลี้ยง" });
+    if (!(await isStaffOrCompanyOwner(currentUserId, mentor.companyId))) {
+      return res.status(403).json({ ok: false, message: "ไม่มีสิทธิ์แก้ไขพี่เลี้ยงคนนี้" });
+    }
 
     const updatedMentor = await prisma.mentor.update({
       where: { id: String(id) }, // เปลี่ยนเป็น Number(id) ถ้า id ใน schema เป็น Int
@@ -170,6 +194,13 @@ exports.updateMentor = async (req, res) => {
 
 exports.deleteMentor = async (req, res) => {
   try {
+    const currentUserId = req.userId || (req.user && req.user.id);
+    const mentor = await prisma.mentor.findUnique({ where: { id: req.params.id } });
+    if (!mentor) return res.status(404).json({ ok: false, message: "ไม่พบพี่เลี้ยง" });
+    if (!(await isStaffOrCompanyOwner(currentUserId, mentor.companyId))) {
+      return res.status(403).json({ ok: false, message: "ไม่มีสิทธิ์ลบพี่เลี้ยงคนนี้" });
+    }
+
     await prisma.mentor.delete({
         where: { id: req.params.id }
     });

@@ -35,12 +35,14 @@ const mapPrefix = (prefix) => {
 // ==========================================
 exports.signIn = async (req, res) => {
   try {
-    const { email, password, role } = req.body;
-    
+    const { email: rawEmail, password, role } = req.body;
 
-    if (!email || !password || !role) {
+    if (!rawEmail || !password || !role) {
       return res.status(400).json({ ok: false, message: "กรุณากรอกข้อมูลให้ครบ" });
     }
+
+    // lowercase ให้ตรงกับ registerStudent/loginWithKKU ที่เก็บ email เป็น lowercase เสมอ
+    const email = rawEmail.trim().toLowerCase();
 
     const allowedRoles = ["student", "teacher", "staff"];
     if (!allowedRoles.includes(role)) {

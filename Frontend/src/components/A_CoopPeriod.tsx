@@ -68,11 +68,16 @@ export default function A_CoopPeriod() {
             endDate
         };
 
+        const token = localStorage.getItem("coop.token");
         try {
             if (editingId) {
-                await axios.put(`/api/admin/coop-periods/${editingId}`, payload);
+                await axios.put(`/api/admin/coop-periods/${editingId}`, payload, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
             } else {
-                await axios.post("/api/admin/coop-periods", payload);
+                await axios.post("/api/admin/coop-periods", payload, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
             }
             setModalOpen(false);
             fetchPeriods();
@@ -96,9 +101,12 @@ export default function A_CoopPeriod() {
             if (!confirm(`ต้องการปิดการรับสมัครรอบนี้ใช่หรือไม่?`)) return;
         }
 
+        const token = localStorage.getItem("coop.token");
         try {
             await axios.patch(`/api/admin/coop-periods/${id}/toggle`, {
                 isActive: !currentStatus
+            }, {
+                headers: { Authorization: `Bearer ${token}` }
             });
             fetchPeriods();
         } catch (err) {
@@ -109,8 +117,11 @@ export default function A_CoopPeriod() {
 
     const remove = async (id: number) => {
         if (!confirm("ลบรอบการรับสมัครนี้? (คำเตือน: หากมีนักศึกษาอยู่ในรอบนี้อาจเกิดปัญหา)")) return;
+        const token = localStorage.getItem("coop.token");
         try {
-            await axios.delete(`/api/admin/coop-periods/${id}`);
+            await axios.delete(`/api/admin/coop-periods/${id}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
             fetchPeriods();
         } catch (err) {
             console.error(err);

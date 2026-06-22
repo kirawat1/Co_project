@@ -225,21 +225,35 @@ export default function A_DocT000() {
         if (!selectedStudent) return;
         if (!confirm("ยืนยัน 'อนุมัติทั้งหมด' ?")) return;
 
+        const studentId = selectedStudent.id;
+        const previousDocuments = selectedStudent.documents;
+        const previousDocStatus = selectedStudent.docStatus;
+        const previousComment = adminComment;
+
         const allApprovedDocs = selectedStudent.documents?.map(d => ({ ...d, status: "APPROVED" as const })) || [];
-        updateStudentState(selectedStudent.id, {
+        updateStudentState(studentId, {
             documents: allApprovedDocs,
             docStatus: "DOCS_APPROVED"
         });
         setAdminComment("เอกสารครบถ้วน (รอออกหนังสือ)");
 
         try {
-            await fetch(`/api/admin/t000/approve-all`, {
+            const res = await fetch(`/api/admin/t000/approve-all`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-                body: JSON.stringify({ studentId: selectedStudent.id })
+                body: JSON.stringify({ studentId })
             });
+            if (!res.ok) throw new Error("approve-all failed");
             fetchAllData();
-        } catch (err) { console.error("Error", err); }
+        } catch (err) {
+            console.error("Error", err);
+            updateStudentState(studentId, {
+                documents: previousDocuments,
+                docStatus: previousDocStatus
+            });
+            setAdminComment(previousComment);
+            alert("❌ อนุมัติทั้งหมดไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+        }
     };
 
     const handleSubmitReview = async (status: string, autoComment = "") => {

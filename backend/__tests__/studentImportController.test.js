@@ -214,4 +214,26 @@ describe('importStudents', () => {
       create: expect.objectContaining({ firstName: 'เดี่ยว', lastName: '' }),
     }));
   });
+
+  test('200 – studentId อยู่ในถังขยะ (soft-deleted) → ไม่อัปเดตทับ ขึ้น error แทน', async () => {
+    mockSheet([{
+      'รหัสนักศึกษา': '645040005-1',
+      'ชื่อ-นามสกุล (ภาษาไทย)': 'ถูกลบ ไปแล้ว',
+      'อีเมล': 'stu5@kkumail.com',
+    }]);
+
+    prisma.user.findFirst.mockResolvedValue(null);
+    prisma.student.findUnique.mockResolvedValue({ deletedAt: new Date('2026-01-01') });
+    prisma.teacher.findMany.mockResolvedValue([]);
+
+    const req = { file: { buffer: Buffer.from('fake') } };
+    const res = makeRes();
+    await importStudents(req, res);
+
+    expect(prisma.student.upsert).not.toHaveBeenCalled();
+    const body = res.json.mock.calls[0][0];
+    expect(body.summary.errors).toBe(1);
+    expect(body.summary.created).toBe(0);
+    expect(body.errorRows[0].reason).toMatch(/ถังขยะ/);
+  });
 });

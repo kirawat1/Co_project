@@ -37,11 +37,16 @@ export default function A_DocRequirements() {
 
     const saveRequirement = async (e: React.FormEvent) => {
         e.preventDefault();
+        const token = localStorage.getItem("coop.token");
         try {
             if (form.id) {
-                await axios.put(`/api/admin/doc-requirements/${form.id}`, form);
+                await axios.put(`/api/admin/doc-requirements/${form.id}`, form, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
             } else {
-                await axios.post("/api/admin/doc-requirements", form);
+                await axios.post("/api/admin/doc-requirements", form, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
             }
             alert("บันทึกข้อมูลเรียบร้อย");
             setModalOpen(false);
@@ -53,8 +58,11 @@ export default function A_DocRequirements() {
 
     const removeRequirement = async (id: number, title: string) => {
         if (!confirm(`⚠️ ยืนยันการลบหัวข้อเอกสาร "${title}"?\n(ไฟล์ที่นักศึกษาเคยอัปโหลดในหัวข้อนี้จะยังอยู่ในระบบ แต่จะไม่แสดงในหน้าจออัปโหลดอีก)`)) return;
+        const token = localStorage.getItem("coop.token");
         try {
-            await axios.delete(`/api/admin/doc-requirements/${id}`);
+            await axios.delete(`/api/admin/doc-requirements/${id}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
             fetchReqs();
         } catch (err) {
             alert("ลบไม่สำเร็จ");

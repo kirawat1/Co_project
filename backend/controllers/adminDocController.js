@@ -260,7 +260,8 @@ exports.getCoopApplications = async (req, res) => {
   try {
     const applications = await prisma.studentCoop.findMany({
       where: {
-        status: { notIn: ["NOT_SUBMITTED"] } 
+        status: { notIn: ["NOT_SUBMITTED"] },
+        student: { deletedAt: null },
       },
       include: {
         student: {
@@ -307,9 +308,19 @@ exports.getAllStudentsForReview = async (req, res) => {
             ? parseInt(req.query.coopPeriodId, 10)
             : undefined;
         const search = (req.query.search || "").trim();
+        const status = (req.query.status || "").trim();
+
+        const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+        // ไม่ระบุ limit มา = ขอข้อมูลทั้งหมด (หลาย caller เดิมพึ่งพา behavior นี้ไปกรองฝั่ง client เอง)
+        // จำกัดเพดานไว้กันโควต query มหาศาลเกินจำเป็น ไม่ใช่ default แบบหน้าเดียว 500 ที่ตัดข้อมูลทิ้งเงียบๆ
+        const limit = req.query.limit
+            ? Math.min(1000, Math.max(1, parseInt(req.query.limit, 10) || 500))
+            : 1000;
+        const skip = (page - 1) * limit;
 
         const conditions = [{ deletedAt: null }];
         if (coopPeriodId) conditions.push({ coop: { coopPeriodId } });
+        if (status) conditions.push({ coop: { status } });
         if (search) {
             conditions.push({
                 OR: [
@@ -321,20 +332,24 @@ exports.getAllStudentsForReview = async (req, res) => {
         }
         const where = { AND: conditions };
 
-        const students = await prisma.student.findMany({
-            where,
-            take: 500,
-            include: {
-                coop: {
-                    include: {
-                        company: true
-                    }
-                },
-                documents: true
-            }
-        });
+        const [students, total] = await Promise.all([
+            prisma.student.findMany({
+                where,
+                skip,
+                take: limit,
+                include: {
+                    coop: {
+                        include: {
+                            company: true
+                        }
+                    },
+                    documents: true
+                }
+            }),
+            prisma.student.count({ where }),
+        ]);
 
-        res.json({ ok: true, data: students });
+        res.json({ ok: true, data: students, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } });
     } catch (err) {
         console.error("Get All Students Error:", err);
         res.status(500).json({ ok: false, message: "ไม่สามารถดึงข้อมูลนักศึกษาได้" });

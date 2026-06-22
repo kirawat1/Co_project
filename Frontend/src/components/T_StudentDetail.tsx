@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import StatusBadge from "../components/StatusBadge";
+import { apiFetch } from "../utils/apiFetch";
 
 /* =========================
    Types
@@ -111,24 +112,27 @@ export default function T_StudentDetail() {
   };
 
   // --- Fetch Data ---
-  const fetchData = async () => {
+  // isStale: เช็คก่อน setState ทุกครั้ง กัน response เก่า (จาก studentId ก่อนหน้า) มาทับ state ของ studentId ปัจจุบัน
+  const fetchData = async (isStale: () => boolean = () => false) => {
     try {
       setLoading(true);
-      const resStd = await fetch("/api/students", {
+      const resStd = await apiFetch("/api/students", {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (resStd.ok) {
         const raw = await resStd.json();
+        if (isStale()) return;
         const allData: StudentProfile[] = Array.isArray(raw) ? raw : (raw?.data ?? []);
         const found = allData.find(s => s.studentId === studentId);
         setStudent(found || null);
       }
 
-      const resVisit = await fetch(`/api/visits/student/${studentId}`, {
+      const resVisit = await apiFetch(`/api/visits/student/${studentId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (resVisit.ok) {
         const dataVisit = await resVisit.json();
+        if (isStale()) return;
         const mapped = dataVisit.map((v: any) => ({
           ...v,
           date: v.date.split('T')[0]
@@ -138,21 +142,23 @@ export default function T_StudentDetail() {
     } catch (err) {
       console.error(err);
     } finally {
-      setLoading(false);
+      if (!isStale()) setLoading(false);
     }
   };
 
   useEffect(() => {
+    let stale = false;
     if (studentId && token) {
-      fetchData();
+      fetchData(() => stale);
     }
+    return () => { stale = true; };
   }, [studentId, token]);
 
   // --- Actions (Visits) ---
   const addVisit = async () => {
     if (!visitForm.date) return alert("กรุณาเลือกวันที่");
     try {
-      const res = await fetch("/api/visits", {
+      const res = await apiFetch("/api/visits", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ studentId: studentId, ...visitForm }),
@@ -167,7 +173,7 @@ export default function T_StudentDetail() {
 
   const toggleDone = async (id: number) => {
     try {
-      const res = await fetch(`/api/visits/${id}/toggle`, {
+      const res = await apiFetch(`/api/visits/${id}/toggle`, {
         method: "PUT",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -178,7 +184,7 @@ export default function T_StudentDetail() {
   const removeVisit = async (id: number) => {
     if (!confirm("ยืนยันลบรายการนี้?")) return;
     try {
-      const res = await fetch(`/api/visits/${id}`, {
+      const res = await apiFetch(`/api/visits/${id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });

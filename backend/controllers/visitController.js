@@ -44,6 +44,14 @@ exports.createVisit = async (req, res) => {
 
     if (!teacher) return res.status(404).json({ message: "Teacher profile not found" });
 
+    // กันนัดซ้ำ: อาจารย์คนเดียวกัน นัดวันเดียวกันกับนักศึกษาคนเดียวกันซ้ำ
+    const conflict = await prisma.visit.findFirst({
+      where: { teacherId: teacher.id, studentId: student.id, date: new Date(date) },
+    });
+    if (conflict) {
+      return res.status(409).json({ message: "มีนัดหมายของนักศึกษาคนนี้ในวันนี้อยู่แล้ว" });
+    }
+
     const newVisit = await prisma.visit.create({
       data: {
         date: new Date(date),
@@ -63,6 +71,12 @@ exports.createVisit = async (req, res) => {
   }
 };
 
+// เช็คว่าอาจารย์ที่เรียก (req.user.id) เป็นเจ้าของนัดหมายนี้จริง
+async function isOwnerOfVisit(userId, visit) {
+  const teacher = await prisma.teacher.findUnique({ where: { userId } });
+  return !!teacher && teacher.id === visit.teacherId;
+}
+
 // อัปเดตสถานะ (Toggle Done)
 exports.toggleVisitStatus = async (req, res) => {
   try {
@@ -70,6 +84,9 @@ exports.toggleVisitStatus = async (req, res) => {
     const visit = await prisma.visit.findUnique({ where: { id: parseInt(id) } });
 
     if (!visit) return res.status(404).json({ message: "Visit not found" });
+    if (!(await isOwnerOfVisit(req.user.id, visit))) {
+      return res.status(403).json({ message: "ไม่มีสิทธิ์แก้ไขนัดหมายของอาจารย์ท่านอื่น" });
+    }
 
     const newStatus = visit.status === "scheduled" ? "done" : "scheduled";
 
@@ -88,6 +105,12 @@ exports.toggleVisitStatus = async (req, res) => {
 exports.deleteVisit = async (req, res) => {
   try {
     const { id } = req.params;
+    const visit = await prisma.visit.findUnique({ where: { id: parseInt(id) } });
+    if (!visit) return res.status(404).json({ message: "Visit not found" });
+    if (!(await isOwnerOfVisit(req.user.id, visit))) {
+      return res.status(403).json({ message: "ไม่มีสิทธิ์ลบนัดหมายของอาจารย์ท่านอื่น" });
+    }
+
     await prisma.visit.delete({ where: { id: parseInt(id) } });
     res.json({ message: "Deleted successfully" });
   } catch (err) {

@@ -3,6 +3,7 @@ import { createT002PDF } from "../utils/pdfGeneratorT002";
 import StatusBadge from "./StatusBadge";
 import CountdownTimer from "../components/CountdownTimer"; // ✅ Import มาแล้ว
 import AutoTextarea from "./AutoTextarea";
+import { apiFetch } from "../utils/apiFetch";
 
 interface Props {
     profile: any;
@@ -90,7 +91,7 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
         const loadConfig = async () => {
             try {
                 const token = localStorage.getItem("coop.token");
-                const res = await fetch("/api/admin/config/t002", {
+                const res = await apiFetch("/api/admin/config/t002", {
                     headers: { Authorization: `Bearer ${token}` }
                 });
                 if (res.ok) {
@@ -177,7 +178,7 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
             uploadData.append("docType", "T002_FORM");
 
             const token = localStorage.getItem("coop.token");
-            const res = await fetch("/api/docs/upload", {
+            const res = await apiFetch("/api/docs/upload", {
                 method: "POST",
                 headers: { Authorization: `Bearer ${token}` },
                 body: uploadData

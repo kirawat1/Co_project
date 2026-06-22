@@ -13,8 +13,10 @@ router.get('/my-students', verifyToken, teacherController.getMyStudents);
 router.get('/students/export', verifyToken, teacherController.exportMyStudents);
 
 // --- Route สำหรับ Admin จัดการอาจารย์ ---
-router.get("/", verifyToken, teacherController.getAllTeachers); 
-router.put("/:id", verifyToken, teacherController.updateTeacherById);
+// GET / เปิดให้ทุก role ดึงได้ตั้งใจ (นักศึกษาใช้เลือกอาจารย์ที่ปรึกษาในหน้าโปรไฟล์)
+router.get("/", verifyToken, teacherController.getAllTeachers);
+// PUT /:id แก้ข้อมูลอาจารย์คนอื่น — staff เท่านั้น
+router.put("/:id", verifyToken, verifyRole('admin', 'staff'), teacherController.updateTeacherById);
 
 // --- Config Routes ---
 router.get('/config/t002', verifyToken, configController.getT002Config);

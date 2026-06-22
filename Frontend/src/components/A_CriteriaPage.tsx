@@ -29,9 +29,12 @@ export default function A_CriteriaPage() {
             return alert("สาขานี้มีอยู่ในระบบแล้ว!");
         }
 
+        const token = localStorage.getItem("coop.token");
         try {
             await axios.post("/api/admin/criteria", {
                 major: newMajorName.trim().toUpperCase(), // แนะนำให้เก็บเป็นตัวพิมพ์ใหญ่ (เช่น CS, IT)
+            }, {
+                headers: { Authorization: `Bearer ${token}` }
             });
             setAddMajorModalOpen(false);
             setNewMajorName("");
@@ -41,8 +44,11 @@ export default function A_CriteriaPage() {
 
     const handleRemoveMajor = async (id: string, majorName: string) => {
         if (!confirm(`⚠️ ยืนยันการลบสาขา ${majorName}?`)) return;
+        const token = localStorage.getItem("coop.token");
         try {
-            await axios.delete(`/api/admin/criteria/${id}`);
+            await axios.delete(`/api/admin/criteria/${id}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
             fetchCriteria();
         } catch (err) { alert("ลบไม่สำเร็จ"); }
     };
