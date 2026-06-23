@@ -444,7 +444,7 @@ exports.updateStudentBasicInfo = async (req, res) => {
     const {
       prefix, firstName, lastName, firstNameEn, lastNameEn,
       studentId, major, studyProgram, year, phone, email,
-      advisorName, jobPosition,
+      jobPosition, generalAdvisorId, coopAdvisorId,
     } = req.body;
 
     const student = await prisma.student.findUnique({ where: { id }, include: { user: true } });
@@ -459,13 +459,42 @@ exports.updateStudentBasicInfo = async (req, res) => {
       }
     }
 
+    const advisorData = {};
+    // generalAdvisorId/coopAdvisorId เป็น FK จริงที่ทั้งระบบใช้ (dashboard, advisee list, นัดนิเทศ) —
+    // advisorName เป็นแค่ข้อความที่ derive มาจาก generalAdvisorId เสมอ ห้ามรับ advisorName ดิบๆ
+    // จาก client แยกต่างหาก เพราะจะทำให้ข้อความกับ FK ไม่ตรงกัน (สาเหตุของบั๊กเดิมที่แก้ไม่ได้จริง)
+    if (generalAdvisorId !== undefined) {
+      if (!generalAdvisorId) {
+        advisorData.generalAdvisorId = null;
+        advisorData.advisorName = null;
+      } else {
+        const advisor = await prisma.teacher.findUnique({ where: { id: Number(generalAdvisorId) } });
+        if (!advisor) return res.status(400).json({ ok: false, message: "ไม่พบอาจารย์ที่ปรึกษาปกติที่เลือก" });
+        advisorData.generalAdvisorId = advisor.id;
+        advisorData.advisorName = `${advisor.firstName} ${advisor.lastName}`.trim();
+      }
+    }
+    if (coopAdvisorId !== undefined) {
+      if (!coopAdvisorId) {
+        advisorData.coopAdvisorId = null;
+      } else {
+        const advisor = await prisma.teacher.findUnique({ where: { id: Number(coopAdvisorId) } });
+        if (!advisor) return res.status(400).json({ ok: false, message: "ไม่พบอาจารย์ที่ปรึกษาโครงการที่เลือก" });
+        advisorData.coopAdvisorId = advisor.id;
+      }
+    }
+
     const updated = await prisma.$transaction(async (tx) => {
       const updatedStudent = await tx.student.update({
         where: { id },
         data: {
-          prefix, firstName, lastName, firstNameEn, lastNameEn,
-          studentId, major, studyProgram, year, phone,
-          advisorName, jobPosition,
+          // prefix/studyProgram เป็น enum — ค่า '' (ยังไม่เลือก) ต้องแปลงเป็น null ไม่งั้น Prisma ปฏิเสธ
+          prefix: prefix === '' ? null : prefix,
+          firstName, lastName, firstNameEn, lastNameEn,
+          studentId, major,
+          studyProgram: studyProgram === '' ? null : studyProgram,
+          year, phone,
+          jobPosition, ...advisorData,
         },
       });
       if (email && email !== student.user.email) {

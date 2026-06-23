@@ -60,6 +60,10 @@ export interface StudentProfile {
   gpa?: number;
   phone?: string;
   advisorName?: string;
+  generalAdvisorId?: number | null;
+  coopAdvisorId?: number | null;
+  generalAdvisor?: { id: number; firstName: string; lastName: string } | null;
+  coopAdvisor?: { id: number; firstName: string; lastName: string } | null;
   jobPosition?: string;
   user?: { email: string };
   nationality?: string;
@@ -156,6 +160,7 @@ export default function A_Students() {
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importLoading, setImportLoading] = useState(false);
   const [importResult, setImportResult] = useState<{ total: number; created: number; updated: number; errors: number } | null>(null);
+  const [importWarnings, setImportWarnings] = useState<{ row: number; email: string; reason: string }[]>([]);
 
   // --- Fetch Data ---
   const fetchStudents = async (periodId: string, page = 1, search = "") => {
@@ -281,6 +286,7 @@ export default function A_Students() {
       const data = await res.json();
       if (data.ok) {
         setImportResult(data.summary);
+        setImportWarnings(data.errorRows || []);
         setImportFile(null);
         fetchStudents(selectedPeriodId, currentPage, debouncedQ);
       } else {
@@ -346,6 +352,14 @@ export default function A_Students() {
           </span>
         )}
       </div>
+      {importWarnings.length > 0 && (
+        <div style={{ marginTop: 8, padding: 12, background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 8, maxHeight: 160, overflowY: "auto" }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "#92400e", marginBottom: 6 }}>⚠️ คำเตือนระหว่างนำเข้า ({importWarnings.length} แถว) — ข้อมูลแถวเหล่านี้ยังถูกนำเข้า แต่ควรตรวจสอบ:</div>
+          {importWarnings.map((w, idx) => (
+            <div key={idx} style={{ fontSize: 12, color: "#92400e" }}>แถว {w.row} ({w.email}): {w.reason}</div>
+          ))}
+        </div>
+      )}
 
       <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
         <button

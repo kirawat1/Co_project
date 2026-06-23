@@ -1,5 +1,16 @@
 # CHANGELOG — Co_project
 
+## [2026-06-23] Fix advisor fields not editable in admin student edit modal; normalize Excel-imported major names
+
+### Fixed
+- `Frontend/src/components/A_StudentEditModal.tsx`: "อาจารย์ที่ปรึกษาปกติ" only edited the denormalized `advisorName` text field, never the real `generalAdvisorId` FK that the rest of the system (dashboard counts, advisee lists, supervision data) actually relies on — so changes appeared to save but had no effect anywhere else. Replaced both advisor fields with a type-to-search picker (`TeacherSearchInput`, built locally, no UI library) bound to `generalAdvisorId`/`coopAdvisorId`. Added "อาจารย์ที่ปรึกษาโครงการ" (`coopAdvisorId`) search-select as requested, mirroring the same component.
+- `backend/controllers/studentController.js` `updateStudentBasicInfo`: now accepts `generalAdvisorId`/`coopAdvisorId`, re-deriving `advisorName` server-side from the resolved teacher so the display text always stays in sync with the FK (never accepted as independent free-text from the client). Also fixed a regression this change exposed: an empty `prefix`/`studyProgram` (legacy records with no value set) was passed straight to Prisma as `''`, which is not a valid enum value and threw a 500 — now coerced to `null`.
+- `backend/controllers/adminDocController.js` `getAllStudentsForReview`: included `generalAdvisor`/`coopAdvisor` relations so the edit modal can show the currently-assigned advisor.
+- `backend/controllers/studentImportController.js`: Excel imports stored the "สาขาวิชา / แผนกการศึกษา" column as the raw Thai full name (e.g. "วิทยาการคอมพิวเตอร์"), which didn't match the short codes (CS/IT/GIS/CYB/AI) used everywhere else in the system (filters, dashboard, criteria). Added a name→code mapping; unrecognized values are kept as-is and surfaced as a warning in the import result instead of silently breaking the row. `Frontend/src/components/A_Students.tsx` now displays these warnings after import.
+
+### Process notes
+- Verified live: advisor picker save round-trip (select → save → reload → confirm persisted) and a real Excel upload with a full Thai major name (correctly normalized to `CS`, no warning) via chrome-devtools-mcp; backend Jest suites for both controllers still passing.
+
 ## [2026-06-23] System-wide QA sweep (student/teacher/staff): fix 6 bugs found via live testing
 
 ### Fixed

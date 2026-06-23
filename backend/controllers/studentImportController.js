@@ -20,6 +20,29 @@ function mapPrefix(raw) {
   return PREFIX_MAP[key] ?? null;
 }
 
+// สาขาวิชา: ไฟล์ Excel จากทะเบียนมักใส่ชื่อเต็มภาษาไทย แต่ทั้งระบบ (CoopCriteria, ตัวกรอง,
+// dashboard) ใช้รหัสย่อ (CS/IT/GIS/CYB/AI) — ถ้าเก็บชื่อเต็มดิบๆ จะไม่เชื่อมกับสาขาที่มีอยู่
+const MAJOR_NAME_TO_CODE = {
+  'วิทยาการคอมพิวเตอร์': 'CS',
+  'เทคโนโลยีสารสนเทศ': 'IT',
+  'ภูมิสารสนเทศศาสตร์': 'GIS',
+  'ความมั่นคงปลอดภัยไซเบอร์': 'CYB',
+  'ปัญญาประดิษฐ์': 'AI',
+  'วิทยาการข้อมูลและปัญญาประดิษฐ์': 'AI',
+};
+const KNOWN_MAJOR_CODES = new Set(['CS', 'IT', 'GIS', 'CYB', 'AI']);
+
+// คืน { code, unrecognized } — code คือค่าที่จะบันทึก (แปลงเป็นรหัสถ้าทำได้ ไม่งั้นคงค่าดิบไว้
+// แล้วปล่อยให้ caller แจ้งเตือนใน errorRows แทนการบล็อกทั้งแถว
+function mapMajor(raw) {
+  const trimmed = (raw || '').trim();
+  if (!trimmed) return { code: null, unrecognized: false };
+  if (MAJOR_NAME_TO_CODE[trimmed]) return { code: MAJOR_NAME_TO_CODE[trimmed], unrecognized: false };
+  const upper = trimmed.toUpperCase();
+  if (KNOWN_MAJOR_CODES.has(upper)) return { code: upper, unrecognized: false };
+  return { code: trimmed, unrecognized: true };
+}
+
 // คอลัมน์ "ชื่อ-นามสกุล" เป็นช่องเดียว — แยกเป็น firstName/lastName โดยตัดที่เว้นวรรคแรก
 // (ถูกสำหรับชื่อไทย: ชื่อตัวคำเดียว + นามสกุลที่อาจมีหลายคำ — แต่ชื่อกลางภาษาอังกฤษ เช่น
 // "Mary Jane Smith" จะถูกตัดเป็น first="Mary", last="Jane Smith" ซึ่งไม่มีกฎตัดที่ถูกต้องกว่านี้
@@ -97,7 +120,10 @@ exports.importStudents = async (req, res) => {
         const { firstName, lastName } = splitFullName(row['ชื่อ-นามสกุล (ภาษาไทย)']);
         const { firstName: firstNameEn, lastName: lastNameEn } = splitFullName(row['ชื่อ-นามสกุล (ภาษาอังกฤษ)']);
         const year = String(row['ชั้นปี'] || '').trim();
-        const major = String(row['สาขาวิชา / แผนกการศึกษา'] || '').trim() || null;
+        const { code: major, unrecognized: majorUnrecognized } = mapMajor(row['สาขาวิชา / แผนกการศึกษา']);
+        if (majorUnrecognized) {
+          errorRows.push({ row: i + 2, email, reason: `ไม่รู้จักสาขาวิชา "${major}" — บันทึกค่าดิบไว้ตามที่กรอก กรุณาตรวจสอบ/แก้ไขในหน้าแก้ไขนักศึกษา` });
+        }
         const phone = String(row['เบอร์โทรศัพท์'] || '').trim() || null;
         const advisorName = String(row['ชื่ออาจารย์ที่ปรึกษา'] || '').trim() || null;
         const rawProgram = String(row['ภาคการศึกษา (ปกติ/พิเศษ)'] || '').trim();

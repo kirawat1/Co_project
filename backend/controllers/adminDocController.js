@@ -343,7 +343,9 @@ exports.getAllStudentsForReview = async (req, res) => {
                             company: true
                         }
                     },
-                    documents: true
+                    documents: true,
+                    generalAdvisor: { select: { id: true, firstName: true, lastName: true } },
+                    coopAdvisor: { select: { id: true, firstName: true, lastName: true } }
                 }
             }),
             prisma.student.count({ where }),
