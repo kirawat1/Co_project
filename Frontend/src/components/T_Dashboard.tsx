@@ -289,7 +289,7 @@ export default function T_Dashboard() {
           <section className="card">
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
               <div style={{ fontWeight: 900, fontSize: 18, color: '#1e293b' }}>🚗 กำหนดการนิเทศของฉัน</div>
-              <Link to="/teacher/supervisions" style={{ color: IOS_BLUE, fontWeight: 800, textDecoration: "none", fontSize: 14 }}>
+              <Link to="/teacher/review-supervision" style={{ color: IOS_BLUE, fontWeight: 800, textDecoration: "none", fontSize: 14 }}>
                 จัดการนัดนิเทศ →
               </Link>
             </div>

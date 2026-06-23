@@ -417,6 +417,47 @@ exports.deleteDocumentByType = async (req, res) => {
   }
 };
 
+// บันทึกข้อมูลร่าง T002
+exports.saveT002Form = async (req, res) => {
+    try {
+        const student = await prisma.student.findUnique({ where: { userId: req.user.id } });
+        if (!student) return res.status(404).json({ ok: false, message: "Student not found" });
+
+        const {
+            companyNameTh, companyNameEn, addressNo, moo, soi, road, subDistrict, district, province, zipcode,
+            companyPhone, companyFax, companyEmail,
+            managerName, managerPosition, managerPhone, managerFax, managerEmail,
+            coordinatorType, coordName, coordPosition, coordDept, coordPhone, coordFax, coordEmail,
+            supervisorName, supervisorPosition, supervisorDept, supervisorPhone, supervisorFax, supervisorEmail,
+            jobPosition, jobDescription,
+            accommodationAddress, accommodationPhone,
+            emergencyName, emergencyAddress, emergencyPhone, emergencyFax, emergencyEmail
+        } = req.body;
+
+        const data = {
+            companyNameTh, companyNameEn, addressNo, moo, soi, road, subDistrict, district, province, zipcode,
+            companyPhone, companyFax, companyEmail,
+            managerName, managerPosition, managerPhone, managerFax, managerEmail,
+            coordinatorType, coordName, coordPosition, coordDept, coordPhone, coordFax, coordEmail,
+            supervisorName, supervisorPosition, supervisorDept, supervisorPhone, supervisorFax, supervisorEmail,
+            jobPosition, jobDescription,
+            accommodationAddress, accommodationPhone,
+            emergencyName, emergencyAddress, emergencyPhone, emergencyFax, emergencyEmail
+        };
+
+        const t002 = await prisma.coopT002Form.upsert({
+            where: { studentId: student.id },
+            update: data,
+            create: { studentId: student.id, ...data }
+        });
+
+        res.json({ ok: true, data: t002 });
+    } catch (err) {
+        console.error("Save T002 Error:", err);
+        res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดในการบันทึกข้อมูล" });
+    }
+};
+
 // บันทึกข้อมูลร่าง T003
 exports.saveT003Form = async (req, res) => {
     try {
