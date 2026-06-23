@@ -28,6 +28,7 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
     const company = profile?.coop?.company || profile?.company || {};
     const mentor = profile?.coop?.mentor || profile?.mentor || {};
     const appForm = profile?.coopApplicationForm || {};
+    const savedT002 = profile?.t002Form || {};
 
     let currentStatusToShow = profile?.docStatus;
     if (profile?.docStatus === 'T002_EDITS_REQUIRED' || uploadedT002?.status === 'REJECTED') {
@@ -38,47 +39,52 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
 
     // --- State เก็บข้อมูลฟอร์ม ---
     const [formData, setFormData] = useState({
-        companyNameTh: company.name || "",
-        companyNameEn: company.nameEn || "",
-        addressNo: company.addressNo || "",
-        moo: company.moo || "",
-        soi: company.soi || "",
-        road: company.road || "",
-        subDistrict: company.subDistrict || "",
-        district: company.district || "",
-        province: company.province || "",
-        zipcode: company.zipcode || "",
-        companyPhone: company.phone || "",
-        companyFax: company.fax || "",
-        companyEmail: company.email || "",
+        companyNameTh: savedT002.companyNameTh || company.name || "",
+        companyNameEn: savedT002.companyNameEn || company.nameEn || "",
+        addressNo: savedT002.addressNo || company.addressNo || "",
+        moo: savedT002.moo || company.moo || "",
+        soi: savedT002.soi || company.soi || "",
+        road: savedT002.road || company.road || "",
+        subDistrict: savedT002.subDistrict || company.subDistrict || "",
+        district: savedT002.district || company.district || "",
+        province: savedT002.province || company.province || "",
+        zipcode: savedT002.zipcode || company.zipcode || "",
+        companyPhone: savedT002.companyPhone || company.phone || "",
+        companyFax: savedT002.companyFax || company.fax || "",
+        companyEmail: savedT002.companyEmail || company.email || "",
 
-        managerName: company.contactPerson || "",
-        managerPosition: company.contactPosition || "",
-        managerPhone: company.phone || "",
-        managerFax: company.fax || "",
-        managerEmail: company.email || "",
+        managerName: savedT002.managerName || company.contactPerson || "",
+        managerPosition: savedT002.managerPosition || company.contactPosition || "",
+        managerPhone: savedT002.managerPhone || company.phone || "",
+        managerFax: savedT002.managerFax || company.fax || "",
+        managerEmail: savedT002.managerEmail || company.email || "",
 
-        coordinatorType: "MANAGER",
-        coordName: "", coordPosition: "", coordDept: "", coordPhone: "", coordFax: "", coordEmail: "",
+        coordinatorType: savedT002.coordinatorType || "MANAGER",
+        coordName: savedT002.coordName || "",
+        coordPosition: savedT002.coordPosition || "",
+        coordDept: savedT002.coordDept || "",
+        coordPhone: savedT002.coordPhone || "",
+        coordFax: savedT002.coordFax || "",
+        coordEmail: savedT002.coordEmail || "",
 
-        supervisorName: mentor.firstName ? `${mentor.firstName} ${mentor.lastName}`.trim() : "",
-        supervisorPosition: mentor.position || "",
-        supervisorDept: mentor.department || "",
-        supervisorPhone: mentor.phone || "",
-        supervisorFax: "",
-        supervisorEmail: mentor.email || "",
+        supervisorName: savedT002.supervisorName || (mentor.firstName ? `${mentor.firstName} ${mentor.lastName}`.trim() : ""),
+        supervisorPosition: savedT002.supervisorPosition || mentor.position || "",
+        supervisorDept: savedT002.supervisorDept || mentor.department || "",
+        supervisorPhone: savedT002.supervisorPhone || mentor.phone || "",
+        supervisorFax: savedT002.supervisorFax || "",
+        supervisorEmail: savedT002.supervisorEmail || mentor.email || "",
 
-        jobPosition: profile?.coop?.jobPosition || profile?.jobPosition || "",
-        jobDescription: "",
+        jobPosition: savedT002.jobPosition || profile?.coop?.jobPosition || profile?.jobPosition || "",
+        jobDescription: savedT002.jobDescription || "",
 
-        accommodationAddress: "",
-        accommodationPhone: profile?.phone || "",
+        accommodationAddress: savedT002.accommodationAddress || "",
+        accommodationPhone: savedT002.accommodationPhone || profile?.phone || "",
 
-        emergencyName: appForm.emergencyName || "",
-        emergencyAddress: appForm.emergencyAddress || "",
-        emergencyPhone: appForm.emergencyPhone || "",
-        emergencyFax: "",
-        emergencyEmail: appForm.emergencyEmail || ""
+        emergencyName: savedT002.emergencyName || appForm.emergencyName || "",
+        emergencyAddress: savedT002.emergencyAddress || appForm.emergencyAddress || "",
+        emergencyPhone: savedT002.emergencyPhone || appForm.emergencyPhone || "",
+        emergencyFax: savedT002.emergencyFax || "",
+        emergencyEmail: savedT002.emergencyEmail || appForm.emergencyEmail || ""
     });
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -163,9 +169,32 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
         }
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        alert("บันทึกข้อมูลแบบร่างสำเร็จ! (คุณสามารถกดดูตัวอย่าง PDF และดาวน์โหลดได้เลย)");
+        setLoading(true);
+        try {
+            const token = localStorage.getItem("coop.token");
+            const res = await apiFetch("/api/docs/t002-form", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`
+                },
+                body: JSON.stringify(formData)
+            });
+
+            if (res.ok) {
+                alert("💾 บันทึกข้อมูลแบบร่าง T002 เรียบร้อยแล้ว! (คุณสามารถกดดูตัวอย่าง PDF และดาวน์โหลดได้เลย)");
+                if (typeof onRefresh === 'function') onRefresh();
+            } else {
+                alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล");
+            }
+        } catch (err) {
+            console.error(err);
+            alert("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้");
+        } finally {
+            setLoading(false);
+        }
     };
 
     // ฟังก์ชันอัปโหลดไฟล์ T002 ตัวจริง

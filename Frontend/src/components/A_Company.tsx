@@ -230,8 +230,8 @@ export default function A_Companies() {
         const data = await res.json();
         if (!data.ok || !data.mentor) return alert("เพิ่มพี่เลี้ยงไม่สำเร็จ");
 
-        setViewCompany(prev => prev ? { ...prev, mentors: [...prev.mentors, data.mentor] } : prev);
-        setItems(prev => prev.map(c => c.id === viewCompany?.id ? { ...c, mentors: [...c.mentors, data.mentor] } : c));
+        setViewCompany(prev => prev ? { ...prev, mentors: [...(prev.mentors || []), data.mentor] } : prev);
+        setItems(prev => prev.map(c => c.id === viewCompany?.id ? { ...c, mentors: [...(c.mentors || []), data.mentor] } : c));
 
       } else {
         // ---- EDIT ----
@@ -241,10 +241,10 @@ export default function A_Companies() {
           body: JSON.stringify(mentorForm),
         });
         const data = await res.json();
-        if (!data.ok || !data.mentor) return alert("แก้ไขพี่เลี้ยงสำเร็จ");
+        if (!data.ok || !data.mentor) return alert("แก้ไขพี่เลี้ยงไม่สำเร็จ");
 
-        setViewCompany(prev => prev ? { ...prev, mentors: prev.mentors.map(m => m.id === editingMentor.id ? data.mentor : m) } : prev);
-        setItems(prev => prev.map(c => c.id === viewCompany?.id ? { ...c, mentors: c.mentors.map(m => m.id === editingMentor.id ? data.mentor : m) } : c));
+        setViewCompany(prev => prev ? { ...prev, mentors: (prev.mentors || []).map(m => m.id === editingMentor.id ? data.mentor : m) } : prev);
+        setItems(prev => prev.map(c => c.id === viewCompany?.id ? { ...c, mentors: (c.mentors || []).map(m => m.id === editingMentor.id ? data.mentor : m) } : c));
       }
 
       setEditingMentor(null);
@@ -270,8 +270,8 @@ export default function A_Companies() {
       const data = await res.json();
       if (!data.ok) return alert(data.message || "ลบพี่เลี้ยงไม่สำเร็จ");
 
-      setViewCompany(prev => prev ? { ...prev, mentors: prev.mentors.filter(m => m.id !== mentorId) } : prev);
-      setItems(prev => prev.map(c => c.id === viewCompany?.id ? { ...c, mentors: c.mentors.filter(m => m.id !== mentorId) } : c));
+      setViewCompany(prev => prev ? { ...prev, mentors: (prev.mentors || []).filter(m => m.id !== mentorId) } : prev);
+      setItems(prev => prev.map(c => c.id === viewCompany?.id ? { ...c, mentors: (c.mentors || []).filter(m => m.id !== mentorId) } : c));
 
     } catch (err) { console.error(err); alert("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้"); }
   }

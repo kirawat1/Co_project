@@ -19,6 +19,7 @@ exports.getMyProfile = async (req, res) => {
         coopApplicationForm: true,
         documents: true,
         user: true,
+        t002Form: true, // เพิ่มการดึงข้อมูลฟอร์ม T002
         t003Form: true, // เพิ่มการดึงข้อมูลฟอร์ม T003
         generalAdvisor: { select: { firstName: true, lastName: true, email: true } },
         coopAdvisor: { select: { firstName: true, lastName: true, email: true } },

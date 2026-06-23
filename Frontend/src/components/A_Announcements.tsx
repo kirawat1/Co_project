@@ -176,7 +176,9 @@ export default function A_Announcements() {
     if (keepFileIds.length) form.append("keepFileIds", JSON.stringify(keepFileIds));
 
     try {
-      await axios.post("/api/announcements", form);
+      await axios.post("/api/announcements", form, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       resetForm();
       fetchAnnouncements();
     } catch (err) {
@@ -203,7 +205,9 @@ export default function A_Announcements() {
   const remove = async (id: string) => {
     if (!confirm("ลบประกาศนี้? ข้อมูลจะไม่สามารถกู้คืนได้")) return;
     try {
-      await axios.delete(`/api/announcements/${id}`);
+      await axios.delete(`/api/announcements/${id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       fetchAnnouncements();
     } catch (err) { alert("ลบไม่สำเร็จ"); }
   };

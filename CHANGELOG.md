@@ -1,5 +1,21 @@
 # CHANGELOG — Co_project
 
+## [2026-06-23] System-wide QA sweep (student/teacher/staff): fix 6 bugs found via live testing
+
+### Fixed
+- `Frontend/src/components/A_Announcements.tsx`: create/edit/delete all sent no `Authorization` header (unlike the GET calls in the same file), so the backend correctly rejected them with 401 — which the global axios interceptor treated as a session timeout and force-logged-out the user. Every staff user who tried to manage an announcement was instantly logged out. Added the header to both the POST and DELETE calls.
+- `Frontend/src/components/A_Company.tsx`: adding a mentor under a company crashed the whole page (`mentors is not iterable`) right after a successful save, because the response handler spread `prev.mentors`/`c.mentors` without defaulting to `[]`. The mentor was actually saved server-side; only the UI update crashed. Hardened all three mentor mutation handlers (add/edit/delete) with `|| []` defaults. Also fixed a copy-paste bug where the *failure* branch of the edit-mentor handler showed a "สำเร็จ" (success) alert.
+- `Frontend/src/components/S_DocsT002Form.tsx`: "บันทึกข้อมูลร่าง T002" never called the backend — it only showed a success alert while the form data lived in local React state, so any edited field not already present elsewhere (job description, accommodation address, etc.) was silently lost on refresh. Added a `CoopT002Form` Prisma model (mirroring the existing, working `CoopT003Form`), a `POST /api/docs/t002-form` route + controller, included it in the student profile query, and wired the frontend save button to actually persist and reload saved drafts.
+- `backend/controllers/teacherController.js` `getDashboardStats`: counted advisees via a fragile `student.advisorName: { contains: teacher.firstName }` text match, while the real advisee list (`getMyStudents`) filters by the `generalAdvisorId`/`coopAdvisorId` foreign keys. The two disagreed whenever a student's `advisorName` text wasn't backed by the FK (legacy data), so a teacher's dashboard count didn't match who actually showed up in their advisee list. Switched the dashboard query to the same FK-based filter (respecting the `isCoopTeacher` "sees everyone" case). Backfilled 10 pre-existing students whose `advisorName` had never been linked to the FK via a one-time script (`backend/scripts/backfill_student_advisor_fk.js`).
+- `Frontend/src/components/T_Dashboard.tsx`: the "จัดการนัดนิเทศ →" dashboard link pointed at `/teacher/supervisions`, a route that doesn't exist (silently redirected back to the dashboard via the catch-all route). Fixed to point at the real route, `/teacher/review-supervision`.
+- `Frontend/src/components/A_StudentEditModal.tsx`: the "คำนำหน้า" (prefix) `<select>` was marked `required` even though `Student.prefix` is nullable in the schema, so editing any legacy student record with no prefix silently blocked the save behind a native browser tooltip with no app-level error. Removed `required` to match the data model.
+
+### Investigated, not a bug
+- Student-side `/student/company` page showing "แก้ไข/ลบ" buttons on companies, and `getMyStudents` showing all students to `isCoopTeacher` teachers — both confirmed to be intentional, backend-enforced behavior (per-record ownership checks via `isStaffOrCompanyOwner`, and the coordinator role intentionally seeing the full roster), not access-control gaps.
+
+### Process notes
+- Found via a 4-way QA sweep (student / teacher / staff-people / staff-docs) combining live chrome-devtools-mcp browser testing and static code analysis, dispatched as parallel subagents per CLAUDE.md's testing conventions. All 6 fixes re-verified live in-browser after the fix (including a reload-persistence check for the two "fake success" bugs) plus a clean `npx tsc --noEmit`.
+
 ## [2026-06-22] Redesign supervision calendar (stats strip, filters, agenda view)
 
 ### Changed

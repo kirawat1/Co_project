@@ -19,11 +19,11 @@ model User {
   provider       String  @default("credentials")
   kkuAccessToken String? @db.Text
 
-  student        Student?
-  teacher        Teacher?
-  companies      Company[]
-  mentors        Mentor[]
-  notifications  Notification[]
+  student       Student?
+  teacher       Teacher?
+  companies     Company[]
+  mentors       Mentor[]
+  notifications Notification[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -60,10 +60,10 @@ model Student {
   jobPosition  String? // ตำแหน่งงานที่สนใจ/สมัคร
   deletedAt    DateTime? // null = active, set = soft-deleted (in trash)
 
-  generalAdvisorId  Int?
-  coopAdvisorId     Int?
-  generalAdvisor    Teacher? @relation("GeneralAdvisor", fields: [generalAdvisorId], references: [id])
-  coopAdvisor       Teacher? @relation("CoopAdvisor", fields: [coopAdvisorId], references: [id])
+  generalAdvisorId Int?
+  coopAdvisorId    Int?
+  generalAdvisor   Teacher? @relation("GeneralAdvisor", fields: [generalAdvisorId], references: [id])
+  coopAdvisor      Teacher? @relation("CoopAdvisor", fields: [coopAdvisorId], references: [id])
 
   userId Int  @unique
   user   User @relation(fields: [userId], references: [id])
@@ -76,6 +76,7 @@ model Student {
   createdAt              DateTime                @default(now())
   updatedAt              DateTime                @updatedAt
   coopApplicationForm    CoopApplicationForm?
+  t002Form               CoopT002Form?
   t003Form               CoopT003Form?
   supervisionAppointment SupervisionAppointment?
 }
@@ -378,6 +379,62 @@ enum CoopStatus {
   T003_SUBMITTED
   T003_EDITS_REQUIRED
   T003_APPROVED
+}
+
+model CoopT002Form {
+  id        Int     @id @default(autoincrement())
+  studentId Int     @unique
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  companyNameTh String?
+  companyNameEn String?
+  addressNo     String?
+  moo           String?
+  soi           String?
+  road          String?
+  subDistrict   String?
+  district      String?
+  province      String?
+  zipcode       String?
+  companyPhone  String?
+  companyFax    String?
+  companyEmail  String?
+
+  managerName     String?
+  managerPosition String?
+  managerPhone    String?
+  managerFax      String?
+  managerEmail    String?
+
+  coordinatorType String?
+  coordName       String?
+  coordPosition   String?
+  coordDept       String?
+  coordPhone      String?
+  coordFax        String?
+  coordEmail      String?
+
+  supervisorName     String?
+  supervisorPosition String?
+  supervisorDept     String?
+  supervisorPhone    String?
+  supervisorFax      String?
+  supervisorEmail    String?
+
+  jobPosition    String?
+  jobDescription String? @db.Text
+
+  accommodationAddress String? @db.Text
+  accommodationPhone   String?
+
+  emergencyName    String?
+  emergencyAddress String? @db.Text
+  emergencyPhone   String?
+  emergencyFax     String?
+  emergencyEmail   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model CoopT003Form {

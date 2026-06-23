@@ -23,6 +23,7 @@ router.delete('/delete/:id', verifyToken, docController.deleteDocument);
 
 router.delete('/document/type/:docType', verifyToken, docController.deleteDocumentByType);
 
+router.post('/t002-form', verifyToken, docController.saveT002Form);
 router.post('/t003-form', verifyToken, docController.saveT003Form);
 
 module.exports = router;

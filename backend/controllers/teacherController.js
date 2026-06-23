@@ -327,27 +327,34 @@ exports.getDashboardStats = async (req, res) => {
         const semesterInt = semester ? parseInt(semester) : undefined;
         const yearStr = year ? String(year) : undefined;
 
+        // ใช้ FK (generalAdvisorId / coopAdvisorId) แบบเดียวกับ getMyStudents
+        // เพื่อไม่ให้ตัวเลขในแดชบอร์ดไม่ตรงกับรายชื่อ นศ. ในดูแลจริง
+        // (อาจารย์ผู้ประสานงานสหกิจ isCoopTeacher เห็นทุกคน เหมือน getMyStudents)
+        const advisorFilter = teacher.isCoopTeacher
+            ? {}
+            : { OR: [{ generalAdvisorId: teacher.id }, { coopAdvisorId: teacher.id }] };
+
         // 1. นับนักศึกษาทั้งหมดในดูแล
         let myStudentsCount = 0;
         if (semesterInt && yearStr) {
             // ถ้าเลือกเทอม: นับจากใบสมัครของเทอมนั้น
             myStudentsCount = await prisma.studentCoop.count({
                 where: {
-                    student: { advisorName: { contains: teacher.firstName } },
+                    student: advisorFilter,
                     coopPeriod: { semester: semesterInt, academicYear: yearStr }
                 }
             });
         } else {
-            // ถ้าไม่เลือกเทอม: นับ นศ. ทั้งหมดที่มีชื่ออาจารย์
+            // ถ้าไม่เลือกเทอม: นับ นศ. ทั้งหมดในดูแล
             myStudentsCount = await prisma.student.count({
-                where: { advisorName: { contains: teacher.firstName } }
+                where: advisorFilter
             });
         }
 
         // 2. คำร้องรอพิจารณา (Schema ใช้ APPLYING)
         const pendingRequests = await prisma.studentCoop.count({
             where: {
-                student: { advisorName: { contains: teacher.firstName } },
+                student: advisorFilter,
                 status: 'APPLYING', // 🟢 ปรับให้ตรงกับ Enum ของคุณ
                 ...(semesterInt && yearStr ? {
                     coopPeriod: { semester: semesterInt, academicYear: yearStr }
@@ -358,7 +365,7 @@ exports.getDashboardStats = async (req, res) => {
         // 3. ผ่านคุณสมบัติ (Schema ใช้ QUALIFIED)
         const approvedStudents = await prisma.studentCoop.count({
             where: {
-                student: { advisorName: { contains: teacher.firstName } },
+                student: advisorFilter,
                 status: 'QUALIFIED', // 🟢 ปรับให้ตรงกับ Enum ของคุณ
                 ...(semesterInt && yearStr ? {
                     coopPeriod: { semester: semesterInt, academicYear: yearStr }
@@ -487,16 +494,32 @@ exports.createTeacher = async (req, res) => {
 // ==========================================
 exports.deleteTeacher = async (req, res) => {
   try {
-    const { id } = req.params;
-    const teacher = await prisma.teacher.findUnique({ where: { id: parseInt(id) } });
+    const teacherId = parseInt(req.params.id);
+    const teacher = await prisma.teacher.findUnique({ where: { id: teacherId } });
     if (!teacher) return res.status(404).json({ ok: false, message: "ไม่พบอาจารย์" });
 
-    // ลบ User (cascade ลบ Teacher ตาม relation)
-    await prisma.user.delete({ where: { id: teacher.userId } });
+    const [apptCount, visitCount] = await Promise.all([
+      prisma.supervisionAppointment.count({ where: { teacherId } }),
+      prisma.visit.count({ where: { teacherId } }),
+    ]);
+    if (apptCount > 0 || visitCount > 0) {
+      return res.status(409).json({
+        ok: false,
+        message: `ไม่สามารถลบอาจารย์ได้ เนื่องจากมีนัดหมายนิเทศ ${apptCount} รายการ หรือการนิเทศ ${visitCount} รายการ ผูกกับอาจารย์คนนี้อยู่ กรุณามอบหมายอาจารย์อื่นหรือยกเลิกรายการดังกล่าวก่อน`,
+      });
+    }
+
+    // ต้องลบ Teacher ก่อน User เสมอ เพราะ Teacher.userId อ้างถึง User.id (ลบ User ก่อนจะติด FK constraint)
+    await prisma.$transaction([
+      prisma.student.updateMany({ where: { generalAdvisorId: teacherId }, data: { generalAdvisorId: null } }),
+      prisma.student.updateMany({ where: { coopAdvisorId: teacherId }, data: { coopAdvisorId: null } }),
+      prisma.teacher.delete({ where: { id: teacherId } }),
+      prisma.user.delete({ where: { id: teacher.userId } }),
+    ]);
     res.json({ ok: true, message: "ลบอาจารย์เรียบร้อย" });
   } catch (err) {
     console.error("DELETE TEACHER ERROR:", err);
-    res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาด" });
+    res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดในการลบอาจารย์" });
   }
 };
 

@@ -70,7 +70,7 @@ export default function A_StudentEditModal({ student, majors, onClose, onSaved }
 
         <div style={grid}>
           <Field label="คำนำหน้า">
-            <select style={input} value={form.prefix} onChange={e => update("prefix", e.target.value)} required>
+            <select style={input} value={form.prefix} onChange={e => update("prefix", e.target.value)}>
               <option value="">เลือก</option>
               <option value="MR">นาย</option>
               <option value="MS">นางสาว</option>

@@ -23,6 +23,8 @@ const MAJOR_TH: Record<string, string> = {
   CS: "วิทยาการคอมพิวเตอร์",
   IT: "เทคโนโลยีสารสนเทศ",
   GIS: "ภูมิสารสนเทศศาสตร์",
+  CYB: "ความมั่นคงปลอดภัยไซเบอร์",
+  AI: "ปัญญาประดิษฐ์",
 };
 const FACULTY_DEFAULT = "วิทยาลัยการคอมพิวเตอร์";
 
@@ -176,10 +178,7 @@ export default function A_Teacher() {
   // ─── filter ───────────────────────────────────────────────
   const majorDict = useMemo(() => {
     const dict: Record<string, string> = {};
-    majorOptions.forEach(m => dict[m] = m);
-    if (!majorOptions.includes("CS")) dict["CS"] = "วิทยาการคอมพิวเตอร์ (CS)";
-    if (!majorOptions.includes("IT")) dict["IT"] = "เทคโนโลยีสารสนเทศ (IT)";
-    if (!majorOptions.includes("GIS")) dict["GIS"] = "ภูมิสารสนเทศศาสตร์ (GIS)";
+    majorOptions.forEach(m => dict[m] = MAJOR_TH[m] ? `${MAJOR_TH[m]} (${m})` : m);
     return dict;
   }, [majorOptions]);
 
