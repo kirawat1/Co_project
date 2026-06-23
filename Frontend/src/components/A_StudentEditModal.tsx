@@ -1,10 +1,17 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { StudentProfile } from "./A_Students";
 
 const CURRICULUM_TH: Record<string, string> = {
   normal: "ภาคปกติ",
   special: "ภาคพิเศษ",
 };
+
+interface TeacherOption {
+  id: number;
+  firstName: string;
+  lastName: string;
+  email?: string;
+}
 
 interface Props {
   student: StudentProfile;
@@ -26,11 +33,25 @@ export default function A_StudentEditModal({ student, majors, onClose, onSaved }
     year: student.year ?? "",
     phone: student.phone ?? "",
     email: student.user?.email ?? "",
-    advisorName: student.advisorName ?? "",
     jobPosition: student.jobPosition ?? "",
   });
+  const [generalAdvisorId, setGeneralAdvisorId] = useState<number | null>(
+    student.generalAdvisorId ?? student.generalAdvisor?.id ?? null
+  );
+  const [coopAdvisorId, setCoopAdvisorId] = useState<number | null>(
+    student.coopAdvisorId ?? student.coopAdvisor?.id ?? null
+  );
+  const [teachers, setTeachers] = useState<TeacherOption[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    const token = localStorage.getItem("coop.token");
+    fetch("/api/teacher", { headers: { Authorization: `Bearer ${token}` } })
+      .then(res => res.json())
+      .then(data => setTeachers(Array.isArray(data) ? data : []))
+      .catch(() => setTeachers([]));
+  }, []);
 
   function update<K extends keyof typeof form>(key: K, value: string) {
     setForm(f => ({ ...f, [key]: value }));
@@ -45,7 +66,7 @@ export default function A_StudentEditModal({ student, majors, onClose, onSaved }
       const res = await fetch(`/api/admin/students/${student.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, generalAdvisorId, coopAdvisorId }),
       });
       const data = await res.json();
       if (!data.ok) {
@@ -112,8 +133,21 @@ export default function A_StudentEditModal({ student, majors, onClose, onSaved }
           <Field label="อีเมล">
             <input style={input} type="email" value={form.email} onChange={e => update("email", e.target.value)} />
           </Field>
-          <Field label="อาจารย์ที่ปรึกษา">
-            <input style={input} value={form.advisorName} onChange={e => update("advisorName", e.target.value)} />
+          <Field label="อาจารย์ที่ปรึกษาปกติ">
+            <TeacherSearchInput
+              teachers={teachers}
+              value={generalAdvisorId}
+              onChange={setGeneralAdvisorId}
+              placeholder="พิมพ์ชื่อเพื่อค้นหา..."
+            />
+          </Field>
+          <Field label="อาจารย์ที่ปรึกษาโครงการ">
+            <TeacherSearchInput
+              teachers={teachers}
+              value={coopAdvisorId}
+              onChange={setCoopAdvisorId}
+              placeholder="พิมพ์ชื่อเพื่อค้นหา..."
+            />
           </Field>
           <Field label="ตำแหน่งงานที่สนใจ">
             <input style={input} value={form.jobPosition} onChange={e => update("jobPosition", e.target.value)} />
@@ -134,6 +168,76 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
     <div>
       <div style={{ fontSize: 13, color: "#64748b", marginBottom: 4, fontWeight: 600 }}>{label}</div>
       {children}
+    </div>
+  );
+}
+
+// พิมพ์ค้นหาอาจารย์จากรายชื่อ แล้วเลือกเพื่อผูก FK (generalAdvisorId / coopAdvisorId) จริง
+// แทนช่อง text เดิมที่แก้แล้วไม่มีผลอะไรกับระบบ (ดูเหมือนแก้ได้แต่ข้อมูลจริงไม่เปลี่ยน)
+function TeacherSearchInput({
+  teachers, value, onChange, placeholder,
+}: {
+  teachers: TeacherOption[];
+  value: number | null;
+  onChange: (id: number | null) => void;
+  placeholder?: string;
+}) {
+  const selected = teachers.find(t => t.id === value) ?? null;
+  const [query, setQuery] = useState("");
+  const [open, setOpen] = useState(false);
+  const boxRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function onOutsideClick(e: MouseEvent) {
+      if (boxRef.current && !boxRef.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", onOutsideClick);
+    return () => document.removeEventListener("mousedown", onOutsideClick);
+  }, []);
+
+  const displayValue = open ? query : (selected ? `${selected.firstName} ${selected.lastName}` : "");
+  const q = query.trim().toLowerCase();
+  const matches = q
+    ? teachers.filter(t => `${t.firstName} ${t.lastName}`.toLowerCase().includes(q)).slice(0, 8)
+    : teachers.slice(0, 8);
+
+  return (
+    <div ref={boxRef} style={{ position: "relative" }}>
+      <input
+        style={input}
+        value={displayValue}
+        placeholder={placeholder}
+        onFocus={() => { setQuery(""); setOpen(true); }}
+        onChange={e => { setQuery(e.target.value); setOpen(true); }}
+      />
+      {selected && !open && (
+        <button
+          type="button"
+          onClick={() => onChange(null)}
+          title="ล้างค่า"
+          style={{ position: "absolute", right: 6, top: 6, background: "none", border: "none", color: "#94a3b8", cursor: "pointer", fontSize: 14 }}
+        >
+          ✕
+        </button>
+      )}
+      {open && (
+        <div style={{ position: "absolute", zIndex: 10, top: "100%", left: 0, right: 0, marginTop: 4, background: "#fff", border: "1px solid #e5e7eb", borderRadius: 8, maxHeight: 220, overflowY: "auto", boxShadow: "0 4px 12px rgba(0,0,0,.08)" }}>
+          {matches.length === 0 ? (
+            <div style={{ padding: "8px 10px", fontSize: 13, color: "#94a3b8" }}>ไม่พบอาจารย์ที่ตรงกับคำค้น</div>
+          ) : (
+            matches.map(t => (
+              <div
+                key={t.id}
+                onClick={() => { onChange(t.id); setQuery(""); setOpen(false); }}
+                style={{ padding: "8px 10px", fontSize: 13, cursor: "pointer", background: t.id === value ? "#eff6ff" : "transparent" }}
+                onMouseDown={e => e.preventDefault()}
+              >
+                {t.firstName} {t.lastName}{t.email ? ` (${t.email})` : ""}
+              </div>
+            ))
+          )}
+        </div>
+      )}
     </div>
   );
 }
