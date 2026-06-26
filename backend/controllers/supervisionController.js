@@ -443,6 +443,63 @@ exports.reviewSupervision = async (req, res) => {
 };
 
 // ==========================================
+// จบนิเทศ — อาจารย์ที่ปรึกษาหลักของนัดนี้ หรือ admin/staff
+// ใช้ได้เมื่อสถานะเป็น LETTER_UPLOADED เท่านั้น
+// PUT /api/teacher/supervisions/:id/complete, /api/admin/supervisions/:id/complete
+// ==========================================
+exports.completeSupervision = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const role = (req.user?.role || '').toLowerCase();
+
+        const supervision = await prisma.supervisionAppointment.findUnique({
+            where: { id: parseInt(id) }
+        });
+
+        if (!supervision) {
+            return res.status(404).json({ ok: false, message: "ไม่พบข้อมูลการนัดหมาย" });
+        }
+
+        // อาจารย์ — ต้องเป็นอาจารย์ที่ปรึกษาหลักของนัดนี้เท่านั้น (เหมือน reviewSupervision)
+        // admin/staff — ผ่านได้ทันที ไม่ต้องเช็คความเป็นเจ้าของ
+        if (role === 'teacher') {
+            const teacher = await prisma.teacher.findUnique({ where: { userId: req.user.id } });
+            if (!teacher || supervision.teacherId !== teacher.id) {
+                return res.status(403).json({ ok: false, message: "คุณไม่มีสิทธิ์ทำรายการนี้ เฉพาะอาจารย์ที่ปรึกษาหลักเท่านั้น" });
+            }
+        }
+
+        if (supervision.status !== 'LETTER_UPLOADED') {
+            return res.status(400).json({ ok: false, message: "ยังไม่สามารถจบนิเทศได้ในสถานะปัจจุบัน" });
+        }
+
+        await prisma.supervisionAppointment.update({
+            where: { id: parseInt(id) },
+            data: { status: 'COMPLETED' }
+        });
+
+        res.json({ ok: true, message: "บันทึกผลนิเทศเสร็จสิ้นสำเร็จ" });
+
+        prisma.student.findUnique({ where: { id: supervision.studentId }, select: { userId: true } })
+          .then(student => {
+            if (student?.userId) {
+              return createNotifications([student.userId], {
+                type: 'SUPERVISION_COMPLETED',
+                title: 'การนิเทศเสร็จสิ้น',
+                message: 'การนิเทศของคุณเสร็จสิ้นแล้ว ดำเนินการส่งเล่มรายงานสหกิจ (T008) ได้เลย',
+                link: '/student/doc-t008',
+                relatedId: null,
+              });
+            }
+          })
+          .catch(console.error);
+    } catch (err) {
+        console.error("Complete Supervision Error:", err);
+        res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดในการบันทึกข้อมูล" });
+    }
+};
+
+// ==========================================
 // แก้ไขวันนิเทศ — admin เท่านั้น ใช้ได้เมื่อยังไม่ออก PDF
 // PUT /api/admin/supervisions/:id/confirmed-date
 // ==========================================

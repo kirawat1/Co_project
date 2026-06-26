@@ -201,6 +201,17 @@ export default function T_SupervisionReview() {
         }
     };
 
+    const handleComplete = async (id: number) => {
+        if (!confirm("ยืนยันว่าการนิเทศเสร็จสิ้นแล้ว?")) return;
+        try {
+            await axios.put(`/api/teacher/supervisions/${id}/complete`, {}, { headers: { Authorization: `Bearer ${token}` } });
+            alert("บันทึกผลนิเทศเสร็จสิ้นสำเร็จ");
+            fetchData();
+        } catch (err: any) {
+            alert(err?.response?.data?.message || "เกิดข้อผิดพลาดในการบันทึก");
+        }
+    };
+
     const SortIcon = ({ columnKey }: { columnKey: SortKey }) => {
         if (sortKey !== columnKey) return <span style={{ color: "#cbd5e1", marginLeft: 4 }}>↕</span>;
         return <span style={{ color: "#2563eb", marginLeft: 4 }}>{sortDirection === "asc" ? "↑" : "↓"}</span>;
@@ -334,9 +345,16 @@ export default function T_SupervisionReview() {
                                         </td>
                                         <td style={td}><StatusBadge status={sup.status} /></td>
                                         <td style={{ ...td, textAlign: "right" }}>
-                                            <button className="btn" style={{ background: sup.status === "PENDING_TEACHER" && isPrimary ? "#10b981" : "#0ea5e9", padding: "8px 16px" }} onClick={() => openReviewModal(sup)}>
-                                                {sup.status === "PENDING_TEACHER" && isPrimary ? "พิจารณาวันนิเทศ" : "🔍 ดูรายละเอียด"}
-                                            </button>
+                                            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                                                {sup.status === "LETTER_UPLOADED" && isPrimary && (
+                                                    <button className="btn" style={{ background: "#7c3aed", padding: "8px 16px" }} onClick={() => handleComplete(sup.id)}>
+                                                        🏁 จบนิเทศ
+                                                    </button>
+                                                )}
+                                                <button className="btn" style={{ background: sup.status === "PENDING_TEACHER" && isPrimary ? "#10b981" : "#0ea5e9", padding: "8px 16px" }} onClick={() => openReviewModal(sup)}>
+                                                    {sup.status === "PENDING_TEACHER" && isPrimary ? "พิจารณาวันนิเทศ" : "🔍 ดูรายละเอียด"}
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 );
