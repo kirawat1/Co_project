@@ -426,7 +426,7 @@ export default function A_Students() {
 
       {/* ================= Table ================= */}
       <section style={{ ...card, marginTop: 20, padding: 0, overflow: 'hidden' }}>
-        <table width="100%" style={{ borderCollapse: 'collapse' }}>
+        <table width="100%" className="responsive-table" style={{ borderCollapse: 'collapse' }}>
           <thead>
             <tr>
               {["รหัส", "ชื่อ–นามสกุล", "อีเมล", "สาขา", "หลักสูตร", "สถานะ", "รายละเอียด"].map((h) => (
@@ -446,16 +446,16 @@ export default function A_Students() {
             ) : (
               filtered.map((s) => (
                 <tr key={s.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                  <td style={td}>{s.studentId}</td>
-                  <td style={td}>
+                  <td style={td} data-label="รหัส">{s.studentId}</td>
+                  <td style={td} data-label="ชื่อ–นามสกุล">
                     {getThaiPrefix(s.prefix)} {s.firstName} {s.lastName}
                   </td>
-                  <td style={td}>{s.user?.email || "-"}</td>
+                  <td style={td} data-label="อีเมล">{s.user?.email || "-"}</td>
                   {/* 🟢 แสดงสาขาโดยเช็คจากข้อมูลเก่าเผื่อไว้ ถ้าไม่ตรงให้แสดงชื่อตรงๆ */}
-                  <td style={td}>{LEGACY_MAJOR_TH[s.major ?? ""] ?? s.major ?? "-"}</td>
-                  <td style={td}>{CURRICULUM_TH[s.studyProgram ?? ""] ?? s.studyProgram ?? "-"}</td>
-                  <td style={td}><StatusBadge status={s.coop?.status || s.docStatus} /></td>
-                  <td style={td}>
+                  <td style={td} data-label="สาขา">{LEGACY_MAJOR_TH[s.major ?? ""] ?? s.major ?? "-"}</td>
+                  <td style={td} data-label="หลักสูตร">{CURRICULUM_TH[s.studyProgram ?? ""] ?? s.studyProgram ?? "-"}</td>
+                  <td style={td} data-label="สถานะ"><StatusBadge status={s.coop?.status || s.docStatus} /></td>
+                  <td style={td} data-label="รายละเอียด">
                     <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                       <button
                         className="btn"

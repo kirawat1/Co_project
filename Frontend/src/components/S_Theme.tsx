@@ -252,6 +252,16 @@ function css(IOS_BLUE: string) {
 
     /* Tables: horizontal scroll */
     table { display: block; overflow-x: auto; white-space: nowrap; }
+
+    /* Tables opted into card layout (className="responsive-table") show as stacked cards instead */
+    table.responsive-table { display: block; overflow-x: visible; white-space: normal; }
+    table.responsive-table thead { display: none; }
+    table.responsive-table tbody { display: block; }
+    table.responsive-table tr { display: block; margin-bottom: 12px; border: 1px solid var(--border, #e2e8f0); border-radius: 12px; padding: 4px 14px; background: var(--card-bg, #fff); max-width: 100%; overflow: hidden; }
+    table.responsive-table td { display: block; width: 100% !important; max-width: 100%; box-sizing: border-box; padding: 10px 0; border: none !important; border-bottom: 1px solid #f1f5f9 !important; text-align: left; white-space: normal; overflow-wrap: break-word; word-break: break-word; }
+    table.responsive-table td:last-child { border-bottom: none !important; }
+    table.responsive-table td[data-label]::before { content: attr(data-label); display: block; font-weight: 700; color: #64748b; font-size: 12px; margin-bottom: 4px; }
+    table.responsive-table td span { white-space: normal !important; }
   }
 
   @media (max-width: 480px) {

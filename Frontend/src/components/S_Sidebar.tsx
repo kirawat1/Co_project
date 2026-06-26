@@ -176,5 +176,6 @@ const SIDEBAR_CSS = `
 .ico svg { width: 20px; height: 20px; color: #6b7280; }
 .item.active .ico svg { color: #0074B7; }
 .text { flex: 1; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-@media (max-width: 900px) { .sidebar { padding-bottom: 10px; border-bottom: 1px solid rgba(0,0,0,.06); } .nav { display: flex; flex-direction: row; overflow-x: auto; gap: 8px; padding-bottom: 8px; } .item { min-width: max-content; } }
+/* มือถือ/แท็บเล็ตใช้ระบบ drawer ของ S_Theme.tsx (breakpoint 768px) แล้ว
+   ไม่ต้องมี media query ของตัวเองตรงนี้ — เคยมีและ override height/overflow ของ drawer ทำให้พัง */
 `;

@@ -285,7 +285,7 @@ export default function T_SupervisionReview() {
             {/* TABLE */}
             <section style={card}>
                 <div style={{ overflowX: "auto" }}>
-                    <table style={tableStyle}>
+                    <table style={tableStyle} className="responsive-table">
                         <thead>
                             <tr style={thRow}>
                                 <th style={{ ...th, cursor: "pointer" }} onClick={() => handleSort("studentId")}>รหัสนักศึกษา / ชื่อ <SortIcon columnKey="studentId" /></th>
@@ -304,18 +304,18 @@ export default function T_SupervisionReview() {
                                 const isPrimary = sup.isPrimaryAdvisor !== false;
                                 return (
                                     <tr key={sup.id} style={trStyle}>
-                                        <td style={td}>
+                                        <td style={td} data-label="รหัส / ชื่อ">
                                             <div style={{ fontWeight: 700, color: "#0f172a" }}>{sup.student.studentId}</div>
                                             <div style={{ fontSize: 13, color: "#64748b" }}>{sup.student.firstName} {sup.student.lastName}</div>
                                         </td>
-                                        <td style={td}><div style={{ fontWeight: 600 }}>{sup.student.coop?.company?.name || "-"}</div></td>
-                                        <td style={td}>
+                                        <td style={td} data-label="หน่วยงาน"><div style={{ fontWeight: 600 }}>{sup.student.coop?.company?.name || "-"}</div></td>
+                                        <td style={td} data-label="รูปแบบ">
                                             <span style={{ fontWeight: 700, color: sup.supervisionType === "ONLINE" ? "#2563eb" : "#ea580c" }}>
                                                 {sup.supervisionType === "ONLINE" ? "🌐 ออนไลน์" : "🏢 ออนไซต์"}
                                             </span>
                                         </td>
                                         {/* วันนิเทศ */}
-                                        <td style={td}>
+                                        <td style={td} data-label="วันนิเทศ">
                                             {sup.confirmedDate ? (
                                                 <div style={{ fontWeight: 700, color: "#16a34a" }}>✅ {formatDMYTime(sup.confirmedDate)}</div>
                                             ) : sup.proposedDates ? (
@@ -338,12 +338,12 @@ export default function T_SupervisionReview() {
                                                 <span style={{ color: "#94a3b8", fontSize: 13 }}>ยังไม่เสนอวัน</span>
                                             )}
                                         </td>
-                                        <td style={td}>
+                                        <td style={td} data-label="สิทธิ์ของคุณ">
                                             <span style={{ background: isPrimary ? "#eff6ff" : "#f8fafc", color: isPrimary ? "#2563eb" : "#64748b", padding: "4px 10px", borderRadius: 6, fontSize: 12, fontWeight: "bold", border: `1px solid ${isPrimary ? "#bfdbfe" : "#e2e8f0"}` }}>
                                                 {isPrimary ? "👑 ที่ปรึกษาหลัก" : "🤝 อาจารย์ร่วม"}
                                             </span>
                                         </td>
-                                        <td style={td}><StatusBadge status={sup.status} /></td>
+                                        <td style={td} data-label="สถานะ"><StatusBadge status={sup.status} /></td>
                                         <td style={{ ...td, textAlign: "right" }}>
                                             <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
                                                 {sup.status === "LETTER_UPLOADED" && isPrimary && (

@@ -1,5 +1,24 @@
 # CHANGELOG — Co_project
 
+## [2026-06-27] รองรับมือถือ/iPad รอบแรก — แก้จุดที่กระทบกว้างที่สุด
+
+ตรวจสอบพบว่าระบบรองรับมือถือ/แท็บเล็ตแค่ ~15% (11 จาก 72 component มี responsive CSS) เป็นงานใหญ่
+จึงเลือกแก้เฉพาะจุดที่กระทบทุกหน้า/ใช้บ่อยที่สุดก่อน ตามที่ user เลือก ("แก้จุดที่กระทบเยอะสุดก่อน")
+
+### Fixed
+- **Sidebar/drawer พังบนมือถือทุกหน้า**: `A_Sidebar.tsx`/`T_Sidebar.tsx`/`S_Sidebar.tsx` แต่ละไฟล์มี `@media (max-width: 900px)` ของตัวเองที่ตั้งใจไว้ก่อนจะมีระบบ hamburger-drawer (ของ `S_Theme.tsx` ที่ breakpoint 768px) — กลายเป็น override `height`/`overflow` ของ drawer และบีบเมนูให้เป็นแถบแนวนอนซ้อนอยู่ใน drawer แนวตั้งกว้าง 280px ลบ media query เก่าออก ใช้ระบบ drawer กลางอย่างเดียว
+- **ตาราง 7 คอลัมน์ overflow บนจอเล็ก**: เพิ่ม CSS pattern `table.responsive-table` ใน `S_Theme.tsx` (breakpoint 768px) แปลงตารางเป็น card แบบ label-ซ้อน-value แทนการ scroll แนวนอน ใช้กับ `A_Students.tsx`, `A_SupervisionManage.tsx`, `T_SupervisionReview.tsx` (เพิ่ม `className="responsive-table"` + `data-label` ในแต่ละ `<td>`)
+- **แผง "ตั้งค่าช่วงเวลานัดหมายนิเทศ" ใน `A_SupervisionManage.tsx` ทำให้ทั้งหน้า scroll แนวนอนบนมือถือ**: grid 5 คอลัมน์ตายตัว (`1.2fr 1fr 1fr 1fr auto`) ไม่ wrap เพิ่ม class `.config-grid` + media query ให้เหลือ 1 คอลัมน์บนจอ ≤768px
+
+### Verified
+- ทดสอบจริงด้วย chrome-devtools mobile viewport emulation (390×844, iPhone-class) บนหน้า Dashboard/นักศึกษา/จัดการการนิเทศ ทั้ง 3 บทบาท (staff/teacher/student): hamburger เปิด-ปิด drawer ถูกต้อง, ไม่มี horizontal scroll ระดับหน้า (`document.documentElement.scrollWidth === clientWidth`), ตารางแสดงเป็น card อ่านง่าย
+- ตรวจ desktop viewport (1280px) ซ้ำ ยืนยันว่า layout เดิมไม่เปลี่ยนแปลง (`table.responsive-table` มีผลเฉพาะ ≤768px)
+- `npx tsc --noEmit` ผ่านทุกขั้น
+
+### Known gaps (ยังไม่แก้ในรอบนี้ — นอกขอบเขตที่เลือก)
+- อีก ~58 component ที่ไม่มี responsive CSS เลย ยังไม่ได้ตรวจ/แก้
+- Modal ส่วนใหญ่ใช้ `width: 95vw/%` อยู่แล้วจึงไม่ overflow บนมือถือ แต่ไม่ได้ตรวจครบทุกไฟล์
+
 ## [2026-06-27] แก้ label ผิดในฟอร์ม T002: "ความสัมพันธ์ / โทรศัพท์" แต่ใส่ได้แค่เบอร์โทร
 
 ### Fixed
