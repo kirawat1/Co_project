@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { IcDashboard, IcUser, IcDocs } from "./icons";
+import { IcDashboard, IcUser, IcInbox, IcClipboard, IcList, IcRoute, IcCalendar, IcStar, IcClipboardCheck, IcBook } from "./icons";
 import { useNotifCounts } from "../hooks/useNotifCounts";
 
 function NavItem({ to, label, icon, count, onClick, end }: {
@@ -94,21 +94,21 @@ export default function S_Sidebar({ profile, isOpen = false, onClose = () => {} 
           <span className="text">ประกาศ</span>
         </NavLink>
 
-        <NavItem to="/student/gateway" label="ยื่นคำร้องสหกิจ" icon={<IcDocs />} onClick={handleNav} />
+        <NavItem to="/student/gateway" label="ยื่นคำร้องสหกิจ" icon={<IcInbox />} onClick={handleNav} />
 
         {showDocsMenu && (
           <>
             <div className="sec-label">COOP PROCESS</div>
 
-            <NavItem to="/student/docs" label="เอกสารสหกิจ (CP-T000)" icon={<IcDocs />} onClick={handleNav} />
+            <NavItem to="/student/docs" label="เอกสารสหกิจ (CP-T000)" icon={<IcClipboard />} onClick={handleNav} />
 
-            <NavItem to="/student/docs-t002" label="เอกสารรายละเอียด (CP-T002)" icon={<IcDocs />}
+            <NavItem to="/student/docs-t002" label="เอกสารรายละเอียด (CP-T002)" icon={<IcList />}
               count={counts.T002_REVIEWED ?? 0} onClick={navAndRead} />
 
-            <NavItem to="/student/docs-t003" label="เอกสารรายละเอียด (CP-T003)" icon={<IcDocs />}
+            <NavItem to="/student/docs-t003" label="เอกสารรายละเอียด (CP-T003)" icon={<IcRoute />}
               count={counts.T003_REVIEWED ?? 0} onClick={navAndRead} />
 
-            <NavItem to="/student/supervision" label="นัดหมายนิเทศ" icon={<IcDocs />}
+            <NavItem to="/student/supervision" label="นัดหมายนิเทศ" icon={<IcCalendar />}
               count={(counts.SUPERVISION_DATE_UPDATED ?? 0) + (counts.SUPERVISION_LETTER_UPLOADED ?? 0)}
               onClick={navAndRead} />
 
@@ -117,7 +117,7 @@ export default function S_Sidebar({ profile, isOpen = false, onClose = () => {} 
               className={({ isActive }) => "item" + (isActive ? " active" : "")}
           onClick={handleNav}
             >
-              <span className="ico"><IcDocs /></span>
+              <span className="ico"><IcStar /></span>
               <span className="text">T005/T006 เอกสารประเมิน</span>
             </NavLink>
 
@@ -126,7 +126,7 @@ export default function S_Sidebar({ profile, isOpen = false, onClose = () => {} 
               className={({ isActive }) => "item" + (isActive ? " active" : "")}
           onClick={handleNav}
             >
-              <span className="ico"><IcDocs /></span>
+              <span className="ico"><IcClipboardCheck /></span>
               <span className="text">T007 เอกสารประเมิน</span>
             </NavLink>
 
@@ -135,7 +135,7 @@ export default function S_Sidebar({ profile, isOpen = false, onClose = () => {} 
               className={({ isActive }) => "item" + (isActive ? " active" : "")}
           onClick={handleNav}
             >
-              <span className="ico"><IcDocs /></span>
+              <span className="ico"><IcBook /></span>
               <span className="text">เล่มรายงานสหกิจ 008</span>
             </NavLink>
 
