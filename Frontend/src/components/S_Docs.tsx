@@ -553,7 +553,7 @@ export default function S_Docs({ profile, setProfile }: { profile: LocalStudentP
 
       {/* ================= STEP 3: อัปโหลดเอกสาร ================= */}
       <section className="card">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, borderBottom: '2px solid #e2e8f0', paddingBottom: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, borderBottom: '2px solid #e2e8f0', paddingBottom: 16, flexWrap: 'wrap', gap: 12 }}>
           <h2 style={{ margin: 0, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 10 }}>
             <span style={{ background: '#e0f2fe', color: '#0284c7', width: 32, height: 32, display: 'flex', justifyContent: 'center', alignItems: 'center', borderRadius: '50%', fontSize: 16 }}>3</span>
             อัปโหลดเอกสารประกอบการสมัคร

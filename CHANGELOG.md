@@ -1,5 +1,24 @@
 # CHANGELOG — Co_project
 
+## [2026-06-27] รองรับมือถือ/iPad ครบทุกหน้าของนักศึกษา
+
+ทำต่อจากรอบแรก (sidebar/drawer + ตาราง 3 หน้าที่กระทบกว้างสุด) คราวนี้ตรวจและแก้ทุกหน้าที่นักศึกษาใช้งานจริง
+(Dashboard, สถานะสหกิจ, ข้อมูลนักศึกษา, ข้อมูลบริษัท, ยื่นคำร้องสหกิจ, เอกสาร T000/T002/T003, นัดหมายนิเทศ,
+ประกาศ, T005/T006, T007, T008) ทดสอบด้วย mobile viewport emulation (390×844) ทุกหน้า จนไม่มี horizontal
+overflow เหลือเลย (`document.documentElement.scrollWidth === clientWidth` ทุกหน้า)
+
+### Fixed
+- **`.page { margin/marginLeft คงที่ 28-65px }` กินพื้นที่จอเล็กไปมาก** — เพิ่ม global override ใน `S_Theme.tsx` (`@media max-width:768px`) ลดเหลือ `margin:10px` เท่ากันทุกหน้าที่ใช้ `className="page"` (มีผลกับทุก role ไม่ใช่แค่นักศึกษา เพราะ class นี้ใช้ร่วมกัน 31 ไฟล์)
+- **`S_Company.tsx`**: ตาราง "ทำเนียบสถานประกอบการ" + ตาราง "พี่เลี้ยง" ในโมดัล ไม่มี responsive treatment, แถวค้นหา+ปุ่มไม่ wrap, grid รายละเอียดบริษัท 2 คอลัมน์ไม่ยุบบนจอเล็ก — แก้ทั้ง 3 จุด
+- **`S_DocsT002Form.tsx`**: ฟอร์มมี grid คงที่ 2/3/4 คอลัมน์ (`grid2/grid3/grid4`) สำหรับกรอกที่อยู่บริษัท/ผู้ติดต่อ ทำให้ input บี้แน่นจนใช้งานไม่ได้บนจอเล็ก — เพิ่ม media query ยุบเป็น 2 คอลัมน์ที่ ≤768px และ 1 คอลัมน์ที่ ≤480px, header ที่มี CountdownTimer ก็ไม่ wrap ทำให้ล้นจอ
+- **`S_DocsT003Form.tsx`**, **`S_Docs.tsx`**: header แถวเดียวกับ CountdownTimer ไม่มี `flexWrap` ทำให้ล้นจอแนวนอนเหมือนกัน
+- **`S_ProfilePage.tsx`**, **`S_Gateway.tsx`**: `.card-head` (หัวข้อ + ปุ่ม) ไม่ wrap, `.info-row` ใช้ grid คอลัมน์ label กว้าง 160px ตายตัว, `.profile-card` padding 40px ตายตัว — กินพื้นที่จอเล็กจนข้อมูลล้น
+- **`S_Dashboard.tsx`**: `.dashboard-wrapper` มี `marginLeft: 45px` ตายตัว ไม่มี media query เลย
+- **`S_DocT005_006.tsx`, `S_DocT007.tsx`, `S_DocT008.tsx`**: บั๊ก CSS flexbox/grid คลาสสิก — `.content`/`.url-text` ตั้ง `flex: 1` แต่ไม่มี `min-width: 0` (ค่า default ของ flex item คือ `min-width: auto` = ขนาดตาม content) ทำให้ลิงก์ Google Drive ที่เป็น URL ยาวไม่ยอมหด ดึงทั้งกล่อง (`.link-box`) กว้างเกิน 900px บนจอ 390px — เพิ่ม `min-width: 0` ทั้ง `.link-box`/`.content`/`.url-text` ทั้ง 3 ไฟล์
+
+### Verified
+- `npx tsc --noEmit` ผ่านทุกขั้น, desktop viewport (1280px) ตรวจซ้ำว่า layout เดิมไม่เปลี่ยน
+
 ## [2026-06-27] รองรับมือถือ/iPad รอบแรก — แก้จุดที่กระทบกว้างที่สุด
 
 ตรวจสอบพบว่าระบบรองรับมือถือ/แท็บเล็ตแค่ ~15% (11 จาก 72 component มี responsive CSS) เป็นงานใหญ่

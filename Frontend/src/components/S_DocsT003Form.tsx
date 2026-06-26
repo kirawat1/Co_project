@@ -282,9 +282,9 @@ export default function S_DocsT003Form({ profile, onRefresh }: Props) {
             )}
 
             {/* --- HEADER --- */}
-            <div style={{ borderBottom: '2px solid #2563eb', paddingBottom: 15, marginBottom: 25, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div style={{ borderBottom: '2px solid #2563eb', paddingBottom: 15, marginBottom: 25, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
                 <div>
-                    <h2 style={{ color: '#1e3a8a', margin: '0 0 8px 0', display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <h2 style={{ color: '#1e3a8a', margin: '0 0 8px 0', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
                         แบบฟอร์ม T003 (Proposal)
                         <StatusBadge status={currentStatusToShow} />
                     </h2>

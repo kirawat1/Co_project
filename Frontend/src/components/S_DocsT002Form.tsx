@@ -269,7 +269,16 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
     const canEdit = isSystemOpen && isUnlocked;
 
     return (
-        <div style={{ maxWidth: 900, margin: '0 auto', background: '#fff', padding: 30, borderRadius: 12, boxShadow: '0 4px 6px rgba(0,0,0,0.05)' }}>
+        <div className="t002-form" style={{ maxWidth: 900, margin: '0 auto', background: '#fff', padding: 30, borderRadius: 12, boxShadow: '0 4px 6px rgba(0,0,0,0.05)' }}>
+            <style>{`
+                @media (max-width: 768px) {
+                    .t002-form { padding: 14px !important; max-width: 100% !important; }
+                    .t002-form .grid3, .t002-form .grid4 { grid-template-columns: 1fr 1fr !important; }
+                }
+                @media (max-width: 480px) {
+                    .t002-form .grid2, .t002-form .grid3, .t002-form .grid4 { grid-template-columns: 1fr !important; }
+                }
+            `}</style>
 
             {/* 🔒 แจ้งเตือนถ้ายังไม่ถึงขั้นตอนนี้ (ยังไม่ได้รับหนังสือขอความอนุเคราะห์) */}
             {!isUnlocked && (
@@ -294,9 +303,9 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
             )}
 
             {/* --- HEADER และ STATUS BADGE --- */}
-            <div style={{ borderBottom: '2px solid #6b21a8', paddingBottom: 15, marginBottom: 25, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div style={{ borderBottom: '2px solid #6b21a8', paddingBottom: 15, marginBottom: 25, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
                 <div>
-                    <h2 style={{ color: '#4c1d95', margin: '0 0 8px 0', display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <h2 style={{ color: '#4c1d95', margin: '0 0 8px 0', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
                         แบบฟอร์ม T002
                         <StatusBadge status={currentStatusToShow} />
                     </h2>
@@ -319,23 +328,23 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 24, opacity: canEdit ? 1 : 0.6, pointerEvents: canEdit ? 'auto' : 'none' }}>
 
                 <Section title="1. ข้อมูลสถานประกอบการ (สถานที่ปฏิบัติงานจริง)">
-                    <div style={grid2}>
+                    <div style={grid2} className="grid2">
                         <Input label="ชื่อบริษัท (ไทย)" name="companyNameTh" value={formData.companyNameTh} onChange={handleChange} required />
                         <Input label="ชื่อบริษัท (อังกฤษ)" name="companyNameEn" value={formData.companyNameEn} onChange={handleChange} />
                     </div>
-                    <div style={grid4}>
+                    <div style={grid4} className="grid4">
                         <Input label="เลขที่" name="addressNo" value={formData.addressNo} onChange={handleChange} required />
                         <Input label="หมู่" name="moo" value={formData.moo} onChange={handleChange} />
                         <Input label="ซอย" name="soi" value={formData.soi} onChange={handleChange} />
                         <Input label="ถนน" name="road" value={formData.road} onChange={handleChange} />
                     </div>
-                    <div style={grid4}>
+                    <div style={grid4} className="grid4">
                         <Input label="ตำบล/แขวง" name="subDistrict" value={formData.subDistrict} onChange={handleChange} required />
                         <Input label="อำเภอ/เขต" name="district" value={formData.district} onChange={handleChange} required />
                         <Input label="จังหวัด" name="province" value={formData.province} onChange={handleChange} required />
                         <Input label="รหัสไปรษณีย์" name="zipcode" value={formData.zipcode} onChange={handleChange} required />
                     </div>
-                    <div style={grid3}>
+                    <div style={grid3} className="grid3">
                         <Input label="โทรศัพท์" name="companyPhone" value={formData.companyPhone} onChange={handleChange} required />
                         <Input label="โทรสาร (Fax)" name="companyFax" value={formData.companyFax} onChange={handleChange} />
                         <Input label="อีเมล" type="email" name="companyEmail" value={formData.companyEmail} onChange={handleChange} />
@@ -343,7 +352,7 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
                 </Section>
 
                 <Section title="2. ผู้จัดการทั่วไป และผู้ประสานงาน">
-                    <div style={grid2}>
+                    <div style={grid2} className="grid2">
                         <Input label="ชื่อผู้จัดการ" name="managerName" value={formData.managerName} onChange={handleChange} />
                         <Input label="ตำแหน่งผู้จัดการ" name="managerPosition" value={formData.managerPosition} onChange={handleChange} />
                     </div>
@@ -355,7 +364,7 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
                         </div>
 
                         {formData.coordinatorType === "OTHER" && (
-                            <div style={grid3}>
+                            <div style={grid3} className="grid3">
                                 <Input label="ชื่อผู้ประสานงาน" name="coordName" value={formData.coordName} onChange={handleChange} />
                                 <Input label="ตำแหน่ง" name="coordPosition" value={formData.coordPosition} onChange={handleChange} />
                                 <Input label="แผนก" name="coordDept" value={formData.coordDept} onChange={handleChange} />
@@ -367,7 +376,7 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
                 </Section>
 
                 <Section title="3. พนักงานที่ปรึกษา (Job Supervisor / พี่เลี้ยง)">
-                    <div style={grid3}>
+                    <div style={grid3} className="grid3">
                         <Input label="ชื่อ-สกุล" name="supervisorName" value={formData.supervisorName} onChange={handleChange} required />
                         <Input label="ตำแหน่ง" name="supervisorPosition" value={formData.supervisorPosition} onChange={handleChange} required />
                         <Input label="แผนก" name="supervisorDept" value={formData.supervisorDept} onChange={handleChange} required />
@@ -395,7 +404,7 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
 
                     <div style={{ padding: 15, background: '#fef2f2', borderRadius: 8, border: '1px solid #fecaca' }}>
                         <h4 style={{ margin: '0 0 10px 0', color: '#991b1b' }}>บุคคลที่ติดต่อได้ในกรณีฉุกเฉิน</h4>
-                        <div style={grid2}>
+                        <div style={grid2} className="grid2">
                             <Input label="ชื่อ-สกุล" name="emergencyName" value={formData.emergencyName} onChange={handleChange} required />
                             <Input label="เบอร์โทรศัพท์" name="emergencyPhone" value={formData.emergencyPhone} onChange={handleChange} required />
                         </div>

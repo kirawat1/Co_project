@@ -132,13 +132,13 @@ export default function S_DocT008() {
 
             <style>{`
                 .card { background: #fff; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
-                .link-box { padding: 24px; display: flex; gap: 16px; align-items: flex-start; transition: 0.2s; }
+                .link-box { padding: 24px; display: flex; gap: 16px; align-items: flex-start; transition: 0.2s; min-width: 0; flex-wrap: wrap; }
                 .icon-wrapper { width: 50px; height: 50px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0; }
-                .content { flex: 1; width: 100%; overflow: hidden; }
+                .content { flex: 1; min-width: 0; width: 100%; overflow: hidden; }
                 .content h4 { margin: 0 0 6px 0; color: '#1e293b'; font-size: 16px; }
                 .content p { margin: 0 0 12px 0; font-size: 13px; line-height: 1.5; }
                 .url-container { padding: 8px 8px 8px 12px; border-radius: 8px; margin-bottom: 12px; border: 1px solid #e2e8f0; display: flex; align-items: center; gap: 10px; }
-                .url-text { color: #475569; font-size: 13px; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+                .url-text { color: #475569; font-size: 13px; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
                 .btn-copy { background: #e2e8f0; border: none; padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 700; color: #334155; transition: 0.2s; }
                 .btn-copy:hover { background: #cbd5e1; }
                 .btn-copy.copied { background: #dcfce7; color: #166534; }
