@@ -228,14 +228,14 @@ export default function Company({ profile }: { profile: any }) {
         <div className="page" style={{ padding: 4, margin: 28, marginLeft: 65 }}>
             <section className="card" style={{ padding: 24, marginBottom: 28 }}>
                 <h2 style={{ margin: 0 }}>🏢 ทำเนียบสถานประกอบการ</h2>
-                <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
-                    <input className="input" placeholder="ค้นหา: ชื่อ / จังหวัด / อีเมล / ปี / เลขที่" value={q} onChange={e => setQ(e.target.value)} style={{ width: 320 }} />
+                <div style={{ display: "flex", gap: 10, marginTop: 16, flexWrap: "wrap" }}>
+                    <input className="input" placeholder="ค้นหา: ชื่อ / จังหวัด / อีเมล / ปี / เลขที่" value={q} onChange={e => setQ(e.target.value)} style={{ width: 320, maxWidth: "100%" }} />
                     <button className="btn" onClick={() => { setForm(emptyCompany()); setShowAdd(true); }}>+ เพิ่มบริษัทใหม่</button>
                 </div>
             </section>
 
             <section className="card" style={{ padding: 24 }}>
-                <table className="tbl" style={{ width: "100%", borderCollapse: "collapse" }}>
+                <table className="tbl responsive-table" style={{ width: "100%", borderCollapse: "collapse" }}>
                     <thead>
                         <tr><th>ชื่อบริษัท</th><th>จังหวัด</th><th>อีเมล</th><th>เบอร์โทร</th><th>ปีแรกที่รับ</th><th style={{ textAlign: "right" }}>จัดการ</th></tr>
                     </thead>
@@ -244,11 +244,11 @@ export default function Company({ profile }: { profile: any }) {
                             <tr><td colSpan={6} style={{ textAlign: "center", padding: 16, color: "#6b7280" }}>— ไม่มีข้อมูล —</td></tr>
                             : filtered.map((c, idx) =>
                                 <tr key={c.id} className={idx % 2 ? "row-odd" : "row-even"}>
-                                    <td style={{ fontWeight: 600, color: '#1e293b' }}>{c.name}</td>
-                                    <td>{c.province || "-"}</td>
-                                    <td>{c.email || "-"}</td>
-                                    <td>{c.phone || "-"}</td>
-                                    <td>{c.pastYears || "-"}</td>
+                                    <td style={{ fontWeight: 600, color: '#1e293b' }} data-label="ชื่อบริษัท">{c.name}</td>
+                                    <td data-label="จังหวัด">{c.province || "-"}</td>
+                                    <td data-label="อีเมล">{c.email || "-"}</td>
+                                    <td data-label="เบอร์โทร">{c.phone || "-"}</td>
+                                    <td data-label="ปีแรกที่รับ">{c.pastYears || "-"}</td>
                                     <td style={{ textAlign: "right" }}>
                                         <button className="btn-secondary small" onClick={() => setViewCompany(c)}>ดูรายละเอียด</button>
 
@@ -276,7 +276,7 @@ export default function Company({ profile }: { profile: any }) {
             </Modal>}
 
             {viewCompany && <Modal title="🏢 รายละเอียดสถานประกอบการ" onClose={() => setViewCompany(null)}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, fontSize: 14 }}>
+                <div className="detail-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, fontSize: 14 }}>
                     <div><b>ชื่อ (ไทย):</b> {viewCompany.name}</div>
                     <div><b>ชื่อ (อังกฤษ):</b> {viewCompany.nameEn || "-"}</div>
 
@@ -308,7 +308,7 @@ export default function Company({ profile }: { profile: any }) {
                 </div>
 
                 {(!viewCompany.mentors || viewCompany.mentors.length === 0) ? <p style={{ color: "#6b7280", fontSize: 13 }}>ยังไม่มีข้อมูลพี่เลี้ยงในระบบ</p> :
-                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                    <table className="responsive-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                         <thead style={{ background: '#f1f5f9' }}>
                             <tr>
                                 <th style={{ padding: 8, textAlign: 'left' }}>ชื่อ-นามสกุล</th>
@@ -320,9 +320,9 @@ export default function Company({ profile }: { profile: any }) {
                         <tbody>
                             {(viewCompany.mentors || []).map(m =>
                                 <tr key={m.id} style={{ borderBottom: '1px solid #eee' }}>
-                                    <td style={{ padding: 8 }}>{m.firstName} {m.lastName}</td>
-                                    <td style={{ padding: 8 }}>{m.position} <br /><span style={{ color: '#64748b', fontSize: 12 }}>{m.department}</span></td>
-                                    <td style={{ padding: 8 }}>{m.phone} <br /><span style={{ color: '#64748b', fontSize: 12 }}>{m.email}</span></td>
+                                    <td style={{ padding: 8 }} data-label="ชื่อ-นามสกุล">{m.firstName} {m.lastName}</td>
+                                    <td style={{ padding: 8 }} data-label="ตำแหน่ง / แผนก">{m.position} <br /><span style={{ color: '#64748b', fontSize: 12 }}>{m.department}</span></td>
+                                    <td style={{ padding: 8 }} data-label="ติดต่อ">{m.phone} <br /><span style={{ color: '#64748b', fontSize: 12 }}>{m.email}</span></td>
                                     <td style={{ textAlign: "center", padding: 8 }}>
                                         <button className="btn-secondary small" onClick={() => { setEditingMentor(m); setMentorForm(m); setShowAddMentor(true) }}>แก้ไข</button>
                                         <button className="btn-danger small" onClick={() => removeMentor(m.id)}>ลบ</button>
@@ -403,6 +403,7 @@ function Modal({ title, onClose, children }: any) {
             <style>{`
                 .modal-backdrop { position:fixed; inset:0; background:rgba(15,23,42,.5); display:flex; align-items:center; justify-content:center; z-index:100; backdrop-filter: blur(2px); }
                 .modal-card { background:white; width:min(800px, 95vw); border-radius:12px; padding:24px; box-shadow:0 20px 25px -5px rgba(0,0,0,.1); }
+                @media (max-width: 600px) { .detail-grid { grid-template-columns: 1fr !important; } }
             `}</style>
         </div>
     )

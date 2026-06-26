@@ -250,6 +250,10 @@ function css(IOS_BLUE: string) {
     /* Main content: less padding */
     .main { padding: 12px 10px; }
 
+    /* Page wrapper: หลายหน้าใส่ margin/marginLeft คงที่ (28-65px) เป็น inline style
+       ซึ่งกินพื้นที่หน้าจอมือถือไปมาก ลดเหลือเท่ากันทุกด้านด้วย !important เพื่อชนะ inline style */
+    .page { margin: 10px !important; margin-left: 10px !important; padding: 4px !important; max-width: 100% !important; }
+
     /* Tables: horizontal scroll */
     table { display: block; overflow-x: auto; white-space: nowrap; }
 

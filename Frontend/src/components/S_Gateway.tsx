@@ -604,6 +604,11 @@ const PROFILE_CSS = `
 .header-card p { margin: 10px 0 0; opacity: 0.9; font-size: 16px; line-height: 1.6; }
 .profile-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
 @media (max-width: 1024px) { .profile-grid { grid-template-columns: 1fr; } }
+@media (max-width: 600px) {
+  .profile-card { padding: 18px !important; }
+  .card-head { flex-wrap: wrap; gap: 10px; }
+  .info-row { grid-template-columns: 1fr !important; gap: 2px; }
+}
 .profile-card { background: #fff; border-radius: 20px; padding: 28px 40px; box-shadow: 0 8px 24px rgba(15, 23, 42, .05); border: 1px solid #f1f5f9; height: fit-content; }
 .card-head { display: flex; justify-content: space-between; align-items: center; }
 .profile-title { font-size: 18px; font-weight: 800; margin: 0; color: #0f172a; }

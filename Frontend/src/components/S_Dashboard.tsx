@@ -352,6 +352,9 @@ const DASHBOARD_CSS = `
   padding: 20px 10px;
   margin-left: 45px;
 }
+@media (max-width: 600px) {
+  .dashboard-wrapper { width: 100%; margin-left: 0; padding: 12px 6px; }
+}
 .dashboard-header h1 {
   font-size: 28px;
   font-weight: 800;

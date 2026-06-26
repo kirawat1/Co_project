@@ -696,6 +696,12 @@ const editBtnStyle = { background: "#2563eb", border: "none", padding: "6px 12px
 const PROFILE_CSS = `
 .profile-grid{ display:grid; grid-template-columns:1fr 1fr; gap:28px; }
 @media (max-width: 1024px){ .profile-grid{ grid-template-columns:1fr; } }
+@media (max-width: 600px){
+  .profile-card{ padding: 18px !important; }
+  .card-head{ flex-wrap: wrap; gap: 10px; }
+  .info-row{ grid-template-columns: 1fr !important; gap: 2px; }
+  .form-grid{ grid-template-columns: 1fr !important; }
+}
 .profile-card{ background:#fff; border-radius:20px; padding:28px 40px; box-shadow:0 8px 24px rgba(15,23,42,.08); }
 .card-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px; }
 .profile-title{ font-size:18px; font-weight:800; margin:0; }

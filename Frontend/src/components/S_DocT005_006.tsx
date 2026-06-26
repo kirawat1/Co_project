@@ -191,14 +191,14 @@ export default function S_DocT005_006() {
 
             <style>{`
                 .card { background: #fff; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
-                .link-box { padding: 24px; display: flex; gap: 16px; align-items: flex-start; transition: 0.2s; }
+                .link-box { padding: 24px; display: flex; gap: 16px; align-items: flex-start; transition: 0.2s; min-width: 0; flex-wrap: wrap; }
                 .link-box:hover { box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); transform: translateY(-2px); }
                 .icon-wrapper { width: 50px; height: 50px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0; }
                 .bg-green { background: #dcfce7; }
                 .bg-blue { background: #dbeafe; }
                 .bg-yellow { background: #fef3c7; }
-                
-                .content { flex: 1; width: 100%; overflow: hidden; }
+
+                .content { flex: 1; min-width: 0; width: 100%; overflow: hidden; }
                 .content h4 { margin: 0 0 6px 0; color: '#1e293b'; font-size: 16px; }
                 .content p { margin: 0 0 12px 0; color: #64748b; font-size: 13px; line-height: 1.5; }
                 
@@ -213,10 +213,11 @@ export default function S_DocT005_006() {
                     align-items: center;
                     gap: 10px;
                 }
-                .url-text { 
-                    color: #475569; 
-                    font-size: 13px; 
+                .url-text {
+                    color: #475569;
+                    font-size: 13px;
                     flex: 1;
+                    min-width: 0;
                     white-space: nowrap;
                     overflow: hidden;
                     text-overflow: ellipsis;
