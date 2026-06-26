@@ -54,6 +54,8 @@ export default function Company({ profile }: { profile: any }) {
 
     const [showAddMentor, setShowAddMentor] = useState(false);
     const [editingMentor, setEditingMentor] = useState<MentorRecord | null>(null);
+    const [justCreatedCompany, setJustCreatedCompany] = useState<CompanyRecord | null>(null);
+    const [quickAddMentor, setQuickAddMentor] = useState(false);
 
     const [form, setForm] = useState<any>(emptyCompany());
     const [mentorForm, setMentorForm] = useState<any>(emptyMentor());
@@ -113,6 +115,7 @@ export default function Company({ profile }: { profile: any }) {
             setItems(prev => [...prev, data.company]);
             setShowAdd(false);
             setForm(emptyCompany());
+            setJustCreatedCompany(data.company);
         } catch (err) { console.error(err); alert("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้"); }
     }
 
@@ -180,8 +183,8 @@ export default function Company({ profile }: { profile: any }) {
                 const data = await res.json();
                 if (!data.ok) return alert("เพิ่มพี่เลี้ยงไม่สำเร็จ");
 
-                setViewCompany(prev => prev ? { ...prev, mentors: [...prev.mentors, data.mentor] } : prev);
-                setItems(prev => prev.map(c => c.id === viewCompany?.id ? { ...c, mentors: [...c.mentors, data.mentor] } : c));
+                setViewCompany(prev => prev ? { ...prev, mentors: [...(prev.mentors || []), data.mentor] } : prev);
+                setItems(prev => prev.map(c => c.id === viewCompany?.id ? { ...c, mentors: [...(c.mentors || []), data.mentor] } : c));
             } else {
                 const res = await fetch(`/api/companies/mentors/${editingMentor.id}`, {
                     method: "PUT",
@@ -191,13 +194,18 @@ export default function Company({ profile }: { profile: any }) {
                 const data = await res.json();
                 if (!data.ok) return alert("แก้ไขพี่เลี้ยงไม่สำเร็จ");
 
-                setViewCompany(prev => prev ? { ...prev, mentors: prev.mentors.map(m => m.id === editingMentor.id ? data.mentor : m) } : prev);
-                setItems(prev => prev.map(c => c.id === viewCompany?.id ? { ...c, mentors: c.mentors.map(m => m.id === editingMentor.id ? data.mentor : m) } : c));
+                setViewCompany(prev => prev ? { ...prev, mentors: (prev.mentors || []).map(m => m.id === editingMentor.id ? data.mentor : m) } : prev);
+                setItems(prev => prev.map(c => c.id === viewCompany?.id ? { ...c, mentors: (c.mentors || []).map(m => m.id === editingMentor.id ? data.mentor : m) } : c));
             }
 
             setEditingMentor(null);
             setMentorForm(emptyMentor());
             setShowAddMentor(false);
+
+            if (quickAddMentor) {
+                setViewCompany(null);
+                setQuickAddMentor(false);
+            }
         } catch (err) { console.error(err); alert("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้"); }
     }
 
@@ -210,8 +218,8 @@ export default function Company({ profile }: { profile: any }) {
             const data = await res.json();
             if (!data.ok) return alert(data.message);
 
-            setViewCompany(prev => prev ? { ...prev, mentors: prev.mentors.filter(m => m.id !== mentorId) } : prev);
-            setItems(prev => prev.map(c => c.id === viewCompany?.id ? { ...c, mentors: c.mentors.filter(m => m.id !== mentorId) } : c));
+            setViewCompany(prev => prev ? { ...prev, mentors: (prev.mentors || []).filter(m => m.id !== mentorId) } : prev);
+            setItems(prev => prev.map(c => c.id === viewCompany?.id ? { ...c, mentors: (c.mentors || []).filter(m => m.id !== mentorId) } : c));
         } catch (err) { console.error(err); alert("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้"); }
     }
 
@@ -296,7 +304,7 @@ export default function Company({ profile }: { profile: any }) {
 
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 20, marginBottom: 10 }}>
                     <h4 style={{ margin: 0 }}>👥 ข้อมูลพี่เลี้ยง (Mentors)</h4>
-                    <button className="btn-secondary small" onClick={() => setShowAddMentor(true)}>+ เพิ่มพี่เลี้ยง</button>
+                    <button className="btn-secondary small" onClick={() => { setQuickAddMentor(false); setShowAddMentor(true); }}>+ เพิ่มพี่เลี้ยง</button>
                 </div>
 
                 {(!viewCompany.mentors || viewCompany.mentors.length === 0) ? <p style={{ color: "#6b7280", fontSize: 13 }}>ยังไม่มีข้อมูลพี่เลี้ยงในระบบ</p> :
@@ -328,6 +336,28 @@ export default function Company({ profile }: { profile: any }) {
 
             {showAddMentor && <Modal title={editingMentor ? "แก้ไขพี่เลี้ยง" : "เพิ่มพี่เลี้ยง"} onClose={() => { setShowAddMentor(false); setEditingMentor(null) }}>
                 <MentorForm form={mentorForm} setForm={setMentorForm} onSubmit={saveMentor} />
+            </Modal>}
+
+            {justCreatedCompany && <Modal title="✅ เพิ่มบริษัทสำเร็จ" onClose={() => setJustCreatedCompany(null)}>
+                <p style={{ fontSize: 14, color: '#475569' }}>
+                    เพิ่มบริษัท <b>{justCreatedCompany.name}</b> สำเร็จ! ต้องการเพิ่มข้อมูลพี่เลี้ยงตอนนี้เลยหรือไม่?
+                </p>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
+                    <button className="btn-secondary" onClick={() => setJustCreatedCompany(null)}>
+                        ข้ามไปก่อน
+                    </button>
+                    <button
+                        className="btn"
+                        onClick={() => {
+                            setViewCompany(justCreatedCompany);
+                            setQuickAddMentor(true);
+                            setShowAddMentor(true);
+                            setJustCreatedCompany(null);
+                        }}
+                    >
+                        เพิ่มพี่เลี้ยงเลย
+                    </button>
+                </div>
             </Modal>}
 
             <style>{`
