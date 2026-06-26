@@ -397,7 +397,7 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
                         <h4 style={{ margin: '0 0 10px 0', color: '#991b1b' }}>บุคคลที่ติดต่อได้ในกรณีฉุกเฉิน</h4>
                         <div style={grid2}>
                             <Input label="ชื่อ-สกุล" name="emergencyName" value={formData.emergencyName} onChange={handleChange} required />
-                            <Input label="ความสัมพันธ์ / โทรศัพท์" name="emergencyPhone" value={formData.emergencyPhone} onChange={handleChange} required />
+                            <Input label="เบอร์โทรศัพท์" name="emergencyPhone" value={formData.emergencyPhone} onChange={handleChange} required />
                         </div>
                         <div style={{ marginTop: 10 }}>
                             <label style={lblStyle}>ที่อยู่กรณีฉุกเฉิน</label>
