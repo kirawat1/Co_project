@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import DocTable from "./S_DocTable";
 import { createT000PDF, type T000FormData } from "../utils/pdfGeneratorT000";
 import PlacementLetterCard from "./PlacementLetterCard";
@@ -262,6 +262,9 @@ export default function S_Docs({ profile, setProfile }: { profile: LocalStudentP
   const [config, setConfig] = useState<{ endDate?: string; isOpen?: boolean } | null>(null);
   const [requiredDocs, setRequiredDocs] = useState<{ id: string; title: string; isRequired: boolean }[]>([]);
 
+  // 💾 เวลาบันทึกอัตโนมัติล่าสุด
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+
   const token = localStorage.getItem("coop.token");
 
   const [formData, setFormData] = useState<T000FormData>({
@@ -325,10 +328,25 @@ export default function S_Docs({ profile, setProfile }: { profile: LocalStudentP
     try {
       if (!silent) setLoading(true);
       const res = await apiFetch("/api/docs/save-form", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify(formData) });
-      if (!silent && res.ok) alert("✅ บันทึกข้อมูลแบบฟอร์มเรียบร้อยแล้ว");
+      if (res.ok) {
+        setLastSavedAt(new Date());
+        if (!silent) alert("✅ บันทึกข้อมูลแบบฟอร์มเรียบร้อยแล้ว");
+      }
     } catch (err) { if (!silent) alert("Connection Error"); }
     finally { if (!silent) setLoading(false); }
   };
+
+  // 💾 บันทึกข้อมูลอัตโนมัติหลังหยุดพิมพ์ ~1.5 วิ (ข้ามครั้งแรกตอน mount ไม่ให้ save ทันทีที่โหลดหน้า)
+  const isFirstRender = useRef(true);
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    const timer = setTimeout(() => { handleSaveForm(true); }, 1500);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData]);
 
   const handleGeneratePDF = async (mode: "preview" | "download") => {
     try {
@@ -437,7 +455,11 @@ export default function S_Docs({ profile, setProfile }: { profile: LocalStudentP
             <span style={{ background: '#e0f2fe', color: '#0284c7', width: 32, height: 32, display: 'flex', justifyContent: 'center', alignItems: 'center', borderRadius: '50%', fontSize: 16 }}>1</span>
             กรอกข้อมูลใบสมัคร (T000)
           </h2>
-          <button className="btn-primary" onClick={() => handleSaveForm(false)} style={{ background: '#0284c7' }}>💾 บันทึกแบบร่าง</button>
+          {lastSavedAt && (
+            <span style={{ fontSize: 12, color: '#16a34a' }}>
+              💾 บันทึกล่าสุด {lastSavedAt.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}
+            </span>
+          )}
         </div>
 
         <div style={{ display: 'grid', gap: 24 }}>

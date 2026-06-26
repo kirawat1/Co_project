@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { createT002PDF } from "../utils/pdfGeneratorT002";
 import StatusBadge from "./StatusBadge";
 import CountdownTimer from "../components/CountdownTimer"; // ✅ Import มาแล้ว
@@ -38,6 +38,9 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
 
     // --- State สำหรับอัปโหลดไฟล์ ---
     const [selectedUploadFile, setSelectedUploadFile] = useState<File | null>(null);
+
+    // 💾 เวลาบันทึกอัตโนมัติล่าสุด
+    const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
 
     const uploadedT002 = profile?.documents?.find((d: any) => d.type === 'T002_FORM');
     const company = profile?.coop?.company || profile?.company || {};
@@ -149,6 +152,7 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
     const handlePreviewPDF = async () => {
         setLoading(true);
         try {
+            await saveForm(true);
             const payloadToPDF = {
                 ...formData,
                 coordinatorType: formData.coordinatorType as "MANAGER" | "OTHER"
@@ -184,9 +188,8 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
         }
     };
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setLoading(true);
+    const saveForm = async (silent = false) => {
+        if (!silent) setLoading(true);
         try {
             const token = localStorage.getItem("coop.token");
             const res = await apiFetch("/api/docs/t002-form", {
@@ -199,18 +202,31 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
             });
 
             if (res.ok) {
-                alert("💾 บันทึกข้อมูลแบบร่าง T002 เรียบร้อยแล้ว! (คุณสามารถกดดูตัวอย่าง PDF และดาวน์โหลดได้เลย)");
-                if (typeof onRefresh === 'function') onRefresh();
-            } else {
+                setLastSavedAt(new Date());
+                if (!silent && typeof onRefresh === 'function') onRefresh();
+            } else if (!silent) {
                 alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล");
             }
         } catch (err) {
             console.error(err);
-            alert("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้");
+            if (!silent) alert("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้");
         } finally {
-            setLoading(false);
+            if (!silent) setLoading(false);
         }
     };
+
+    // 💾 บันทึกข้อมูลอัตโนมัติหลังหยุดพิมพ์ ~1.5 วิ (ข้ามครั้งแรกตอน mount ไม่ให้ save ทันทีที่โหลดหน้า)
+    const isFirstRender = useRef(true);
+    useEffect(() => {
+        if (isFirstRender.current) {
+            isFirstRender.current = false;
+            return;
+        }
+        if (!canEdit) return;
+        const timer = setTimeout(() => { saveForm(true); }, 1500);
+        return () => clearTimeout(timer);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [formData]);
 
     // ฟังก์ชันอัปโหลดไฟล์ T002 ตัวจริง
     const handleConfirmUpload = async () => {
@@ -291,14 +307,16 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
                     {/* 🟢 เรียกใช้ Component นัับถอยหลังตรงนี้โดยตรงเลย */}
                     <CountdownTimer endDate={config?.endDate} isOpen={config?.isOpen} />
 
-                    <button type="button" onClick={handlePreviewPDF} disabled={loading} style={btnOutline}>
-                        {loading ? '⏳ กำลังทำงาน...' : '👁️ ดูตัวอย่าง / โหลด PDF'}
-                    </button>
+                    {lastSavedAt && (
+                        <span style={{ fontSize: 12, color: '#16a34a' }}>
+                            💾 บันทึกล่าสุด {lastSavedAt.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                    )}
                 </div>
             </div>
 
             {/* --- ฟอร์มกรอกข้อมูล (STEP 1) --- */}
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 24, opacity: canEdit ? 1 : 0.6, pointerEvents: canEdit ? 'auto' : 'none' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 24, opacity: canEdit ? 1 : 0.6, pointerEvents: canEdit ? 'auto' : 'none' }}>
 
                 <Section title="1. ข้อมูลสถานประกอบการ (สถานที่ปฏิบัติงานจริง)">
                     <div style={grid2}>
@@ -390,10 +408,12 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
 
                 {canEdit && (
                     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 10 }}>
-                        <button type="submit" style={btnSubmit}>💾 บันทึกข้อมูลร่าง T002</button>
+                        <button type="button" onClick={handlePreviewPDF} disabled={loading} style={btnOutline}>
+                            {loading ? '⏳ กำลังทำงาน...' : '👁️ ดูตัวอย่าง / โหลด PDF'}
+                        </button>
                     </div>
                 )}
-            </form>
+            </div>
 
             {/* --- ส่วนอัปโหลดเอกสาร (STEP 2) --- */}
             {isUnlocked && (
