@@ -2,9 +2,14 @@ import { NavLink } from "react-router-dom";
 import {
   IcDashboard,
   IcUsers,
-  IcDocs,
   IcCalendar,
   IcUser,
+  IcInbox,
+  IcList,
+  IcRoute,
+  IcStar,
+  IcClipboardCheck,
+  IcBook,
 } from "./icons";
 import { useNotifCounts } from "../hooks/useNotifCounts";
 
@@ -61,12 +66,12 @@ export default function T_Sidebar({ isOpen = false, onClose = () => {} }: Sideba
 
         <div className="sec-label">เอกสารและบันทึก</div>
 
-        <NavItem to="/teacher/requests" label="ตรวจสอบคำร้องสหกิจ" icon={<IcDocs />}
+        <NavItem to="/teacher/requests" label="ตรวจสอบคำร้องสหกิจ" icon={<IcInbox />}
           count={(counts.COOP_APPLICATION_SUBMITTED ?? 0) + (counts.ACCEPTANCE_UPLOADED ?? 0)}
           onClick={navAndRead} />
-        <NavItem to="/teacher/review-t002" label="T002 เอกสารรายละเอียด" icon={<IcDocs />}
+        <NavItem to="/teacher/review-t002" label="T002 เอกสารรายละเอียด" icon={<IcList />}
           count={counts.T002_SUBMITTED ?? 0} onClick={navAndRead} />
-        <NavItem to="/teacher/review-t003" label="T003 โครงร่างรายงาน" icon={<IcDocs />}
+        <NavItem to="/teacher/review-t003" label="T003 โครงร่างรายงาน" icon={<IcRoute />}
           count={counts.T003_SUBMITTED ?? 0} onClick={navAndRead} />
         <NavItem to="/teacher/review-supervision" label="นัดหมายนิเทศ" icon={<IcCalendar />}
           count={counts.SUPERVISION_PROPOSED ?? 0} onClick={navAndRead} />
@@ -76,7 +81,7 @@ export default function T_Sidebar({ isOpen = false, onClose = () => {} }: Sideba
           className={({ isActive }) => "item" + (isActive ? " active" : "")}
           onClick={nav}
         >
-          <span className="ico"><IcDocs /></span>
+          <span className="ico"><IcStar /></span>
           <span className="text">T005/T006 ประเมิน</span>
         </NavLink>
 
@@ -85,7 +90,7 @@ export default function T_Sidebar({ isOpen = false, onClose = () => {} }: Sideba
           className={({ isActive }) => "item" + (isActive ? " active" : "")}
           onClick={nav}
         >
-          <span className="ico"><IcDocs /></span>
+          <span className="ico"><IcClipboardCheck /></span>
           <span className="text">T007 ประเมิน</span>
         </NavLink>
 
@@ -94,7 +99,7 @@ export default function T_Sidebar({ isOpen = false, onClose = () => {} }: Sideba
           className={({ isActive }) => "item" + (isActive ? " active" : "")}
           onClick={nav}
         >
-          <span className="ico"><IcDocs /></span>
+          <span className="ico"><IcBook /></span>
           <span className="text">T008 เล่มรายงานสหกิจ </span>
         </NavLink>
 

@@ -94,6 +94,59 @@ export const IcSettings = (props?: React.SVGProps<SVGSVGElement>) => (
   </BaseIcon>
 );
 
+export const IcInbox = (props?: React.SVGProps<SVGSVGElement>) => (
+  <BaseIcon {...props}>
+    <path d="M4 13h4l2 3h4l2-3h4" />
+    <path d="M4 13 6 4h12l2 9" />
+    <path d="M4 13v6a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-6" />
+  </BaseIcon>
+);
+
+export const IcClipboard = (props?: React.SVGProps<SVGSVGElement>) => (
+  <BaseIcon {...props}>
+    <path d="M8 3h8a1 1 0 0 1 1 1v1h2a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h2V4a1 1 0 0 1 1-1Z" />
+    <path d="M9 3h6v3H9z" />
+    <path d="M9 12h6M9 16h6" />
+  </BaseIcon>
+);
+
+export const IcList = (props?: React.SVGProps<SVGSVGElement>) => (
+  <BaseIcon {...props}>
+    <path d="M8 6h13M8 12h13M8 18h13" />
+    <path d="M3 6h.01M3 12h.01M3 18h.01" />
+  </BaseIcon>
+);
+
+export const IcRoute = (props?: React.SVGProps<SVGSVGElement>) => (
+  <BaseIcon {...props}>
+    <circle cx="6" cy="6" r="2.5" />
+    <circle cx="6" cy="18" r="2.5" />
+    <circle cx="18" cy="12" r="2.5" />
+    <path d="M8.2 7.2 15.8 10.8M8.2 16.8 15.8 13.2" />
+  </BaseIcon>
+);
+
+export const IcStar = (props?: React.SVGProps<SVGSVGElement>) => (
+  <BaseIcon {...props}>
+    <path d="M12 2.5l2.6 5.6 6.1.6-4.6 4.1 1.3 6-5.4-3.1-5.4 3.1 1.3-6-4.6-4.1 6.1-.6Z" />
+  </BaseIcon>
+);
+
+export const IcClipboardCheck = (props?: React.SVGProps<SVGSVGElement>) => (
+  <BaseIcon {...props}>
+    <path d="M8 3h8a1 1 0 0 1 1 1v1h2a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h2V4a1 1 0 0 1 1-1Z" />
+    <path d="M9 3h6v3H9z" />
+    <path d="M9 13l2 2 4-4" />
+  </BaseIcon>
+);
+
+export const IcBook = (props?: React.SVGProps<SVGSVGElement>) => (
+  <BaseIcon {...props}>
+    <path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v17H6.5A2.5 2.5 0 0 0 4 21.5z" />
+    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+  </BaseIcon>
+);
+
 export function IcEdit(props: React.SVGProps<SVGSVGElement>) {
   return (
     <BaseIcon {...props}>
