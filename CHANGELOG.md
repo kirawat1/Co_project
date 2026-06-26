@@ -1,5 +1,18 @@
 # CHANGELOG — Co_project
 
+## [2026-06-23] เพิ่ม flow ต่อเนื่อง "เพิ่มพี่เลี้ยง" หลังเพิ่มบริษัทใหม่
+
+### Changed
+- `Frontend/src/components/A_Company.tsx` และ `Frontend/src/components/S_Company.tsx`: หลังเพิ่มบริษัทใหม่สำเร็จ เดิม modal จะปิดเงียบๆ กลับไปหน้ารายการ ไม่มีการแนะนำให้ไปเพิ่มข้อมูลพี่เลี้ยงต่อ ผู้ใช้ (ทั้งเจ้าหน้าที่และนักศึกษาที่เพิ่มบริษัทของตัวเอง) ต้องจำเองว่าต้องกลับไปกด "รายละเอียด" แล้วกด "+ เพิ่มพี่เลี้ยง" แยกต่างหาก เพิ่มหน้าถาม "เพิ่มพี่เลี้ยงเลยหรือไม่" หลังบันทึกบริษัทสำเร็จ พร้อมปุ่ม "เพิ่มพี่เลี้ยงเลย" (ไปกรอกฟอร์มพี่เลี้ยงต่อทันที reuse ฟอร์มเดิม) และ "ข้ามไปก่อน" (กลับหน้ารายการแบบเดิม) — ไม่บังคับ skip ได้
+
+### Fixed
+- `Frontend/src/components/S_Company.tsx`: พบบั๊ก `c.mentors is not iterable` ตอนทดสอบ flow ใหม่ — เพิ่ม/แก้ไข/ลบพี่เลี้ยงบนบริษัทที่ตอบกลับจาก API ไม่มี field `mentors` (เช่น บริษัทที่เพิ่งสร้างใหม่) จะ crash ทั้งหน้า เพราะ spread `...c.mentors`/`...prev.mentors` ตรงๆ โดยไม่มี fallback เป็นบั๊กเดียวกับที่เคยแก้ใน `A_Company.tsx` ไปแล้วก่อนหน้านี้ (ดู entry "System-wide QA sweep" ด้านล่าง) แต่ไม่ได้แก้ในไฟล์ฝั่งนักศึกษาที่ใช้ logic เดียวกัน เพิ่ม `|| []` defaults ให้ทั้ง 3 mentor handler (add/edit/delete) เหมือนฝั่ง admin
+
+### Process notes
+- Flow การเพิ่มพี่เลี้ยงจากหน้า "รายละเอียดบริษัท" ตามปกติ (ปุ่ม "+ เพิ่มพี่เลี้ยง" ที่มีอยู่แล้ว) ไม่เปลี่ยน behavior — ยังคงอยู่ที่หน้ารายละเอียดหลังบันทึกสำเร็จเหมือนเดิม การเปลี่ยนแปลงนี้มีผลเฉพาะตอน "เพิ่มบริษัทใหม่" เท่านั้น
+- ผ่าน brainstorming → spec → plan → inline execution flow ตามปกติ; spec/plan อยู่ที่ `docs/superpowers/specs/2026-06-23-company-mentor-flow-design.md` และ `docs/superpowers/plans/2026-06-23-company-mentor-flow-plan.md`
+- Verified live ทั้ง golden path (เพิ่มพี่เลี้ยงเลย → บันทึก → ปิดกลับหน้ารายการ → เปิดรายละเอียดยืนยันพี่เลี้ยงอยู่จริง) และ skip path ทั้งฝั่ง staff และ student ผ่าน chrome-devtools-mcp พร้อม `npx tsc --noEmit` clean
+
 ## [2026-06-23] Fix advisor fields not editable in admin student edit modal; normalize Excel-imported major names
 
 ### Fixed

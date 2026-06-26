@@ -51,6 +51,8 @@ export default function A_Companies() {
   const [viewCompany, setViewCompany] = useState<AdminCompanyRecord | null>(null);
   const [showAddMentor, setShowAddMentor] = useState(false);
   const [editingMentor, setEditingMentor] = useState<any>(null);
+  const [justCreatedCompany, setJustCreatedCompany] = useState<AdminCompanyRecord | null>(null);
+  const [quickAddMentor, setQuickAddMentor] = useState(false);
 
   const [form, setForm] = useState<any>(emptyCompany());
   const [mentorForm, setMentorForm] = useState<any>(emptyMentor());
@@ -151,6 +153,7 @@ export default function A_Companies() {
 
       setItems(prev => [...prev, data.company]);
       setShowAdd(false);
+      setJustCreatedCompany(data.company);
 
     } catch (err) {
       console.error(err);
@@ -250,6 +253,11 @@ export default function A_Companies() {
       setEditingMentor(null);
       setMentorForm(emptyMentor());
       setShowAddMentor(false);
+
+      if (quickAddMentor) {
+        setViewCompany(null);
+        setQuickAddMentor(false);
+      }
 
     } catch (err) {
       console.error(err);
@@ -389,7 +397,7 @@ export default function A_Companies() {
 
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 24, marginBottom: 12 }}>
             <h4 style={{ margin: 0, color: '#4c1d95' }}>👥 ข้อมูลพี่เลี้ยง (Mentors)</h4>
-            <button className="btn" style={{ background: '#0284c7', padding: '6px 12px', fontSize: 13 }} onClick={() => setShowAddMentor(true)}>+ เพิ่มพี่เลี้ยง</button>
+            <button className="btn" style={{ background: '#0284c7', padding: '6px 12px', fontSize: 13 }} onClick={() => { setQuickAddMentor(false); setShowAddMentor(true); }}>+ เพิ่มพี่เลี้ยง</button>
           </div>
 
           {(viewCompany.mentors || []).length === 0 ? (
@@ -425,6 +433,30 @@ export default function A_Companies() {
       {showAddMentor && (
         <Modal title={editingMentor ? "✏️ แก้ไขพี่เลี้ยง" : "➕ เพิ่มพี่เลี้ยง"} onClose={() => { setShowAddMentor(false); setEditingMentor(null); }}>
           <MentorForm form={mentorForm} setForm={setMentorForm} onSubmit={saveMentor} />
+        </Modal>
+      )}
+
+      {justCreatedCompany && (
+        <Modal title="✅ เพิ่มบริษัทสำเร็จ" onClose={() => setJustCreatedCompany(null)}>
+          <p style={{ fontSize: 14, color: '#475569' }}>
+            เพิ่มบริษัท <b>{justCreatedCompany.name}</b> สำเร็จ! ต้องการเพิ่มข้อมูลพี่เลี้ยงตอนนี้เลยหรือไม่?
+          </p>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
+            <button className="btn-secondary" onClick={() => setJustCreatedCompany(null)}>
+              ข้ามไปก่อน
+            </button>
+            <button
+              className="btn"
+              onClick={() => {
+                setViewCompany(justCreatedCompany);
+                setQuickAddMentor(true);
+                setShowAddMentor(true);
+                setJustCreatedCompany(null);
+              }}
+            >
+              เพิ่มพี่เลี้ยงเลย
+            </button>
+          </div>
         </Modal>
       )}
 
