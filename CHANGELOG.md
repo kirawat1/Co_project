@@ -1,5 +1,19 @@
 # CHANGELOG — Co_project
 
+## [2026-06-27] ตรวจสอบและแก้ไขวันที่ที่ยังโชว์ปีคริสตศักราช (ค.ศ.) ทั้งระบบ
+
+### Fixed
+- `Frontend/src/components/SupervisionCalendar.tsx` (`fmtDate`): แสดงวันที่เลือกในปฏิทินนิเทศเป็น ค.ศ. (เช่น "15/6/2025") แทน พ.ศ. ใช้อยู่ใน `S_Supervision.tsx`, `A_SupervisionManage.tsx`, `T_SupervisionReview.tsx` (component ใช้ร่วมกัน 3 ที่) เพิ่ม `+543` ให้ปี
+- `Frontend/src/components/A_SupervisionManage.tsx` (`parseProposedList`): รายการวันที่อาจารย์เสนอมา (proposedDates) แสดงปี ค.ศ. ในหน้าจัดการนิเทศของเจ้าหน้าที่ เพิ่ม `+543`
+- `Frontend/src/components/T_SupervisionReview.tsx` (`formatDMY`, `formatDMYTime`): ใช้แสดงวันที่นัดยืนยันแล้ว/เวลาในหน้าตรวจนิเทศของอาจารย์ — เดิม comment ของฟังก์ชันเขียนไว้ตรงๆว่า "ทุกที่ใช้ d/m/y (วัน/เดือน/ปีคริสตศักราช)" คือตั้งใจใช้ ค.ศ. มาแต่ต้น แก้เป็น พ.ศ. (`+543`) ให้ตรงกับ convention ของระบบ พร้อมแก้ comment
+
+### Process notes
+- ตรวจสอบทั้งระบบตามที่ขอ (ทั้ง `Frontend/src/` และ `backend/`) ครอบคลุม: `toLocaleDateString(` ทุกที่, การประกอบสตริงวันที่มือด้วย `getFullYear()/getMonth()/getDate()`, การใช้ `+543`/`-543`, PDF generator ทุกไฟล์ใน `Frontend/src/utils/pdfGenerator*`, backend (ไม่มี date-formatting logic เลย ส่งเป็น ISO ให้ frontend แปลงทั้งหมด)
+- พบ 4 จุดที่ผิดจริง (แก้แล้วทั้งหมดตามด้านบน) ส่วนที่เหลือถูกต้องอยู่แล้ว — ใช้ `toLocaleDateString('th-TH', ...)` (browser/Node แปลงเป็น พ.ศ. ให้อัตโนมัติเมื่อ locale เป็น th-TH) หรือบวก `+543` เองถูกที่ถูกจุดแล้ว
+- จุดที่ใช้ `getFullYear()` โดยไม่บวก 543 ที่เหลือ (เช่น `dayKeyOf` ใน SupervisionCalendar.tsx, `getWeekKey` ใน S_DailyPage.tsx, `monday.getFullYear()` ใน A_Daily.tsx) ตรวจแล้วเป็นแค่ internal key/sort index ที่ไม่ได้ render ให้ผู้ใช้เห็น ไม่ใช่บั๊ก ไม่แก้
+- พบความไม่สม่ำเสมอเล็กน้อย (ไม่ใช่บั๊ก แค่ inconsistent): มี local `formatDateTH()`/`toThaiDate()` ซ้ำกันหลายไฟล์ใน `Frontend/src/utils/pdfGenerator*.ts` ทั้งที่มี shared helper `toThaiDate()` อยู่แล้วใน `docGeneratorUtils.ts` — แต่ละที่ที่มีอยู่ +543 ถูกต้องแล้วทุกที่ ไม่มีผลต่อความถูกต้องที่แสดงผล จึงไม่ได้ refactor รวมในรอบนี้เพราะนอกเหนือจากที่ขอ (เป็นเรื่อง DRY/maintainability ไม่ใช่ความถูกต้องของวันที่)
+- `npx tsc --noEmit` ผ่าน
+
 ## [2026-06-27] T000/T002/T003: เปลี่ยนเป็นบันทึกอัตโนมัติ + ย้ายปุ่มดูตัวอย่าง/โหลด PDF ลงด้านล่าง
 
 ### Changed

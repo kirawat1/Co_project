@@ -36,13 +36,13 @@ type SortKey = 'studentId' | 'company' | 'type' | 'status' | 'confirmedDate';
 type SortDirection = 'asc' | 'desc';
 
 // ============================================================
-// Date helpers — ทุกที่ใช้ d/m/y (วัน/เดือน/ปีคริสตศักราช)
+// Date helpers — ทุกที่ใช้ d/m/y (วัน/เดือน/ปีพุทธศักราช)
 // ============================================================
 const formatDMY = (dateStr: string | null | undefined): string => {
     if (!dateStr) return "-";
     const d = new Date(dateStr);
     if (isNaN(d.getTime())) return "-";
-    return `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`;
+    return `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear() + 543}`;
 };
 
 const formatDMYTime = (dateStr: string | null | undefined): string => {
@@ -51,7 +51,7 @@ const formatDMYTime = (dateStr: string | null | undefined): string => {
     if (isNaN(d.getTime())) return "-";
     const h = d.getHours().toString().padStart(2, "0");
     const m = d.getMinutes().toString().padStart(2, "0");
-    return `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()} ${h}:${m} น.`;
+    return `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear() + 543} ${h}:${m} น.`;
 };
 
 /** แปลง proposed date string "2024-12-25|09:00-12:00" → { dmy, time, dayKey } */

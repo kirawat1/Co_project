@@ -38,7 +38,7 @@ function parseProposedList(raw: string): { dmy: string; time: string }[] {
         return arr.map(entry => {
             const [dPart = "", tPart = ""] = entry.includes("|") ? entry.split("|") : [entry, ""];
             const d = new Date(dPart);
-            const dmy = isNaN(d.getTime()) ? dPart : `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}`;
+            const dmy = isNaN(d.getTime()) ? dPart : `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()+543}`;
             return { dmy, time: tPart || "" };
         });
     } catch { return []; }
