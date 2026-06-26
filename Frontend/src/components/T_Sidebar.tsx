@@ -181,12 +181,18 @@ const SIDEBAR_CSS = `
   text-overflow: ellipsis;
 }
 .sec-label {
-  margin: 18px 0 4px 6px;
+  margin: 22px 0 6px 6px;
+  padding-top: 16px;
+  border-top: 1px solid #e2e8f0;
   font-size: 12px;
   color: #6b7280;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: .5px;
+}
+.sec-label:first-of-type {
+  border-top: none;
+  padding-top: 0;
 }
 
 @media (max-width: 900px) {
