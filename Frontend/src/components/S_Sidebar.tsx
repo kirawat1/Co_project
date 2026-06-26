@@ -98,9 +98,7 @@ export default function S_Sidebar({ profile, isOpen = false, onClose = () => {} 
 
         {showDocsMenu && (
           <>
-            <div style={{ margin: "16px 0 8px 12px", fontSize: "11px", fontWeight: "800", color: "#94a3b8", letterSpacing: "0.5px", textTransform: "uppercase" }}>
-              COOP PROCESS
-            </div>
+            <div className="sec-label">COOP PROCESS</div>
 
             <NavItem to="/student/docs" label="เอกสารสหกิจ (CP-T000)" icon={<IcDocs />} onClick={handleNav} />
 
@@ -171,6 +169,7 @@ const SIDEBAR_CSS = `
 .brand-bullet { width: 10px; height: 10px; border-radius: 50%; background: linear-gradient(135deg,#93C5FD,#3B82F6); box-shadow: 0 0 0 4px rgba(59,130,246,.15); }
 .brand-underline { margin-top: 10px; height: 3px; width: 72px; border-radius: 999px; background: linear-gradient(90deg,#E6F0FF,#BFD7ED); }
 .nav { display: grid; gap: 6px; }
+.sec-label { margin: 22px 0 6px 6px; padding-top: 16px; border-top: 1px solid #e2e8f0; font-size: 11px; font-weight: 800; color: #94a3b8; letter-spacing: 0.5px; text-transform: uppercase; }
 .item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; text-decoration: none; color: #334155; border: 1px solid transparent; line-height: 1; transition: background .12s ease, border-color .12s ease, color .12s ease; }
 .item:hover { background: #f4f6f8; border-color: rgba(0,0,0,.06); }
 .item.active { background: #fff; border-color: rgba(0,0,0,.1); box-shadow: 0 6px 18px rgba(10,132,255,.12); }
