@@ -18,6 +18,7 @@ export default function IssueLetterModal({ student, onClose, onSuccess }: Props)
     const [docBlob, setDocBlob] = useState<Blob | null>(null);
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
     const [deliveryMethod, setDeliveryMethod] = useState<"STUDENT" | "STAFF">("STUDENT");
+    const [signedFile, setSignedFile] = useState<File | null>(null);
 
     const startDate = student.coop?.actualStartDate || student.coopApplicationForm?.startDate || "";
     const endDate = student.coop?.actualEndDate || student.coopApplicationForm?.endDate || "";
@@ -96,6 +97,7 @@ export default function IssueLetterModal({ student, onClose, onSuccess }: Props)
     };
 
     const handleConfirm = async () => {
+        if (!signedFile) return alert("กรุณาอัปโหลดไฟล์ที่ลงนามแล้วก่อนบันทึกเข้าระบบ");
         if (!confirm("ยืนยันการบันทึกข้อมูล และอัปเดตสถานะให้นักศึกษา?")) return;
         try {
             const formData = new FormData();
@@ -108,12 +110,7 @@ export default function IssueLetterModal({ student, onClose, onSuccess }: Props)
             formData.append("comment", msg);
             formData.append("reqDocNumber", docNumber);
             formData.append("reqDocDate", docDate);
-            const fileBlob = docBlob || pdfBlob;
-            if (fileBlob) {
-                const ext = docBlob ? "doc" : "pdf";
-                const mime = docBlob ? "application/msword" : "application/pdf";
-                formData.append("file", new File([fileBlob], `dispatch_${student.studentId}.${ext}`, { type: mime }));
-            }
+            formData.append("file", signedFile);
             const token = localStorage.getItem("coop.token");
             await fetch("/api/admin/t000/review", { method: "PUT", headers: { Authorization: `Bearer ${token}` }, body: formData });
             alert("✅ บันทึกและจัดเก็บไฟล์เรียบร้อย");
@@ -172,12 +169,27 @@ export default function IssueLetterModal({ student, onClose, onSuccess }: Props)
                         </div>
 
                         <div>
-                            <div style={{ ...sec, borderColor: '#10b981' }}>3. การจัดส่งเอกสาร</div>
+                            <div style={{ ...sec, borderColor: '#ef4444' }}>3. แนบไฟล์ที่ลงนามแล้ว <span style={{ color: '#ef4444' }}>*</span></div>
+                            <div style={{ marginTop: 8 }}>
+                                <input type="file" id="signed-file-dispatch" accept=".pdf,.jpg,.jpeg,.png" style={{ display: 'none' }}
+                                    onChange={e => setSignedFile(e.target.files?.[0] || null)} />
+                                <label htmlFor="signed-file-dispatch" className="btn btn-outline" style={{ width: '100%', display: 'block', textAlign: 'center', cursor: 'pointer', boxSizing: 'border-box' }}>
+                                    {signedFile ? `📎 ${signedFile.name}` : '📤 เลือกไฟล์ที่ลงนามแล้ว'}
+                                </label>
+                                {signedFile && (
+                                    <button type="button" onClick={() => setSignedFile(null)} style={{ fontSize: 11, color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', marginTop: 4, padding: 0 }}>ลบไฟล์ที่เลือก</button>
+                                )}
+                                <p style={{ fontSize: 11, color: '#94a3b8', margin: '6px 0 0' }}>ต้องอัปโหลดไฟล์ที่ลงนามแล้วก่อน จึงจะบันทึกเข้าระบบได้ — ไฟล์นี้จะถูกใช้แทนไฟล์ร่างด้านบนทั้งหมด</p>
+                            </div>
+                        </div>
+
+                        <div>
+                            <div style={{ ...sec, borderColor: '#10b981' }}>4. การจัดส่งเอกสาร</div>
                             <DeliveryPicker value={deliveryMethod} onChange={setDeliveryMethod} name="delivery-dispatch" />
                         </div>
 
                         <div style={{ marginTop: 'auto', paddingTop: 8 }}>
-                            <button className="btn btn-success" onClick={handleConfirm} style={{ width: '100%', padding: 14 }}>
+                            <button className="btn btn-success" onClick={handleConfirm} disabled={!signedFile} style={{ width: '100%', padding: 14 }}>
                                 🚀 บันทึกเข้าระบบ & แจ้งนักศึกษา
                             </button>
                         </div>
