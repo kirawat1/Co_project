@@ -327,40 +327,50 @@ exports.acknowledgeDispatchDownload = async (req, res) => {
 // ==========================================
 // 7. รับทราบการดาวน์โหลดหนังสือส่งตัว
 // ==========================================
+// สถานะที่ยังไม่เริ่มฝึกงาน (ก่อน INTERNSHIP_STARTED) ที่อนุญาตให้กดรับทราบหนังสือส่งตัวได้
+const PRE_INTERNSHIP_STATUSES = [
+  'REQ_LETTER_ISSUED',
+  'WAITING_FOR_PLACEMENT_LETTER',
+  'WAITING_FOR_STAFF_CHECK_LETTER',
+  'ACCEPTANCE_CHECKED',
+  'PLACEMENT_LETTER_ISSUED',
+];
+
 exports.acknowledgePlacementLetter = async (req, res) => {
-  
   try {
     const userId = req.user.id;
-    const { status } = req.body;
 
-    if (!status) {
-      return res.status(400).json({ message: "status is required" });
-    }
-
-    // หา student
+    // หา student พร้อมสถานะ coop ปัจจุบัน — ห้ามรับ status จาก client เด็ดขาด
+    // เพราะ endpoint นี้มีไว้ "รับทราบการดาวน์โหลดหนังสือส่งตัว" เท่านั้น
+    // ไม่ใช่ให้นักศึกษากำหนดสถานะของตัวเองได้ตามใจ
     const student = await prisma.student.findUnique({
-      where: { userId: parseInt(userId) }
+      where: { userId: parseInt(userId) },
+      include: { coop: true }
     });
 
     if (!student) {
-      return res.status(404).json({ message: "Student not found" });
+      return res.status(404).json({ ok: false, message: "Student not found" });
     }
 
-    // อัปเดตสถานะ (เช่น INTERNSHIP_STARTED)
+    if (!student.coop?.placeLetterUrl || !PRE_INTERNSHIP_STATUSES.includes(student.coop.status)) {
+      return res.status(400).json({ ok: false, message: "ยังไม่สามารถยืนยันรับหนังสือส่งตัวได้ในสถานะปัจจุบัน" });
+    }
+
+    // อัปเดตสถานะเป็น INTERNSHIP_STARTED เท่านั้น (ค่าคงที่ฝั่ง server ไม่รับจาก client)
     await prisma.studentCoop.update({
       where: { studentId: student.id },
       data: {
-        status
+        status: 'INTERNSHIP_STARTED'
       }
     });
 
     res.json({
       ok: true,
-      newStatus: status
+      newStatus: 'INTERNSHIP_STARTED'
     });
   } catch (err) {
     console.error("acknowledgePlacementLetter error:", err);
-    res.status(500).json({ message: "Update placement letter status failed" });
+    res.status(500).json({ ok: false, message: "Update placement letter status failed" });
   }
   
 };
