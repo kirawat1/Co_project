@@ -155,7 +155,9 @@ export default function T_T002Review() {
         setLoading(true);
         try {
             const token = localStorage.getItem("coop.token");
-            const newStatus = action === 'APPROVE' ? 'INTERNSHIP_STARTED' : 'T002_EDITS_REQUIRED';
+            // อนุมัติ T002 ไม่ต้องเปลี่ยน coop.status ไปข้างหน้า (ยังไม่มีสถานะ "T002_APPROVED")
+            // ส่งสถานะปัจจุบันกลับไปเฉยๆ ป้องกันค่าเดิมถูกเขียนทับเป็น INTERNSHIP_STARTED (ย้อนสถานะ)
+            const newStatus = action === 'APPROVE' ? (selectedStudent?.coop?.status || 'T002_SUBMITTED') : 'T002_EDITS_REQUIRED';
 
             await axios.put(`/api/teacher/documents/review-t002`, {
                 studentId: selectedStudent?.id,

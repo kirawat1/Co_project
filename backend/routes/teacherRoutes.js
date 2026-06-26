@@ -26,9 +26,8 @@ router.get('/config/t003', verifyToken, configController.getT003Config);
 router.post('/config/t003', verifyToken, verifyRole('admin', 'teacher', 'staff'), configController.saveT003Config);
 
 // --- Review Documents Routes ---
-// ⚠️ ตรงนี้คือจุดที่พัง! ต้องเช็คให้ชัวร์ว่าใน teacherController มี 2 ฟังก์ชันนี้อยู่จริง
-router.put('/documents/review-t002', verifyToken, teacherController.reviewT002);
-router.put('/documents/review-t003', verifyToken, teacherController.reviewT003);
+router.put('/documents/review-t002', verifyToken, verifyRole('teacher', 'admin', 'staff'), teacherController.reviewT002);
+router.put('/documents/review-t003', verifyToken, verifyRole('teacher', 'admin', 'staff'), teacherController.reviewT003);
 
 router.get('/supervisions', verifyToken, supervisionController.getSupervisionsForTeacher);
 router.put('/supervisions/:id/review', verifyToken, supervisionController.reviewSupervision);

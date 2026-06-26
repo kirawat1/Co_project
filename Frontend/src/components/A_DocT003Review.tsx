@@ -237,7 +237,7 @@ export default function A_DocT003Review() {
                 setLoading(true);
                 try {
                     const token = localStorage.getItem("coop.token");
-                    const newStatus = action === 'APPROVE' ? 'INTERNSHIP_STARTED' : 'T003_EDITS_REQUIRED';
+                    const newStatus = action === 'APPROVE' ? 'T003_APPROVED' : 'T003_EDITS_REQUIRED';
                     await axios.put(`/api/admin/documents/review-t003`, {
                         studentId: selectedStudent?.id, status: newStatus,
                         comment: action === 'REJECT' ? comment : null
