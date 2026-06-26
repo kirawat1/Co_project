@@ -389,7 +389,7 @@ export default function A_SupervisionManage() {
                     </div>
                 )}
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 1fr auto', gap: 15, alignItems: 'end' }}>
+                <div className="config-grid" style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 1fr auto', gap: 15, alignItems: 'end' }}>
                     <div>
                         <label style={labelStyle}>เลือกรอบสหกิจศึกษา <span style={{ color: 'red' }}>*</span></label>
                         <select className="input" style={{ fontWeight: 'bold', color: '#0369a1', background: '#f0f9ff' }}
@@ -458,7 +458,7 @@ export default function A_SupervisionManage() {
                 </div>
 
                 <div style={{ overflowX: 'auto' }}>
-                    <table style={tableStyle}>
+                    <table style={tableStyle} className="responsive-table">
                         <thead>
                             <tr style={thRow}>
                                 <th style={{ ...th, cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('student')}>
@@ -484,14 +484,14 @@ export default function A_SupervisionManage() {
                                 <tr><td colSpan={6} style={{ textAlign: 'center', padding: 30, color: '#94a3b8' }}>ไม่พบรายการนัดหมายนิเทศที่ตรงกับเงื่อนไข</td></tr>
                             ) : processedSupervisions.map(sup => (
                                 <tr key={sup.id} style={trStyle}>
-                                    <td style={td}>
+                                    <td style={td} data-label="รหัส / ชื่อ นศ.">
                                         <div style={{ fontWeight: 700, color: '#0ea5e9' }}>{sup.student.studentId}</div>
                                         <div style={{ fontSize: 13, color: '#475569' }}>{sup.student.firstName} {sup.student.lastName}</div>
                                     </td>
-                                    <td style={td}>
+                                    <td style={td} data-label="หน่วยงาน">
                                         <div style={{ fontWeight: 600 }}>{sup.student.coop?.company?.name || "-"}</div>
                                     </td>
-                                    <td style={td}>
+                                    <td style={td} data-label="อาจารย์ผู้นิเทศ">
                                         <div style={{ fontSize: 13, fontWeight: 'bold', color: '#1e293b' }}>
                                             อาจารย์ที่ปรึกษา {sup.teacher.prefix}{sup.teacher.firstName} {sup.teacher.lastName}
                                         </div>
@@ -501,7 +501,7 @@ export default function A_SupervisionManage() {
                                             </div>
                                         )}
                                     </td>
-                                    <td style={td}>
+                                    <td style={td} data-label="วัน-เวลา">
                                         {sup.confirmedDate ? (
                                             <>
                                                 <div style={{ fontWeight: 700, color: '#166534', fontSize: 13 }}>
@@ -524,7 +524,7 @@ export default function A_SupervisionManage() {
                                             <span style={{ color: '#94a3b8', fontSize: 13 }}>ยังไม่เสนอวัน</span>
                                         )}
                                     </td>
-                                    <td style={td}>
+                                    <td style={td} data-label="สถานะ">
                                         <StatusBadge status={sup.status} />
                                     </td>
                                     <td style={{ ...td, textAlign: 'center' }}>
@@ -575,6 +575,9 @@ export default function A_SupervisionManage() {
                 .btn-ghost { padding: 6px 12px; border-radius: 8px; border: 1px solid #cbd5e1; font-weight: 700; color: #475569; background: #fff; cursor: pointer; transition: 0.2s; }
                 .btn-ghost:hover { background: #f1f5f9; }
                 .input { padding: 10px 14px; border-radius: 8px; border: 1px solid #cbd5e1; outline: none; font-family: inherit; font-size: 14px; width: 100%; box-sizing: border-box; }
+                @media (max-width: 768px) {
+                    .config-grid { grid-template-columns: 1fr !important; }
+                }
                 .input:focus { border-color: #0ea5e9; box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.15); }
                 .input:disabled { background-color: #f1f5f9; color: #94a3b8; cursor: not-allowed; }
                 

@@ -307,24 +307,6 @@ const SIDEBAR_CSS = `
 }
 
 
-/* ===== RESPONSIVE (iPad & Mobile) ===== */
-@media (max-width: 900px) {
-  .sidebar {
-    padding-bottom: 10px;
-    border-bottom: 1px solid rgba(0,0,0,.06);
-    height: auto; /* บนมือถือให้ความสูงเป็นออโต้ */
-    overflow-y: visible; /* ปิดการเลื่อนแนวตั้งบนมือถือ */
-  }
-  .nav {
-    display: flex;
-    flex-direction: row;
-    overflow-x: auto; /* มือถือเลื่อนซ้ายขวาแทน */
-    gap: 8px;
-    padding-bottom: 8px;
-  }
-  .item {
-    min-width: max-content;
-  }
-  .sec-label { display: none; }
-}
+/* มือถือ/แท็บเล็ตใช้ระบบ drawer ของ S_Theme.tsx (breakpoint 768px) แล้ว
+   ไม่ต้องมี media query ของตัวเองตรงนี้ — เคยมีและ override height/overflow ของ drawer ทำให้พัง */
 `;
