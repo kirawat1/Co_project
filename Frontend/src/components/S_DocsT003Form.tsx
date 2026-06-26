@@ -9,6 +9,21 @@ interface Props {
     onRefresh: () => void;
 }
 
+// T003 ปลดล็อกได้ต่อเมื่อเจ้าหน้าที่ออกหนังสือขอความอนุเคราะห์แล้ว (REQ_LETTER_ISSUED) เป็นต้นไป
+const T003_UNLOCK_STATUSES = [
+    'REQ_LETTER_ISSUED',
+    'WAITING_FOR_PLACEMENT_LETTER',
+    'WAITING_FOR_STAFF_CHECK_LETTER',
+    'ACCEPTANCE_CHECKED',
+    'PLACEMENT_LETTER_ISSUED',
+    'INTERNSHIP_STARTED',
+    'T002_SUBMITTED',
+    'T002_EDITS_REQUIRED',
+    'T003_SUBMITTED',
+    'T003_EDITS_REQUIRED',
+    'T003_APPROVED',
+];
+
 export default function S_DocsT003Form({ profile, onRefresh }: Props) {
     const [loading, setLoading] = useState(false);
 
@@ -223,11 +238,25 @@ export default function S_DocsT003Form({ profile, onRefresh }: Props) {
         }
     };
 
+    const isUnlocked = T003_UNLOCK_STATUSES.includes(profile?.coop?.status);
+    const canEdit = isSystemOpen && isUnlocked;
+
     return (
         <div style={{ maxWidth: 1000, margin: '0 auto', background: '#fff', padding: 30, borderRadius: 12, boxShadow: '0 4px 6px rgba(0,0,0,0.05)' }}>
 
+            {/* 🔒 แจ้งเตือนถ้ายังไม่ถึงขั้นตอนนี้ (ยังไม่ได้รับหนังสือขอความอนุเคราะห์) */}
+            {!isUnlocked && (
+                <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', padding: '16px', borderRadius: 8, marginBottom: 24, display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <span style={{ fontSize: 24 }}>🔒</span>
+                    <div>
+                        <h4 style={{ margin: '0 0 4px 0', color: '#991b1b', fontSize: 16 }}>ยังไม่ถึงขั้นตอนนี้</h4>
+                        <p style={{ margin: 0, color: '#b91c1c', fontSize: 13 }}>ต้องรอเจ้าหน้าที่ออกหนังสือขอความอนุเคราะห์ (เอกสาร T000 อนุมัติ) ก่อน จึงจะกรอกแบบฟอร์ม T003 ได้</p>
+                    </div>
+                </div>
+            )}
+
             {/* 🔴 แจ้งเตือนถ้าระบบปิด (UI หลัก) */}
-            {!isSystemOpen && (
+            {isUnlocked && !isSystemOpen && (
                 <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', padding: '16px', borderRadius: 8, marginBottom: 24, display: 'flex', alignItems: 'center', gap: 12 }}>
                     <span style={{ fontSize: 24 }}>🔒</span>
                     <div>
@@ -258,7 +287,7 @@ export default function S_DocsT003Form({ profile, onRefresh }: Props) {
             </div>
 
             {/* --- ฟอร์มกรอกข้อมูล (STEP 1) --- */}
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 24, opacity: isSystemOpen ? 1 : 0.6, pointerEvents: isSystemOpen ? 'auto' : 'none' }}>
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 24, opacity: canEdit ? 1 : 0.6, pointerEvents: canEdit ? 'auto' : 'none' }}>
 
                 {/* ส่วนที่ 0: ข้อมูล Auto-fill */}
                 <Section title="ข้อมูลนักศึกษาและสถานประกอบการ (ระบบดึงข้อมูลอัตโนมัติ)">
@@ -343,7 +372,7 @@ export default function S_DocsT003Form({ profile, onRefresh }: Props) {
                     )}
                 </Section>
 
-                {isSystemOpen && (
+                {canEdit && (
                     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 10 }}>
                         <button type="submit" style={{ ...btnSubmit, background: '#2563eb' }}>💾 บันทึกข้อมูลร่าง T003</button>
                     </div>
@@ -351,6 +380,7 @@ export default function S_DocsT003Form({ profile, onRefresh }: Props) {
             </form>
 
             {/* --- ส่วนอัปโหลดเอกสาร (STEP 2) --- */}
+            {isUnlocked && (
             <div style={{ marginTop: 40, padding: 24, borderRadius: 12, border: '1px solid #3b82f6', background: '#eff6ff' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 15 }}>
                     <div style={{ fontSize: 28 }}>📤</div>
@@ -379,7 +409,7 @@ export default function S_DocsT003Form({ profile, onRefresh }: Props) {
                             <button className="btn-outline" onClick={() => window.open(`/uploads/${uploadedT003.path}`, '_blank')} style={{ ...btnOutline, borderColor: '#3b82f6', color: '#3b82f6' }}>👁️ ดูไฟล์ที่ส่ง</button>
 
                             {/* แสดงปุ่มแก้ไขไฟล์เฉพาะเมื่อระบบเปิด */}
-                            {isSystemOpen && (
+                            {canEdit && (
                                 <>
                                     <label htmlFor="upload-t003-change" style={{ ...btnOutline, cursor: 'pointer', textAlign: 'center', borderColor: currentStatusToShow === 'T003_EDITS_REQUIRED' ? '#ef4444' : '#f59e0b', color: currentStatusToShow === 'T003_EDITS_REQUIRED' ? '#dc2626' : '#d97706' }}>
                                         {currentStatusToShow === 'T003_EDITS_REQUIRED' ? '🔄 ส่งไฟล์ใหม่' : '🔄 เปลี่ยนไฟล์'}
@@ -402,10 +432,10 @@ export default function S_DocsT003Form({ profile, onRefresh }: Props) {
                                 </div>
                             </div>
                         ) : (
-                            <div style={{ textAlign: 'center', opacity: isSystemOpen ? 1 : 0.5 }}>
-                                <input type="file" id="upload-t003" style={{ display: 'none' }} accept=".pdf,.jpg,.png" onChange={(e) => e.target.files?.[0] && setSelectedUploadFile(e.target.files[0])} disabled={!isSystemOpen} />
-                                <label htmlFor="upload-t003" style={{ ...btnSubmit, background: isSystemOpen ? '#2563eb' : '#9ca3af', display: 'inline-block', cursor: isSystemOpen ? 'pointer' : 'not-allowed' }}>
-                                    {isSystemOpen ? '📂 เลือกไฟล์ T003 เพื่ออัปโหลด' : '🔒 ระบบปิดรับเอกสาร'}
+                            <div style={{ textAlign: 'center', opacity: canEdit ? 1 : 0.5 }}>
+                                <input type="file" id="upload-t003" style={{ display: 'none' }} accept=".pdf,.jpg,.png" onChange={(e) => e.target.files?.[0] && setSelectedUploadFile(e.target.files[0])} disabled={!canEdit} />
+                                <label htmlFor="upload-t003" style={{ ...btnSubmit, background: canEdit ? '#2563eb' : '#9ca3af', display: 'inline-block', cursor: canEdit ? 'pointer' : 'not-allowed' }}>
+                                    {canEdit ? '📂 เลือกไฟล์ T003 เพื่ออัปโหลด' : '🔒 ระบบปิดรับเอกสาร'}
                                 </label>
                                 <div style={{ fontSize: 12, color: '#6b7280', marginTop: 8 }}>(รองรับไฟล์ .pdf, .jpg, .png)</div>
                             </div>
@@ -413,6 +443,7 @@ export default function S_DocsT003Form({ profile, onRefresh }: Props) {
                     </div>
                 )}
             </div>
+            )}
 
             {/* --- Modal Popup ดูตัวอย่าง PDF --- */}
             {showModal && previewUrl && (

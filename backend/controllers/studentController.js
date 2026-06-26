@@ -284,9 +284,24 @@ exports.exportStudents = async (req, res) => {
 };
 
 
+// สถานะที่ยังไม่เริ่มฝึกงาน (ก่อน INTERNSHIP_STARTED) ที่อนุญาตให้ดาวน์โหลดหนังสือส่งตัวได้
+const PRE_INTERNSHIP_STATUSES = [
+  'REQ_LETTER_ISSUED',
+  'WAITING_FOR_PLACEMENT_LETTER',
+  'WAITING_FOR_STAFF_CHECK_LETTER',
+  'ACCEPTANCE_CHECKED',
+  'PLACEMENT_LETTER_ISSUED',
+];
+
 exports.downloadPlacementLetter = async (req, res) => {
   try {
     const studentId = req.user.id; // มาจาก token
+
+    const coop = await prisma.studentCoop.findUnique({ where: { studentId } });
+
+    if (!coop?.placeLetterUrl || !PRE_INTERNSHIP_STATUSES.includes(coop.status)) {
+      return res.status(400).json({ ok: false, message: "ยังไม่สามารถดาวน์โหลดหนังสือส่งตัวได้ในสถานะปัจจุบัน" });
+    }
 
     await prisma.studentCoop.update({
       where: { studentId },

@@ -1,5 +1,20 @@
 # CHANGELOG — Co_project
 
+## [2026-06-27] ปิดช่องโหว่นักศึกษาเลื่อนสถานะสหกิจเองได้ + ล็อก T002/T003 ตามขั้นตอนสถานะ
+
+### Fixed (Security)
+- `backend/controllers/docController.js` (`acknowledgePlacementLetter`): เดิม endpoint นี้รับค่า `status` จาก request body ของ client ตรงๆ แล้วเอาไปเซ็ตลง `StudentCoop.status` โดยไม่ตรวจสอบใดๆ — นักศึกษาที่ login แล้วสามารถยิง `POST /api/students/acknowledge-placement-letter` พร้อม `{ status: "<ค่าอะไรก็ได้>" }` เพื่อเลื่อนสถานะตัวเองข้ามขั้นตอนการตรวจสอบของเจ้าหน้าที่/อาจารย์ได้ทั้งหมด แก้โดยลบการรับ `status` จาก client ออก เปลี่ยนเป็น hardcode เป็น `INTERNSHIP_STARTED` ที่ฝั่ง server เท่านั้น พร้อมเช็ค precondition ว่ามีไฟล์หนังสือส่งตัว (`placeLetterUrl`) แล้ว และสถานะปัจจุบันต้องอยู่ใน zone ก่อนเริ่มฝึกงาน (REQ_LETTER_ISSUED ถึง PLACEMENT_LETTER_ISSUED) ก่อนเท่านั้น
+- `backend/controllers/studentController.js` (`downloadPlacementLetter`): endpoint คู่กันอีกตัว (ไม่ได้ถูกเรียกจาก frontend แล้ว แต่ route ยังเปิดอยู่) มีช่องโหว่เดียวกัน — เซ็ต `status: 'INTERNSHIP_STARTED'` แบบไม่มี precondition ใดๆเลย แก้ด้วย precondition เดียวกับด้านบน
+
+### Changed
+- `Frontend/src/components/S_DocsT002Form.tsx`, `S_DocsT003Form.tsx`: เดิมฟอร์ม T002/T003 เช็คแค่ว่าระบบเปิดรับเอกสารอยู่ในช่วงเวลาหรือไม่ (`isSystemOpen`) แต่ไม่เช็คว่านักศึกษาผ่านขั้นตอน T000 (ได้รับหนังสือขอความอนุเคราะห์ REQ_LETTER_ISSUED) มาก่อนหรือยัง ทำให้เข้าถึงฟอร์ม/อัปโหลดได้ผ่าน URL ตรงๆ ก่อนถึงขั้นตอนจริง เพิ่มเงื่อนไข `isUnlocked` (เช็ค `profile.coop.status` ต้องอยู่ใน REQ_LETTER_ISSUED ขึ้นไป) ควบคู่กับ `isSystemOpen` เดิม พร้อม banner แจ้ง "ยังไม่ถึงขั้นตอนนี้" เมื่อยังไม่ปลดล็อก
+
+### Process notes
+- ตรวจสอบ flow สถานะนักศึกษาทั้งสาย (ยื่นคำร้อง → T000 → T002/T003 → นัดนิเทศ → T005/T006 → T007 → T008) ตามที่ขอ พบว่า T005/T006, T007, T008 เป็นแค่หน้าแสดงคำชี้แจง + ลิงก์ไป Google Forms/Drive ภายนอก ไม่มีการบันทึกสถานะในระบบเราเลย จึงไม่ใช่ช่องโหว่จริง (ต่างจากที่ตรวจสอบรอบแรกเข้าใจผิด)
+- การนัดหมายนิเทศ (`S_Supervision.tsx`) ตรวจสอบแล้วว่า gate เดิม (`isInternshipPhase` ต้องเป็น INTERNSHIP_STARTED ขึ้นไป) เพียงพอแล้วในเชิง logic เพราะ INTERNSHIP_STARTED มาทีหลัง REQ_LETTER_ISSUED ใน flow ปกติเสมอ — ปัญหาจริงคือช่องโหว่ backend ข้างบนที่ทำให้ข้าม INTERNSHIP_STARTED ได้ ไม่ใช่เงื่อนไขหน้านัดนิเทศเอง จึงแก้ที่ root cause (backend) แทนการเพิ่มเงื่อนไขซ้ำซ้อนที่หน้านัดนิเทศ
+- Backend tests: `npx jest` ผ่าน 216/217 (1 fail เป็น pre-existing ไม่เกี่ยวกับการแก้ครั้งนี้ ใน `teacherController.test.js`)
+- Verified live: ทดสอบลด/คืนสถานะนักศึกษาทดสอบชั่วคราว (QUALIFIED → INTERNSHIP_STARTED) ผ่าน chrome-devtools-mcp ยืนยัน banner ล็อกแสดงถูกต้อง ฟอร์ม/ปุ่มบันทึก/ส่วนอัปโหลดถูกซ่อนเมื่อ locked และกลับมาแสดงปกติเมื่อปลดล็อก ไม่มี console error
+
 ## [2026-06-23] เพิ่ม flow ต่อเนื่อง "เพิ่มพี่เลี้ยง" หลังเพิ่มบริษัทใหม่
 
 ### Changed
