@@ -1,5 +1,20 @@
 # CHANGELOG — Co_project
 
+## [2026-06-27] เพิ่มปุ่ม "จบนิเทศ" — แก้จุดที่สถานะนิเทศไม่มีทางไปถึง COMPLETED ได้เลย
+
+### Added
+- `backend/controllers/supervisionController.js` (`completeSupervision`): action ใหม่เปลี่ยน `SupervisionAppointment.status` จาก `LETTER_UPLOADED` → `COMPLETED` ตรวจสอบสิทธิ์เหมือน `reviewSupervision` (อาจารย์ต้องเป็นที่ปรึกษาหลักของนัดนั้น ส่วน admin/staff ผ่านได้ทันที) และเช็คสถานะปัจจุบันต้องเป็น `LETTER_UPLOADED` เท่านั้นก่อนเปลี่ยน
+- Routes ใหม่: `PUT /api/teacher/supervisions/:id/complete`, `PUT /api/admin/supervisions/:id/complete`
+- ปุ่ม "🏁 จบนิเทศ" ในหน้า `A_SupervisionManage.tsx` (เจ้าหน้าที่) และ `T_SupervisionReview.tsx` (อาจารย์ที่ปรึกษาหลัก) แสดงเฉพาะแถวที่สถานะเป็น `LETTER_UPLOADED`
+
+### Fixed (ช่องโหว่เพิ่มเติม)
+- `backend/routes/supervisionRoutes.js`: `PUT /api/teacher/supervisions/:id/review` มีแค่ `verifyToken` ไม่มี `verifyRole` (รอดมาได้เพราะ `reviewSupervision` ตรวจสอบ teacher record เองภายในฟังก์ชัน) เพิ่ม `verifyRole('teacher','admin','staff')` ให้ชัดเจนตามมาตรฐานเดียวกับ route อื่นๆ ในรอบตรวจนี้
+
+### Process notes
+- ที่มา: ตรวจ pipeline ทั้งระบบตามที่ขอ พบว่า `SupervisionAppointment.status` ไม่เคยมีจุดไหนเซ็ตเป็น `COMPLETED` เลยทั้งระบบ (เซ็ตได้แค่ถึง `LETTER_UPLOADED` จาก `uploadOfficialLetter`) ทั้งที่ `StatusBadge.tsx`/`S_StatusTracker.tsx`/`CLAUDE.md` อ้างถึง `COMPLETED` เป็นสถานะจริงที่ใช้งานอยู่ — ไม่ใช่ regression (ไม่มี reference การ implement เดิมให้เทียบ) แต่เป็น gap ที่ไม่มีใครต่อให้ครบ จึงถาม user ก่อนว่าต้องการให้ใครเป็นคนกดจบนิเทศ ตามที่ตอบ: อาจารย์ประจำวิชา/อาจารย์ที่ปรึกษาโครงงานสหกิจ กดได้ ไม่ต้องมีฟิลด์เพิ่มเติม
+- ทดสอบจริง: กด "🏁 จบนิเทศ" ที่หน้า staff กับนัดของนักศึกษา "ห้า ร้อยล้าน" (id=1) → DB เปลี่ยนเป็น `COMPLETED` จริง → UI รีเฟรชแสดง "🎉 นิเทศเสร็จสิ้น" ปุ่ม "จบนิเทศ" หายไปตามเงื่อนไข (เหลือแค่ "👁️ ดูเอกสาร")
+- `npx tsc --noEmit` ผ่าน, backend `npx jest` 216/217 ผ่าน (เคส fail เดิมไม่เกี่ยวข้อง)
+
 ## [2026-06-27] แก้บั๊กร้ายแรง: อนุมัติ T002/T003 ทำสถานะย้อนกลับ + ปิดช่องโหว่นักศึกษาเลื่อนสถานะตัวเองผ่าน endpoint อาจารย์
 
 ### Fixed (ความปลอดภัย — ร้ายแรง)

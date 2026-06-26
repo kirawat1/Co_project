@@ -31,13 +31,15 @@ router.post('/admin/supervision-periods', verifyToken, verifyRole(...ADMIN_ROLES
 router.get('/admin/supervisions', verifyToken, verifyRole(...ADMIN_ROLES), supervisionController.getAllSupervisions);
 router.put('/admin/supervisions/:id/confirmed-date', verifyToken, verifyRole(...ADMIN_ROLES), supervisionController.updateConfirmedDate);
 router.post('/admin/supervisions/:id/upload-letter', verifyToken, verifyRole(...ADMIN_ROLES), upload.single('file'), supervisionController.uploadOfficialLetter);
+router.put('/admin/supervisions/:id/complete', verifyToken, verifyRole(...ADMIN_ROLES), supervisionController.completeSupervision);
 
 
 // NOTE: Student supervision routes (/coop/supervision/me, /coop/supervision/propose)
 // ถูกย้ายไปอยู่ใน coopRoutes.js แล้ว เพื่อหลีกเลี่ยง routing ambiguity
 
 // ================= ROUTE สำหรับ TEACHER =================
-router.put('/teacher/supervisions/:id/review', verifyToken, supervisionController.reviewSupervision);
+router.put('/teacher/supervisions/:id/review', verifyToken, verifyRole('teacher', 'admin', 'staff'), supervisionController.reviewSupervision);
+router.put('/teacher/supervisions/:id/complete', verifyToken, verifyRole('teacher', 'admin', 'staff'), supervisionController.completeSupervision);
 router.get('/teacher/supervisions', verifyToken, supervisionController.getTeacherSupervisions);
 
 module.exports = router;

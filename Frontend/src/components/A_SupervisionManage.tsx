@@ -252,6 +252,17 @@ export default function A_SupervisionManage() {
         }
     };
 
+    const handleComplete = async (sup: Supervision) => {
+        if (!confirm("ยืนยันว่าการนิเทศเสร็จสิ้นแล้ว?")) return;
+        try {
+            await axios.put(`/api/admin/supervisions/${sup.id}/complete`, {}, { headers: { Authorization: `Bearer ${token}` } });
+            toast.success("บันทึกผลนิเทศเสร็จสิ้นสำเร็จ");
+            fetchData();
+        } catch (err: any) {
+            toast.error(err?.response?.data?.message || "เกิดข้อผิดพลาดในการบันทึก");
+        }
+    };
+
     const handleSaveEditDate = async () => {
         if (!editDateSup || !editDateValue) return;
         setSavingDate(true);
@@ -541,6 +552,11 @@ export default function A_SupervisionManage() {
                                             {(sup.status === "LETTER_UPLOADED" || sup.status === "COMPLETED") && sup.officialLetterPath && (
                                                 <button className="btn-ghost" style={{ fontSize: 12, color: '#10b981', borderColor: '#10b981', padding: '6px 10px' }} onClick={() => setSelectedSupForModal(sup)}>
                                                     👁️ ดูเอกสาร
+                                                </button>
+                                            )}
+                                            {sup.status === "LETTER_UPLOADED" && (
+                                                <button className="btn" style={{ background: '#7c3aed', color: 'white', padding: '6px 10px', fontSize: 12 }} onClick={() => handleComplete(sup)}>
+                                                    🏁 จบนิเทศ
                                                 </button>
                                             )}
                                         </div>
