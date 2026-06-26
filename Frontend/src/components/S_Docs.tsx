@@ -596,7 +596,7 @@ export default function S_Docs({ profile, setProfile }: { profile: LocalStudentP
 
         {/* STEP 5: หนังสือส่งตัว */}
         {(profile.docStatus === "PLACEMENT_LETTER_ISSUED" || profile.docStatus === "INTERNSHIP_STARTED") && (
-          <PlacementLetterCard placeLetterUrl={profile.coop?.placeLetterUrl} placeDocNumber={profile.coop?.placeDocNumber} placeDocDate={profile.coop?.placeDocDate} />
+          <PlacementLetterCard placeLetterUrl={profile.coop?.placeLetterUrl} placeDocNumber={profile.coop?.placeDocNumber} placeDocDate={profile.coop?.placeDocDate} docStatus={profile.docStatus} onRefresh={refreshProfile} />
         )}
       </section>
 

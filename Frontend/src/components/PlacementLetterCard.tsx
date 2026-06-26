@@ -37,7 +37,7 @@ export default function PlacementLetterCard({
         try {
             const token = localStorage.getItem("coop.token");
 
-            await fetch(
+            const res = await fetch(
                 "/api/students/acknowledge-placement-letter",
                 {
                     method: "POST",
@@ -51,10 +51,16 @@ export default function PlacementLetterCard({
                 }
             );
 
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                alert(data.message || "ไม่สามารถอัปเดตสถานะได้ กรุณาลองใหม่หรือติดต่อเจ้าหน้าที่");
+                return;
+            }
 
             onRefresh?.();
         } catch (err) {
             console.error("ack placement error", err);
+            alert("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้");
         }
     };
 
