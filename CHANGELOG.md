@@ -1,5 +1,20 @@
 # CHANGELOG — Co_project
 
+## [2026-06-27] รองรับมือถือ/iPad — shared modal ออกหนังสือ (Issue*LetterModal)
+
+ตรวจ shared component ที่เหลือทั้งหมด (ConfirmDialog, LetterModalShared, NotificationBell,
+PlacementLetterCard, StatusFilterChips, SupervisionCalendar, loginpage, CountdownTimer,
+StatusBadge, Toast, AutoTextarea, Spinner) พบบั๊กจริงเฉพาะ modal กลุ่มออกหนังสือ (ใช้ pattern
+PDF preview ซ้าย + แผงควบคุม fixed-width 300px ขวา เหมือน modal ตรวจเอกสารที่แก้ไปแล้ว)
+ที่เหลือผ่านอยู่แล้ว (ใช้ % width/max-width หรือมี media query stack อยู่แล้ว เช่น SupervisionCalendar)
+
+### Fixed
+- **`IssueLetterModal.tsx`, `IssuePlacementLetterModal.tsx`, `IssueSupervisionLetterModal.tsx`**: แผงควบคุม fixed `width: 300` ไม่ stack บนมือถือ — เพิ่ม class `.letter-split`/`.letter-preview`/`.letter-sidebar` + media query ใน `LetterModalShared.tsx` (`MODAL_CSS` ที่ทั้ง 3 ไฟล์ import ใช้ร่วมกัน) ให้ stack แนวตั้งที่ ≤768px พร้อมเพิ่ม `padding` ให้ `.modal-backdrop` กันโมดัลชิดขอบจอ
+
+### Verified
+- `npx tsc --noEmit` ผ่าน
+- ทดสอบจริงบน mobile viewport (390px): เปิด modal ออกหนังสือส่งตัวจาก `A_DocT000.tsx` ยืนยัน `.letter-split` เปลี่ยนเป็น `flex-direction:column`, `.letter-sidebar` กว้างเต็ม container, ไม่มี horizontal overflow
+
 ## [2026-06-27] รองรับมือถือ/iPad ครบทุกหน้าของเจ้าหน้าที่และอาจารย์
 
 ทำต่อจากรอบนักศึกษา คราวนี้ตรวจและแก้ทุกหน้า admin (`A_*.tsx`) และ teacher (`T_*.tsx`) ที่เหลือ

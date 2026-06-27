@@ -102,8 +102,8 @@ export default function IssuePlacementLetterModal({ student, onClose, onSuccess 
                     <h3 style={{ margin: 0 }}>📄 ออกหนังสือส่งตัวฝึกสหกิจ</h3>
                     <button onClick={onClose} style={{ border: 'none', background: 'none', fontSize: 24, cursor: 'pointer' }}>&times;</button>
                 </div>
-                <div style={{ display: 'flex', gap: 20, flex: 1, minHeight: 0, paddingTop: 16 }}>
-                    <div style={{ flex: 1, background: previewUrl ? '#f8fafc' : '#525659', borderRadius: 8, overflow: 'hidden', display: 'flex', flexDirection: 'column', border: previewUrl ? '1px solid #e2e8f0' : 'none' }}>
+                <div className="letter-split" style={{ display: 'flex', gap: 20, flex: 1, minHeight: 0, paddingTop: 16 }}>
+                    <div className="letter-preview" style={{ flex: 1, background: previewUrl ? '#f8fafc' : '#525659', borderRadius: 8, overflow: 'hidden', display: 'flex', flexDirection: 'column', border: previewUrl ? '1px solid #e2e8f0' : 'none' }}>
                         {previewUrl ? (
                             <iframe src={previewUrl} width="100%" height="100%" style={{ border: 'none', flex: 1, background: '#ffffff', colorScheme: 'light' }} title="Preview" />
                         ) : (
@@ -113,7 +113,7 @@ export default function IssuePlacementLetterModal({ student, onClose, onSuccess 
                             </div>
                         )}
                     </div>
-                    <div style={{ width: 300, display: 'flex', flexDirection: 'column', gap: 14, flexShrink: 0, overflowY: 'auto' }}>
+                    <div className="letter-sidebar" style={{ width: 300, display: 'flex', flexDirection: 'column', gap: 14, flexShrink: 0, overflowY: 'auto' }}>
                         <div>
                             <div style={sec}>1. ข้อมูลหนังสือ</div>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
