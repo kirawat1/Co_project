@@ -343,7 +343,7 @@ export default function A_DocT003Review() {
 
             {/* TABLE */}
             <section style={card}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <table className="responsive-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
                         <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0', textAlign: 'left' }}>
                             {/* 🟢 หัวตารางกด Sort ได้ */}
@@ -370,10 +370,10 @@ export default function A_DocT003Review() {
 
                             return (
                                 <tr key={s.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                                    <td style={{ padding: '14px 16px', fontSize: 14, fontWeight: 600, color: '#2563eb' }}>{s.studentId}</td>
-                                    <td style={{ padding: '14px 16px', fontSize: 14, color: '#1e293b', fontWeight: 600 }}>{s.firstName} {s.lastName}</td>
-                                    <td style={{ padding: '14px 16px', fontSize: 14, color: '#475569' }}>{s.coop?.company?.name || "-"}</td>
-                                    <td style={{ padding: '14px 16px', fontSize: 13 }}>
+                                    <td style={{ padding: '14px 16px', fontSize: 14, fontWeight: 600, color: '#2563eb' }} data-label="รหัสนักศึกษา">{s.studentId}</td>
+                                    <td style={{ padding: '14px 16px', fontSize: 14, color: '#1e293b', fontWeight: 600 }} data-label="ชื่อ-นามสกุล">{s.firstName} {s.lastName}</td>
+                                    <td style={{ padding: '14px 16px', fontSize: 14, color: '#475569' }} data-label="สถานที่ปฏิบัติงาน">{s.coop?.company?.name || "-"}</td>
+                                    <td style={{ padding: '14px 16px', fontSize: 13 }} data-label="สถานะ">
                                         <span style={{ background: statusInfo.bg, color: statusInfo.color, padding: '6px 12px', borderRadius: 999, fontWeight: 700 }}>
                                             {statusInfo.label}
                                         </span>
@@ -401,8 +401,8 @@ export default function A_DocT003Review() {
                             <button onClick={() => setModalOpen(false)} style={{ background: 'none', border: 'none', fontSize: 24, cursor: 'pointer', color: '#64748b' }}>&times;</button>
                         </div>
 
-                        <div style={{ display: 'flex', gap: 24, height: '75vh' }}>
-                            <div style={{ flex: 1, background: '#525659', borderRadius: 8, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                        <div className="review-split" style={{ display: 'flex', gap: 24, height: '75vh' }}>
+                            <div className="review-preview" style={{ flex: 1, background: '#525659', borderRadius: 8, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
                                 {getT003FileUrl(selectedStudent.documents) ? (
                                     <iframe src={getT003FileUrl(selectedStudent.documents) as string} width="100%" height="100%" style={{ border: 'none' }} title="PDF Preview" />
                                 ) : (
@@ -410,7 +410,7 @@ export default function A_DocT003Review() {
                                 )}
                             </div>
 
-                            <div style={{ width: 350, display: 'flex', flexDirection: 'column', gap: 16 }}>
+                            <div className="review-sidebar" style={{ width: 350, display: 'flex', flexDirection: 'column', gap: 16 }}>
                                 <div style={{ padding: 16, background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0' }}>
                                     <h4 style={{ margin: '0 0 10px 0', color: '#334155' }}>ข้อมูลนักศึกษา</h4>
                                     <div style={{ fontSize: 13, color: '#475569', lineHeight: '1.6' }}>
@@ -446,6 +446,11 @@ export default function A_DocT003Review() {
                 .btn-ghost:hover:not(:disabled) { background: #f1f5f9; }
                 .input { padding: 12px 14px; border-radius: 8px; border: 1px solid #cbd5e1; outline: none; font-family: inherit; font-size: 14px; width: 100%; box-sizing: border-box; }
                 .input:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15); }
+                @media (max-width: 768px) {
+                    .review-split { flex-direction: column !important; height: auto !important; }
+                    .review-preview { height: 320px !important; flex: none !important; }
+                    .review-sidebar { width: 100% !important; }
+                }
             `}</style>
             <ConfirmDialog
                 open={confirmState.open}

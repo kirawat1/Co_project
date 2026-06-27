@@ -290,13 +290,13 @@ export default function A_Companies() {
       <section className="card" style={{ padding: 24, marginBottom: 28 }}>
         <h2 style={{ margin: 0 }}>🏢 จัดการข้อมูลบริษัทสหกิจศึกษา</h2>
 
-        <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+        <div style={{ display: "flex", gap: 10, marginTop: 16, flexWrap: "wrap" }}>
           <input
             className="input"
             placeholder="ค้นหา: ชื่อ / จังหวัด / อีเมล / ปี / เลขที่"
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            style={{ width: 320 }}
+            style={{ width: 320, maxWidth: "100%" }}
           />
           <button className="btn" style={{ background: '#0369a1' }} onClick={() => { setForm(emptyCompany()); setShowAdd(true); }}>
             + เพิ่มบริษัท
@@ -306,7 +306,7 @@ export default function A_Companies() {
 
       {/* Table */}
       <section className="card" style={{ padding: 24 }}>
-        <table className="tbl" style={{ width: "100%", borderCollapse: "collapse" }}>
+        <table className="tbl responsive-table" style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
             <tr>
               <th>ชื่อบริษัท</th>
@@ -328,11 +328,11 @@ export default function A_Companies() {
 
             {filtered.map((c, idx) => (
               <tr key={c.id} className={idx % 2 ? "row-odd" : "row-even"}>
-                <td style={{ fontWeight: 600, color: '#1e293b' }}>{c.name}</td>
-                <td>{c.province || "-"}</td>
-                <td>{c.email || "-"}</td>
-                <td>{c.contactPerson || "-"}<br /><span style={{ fontSize: 12, color: '#64748b' }}>{c.contactPosition}</span></td>
-                <td>{c.pastYears}</td>
+                <td style={{ fontWeight: 600, color: '#1e293b' }} data-label="ชื่อบริษัท">{c.name}</td>
+                <td data-label="จังหวัด">{c.province || "-"}</td>
+                <td data-label="อีเมล">{c.email || "-"}</td>
+                <td data-label="ผู้ติดต่อ">{c.contactPerson || "-"}<br /><span style={{ fontSize: 12, color: '#64748b' }}>{c.contactPosition}</span></td>
+                <td data-label="ปีที่รับ">{c.pastYears}</td>
                 <td style={{ ...td, textAlign: 'right' }}>
                   <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
                     <button className="btn" style={ghostBtn} onClick={() => setViewCompany(c)}>
@@ -369,7 +369,7 @@ export default function A_Companies() {
 
       {viewCompany && (
         <Modal title="🏢 รายละเอียดสถานประกอบการ" onClose={() => setViewCompany(null)}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, fontSize: 14 }}>
+          <div className="detail-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, fontSize: 14 }}>
             <div><b>ชื่อ (ไทย):</b> {viewCompany.name}</div>
             <div><b>ชื่อ (อังกฤษ):</b> {viewCompany.nameEn || "-"}</div>
 
@@ -403,7 +403,7 @@ export default function A_Companies() {
           {(viewCompany.mentors || []).length === 0 ? (
             <p style={{ color: "#6b7280", fontSize: 13, textAlign: 'center', background: '#f1f5f9', padding: 20, borderRadius: 8 }}>ยังไม่มีข้อมูลพี่เลี้ยงในระบบ</p>
           ) : (
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+            <table className="responsive-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
               <thead style={{ background: '#f8fafc' }}>
                 <tr>
                   <th style={{ borderBottom: "2px solid #e2e8f0", textAlign: "left", padding: '10px 8px', color: '#475569' }}>ชื่อ-นามสกุล</th>
@@ -415,9 +415,9 @@ export default function A_Companies() {
               <tbody>
                 {(viewCompany.mentors || []).map((m) => (
                   <tr key={m.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                    <td style={{ padding: '10px 8px' }}><b>{m.firstName} {m.lastName}</b></td>
-                    <td style={{ padding: '10px 8px' }}>{m.position} <br /><span style={{ color: '#64748b', fontSize: 12 }}>{m.department}</span></td>
-                    <td style={{ padding: '10px 8px' }}>{m.phone} <br /><span style={{ color: '#64748b', fontSize: 12 }}>{m.email}</span></td>
+                    <td style={{ padding: '10px 8px' }} data-label="ชื่อ-นามสกุล"><b>{m.firstName} {m.lastName}</b></td>
+                    <td style={{ padding: '10px 8px' }} data-label="ตำแหน่ง / แผนก">{m.position} <br /><span style={{ color: '#64748b', fontSize: 12 }}>{m.department}</span></td>
+                    <td style={{ padding: '10px 8px' }} data-label="ติดต่อ">{m.phone} <br /><span style={{ color: '#64748b', fontSize: 12 }}>{m.email}</span></td>
                     <td style={{ textAlign: "center", padding: '10px 8px' }}>
                       <button className="btn-secondary small" onClick={() => { setEditingMentor(m); setMentorForm(m); setShowAddMentor(true); }}>แก้ไข</button>
                       <button className="btn-danger small" onClick={() => removeMentor(m.id)}>ลบ</button>
@@ -496,6 +496,7 @@ function Modal({ title, onClose, children }: any) {
       <style>{`
         .modal-backdrop { position:fixed; inset:0; background:rgba(15,23,42,.5); display:flex; align-items:center; justify-content:center; z-index:100; backdrop-filter: blur(2px); }
         .modal-card { background:white; width:min(850px, 95vw); border-radius:16px; padding:24px; box-shadow:0 20px 25px -5px rgba(0,0,0,.1); }
+        @media (max-width: 600px) { .detail-grid { grid-template-columns: 1fr !important; } }
       `}</style>
     </div>
   );

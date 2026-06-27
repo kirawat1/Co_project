@@ -209,7 +209,7 @@ export default function T_Docs() {
           box-shadow:0 1px 0 rgba(0,0,0,.02), 0 6px 14px rgba(0,116,183,.14);
         }
         @media (max-width: 1100px){
-          table{ min-width: 1100px; }
+          .doc-table{ min-width: 1100px; }
         }
       `}</style>
     </div>

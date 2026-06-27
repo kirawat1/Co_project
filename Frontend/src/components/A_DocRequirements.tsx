@@ -73,7 +73,7 @@ export default function A_DocRequirements() {
         <div className="page" style={{ padding: 4, margin: 28, marginLeft: 65 }}>
 
             {/* HEADER */}
-            <section style={{ ...card, marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <section style={{ ...card, marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
                 <div>
                     <h2 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: '#1e293b' }}>📑 จัดการหัวข้อเอกสารประกอบการสมัคร</h2>
                     <div style={{ color: "#64748b", fontSize: 14, marginTop: 4 }}>กำหนดรายการเอกสารที่นักศึกษาต้องอัปโหลด (เช่น T000, Resume)</div>
@@ -85,7 +85,7 @@ export default function A_DocRequirements() {
 
             {/* TABLE */}
             <section style={card}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <table className="responsive-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
                         <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0', textAlign: 'left' }}>
                             <th style={{ padding: '14px 16px', color: '#64748b', fontSize: 13 }}>รหัส (docKey)</th>
@@ -100,17 +100,17 @@ export default function A_DocRequirements() {
                             <tr><td colSpan={5} style={{ textAlign: 'center', padding: 30, color: '#94a3b8' }}>ยังไม่ได้กำหนดหัวข้อเอกสาร</td></tr>
                         ) : reqs.map(r => (
                             <tr key={r.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                                <td style={{ padding: '14px 16px', fontSize: 14 }}>
+                                <td style={{ padding: '14px 16px', fontSize: 14 }} data-label="รหัส (docKey)">
                                     <code style={{ background: '#f1f5f9', padding: '4px 8px', borderRadius: 6, color: '#0369a1', fontWeight: 700 }}>{r.docKey}</code>
                                 </td>
-                                <td style={{ padding: '14px 16px', fontSize: 14 }}>
+                                <td style={{ padding: '14px 16px', fontSize: 14 }} data-label="ชื่อเอกสารที่แสดง">
                                     <div style={{ fontWeight: 700, color: '#1e293b' }}>{r.title}</div>
                                     {r.description && <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>{r.description}</div>}
                                 </td>
-                                <td style={{ padding: '14px 16px', fontSize: 13 }}>
+                                <td style={{ padding: '14px 16px', fontSize: 13 }} data-label="เงื่อนไข">
                                     {r.isRequired ? <span style={{ color: '#ef4444', fontWeight: 700 }}>* บังคับส่ง</span> : <span style={{ color: '#64748b' }}>ทางเลือก</span>}
                                 </td>
-                                <td style={{ padding: '14px 16px', fontSize: 13 }}>
+                                <td style={{ padding: '14px 16px', fontSize: 13 }} data-label="สถานะ">
                                     {r.isActive ? <span style={{ background: '#dcfce7', color: '#15803d', padding: '4px 10px', borderRadius: 999, fontWeight: 700 }}>🟢 เปิดใช้งาน</span>
                                         : <span style={{ background: '#f1f5f9', color: '#475569', padding: '4px 10px', borderRadius: 999, fontWeight: 700 }}>⚫ ปิด</span>}
                                 </td>

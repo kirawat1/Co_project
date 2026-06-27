@@ -130,7 +130,7 @@ export default function A_Mentors() {
   if (loading) return <div style={{ padding: 28, marginLeft: 35 }}>กำลังโหลดข้อมูลพี่เลี้ยง...</div>;
 
   return (
-    <div style={{ padding: 28, marginLeft: 35 }}>
+    <div className="page" style={{ padding: 28, marginLeft: 35 }}>
 
       {/* ================= Filters ================= */}
       <section style={card}>
@@ -142,7 +142,7 @@ export default function A_Mentors() {
             placeholder="ค้นหา: ชื่อ / อีเมล / บริษัท / แผนก"
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            style={{ width: 320, padding: '8px', borderRadius: 8, border: '1px solid #e5e7eb' }}
+            style={{ width: 320, maxWidth: '100%', padding: '8px', borderRadius: 8, border: '1px solid #e5e7eb' }}
           />
 
           {/* <button className="btn" style={{ ...saveBtn, marginLeft: 'auto', background: '#f1f5f9', color: '#64748b', border: '1px solid #e2e8f0' }} onClick={() => setQ("")}>
@@ -153,7 +153,7 @@ export default function A_Mentors() {
 
       {/* ================= Table ================= */}
       <section style={{ ...card, marginTop: 20, padding: 0, overflow: 'hidden' }}>
-        <table width="100%" style={{ borderCollapse: 'collapse' }}>
+        <table width="100%" className="responsive-table" style={{ borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
               {["ชื่อ-นามสกุล", "อีเมล", "บริษัท", "แผนก/ตำแหน่ง", "เบอร์โทร", "จัดการ"].map((h) => (
@@ -170,7 +170,7 @@ export default function A_Mentors() {
               </tr>
             ) : filtered.map((m) => (
               <tr key={m.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                <td style={td}>
+                <td style={td} data-label="ชื่อ-นามสกุล">
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#f0fdf4', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       {/* เปลี่ยนสีไอคอนให้ต่างจาก Teacher นิดหน่อย (สีเขียว) */}
@@ -181,15 +181,15 @@ export default function A_Mentors() {
                     </div>
                   </div>
                 </td>
-                <td style={td}>{m.email}</td>
-                <td style={td}>
+                <td style={td} data-label="อีเมล">{m.email}</td>
+                <td style={td} data-label="บริษัท">
                   <span style={{ fontWeight: 600, color: '#0074B7' }}>{m.companyName}</span>
                 </td>
-                <td style={td}>
+                <td style={td} data-label="แผนก/ตำแหน่ง">
                   <div style={{ fontSize: 13 }}>{m.department || "-"}</div>
                   <div style={{ fontSize: 12, color: '#64748b' }}>{m.position}</div>
                 </td>
-                <td style={td}>{m.phone || "-"}</td>
+                <td style={td} data-label="เบอร์โทร">{m.phone || "-"}</td>
                 <td style={td}>
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button className="btn" style={ghostBtn} onClick={() => setModalData(m)}>
@@ -312,7 +312,7 @@ function MentorModal({ data, onClose, onSave }: { data: Mentor, onClose: () => v
    UI Styles (เหมือน A_Teacher)
 ========================= */
 const card: React.CSSProperties = { background: "#fff", borderRadius: 14, padding: 24, border: "1px solid #e5e7eb" };
-const filterRow: React.CSSProperties = { display: "flex", gap: 12, alignItems: "center" };
+const filterRow: React.CSSProperties = { display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" };
 const th: React.CSSProperties = { textAlign: "left", fontSize: 14, fontWeight: 700, padding: "12px 16px", color: '#475569' };
 const td: React.CSSProperties = { padding: "14px 16px", fontSize: 14, color: '#334155', verticalAlign: 'middle' };
 

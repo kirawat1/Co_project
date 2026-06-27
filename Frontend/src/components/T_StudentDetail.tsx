@@ -244,7 +244,7 @@ export default function T_StudentDetail() {
         {/* Tab 1: Profile */}
         {tab === "profile" && (
           <Section title="ข้อมูลนักศึกษา">
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px 40px' }}>
+            <div className="profile-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px 40px' }}>
               <InfoRow label="รหัสนักศึกษา" value={student.studentId} />
               <InfoRow label="ชื่อ–นามสกุล" value={fullName} />
               <InfoRow label="ชั้นปี" value={student.year || "-"} />
@@ -336,7 +336,7 @@ export default function T_StudentDetail() {
             </div>
 
             {/* Table นัดหมาย */}
-            <table className="student-table">
+            <table className="student-table responsive-table">
               <thead>
                 <tr>
                   <th>วันเวลา</th>
@@ -348,12 +348,12 @@ export default function T_StudentDetail() {
               <tbody>
                 {visits.map((v) => (
                   <tr key={v.id} className="student-row">
-                    <td style={{ fontWeight: 700, color: '#1e293b' }}>
+                    <td style={{ fontWeight: 700, color: '#1e293b' }} data-label="วันเวลา">
                       {new Date(v.date).toLocaleDateString('th-TH', { dateStyle: 'medium' })} <br />
                       <span style={{ fontSize: 12, color: '#64748b', fontWeight: 500 }}>เวลา: {v.time || "-"} น.</span>
                     </td>
-                    <td>{v.note || "-"}</td>
-                    <td>
+                    <td data-label="บันทึกรายละเอียด">{v.note || "-"}</td>
+                    <td data-label="สถานะ">
                       {v.status === 'done' ?
                         <span style={{ background: '#dcfce7', color: '#166534', padding: '4px 10px', borderRadius: 99, fontSize: 12, fontWeight: 700 }}>✅ เรียบร้อย</span> :
                         <span style={{ background: '#fef3c7', color: '#b45309', padding: '4px 10px', borderRadius: 99, fontSize: 12, fontWeight: 700 }}>⏳ รอนิเทศ</span>
@@ -402,6 +402,7 @@ export default function T_StudentDetail() {
         .card { background: #fff; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
         .p-6 { padding: 24px; }
         .mb-6 { margin-bottom: 24px; }
+        @media (max-width: 480px) { .profile-grid { grid-template-columns: 1fr !important; } }
         
         .tab-btn { flex: 1; padding: 12px; border-radius: 12px; font-weight: 700; cursor: pointer; border: none; background: transparent; color: #64748b; transition: 0.2s; font-size: 14px; font-family: inherit; }
         .tab-btn.active { background: #fff; color: #0ea5e9; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }

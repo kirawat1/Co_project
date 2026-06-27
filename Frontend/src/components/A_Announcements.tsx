@@ -213,7 +213,7 @@ export default function A_Announcements() {
   };
 
   return (
-    <div style={container}>
+    <div className="page" style={container}>
       <style>{CUSTOM_CSS}</style>
 
       {/* TOP HEADER */}
@@ -445,14 +445,14 @@ export default function A_Announcements() {
 /* ================= STYLES ================= */
 // ใช้ชุด Styles เดิมที่ผมปรับ UX/UI ให้คุณล่าสุดได้เลยครับ
 const container: CSSProperties = { padding: "40px", marginLeft: "65px", backgroundColor: "#f8fafc", minHeight: "100vh" };
-const headerSection: CSSProperties = { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "32px" };
+const headerSection: CSSProperties = { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "32px", flexWrap: "wrap", gap: "16px" };
 const titleStyle: CSSProperties = { fontSize: "28px", fontWeight: 800, color: "#1e293b", margin: 0 };
 const subtitleStyle: CSSProperties = { color: "#64748b", marginTop: "4px", fontSize: "14px" };
-const headerActions: CSSProperties = { display: "flex", gap: "12px", alignItems: "center" };
+const headerActions: CSSProperties = { display: "flex", gap: "12px", alignItems: "center", flexWrap: "wrap" };
 const selectYear: CSSProperties = { padding: "10px 16px", borderRadius: "10px", border: "1px solid #e2e8f0", backgroundColor: "white", fontSize: "14px", fontWeight: 600, outline: "none", cursor: "pointer" };
 const mainList: CSSProperties = { display: "flex", flexDirection: "column", gap: "16px" };
-const annCard: CSSProperties = { backgroundColor: "white", borderRadius: "16px", padding: "24px", border: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", boxShadow: "0 1px 3px rgba(0,0,0,0.05)", transition: "0.2s" };
-const annContent: CSSProperties = { flex: 1 };
+const annCard: CSSProperties = { backgroundColor: "white", borderRadius: "16px", padding: "24px", border: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", boxShadow: "0 1px 3px rgba(0,0,0,0.05)", transition: "0.2s", flexWrap: "wrap", gap: "16px" };
+const annContent: CSSProperties = { flex: 1, minWidth: 0 };
 const annMeta: CSSProperties = { display: "flex", gap: "12px", alignItems: "center", marginBottom: "12px" };
 const badgeYear: CSSProperties = { backgroundColor: "#eff6ff", color: "#2563eb", padding: "4px 10px", borderRadius: "6px", fontSize: "12px", fontWeight: 700 };
 const textMuted: CSSProperties = { color: "#64748b", fontSize: "13px" };
@@ -464,14 +464,14 @@ const chipText: CSSProperties = { fontSize: "12px", color: "#334155", fontWeight
 const annActions: CSSProperties = { display: "flex", flexDirection: "column", gap: "8px", marginLeft: "20px" };
 const btnIconEdit: CSSProperties = { padding: "8px 16px", borderRadius: "8px", border: "1px solid #e2e8f0", backgroundColor: "white", color: "#2563eb", fontWeight: 600, cursor: "pointer", fontSize: "13px" };
 const btnIconDel: CSSProperties = { padding: "8px 16px", borderRadius: "8px", border: "none", backgroundColor: "#fef2f2", color: "#dc2626", fontWeight: 600, cursor: "pointer", fontSize: "13px" };
-const modalOverlay: CSSProperties = { position: "fixed", inset: 0, backgroundColor: "rgba(15, 23, 42, 0.6)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000, backdropFilter: "blur(4px)" };
+const modalOverlay: CSSProperties = { position: "fixed", inset: 0, backgroundColor: "rgba(15, 23, 42, 0.6)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000, backdropFilter: "blur(4px)", padding: "16px" };
 const modalCard: CSSProperties = { backgroundColor: "white", borderRadius: "20px", width: "100%", maxWidth: "650px", maxHeight: "90vh", overflowY: "auto" };
 const modalHeader: CSSProperties = { padding: "24px", borderBottom: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center" };
 const btnClose: CSSProperties = { background: "none", border: "none", fontSize: "24px", color: "#64748b", cursor: "pointer" };
 const formStyle: CSSProperties = { padding: "24px" };
 const inputGroup: CSSProperties = { marginBottom: "20px" };
 const labelStyle: CSSProperties = { fontSize: "14px", fontWeight: 600, color: "#334155", marginBottom: "8px", display: "block" };
-const rowGrid: CSSProperties = { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" };
+const rowGrid: CSSProperties = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "20px" };
 const attachmentSection: CSSProperties = { backgroundColor: "#f8fafc", padding: "16px", borderRadius: "12px", border: "1px dashed #cbd5e1", marginBottom: "24px" };
 const attachBtnRow: CSSProperties = { display: "flex", gap: "10px", marginBottom: "12px" };
 const btnSmall: CSSProperties = { padding: "6px 12px", fontSize: "12px", borderRadius: "6px", border: "1px solid #e2e8f0", backgroundColor: "white", cursor: "pointer", fontWeight: 600 };

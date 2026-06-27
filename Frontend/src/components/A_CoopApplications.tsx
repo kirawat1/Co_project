@@ -268,7 +268,7 @@ export default function A_CoopApplications() {
                     </select>
                 </div>
 
-                <table style={table}>
+                <table style={table} className="responsive-table">
                     <thead>
                         <tr style={thRow}>
                             <th style={th}>รหัสนักศึกษา / ชื่อ</th>
@@ -282,15 +282,15 @@ export default function A_CoopApplications() {
                             <tr><td colSpan={4} style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>ไม่มีคำร้องในระบบ</td></tr>
                         ) : filteredApps.map(app => (
                             <tr key={app.id} style={tr}>
-                                <td style={td}>
+                                <td style={td} data-label="รหัสนักศึกษา / ชื่อ">
                                     <div style={{ fontWeight: 700, color: '#0369a1' }}>{app.student.studentId}</div>
                                     <div style={{ fontSize: 13, color: '#64748b', marginTop: 2 }}>{app.student.firstName} {app.student.lastName}</div>
                                 </td>
-                                <td style={td}>
+                                <td style={td} data-label="หน่วยงาน / ตำแหน่ง">
                                     <div style={{ fontWeight: 600, color: '#1e293b' }}>{app.company?.name || "-"}</div>
                                     <div style={{ fontSize: 12, color: '#0ea5e9', marginTop: 2 }}>{app.jobPosition}</div>
                                 </td>
-                                <td style={td}>
+                                <td style={td} data-label="สถานะ">
                                     <StatusBadge status={app.status} />
                                 </td>
 
@@ -315,9 +315,9 @@ export default function A_CoopApplications() {
                             <button onClick={closeAndResetModal} style={{ border: 'none', background: 'none', fontSize: 24, cursor: 'pointer', color: '#64748b' }}>&times;</button>
                         </div>
 
-                        <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+                        <div className="split-pane" style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
                             {/* LEFT: PREVIEW */}
-                            <div style={{ flex: '0 0 60%', background: '#334155' }}>
+                            <div className="preview-pane" style={{ flex: '0 0 60%', background: '#334155' }}>
                                 {previewUrl ? (
                                     previewType === 'pdf' ? <iframe src={previewUrl} style={{ width: '100%', height: '100%', border: 'none' }} title="p" />
                                         : <img src={previewUrl} style={{ width: '100%', height: '100%', objectFit: 'contain' }} alt="p" />
@@ -397,6 +397,10 @@ const STYLES = `
     .input:focus { border-color: #0ea5e9; box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.15); }
     .modal-backdrop { position: fixed; inset: 0; background: rgba(15, 23, 42, .6); display: flex; align-items: center; justify-content: center; z-index: 999; backdrop-filter: blur(3px); }
     .modal-card-split { background: #fff; border-radius: 16px; width: 95vw; max-width: 1400px; height: 90vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); }
+    @media (max-width: 768px) {
+        .split-pane { flex-direction: column !important; overflow-y: auto !important; }
+        .preview-pane { flex: 0 0 280px !important; }
+    }
 `;
 
 const card: CSSProperties = { background: "#fff", borderRadius: 16, padding: 24, boxShadow: "0 4px 6px -1px rgba(0,0,0,0.05)", border: '1px solid #f1f5f9' };
