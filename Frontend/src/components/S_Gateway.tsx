@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { createCoopPDF } from "../utils/pdfGenerator";
 import StatusBadge from "../components/StatusBadge";
-import S_StatusTracker from "./S_StatusTracker";
 import { useToast } from "../components/Toast";
 import AutoTextarea from "./AutoTextarea";
 import ConfirmDialog from "../components/ConfirmDialog";
@@ -261,50 +260,9 @@ export default function CoopRequestPage() {
   const displayMentor = profile.coop?.mentor || profile.mentor;
   const hasCompany = !!displayCompany;
 
-  // Step Indicator logic
-  const STEPS = [
-    { label: "ตรวจสอบคุณสมบัติ", statuses: ["NOT_SUBMITTED", "APPLYING", "QUALIFICATION_FAILED", "APPLICATION_EDITS_REQUIRED", "QUALIFIED"] },
-    { label: "ส่งเอกสาร T000", statuses: ["WAITING_FOR_STAFF_CHECK", "EDITS_REQUIRED", "DOCS_APPROVED"] },
-    { label: "รอหนังสือ & ตอบรับ", statuses: ["REQ_LETTER_ISSUED", "WAITING_FOR_PLACEMENT_LETTER", "WAITING_FOR_STAFF_CHECK_LETTER", "ACCEPTANCE_CHECKED", "PLACEMENT_LETTER_ISSUED"] },
-    { label: "ออกฝึกสหกิจ", statuses: ["INTERNSHIP_STARTED", "T002_SUBMITTED", "T002_EDITS_REQUIRED", "T003_SUBMITTED", "T003_EDITS_REQUIRED", "PENDING_TEACHER", "TEACHER_REJECTED", "DATE_CONFIRMED", "LETTER_UPLOADED", "COMPLETED"] },
-  ];
-  const currentStep = STEPS.findIndex((s) => s.statuses.includes(currentStatus));
-  const activeStep = currentStep === -1 ? 0 : currentStep;
-
   return (
     <div className="page" style={{ padding: "40px 20px", maxWidth: "1200px", margin: "0 auto" }}>
       <style>{PROFILE_CSS}</style>
-
-      {/* ================= STEP INDICATOR ================= */}
-      <div style={{ display: "flex", alignItems: "center", marginBottom: 28, gap: 0, overflowX: "auto", paddingBottom: 4 }}>
-        {STEPS.map((step, i) => {
-          const done = i < activeStep;
-          const active = i === activeStep;
-          return (
-            <div key={i} style={{ display: "flex", alignItems: "center", flex: 1, minWidth: 120 }}>
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
-                <div style={{
-                  width: 36, height: 36, borderRadius: "50%",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  fontWeight: 800, fontSize: 15,
-                  background: done ? "#22c55e" : active ? "#0074B7" : "rgba(100,116,139,.15)",
-                  color: done || active ? "#fff" : "#94a3b8",
-                  border: active ? "3px solid #bfdbfe" : "2px solid transparent",
-                  transition: ".2s", flexShrink: 0,
-                }}>
-                  {done ? "✓" : i + 1}
-                </div>
-                <span style={{ fontSize: 11, fontWeight: 700, color: active ? "#0074B7" : done ? "#16a34a" : "#94a3b8", textAlign: "center", lineHeight: 1.3, whiteSpace: "nowrap" }}>
-                  {step.label}
-                </span>
-              </div>
-              {i < STEPS.length - 1 && (
-                <div style={{ flex: 1, height: 3, margin: "0 4px", marginBottom: 20, background: done ? "#22c55e" : "rgba(100,116,139,.15)", transition: ".3s", borderRadius: 2 }} />
-              )}
-            </div>
-          );
-        })}
-      </div>
 
       {/* ConfirmDialog for file delete */}
       <ConfirmDialog
@@ -352,11 +310,6 @@ export default function CoopRequestPage() {
             </div>
           </div>
         </div>
-      )}
-
-      {/* ================= STATUS TRACKER ================= */}
-      {currentStatus !== "NOT_SUBMITTED" && (
-        <S_StatusTracker status={currentStatus} lastComment={profile?.coop?.teacherCheckComment || profile?.coop?.t000Comment} />
       )}
 
       {/* ================= SECTION 1: สถานะคำร้อง ================= */}
