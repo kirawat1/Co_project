@@ -1,5 +1,16 @@
 # CHANGELOG — Co_project
 
+## [2026-06-28] UI: รวม status display ของนักศึกษา ลด UI ซ้ำซ้อน
+
+### Changed
+- **`S_Gateway.tsx`**: ลบ status display ที่ซ้ำซ้อน 2 ใน 3 จุด (custom step indicator + embedded `S_StatusTracker`) เหลือไว้แค่การ์ด "สถานะคำร้อง" จุดเดียว
+- **`S_Dashboard.tsx`**: การ์ดสถานะแบบย่อกดปุ่ม "ดูรายละเอียด →" แล้วขยายแสดง `S_StatusTracker` เต็มรูปแบบ (phase + sub-step + next action) ในหน้าเดียวกัน แทนการลิงก์ไปหน้าใหม่
+- **`S_App.tsx` / `S_Sidebar.tsx`**: ลบหน้า `/student/status-tracker` แบบเดี่ยวและ sidebar item "สถานะสหกิจ" — badge แจ้งเตือน + mark-as-read ย้ายไปอยู่ที่ปุ่ม "Dashboard" แทน
+
+### Verified
+- `npx tsc --noEmit` ผ่าน (เคลียร์ import/const ที่ไม่ใช้แล้วทั้งหมดตาม `noUnusedLocals`)
+- ทดสอบจริงในเบราว์เซอร์: Gateway เหลือสถานะเดียว, Dashboard ขยาย/ย่อ tracker ได้ในหน้าเดียว, sidebar ไม่มี "สถานะสหกิจ" แล้ว, badge แจ้งเตือนย้ายไปปุ่ม Dashboard ถูกต้อง
+
 ## [2026-06-27] Fix: test suite ที่ล้มเหลวมานาน (`teacherController.test.js` › `deleteTeacher`)
 
 แก้ไข test ที่ล้มเหลวซึ่งถูกบันทึกไว้ว่าเป็น "pre-existing, ไม่เกี่ยวกับการเปลี่ยนแปลงใดๆ" — ตรวจสอบจริงแล้วพบว่าสาเหตุคือ mock Prisma (`__tests__/__mocks__/prismaClient.js`) ขาด method ที่ controller `deleteTeacher` เรียกใช้จริง ไม่ใช่บั๊กใน business logic
