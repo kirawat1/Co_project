@@ -36,6 +36,11 @@ export const MODAL_CSS = `
   .btn-outline { background: white; color: #3b82f6; border: 1px solid #3b82f6; } .btn-outline:hover { background: #eff6ff; }
   .btn-success { background: #10b981; color: white; } .btn-success:hover { background: #059669; }
   .btn-success:disabled { background: #94a3b8; cursor: not-allowed; }
-  .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; justify-content: center; align-items: center; z-index: 10000; }
+  .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; justify-content: center; align-items: center; z-index: 10000; padding: 12px; }
   .modal-card { background: white; padding: 20px; border-radius: 16px; display: flex; flex-direction: column; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); }
+  @media (max-width: 768px) {
+    .letter-split { flex-direction: column !important; }
+    .letter-preview { flex: none !important; min-height: 280px !important; }
+    .letter-sidebar { width: 100% !important; }
+  }
 `;
