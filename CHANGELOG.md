@@ -1,5 +1,17 @@
 # CHANGELOG — Co_project
 
+## [2026-06-27] Fix: test suite ที่ล้มเหลวมานาน (`teacherController.test.js` › `deleteTeacher`)
+
+แก้ไข test ที่ล้มเหลวซึ่งถูกบันทึกไว้ว่าเป็น "pre-existing, ไม่เกี่ยวกับการเปลี่ยนแปลงใดๆ" — ตรวจสอบจริงแล้วพบว่าสาเหตุคือ mock Prisma (`__tests__/__mocks__/prismaClient.js`) ขาด method ที่ controller `deleteTeacher` เรียกใช้จริง ไม่ใช่บั๊กใน business logic
+
+### Fixed
+- **`__tests__/__mocks__/prismaClient.js`**:
+  - เพิ่ม `student.updateMany`, `teacher.delete`, `visit.count` ที่ขาดไป — `deleteTeacher` controller เรียกใช้ทั้งสามตัวนี้ผ่าน `prisma.$transaction([...])` แต่ mock ไม่มี method เหล่านี้ ทำให้โยน `TypeError` ตั้งแต่ขั้นตอนแรก (`student.updateMany is not a function`) ก่อนจะถึงจุดที่ test ตรวจสอบ
+  - แก้ `$transaction` mock จาก `jest.fn((fn) => fn(prismaMock))` (รองรับแค่ interactive form) เป็นรองรับทั้ง array form (`$transaction([...])`) ด้วย — ของเดิมพอส่ง array เข้าไปจะพยายามเรียก array เป็นฟังก์ชันแล้ว throw
+
+### Verified
+- `npx jest` ทั้ง backend: 217/217 ผ่าน (จากเดิม 216/217)
+
 ## [2026-06-27] Fix: แก้ไขประกาศแสดงวันที่ว่างเปล่า
 
 ระหว่างทดสอบระบบทั้งระบบ (ทุกปุ่ม ทุก role) พบบั๊กจริงที่หน้า `A_Announcements.tsx` (จัดการประกาศ — admin/staff)

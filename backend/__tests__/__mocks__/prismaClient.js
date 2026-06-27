@@ -15,6 +15,7 @@ const prismaMock = {
     create: jest.fn(),
     upsert: jest.fn(),
     update: jest.fn(),
+    updateMany: jest.fn(),
     delete: jest.fn(),
   },
   teacher: {
@@ -25,6 +26,7 @@ const prismaMock = {
     create: jest.fn(),
     upsert: jest.fn(),
     update: jest.fn(),
+    delete: jest.fn(),
   },
   studentCoop: {
     findUnique: jest.fn(),
@@ -124,6 +126,7 @@ const prismaMock = {
     findMany: jest.fn(),
     findUnique: jest.fn(),
     findFirst: jest.fn(),
+    count: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
     delete: jest.fn(),
@@ -143,7 +146,8 @@ const prismaMock = {
     delete: jest.fn(),
     count: jest.fn(),
   },
-  $transaction: jest.fn((fn) => fn(prismaMock)),
+  // รองรับทั้ง interactive form ($transaction(async (tx) => {...})) และ array form ($transaction([promise1, promise2]))
+  $transaction: jest.fn((arg) => Array.isArray(arg) ? Promise.all(arg) : arg(prismaMock)),
 };
 
 module.exports = prismaMock;
