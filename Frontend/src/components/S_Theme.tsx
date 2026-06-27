@@ -223,6 +223,9 @@ function css(IOS_BLUE: string) {
     /* Show hamburger */
     .btn-hamburger { display: inline-flex; }
 
+    /* Bigger tap targets on touch devices (WCAG 2.5.5) */
+    .btn-ico { width: 44px; height: 44px; }
+
     /* Layout: single column */
     .layout { grid-template-columns: 1fr; }
 
@@ -266,6 +269,9 @@ function css(IOS_BLUE: string) {
     table.responsive-table td:last-child { border-bottom: none !important; }
     table.responsive-table td[data-label]::before { content: attr(data-label); display: block; font-weight: 700; color: #64748b; font-size: 12px; margin-bottom: 4px; }
     table.responsive-table td span { white-space: normal !important; }
+    /* Action buttons get full tap-target height now that cards are full-width on mobile */
+    table.responsive-table td:last-child button,
+    table.responsive-table td:last-child a { min-height: 44px; padding: 8px 16px; }
   }
 
   @media (max-width: 480px) {

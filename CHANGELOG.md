@@ -1,5 +1,25 @@
 # CHANGELOG — Co_project
 
+## [2026-06-27] Accessibility — tap target ขนาดเล็กบนมือถือ + lang attribute
+
+ทำต่อจากรอบ responsive sweep ใช้ chrome-devtools a11y audit (Lighthouse-style manual check:
+tap target size, orphaned form inputs, console a11y issues) ตรวจหน้า login และตารางที่แปลงเป็น
+card view ไปแล้ว พบว่าปุ่ม action เล็กๆในตารางและปุ่ม icon บน header แตะยากบนจอสัมผัส
+
+### Fixed
+- **`index.html`**: `<html lang="en">` ทั้งที่เนื้อหาทั้งหมดเป็นภาษาไทย — แก้เป็น `lang="th"` (กระทบการอ่านออกเสียงของ screen reader ทุกหน้า)
+- **`S_Theme.tsx`**: ปุ่ม icon บน header (`.btn-ico` — theme toggle, hamburger, notification, logout) ขนาด 38px เล็กกว่ามาตรฐาน WCAG 2.5.5 (44px) — เพิ่ม media query ขยายเป็น 44px บนจอ ≤768px; ปุ่ม action ในตาราง `responsive-table` (แก้ไข/ลบ/รหัสผ่าน) สูงแค่ 34px เพราะถูกออกแบบมาสำหรับ table cell แคบ แต่พอแปลงเป็น card เต็มความกว้างแล้วมีที่ว่างเหลือเพียงพอ — เพิ่ม `min-height: 44px` ให้ปุ่ม/ลิงก์ในคอลัมน์สุดท้าย (จัดการ) ของทุกตาราง
+- **`loginpage.tsx`**: checkbox "จดจำฉันไว้" คลิกได้แค่กล่อง 16x16px (label ครอบไว้แต่ไม่มี padding แนวตั้ง) — เพิ่ม `padding:10px 0` ให้ label ทำให้พื้นที่แตะสูงขึ้นเป็น ~45px; ปุ่ม "สมัครสมาชิกด้วยตนเอง" มี `padding:0` ทำให้พื้นที่แตะสูงแค่ 20px — เพิ่ม padding เป็น 44px
+
+### Verified
+- `npx tsc --noEmit` ผ่าน
+- สแกน tap target ด้วย script (`getBoundingClientRect` ทุก `button/a/input/select`) บนหน้า login และหน้า `/admin/teachers` (มี responsive-table) ก่อน/หลังแก้ — ปุ่มที่แก้ทั้งหมดขยับจาก 16-38px เป็น 44-45px ไม่มี horizontal overflow เพิ่มขึ้น
+- ปุ่ม Google Sign-In (third-party widget, สูง 40px) ไม่ได้แก้เพราะเป็น iframe ที่ควบคุมไม่ได้
+
+### Known gaps (นอกขอบเขตรอบนี้)
+- ปุ่ม action ขนาดเล็กในตาราง **desktop** (ไม่ผ่าน responsive-table ที่ breakpoint ≤768px) ยังเป็นขนาดเดิม — เพราะ desktop ใช้ mouse ไม่ใช่ touch จึงไม่บังคับตาม WCAG tap target
+- ยังไม่ได้ตรวจ color contrast แบบละเอียด (เบื้องต้นไม่พบ "Low Contrast" issue จาก Chrome console)
+
 ## [2026-06-27] รองรับมือถือ/iPad — shared modal ออกหนังสือ (Issue*LetterModal)
 
 ตรวจ shared component ที่เหลือทั้งหมด (ConfirmDialog, LetterModalShared, NotificationBell,

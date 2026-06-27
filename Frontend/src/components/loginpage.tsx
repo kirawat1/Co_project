@@ -366,7 +366,7 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={() => { setRegisterMode(true); resetMode(); setRegisterMode(true); }}
-                style={{ background: "none", border: "none", color: "#0074B7", fontWeight: 700, fontSize: 13, cursor: "pointer", textDecoration: "underline", padding: 0 }}
+                style={{ background: "none", border: "none", color: "#0074B7", fontWeight: 700, fontSize: 13, cursor: "pointer", textDecoration: "underline", padding: "12px 4px" }}
               >
                 สมัครสมาชิกด้วยตนเอง
               </button>
@@ -522,7 +522,7 @@ function css(IOS_BLUE: string) {
   .input{ height:46px; border:1px solid #e5e7eb; border-radius:12px; padding:0 14px; outline:none; transition: border-color .12s, box-shadow .12s; font-variant-numeric: tabular-nums; }
   .input:focus{ border-color:var(--ios-blue); box-shadow:0 0 0 4px rgba(10,132,255,.18) }
 
-  .remember{ display:flex; align-items:center; gap:8px; margin:4px 0 2px; color:#374151; user-select:none }
+  .remember{ display:flex; align-items:center; gap:8px; margin:4px 0 2px; padding:10px 0; color:#374151; user-select:none; cursor:pointer }
   .remember input{ width:16px; height:16px; accent-color: var(--ios-blue); }
 
   .alert{ padding:10px 12px; border-radius:12px; border:1px solid; font-size:14px }
