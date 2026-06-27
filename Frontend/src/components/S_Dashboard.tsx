@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { IcAnnounce, IcDocs } from "./icons";
 import StatusBadge from "./StatusBadge";
-import { useNavigate } from "react-router-dom";
+import S_StatusTracker from "./S_StatusTracker";
 
 /* ===============================
     Types
@@ -50,6 +50,8 @@ export default function S_Dashboard() {
   const [configs, setConfigs] = useState<Record<string, SystemConfig>>({});
   const [studentStatus, setStudentStatus] = useState<string>("NOT_SUBMITTED");
   const [studentMajor, setStudentMajor] = useState<string>("");
+  const [lastComment, setLastComment] = useState<string>("");
+  const [statusExpanded, setStatusExpanded] = useState(false);
   const [loading, setLoading] = useState(true);
   const [selectedAnn, setSelectedAnn] = useState<Announcement | null>(null);
   const token = localStorage.getItem("coop.token");
@@ -63,6 +65,7 @@ export default function S_Dashboard() {
       });
       const major = profileRes.data?.major || "";
       setStudentStatus(profileRes.data?.coop?.status || "NOT_SUBMITTED");
+      setLastComment(profileRes.data?.coop?.teacherCheckComment || profileRes.data?.coop?.t000Comment || "");
       setStudentMajor(major);
 
       // 2. Announcements filtered by major
@@ -147,8 +150,6 @@ export default function S_Dashboard() {
   }, [nearestDeadline]);
 
 
-  const navigate = useNavigate();
-
   if (loading) return <div style={{ padding: 40, textAlign: 'center' }}>กำลังโหลดข้อมูลภาพรวม...</div>;
 
   return (
@@ -175,10 +176,12 @@ export default function S_Dashboard() {
             <StatusBadge status={studentStatus} hidePrefix />
           </div>
         </div>
-        <button onClick={() => navigate("/student/status-tracker")} style={{ padding:"8px 18px", background:"#eff6ff", color:"#2563eb", border:"1px solid #bfdbfe", borderRadius:10, fontWeight:700, fontSize:13, cursor:"pointer", whiteSpace:"nowrap" }}>
-          ดูรายละเอียด →
+        <button onClick={() => setStatusExpanded((v) => !v)} style={{ padding:"8px 18px", background:"#eff6ff", color:"#2563eb", border:"1px solid #bfdbfe", borderRadius:10, fontWeight:700, fontSize:13, cursor:"pointer", whiteSpace:"nowrap" }}>
+          {statusExpanded ? "ซ่อนรายละเอียด ↑" : "ดูรายละเอียด →"}
         </button>
       </div>
+
+      {statusExpanded && <S_StatusTracker status={studentStatus} lastComment={lastComment} />}
 
       {/* ===== COUNTDOWN ===== */}
       {nearestDeadline && countdown && (
