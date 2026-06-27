@@ -294,7 +294,7 @@ export default function T_Dashboard() {
               </Link>
             </div>
             <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <table className="responsive-table" style={{ width: "100%", borderCollapse: "collapse" }}>
                 <thead>
                   <tr style={{ borderBottom: '2px solid #f1f5f9' }}>
                     {["รหัสนักศึกษา", "ชื่อนักศึกษา", "สถานที่ / รูปแบบ", "วันเวลานิเทศ", "สถานะ"].map((h) => (
@@ -308,9 +308,9 @@ export default function T_Dashboard() {
                   ) : (
                     supervisions.slice(0, 5).map((sup) => (
                       <tr key={sup.id} style={{ borderBottom: "1px solid #f8fafc" }}>
-                        <td style={td()}>{sup.student.studentId}</td>
-                        <td style={td()}>{`${sup.student.firstName} ${sup.student.lastName}`}</td>
-                        <td style={td()}>
+                        <td style={td()} data-label="รหัสนักศึกษา">{sup.student.studentId}</td>
+                        <td style={td()} data-label="ชื่อนักศึกษา">{`${sup.student.firstName} ${sup.student.lastName}`}</td>
+                        <td style={td()} data-label="สถานที่ / รูปแบบ">
                           <div style={{ fontWeight: 600, color: sup.supervisionType === 'ONLINE' ? '#0284c7' : '#059669' }}>
                             {sup.supervisionType === 'ONLINE' ? '🌐 ออนไลน์' : '🏢 ออนไซต์'}
                           </div>
@@ -318,8 +318,8 @@ export default function T_Dashboard() {
                             {sup.student.coop?.company?.name || "-"}
                           </div>
                         </td>
-                        <td style={td()}><b>{formatDateTime(sup.confirmedDate)}</b></td>
-                        <td style={td()}>{chip(sup.status)}</td>
+                        <td style={td()} data-label="วันเวลานิเทศ"><b>{formatDateTime(sup.confirmedDate)}</b></td>
+                        <td style={td()} data-label="สถานะ">{chip(sup.status)}</td>
                       </tr>
                     ))
                   )}

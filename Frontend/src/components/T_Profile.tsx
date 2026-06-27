@@ -296,6 +296,7 @@ const PROFILE_CSS = `
 .input{ padding:12px 16px; border-radius:12px; border:1px solid #e2e8f0; font-weight:600; width:100%; margin-top:8px; box-sizing:border-box; font-family:inherit; transition: 0.2s; }
 .input:focus{ border-color: #2563eb; outline: none; box-shadow: 0 0 0 4px rgba(37,99,235,0.1); }
 .form-grid{ display:grid; grid-template-columns:1fr 1fr; gap:16px 24px; }
+@media (max-width: 480px) { .form-grid { grid-template-columns: 1fr !important; } }
 .action-row{ display:flex; justify-content:flex-end; gap:12px; margin-top:32px; }
 .btn{ background:#2563eb; color:#fff; padding:12px 24px; border-radius:12px; font-weight:700; border:none; cursor:pointer; transition: 0.2s; }
 .btn:hover{ background:#1d4ed8; transform: translateY(-1px); }

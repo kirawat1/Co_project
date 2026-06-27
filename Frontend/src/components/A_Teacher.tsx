@@ -191,7 +191,7 @@ export default function A_Teacher() {
   if (loading) return <div style={{ padding: 40, textAlign: "center", color: "#64748b" }}>กำลังโหลดข้อมูลอาจารย์...</div>;
 
   return (
-    <div style={{ padding: 28, marginLeft: 35 }}>
+    <div className="page" style={{ padding: 28, marginLeft: 35 }}>
 
       {/* ─── Delete Confirm ─── */}
       <ConfirmDialog
@@ -231,7 +231,7 @@ export default function A_Teacher() {
         <div style={{ padding: "12px 16px", borderBottom: "1px solid #f1f5f9", color: "#64748b", fontSize: 13 }}>
           ทั้งหมด {filtered.length} คน
         </div>
-        <table width="100%" style={{ borderCollapse: "collapse" }}>
+        <table width="100%" className="responsive-table" style={{ borderCollapse: "collapse" }}>
           <thead>
             <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
               {["ชื่อ-นามสกุล", "อีเมล (Username)", "เบอร์โทร", "สาขา", "จัดการ"].map((h) => (
@@ -244,7 +244,7 @@ export default function A_Teacher() {
               <tr><td colSpan={5} style={{ padding: 40, textAlign: "center", color: "#64748b" }}>ไม่พบข้อมูลอาจารย์</td></tr>
             ) : filtered.map((t) => (
               <tr key={t.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                <td style={td}>
+                <td style={td} data-label="ชื่อ-นามสกุล">
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                     <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#eff6ff", display: "flex", alignItems: "center", justifyContent: "center" }}>
                       <IcUser width={16} height={16} style={{ color: "#0074B7" }} />
@@ -257,9 +257,9 @@ export default function A_Teacher() {
                     )}
                   </div>
                 </td>
-                <td style={{ ...td, color: "#0369a1" }}>{t.email}</td>
-                <td style={td}>{t.phone || "-"}</td>
-                <td style={td}>
+                <td style={{ ...td, color: "#0369a1" }} data-label="อีเมล (Username)">{t.email}</td>
+                <td style={td} data-label="เบอร์โทร">{t.phone || "-"}</td>
+                <td style={td} data-label="สาขา">
                   <span style={{ padding: "4px 10px", borderRadius: 99, fontSize: 12, fontWeight: 600, background: t.major ? "#f0f9ff" : "#f1f5f9", color: t.major ? "#0369a1" : "#64748b" }}>
                     {MAJOR_TH[t.major] || t.major || "-"}
                   </span>

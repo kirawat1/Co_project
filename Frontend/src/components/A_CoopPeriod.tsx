@@ -134,7 +134,7 @@ export default function A_CoopPeriod() {
         <div className="page" style={{ padding: 4, margin: 28, marginLeft: 65 }}>
 
             {/* HEADER SECTION */}
-            <section style={{ ...card, marginBottom: 28, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <section style={{ ...card, marginBottom: 28, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
                 <div>
                     <h2 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: '#1e293b' }}>📅 จัดการรอบรับสมัครสหกิจศึกษา</h2>
                     <div style={{ color: "#64748b", fontSize: 14, marginTop: 4 }}>กำหนดวันเปิด-ปิด ระบบรับสมัครแยกตามปีการศึกษาและภาคเรียน</div>
@@ -199,7 +199,7 @@ export default function A_CoopPeriod() {
                         </h3>
 
                         <form onSubmit={save} style={formGrid}>
-                            <div style={{ display: 'flex', gap: 16 }}>
+                            <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
                                 <div style={field}>
                                     <label style={label}>ปีการศึกษา (เช่น 2569)</label>
                                     <input className="input" required value={academicYear} onChange={e => setAcademicYear(e.target.value)} />
@@ -252,7 +252,7 @@ const formGrid: CSSProperties = { display: "grid", gap: 16 };
 const field: CSSProperties = { display: "flex", flexDirection: "column", gap: 6, flex: 1 };
 const label: CSSProperties = { fontSize: 13, fontWeight: 600, color: '#475569' };
 
-const listItem: CSSProperties = { display: "flex", justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: 20, border: "1px solid #e2e8f0", borderRadius: 12, background: '#f8fafc' };
+const listItem: CSSProperties = { display: "flex", justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: 20, border: "1px solid #e2e8f0", borderRadius: 12, background: '#f8fafc', flexWrap: 'wrap' };
 const meta: CSSProperties = { fontSize: 14, color: "#64748b", marginTop: 8 };
 
 // Badges

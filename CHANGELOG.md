@@ -1,5 +1,26 @@
 # CHANGELOG — Co_project
 
+## [2026-06-27] รองรับมือถือ/iPad ครบทุกหน้าของเจ้าหน้าที่และอาจารย์
+
+ทำต่อจากรอบนักศึกษา คราวนี้ตรวจและแก้ทุกหน้า admin (`A_*.tsx`) และ teacher (`T_*.tsx`) ที่เหลือ
+(ยกเว้น 3 ไฟล์ที่แก้ไปแล้วในรอบแรก) ใช้ Explore agent ช่วยตรวจหา pattern ที่กระทบ (ตารางไม่มี
+responsive treatment, grid/flex คอลัมน์คงที่ไม่ wrap, modal split-screen แบบ PDF-preview ที่มี
+fixed-width side panel) แก้และทดสอบด้วย mobile viewport emulation (390×844) จนไม่มี horizontal
+overflow เหลือ
+
+### Fixed
+- **ตารางไม่มี responsive treatment** — เพิ่ม `className="responsive-table"` + `data-label` ให้ทุกตารางใน `A_Company.tsx` (ทำเนียบบริษัท + พี่เลี้ยงในโมดัล), `A_CoopApplications.tsx`, `A_DocRequirements.tsx`, `A_DocT000.tsx` (ตาราง 9 คอลัมน์ — กระทบหนักสุด), `A_Mentors.tsx`, `A_StudentTrash.tsx`, `A_Teacher.tsx`, `A_DocT002Review.tsx`, `A_DocT003Review.tsx`, `T_Requests.tsx`, `T_StudentDetail.tsx`, `T_Students.tsx`, `T_T002Review.tsx`, `T_T003Review.tsx`, `T_Dashboard.tsx`
+- **Modal split-screen (พรีวิว PDF ฝั่งซ้าย + แผงควบคุม fixed-width ฝั่งขวา) ไม่ stack บนมือถือ** — เดิม `flex: '0 0 60%'`/`width: 350` ไม่มี media query ทำให้แผงควบคุมแทบไม่มีที่เหลือบนจอ 390px แก้โดยเพิ่ม class `.split-pane`/`.preview-pane`/`.review-sidebar` + `@media (max-width:768px)` ให้ stack เป็นแนวตั้ง (พรีวิวสูง 280-320px คงที่ ด้านล่างเป็นแผงควบคุมเต็มความกว้าง) ใน `A_CoopApplications.tsx`, `A_DocT000.tsx`, `T_Requests.tsx`, `A_DocT002Review.tsx`, `A_DocT003Review.tsx`, `T_T002Review.tsx`, `T_T003Review.tsx`
+- **`className="page"` หายไปในบางไฟล์** ทำให้ global margin override (`S_Theme.tsx`) ไม่มีผล — เพิ่มให้ `A_DocT000.tsx`, `A_Mentors.tsx`, `A_Teacher.tsx`, `A_Announcements.tsx`, `A_Docs.tsx`
+- **Header/filter row ไม่มี `flexWrap`** ทำให้ปุ่ม/dropdown ล้นจอ — แก้ใน `A_DocRequirements.tsx`, `A_Announcements.tsx` (`headerSection`/`headerActions`/`annCard`), `A_CoopPeriod.tsx` (header/`listItem`/form date row), `A_Company.tsx` (แถวค้นหา)
+- **Grid คงที่ 1fr/1fr หรือ fixed-px ไม่ยุบบนจอเล็ก** — `A_Announcements.tsx`/`A_StudentEditModal.tsx`/`A_Docs.tsx` เปลี่ยนเป็น `repeat(auto-fit, minmax(...))`; `A_Company.tsx` (รายละเอียดบริษัทในโมดัล) และ `T_StudentDetail.tsx`/`T_Profile.tsx` เพิ่ม media query ยุบเป็น 1 คอลัมน์ที่ ≤480-600px; `A_Docs.tsx` แถวข้อมูล (`120px 1fr 120px 120px 120px auto`) เปลี่ยนเป็น `auto-fit minmax(100px,1fr)` ที่ ≤768px
+- **Modal overlay ไม่มี padding** ทำให้ modal ชิดขอบจอพอดี (`width:100%` ของ overlay เต็มจอ) — เพิ่ม `padding` ให้ `A_StudentEditModal.tsx`, `A_Announcements.tsx`, `A_Docs.tsx`
+- **`T_Docs.tsx`**: CSS selector `table { min-width: 1100px }` ไม่ scope เฉพาะ `.doc-table` (เป็น global element selector) แก้ให้ scope ถูกต้อง
+
+### Verified
+- `npx tsc --noEmit` ผ่านทุกขั้น
+- ทดสอบจริงด้วย mobile viewport emulation (390×844) บน `A_DocT000.tsx` (เคสที่กระทบหนักสุด — ตาราง 9 คอลัมน์ + modal split-screen): ตรวจ `scrollWidth === clientWidth`, ตรวจ computed style ว่า `thead{display:none}`, `tr/td{display:block}`, และ modal split-pane เปลี่ยนเป็น `flex-direction:column` ถูกต้องบน mobile breakpoint
+
 ## [2026-06-27] รองรับมือถือ/iPad ครบทุกหน้าของนักศึกษา
 
 ทำต่อจากรอบแรก (sidebar/drawer + ตาราง 3 หน้าที่กระทบกว้างสุด) คราวนี้ตรวจและแก้ทุกหน้าที่นักศึกษาใช้งานจริง

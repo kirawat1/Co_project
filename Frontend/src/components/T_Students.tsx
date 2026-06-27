@@ -276,7 +276,7 @@ export default function T_Students({ isCoopTeacher = false }: Props) {
 
       {/* Table Card */}
       <section>
-        <table className="student-table">
+        <table className="student-table responsive-table">
           <thead>
             <tr>
               <th>รหัสนักศึกษา</th>
@@ -301,11 +301,11 @@ export default function T_Students({ isCoopTeacher = false }: Props) {
 
               return (
                 <tr key={s.studentId} className="student-row">
-                  <td style={{ fontWeight: 700, color: '#0ea5e9' }}>{s.studentId}</td>
-                  <td style={{ fontWeight: 600, color: '#1e293b' }}>{name}</td>
-                  <td>{displayMajor}</td>
-                  <td style={{ color: '#475569' }}>{s.company?.name || "-"}</td>
-                  <td><StatusBadge status={st} /></td>
+                  <td style={{ fontWeight: 700, color: '#0ea5e9' }} data-label="รหัสนักศึกษา">{s.studentId}</td>
+                  <td style={{ fontWeight: 600, color: '#1e293b' }} data-label="ชื่อ-นามสกุล">{name}</td>
+                  <td data-label="สาขาวิชา">{displayMajor}</td>
+                  <td style={{ color: '#475569' }} data-label="สถานประกอบการ">{s.company?.name || "-"}</td>
+                  <td data-label="สถานะคำร้อง"><StatusBadge status={st} /></td>
                   <td style={{ textAlign: 'right' }}>
                     {/* ✅ เปลี่ยนเป็นปุ่มเปิด Modal แทน Link */}
                     <div style={{ display: "flex", gap: 6, justifyContent: "flex-end", flexWrap: "wrap" }}>

@@ -66,7 +66,7 @@ export default function A_Docs() {
   }
 
   return (
-    <div style={{ padding: 28, marginLeft: 30 }}>
+    <div className="page" style={{ padding: 28, marginLeft: 30 }}>
       {/* ================= Header ================= */}
       <section style={card}>
         <h2 style={{ marginBottom: 4 }}>📄 ตั้งค่าช่วงเวลาส่งเอกสาร</h2>
@@ -100,13 +100,15 @@ export default function A_Docs() {
         </ul>
       </div>
 
+      <style>{ROW_MOBILE_CSS}</style>
+
       {/* ================= Table ================= */}
       <section style={{ ...card, marginTop: 16 }}>
         {DOCS.map((d) => {
           const p = periods[d.id] || {};
           const status = getDocWindow(p);
           return (
-            <div key={d.id} style={row}>
+            <div key={d.id} className="doc-row" style={row}>
               <div style={{ fontWeight: 600 }}>{d.code}</div>
               <div>{d.title}</div>
               <div>{p.startDate || "-"}</div>
@@ -247,6 +249,12 @@ const row: React.CSSProperties = {
   borderBottom: "1px solid #f1f5f9",
 };
 
+const ROW_MOBILE_CSS = `
+  @media (max-width: 768px) {
+    .doc-row { grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)) !important; }
+  }
+`;
+
 const overlay: React.CSSProperties = {
   position: "fixed",
   inset: 0,
@@ -255,6 +263,7 @@ const overlay: React.CSSProperties = {
   alignItems: "center",
   justifyContent: "center",
   zIndex: 50,
+  padding: 16,
 };
 
 const modal: React.CSSProperties = {
@@ -275,7 +284,7 @@ const modalTitle: React.CSSProperties = {
 
 const formGrid: React.CSSProperties = {
   display: "grid",
-  gridTemplateColumns: "1fr 1fr",
+  gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
   gap: 16,
   marginBottom: 24,
 };

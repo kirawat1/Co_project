@@ -426,7 +426,7 @@ export default function A_DocT000() {
     };
 
     return (
-        <div style={{ padding: 28, marginLeft: 35 }}>
+        <div className="page" style={{ padding: 28, marginLeft: 35 }}>
 
             {/* 1. CONFIG SECTION */}
             <section className="card" style={{ marginBottom: 20, borderLeft: `5px solid ${isSystemOpen ? '#10b981' : '#ef4444'}` }}>
@@ -483,7 +483,7 @@ export default function A_DocT000() {
                 </div>
 
                 <div style={{ overflowX: "auto" }}>
-                    <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: "0 8px" }}>
+                    <table className="responsive-table" style={{ width: "100%", borderCollapse: "separate", borderSpacing: "0 8px" }}>
                         <thead>
                             <tr style={{ color: '#64748b', fontSize: 13, textAlign: 'left' }}>
                                 {/* 🟢 เพิ่ม onClick เพื่อเรียงลำดับ */}
@@ -501,11 +501,11 @@ export default function A_DocT000() {
                         <tbody>
                             {list.map(s => (
                                 <tr key={s.id} style={{ background: '#fff', borderBottom: '1px solid #eee' }}>
-                                    <td style={td}>{s.studentId}</td>
-                                    <td style={td}>{s.firstName} {s.lastName}</td>
-                                    <td style={td}>{s.documents?.length || 0}</td>
-                                    <td style={td}>{s.submittedAt ? new Date(s.submittedAt).toLocaleDateString('th-TH') : "-"}</td>
-                                    <td style={td}><StatusBadge status={s.docStatus} /></td>
+                                    <td style={td} data-label="รหัสนักศึกษา">{s.studentId}</td>
+                                    <td style={td} data-label="ชื่อ-สกุล">{s.firstName} {s.lastName}</td>
+                                    <td style={td} data-label="ไฟล์">{s.documents?.length || 0}</td>
+                                    <td style={td} data-label="วันที่ส่ง">{s.submittedAt ? new Date(s.submittedAt).toLocaleDateString('th-TH') : "-"}</td>
+                                    <td style={td} data-label="สถานะ"><StatusBadge status={s.docStatus} /></td>
                                     <td style={td}>
                                         <button className="btn" style={{ background: IOS_BLUE, color: 'white', fontSize: 12 }} onClick={() => openCheckModal(s, 1)}>
                                             🔍 ตรวจสอบ T000
@@ -562,9 +562,9 @@ export default function A_DocT000() {
                             <button onClick={() => setShowModal(false)} style={{ border: 'none', background: '#fee2e2', color: '#dc2626', width: 32, height: 32, borderRadius: '50%', fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>&times;</button>
                         </div>
 
-                        <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+                        <div className="split-pane" style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
                             {/* LEFT: PDF PREVIEW */}
-                            <div style={{ flex: '0 0 65%', background: '#334155', position: 'relative', overflow: 'hidden' }}>
+                            <div className="preview-pane" style={{ flex: '0 0 65%', background: '#334155', position: 'relative', overflow: 'hidden' }}>
                                 {previewType === 'pdf' ? (
                                     <iframe src={previewUrl} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }} title="preview" />
                                 ) : previewType === 'image' ? (
@@ -580,7 +580,7 @@ export default function A_DocT000() {
                             </div>
 
                             {/* RIGHT: CONTROL PANEL */}
-                            <div style={{ flex: '1', display: 'flex', flexDirection: 'column', background: '#fff', borderLeft: '1px solid #e2e8f0', minWidth: 320, overflow: 'hidden' }}>
+                            <div className="control-pane" style={{ flex: '1', display: 'flex', flexDirection: 'column', background: '#fff', borderLeft: '1px solid #e2e8f0', minWidth: 320, overflow: 'hidden' }}>
                                 <div style={{ padding: '12px 16px', borderBottom: '1px solid #eee', background: '#f8fafc', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
                                     <div style={{ fontWeight: 600, color: '#334155', fontSize: 14 }}>รายการเอกสาร</div>
                                     {checkPhase === 1 && (
@@ -622,7 +622,12 @@ export default function A_DocT000() {
                 
                 .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: flex; justify-content: center; alignItems: center; z-index: 9999; backdrop-filter: blur(4px); }
                 .modal-card { background: #fff; border-radius: 12px; width: 95vw; height: 90vh; max-width: 1400px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); }
-                
+                @media (max-width: 768px) {
+                    .split-pane { flex-direction: column !important; overflow-y: auto !important; }
+                    .preview-pane { flex: 0 0 280px !important; }
+                    .control-pane { min-width: 0 !important; }
+                }
+
                 .chip { padding: 4px 10px; border-radius: 99px; font-size: 11px; font-weight: bold; display: inline-block; white-space: nowrap; }
                 .chip.waiting { background: #f1f5f9; color: #64748b; } 
                 .chip.appr { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; } 

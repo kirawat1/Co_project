@@ -231,7 +231,7 @@ export default function T_T003Review() {
             </section>
 
             <section style={card}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <table className="responsive-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
                         <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0', textAlign: 'left' }}>
                             {/* 🟢 หัวตารางกด Sort ได้ */}
@@ -257,10 +257,10 @@ export default function T_T003Review() {
                             const statusInfo = getT003Status(s);
                             return (
                                 <tr key={s.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                                    <td style={{ padding: '14px 16px', fontWeight: 600, color: '#2563eb' }}>{s.studentId}</td>
-                                    <td style={{ padding: '14px 16px', fontWeight: 600 }}>{s.firstName} {s.lastName}</td>
-                                    <td style={{ padding: '14px 16px', color: '#475569' }}>{s.coop?.company?.name || "-"}</td>
-                                    <td style={{ padding: '14px 16px', fontSize: 13 }}>
+                                    <td style={{ padding: '14px 16px', fontWeight: 600, color: '#2563eb' }} data-label="รหัสนักศึกษา">{s.studentId}</td>
+                                    <td style={{ padding: '14px 16px', fontWeight: 600 }} data-label="ชื่อ-นามสกุล">{s.firstName} {s.lastName}</td>
+                                    <td style={{ padding: '14px 16px', color: '#475569' }} data-label="สถานที่ฝึกงาน">{s.coop?.company?.name || "-"}</td>
+                                    <td style={{ padding: '14px 16px', fontSize: 13 }} data-label="สถานะ">
                                         <span style={{ background: statusInfo.bg, color: statusInfo.color, padding: '6px 12px', borderRadius: 999, fontWeight: 700 }}>
                                             {statusInfo.label}
                                         </span>
@@ -282,13 +282,13 @@ export default function T_T003Review() {
                             <h3 style={{ margin: 0, color: '#1e3a8a', fontSize: 20 }}>🔍 พิจารณา T003: {selectedStudent.firstName}</h3>
                             <button onClick={() => setModalOpen(false)} style={{ background: 'none', border: 'none', fontSize: 24, cursor: 'pointer' }}>&times;</button>
                         </div>
-                        <div style={{ display: 'flex', gap: 24, height: '70vh' }}>
-                            <div style={{ flex: 1, background: '#525659', borderRadius: 8, overflow: 'hidden' }}>
+                        <div className="review-split" style={{ display: 'flex', gap: 24, height: '70vh' }}>
+                            <div className="review-preview" style={{ flex: 1, background: '#525659', borderRadius: 8, overflow: 'hidden' }}>
                                 {getT003FileUrl(selectedStudent.documents || []) ? (
                                     <iframe src={getT003FileUrl(selectedStudent.documents || []) as string} width="100%" height="100%" style={{ border: 'none' }} title="PDF Preview" />
                                 ) : <div style={{ color: 'white', padding: 20, textAlign: 'center', marginTop: 50 }}>⚠️ ไม่พบไฟล์ T003</div>}
                             </div>
-                            <div style={{ width: 350, display: 'flex', flexDirection: 'column', gap: 16 }}>
+                            <div className="review-sidebar" style={{ width: 350, display: 'flex', flexDirection: 'column', gap: 16 }}>
                                 <div>
                                     <label style={label}>ข้อเสนอแนะในการปรับแก้โครงร่าง</label>
                                     <AutoTextarea className="input" rows={6} value={comment} onChange={(e) => setComment(e.target.value)} />
@@ -302,7 +302,7 @@ export default function T_T003Review() {
                     </div>
                 </div>
             )}
-            <style>{` .btn { border-radius: 8px; border: none; font-weight: 700; color: white; cursor: pointer; transition: 0.2s; } .btn:hover:not(:disabled){ opacity: 0.9; } .btn-ghost { border-radius: 8px; border: 1px solid #cbd5e1; font-weight: 700; color: #475569; background: #fff; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 6px;} .btn-ghost:hover:not(:disabled){ background: #f1f5f9; } .input { padding: 12px 14px; border-radius: 8px; border: 1px solid #cbd5e1; width: 100%; box-sizing: border-box; outline: none; font-family: inherit; } .input:focus{ border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15); } `}</style>
+            <style>{` .btn { border-radius: 8px; border: none; font-weight: 700; color: white; cursor: pointer; transition: 0.2s; } .btn:hover:not(:disabled){ opacity: 0.9; } .btn-ghost { border-radius: 8px; border: 1px solid #cbd5e1; font-weight: 700; color: #475569; background: #fff; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 6px;} .btn-ghost:hover:not(:disabled){ background: #f1f5f9; } .input { padding: 12px 14px; border-radius: 8px; border: 1px solid #cbd5e1; width: 100%; box-sizing: border-box; outline: none; font-family: inherit; } .input:focus{ border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15); } @media (max-width: 768px) { .review-split { flex-direction: column !important; height: auto !important; } .review-preview { height: 320px !important; flex: none !important; } .review-sidebar { width: 100% !important; } } `}</style>
             <ConfirmDialog
                 open={confirmState.open}
                 title={confirmState.title}

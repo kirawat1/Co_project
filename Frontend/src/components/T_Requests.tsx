@@ -243,7 +243,7 @@ export default function T_Requests() {
           </select>
         </div>
 
-        <table style={tableStyle}>
+        <table className="responsive-table" style={tableStyle}>
           <thead>
             <tr style={thRow}>
               <th style={th}>รหัสนักศึกษา / ชื่อ-สกุล</th>
@@ -257,15 +257,15 @@ export default function T_Requests() {
               <tr><td colSpan={4} style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>ไม่มีคำร้องในระบบ</td></tr>
             ) : filteredList.map(s => (
               <tr key={s.id} style={trStyle}>
-                <td style={td}>
+                <td style={td} data-label="รหัสนักศึกษา / ชื่อ-สกุล">
                   <div style={{ fontWeight: 700, color: '#0ea5e9' }}>{s.studentId}</div>
                   <div style={{ fontSize: 13, color: '#64748b' }}>{s.firstName} {s.lastName}</div>
                 </td>
-                <td style={td}>
+                <td style={td} data-label="หน่วยงาน / ตำแหน่ง">
                   <div style={{ fontWeight: 600 }}>{s.coop?.company?.name || "-"}</div>
                   <div style={{ fontSize: 12, color: '#0ea5e9' }}>{s.coop?.jobPosition || "-"}</div>
                 </td>
-                <td style={td}><StatusBadge status={s.coop?.status} /></td>
+                <td style={td} data-label="สถานะ"><StatusBadge status={s.coop?.status} /></td>
                 <td style={{ ...td, textAlign: 'right' }}>
                   <button className="btn" style={{ padding: '6px 16px' }} onClick={() => handleViewRequest(s)}>พิจารณา</button>
                 </td>
@@ -290,9 +290,9 @@ export default function T_Requests() {
               <button onClick={closeModal} style={{ border: 'none', background: '#fee2e2', color: '#dc2626', width: 32, height: 32, borderRadius: '50%', fontSize: 18, cursor: 'pointer' }}>&times;</button>
             </div>
 
-            <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+            <div className="split-pane" style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
               {/* LEFT: PREVIEW (60%) */}
-              <div style={{ flex: '0 0 60%', background: '#334155' }}>
+              <div className="preview-pane" style={{ flex: '0 0 60%', background: '#334155' }}>
                 {previewUrl ? (
                   previewType === 'pdf' ? <iframe src={previewUrl} style={{ width: '100%', height: '100%', border: 'none' }} title="p" />
                     : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}><img src={previewUrl} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} alt="p" /></div>
@@ -371,6 +371,10 @@ const STYLES = `
     .input:focus { border-color: #0ea5e9; box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.15); }
     .modal-backdrop { position: fixed; inset: 0; background: rgba(15, 23, 42, .6); display: flex; align-items: center; justify-content: center; z-index: 999; backdrop-filter: blur(3px); }
     .modal-card-split { background: #fff; border-radius: 16px; width: 95vw; max-width: 1400px; height: 90vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); }
+    @media (max-width: 768px) {
+        .split-pane { flex-direction: column !important; overflow-y: auto !important; }
+        .preview-pane { flex: 0 0 280px !important; }
+    }
 `;
 
 const card: CSSProperties = { background: "#fff", borderRadius: 16, padding: 24, boxShadow: "0 4px 6px -1px rgba(0,0,0,0.05)", border: '1px solid #f1f5f9' };

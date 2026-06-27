@@ -77,7 +77,7 @@ export default function A_StudentTrash() {
       {items.length === 0 ? (
         <div style={{ color: "#64748b", padding: 20, textAlign: "center" }}>ถังขยะว่าง</div>
       ) : (
-        <table width="100%" style={{ borderCollapse: "collapse" }}>
+        <table width="100%" className="responsive-table" style={{ borderCollapse: "collapse" }}>
           <thead>
             <tr>
               {["รหัส", "ชื่อ–นามสกุล", "อีเมล", "การจัดการ"].map(h => (
@@ -88,9 +88,9 @@ export default function A_StudentTrash() {
           <tbody>
             {items.map(s => (
               <tr key={s.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                <td style={td}>{s.studentId}</td>
-                <td style={td}>{s.firstName} {s.lastName}</td>
-                <td style={td}>{s.user?.email || "-"}</td>
+                <td style={td} data-label="รหัส">{s.studentId}</td>
+                <td style={td} data-label="ชื่อ–นามสกุล">{s.firstName} {s.lastName}</td>
+                <td style={td} data-label="อีเมล">{s.user?.email || "-"}</td>
                 <td style={td}>
                   <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
                     <button style={ghostBtn} onClick={() => handleRestore(s)}>กู้คืน</button>
