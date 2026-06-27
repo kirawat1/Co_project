@@ -196,7 +196,7 @@ export default function A_Announcements() {
     setEditingId(a.id);
     setTitle(a.title);
     setBody(a.body || "");
-    setDate(a.date);
+    setDate(a.date ? a.date.slice(0, 10) : new Date().toISOString().slice(0, 10));
     setAttachments(a.attachments || []);
     setTargetMajors(a.targetMajors || []);
     setModalOpen(true);

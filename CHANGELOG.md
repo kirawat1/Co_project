@@ -1,5 +1,15 @@
 # CHANGELOG — Co_project
 
+## [2026-06-27] Fix: แก้ไขประกาศแสดงวันที่ว่างเปล่า
+
+ระหว่างทดสอบระบบทั้งระบบ (ทุกปุ่ม ทุก role) พบบั๊กจริงที่หน้า `A_Announcements.tsx` (จัดการประกาศ — admin/staff)
+
+### Fixed
+- **`A_Announcements.tsx`**: `openEditModal` ส่งค่า `a.date` (ISO datetime string เต็มจาก API) เข้า `setDate()` ตรงๆ ซึ่งไปเลี้ยง `<input type="date">` — input ประเภทนี้ต้องการ format `YYYY-MM-DD` เท่านั้น พอได้ string เต็มแบบ ISO จะ silently แสดงเป็นค่าว่าง (ยืนยันด้วย accessibility snapshot เห็น `value="0"` ในช่อง month/day/year) ผลคือทุกครั้งที่กดแก้ไขประกาศ ช่องวันที่จะว่างเปล่า เสี่ยงข้อมูลวันที่หายถ้าผู้ใช้ไม่สังเกตและกรอกใหม่ — แก้โดย `a.date.slice(0, 10)` (พร้อม fallback เป็นวันนี้ถ้า `a.date` เป็น falsy)
+
+### Verified
+- แก้ไขประกาศจริงในเบราว์เซอร์ (สร้างประกาศทดสอบ → แก้ไข → ตรวจ `input[type="date"].value` ตรงกับวันที่จริงหลัง hot-reload) ยืนยันใช้งานได้ และ flow บันทึก (POST พร้อม `id` แบบ upsert) ไม่สร้าง record ซ้ำ
+
 ## [2026-06-27] Accessibility — tap target ขนาดเล็กบนมือถือ + lang attribute
 
 ทำต่อจากรอบ responsive sweep ใช้ chrome-devtools a11y audit (Lighthouse-style manual check:
