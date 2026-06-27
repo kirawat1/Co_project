@@ -80,11 +80,8 @@ export default function S_Sidebar({ profile, isOpen = false, onClose = () => {} 
       {/* NAVIGATION */}
       <nav className="nav" aria-label="Student Navigation">
 
-        <NavItem to="/student/dashboard" label="Dashboard" icon={<IcDashboard />} end onClick={handleNav} />
-
-        <NavItem to="/student/status-tracker" label="สถานะสหกิจ" onClick={navAndRead}
-          count={(counts.STATUS_UPDATED ?? 0) + (counts.REQ_LETTER_ISSUED ?? 0) + (counts.PLACEMENT_LETTER_ISSUED ?? 0)}
-          icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>} />
+        <NavItem to="/student/dashboard" label="Dashboard" icon={<IcDashboard />} end onClick={navAndRead}
+          count={(counts.STATUS_UPDATED ?? 0) + (counts.REQ_LETTER_ISSUED ?? 0) + (counts.PLACEMENT_LETTER_ISSUED ?? 0)} />
 
         <NavItem to="/student/profile" label="ข้อมูลนักศึกษา" icon={<IcUser />} onClick={handleNav} />
         <NavItem to="/student/company" label="ข้อมูลบริษัท" icon={<IcUser />} onClick={handleNav} />

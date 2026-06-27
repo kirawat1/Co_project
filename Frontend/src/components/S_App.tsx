@@ -13,7 +13,6 @@ import DocT002 from "./S_DocsT002Form";
 import DocT003 from "./S_DocsT003Form";
 import coopLogo from "../assets/COOP_Logo.png";
 import S_Supervision from "./S_Supervision";
-import StatusTraker from "./S_StatusTracker";
 import { type StudentProfile } from "./store";
 import S_DocT005_006 from "./S_DocT005_006";
 import S_DocT007 from "./S_DocT007";
@@ -108,7 +107,6 @@ export default function StudentApp() {
             <Route path="docs-t002" element={<DocT002 profile={profile} onRefresh={fetchProfile} />} />
             <Route path="docs-t003" element={<DocT003 profile={profile} onRefresh={fetchProfile} />} />
             <Route path="supervision" element={<S_Supervision />} />
-            <Route path="status-tracker" element={<StatusTraker status={profile?.coop?.status || "NOT_SUBMITTED"} />} />
             <Route path="doc-t005-006" element={<S_DocT005_006 />} />
             <Route path="doc-t007" element={<S_DocT007 />} />
             <Route path="doc-t008" element={<S_DocT008 />} />
