@@ -1,5 +1,19 @@
 # CHANGELOG — Co_project
 
+## [2026-06-28] UI: รวม style ปุ่ม (button) ให้เหมือนกันทั้งระบบ
+
+ผู้ใช้รายงานว่าปุ่มแต่ละหน้าดูไม่เหมือนกัน โดยเฉพาะปุ่ม "กรอบสี พื้นหลังขาว" ไม่มี hover ที่ชัดเจนว่ากดได้ — ตรวจสอบพบว่า `S_Theme.tsx` (ธีมกลางที่ใช้จริงทั้ง 3 role) มี dark-mode override ของ `.btn-ghost`/`.btn-secondary`/`.btn-outline`/`.action-btn`/`.btn-delete`/`.btn-link` แต่ไม่มี light-mode base เลย ทำให้ ~30 ไฟล์ต้องไปประกาศ CSS ปุ่มซ้ำกันเองในแต่ละไฟล์ (สีและ hover ไม่ตรงกัน บางจุดไม่มี hover เลย)
+
+### Changed
+- **`S_Theme.tsx`**: เพิ่ม light-mode base ที่ขาดไปสำหรับปุ่มทุก variant พร้อม hover (`filter: brightness()`), `:active`, `:disabled`, `:focus-visible` (keyboard a11y) ที่สม่ำเสมอกันทั้งระบบ; เพิ่ม `.btn-success`/`.btn-warning` (ใหม่ — ไม่มีมาก่อน); มาตรฐาน `.btn-danger` เป็นสีเต็ม (แดงเข้ม) แทนสีซอฟต์ชมพูที่บางไฟล์ใช้ — ดูดกลืน `.btn-delete` เดิม
+- ลบ CSS ปุ่มที่ซ้ำซ้อนกับ `S_Theme.tsx` ออกจาก ~30 ไฟล์ทั้ง 3 role (student/teacher/admin)
+- เปลี่ยนปุ่ม อนุมัติ/ส่งกลับแก้ไข/ปฏิเสธ/ลบ ที่เคยใช้ `style={{background:'#...'}}` แบบ inline ให้ใช้ `className="btn-success"`/`"btn-warning"`/`"btn-danger"` แทน (ทั้งฝั่งอาจารย์และแอดมิน)
+- เพิ่ม className ให้ปุ่มที่ไม่มี class มาก่อน (`ConfirmDialog`, `NotificationBell`, `Toast`, `StatusFilterChips`) เพื่อให้มี hover state เป็นครั้งแรก
+
+### Verified
+- `npx tsc --noEmit` ผ่านทุก commit
+- ทดสอบจริงในเบราว์เซอร์ทั้ง 3 role (student/teacher/staff) ทั้ง light/dark mode: hover เปลี่ยน background/brightness ชัดเจนทุกปุ่ม, disabled ไม่มี hover, focus-visible outline ทำงานผ่าน Tab key
+
 ## [2026-06-28] UI: รวม status display ของนักศึกษา ลด UI ซ้ำซ้อน
 
 ### Changed
