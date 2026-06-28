@@ -185,11 +185,11 @@ function css(IOS_BLUE: string) {
   .label { font-weight: 700; color: var(--text); font-size: 14px; }
 
   /* ===== BUTTONS =====
-     Shared geometry across every variant (normalizes the previous 8px/12px radius split) */
+     Shared geometry for full-size action variants (normalizes the previous 8px/12px radius split).
+     .action-btn, .btn-copy and .close-btn are compact utility buttons and keep their own sizing below. */
   .btn, .btn-primary,
   .btn-secondary, .btn-ghost, .btn-outline,
-  .btn-success, .btn-danger, .btn-warning,
-  .action-btn, .btn-copy, .close-btn {
+  .btn-success, .btn-danger, .btn-warning {
     height: 44px; border-radius: 10px;
     padding: 0 16px; font-weight: 700;
     display: inline-flex; align-items: center; justify-content: center; gap: 6px;
@@ -248,18 +248,32 @@ function css(IOS_BLUE: string) {
   .btn-warning:hover { filter: brightness(.92); }
   .btn-warning:active { filter: brightness(.85); }
 
-  /* ── Generic outlined action button (identical skin to secondary) ── */
-  .action-btn { background: #fff; color: #475569; border: 1px solid #cbd5e1; }
+  /* ── Generic outlined action button (compact — used inline in table rows) ── */
+  .action-btn {
+    padding: 6px 10px; border-radius: 6px; font-size: 12px; font-weight: 600;
+    background: #fff; color: #475569; border: 1px solid #cbd5e1;
+    cursor: pointer; transition: filter .15s, background-color .15s, border-color .15s;
+  }
   .action-btn:hover { background: #f1f5f9; }
   .action-btn:active { transform: scale(.98); }
 
-  /* ── Copy-to-clipboard utility button ── */
-  .btn-copy { background: #e2e8f0; color: #334155; border: none; }
+  /* ── Copy-to-clipboard utility button (compact) ── */
+  .btn-copy {
+    padding: 6px 10px; border-radius: 6px; font-size: 12px; font-weight: 700;
+    background: #e2e8f0; color: #334155; border: none;
+    display: inline-flex; align-items: center; gap: 4px;
+    cursor: pointer; transition: background-color .15s;
+  }
   .btn-copy:hover { background: #cbd5e1; }
   .btn-copy.copied { background: #d1fae5; color: #065f46; }
 
-  /* ── Circular icon-style close button (✕) ── */
-  .close-btn { background: #f1f5f9; border: none; border-radius: 50%; color: #64748b; }
+  /* ── Circular icon-style close button (✕) — compact, matches modal close-button convention ── */
+  .close-btn {
+    width: 32px; height: 32px; font-size: 20px; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: #f1f5f9; border: none; border-radius: 50%; color: #64748b;
+    transition: background-color .15s;
+  }
   .close-btn:hover { background: #e2e8f0; }
 
   /* ── Inline text-style link action (not a full tap target by design) ── */
