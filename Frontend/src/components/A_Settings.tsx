@@ -258,8 +258,6 @@ export default function A_Settings() {
         .card { background: #fff; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03); border: 1px solid #f1f5f9; }
         .input-text { width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid #cbd5e1; font-family: inherit; font-size: 14px; color: #1e293b; transition: 0.2s; box-sizing: border-box; }
         .input-text:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.15); }
-        .btn { padding: 10px 16px; border-radius: 8px; border: none; font-weight: 600; font-size: 14px; transition: 0.2s; color: white; background: #0074B7; cursor: pointer; }
-        .btn:hover { opacity: 0.9; }
       `}</style>
     </div>
   );

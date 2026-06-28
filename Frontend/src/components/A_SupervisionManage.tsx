@@ -569,11 +569,6 @@ export default function A_SupervisionManage() {
             </section>
 
             <style>{`
-                .btn { border-radius: 8px; border: none; font-weight: 700; color: white; cursor: pointer; transition: 0.2s; display: inline-block; }
-                .btn:hover:not(:disabled) { opacity: 0.8; }
-                .btn:disabled { background: #cbd5e1 !important; cursor: not-allowed; }
-                .btn-ghost { padding: 6px 12px; border-radius: 8px; border: 1px solid #cbd5e1; font-weight: 700; color: #475569; background: #fff; cursor: pointer; transition: 0.2s; }
-                .btn-ghost:hover { background: #f1f5f9; }
                 .input { padding: 10px 14px; border-radius: 8px; border: 1px solid #cbd5e1; outline: none; font-family: inherit; font-size: 14px; width: 100%; box-sizing: border-box; }
                 @media (max-width: 768px) {
                     .config-grid { grid-template-columns: 1fr !important; }

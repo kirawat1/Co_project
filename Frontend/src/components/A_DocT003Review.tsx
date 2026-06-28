@@ -426,10 +426,10 @@ export default function A_DocT003Review() {
                                 </div>
 
                                 <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
-                                    <button className="btn-ghost" style={{ background: '#fef2f2', color: '#dc2626', borderColor: '#fca5a5', padding: 14 }} onClick={() => submitReview('REJECT')} disabled={loading}>
+                                    <button className="btn-danger" style={{ padding: 14 }} onClick={() => submitReview('REJECT')} disabled={loading}>
                                         ❌ ตีกลับให้แก้ไข
                                     </button>
-                                    <button className="btn" style={{ background: '#2563eb', padding: 14 }} onClick={() => submitReview('APPROVE')} disabled={loading}>
+                                    <button className="btn-success" style={{ padding: 14 }} onClick={() => submitReview('APPROVE')} disabled={loading}>
                                         ✅ อนุมัติโครงร่างรายงาน
                                     </button>
                                 </div>
@@ -440,10 +440,6 @@ export default function A_DocT003Review() {
             )}
 
             <style>{`
-                .btn { border-radius: 8px; border: none; font-weight: 700; color: white; cursor: pointer; transition: 0.2s; }
-                .btn:hover:not(:disabled) { opacity: 0.9; }
-                .btn-ghost { border-radius: 8px; border: 1px solid #cbd5e1; font-weight: 700; color: #475569; background: #fff; cursor: pointer; transition: 0.2s; }
-                .btn-ghost:hover:not(:disabled) { background: #f1f5f9; }
                 .input { padding: 12px 14px; border-radius: 8px; border: 1px solid #cbd5e1; outline: none; font-family: inherit; font-size: 14px; width: 100%; box-sizing: border-box; }
                 .input:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15); }
                 @media (max-width: 768px) {

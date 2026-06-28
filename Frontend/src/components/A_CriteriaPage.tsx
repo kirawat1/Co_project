@@ -114,10 +114,6 @@ export default function A_CriteriaPage() {
 
             {/* CSS STYLES */}
             <style>{`
-        .btn { padding: 10px 18px; border-radius: 8px; border: none; font-weight: 700; font-size: 14px; color: white; background: #0074B7; cursor: pointer; transition: 0.2s; }
-        .btn:hover { background: #005f96; }
-        .btn-ghost { padding: 10px 16px; border-radius: 8px; border: none; font-weight: 700; font-size: 14px; color: #64748b; background: #f1f5f9; cursor: pointer; transition: 0.2s; }
-        .btn-ghost:hover { background: #e2e8f0; color: #334155; }
         .input { padding: 10px 14px; border-radius: 8px; border: 1px solid #cbd5e1; outline: none; font-family: inherit; font-size: 14px; }
         .input:focus { border-color: #0ea5e9; box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.15); }
       `}</style>
