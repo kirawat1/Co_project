@@ -132,10 +132,6 @@ export default function A_DocT005_006() {
                 .card { background: #fff; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
                 .input { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit; font-size: 14px; box-sizing: border-box; outline: none; transition: 0.2s; }
                 .input:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
-                .btn { border: none; border-radius: 8px; cursor: pointer; font-weight: 700; font-family: inherit; font-size: 14px; transition: 0.2s; }
-                .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-                .btn-primary { background: #10b981; color: white; }
-                .btn-primary:hover:not(:disabled) { background: #059669; }
             `}</style>
         </div>
     );

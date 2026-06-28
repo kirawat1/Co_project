@@ -617,9 +617,7 @@ export default function A_DocT000() {
             <style>{`
                 .card { background: #fff; padding: 20px; border-radius: 12px; border: 1px solid #e5e7eb; }
                 .input { padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-family: inherit; box-sizing: border-box; }
-                .btn { padding: 10px 16px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; font-size: 14px; transition: 0.2s; }
-                .btn:hover { opacity: 0.9; }
-                
+
                 .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: flex; justify-content: center; alignItems: center; z-index: 9999; backdrop-filter: blur(4px); }
                 .modal-card { background: #fff; border-radius: 12px; width: 95vw; height: 90vh; max-width: 1400px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); }
                 @media (max-width: 768px) {
@@ -640,8 +638,7 @@ export default function A_DocT000() {
                 .chip.rej { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; } 
                 .chip.QUALIFIED { background: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; } 
 
-                .action-btn { flex: 1; padding: 6px; border-radius: 6px; border: 1px solid #e2e8f0; background: white; cursor: pointer; font-size: 12px; font-weight: 600; color: #475569; transition: 0.1s; }
-                .action-btn:hover { background: #f8fafc; border-color: #cbd5e1; }
+                .action-btn { flex: 1; }
                 .action-btn.edit.active { background: #fff7ed; color: #c2410c; border-color: #fed7aa; }
                 .action-btn.fail.active { background: #fef2f2; color: #b91c1c; border-color: #fca5a5; }
                 .action-btn.pass.active { background: #dcfce7; color: #15803d; border-color: #86efac; }

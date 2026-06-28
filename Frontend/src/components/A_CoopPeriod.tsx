@@ -236,8 +236,6 @@ export default function A_CoopPeriod() {
 
             {/* CSS Styles แบบเดียวกับ Settings */}
             <style>{`
-        .btn { padding: 10px 16px; border-radius: 8px; border: none; font-weight: 600; font-size: 14px; transition: 0.2s; color: white; background: #0074B7; cursor: pointer; }
-        .btn:hover { opacity: 0.9; }
         .input { padding: 10px 14px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 14px; outline: none; }
         .input:focus { border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59,130,246,.2); }
       `}</style>
