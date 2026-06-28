@@ -184,14 +184,92 @@ function css(IOS_BLUE: string) {
   [data-theme="dark"] .input::placeholder { color: var(--text-sub); }
   .label { font-weight: 700; color: var(--text); font-size: 14px; }
 
-  /* ===== BUTTONS ===== */
-  .btn {
-    height: 44px; border: 0; border-radius: 12px;
-    background: var(--ios-blue); color: #fff; font-weight: 800;
-    padding: 0 16px; cursor: pointer;
+  /* ===== BUTTONS =====
+     Shared geometry across every variant (normalizes the previous 8px/12px radius split) */
+  .btn, .btn-primary,
+  .btn-secondary, .btn-ghost, .btn-outline,
+  .btn-success, .btn-danger, .btn-warning,
+  .action-btn, .btn-copy, .close-btn {
+    height: 44px; border-radius: 10px;
+    padding: 0 16px; font-weight: 700;
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    cursor: pointer; white-space: nowrap;
+    transition: filter .15s, background-color .15s, border-color .15s, transform .05s;
+  }
+  .btn:disabled, .btn-primary:disabled,
+  .btn-secondary:disabled, .btn-ghost:disabled, .btn-outline:disabled,
+  .btn-success:disabled, .btn-danger:disabled, .btn-warning:disabled,
+  .action-btn:disabled, .btn-copy:disabled, .close-btn:disabled {
+    opacity: .6; cursor: not-allowed; filter: none !important; pointer-events: none;
+  }
+  .btn:focus-visible, .btn-primary:focus-visible,
+  .btn-secondary:focus-visible, .btn-ghost:focus-visible, .btn-outline:focus-visible,
+  .btn-success:focus-visible, .btn-danger:focus-visible, .btn-warning:focus-visible,
+  .action-btn:focus-visible, .btn-copy:focus-visible, .close-btn:focus-visible,
+  .btn-ico:focus-visible, .btn-link:focus-visible {
+    outline: 2px solid var(--ios-blue); outline-offset: 2px;
+  }
+
+  /* ── Primary (solid brand blue) ── */
+  .btn, .btn-primary {
+    border: 0; background: var(--ios-blue); color: #fff; font-weight: 800;
     box-shadow: 0 10px 22px rgba(10,132,255,.25), inset 0 -1px 0 rgba(255,255,255,.25);
   }
-  .btn:disabled { filter: grayscale(.1) brightness(.95); opacity: .9; }
+  .btn:hover, .btn-primary:hover { filter: brightness(.92); }
+  .btn:active, .btn-primary:active { filter: brightness(.85); }
+
+  /* ── Secondary (outlined, white bg — the "ปุ่มกรอบสี พื้นหลังขาว" style) ── */
+  .btn-secondary { background: #fff; color: #475569; border: 1px solid #cbd5e1; }
+  .btn-secondary:hover { background: #f1f5f9; }
+  .btn-secondary:active { transform: scale(.98); }
+
+  /* ── Ghost (minimal, no visible border at rest) ── */
+  .btn-ghost { background: transparent; color: #475569; border: 1px solid transparent; }
+  .btn-ghost:hover { background: #f1f5f9; }
+  .btn-ghost:active { transform: scale(.98); }
+
+  /* ── Outline (brand-colored border, used in letter/issue modals) ── */
+  .btn-outline { background: #fff; color: var(--ios-blue); border: 1px solid var(--ios-blue); }
+  .btn-outline:hover { background: rgba(10,132,255,.08); }
+  .btn-outline:active { transform: scale(.98); }
+
+  /* ── Success (solid green — approve actions) ── */
+  .btn-success { background: #10b981; color: #fff; border: 0; }
+  .btn-success:hover { filter: brightness(.92); }
+  .btn-success:active { filter: brightness(.85); }
+
+  /* ── Danger (solid red — reject/delete actions; absorbs old .btn-delete) ── */
+  .btn-danger { background: #dc2626; color: #fff; border: 0; }
+  .btn-danger:hover { filter: brightness(.92); }
+  .btn-danger:active { filter: brightness(.85); }
+
+  /* ── Warning (solid amber — pending/send-back actions; new, no prior class existed) ── */
+  .btn-warning { background: #f59e0b; color: #fff; border: 0; }
+  .btn-warning:hover { filter: brightness(.92); }
+  .btn-warning:active { filter: brightness(.85); }
+
+  /* ── Generic outlined action button (identical skin to secondary) ── */
+  .action-btn { background: #fff; color: #475569; border: 1px solid #cbd5e1; }
+  .action-btn:hover { background: #f1f5f9; }
+  .action-btn:active { transform: scale(.98); }
+
+  /* ── Copy-to-clipboard utility button ── */
+  .btn-copy { background: #e2e8f0; color: #334155; border: none; }
+  .btn-copy:hover { background: #cbd5e1; }
+  .btn-copy.copied { background: #d1fae5; color: #065f46; }
+
+  /* ── Circular icon-style close button (✕) ── */
+  .close-btn { background: #f1f5f9; border: none; border-radius: 50%; color: #64748b; }
+  .close-btn:hover { background: #e2e8f0; }
+
+  /* ── Inline text-style link action (not a full tap target by design) ── */
+  .btn-link {
+    background: none; border: none; color: var(--ios-blue);
+    height: auto; min-height: 32px; padding: 0 4px; font-weight: 700; cursor: pointer;
+    transition: text-decoration-color .15s;
+  }
+  .btn-link:hover { text-decoration: underline; }
+  .btn-link:disabled { opacity: .6; cursor: not-allowed; text-decoration: none; }
 
   /* ===== STATUS CHIPS ===== */
   .chip { padding: 4px 10px; border-radius: 999px; font-weight: 800; display: inline-block; }
@@ -427,9 +505,7 @@ function css(IOS_BLUE: string) {
   [data-theme="dark"] .main { color: #f1f5f9; }
   [data-theme="dark"] label { color: #cbd5e1 !important; }
 
-  /* 10. BUTTONS AND GHOST */
-  [data-theme="dark"] .btn-ghost { background: #1e293b !important; color: #e2e8f0 !important; border-color: #475569 !important; }
-  [data-theme="dark"] .btn-ghost:hover { background: #334155 !important; }
+  /* 10. BUTTONS AND GHOST — see section 13 "─── Buttons ───" below for the canonical dark-mode button rules */
 
   /* 11. SCROLLBAR */
   [data-theme="dark"] ::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -518,12 +594,14 @@ function css(IOS_BLUE: string) {
     border-color: #475569 !important;
   }
   [data-theme="dark"] .action-btn:hover { background: #334155 !important; }
-  [data-theme="dark"] .btn-delete {
-    background: rgba(220,38,38,.2) !important;
-    border-color: rgba(220,38,38,.4) !important;
-    color: #fca5a5 !important;
-  }
+  [data-theme="dark"] .btn-success { background: #059669 !important; color: #fff !important; }
+  [data-theme="dark"] .btn-success:hover { filter: brightness(1.1) !important; }
+  [data-theme="dark"] .btn-danger { background: #b91c1c !important; color: #fff !important; }
+  [data-theme="dark"] .btn-danger:hover { filter: brightness(1.15) !important; }
+  [data-theme="dark"] .btn-warning { background: #b45309 !important; color: #fff !important; }
+  [data-theme="dark"] .btn-warning:hover { filter: brightness(1.15) !important; }
   [data-theme="dark"] .btn-link { color: #60a5fa !important; }
+  [data-theme="dark"] .btn-link:hover { text-decoration: underline; }
 
   /* ─── Modal inner elements ─── */
   [data-theme="dark"] .modal-header {
@@ -538,6 +616,7 @@ function css(IOS_BLUE: string) {
     color: #f1f5f9 !important;
   }
   [data-theme="dark"] .close-btn { background: #334155 !important; color: #94a3b8 !important; }
+  [data-theme="dark"] .close-btn:hover { background: #475569 !important; }
 
   /* ─── Form variants ─── */
   [data-theme="dark"] .input.soft { background: #1a2535 !important; }
