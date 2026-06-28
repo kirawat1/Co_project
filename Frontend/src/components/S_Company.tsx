@@ -365,13 +365,7 @@ export default function Company({ profile }: { profile: any }) {
                 .row-odd { background:#f8fafc; }
                 .tbl th { text-align:left; font-size:13px; color:#475569; padding: 12px 6px; border-bottom: 2px solid #e2e8f0; }
                 .tbl td { padding:12px 6px; font-size:14px; border-bottom: 1px solid #f1f5f9; }
-                .btn { border-radius: 8px; border: none; font-weight: 600; color: white; background: #6366f1; cursor: pointer; padding: 10px 16px; transition: 0.2s; }
-                .btn:hover { background: #4f46e5; }
-                .btn-secondary { border-radius: 6px; border:1px solid #cbd5e1; padding:6px 12px; background:#fff; cursor:pointer; font-size:13px; font-weight: 600; color: #475569; }
-                .btn-secondary:hover { background: #f8fafc; }
                 .btn-secondary.small { padding:4px 10px; font-size:12px; }
-                .btn-danger { border-radius: 6px; padding:6px 12px; border:1px solid #fecaca; background:#fef2f2; color:#b91c1c; font-size:12px; font-weight: 600; }
-                .btn-danger:hover { background: #fee2e2; }
                 .input { padding: 10px 14px; border-radius: 6px; border: 1px solid #cbd5e1; outline: none; font-family: inherit; font-size: 14px; width: 100%; box-sizing: border-box; }
                 .input:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1); }
             `}</style>

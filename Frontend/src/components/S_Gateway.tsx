@@ -406,7 +406,7 @@ export default function CoopRequestPage() {
             <div style={{ textAlign: 'center', padding: '30px 10px', background: '#fee2e2', borderRadius: '12px', border: '1px dashed #fca5a5' }}>
               <div style={{ fontSize: 40, marginBottom: 10 }}>🏢</div>
               <p style={{ color: '#b91c1c', fontWeight: 'bold', fontSize: 16, margin: '0 0 15px 0' }}>ท่านยังไม่ได้เลือกบริษัทหรือพี่เลี้ยงฝึกงาน</p>
-              <button className="btn" style={{ background: '#dc2626', margin: '0 auto' }} onClick={() => navigate('/student/profile')}>
+              <button className="btn-danger" style={{ margin: '0 auto' }} onClick={() => navigate('/student/profile')}>
                 ไปหน้าโปรไฟล์ เพื่อเลือกหน่วยงาน
               </button>
             </div>
@@ -476,7 +476,7 @@ export default function CoopRequestPage() {
                   <li key={doc.id} className="file-item" style={{ background: 'white' }}>
                     <span style={{ fontWeight: 600, color: '#334155' }}>📄 {doc.name}</span>
                     {canEdit && (
-                      <button type="button" onClick={() => handleRemoveExistingFile(doc.id)} className="btn-delete">ลบไฟล์ ✕</button>
+                      <button type="button" onClick={() => handleRemoveExistingFile(doc.id)} className="btn-danger">ลบไฟล์ ✕</button>
                     )}
                   </li>
                 ))}
@@ -491,7 +491,7 @@ export default function CoopRequestPage() {
               {uploadedFiles.map((file, i) => (
                 <li key={i} className="file-item" style={{ background: 'white' }}>
                   <span style={{ fontWeight: 600, color: '#334155' }}>📄 {file.name}</span>
-                  <button type="button" onClick={() => handleRemoveFile(i)} className="btn-delete">ลบไฟล์ ✕</button>
+                  <button type="button" onClick={() => handleRemoveFile(i)} className="btn-danger">ลบไฟล์ ✕</button>
                 </li>
               ))}
             </ul>
@@ -577,16 +577,7 @@ const PROFILE_CSS = `
 .input:focus { border-color: #3b82f6; outline: none; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
 .file-list { margin: 12px 0; list-style: none; padding: 0; }
 .file-item { padding: 12px 16px; border-radius: 10px; margin-bottom: 8px; font-size: 14px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #e2e8f0; }
-.btn-delete { background: #fee2e2; border: 1px solid #fca5a5; color: #dc2626; border-radius: 8px; cursor: pointer; padding: 6px 12px; font-size: 13px; margin-left: 10px; font-weight: 700; transition: 0.2s; }
-.btn-delete:hover { background: #fecaca; }
-.btn-link { background: none; border: none; color: #2563eb; font-weight: 700; cursor: pointer; padding: 0; display: inline-block; transition: 0.2s; }
-.btn-link:hover { color: #1d4ed8; text-decoration: underline; }
 .action-row { display: flex; justify-content: flex-end; gap: 12px; }
-.btn { display: inline-flex; justify-content: center; align-items: center; color: #fff; padding: 12px 24px; border-radius: 10px; font-weight: 700; border: none; cursor: pointer; font-size: 14px; transition: 0.2s; font-family: inherit; }
-.btn-success { background: #10b981; }
-.btn-success:hover:not(:disabled) { background: #059669; }
-.btn-secondary { background: #f1f5f9; color: #475569; padding: 12px 24px; border-radius: 10px; font-weight: 700; border: none; cursor: pointer; font-size: 14px; transition: 0.2s; font-family: inherit; }
-.btn-secondary:hover { background: #e2e8f0; }
 .modal-backdrop { position: fixed; inset: 0; background: rgba(15, 23, 42, .6); display: flex; align-items: center; justify-content: center; z-index: 50; backdrop-filter: blur(4px); }
 .modal-card { background: #fff; border-radius: 20px; padding: 32px; width: 900px; max-width: 95%; height: 90vh; display: flex; flex-direction: column; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); }
 `;

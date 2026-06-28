@@ -108,7 +108,7 @@ export default function S_DocT008() {
                         </div>
 
                         {config.driveLink && (
-                            <button className="btn btn-primary" style={{ background: '#ca8a04', maxWidth: '300px' }} onClick={() => window.open(config.driveLink, "_blank")}>
+                            <button className="btn btn-primary" style={{ background: '#ca8a04', width: '100%', maxWidth: '300px' }} onClick={() => window.open(config.driveLink, "_blank")}>
                                 🔗 ไปยัง Google Drive
                             </button>
                         )}
@@ -139,11 +139,6 @@ export default function S_DocT008() {
                 .content p { margin: 0 0 12px 0; font-size: 13px; line-height: 1.5; }
                 .url-container { padding: 8px 8px 8px 12px; border-radius: 8px; margin-bottom: 12px; border: 1px solid #e2e8f0; display: flex; align-items: center; gap: 10px; }
                 .url-text { color: #475569; font-size: 13px; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-                .btn-copy { background: #e2e8f0; border: none; padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 700; color: #334155; transition: 0.2s; }
-                .btn-copy:hover { background: #cbd5e1; }
-                .btn-copy.copied { background: #dcfce7; color: #166534; }
-                .btn { padding: 10px 16px; border: none; border-radius: 8px; cursor: pointer; font-weight: 700; font-family: inherit; width: 100%; transition: 0.2s; }
-                .btn:hover { opacity: 0.9; }
             `}</style>
         </div>
     );

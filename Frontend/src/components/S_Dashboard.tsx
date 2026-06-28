@@ -502,10 +502,6 @@ const DASHBOARD_CSS = `
   border-bottom: 1px solid #f1f5f9;
   display: flex; justify-content: space-between; align-items: center;
 }
-.close-btn {
-  background: #f1f5f9; border: none; width: 32px; height: 32px;
-  border-radius: 50%; font-size: 20px; cursor: pointer; color: #64748b;
-}
 .modal-body {
   padding: 24px;
   overflow-y: auto;

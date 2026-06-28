@@ -489,12 +489,6 @@ export default function S_Supervision() {
                 .input { padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit; font-size: 14px; box-sizing: border-box; transition: 0.2s; outline: none; background: white; width: 100%; }
                 .input:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
                 .input:disabled { background: #f1f5f9; color: #64748b; cursor: not-allowed; }
-                .btn { padding: 10px 16px; border: none; border-radius: 8px; cursor: pointer; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; gap: 6px; transition: 0.2s; font-family: inherit; font-size: 14px; }
-                .btn:hover:not(:disabled) { opacity: 0.9; }
-                .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-                .btn-primary { background: #0074B7; color: white; }
-                .btn-secondary { background: #f8fafc; color: #475569; border: 1px solid #cbd5e1; }
-                .btn-secondary:hover { background: #f1f5f9; }
             `}</style>
 
             {/* ปฏิทินนิเทศ — แสดงวันที่จองทั้งหมด */}

@@ -31,11 +31,6 @@ export function DeliveryPicker({ value, onChange, name }: {
 
 export const MODAL_CSS = `
   .input { width: 100%; padding: 7px 9px; border: 1px solid #cbd5e1; border-radius: 6px; font-family: inherit; font-size: 13px; box-sizing: border-box; }
-  .btn { padding: 9px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 12px; transition: 0.2s; }
-  .btn-secondary { background: #e2e8f0; color: #334155; } .btn-secondary:hover { background: #cbd5e1; }
-  .btn-outline { background: white; color: #3b82f6; border: 1px solid #3b82f6; } .btn-outline:hover { background: #eff6ff; }
-  .btn-success { background: #10b981; color: white; } .btn-success:hover { background: #059669; }
-  .btn-success:disabled { background: #94a3b8; cursor: not-allowed; }
   .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; justify-content: center; align-items: center; z-index: 10000; padding: 12px; }
   .modal-card { background: white; padding: 20px; border-radius: 16px; display: flex; flex-direction: column; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); }
   @media (max-width: 768px) {

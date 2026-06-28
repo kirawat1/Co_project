@@ -129,7 +129,7 @@ export default function S_DocT005_006() {
                             </button>
                         </div>
 
-                        <button className="btn btn-primary" onClick={() => window.open(config.t005Link, "_blank")}>
+                        <button className="btn btn-primary" style={{ width: '100%' }} onClick={() => window.open(config.t005Link, "_blank")}>
                             🔗 เปิดหน้าฟอร์ม T005
                         </button>
                     </div>
@@ -155,7 +155,7 @@ export default function S_DocT005_006() {
                             </button>
                         </div>
 
-                        <button className="btn btn-primary" onClick={() => window.open(config.t006Link, "_blank")}>
+                        <button className="btn btn-primary" style={{ width: '100%' }} onClick={() => window.open(config.t006Link, "_blank")}>
                             🔗 เปิดหน้าฟอร์ม T006
                         </button>
                     </div>
@@ -181,7 +181,7 @@ export default function S_DocT005_006() {
                             </button>
                         </div>
 
-                        <button className="btn btn-primary" style={{ background: '#f59e0b' }} onClick={() => window.open(config.templateLink, "_blank")}>
+                        <button className="btn btn-primary" style={{ background: '#f59e0b', width: '100%' }} onClick={() => window.open(config.templateLink, "_blank")}>
                             🔗 เปิดหน้า Template Email
                         </button>
                     </div>
@@ -238,10 +238,6 @@ export default function S_DocT005_006() {
                 }
                 .btn-copy:hover { background: #cbd5e1; }
                 .btn-copy.copied { background: #dcfce7; color: #166534; } /* สีตอนก็อปปี้สำเร็จ */
-
-                .btn { padding: 10px 16px; border: none; border-radius: 8px; cursor: pointer; font-weight: 700; font-family: inherit; width: 100%; }
-                .btn-primary { background: #0074B7; color: white; transition: 0.2s; }
-                .btn-primary:hover { opacity: 0.9; }
             `}</style>
         </div>
     );
