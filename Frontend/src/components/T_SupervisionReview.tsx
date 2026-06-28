@@ -351,7 +351,7 @@ export default function T_SupervisionReview() {
                                                         🏁 จบนิเทศ
                                                     </button>
                                                 )}
-                                                <button className="btn" style={{ background: sup.status === "PENDING_TEACHER" && isPrimary ? "#10b981" : "#0ea5e9", padding: "8px 16px" }} onClick={() => openReviewModal(sup)}>
+                                                <button className={sup.status === "PENDING_TEACHER" && isPrimary ? "btn-success" : "btn"} style={{ padding: "8px 16px" }} onClick={() => openReviewModal(sup)}>
                                                     {sup.status === "PENDING_TEACHER" && isPrimary ? "พิจารณาวันนิเทศ" : "🔍 ดูรายละเอียด"}
                                                 </button>
                                             </div>
@@ -455,8 +455,8 @@ export default function T_SupervisionReview() {
                                                                 )}
                                                             </div>
                                                             <button
-                                                                className="btn"
-                                                                style={{ background: isBooked ? "#9ca3af" : "#16a34a", padding: "10px 16px", cursor: isBooked ? "not-allowed" : "pointer" }}
+                                                                className={isBooked ? "btn" : "btn-success"}
+                                                                style={{ background: isBooked ? "#9ca3af" : undefined, padding: "10px 16px", cursor: isBooked ? "not-allowed" : "pointer" }}
                                                                 onClick={() => !isBooked && handleAction("APPROVE", dateStr)}
                                                                 disabled={isSubmitting || isBooked}
                                                                 title={isBooked ? "วันนี้ถูกจองแล้ว กรุณาเลือกวันอื่น" : "เลือกวันนี้"}
@@ -473,7 +473,7 @@ export default function T_SupervisionReview() {
                                         <h4 style={{ margin: "0 0 10px 0", color: "#991b1b", fontSize: 16 }}>⚠️ กรณีไม่สะดวกทุกวัน</h4>
                                         <label style={{ fontSize: 13, color: "#475569", marginBottom: 8, display: "block" }}>ระบุเหตุผลหรือวันที่สะดวก เพื่อให้นักศึกษาเสนอใหม่</label>
                                         <AutoTextarea className="input" rows={3} placeholder="เช่น ขอเลื่อนเป็นสัปดาห์หน้า..." value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} />
-                                        <button className="btn" style={{ background: "#dc2626", width: "100%", marginTop: 12 }} onClick={() => handleAction("REJECT")} disabled={isSubmitting}>
+                                        <button className="btn-danger" style={{ width: "100%", marginTop: 12 }} onClick={() => handleAction("REJECT")} disabled={isSubmitting}>
                                             ปฏิเสธให้เลือกวันใหม่
                                         </button>
                                     </>
@@ -524,11 +524,6 @@ export default function T_SupervisionReview() {
             )}
 
             <style>{`
-                .btn { border-radius: 8px; border: none; font-weight: 700; color: white; cursor: pointer; transition: 0.2s; display: inline-flex; align-items: center; justify-content: center; }
-                .btn:hover:not(:disabled) { opacity: 0.8; }
-                .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-                .btn-ghost { padding: 8px 14px; border-radius: 8px; border: 1px solid #cbd5e1; font-weight: 700; color: #475569; background: #fff; cursor: pointer; transition: 0.2s; }
-                .btn-ghost:hover { background: #f1f5f9; }
                 .input { padding: 10px 14px; border-radius: 8px; border: 1px solid #cbd5e1; outline: none; font-family: inherit; font-size: 14px; width: 100%; box-sizing: border-box; resize: vertical; }
                 .input:focus { border-color: #0ea5e9; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15); }
                 .modal-backdrop { position: fixed; inset: 0; background: rgba(15, 23, 42, .6); display: flex; align-items: center; justify-content: center; z-index: 999; backdrop-filter: blur(4px); }

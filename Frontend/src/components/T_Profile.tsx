@@ -298,10 +298,6 @@ const PROFILE_CSS = `
 .form-grid{ display:grid; grid-template-columns:1fr 1fr; gap:16px 24px; }
 @media (max-width: 480px) { .form-grid { grid-template-columns: 1fr !important; } }
 .action-row{ display:flex; justify-content:flex-end; gap:12px; margin-top:32px; }
-.btn{ background:#2563eb; color:#fff; padding:12px 24px; border-radius:12px; font-weight:700; border:none; cursor:pointer; transition: 0.2s; }
-.btn:hover{ background:#1d4ed8; transform: translateY(-1px); }
-.btn-secondary{ background:#f1f5f9; color:#475569; padding:12px 24px; border-radius:12px; font-weight:700; border:none; cursor:pointer; }
-.btn-secondary:hover{ background:#e2e8f0; }
 .modal-backdrop{ position:fixed; inset:0; background:rgba(15,23,42,.6); display:flex; align-items:center; justify-content:center; z-index:100; backdrop-filter: blur(8px); }
 .modal-card{ background:#fff; border-radius:24px; padding:40px; width:720px; max-width:95%; box-shadow:0 25px 50px -12px rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.3); }
 `;

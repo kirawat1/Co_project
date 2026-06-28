@@ -334,10 +334,10 @@ export default function T_Requests() {
                   <AutoTextarea className="input" rows={2} style={{ width: '100%', marginBottom: 12, fontSize: 13 }}
                     placeholder="ระบุสิ่งที่ต้องแก้ไข..." value={teacherComment} onChange={e => setTeacherComment(e.target.value)} />
 
-                  <button className="btn" style={{ width: '100%', background: '#10b981', padding: 12, marginBottom: 8 }} onClick={() => updateStatus("APPROVED")}>✅ อนุมัติผ่านเกณฑ์</button>
+                  <button className="btn-success" style={{ width: '100%', marginBottom: 8 }} onClick={() => updateStatus("APPROVED")}>✅ อนุมัติผ่านเกณฑ์</button>
                   <div style={{ display: 'flex', gap: 8 }}>
-                    <button className="btn" style={{ flex: 1, background: '#f59e0b' }} onClick={() => updateStatus("APPLICATION_EDITS_REQUIRED")}>⚠️ ส่งกลับแก้ไข</button>
-                    <button className="btn" style={{ flex: 1, background: '#ef4444' }} onClick={() => updateStatus("REJECTED")}>❌ ไม่ผ่าน</button>
+                    <button className="btn-warning" style={{ flex: 1 }} onClick={() => updateStatus("APPLICATION_EDITS_REQUIRED")}>⚠️ ส่งกลับแก้ไข</button>
+                    <button className="btn-danger" style={{ flex: 1 }} onClick={() => updateStatus("REJECTED")}>❌ ไม่ผ่าน</button>
                   </div>
                 </div>
 
@@ -363,10 +363,6 @@ export default function T_Requests() {
 }
 
 const STYLES = `
-    .btn { border-radius: 8px; border: none; font-weight: 700; color: white; background: #0ea5e9; cursor: pointer; transition: 0.2s; padding: 10px; }
-    .btn:hover:not(:disabled) { opacity: 0.8; }
-    .btn-ghost { padding: 8px 16px; border-radius: 8px; border: 1px solid #cbd5e1; font-weight: 700; color: #475569; background: #fff; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 6px; }
-    .btn-ghost:hover:not(:disabled) { background: #f1f5f9; }
     .input { padding: 10px 14px; border-radius: 8px; border: 1px solid #cbd5e1; outline: none; font-size: 14px; font-family: inherit; }
     .input:focus { border-color: #0ea5e9; box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.15); }
     .modal-backdrop { position: fixed; inset: 0; background: rgba(15, 23, 42, .6); display: flex; align-items: center; justify-content: center; z-index: 999; backdrop-filter: blur(3px); }

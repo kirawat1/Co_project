@@ -350,9 +350,6 @@ export default function T_Students({ isCoopTeacher = false }: Props) {
         .input { padding: 12px 16px; border-radius: 10px; border: 1px solid #cbd5e1; font-family: inherit; font-size: 14px; transition: 0.2s; box-sizing: border-box; outline: none; }
         .input:focus { border-color: #0ea5e9; box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1); }
         .input.soft { background: #f8fafc; }
-        
-        .btn-ghost { padding: 10px 16px; background: #fff; color: #475569; border: 1px solid #cbd5e1; border-radius: 8px; font-weight: 700; cursor: pointer; transition: 0.2s; font-family: inherit; font-size: 13px; }
-        .btn-ghost:hover { background: #f1f5f9; color: #0f172a; }
 
         .student-table { width: 100%; border-collapse: separate; border-spacing: 0 10px; }
         .student-table th { padding: 10px 16px; color: #64748b; font-size: 13px; text-align: left; font-weight: 600; }
