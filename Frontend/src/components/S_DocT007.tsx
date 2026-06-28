@@ -127,21 +127,6 @@ export default function S_DocT007() {
                     overflow: hidden;
                     text-overflow: ellipsis;
                 }
-                .btn-copy {
-                    background: #e2e8f0;
-                    border: none;
-                    padding: 6px 10px;
-                    border-radius: 6px;
-                    cursor: pointer;
-                    font-size: 12px;
-                    font-weight: 700;
-                    color: #334155;
-                    transition: 0.2s;
-                    display: flex;
-                    align-items: center;
-                    gap: 4px;
-                }
-                .btn-copy:hover { background: #cbd5e1; }
                 .btn-copy.copied { background: #dcfce7; color: #166534; }
             `}</style>
         </div>

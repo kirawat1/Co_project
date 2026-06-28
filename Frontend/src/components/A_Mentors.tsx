@@ -195,7 +195,7 @@ export default function A_Mentors() {
                     <button className="btn" style={ghostBtn} onClick={() => setModalData(m)}>
                       แก้ไข
                     </button>
-                    <button className="btn" style={{ ...ghostBtn, color: '#ef4444', borderColor: '#fecaca', background: '#fef2f2' }} onClick={() => handleDelete(m.id)}>
+                    <button className="btn-danger" style={{ height: ghostBtn.height, padding: ghostBtn.padding }} onClick={() => handleDelete(m.id)}>
                       ลบ
                     </button>
                   </div>

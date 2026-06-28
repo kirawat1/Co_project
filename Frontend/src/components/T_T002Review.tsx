@@ -276,15 +276,15 @@ export default function T_T002Review() {
                                     <AutoTextarea className="input" rows={6} value={comment} onChange={(e) => setComment(e.target.value)} />
                                 </div>
                                 <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
-                                    <button className="btn-ghost" style={{ background: '#fef2f2', color: '#dc2626', borderColor: '#fca5a5', padding: 14 }} onClick={() => submitReview('REJECT')} disabled={loading}>❌ ตีกลับให้แก้ไข</button>
-                                    <button className="btn" style={{ background: '#10b981', padding: 14 }} onClick={() => submitReview('APPROVE')} disabled={loading}>✅ อนุมัติเอกสาร T002</button>
+                                    <button className="btn-danger" style={{ padding: 14 }} onClick={() => submitReview('REJECT')} disabled={loading}>❌ ตีกลับให้แก้ไข</button>
+                                    <button className="btn-success" style={{ padding: 14 }} onClick={() => submitReview('APPROVE')} disabled={loading}>✅ อนุมัติเอกสาร T002</button>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
             )}
-            <style>{` .btn { border-radius: 8px; border: none; font-weight: 700; color: white; background: #0ea5e9; cursor: pointer; transition: 0.2s; } .btn:hover:not(:disabled){ opacity: 0.9; } .btn-ghost { border-radius: 8px; border: 1px solid #cbd5e1; font-weight: 700; color: #475569; background: #fff; cursor: pointer; transition: 0.2s; } .btn-ghost:hover:not(:disabled){ background: #f1f5f9; } .input { padding: 12px 14px; border-radius: 8px; border: 1px solid #cbd5e1; width: 100%; box-sizing: border-box; outline: none; font-family: inherit; } .input:focus{ border-color: #0ea5e9; box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.15); } @media (max-width: 768px) { .review-split { flex-direction: column !important; height: auto !important; } .review-preview { height: 320px !important; flex: none !important; } .review-sidebar { width: 100% !important; } } `}</style>
+            <style>{` .input { padding: 12px 14px; border-radius: 8px; border: 1px solid #cbd5e1; width: 100%; box-sizing: border-box; outline: none; font-family: inherit; } .input:focus{ border-color: #0ea5e9; box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.15); } @media (max-width: 768px) { .review-split { flex-direction: column !important; height: auto !important; } .review-preview { height: 320px !important; flex: none !important; } .review-sidebar { width: 100% !important; } } `}</style>
         </div>
     );
 }

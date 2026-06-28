@@ -116,7 +116,7 @@ export default function A_DocRequirements() {
                                 </td>
                                 <td style={{ padding: '14px 16px', textAlign: 'right' }}>
                                     <button className="btn-ghost" style={{ marginRight: 8, padding: '6px 12px' }} onClick={() => openEditModal(r)}>✏️ แก้ไข</button>
-                                    <button className="btn-ghost" style={{ padding: '6px 12px', color: '#dc2626', borderColor: '#fca5a5', background: '#fef2f2' }} onClick={() => removeRequirement(r.id, r.title)}>🗑️ ลบ</button>
+                                    <button className="btn-danger" style={{ padding: '6px 12px' }} onClick={() => removeRequirement(r.id, r.title)}>🗑️ ลบ</button>
                                 </td>
                             </tr>
                         ))}
