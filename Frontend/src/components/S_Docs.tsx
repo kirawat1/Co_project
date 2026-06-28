@@ -635,12 +635,6 @@ export default function S_Docs({ profile, setProfile }: { profile: LocalStudentP
         .input { width: 100%; padding: 12px 14px; border: 1px solid #cbd5e1; border-radius: 8px; margin-top: 6px; box-sizing: border-box; font-family: inherit; font-size: 14px; transition: 0.2s; outline: none; }
         .input:focus { border-color: #0ea5e9; box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1); }
         .input:disabled { background: #f8fafc; color: #94a3b8; border-color: #e2e8f0; cursor: not-allowed; }
-        
-        .btn-primary { background: #0ea5e9; color: white; border: none; padding: 12px 20px; border-radius: 8px; font-weight: 700; cursor: pointer; transition: 0.2s; font-family: inherit; font-size: 14px; display: inline-flex; align-items: center; gap: 6px; }
-        .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
-        
-        .btn-secondary { background: white; color: #475569; border: 1px solid #cbd5e1; padding: 12px 20px; border-radius: 8px; font-weight: 700; cursor: pointer; transition: 0.2s; font-family: inherit; font-size: 14px; display: inline-flex; align-items: center; gap: 6px; }
-        .btn-secondary:hover { background: #f8fafc; color: #0f172a; }
 
         .pdf-modal-backdrop { position: fixed; inset: 0; background-color: rgba(15, 23, 42, 0.7); backdrop-filter: blur(4px); z-index: 9999; display: flex; align-items: center; justify-content: center; animation: fadeIn 0.2s ease-out; padding: 20px; }
         .pdf-modal-card { background: white; width: 100%; max-width: 1000px; height: 90vh; border-radius: 16px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); display: flex; flex-direction: column; overflow: hidden; animation: scaleIn 0.2s ease-out; }

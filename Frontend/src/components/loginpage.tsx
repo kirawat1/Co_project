@@ -529,9 +529,6 @@ function css(IOS_BLUE: string) {
   .alert.error{ color:#B91C1C; background:#FEF2F2; border-color:#FCA5A5 }
   .alert.ok{ color:#065F46; background:#ECFDF5; border-color:#6EE7B7 }
 
-  .btn{ height:48px; border:0; border-radius:12px; background:var(--ios-blue); color:#fff; font-weight:800; box-shadow:0 10px 22px rgba(10,132,255,.25), inset 0 -1px 0 rgba(255,255,255,.25); }
-  .btn:disabled{ filter:grayscale(.1) brightness(.95); opacity:.9 }
-
   .footnote{ margin-top:14px; font-size:12px; color:#6b7280 }
 
   @media (min-width: 1024px){ .panel-left{ display:flex; flex-direction:column; justify-content:center } .panel-right{ padding:36px 34px } }

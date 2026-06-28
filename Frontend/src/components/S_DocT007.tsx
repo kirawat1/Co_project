@@ -89,7 +89,7 @@ export default function S_DocT007() {
                             </button>
                         </div>
 
-                        <button className="btn btn-primary" onClick={() => window.open(config.t007Link, "_blank")}>
+                        <button className="btn btn-primary" style={{ width: '100%' }} onClick={() => window.open(config.t007Link, "_blank")}>
                             🔗 เปิดฟอร์มประเมิน T007
                         </button>
                     </div>
@@ -143,10 +143,6 @@ export default function S_DocT007() {
                 }
                 .btn-copy:hover { background: #cbd5e1; }
                 .btn-copy.copied { background: #dcfce7; color: #166534; }
-
-                .btn { padding: 10px 16px; border: none; border-radius: 8px; cursor: pointer; font-weight: 700; font-family: inherit; width: 100%; }
-                .btn-primary { background: #8b5cf6; color: white; transition: 0.2s; } /* ใช้ปุ่มสีม่วง */
-                .btn-primary:hover { background: #7c3aed; }
             `}</style>
         </div>
     );
