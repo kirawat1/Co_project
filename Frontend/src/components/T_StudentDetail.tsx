@@ -412,13 +412,6 @@ export default function T_StudentDetail() {
         .input { width: 100%; padding: 10px 14px; border-radius: 10px; border: 1px solid #cbd5e1; font-family: inherit; font-size: 14px; box-sizing: border-box; outline: none; transition: 0.2s; }
         .input:focus { border-color: #0ea5e9; box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1); }
 
-        .btn-primary { background: #0ea5e9; color: #fff; border: none; border-radius: 10px; font-weight: 700; cursor: pointer; transition: 0.2s; font-family: inherit; }
-        .btn-primary:hover { background: #0284c7; }
-        .btn-ghost { background: transparent; color: #475569; border: 1px solid #cbd5e1; border-radius: 8px; font-weight: 600; cursor: pointer; transition: 0.2s; font-family: inherit; }
-        .btn-ghost:hover { background: #f1f5f9; color: #0f172a; }
-        .btn-danger { background: #fef2f2; color: #dc2626; border: 1px solid #fca5a5; border-radius: 8px; font-weight: 600; cursor: pointer; transition: 0.2s; font-family: inherit; }
-        .btn-danger:hover { background: #fee2e2; }
-
         .student-table { width: 100%; border-collapse: separate; border-spacing: 0 8px; }
         .student-table th { padding: 10px 16px; color: #64748b; font-size: 13px; text-align: left; font-weight: 600; border-bottom: 2px solid #e2e8f0; }
         .student-table td { background: #fff; padding: 16px; font-size: 14px; color: #334155; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
