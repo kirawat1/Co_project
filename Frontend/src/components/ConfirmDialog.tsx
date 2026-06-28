@@ -82,26 +82,14 @@ export default function ConfirmDialog({
 
         <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
           <button
+            className="btn-secondary"
             onClick={onCancel}
-            style={{
-              flex: 1, maxWidth: 160,
-              padding: "11px 0", borderRadius: 12,
-              border: "1px solid var(--border, rgba(0,0,0,.1))",
-              background: "var(--hover-bg, #f3f4f6)",
-              color: "var(--text, #334155)",
-              fontWeight: 700, fontSize: 15, cursor: "pointer",
-            }}
+            style={{ flex: 1, maxWidth: 160 }}
           >{cancelLabel}</button>
           <button
+            className="btn"
             onClick={onConfirm}
-            style={{
-              flex: 1, maxWidth: 160,
-              padding: "11px 0", borderRadius: 12,
-              border: "none",
-              background: confirmColor,
-              color: "#fff",
-              fontWeight: 700, fontSize: 15, cursor: "pointer",
-            }}
+            style={{ flex: 1, maxWidth: 160, background: confirmColor }}
           >{confirmLabel}</button>
         </div>
       </div>

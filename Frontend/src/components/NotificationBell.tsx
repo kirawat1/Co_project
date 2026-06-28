@@ -35,19 +35,14 @@ export default function NotificationBell({ targetPath }: Props) {
 
   return (
     <button
+      className="btn-ico"
       onClick={handleClick}
       title={count > 0 ? `${count} การแจ้งเตือนใหม่` : "ไม่มีการแจ้งเตือน"}
       style={{
         position: "relative",
         background: "none",
         border: "none",
-        cursor: "pointer",
-        padding: "6px 8px",
-        borderRadius: 8,
-        display: "flex",
-        alignItems: "center",
         color: count > 0 ? "#2563eb" : "#94a3b8",
-        transition: "color .15s",
       }}
     >
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

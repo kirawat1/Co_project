@@ -38,13 +38,17 @@ export default function StatusFilterChips({ students, activeFilter, onFilterChan
         const isActive = activeFilter === key;
         if (key !== "ALL" && count === 0) return null;
         return (
-          <button key={key} onClick={() => onFilterChange(key)} style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"6px 14px", borderRadius:99, fontSize:13, fontWeight:700, cursor:"pointer", transition:"all .15s", border:"none", background:isActive?group.color:group.bg, color:isActive?"#fff":group.color, boxShadow:isActive?`0 2px 8px ${group.color}40`:"none" }}>
+          <button key={key} className="status-chip" onClick={() => onFilterChange(key)} style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"6px 14px", borderRadius:99, fontSize:13, fontWeight:700, cursor:"pointer", transition:"filter .15s", border:"none", background:isActive?group.color:group.bg, color:isActive?"#fff":group.color, boxShadow:isActive?`0 2px 8px ${group.color}40`:"none" }}>
             <span>{group.icon}</span>
             <span>{group.label}</span>
             <span style={{ background:isActive?"rgba(255,255,255,.25)":`${group.color}20`, borderRadius:99, padding:"1px 7px", fontSize:12 }}>{count}</span>
           </button>
         );
       })}
+      <style>{`
+        .status-chip:hover { filter: brightness(.9); }
+        .status-chip:active { filter: brightness(.8); }
+      `}</style>
     </div>
   );
 }
