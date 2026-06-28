@@ -102,10 +102,11 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                 {t.message}
               </span>
               <button
+                className="toast-close"
                 onClick={() => remove(t.id)}
                 style={{
                   background: "none", border: "none", cursor: "pointer",
-                  color: c.text, fontSize: 18, lineHeight: 1, opacity: 0.6,
+                  color: c.text, fontSize: 18, lineHeight: 1,
                   padding: 0, flexShrink: 0,
                 }}
               >×</button>
@@ -119,6 +120,8 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
           from { opacity: 0; transform: translateX(40px); }
           to   { opacity: 1; transform: translateX(0); }
         }
+        .toast-close { opacity: .6; transition: opacity .15s; }
+        .toast-close:hover { opacity: 1; }
       `}</style>
     </ToastContext.Provider>
   );
