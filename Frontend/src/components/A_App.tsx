@@ -24,6 +24,7 @@ import A_SupervisionManager from "./A_SupervisionManage";
 import A_DocT005_006 from "./A_DocT005_006";
 import A_DocT007 from "./A_DocT007";
 import A_DocT008 from "./A_DocT008";
+import A_GatewaySettings from "./A_GatewaySettings";
 
 
 const IOS_BLUE = "#0074B7";
@@ -127,6 +128,7 @@ export default function AdminApp() {
             <Route path="doc-t008" element={<A_DocT008 />} />
             {/* ✅ ย้ายขึ้นมา และลบ /admin/ ออก */}
             <Route path="doc-requirements" element={<A_DocRequirements />} />
+            <Route path="gateway-settings" element={<A_GatewaySettings />} />
 
             {/* ✅ ใส่ /admin/ นำหน้า เพื่อป้องกัน Infinite Loop */}
             <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />

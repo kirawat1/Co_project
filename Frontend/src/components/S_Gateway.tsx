@@ -76,10 +76,24 @@ export default function CoopRequestPage() {
   const [submitting, setSubmitting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
   const [gradeSheetUrl, setGradeSheetUrl] = useState("");
+  const [gatewaySettings, setGatewaySettings] = useState({
+    gradeSheetDescription: 'กรุณา Make a Copy แบบฟอร์มด้านล่าง กรอกข้อมูลให้ครบ แล้วนำลิงก์ที่แชร์มาใส่ในช่องด้านล่าง',
+    gradeSheetUrl: 'https://docs.google.com/spreadsheets/d/1HGWTsoScRc3XU0abUn6J9TgyFksAoi1V/copy',
+    gradeSheetLinkText: '📋 Make a Copy แบบฟอร์ม',
+    uploadDescription: 'เช่น ใบคำร้อง, ทรานสคริปต์, หนังสือรับรอง ฯลฯ (รองรับ PDF, รูปภาพ)'
+  });
 
   const token = localStorage.getItem("coop.token");
 
   // --- Helpers ---
+  // Sanitize href: only allow http/https to prevent javascript: XSS
+  const safeHref = (url: string) => {
+    try {
+      const u = new URL(url);
+      return (u.protocol === 'https:' || u.protocol === 'http:') ? url : '#';
+    } catch { return '#'; }
+  };
+
   const getThaiPrefix = (prefix: string = "") => {
     const p = prefix.toUpperCase().trim();
     if (["MR", "MR.", "MISTER", "นาย"].includes(p)) return "นาย";
@@ -121,12 +135,21 @@ export default function CoopRequestPage() {
           setActivePeriod(null);
         }
       }
+
     } catch (err) { console.error(err); }
   };
 
   useEffect(() => {
     fetchData();
   }, [token]);
+
+  useEffect(() => {
+    const t = localStorage.getItem("coop.token");
+    fetch("/api/coop/config/gateway", { headers: { Authorization: `Bearer ${t}` } })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.ok && d.data) setGatewaySettings(d.data); })
+      .catch(() => {});
+  }, []);
 
   // --- Handlers ---
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -439,15 +462,15 @@ export default function CoopRequestPage() {
             📊 แบบฟอร์มตรวจสอบการสำเร็จการศึกษา
           </div>
           <p style={{ fontSize: 13, color: '#3b82f6', margin: '0 0 12px' }}>
-            กรุณา Make a Copy แบบฟอร์มด้านล่าง กรอกข้อมูลให้ครบ แล้วนำลิงก์ที่แชร์มาใส่ในช่องด้านล่าง
+            {gatewaySettings.gradeSheetDescription}
           </p>
           <a
-            href="https://docs.google.com/spreadsheets/d/1HGWTsoScRc3XU0abUn6J9TgyFksAoi1V/copy"
+            href={safeHref(gatewaySettings.gradeSheetUrl)}
             target="_blank"
             rel="noreferrer"
             style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', background: '#2563eb', color: '#fff', borderRadius: 8, fontWeight: 700, fontSize: 13, textDecoration: 'none', marginBottom: 14 }}
           >
-            📋 Make a Copy แบบฟอร์ม
+            {gatewaySettings.gradeSheetLinkText || '📋 Make a Copy แบบฟอร์ม'}
           </a>
           <div>
             <label className="label" style={{ fontSize: 14 }}>ลิงก์แบบฟอร์มที่กรอกแล้ว (Google Sheets) <span style={{ color: 'red' }}>*</span></label>
@@ -465,7 +488,7 @@ export default function CoopRequestPage() {
 
         <div style={{ marginTop: "24px" }}>
           <label className="label" style={{ fontSize: 15 }}>อัปโหลดเอกสารประกอบ <span style={{ color: 'red' }}>*</span></label>
-          <p style={{ fontSize: 13, color: '#64748b', margin: '4px 0 10px 0' }}>เช่น ใบคำร้อง, ทรานสคริปต์, หนังสือรับรอง ฯลฯ (รองรับ PDF, รูปภาพ)</p>
+          <p style={{ fontSize: 13, color: '#64748b', margin: '4px 0 10px 0' }}>{gatewaySettings.uploadDescription}</p>
 
           {/* ไฟล์ที่อยู่ในระบบแล้ว */}
           {gatewayDocs.length > 0 && (

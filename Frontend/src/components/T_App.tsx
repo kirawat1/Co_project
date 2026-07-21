@@ -17,6 +17,7 @@ import T_SupervisionReview from "./T_SupervisionReview";
 import A_DocT005_006 from "./A_DocT005_006";
 import A_DocT007 from "./A_DocT007";
 import A_DocT008 from "./A_DocT008";
+import A_GatewaySettings from "./A_GatewaySettings";
 const IOS_BLUE = "#0074B7";
 
 export default function TeacherApp() {
@@ -131,6 +132,7 @@ export default function TeacherApp() {
             <Route path="doc-t005-006" element={<A_DocT005_006 />} />
             <Route path="doc-t007" element={<A_DocT007 />} />
             <Route path="doc-t008" element={<A_DocT008 />} />
+            <Route path="gateway-settings" element={<A_GatewaySettings />} />
 
             <Route path="*" element={<Navigate to="/teacher/dashboard" replace />} />
           </Routes>

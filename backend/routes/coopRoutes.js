@@ -4,6 +4,7 @@ const router = express.Router();
 const { verifyToken, verifyRole } = require("../middlewares/authMiddleware");
 const coopController = require("../controllers/coopController");
 const supervisionController = require("../controllers/supervisionController");
+const configController = require("../controllers/configController");
 
 // POST /api/coop/apply
 router.post(
@@ -21,5 +22,8 @@ router.get("/supervision/me", verifyToken, supervisionController.getStudentSuper
 router.post("/supervision/propose", verifyToken, verifyRole('student'), supervisionController.proposeSupervisionDate);
 // ปฏิทินนิเทศ (ทุก role เข้าถึงได้)
 router.get("/supervision/calendar", verifyToken, supervisionController.getSupervisionCalendar);
+
+// Gateway display config — readable by all authenticated users (students included)
+router.get("/config/gateway", verifyToken, configController.getGatewaySettings);
 
 module.exports = router;
