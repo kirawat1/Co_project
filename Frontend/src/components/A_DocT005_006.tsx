@@ -63,7 +63,7 @@ export default function A_DocT005_006() {
 
     // ✅ ถ้ายังโหลดข้อมูลล่าสุดไม่เสร็จ ให้โชว์หน้า Loading ป้องกันหน้ากระพริบ
     if (isFetching) {
-        return <div style={{ padding: 40, textAlign: 'center', color: '#0074B7', marginLeft: 65 }}>กำลังโหลดข้อมูลล่าสุด...</div>;
+        return <div className="page" style={{ padding: 40, textAlign: 'center', color: '#0074B7' }}>กำลังโหลดข้อมูลล่าสุด...</div>;
     }
 
     return (

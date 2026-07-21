@@ -1,5 +1,15 @@
 # CHANGELOG — Co_project
 
+## [2026-07-21] feat: รองรับ iPad และมือถือทั้งระบบ (responsive breakpoint 1024px)
+
+ขยาย breakpoint ของ sidebar drawer จาก 768px → 1024px เพื่อให้ iPad portrait ทุกรุ่น
+ได้ hamburger menu และ layout แบบ full-screen เหมือนมือถือ
+
+### เปลี่ยนแปลง
+- **`S_Theme.tsx`**: แยก responsive เป็น 3 tier — `@media (max-width: 1024px)` สำหรับ layout/sidebar/drawer/table-scroll (ครอบคลุม iPad portrait ~810-820px), `@media (max-width: 768px)` สำหรับ tap-target/padding ขนาดเล็ก, `@media (max-width: 480px)` สำหรับ phone เล็ก
+- **`S_Announcements.tsx`**: เพิ่ม `className="page"` ให้ container หลัก (เดิมใช้ inline style อย่างเดียว ทำให้ margin reset ของ `.page` ไม่ทำงาน)
+- **`A_DocT005_006.tsx` / `A_DocT007.tsx` / `A_DocT008.tsx`**: loading state div เปลี่ยนจาก inline `marginLeft: 65` เป็น `className="page"` เพื่อให้ reset ทำงานได้
+
 ## [2026-07-21] Audit Fix: Security, Auth, Response Format, Performance, UI (21 issues)
 
 ตรวจสอบระบบทั้งหมด พบ 21 ปัญหา (4 critical, 9 medium, 8 minor) — แก้ไขครบทุกข้อ

@@ -296,7 +296,7 @@ function css(IOS_BLUE: string) {
   .pill.warn { background: #FFF7ED; color: #9A3412; border: 1px solid #FDBA74; }
   .pill.over { background: #FEF2F2; color: #B91C1C; border: 1px solid #FCA5A5; }
 
-  /* ===== MOBILE RESPONSIVE ===== */
+  /* ===== MOBILE / TABLET RESPONSIVE ===== */
 
   /* Hamburger button (hidden on desktop) */
   .btn-hamburger { display: none; }
@@ -311,14 +311,14 @@ function css(IOS_BLUE: string) {
   }
   .sidebar-overlay.open { display: block; }
 
-  @media (max-width: 768px) {
+  /* ── Tablet + Phone (≤1024px): iPad portrait, iPad Mini, and all phones ──
+     Sidebar collapses to off-canvas drawer so the full screen width is
+     available for content. Hamburger button becomes visible. */
+  @media (max-width: 1024px) {
     /* Show hamburger */
     .btn-hamburger { display: inline-flex; }
 
-    /* Bigger tap targets on touch devices (WCAG 2.5.5) */
-    .btn-ico { width: 44px; height: 44px; }
-
-    /* Layout: single column */
+    /* Layout: single column — sidebar no longer occupies left column */
     .layout { grid-template-columns: 1fr; }
 
     /* Sidebar: off-canvas drawer */
@@ -336,23 +336,14 @@ function css(IOS_BLUE: string) {
       transform: translateX(0);
     }
 
-    /* Hide user-name on very small screens */
-    .user-name { display: none; }
-
-    /* Full width cards */
-    .card { border-radius: 12px; }
-
-    /* Main content: less padding */
-    .main { padding: 12px 10px; }
-
-    /* Page wrapper: หลายหน้าใส่ margin/marginLeft คงที่ (28-65px) เป็น inline style
-       ซึ่งกินพื้นที่หน้าจอมือถือไปมาก ลดเหลือเท่ากันทุกด้านด้วย !important เพื่อชนะ inline style */
+    /* Page wrapper: รีเซ็ต margin/padding คงที่ที่ใส่เป็น inline style (ชนะด้วย !important)
+       ครอบคลุมทั้ง tablet (iPad) และ phone */
     .page { margin: 10px !important; margin-left: 10px !important; padding: 4px !important; max-width: 100% !important; }
 
-    /* Tables: horizontal scroll */
+    /* Tables: horizontal scroll so wide tables don't break layout */
     table { display: block; overflow-x: auto; white-space: nowrap; }
 
-    /* Tables opted into card layout (className="responsive-table") show as stacked cards instead */
+    /* Tables opted into card layout show as stacked cards instead */
     table.responsive-table { display: block; overflow-x: visible; white-space: normal; }
     table.responsive-table thead { display: none; }
     table.responsive-table tbody { display: block; }
@@ -361,9 +352,23 @@ function css(IOS_BLUE: string) {
     table.responsive-table td:last-child { border-bottom: none !important; }
     table.responsive-table td[data-label]::before { content: attr(data-label); display: block; font-weight: 700; color: #64748b; font-size: 12px; margin-bottom: 4px; }
     table.responsive-table td span { white-space: normal !important; }
-    /* Action buttons get full tap-target height now that cards are full-width on mobile */
     table.responsive-table td:last-child button,
     table.responsive-table td:last-child a { min-height: 44px; padding: 8px 16px; }
+  }
+
+  /* ── Phone (≤768px): extra density reductions for small screens ── */
+  @media (max-width: 768px) {
+    /* Bigger tap targets on touch devices (WCAG 2.5.5) */
+    .btn-ico { width: 44px; height: 44px; }
+
+    /* Hide user-name — saves topbar space on narrow phones */
+    .user-name { display: none; }
+
+    /* Slightly tighter card corners on phone */
+    .card { border-radius: 12px; }
+
+    /* Main content: less padding */
+    .main { padding: 12px 10px; }
   }
 
   @media (max-width: 480px) {
