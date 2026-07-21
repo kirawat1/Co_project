@@ -33,7 +33,12 @@ function mockSheet(dataRows) {
 }
 
 describe('importStudents', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    // controller pre-fetches: user.findMany × 2 (by email, by username), student.findMany × 1
+    prisma.user.findMany.mockResolvedValue([]);
+    prisma.student.findMany.mockResolvedValue([]);
+  });
 
   test('400 – no file uploaded', async () => {
     const req = { file: null };
@@ -155,7 +160,10 @@ describe('importStudents', () => {
       'ชื่ออาจารย์ที่ปรึกษา': 'พิมพ์ชื่อผิด ไปนิดนึง',
     }]);
 
-    prisma.user.findFirst.mockResolvedValue({ id: 2, email: 'stu2@kkumail.com' }); // นักศึกษาเดิม → เข้า update path
+    // นักศึกษาเดิม: user.findMany (by email) ต้องคืน user นั้น เพื่อให้ controller เข้า update path
+    prisma.user.findMany
+      .mockResolvedValueOnce([{ id: 2, email: 'stu2@kkumail.com' }]) // by email
+      .mockResolvedValueOnce([]); // by username
     prisma.student.upsert.mockResolvedValue({ id: 2 });
     prisma.teacher.findMany.mockResolvedValue([]);
 
@@ -222,9 +230,8 @@ describe('importStudents', () => {
       'อีเมล': 'stu5@kkumail.com',
     }]);
 
-    prisma.user.findFirst.mockResolvedValue(null);
-    prisma.student.findUnique.mockResolvedValue({ deletedAt: new Date('2026-01-01') });
-    prisma.teacher.findMany.mockResolvedValue([]);
+    // soft-deleted: student.findMany คืน student ที่มี deletedAt เพื่อให้ Map พบแล้ว block
+    prisma.student.findMany.mockResolvedValue([{ studentId: '645040005-1', deletedAt: new Date('2026-01-01') }]);
 
     const req = { file: { buffer: Buffer.from('fake') } };
     const res = makeRes();

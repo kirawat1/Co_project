@@ -116,7 +116,8 @@ export default function T_StudentDetail() {
   const fetchData = async (isStale: () => boolean = () => false) => {
     try {
       setLoading(true);
-      const resStd = await apiFetch("/api/students", {
+      // ค้นหาด้วย studentId โดยตรง + limit=1 ป้องกัน pagination ทำให้หาไม่เจอเมื่อมีนักศึกษา > 50 คน
+      const resStd = await apiFetch(`/api/students?search=${encodeURIComponent(studentId)}&limit=1`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (resStd.ok) {
@@ -133,7 +134,8 @@ export default function T_StudentDetail() {
       if (resVisit.ok) {
         const dataVisit = await resVisit.json();
         if (isStale()) return;
-        const mapped = dataVisit.map((v: any) => ({
+        const visitList = Array.isArray(dataVisit) ? dataVisit : (dataVisit?.data ?? []);
+        const mapped = visitList.map((v: any) => ({
           ...v,
           date: v.date.split('T')[0]
         }));

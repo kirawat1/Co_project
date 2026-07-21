@@ -44,6 +44,7 @@ interface MentorRecord {
 ---------------------------------------------------- */
 export default function A_Companies() {
   const [items, setItems] = useState<AdminCompanyRecord[]>([]);
+  const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
 
   const [showAdd, setShowAdd] = useState(false);
@@ -77,8 +78,9 @@ export default function A_Companies() {
         }
         return res.json();
       })
-      .then(data => setItems(data))
-      .catch(err => console.error("Error fetching companies:", err));
+      .then(data => setItems(Array.isArray(data) ? data : (data?.data ?? [])))
+      .catch(err => console.error("Error fetching companies:", err))
+      .finally(() => setLoading(false));
   }, []);
 
   useEffect(() => {
@@ -285,6 +287,8 @@ export default function A_Companies() {
   }
 
   /* ---------------- UI ---------------- */
+  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>กำลังโหลดข้อมูล...</div>;
+
   return (
     <div className="page" style={{ padding: 4, margin: 28, marginLeft: 65 }}>
       <section className="card" style={{ padding: 24, marginBottom: 28 }}>

@@ -24,7 +24,7 @@ beforeEach(() => jest.clearAllMocks());
 // getCompanies
 // ---------------------------------------------------------------------------
 describe('getCompanies', () => {
-  test('200 – returns array directly (no ok wrapper)', async () => {
+  test('200 – returns { ok: true, data: [...] }', async () => {
     const fakeCompanies = [
       { id: 'c1', name: 'Company A', mentors: [] },
       { id: 'c2', name: 'Company B', mentors: [{ id: 'm1', firstName: 'John' }] },
@@ -40,8 +40,7 @@ describe('getCompanies', () => {
       include: { mentors: true },
       orderBy: { id: 'desc' },
     });
-    // Returns array directly — no { ok, data } wrapper
-    expect(res.json).toHaveBeenCalledWith(fakeCompanies);
+    expect(res.json).toHaveBeenCalledWith({ ok: true, data: fakeCompanies });
     expect(res.status).not.toHaveBeenCalled();
   });
 });
@@ -94,7 +93,7 @@ describe('addCompany', () => {
     expect(res.json).toHaveBeenCalledWith({ ok: true, company: newCompany });
   });
 
-  test('400 – DB error returns { ok: false, message }', async () => {
+  test('500 – DB error returns { ok: false, message }', async () => {
     prisma.company.create.mockRejectedValue(new Error('DB fail'));
 
     const req = {
@@ -105,7 +104,7 @@ describe('addCompany', () => {
 
     await addCompany(req, res);
 
-    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith({ ok: false, message: 'เพิ่มบริษัทไม่สำเร็จ' });
   });
 });

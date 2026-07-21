@@ -425,7 +425,7 @@ export default function A_Students() {
       </section>
 
       {/* ================= Table ================= */}
-      <section style={{ ...card, marginTop: 20, padding: 0, overflow: 'hidden' }}>
+      <section style={{ ...card, marginTop: 20, padding: 0, overflowX: 'auto' }}>
         <table width="100%" className="responsive-table" style={{ borderCollapse: 'collapse' }}>
           <thead>
             <tr>

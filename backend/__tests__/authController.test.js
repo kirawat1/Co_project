@@ -146,20 +146,13 @@ describe('signIn', () => {
 // getProfile
 // =====================
 describe('getProfile', () => {
-  test('401 — ไม่มี Authorization header', async () => {
-    const req = { headers: {} };
-    const res = makeRes();
-
-    await getProfile(req, res);
-
-    expect(res.status).toHaveBeenCalledWith(401);
-  });
+  // หมายเหตุ: getProfile ใช้ req.user (set โดย verifyToken middleware แล้ว) แทนการ verify JWT เอง
+  // การทดสอบ 401 (no token) ครอบคลุมโดย auth.routes.test.js แล้ว
 
   test('404 — ไม่พบ user ใน DB', async () => {
-    const token = jwt.sign({ id: 99 }, process.env.JWT_SECRET, { expiresIn: '1h' });
     prisma.user.findUnique.mockResolvedValue(null);
 
-    const req = { headers: { authorization: `Bearer ${token}` } };
+    const req = { user: { id: 99 } };
     const res = makeRes();
 
     await getProfile(req, res);
@@ -168,7 +161,6 @@ describe('getProfile', () => {
   });
 
   test('200 — คืน profile student ถูกต้อง', async () => {
-    const token = jwt.sign({ id: 1 }, process.env.JWT_SECRET, { expiresIn: '1h' });
     prisma.user.findUnique.mockResolvedValue({
       id: 1,
       email: 'student@kku.ac.th',
@@ -183,7 +175,7 @@ describe('getProfile', () => {
       teacher: null,
     });
 
-    const req = { headers: { authorization: `Bearer ${token}` } };
+    const req = { user: { id: 1 } };
     const res = makeRes();
 
     await getProfile(req, res);

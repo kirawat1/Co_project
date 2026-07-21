@@ -35,7 +35,7 @@ describe('visitController', () => {
       await visitController.createVisit(req, res);
 
       expect(prisma.visit.create).toHaveBeenCalled();
-      expect(res.json).toHaveBeenCalledWith({ id: 11 });
+      expect(res.json).toHaveBeenCalledWith({ ok: true, data: { id: 11 } });
     });
   });
 

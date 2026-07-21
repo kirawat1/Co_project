@@ -2,15 +2,15 @@
 const express = require("express");
 const router = express.Router();
 const companyController = require("../controllers/companyController");
-const { verifyToken } = require("../middlewares/authMiddleware");
+const { verifyToken, verifyRole } = require("../middlewares/authMiddleware");
 
 router.get("/", verifyToken, companyController.getCompanies);
-router.post("/", verifyToken, companyController.addCompany);
-router.put("/:id", verifyToken, companyController.updateCompany);
-router.delete("/:id", verifyToken, companyController.deleteCompany);
+router.post("/", verifyToken, verifyRole('staff', 'teacher'), companyController.addCompany);
+router.put("/:id", verifyToken, verifyRole('staff', 'teacher', 'student'), companyController.updateCompany);
+router.delete("/:id", verifyToken, verifyRole('staff', 'teacher'), companyController.deleteCompany);
 
-router.post("/:companyId/mentors", verifyToken, companyController.addMentor);
-router.put("/mentors/:id", verifyToken, companyController.updateMentor);
-router.delete("/mentors/:id", verifyToken, companyController.deleteMentor);
+router.post("/:companyId/mentors", verifyToken, verifyRole('staff', 'teacher', 'student'), companyController.addMentor);
+router.put("/mentors/:id", verifyToken, verifyRole('staff', 'teacher', 'student'), companyController.updateMentor);
+router.delete("/mentors/:id", verifyToken, verifyRole('staff', 'teacher', 'student'), companyController.deleteMentor);
 
 module.exports = router;

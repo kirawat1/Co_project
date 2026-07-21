@@ -79,6 +79,18 @@ exports.importStudents = async (req, res) => {
     let created = 0, updated = 0, errors = 0;
     const errorRows = [];
 
+    // Pre-fetch users + students ก่อน loop เพื่อตัด N+1 (findFirst per row)
+    const allEmails = [...new Set(rows.map(r => String(r['อีเมล'] || '').trim()).filter(Boolean))];
+    const allStudentIds = [...new Set(rows.map(r => String(r['รหัสนักศึกษา'] || '').trim()).filter(Boolean))];
+    const [prefetchedUsers, prefetchedByUsername, prefetchedStudents] = await Promise.all([
+      prisma.user.findMany({ where: { email: { in: allEmails } } }),
+      prisma.user.findMany({ where: { username: { in: allStudentIds } } }),
+      prisma.student.findMany({ where: { studentId: { in: allStudentIds } }, select: { studentId: true, deletedAt: true } }),
+    ]);
+    const userByEmail = new Map(prefetchedUsers.map(u => [u.email, u]));
+    const userByUsername = new Map(prefetchedByUsername.map(u => [u.username, u]));
+    const studentByStudentId = new Map(prefetchedStudents.map(s => [s.studentId, s]));
+
     // Pre-fetch all candidate advisor teachers by (firstName, lastName) to avoid N+1 queries
     const advisorNamePairs = rows
       .map(r => splitFullName(String(r['ชื่ออาจารย์ที่ปรึกษา'] || '').trim()))
@@ -131,18 +143,17 @@ exports.importStudents = async (req, res) => {
         const rawGpa = String(row['เกรดเฉลี่ยสะสม (GPA)'] || '').trim();
         const gpa = rawGpa && !Number.isNaN(parseFloat(rawGpa)) ? parseFloat(rawGpa) : null;
 
-        // 1. Find or create User (safe username collision check)
-        const existingUser = await prisma.user.findFirst({ where: { email } });
+        // 1. Find or create User — ใช้ pre-fetched map แทน per-row query
+        const existingUser = userByEmail.get(email);
         let user;
         if (existingUser) {
           user = existingUser;
           updated++;
           thisRowCountedAs = 'updated';
         } else {
-          // Check if username is already taken by a different user (different role/email)
-          const existingByUsername = await prisma.user.findFirst({ where: { username: studentId } });
+          // Check username collision ใน pre-fetched map
+          const existingByUsername = userByUsername.get(studentId);
           if (existingByUsername && existingByUsername.email !== email) {
-            // Username collision with a different account — skip, report as error
             throw new Error(`username '${studentId}' ถูกใช้โดยบัญชีอื่นแล้ว (email: ${existingByUsername.email})`);
           }
           user = await prisma.user.upsert({
@@ -156,6 +167,9 @@ exports.importStudents = async (req, res) => {
               provider: 'google',
             },
           });
+          // อัปเดต map สำหรับ rows ที่ตามมา (กรณี email ซ้ำกันในไฟล์เดียวกัน)
+          userByEmail.set(email, user);
+          userByUsername.set(studentId, user);
           created++;
           thisRowCountedAs = 'created';
         }
@@ -180,12 +194,8 @@ exports.importStudents = async (req, res) => {
           }
         }
 
-        // 3. ถ้า studentId นี้ถูก soft-delete (อยู่ในถังขยะ) อยู่ ห้ามอัปเดตทับเงียบๆ —
-        // จะทำให้ข้อมูลถูกแก้แต่ยังหายไปจากรายชื่อหลัก (deletedAt ไม่ถูกล้าง) staff ต้องกู้คืนจากถังขยะก่อน
-        const existingStudent = await prisma.student.findUnique({
-          where: { studentId },
-          select: { deletedAt: true },
-        });
+        // 3. ถ้า studentId นี้ถูก soft-delete ใช้ pre-fetched map แทน per-row query
+        const existingStudent = studentByStudentId.get(studentId);
         if (existingStudent?.deletedAt) {
           throw new Error(`นักศึกษารหัส ${studentId} อยู่ในถังขยะ — กรุณากู้คืนก่อนนำเข้าข้อมูลใหม่`);
         }

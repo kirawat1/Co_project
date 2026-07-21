@@ -101,13 +101,14 @@ const addOrUpdateAnnouncement = async (req, res) => {
       const ann = await prisma.announcement.findUnique({ where: { id }, include: { files: true } });
       if (!ann) return res.status(404).json({ ok: false, message: "ไม่พบประกาศ" });
 
-      // ลบไฟล์ที่ไม่อยู่ใน keepFileIds
-      for (const f of ann.files) {
-        if (!keepFileIds?.includes(f.id)) {
-          const filePath = path.join(__dirname, '../uploads', f.path);
-          if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-          await prisma.annFile.delete({ where: { id: f.id } });
-        }
+      // ลบไฟล์ที่ไม่อยู่ใน keepFileIds — batch delete แทน loop
+      const toDelete = ann.files.filter(f => !keepFileIds?.includes(f.id));
+      toDelete.forEach(f => {
+        const filePath = path.join(__dirname, '../uploads', f.path);
+        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+      });
+      if (toDelete.length > 0) {
+        await prisma.annFile.deleteMany({ where: { id: { in: toDelete.map(f => f.id) } } });
       }
 
       // อัปเดตประกาศ

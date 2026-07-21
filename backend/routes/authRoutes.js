@@ -1,7 +1,7 @@
 // backend/routes/auth.js
 const express = require("express");
 const { signIn, getProfile, loginWithSSO, loginWithKKU, registerStudent, loginWithGoogle } = require("../controllers/authController");
-
+const { verifyToken } = require("../middlewares/authMiddleware");
 
 const router = express.Router();
 
@@ -12,7 +12,7 @@ router.post("/login/sso", loginWithSSO);
 router.post("/login/google", loginWithGoogle);
 router.post("/register", registerStudent);     // นักศึกษาใหม่ self-register
 
-router.get("/me", getProfile);
+router.get("/me", verifyToken, getProfile);
 
 
 module.exports = router;

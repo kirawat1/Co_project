@@ -269,7 +269,7 @@ describe('addOrUpdateAnnouncement', () => {
 
     prisma.announcement.findUnique.mockResolvedValue(existing);
     prisma.announcement.update.mockResolvedValue(updated);
-    prisma.annFile.delete.mockResolvedValue({});
+    prisma.annFile.deleteMany.mockResolvedValue({ count: 1 });
 
     // File on disk exists for old-file-1
     fs.existsSync.mockImplementation((p) => p.includes('old1.pdf'));
@@ -291,10 +291,10 @@ describe('addOrUpdateAnnouncement', () => {
 
     await addOrUpdateAnnouncement(req, res);
 
-    // old-file-1 should be deleted from DB
-    expect(prisma.annFile.delete).toHaveBeenCalledWith({ where: { id: 'old-file-1' } });
-    // keep-file-2 should NOT be deleted
-    expect(prisma.annFile.delete).not.toHaveBeenCalledWith({ where: { id: 'keep-file-2' } });
+    // old-file-1 should be batch-deleted from DB
+    expect(prisma.annFile.deleteMany).toHaveBeenCalledWith({ where: { id: { in: ['old-file-1'] } } });
+    // delete (individual) should NOT be called anymore
+    expect(prisma.annFile.delete).not.toHaveBeenCalled();
 
     expect(fs.unlinkSync).toHaveBeenCalled();
 

@@ -1,7 +1,7 @@
 // backend/routes/coopRoutes.js
 const express = require("express");
 const router = express.Router();
-const { verifyToken } = require("../middlewares/authMiddleware");
+const { verifyToken, verifyRole } = require("../middlewares/authMiddleware");
 const coopController = require("../controllers/coopController");
 const supervisionController = require("../controllers/supervisionController");
 
@@ -14,11 +14,11 @@ router.post(
 );
 
 router.delete("/documents/:id", verifyToken, coopController.deleteDocument);
-router.put("/status", verifyToken, coopController.updateCoopStatus);
+router.put("/status", verifyToken, verifyRole('staff', 'teacher'), coopController.updateCoopStatus);
 
 // Student supervision routes — วางไว้ใน coopRoutes เพื่อหลีกเลี่ยง routing ambiguity
 router.get("/supervision/me", verifyToken, supervisionController.getStudentSupervision);
-router.post("/supervision/propose", verifyToken, supervisionController.proposeSupervisionDate);
+router.post("/supervision/propose", verifyToken, verifyRole('student'), supervisionController.proposeSupervisionDate);
 // ปฏิทินนิเทศ (ทุก role เข้าถึงได้)
 router.get("/supervision/calendar", verifyToken, supervisionController.getSupervisionCalendar);
 
