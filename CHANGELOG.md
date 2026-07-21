@@ -1,5 +1,13 @@
 # CHANGELOG — Co_project
 
+## [2026-07-22] fix: แก้ path PDF ซ้ำ `/uploads//uploads/...` ใน A_CoopApplications.tsx
+
+พบจากการทดสอบ end-to-end — modal ตรวจเอกสาร (ตรวจสอบคำร้องสหกิจ) โหลด PDF ไม่ได้
+เนื่องจาก `doc.path` บางรายการเก็บค่าเป็น `/uploads/xxx` อยู่แล้ว แต่ code เติม `/uploads/` ซ้ำ
+
+**แก้ไข:** `A_CoopApplications.tsx:185` — normalize path ก่อนเซต previewUrl
+โดย strip `/uploads/` prefix ออกถ้ามีอยู่แล้ว เพื่อหลีกเลี่ยง double-path
+
 ## [2026-07-21] feat: รองรับ iPad และมือถือทั้งระบบ (responsive breakpoint 1024px)
 
 ขยาย breakpoint ของ sidebar drawer จาก 768px → 1024px เพื่อให้ iPad portrait ทุกรุ่น
