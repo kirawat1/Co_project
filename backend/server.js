@@ -60,7 +60,9 @@ const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
 // -----------------------------
 // Middleware
 // -----------------------------
-const allowedOrigins = [FRONTEND_URL];
+// รองรับหลาย origin: FRONTEND_URL คั่นด้วยคอมมา เช่น
+// FRONTEND_URL=https://ngrok-domain.dev,http://10.198.200.107
+const allowedOrigins = FRONTEND_URL.split(',').map(s => s.trim()).filter(Boolean);
 app.use(cors({
   origin: (origin, callback) => {
     if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
