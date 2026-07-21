@@ -45,7 +45,7 @@ export default function S_Announcements() {
   }, [token]);
 
   return (
-    <div style={page}>
+    <div className="page" style={page}>
       <h1 style={pageTitle}>📢 ประกาศสหกิจศึกษา</h1>
 
       {loading ? (
