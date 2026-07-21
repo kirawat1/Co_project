@@ -1,5 +1,22 @@
 # CHANGELOG — Co_project
 
+## [2026-07-21] Security: Hardening — Helmet, Global Rate Limit, File Upload, Nginx
+
+เพิ่มการป้องกัน Cyber Attack หลายชั้นและเตรียม config สำหรับ HTTPS
+
+### Added
+- **`helmet`** middleware ใน `server.js` — ป้องกัน XSS, clickjacking, content-type sniffing ผ่าน HTTP security headers อัตโนมัติ
+- **Global rate limit** 500 req/15min/IP สำหรับทุก `/api/*` (ยกเว้น `/api/status` health check) — ป้องกัน DDoS/scraping
+- **`docs/nginx.conf`** — hardened Nginx config พร้อม deploy บน VM: rate limit 2 zone (login 10r/m, api 100r/s), block path traversal, block hidden files, HTTP→HTTPS redirect, HSTS, TLSv1.2+, server_tokens off
+
+### Changed
+- **`utils/fileFilters.js`**: เพิ่ม extension validation คู่กับ MIME type check — ป้องกัน MIME spoofing (ไฟล์ .php ที่เปลี่ยน MIME เป็น image/ ผ่านไม่ได้อีกต่อไป)
+- **`middlewares/systemUploadMiddleware.js`**: sanitize `req.body.key` ก่อนใช้เป็นชื่อไฟล์ (เฉพาะ alphanumeric + underscore, max 50 chars) — ป้องกัน path traversal
+
+### Note
+- nginx.conf ใน `docs/` ต้อง copy ไปแทน `C:\nginx\conf\nginx.conf` บน VM หลัง deploy
+- SSL cert path ใน nginx.conf: `C:/nginx/ssl/cert.pem` + `key.pem` — รอ cert จาก IT มหาลัยก่อน activate HTTPS block
+
 ## [2026-06-28] UI: รวม style ปุ่ม (button) ให้เหมือนกันทั้งระบบ
 
 ผู้ใช้รายงานว่าปุ่มแต่ละหน้าดูไม่เหมือนกัน โดยเฉพาะปุ่ม "กรอบสี พื้นหลังขาว" ไม่มี hover ที่ชัดเจนว่ากดได้ — ตรวจสอบพบว่า `S_Theme.tsx` (ธีมกลางที่ใช้จริงทั้ง 3 role) มี dark-mode override ของ `.btn-ghost`/`.btn-secondary`/`.btn-outline`/`.action-btn`/`.btn-delete`/`.btn-link` แต่ไม่มี light-mode base เลย ทำให้ ~30 ไฟล์ต้องไปประกาศ CSS ปุ่มซ้ำกันเองในแต่ละไฟล์ (สีและ hover ไม่ตรงกัน บางจุดไม่มี hover เลย)

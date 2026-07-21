@@ -16,8 +16,10 @@ const storage = multer.diskStorage({
     },
     filename: function (req, file, cb) {
         // ตั้งชื่อไฟล์ตาม Key เพื่อให้ดูง่าย (เช่น KRUT_17150000.png)
-        const ext = path.extname(file.originalname);
-        const key = req.body.key || 'ASSET'; 
+        const ext = path.extname(file.originalname).toLowerCase();
+        // sanitize key — อนุญาตเฉพาะ alphanumeric + underscore ป้องกัน path traversal
+        const rawKey = req.body.key || 'ASSET';
+        const key = rawKey.replace(/[^a-zA-Z0-9_]/g, '_').substring(0, 50);
         cb(null, `${key}_${Date.now()}${ext}`);
     }
 });

@@ -1,6 +1,7 @@
 // backend/server.js
 const express = require("express");
 const cors = require("cors");
+const helmet = require("helmet");
 const dotenv = require("dotenv");
 const path = require("path");
 const rateLimit = require("express-rate-limit");
@@ -21,6 +22,22 @@ const app = express();
 // เชื่อใจ reverse proxy ชั้นแรก (nginx) เพื่อให้ req.ip / X-Forwarded-For
 // เป็น IP จริงของผู้ใช้ ไม่ใช่ IP ของ nginx เอง — จำเป็นสำหรับ rate-limit ให้แม่นยำต่อคน
 app.set('trust proxy', 1);
+
+// Security headers (XSS, clickjacking, content-type sniffing, etc.)
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' }, // อนุญาต /uploads/* ให้โหลดจาก frontend
+}));
+
+// Global rate limit — ป้องกัน scraping / DDoS ระดับ API ทั้งหมด
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 นาที
+  max: 500,                  // 500 req / 15 นาที / IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { ok: false, message: 'Too many requests, please try again later.' },
+  skip: (req) => req.path === '/api/status', // health check ไม่ต้อง limit
+});
+app.use('/api', globalLimiter);
 
 // -----------------------------
 // Routes import
