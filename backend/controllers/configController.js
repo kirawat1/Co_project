@@ -227,7 +227,7 @@ exports.saveT003Config = async (req, res) => {
     try {
         const { startDate, endDate, isOpen } = req.body;
         const payload = { startDate, endDate, isOpen };
-        
+
         await prisma.systemConfig.upsert({
             where: { key: "T003_CONFIG" },
             update: { value: JSON.stringify(payload) },
@@ -236,5 +236,73 @@ exports.saveT003Config = async (req, res) => {
         res.json({ ok: true, message: "บันทึกเวลา T003 สำเร็จ" });
     } catch (err) {
         res.status(500).json({ message: "Error saving T003 config" });
+    }
+};
+
+// ==========================================
+// Gateway Settings — ข้อความและลิงก์ใน S_Gateway
+// ==========================================
+const GATEWAY_DEFAULTS = {
+    gradeSheetDescription: 'กรุณา Make a Copy แบบฟอร์มด้านล่าง กรอกข้อมูลให้ครบ แล้วนำลิงก์ที่แชร์มาใส่ในช่องด้านล่าง',
+    gradeSheetUrl: 'https://docs.google.com/spreadsheets/d/1HGWTsoScRc3XU0abUn6J9TgyFksAoi1V/copy',
+    gradeSheetLinkText: '📋 Make a Copy แบบฟอร์ม',
+    uploadDescription: 'เช่น ใบคำร้อง, ทรานสคริปต์, หนังสือรับรอง ฯลฯ (รองรับ PDF, รูปภาพ)'
+};
+
+const ALLOWED_URL_PROTOCOLS = ['https:', 'http:'];
+function safeUrl(raw) {
+    if (typeof raw !== 'string' || !raw.trim()) return null;
+    try {
+        const u = new URL(raw.trim());
+        return ALLOWED_URL_PROTOCOLS.includes(u.protocol) ? raw.trim() : null;
+    } catch { return null; }
+}
+
+exports.getGatewaySettings = async (req, res) => {
+    try {
+        const config = await prisma.systemConfig.findUnique({ where: { key: 'GATEWAY_SETTINGS' } });
+        let parsed = {};
+        if (config) {
+            try {
+                const p = JSON.parse(config.value);
+                if (p && typeof p === 'object' && !Array.isArray(p)) parsed = p;
+            } catch { /* corrupted value — fall back to defaults */ }
+        }
+        const data = { ...GATEWAY_DEFAULTS, ...parsed };
+        res.json({ ok: true, data });
+    } catch (err) {
+        console.error('Error getting gateway settings:', err);
+        res.status(500).json({ ok: false, message: 'Server error' });
+    }
+};
+
+exports.updateGatewaySettings = async (req, res) => {
+    try {
+        const { gradeSheetDescription, gradeSheetUrl, gradeSheetLinkText, uploadDescription } = req.body;
+
+        // Validate URL protocol to prevent stored XSS via javascript: href
+        if (gradeSheetUrl) {
+            const safe = safeUrl(gradeSheetUrl);
+            if (!safe) {
+                return res.status(400).json({ ok: false, message: 'gradeSheetUrl ต้องเป็น URL แบบ http/https เท่านั้น' });
+            }
+        }
+
+        const payload = {
+            gradeSheetDescription: typeof gradeSheetDescription === 'string' ? gradeSheetDescription.slice(0, 500) : GATEWAY_DEFAULTS.gradeSheetDescription,
+            gradeSheetUrl: safeUrl(gradeSheetUrl) || GATEWAY_DEFAULTS.gradeSheetUrl,
+            gradeSheetLinkText: typeof gradeSheetLinkText === 'string' ? gradeSheetLinkText.slice(0, 100) : GATEWAY_DEFAULTS.gradeSheetLinkText,
+            uploadDescription: typeof uploadDescription === 'string' ? uploadDescription.slice(0, 300) : GATEWAY_DEFAULTS.uploadDescription,
+        };
+
+        await prisma.systemConfig.upsert({
+            where: { key: 'GATEWAY_SETTINGS' },
+            update: { value: JSON.stringify(payload) },
+            create: { key: 'GATEWAY_SETTINGS', value: JSON.stringify(payload) }
+        });
+        res.json({ ok: true, message: 'บันทึกการตั้งค่าเรียบร้อยแล้ว' });
+    } catch (err) {
+        console.error('Error updating gateway settings:', err);
+        res.status(500).json({ ok: false, message: 'Server error' });
     }
 };

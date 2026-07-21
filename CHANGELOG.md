@@ -1,5 +1,26 @@
 # CHANGELOG — Co_project
 
+## [2026-07-22] fix: แก้ code review findings — Gateway Settings (15 issues)
+
+แก้ไขทุกปัญหาที่พบจาก ultra code review ของ Gateway Settings feature
+
+- **`configController.js`:** เพิ่ม `safeUrl()` validate protocol, guard `JSON.parse` ด้วย try-catch + type check, cap string length (500/100/300 chars)
+- **`coopRoutes.js`:** เพิ่ม `GET /api/coop/config/gateway` เพื่อให้ student เรียกใช้โดยไม่ผ่าน `/api/admin/*`
+- **`A_GatewaySettings.tsx`:** เขียนใหม่ทั้งหมด — ใช้ axios แทน fetch (ให้ 401 interceptor ทำงาน), เพิ่ม `loadError` state, `mountedRef` ป้องกัน setState หลัง unmount, client-side URL validation, `handleReset` บันทึกลง backend จริง, `maxLength` ทุก input
+- **`S_Gateway.tsx`:** แยก gateway fetch ออกเป็น `useEffect` แยก (ไม่ผ่าน `fetchData`), เปลี่ยน URL เป็น `/api/coop/config/gateway`, เพิ่ม `safeHref()` ป้องกัน XSS บน href, เพิ่ม fallback text เมื่อ `gradeSheetLinkText` ว่าง
+
+## [2026-07-22] feat: ตั้งค่าฟอร์มคำร้อง (Gateway Settings) สำหรับเจ้าหน้าที่และอาจารย์
+
+เพิ่มหน้า "ตั้งค่าฟอร์มคำร้อง" ใน sidebar ของทั้ง Staff และ Teacher เพื่อให้แก้ไขข้อความ/ลิงก์
+ที่แสดงในหน้า S_Gateway (ฟอร์มยื่นคำร้องสหกิจของนักศึกษา) ได้โดยไม่ต้องแก้ code
+
+- **Backend:** เพิ่ม `getGatewaySettings` / `updateGatewaySettings` ใน `configController.js`
+  เก็บค่าใน `SystemConfig` key `GATEWAY_SETTINGS`
+- **API:** `GET /api/admin/config/gateway` (verifyToken) + `PUT /api/admin/config/gateway` (staff/teacher)
+- **Frontend:** สร้าง `A_GatewaySettings.tsx` — form แก้ไขคำอธิบาย, URL, ข้อความปุ่ม พร้อม preview
+- **S_Gateway.tsx:** ดึงค่าจาก API แทน hardcode; ถ้า API ยังไม่มีค่าจะใช้ default เดิม
+- **Navigation:** เพิ่มลิงก์ "ตั้งค่าฟอร์มคำร้อง" ใน A_Sidebar และ T_Sidebar
+
 ## [2026-07-22] fix: แก้ path PDF ซ้ำ `/uploads//uploads/...` ใน A_CoopApplications.tsx
 
 พบจากการทดสอบ end-to-end — modal ตรวจเอกสาร (ตรวจสอบคำร้องสหกิจ) โหลด PDF ไม่ได้

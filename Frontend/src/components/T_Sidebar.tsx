@@ -10,6 +10,7 @@ import {
   IcStar,
   IcClipboardCheck,
   IcBook,
+  IcSettings,
 } from "./icons";
 import { useNotifCounts } from "../hooks/useNotifCounts";
 
@@ -103,6 +104,14 @@ export default function T_Sidebar({ isOpen = false, onClose = () => {} }: Sideba
           <span className="text">T008 เล่มรายงานสหกิจ </span>
         </NavLink>
 
+        <NavLink
+          to="/teacher/gateway-settings"
+          className={({ isActive }) => "item" + (isActive ? " active" : "")}
+          onClick={nav}
+        >
+          <span className="ico"><IcSettings /></span>
+          <span className="text">ตั้งค่าฟอร์มคำร้อง</span>
+        </NavLink>
 
       </nav>
 
