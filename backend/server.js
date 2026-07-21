@@ -35,7 +35,7 @@ const globalLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { ok: false, message: 'Too many requests, please try again later.' },
-  skip: (req) => req.path === '/api/status', // health check ไม่ต้อง limit
+  skip: (req) => req.originalUrl === '/api/status', // health check ไม่ต้อง limit
 });
 app.use('/api', globalLimiter);
 
@@ -71,35 +71,13 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Rate limit สำหรับ login/register endpoint เท่านั้น (ป้องกัน brute force / spam)
-// ไม่รวม GET /me เพราะถูกเรียกทุก page load
-const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 นาที
-  max: 30,                   // 30 ครั้ง / 15 นาที
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { ok: false, message: "ลองใหม่ภายหลัง (พยายาม login มากเกินไป)" },
-});
-
-// Rate limit เฉพาะ register — ป้องกัน spam สร้าง account
-const registerLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 ชั่วโมง
-  max: 10,                   // 10 ครั้ง / ชั่วโมง ต่อ IP
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { ok: false, message: "สมัครสมาชิกบ่อยเกินไป กรุณารอแล้วลองใหม่" },
-});
-
 // static
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // -----------------------------
 // Routes
 // -----------------------------
-// /api/auth/me ไม่จำกัด (ถูกเรียกทุกหน้า) — limiter ใช้กับ signin/sso เท่านั้น
-app.use("/api/auth/signin", loginLimiter);
-app.use("/api/auth/login", loginLimiter);
-app.use("/api/auth/register", registerLimiter);
+// loginLimiter และ registerLimiter ถูกผูกตรง route ใน authRoutes.js แล้ว
 app.use("/api/auth", authRouter);
 app.use("/api/companies", companyRoutes);
 app.use("/api/announcements", announcementRoutes);
