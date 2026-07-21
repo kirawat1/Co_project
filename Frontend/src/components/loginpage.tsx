@@ -309,8 +309,8 @@ export default function LoginPage() {
             </button>
           </form>
 
-          {/* ── Google Sign-In (students only) ── */}
-          {role === "student" && (
+          {/* ── Google Sign-In (students only, ไม่แสดงเมื่อเข้าผ่าน IP เพราะ Google OAuth ไม่รองรับ raw IP) ── */}
+          {role === "student" && !/^\d+\.\d+\.\d+\.\d+$/.test(window.location.hostname) && (
             <>
               <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "18px 0 14px" }}>
                 <div style={{ flex: 1, height: 1, background: "var(--border,#e5e7eb)" }} />
