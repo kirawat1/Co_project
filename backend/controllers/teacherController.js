@@ -111,7 +111,7 @@ exports.updateProfile = async (req, res) => {
     res.json({ ok: true, data: result });
   } catch (err) {
     console.error("UPDATE PROFILE ERROR:", err);
-    res.status(500).json({ message: "Update failed", error: err.message });
+    res.status(500).json({ ok: false, message: "Update failed" });
   }
 };
 
@@ -165,7 +165,7 @@ exports.updateTeacherById = async (req, res) => {
     res.json({ ok: true, data: { ...updated, email: updated.user?.email } });
   } catch (err) {
     console.error("UPDATE TEACHER BY ID ERROR:", err);
-    res.status(500).json({ message: "Update failed", error: err.message });
+    res.status(500).json({ ok: false, message: "Update failed" });
   }
 };
 

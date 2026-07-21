@@ -129,7 +129,7 @@ exports.loginWithSSO = async (req, res) => {
     const kkuAccessToken = ssoData.data.access_token;
 
     // --- 2. กำหนด Role และ Username ---
-    let role = "STUDENT";
+    let role = "student";
     let username = "";
 
     // ถ้ารหัสนักศึกษาไม่ว่าง แปลว่าเป็นนักศึกษา
@@ -277,22 +277,10 @@ exports.loginWithSSO = async (req, res) => {
 // ==========================================
 exports.getProfile = async (req, res) => {
   try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader) return res.status(401).json({ ok: false, message: "ไม่มี token" });
-
-    const token = authHeader.split(" ")[1];
-    if (!token) return res.status(401).json({ ok: false, message: "token ไม่ถูกต้อง" });
-
-    let payload;
-    try {
-      payload = jwt.verify(token, process.env.JWT_SECRET);
-    } catch {
-      return res.status(401).json({ ok: false, message: "token หมดอายุหรือไม่ถูกต้อง" });
-    }
-
+    // verifyToken middleware set req.user แล้ว — ไม่ต้อง verify JWT ซ้ำ
     const user = await prisma.user.findUnique({
-      where: { id: payload.id },
-      include: { student: true, teacher: true }, // ✅ Include teacher ด้วยเผื่อเป็นอาจารย์
+      where: { id: req.user.id },
+      include: { student: true, teacher: true },
     });
 
     if (!user) return res.status(404).json({ ok: false, message: "ไม่พบผู้ใช้งาน" });

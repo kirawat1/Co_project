@@ -30,7 +30,7 @@ router.put('/documents/review-t002', verifyToken, verifyRole('teacher', 'admin',
 router.put('/documents/review-t003', verifyToken, verifyRole('teacher', 'admin', 'staff'), teacherController.reviewT003);
 
 router.get('/supervisions', verifyToken, supervisionController.getSupervisionsForTeacher);
-router.put('/supervisions/:id/review', verifyToken, supervisionController.reviewSupervision);
+router.put('/supervisions/:id/review', verifyToken, verifyRole('teacher', 'staff'), supervisionController.reviewSupervision);
 
 router.get('/stats', verifyToken, teacherController.getDashboardStats);
 router.get('/latest-requests', verifyToken, teacherController.getLatestRequests);

@@ -10,17 +10,18 @@ exports.getVisitsByStudent = async (req, res) => {
       where: { studentId: studentId },
     });
 
-    if (!student) return res.status(404).json({ message: "Student not found" });
+    if (!student) return res.status(404).json({ ok: false, message: "Student not found" });
 
     const visits = await prisma.visit.findMany({
       where: { studentId: student.id },
       orderBy: { date: 'desc' },
-      include: { teacher: true } // ถ้าอยากได้ชื่ออาจารย์ที่นัด
+      include: { teacher: true }
     });
 
-    res.json(visits);
+    res.json({ ok: true, data: visits });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error(err);
+    res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาด" });
   }
 };
 
@@ -35,7 +36,7 @@ exports.createVisit = async (req, res) => {
       where: { studentId: studentId }
     });
 
-    if (!student) return res.status(404).json({ message: "Student not found" });
+    if (!student) return res.status(404).json({ ok: false, message: "Student not found" });
 
     // หา Teacher ID (Int) จาก User ID
     const teacher = await prisma.teacher.findUnique({
@@ -64,10 +65,10 @@ exports.createVisit = async (req, res) => {
       }
     });
 
-    res.json(newVisit);
+    res.json({ ok: true, data: newVisit });
   } catch (err) {
-    console.log(err);
-    res.status(500).json({ message: err.message });
+    console.error(err);
+    res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาด" });
   }
 };
 
@@ -83,9 +84,9 @@ exports.toggleVisitStatus = async (req, res) => {
     const { id } = req.params;
     const visit = await prisma.visit.findUnique({ where: { id: parseInt(id) } });
 
-    if (!visit) return res.status(404).json({ message: "Visit not found" });
+    if (!visit) return res.status(404).json({ ok: false, message: "Visit not found" });
     if (!(await isOwnerOfVisit(req.user.id, visit))) {
-      return res.status(403).json({ message: "ไม่มีสิทธิ์แก้ไขนัดหมายของอาจารย์ท่านอื่น" });
+      return res.status(403).json({ ok: false, message: "ไม่มีสิทธิ์แก้ไขนัดหมายของอาจารย์ท่านอื่น" });
     }
 
     const newStatus = visit.status === "scheduled" ? "done" : "scheduled";
@@ -95,9 +96,10 @@ exports.toggleVisitStatus = async (req, res) => {
       data: { status: newStatus }
     });
 
-    res.json(updated);
+    res.json({ ok: true, data: updated });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error(err);
+    res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาด" });
   }
 };
 
@@ -106,14 +108,15 @@ exports.deleteVisit = async (req, res) => {
   try {
     const { id } = req.params;
     const visit = await prisma.visit.findUnique({ where: { id: parseInt(id) } });
-    if (!visit) return res.status(404).json({ message: "Visit not found" });
+    if (!visit) return res.status(404).json({ ok: false, message: "Visit not found" });
     if (!(await isOwnerOfVisit(req.user.id, visit))) {
       return res.status(403).json({ message: "ไม่มีสิทธิ์ลบนัดหมายของอาจารย์ท่านอื่น" });
     }
 
     await prisma.visit.delete({ where: { id: parseInt(id) } });
-    res.json({ message: "Deleted successfully" });
+    res.json({ ok: true, message: "Deleted successfully" });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error(err);
+    res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาด" });
   }
 };

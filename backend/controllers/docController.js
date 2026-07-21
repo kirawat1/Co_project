@@ -22,7 +22,7 @@ const checkSystemOpen = async (docType) => {
     const { startDate, endDate, isOpen } = JSON.parse(config.value);
 
     if (!isOpen) {
-        console.log(`❌ [Upload Blocked]: ${configKey} is set to isOpen = false`);
+        console.warn(`❌ [Upload Blocked]: ${configKey} is set to isOpen = false`);
         return false;
     }
 

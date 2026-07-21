@@ -8,7 +8,7 @@ exports.getCompanies = async (req, res) => {
       include: { mentors: true },
       orderBy: { id: 'desc' } // (แถม) เรียงจากบริษัทล่าสุดขึ้นก่อน
     });
-    res.json(companies);
+    res.json({ ok: true, data: companies });
   } catch (err) {
     console.error("Get Companies Error:", err);
     res.status(500).json({ ok: false, message: "ดึงข้อมูลบริษัทไม่สำเร็จ" });
@@ -42,7 +42,7 @@ exports.addCompany = async (req, res) => {
     res.json({ ok: true, company });
   } catch (err) {
     console.error("Add Company Error:", err);
-    res.status(400).json({ ok: false, message: "เพิ่มบริษัทไม่สำเร็จ" });
+    res.status(500).json({ ok: false, message: "เพิ่มบริษัทไม่สำเร็จ" });
   }
 };
 
@@ -92,7 +92,7 @@ exports.updateCompany = async (req, res) => {
     res.json({ ok: true, company: updated });
   } catch (err) {
     console.error("Update Company Error:", err);
-    res.status(400).json({ ok: false, message: "แก้ไขไม่สำเร็จ" });
+    res.status(500).json({ ok: false, message: "แก้ไขไม่สำเร็จ" });
   }
 };
 
@@ -131,7 +131,7 @@ exports.deleteCompany = async (req, res) => {
     res.json({ ok: true, message: "ลบบริษัทและพี่เลี้ยงสำเร็จ" });
   } catch (err) {
     console.error("Delete Company Error:", err);
-    res.status(400).json({ ok: false, message: "ลบไม่สำเร็จ" });
+    res.status(500).json({ ok: false, message: "ลบไม่สำเร็จ" });
   }
 };
 // ---------------- Mentor ----------------

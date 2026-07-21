@@ -131,18 +131,17 @@ exports.updateMyProfile = async (req, res) => {
     });
 
     if (data.emails && Array.isArray(data.emails)) {
-      for (const e of data.emails) {
-        if (e.email && e.email.trim() !== "") {
-          await prisma.studentEmail.upsert({
-            where: { id: e.id || -1 },
-            update: { email: e.email, primary: e.primary || false },
-            create: {
-              email: e.email,
-              primary: e.primary || false,
-              studentId: student.id,
-            },
-          });
-        }
+      const validEmails = data.emails.filter(e => e.email && e.email.trim() !== "");
+      // batch: ลบ email เก่าทั้งหมดแล้ว recreate — หลีกเลี่ยง N+1
+      await prisma.studentEmail.deleteMany({ where: { studentId: student.id } });
+      if (validEmails.length > 0) {
+        await prisma.studentEmail.createMany({
+          data: validEmails.map(e => ({
+            email: e.email,
+            primary: e.primary || false,
+            studentId: student.id,
+          })),
+        });
       }
     }
 
@@ -295,8 +294,11 @@ const PRE_INTERNSHIP_STATUSES = [
 
 exports.downloadPlacementLetter = async (req, res) => {
   try {
-    const studentId = req.user.id; // มาจาก token
+    // ต้องหา Student.id จาก User.id ก่อน — สองตาราง มี id คนละ sequence กัน
+    const student = await prisma.student.findUnique({ where: { userId: req.user.id } });
+    if (!student) return res.status(404).json({ ok: false, message: "ไม่พบข้อมูลนักศึกษา" });
 
+    const studentId = student.id;
     const coop = await prisma.studentCoop.findUnique({ where: { studentId } });
 
     if (!coop?.placeLetterUrl || !PRE_INTERNSHIP_STATUSES.includes(coop.status)) {

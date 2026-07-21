@@ -21,13 +21,13 @@ const studentController = require('../controllers/studentController');
 const multerMemory = require('multer')({ storage: require('multer').memoryStorage() });
 
 // สิทธิ์ที่อนุญาตจัดการระบบ (ต้องตรงกับ Prisma enum — lowercase)
-const ADMIN_ROLES = ['admin', 'teacher', 'staff'];
-const STAFF_ONLY = ['admin', 'staff'];
+const ADMIN_ROLES = ['teacher', 'staff'];
+const STAFF_ONLY = ['staff'];
 
 // ==========================================
 // T000 — เอกสารใบสมัคร
 // ==========================================
-router.get('/config/t000', verifyToken, adminDocController.getT000Config);
+router.get('/config/t000', verifyToken, verifyRole(...ADMIN_ROLES), adminDocController.getT000Config);
 router.post('/config/t000', verifyToken, verifyRole(...ADMIN_ROLES), adminDocController.saveT000Config);
 router.get('/t000/students', verifyToken, verifyRole(...ADMIN_ROLES), adminDocController.getStudentsForT000);
 router.put('/doc/:id/status', verifyToken, verifyRole(...ADMIN_ROLES), adminDocController.updateDocStatus);

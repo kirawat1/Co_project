@@ -46,6 +46,7 @@ export default function Company({ profile }: { profile: any }) {
     const token = localStorage.getItem("coop.token");
 
     const [items, setItems] = useState<CompanyRecord[]>([]);
+    const [loading, setLoading] = useState(true);
     const [q, setQ] = useState("");
 
     const [showAdd, setShowAdd] = useState(false);
@@ -70,8 +71,9 @@ export default function Company({ profile }: { profile: any }) {
             headers: { Authorization: `Bearer ${token}` },
         })
             .then(res => res.json())
-            .then(data => setItems(data))
-            .catch(err => console.error(err));
+            .then(data => setItems(Array.isArray(data) ? data : (data?.data ?? [])))
+            .catch(err => console.error(err))
+            .finally(() => setLoading(false));
 
         // 🟢 2. ดึงข้อมูลเทอม/ปีการศึกษา
         const fetchPeriods = async () => {
@@ -224,6 +226,8 @@ export default function Company({ profile }: { profile: any }) {
     }
 
     /* ---------------- UI ---------------- */
+    if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>กำลังโหลดข้อมูล...</div>;
+
     return (
         <div className="page" style={{ padding: 4, margin: 28, marginLeft: 65 }}>
             <section className="card" style={{ padding: 24, marginBottom: 28 }}>

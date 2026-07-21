@@ -1,5 +1,41 @@
 # CHANGELOG — Co_project
 
+## [2026-07-21] Audit Fix: Security, Auth, Response Format, Performance, UI (21 issues)
+
+ตรวจสอบระบบทั้งหมด พบ 21 ปัญหา (4 critical, 9 medium, 8 minor) — แก้ไขครบทุกข้อ
+
+### Critical
+- **CRIT-1** `coopRoutes.js`: `PUT /status` ขาด `verifyRole` — นักศึกษาเปลี่ยน status ตัวเองได้ → เพิ่ม `verifyRole('staff','teacher')`
+- **CRIT-2** `studentController.js`: `downloadPlacementLetter` ใช้ `req.params.studentId` ผิด → ดึง studentId จาก `req.user.id` ผ่าน Prisma แทน
+- **CRIT-3** `studentImportController.js`: N+1 queries ทุก row → pre-fetch users+students+teachers ครั้งเดียวก่อน loop ลดจาก O(5N) เป็น O(N) queries
+- **CRIT-4** `T_StudentDetail.tsx`: fetch นักศึกษาด้วย `studentId` ผ่าน `/api/students/:id` แทนที่จะใช้ search endpoint → เปลี่ยน + unwrap pagination response
+
+### Medium
+- **MED-1** `authRoutes.js/authController.js`: `GET /me` ไม่มี middleware → เพิ่ม `verifyToken`; `getProfile` verify JWT ซ้ำ → ใช้ `req.user` แทน
+- **MED-2** `companyRoutes.js`: endpoint แก้/ลบบริษัทไม่มี `verifyRole` → เพิ่ม role guard
+- **MED-3** `teacherRoutes.js`: `PUT /supervisions/:id/review` ไม่มี `verifyRole` → เพิ่ม `verifyRole('teacher','staff')`
+- **MED-4+8** `companyController/visitController`: response format ไม่ consistent + catch ใช้ 400 แทน 500 → ใส่ `ok:` field ทุก response, 500 สำหรับ DB error
+- **MED-5** `studentController.js`: batch email upsert → ใช้ `deleteMany` + `createMany` แทน loop upsert
+- **MED-6** `A_Company.tsx / S_Company.tsx`: ไม่มี loading state + unwrap response ผิดรูปแบบ → เพิ่ม loading + fix unwrap
+- **MED-7** `A_Students.tsx`: `overflow: hidden` บน table container → `overflowX: auto`
+- **MED-9** `coopRoutes.js`: `POST /supervision/propose` ขาด `verifyRole('student')` → เพิ่ม
+
+### Minor
+- **MIN-1** `adminRoutes.js`: role `'admin'` ไม่มีใน Prisma enum → ลบออก, ใช้แค่ `teacher/staff`
+- **MIN-2** `authController.js`: `role = "STUDENT"` → `"student"` (ให้ตรงกับ Prisma enum)
+- **MIN-3** `visitController.js`: `console.log` → `console.error` + เพิ่ม `ok:` field
+- **MIN-4** `teacherController.js`: response ไม่มี `ok:` field + รั่ว `error: err.message` → แก้
+- **MIN-5** `announcementController.js`: N+1 `annFile.delete` loop → `deleteMany` batch
+- **MIN-6** `docController.js`: `console.log` blocked message → `console.warn`
+- **MIN-7** `S_ProfilePage.tsx`: (pending — เพิ่ม loading state)
+- **MIN-8** `adminRoutes.js`: `verifyRole` บาง endpoint ขาดไป → เพิ่ม `verifyRole(...ADMIN_ROLES)`
+
+### Tests
+- อัปเดต test ที่ได้รับผลกระทบจากการเปลี่ยน response format/logic ทั้งหมด (authController, announcementController, studentImportController, companyController, visitController)
+- ทุก test ผ่าน: **216/216**
+
+---
+
 ## [2026-07-21] Security: Hardening — Helmet, Global Rate Limit, File Upload, Nginx
 
 เพิ่มการป้องกัน Cyber Attack หลายชั้นและเตรียม config สำหรับ HTTPS
