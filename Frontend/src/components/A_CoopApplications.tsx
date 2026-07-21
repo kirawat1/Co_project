@@ -182,7 +182,8 @@ export default function A_CoopApplications() {
     };
 
     const handlePreview = (doc: Document) => {
-        const url = `/uploads/${doc.path}`;
+        const cleanPath = doc.path.startsWith('/uploads/') ? doc.path : `/uploads/${doc.path}`;
+        const url = cleanPath;
         setPreviewUrl(url);
         setPreviewType(doc.path.toLowerCase().endsWith('.pdf') ? 'pdf' : 'image');
     };
