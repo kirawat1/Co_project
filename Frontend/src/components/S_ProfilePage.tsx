@@ -118,6 +118,7 @@ export default function S_ProfilePage() {
   const [companies, setCompanies] = useState<StudentCompany[]>([]);
   const [teachers, setTeachers] = useState<any[]>([]);
   const [openStudentModal, setOpenStudentModal] = useState(false);
+  const [loading, setLoading] = useState(true);
   const token = localStorage.getItem("coop.token");
 
   // ── KKU REG Sync ──────────────────────────────
@@ -174,39 +175,32 @@ export default function S_ProfilePage() {
   useEffect(() => {
     if (!token) return;
 
-    // 1. ดึงข้อมูล Profile
-    fetch("/api/students/me", {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then(res => res.json())
-      .then((data: StudentProfile) => {
-        const emails = data.emails?.length > 0 ? data.emails : [{ email: "", primary: false }];
-        const company = data.coop ? { ...data.coop.company, mentor: data.coop.mentor } : data.company;
-        setProfile({ ...data, emails, company });
-      })
-      .catch(err => console.error("Error fetching profile:", err));
+    Promise.all([
+      fetch("/api/students/me", { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()),
+      fetch("/api/companies", { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()),
+      fetch("/api/teachers", { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()),
+    ])
+      .then(([profileData, companyData, teacherData]) => {
+        const emails = profileData.emails?.length > 0 ? profileData.emails : [{ email: "", primary: false }];
+        const company = profileData.coop ? { ...profileData.coop.company, mentor: profileData.coop.mentor } : profileData.company;
+        setProfile({ ...profileData, emails, company });
 
-    // 2. ดึงข้อมูลบริษัท
-    fetch("/api/companies", {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then(res => res.json())
-      .then(data => setCompanies(data))
-      .catch(err => console.error("Error fetching companies:", err));
+        const companyList = Array.isArray(companyData) ? companyData : (companyData?.data ?? []);
+        setCompanies(companyList);
 
-    // 3. ดึงข้อมูลอาจารย์
-    fetch("/api/teachers", {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then(res => res.json())
-      .then(data => {
-        if (data.ok && data.teachers) setTeachers(data.teachers);
-        else if (Array.isArray(data)) setTeachers(data);
+        if (teacherData.ok && teacherData.teachers) setTeachers(teacherData.teachers);
+        else if (Array.isArray(teacherData)) setTeachers(teacherData);
       })
-      .catch(err => console.error("Error fetching teachers:", err));
+      .catch(err => console.error("Error fetching profile data:", err))
+      .finally(() => setLoading(false));
   }, [token]);
 
-  if (!profile) return <div style={{ padding: 40, textAlign: 'center' }}>กำลังโหลดข้อมูล...</div>;
+  if (loading || !profile) return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 80, gap: 12 }}>
+      <Spinner size={24} />
+      <span style={{ color: '#64748b', fontWeight: 600 }}>กำลังโหลดข้อมูล...</span>
+    </div>
+  );
 
   /* ================= SAVE ================= */
   async function saveStudentInfo(updatedProfile: StudentProfile) {
