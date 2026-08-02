@@ -22,6 +22,8 @@ export default function IssueLetterModal({ student, onClose, onSuccess }: Props)
 
     const startDate = student.coop?.actualStartDate || student.coopApplicationForm?.startDate || "";
     const endDate = student.coop?.actualEndDate || student.coopApplicationForm?.endDate || "";
+    const [manualStartDate, setManualStartDate] = useState("");
+    const effectiveStartDate = startDate || manualStartDate;
 
     const loadCommonData = async () => {
         const [resAssets, resDean] = await Promise.all([
@@ -44,6 +46,7 @@ export default function IssueLetterModal({ student, onClose, onSuccess }: Props)
     };
 
     const handleCreatePdf = async () => {
+        if (!effectiveStartDate) return alert("กรุณากรอกวันที่เริ่มฝึกสหกิจก่อนออกเอกสาร");
         setLoadingPdf(true);
         try {
             const { getAsset, deanName, deanPosition } = await loadCommonData();
@@ -52,7 +55,7 @@ export default function IssueLetterModal({ student, onClose, onSuccess }: Props)
             const acceptUrl = getAsset("ACCEPTANCE_FORM");
             if (!krutUrl) return alert("⚠️ ไม่พบไฟล์ตราครุฑ (KRUT) กรุณาอัปโหลดในหน้าตั้งค่า");
 
-            const profile = { ...student, coop: { ...student.coop, actualStartDate: startDate, actualEndDate: endDate } };
+            const profile = { ...student, coop: { ...student.coop, actualStartDate: effectiveStartDate, actualEndDate: endDate } };
             // ส่ง studentFiles เฉพาะที่มีไฟล์จริง — ป้องกัน 404
             const studentFiles = (student.documents || [])
                 .filter((d: any) => d.path)
@@ -70,6 +73,7 @@ export default function IssueLetterModal({ student, onClose, onSuccess }: Props)
     };
 
     const handleCreateDoc = async () => {
+        if (!effectiveStartDate) return alert("กรุณากรอกวันที่เริ่มฝึกสหกิจก่อนออกเอกสาร");
         setLoadingDoc(true);
         try {
             const { deanName, deanPosition } = await loadCommonData();
@@ -79,7 +83,7 @@ export default function IssueLetterModal({ student, onClose, onSuccess }: Props)
                 studentId: student.studentId,
                 companyName: student.coop?.company?.name || "....",
                 companyContact: student.coop?.company?.contactPerson || undefined,
-                startDate, endDate, deanName, deanPosition,
+                startDate: effectiveStartDate, endDate, deanName, deanPosition,
             });
             const blob = createWordBlob(html);
             setDocBlob(blob);
@@ -141,6 +145,16 @@ export default function IssueLetterModal({ student, onClose, onSuccess }: Props)
 
                     {/* RIGHT: Controls */}
                     <div className="letter-sidebar" style={{ width: 300, display: 'flex', flexDirection: 'column', gap: 14, flexShrink: 0, overflowY: 'auto' }}>
+                        {!startDate && (
+                            <div style={{ padding: '10px 14px', background: '#fef9c3', borderRadius: 8, border: '1px solid #fde047' }}>
+                                <label style={{ ...lbl, color: '#854d0e' }}>
+                                    วันที่เริ่มฝึกสหกิจ <span style={{ color: 'red' }}>*</span>
+                                    <span style={{ fontSize: 11, color: '#a16207', marginLeft: 6 }}>(ไม่พบในระบบ กรุณากรอกเพื่อออกเอกสาร)</span>
+                                </label>
+                                <input className="input" type="date" value={manualStartDate} onChange={e => setManualStartDate(e.target.value)} />
+                            </div>
+                        )}
+
                         <div>
                             <div style={sec}>1. ข้อมูลหนังสือ</div>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
