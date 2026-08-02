@@ -62,8 +62,8 @@ model Student {
 
   generalAdvisorId Int?
   coopAdvisorId    Int?
-  generalAdvisor   Teacher? @relation("GeneralAdvisor", fields: [generalAdvisorId], references: [id])
-  coopAdvisor      Teacher? @relation("CoopAdvisor", fields: [coopAdvisorId], references: [id])
+  generalAdvisor   Teacher? @relation("GeneralAdvisor", fields: [generalAdvisorId], references: [id], onDelete: SetNull)
+  coopAdvisor      Teacher? @relation("CoopAdvisor", fields: [coopAdvisorId], references: [id], onDelete: SetNull)
 
   userId Int  @unique
   user   User @relation(fields: [userId], references: [id])
@@ -254,6 +254,7 @@ model Mentor {
 
 model Teacher {
   id                      Int                      @id @default(autoincrement())
+  prefix                  String?
   firstName               String
   lastName                String
   email                   String                   @unique
