@@ -38,4 +38,10 @@ export const MODAL_CSS = `
     .letter-preview { flex: none !important; min-height: 280px !important; }
     .letter-sidebar { width: 100% !important; }
   }
+  /* Force light mode — document preview must not be affected by app dark theme */
+  .modal-backdrop { color-scheme: light; }
+  .modal-card { background: #ffffff !important; color: #1e293b !important; }
+  .modal-card .input, .modal-card select, .modal-card textarea { background: #f8fafc !important; color: #1e293b !important; border-color: #e2e8f0 !important; }
+  .modal-card label { color: #374151 !important; }
+  .modal-card h2, .modal-card h3 { color: #0f172a !important; }
 `;
