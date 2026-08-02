@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { IcEdit, IcSave, IcUser } from "./icons";
+import { IcSave, IcUser } from "./icons";
 import { useToast } from "./Toast";
 import ConfirmDialog from "./ConfirmDialog";
 import Spinner from "./Spinner";
@@ -9,11 +9,11 @@ import Spinner from "./Spinner";
 ========================= */
 interface Teacher {
   id: number;
+  prefix: string;
   firstName: string;
   lastName: string;
   email: string;
   phone: string;
-  faculty: string;
   major: string;
   userId?: number;
   isCoopTeacher: boolean;
@@ -26,11 +26,11 @@ const MAJOR_TH: Record<string, string> = {
   CYB: "ความมั่นคงปลอดภัยไซเบอร์",
   AI: "ปัญญาประดิษฐ์",
 };
-const FACULTY_DEFAULT = "วิทยาลัยการคอมพิวเตอร์";
+const TEACHER_PREFIXES = ['อ.', 'ผศ.', 'ผศ.ดร.', 'รศ.', 'รศ.ดร.', 'ศ.', 'ศ.ดร.', 'ดร.'];
 
 const EMPTY_TEACHER: Omit<Teacher, "id"> = {
-  firstName: "", lastName: "", email: "",
-  phone: "", faculty: FACULTY_DEFAULT, major: "",
+  prefix: 'อ.', firstName: "", lastName: "", email: "",
+  phone: "", major: "",
   isCoopTeacher: false,
 };
 
@@ -53,6 +53,7 @@ export default function A_Teacher() {
   const [createForm, setCreateForm] = useState(EMPTY_TEACHER);
   const [pwModal, setPwModal] = useState<Teacher | null>(null);
   const [newPassword, setNewPassword] = useState("");
+  const [createPassword, setCreatePassword] = useState("");
   const [saving, setSaving] = useState(false);
 
   // ConfirmDialog
@@ -88,8 +89,8 @@ export default function A_Teacher() {
   // ─── CRUD handlers ────────────────────────────────────────
 
   const handleCreate = async () => {
-    if (!createForm.firstName || !createForm.lastName || !createForm.email) {
-      toast.warning("กรุณากรอกชื่อ นามสกุล และอีเมล");
+    if (!createForm.firstName || !createForm.lastName || !createForm.email || !createPassword) {
+      toast.warning("กรุณากรอกชื่อ นามสกุล อีเมล และรหัสผ่าน");
       return;
     }
     setSaving(true);
@@ -97,13 +98,14 @@ export default function A_Teacher() {
       const res = await fetch("/api/admin/teachers", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify(createForm),
+        body: JSON.stringify({ ...createForm, password: createPassword }),
       });
       const data = await res.json();
       if (res.ok) {
         toast.success(`เพิ่มอาจารย์ ${createForm.firstName} ${createForm.lastName} สำเร็จ`);
         setCreateModal(false);
         setCreateForm(EMPTY_TEACHER);
+        setCreatePassword("");
         fetchData();
       } else {
         toast.error(data.message || "เพิ่มอาจารย์ไม่สำเร็จ");
@@ -152,8 +154,8 @@ export default function A_Teacher() {
 
   const handleResetPassword = async () => {
     if (!pwModal) return;
-    if (!newPassword || newPassword.length < 6) {
-      toast.warning("รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร");
+    if (!newPassword || newPassword.length < 8) {
+      toast.warning("รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร");
       return;
     }
     setSaving(true);
@@ -209,7 +211,7 @@ export default function A_Teacher() {
       <section style={card}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
           <h2 style={{ margin: 0 }}>จัดการข้อมูลอาจารย์</h2>
-          <button style={addBtn} onClick={() => { setCreateForm(EMPTY_TEACHER); setCreateModal(true); }}>
+          <button style={addBtn} onClick={() => { setCreateForm(EMPTY_TEACHER); setCreatePassword(""); setCreateModal(true); }}>
             + เพิ่มอาจารย์
           </button>
         </div>
@@ -249,7 +251,7 @@ export default function A_Teacher() {
                     <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#eff6ff", display: "flex", alignItems: "center", justifyContent: "center" }}>
                       <IcUser width={16} height={16} style={{ color: "#0074B7" }} />
                     </div>
-                    <span style={{ fontWeight: 600, color: "#1e293b" }}>{t.firstName} {t.lastName}</span>
+                    <span style={{ fontWeight: 600, color: "#1e293b" }}>{[t.prefix, t.firstName, t.lastName].filter(Boolean).join(' ')}</span>
                     {t.isCoopTeacher && (
                       <span style={{ background: '#eff6ff', color: '#2563eb', fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 6, marginLeft: 6 }}>
                         ประจำวิชาสหกิจ
@@ -302,14 +304,21 @@ export default function A_Teacher() {
           <div style={modal}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
               <h2 style={{ margin: 0, fontSize: 20 }}>➕ เพิ่มอาจารย์ใหม่</h2>
-              <button onClick={() => setCreateModal(false)} style={closeBtn}>✕</button>
-            </div>
-            <div style={{ background: "#eff6ff", padding: 12, borderRadius: 8, marginBottom: 20, fontSize: 13, color: "#1e40af" }}>
-              📌 รหัสผ่านเริ่มต้น: <strong>1111111111111</strong> (อาจารย์แก้ไขเองได้ภายหลัง)
+              <button onClick={() => { setCreateModal(false); setCreatePassword(""); }} style={closeBtn}>✕</button>
             </div>
             <TeacherFields form={createForm} setForm={setCreateForm} majorOptions={majorOptions} allowEmailEdit />
+            <div style={{ marginTop: 16 }}>
+              <label style={labelStyle}>รหัสผ่าน <span style={{ color: "red" }}>*</span></label>
+              <input
+                type="password"
+                style={inputStyle}
+                value={createPassword}
+                onChange={e => setCreatePassword(e.target.value)}
+                placeholder="อย่างน้อย 8 ตัว มีตัวใหญ่ ตัวเล็ก ตัวเลข อักขระพิเศษ"
+              />
+            </div>
             <div style={modalFooter}>
-              <button style={ghostBtn} onClick={() => setCreateModal(false)}>ยกเลิก</button>
+              <button style={ghostBtn} onClick={() => { setCreateModal(false); setCreatePassword(""); }}>ยกเลิก</button>
               <button style={{ ...saveBtn, display: "flex", alignItems: "center", gap: 8 }} onClick={handleCreate} disabled={saving}>
                 {saving ? <><Spinner size={16} color="#fff" /> กำลังบันทึก...</> : "✅ เพิ่มอาจารย์"}
               </button>
@@ -336,11 +345,11 @@ export default function A_Teacher() {
               style={inputStyle}
               value={newPassword}
               onChange={e => setNewPassword(e.target.value)}
-              placeholder="ขั้นต่ำ 6 ตัวอักษร"
+              placeholder="ขั้นต่ำ 8 ตัว มีตัวใหญ่ ตัวเล็ก ตัวเลข อักขระพิเศษ"
               autoFocus
             />
             <div style={{ marginTop: 8, fontSize: 12, color: "#94a3b8" }}>
-              💡 แนะนำ: ตั้งเป็นเลขบัตรประชาชน 13 หลักของอาจารย์
+              💡 ต้องมีตัวอักษรพิมพ์ใหญ่ พิมพ์เล็ก ตัวเลข และอักขระพิเศษ เช่น !@#$%
             </div>
             <div style={modalFooter}>
               <button style={ghostBtn} onClick={() => setPwModal(null)}>ยกเลิก</button>
@@ -419,12 +428,14 @@ function TeacherFields({ form, setForm, majorOptions, allowEmailEdit }: {
         />
       </div>
       <div>
-        <label style={labelStyle}>เบอร์โทร</label>
-        <input style={inputStyle} value={form.phone || ""} onChange={e => setForm({ ...form, phone: e.target.value })} placeholder="0XX-XXXXXXX" />
+        <label style={labelStyle}>คำนำหน้า *</label>
+        <select style={{ ...inputStyle, cursor: "pointer" }} value={form.prefix || 'อ.'} onChange={e => setForm({ ...form, prefix: e.target.value })}>
+          {TEACHER_PREFIXES.map(p => <option key={p} value={p}>{p}</option>)}
+        </select>
       </div>
       <div>
-        <label style={labelStyle}>คณะ</label>
-        <input style={inputStyle} value={form.faculty || ""} placeholder={FACULTY_DEFAULT} onChange={e => setForm({ ...form, faculty: e.target.value })} />
+        <label style={labelStyle}>เบอร์โทร</label>
+        <input style={inputStyle} value={form.phone || ""} onChange={e => setForm({ ...form, phone: e.target.value })} placeholder="0XX-XXXXXXX" />
       </div>
       <div style={{ gridColumn: "span 2" }}>
         <label style={labelStyle}>สาขาวิชา</label>
