@@ -16,6 +16,7 @@ export interface DocumentHistory {
 export interface DocumentItem {
   id: string;
   title: string;
+  description?: string;
   dueDate?: string;
   fileName?: string;
   status: DocStatus;
@@ -143,6 +144,11 @@ export default function DocTable({
               <tr key={it.id} className="row">
                 <Td strong>
                   {it.title}
+                  {it.description && (
+                    <div className="meta" style={{ color: '#64748b', fontWeight: 400, marginTop: 2 }}>
+                      {it.description}
+                    </div>
+                  )}
                   {revisionCount(it) > 0 && (
                     <div className="meta">
                       แก้ไขครั้งที่ {revisionCount(it)}

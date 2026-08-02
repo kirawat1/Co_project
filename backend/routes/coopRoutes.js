@@ -26,4 +26,8 @@ router.get("/supervision/calendar", verifyToken, supervisionController.getSuperv
 // Gateway display config — readable by all authenticated users (students included)
 router.get("/config/gateway", verifyToken, configController.getGatewaySettings);
 
+// Doc requirements — read-only, accessible by all authenticated users (students need this for S_Docs)
+const docReqController = require("../controllers/docRequirementController");
+router.get("/doc-requirements", verifyToken, docReqController.getRequirements);
+
 module.exports = router;

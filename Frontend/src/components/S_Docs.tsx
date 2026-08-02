@@ -260,7 +260,7 @@ const DispatchManagementCard = ({ profile, onUpload, onRefresh }: { profile: any
 export default function S_Docs({ profile, setProfile }: { profile: LocalStudentProfile; setProfile: (p: LocalStudentProfile) => void; }) {
   const [loading, setLoading] = useState(false);
   const [config, setConfig] = useState<{ endDate?: string; isOpen?: boolean } | null>(null);
-  const [requiredDocs, setRequiredDocs] = useState<{ id: string; title: string; isRequired: boolean }[]>([]);
+  const [requiredDocs, setRequiredDocs] = useState<{ id: string; title: string; description?: string; isRequired: boolean }[]>([]);
 
   // 💾 เวลาบันทึกอัตโนมัติล่าสุด
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
@@ -299,6 +299,7 @@ export default function S_Docs({ profile, setProfile }: { profile: LocalStudentP
             setRequiredDocs(reqData.requirements.map((r: any) => ({
               id: r.docKey,
               title: r.title,
+              description: r.description || undefined,
               isRequired: r.isRequired
             })));
           }
@@ -431,6 +432,7 @@ export default function S_Docs({ profile, setProfile }: { profile: LocalStudentP
       id: req.id,
       documentId: uploaded?.id,
       title: req.isRequired ? `${req.title} *` : req.title,
+      description: req.description,
       dueDate: config?.endDate,
       fileName: uploaded ? uploaded.name : undefined,
       status: uploaded ? (uploaded.status as any) : "waiting",
