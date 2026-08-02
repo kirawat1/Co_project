@@ -4,6 +4,15 @@ import StatusBadge from "./StatusBadge";
 import SupervisionCalendar from "./SupervisionCalendar";
 import type { CalendarEvent } from "./SupervisionCalendar";
 
+// --- Status UI Map ---
+const SUPERVISION_STATUS_UI: Record<string, { icon: string; label: string; color: string; bg: string }> = {
+    PENDING_TEACHER:  { icon: '⏳', label: 'รออาจารย์ตรวจสอบ',           color: '#d97706', bg: '#fef3c7' },
+    TEACHER_REJECTED: { icon: '❌', label: 'อาจารย์ตีกลับ — เสนอวันใหม่', color: '#dc2626', bg: '#fee2e2' },
+    DATE_CONFIRMED:   { icon: '✅', label: 'อาจารย์ยืนยันวันนิเทศแล้ว',  color: '#059669', bg: '#d1fae5' },
+    LETTER_UPLOADED:  { icon: '📄', label: 'อัปโหลดหนังสือนิเทศแล้ว',    color: '#2563eb', bg: '#dbeafe' },
+    COMPLETED:        { icon: '🎉', label: 'การนิเทศเสร็จสิ้น',          color: '#7c3aed', bg: '#ede9fe' },
+};
+
 // --- Types ---
 type SupervisionStatus =
     | "PENDING_TEACHER"
@@ -45,10 +54,11 @@ export default function S_Supervision() {
 
     const [activePeriod, setActivePeriod] = useState<CoopPeriod | null>(null);
 
-    // Form State
+    // Form State — แต่ละวันที่เสนอ เก็บรูปแบบ (ONLINE/ONSITE) แยกกัน: "YYYY-MM-DD|HH:MM-HH:MM|TYPE"
     const [dates, setDates] = useState<string[]>([""]);
-    const [supType, setSupType] = useState<"ONLINE" | "ONSITE">("ONLINE");
     const [onlineLink, setOnlineLink] = useState<string>("");
+
+    const LOCKED_STATUSES = ["DATE_CONFIRMED", "LETTER_UPLOADED", "COMPLETED"];
 
     const [isEditing, setIsEditing] = useState(false);
     const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
@@ -102,7 +112,6 @@ export default function S_Supervision() {
             if (apptRes.data?.appointment) {
                 const appt = apptRes.data.appointment;
                 setAppointment(appt);
-                setSupType(appt.supervisionType);
                 setOnlineLink(appt.onlineLink || "");
 
                 // โหลดวันที่ที่เคยเสนอไว้เข้า Form State
@@ -145,6 +154,18 @@ export default function S_Supervision() {
         setDates(newDates);
     };
 
+    const getSlotType = (dateStr: string): "ONLINE" | "ONSITE" => {
+        const parts = dateStr.split('|');
+        return parts[2] === 'ONSITE' ? 'ONSITE' : 'ONLINE';
+    };
+
+    const handleTypeChange = (index: number, type: "ONLINE" | "ONSITE") => {
+        const newDates = [...dates];
+        const [dPart = '', tPart = '08:00-10:30'] = (newDates[index] || '').split('|');
+        newDates[index] = `${dPart}|${tPart}|${type}`;
+        setDates(newDates);
+    };
+
     const handleSubmit = async () => {
         const validDates = dates.filter(d => {
             if (!d) return false;
@@ -164,7 +185,8 @@ export default function S_Supervision() {
             }
         }
 
-        if (supType === "ONLINE" && !onlineLink.trim()) {
+        const hasOnlineSlot = validDates.some(d => getSlotType(d) === "ONLINE");
+        if (hasOnlineSlot && !onlineLink.trim()) {
             return alert("กรุณาระบุ Link สำหรับการนิเทศออนไลน์ (เช่น Zoom, Google Meet)");
         }
 
@@ -178,8 +200,8 @@ export default function S_Supervision() {
         try {
             await axios.post("/api/coop/supervision/propose", {
                 proposedDates: JSON.stringify(validDates),
-                supervisionType: supType,
-                onlineLink: supType === "ONLINE" ? onlineLink : null,
+                supervisionType: getSlotType(validDates[0]),
+                onlineLink: hasOnlineSlot ? onlineLink : null,
                 // ส่งชื่อ Co-Teacher เดิมไปด้วยเพื่อไม่ให้ข้อมูลหาย
                 coTeacherName: appointment?.coTeacherName || null
             }, { headers: { Authorization: `Bearer ${token}` } });
@@ -197,8 +219,10 @@ export default function S_Supervision() {
         "T003_SUBMITTED", "T003_EDITS_REQUIRED", "T003_APPROVED"
     ].includes(coopStatus);
 
-    // 🟢 ตรรกะแสดงฟอร์ม: ให้แสดงถ้ายังไม่เคยนัดหมาย, อาจารย์ตีกลับ, หรือผู้ใช้กดปุ่มแก้ไข
-    const showFormView = !appointment || appointment.status === 'TEACHER_REJECTED' || isEditing;
+    const isConfirmed = appointment ? LOCKED_STATUSES.includes(appointment.status) : false;
+
+    // 🟢 ตรรกะแสดงฟอร์ม: ให้แสดงถ้ายังไม่เคยนัดหมาย, อาจารย์ตีกลับ, หรือผู้ใช้กดปุ่มแก้ไข (ยกเว้นถูกล็อกแล้ว)
+    const showFormView = !appointment || appointment.status === 'TEACHER_REJECTED' || (isEditing && !isConfirmed);
 
     if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#0074B7' }}>กำลังโหลดข้อมูล...</div>;
 
@@ -261,6 +285,28 @@ export default function S_Supervision() {
                     {/* ================= CARD 2: ฟอร์มยื่นเสนอ / สถานะ ================= */}
                     <section className="card">
 
+                        {/* ── สถานะปัจจุบัน (text + icon card) ── */}
+                        {appointment?.status && (() => {
+                            const ui = SUPERVISION_STATUS_UI[appointment.status];
+                            if (!ui) return null;
+                            return (
+                                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '12px 16px', borderRadius: 10, background: ui.bg, border: `1px solid ${ui.color}40`, marginBottom: 16 }}>
+                                    <span style={{ fontSize: 20 }}>{ui.icon}</span>
+                                    <div>
+                                        <div style={{ fontWeight: 700, color: ui.color, fontSize: 14 }}>{ui.label}</div>
+                                        {appointment.status === 'DATE_CONFIRMED' && appointment.confirmedDate && (
+                                            <div style={{ fontSize: 13, color: '#475569', marginTop: 2 }}>
+                                                วันที่นิเทศ: {new Date(appointment.confirmedDate).toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })}
+                                            </div>
+                                        )}
+                                        {appointment.status === 'TEACHER_REJECTED' && appointment.rejectReason && (
+                                            <div style={{ fontSize: 13, color: '#b91c1c', marginTop: 2 }}>เหตุผล: {appointment.rejectReason}</div>
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        })()}
+
                         {/* 🟢 กรณี 1: โชว์แบบฟอร์มให้กรอก / แก้ไข */}
                         {showFormView && (
                             <div>
@@ -299,34 +345,26 @@ export default function S_Supervision() {
                                             <div style={{ fontSize: 11, color: '#64748b', marginTop: 6 }}>* การพิจารณาวันว่าง จะให้สิทธิ์อาจารย์ที่ปรึกษา (หลัก) เป็นผู้เลือกจากตัวเลือกที่คุณเสนอ</div>
                                         </div>
 
-                                        <label style={{ ...lblStyle, marginTop: 16 }}>รูปแบบการนิเทศ <span style={{ color: 'red' }}>*</span></label>
-                                        <div style={{ display: 'flex', gap: 15, marginTop: 8 }}>
-                                            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-                                                <input type="radio" name="type" checked={supType === 'ONLINE'} onChange={() => setSupType('ONLINE')} /> 🌐 ออนไลน์ (Online)
-                                            </label>
-                                            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-                                                <input type="radio" name="type" checked={supType === 'ONSITE'} onChange={() => setSupType('ONSITE')} /> 🏢 ออนไซต์ (ณ บริษัท)
-                                            </label>
-                                        </div>
-
-                                        {supType === 'ONLINE' && (
+                                        {dates.some(d => getSlotType(d) === 'ONLINE') && (
                                             <div style={{ marginTop: 16, background: '#f0f9ff', padding: 15, borderRadius: 8, border: '1px solid #bae6fd' }}>
                                                 <label style={lblStyle}>🔗 Link สำหรับเข้าร่วมประชุม (Zoom, Google Meet) <span style={{ color: 'red' }}>*</span></label>
                                                 <input className="input" placeholder="https://meet.google.com/..." value={onlineLink} onChange={e => setOnlineLink(e.target.value)} />
+                                                <div style={{ fontSize: 11, color: '#64748b', marginTop: 6 }}>* ใช้ลิงก์เดียวกันสำหรับทุกตัวเลือกที่เลือกแบบออนไลน์</div>
                                             </div>
                                         )}
                                     </div>
 
-                                    {/* ฝั่งขวา: เลือกวันแบบแยก วันที่ และ ช่วงเวลา */}
+                                    {/* ฝั่งขวา: เลือกวันแบบแยก วันที่ ช่วงเวลา และรูปแบบ */}
                                     <div>
                                         <label style={lblStyle}>ช่วงเวลาที่เสนอ (สูงสุด 3 ตัวเลือก) <span style={{ color: 'red' }}>*</span></label>
-                                        <p style={{ fontSize: 13, color: '#64748b', marginTop: 4, marginBottom: 12 }}>แนะนำให้ปรึกษาพี่เลี้ยงก่อนกำหนดวัน เพื่อไม่ให้กระทบตารางงาน</p>
+                                        <p style={{ fontSize: 13, color: '#64748b', marginTop: 4, marginBottom: 12 }}>แนะนำให้ปรึกษาพี่เลี้ยงก่อนกำหนดวัน เพื่อไม่ให้กระทบตารางงาน — เลือกรูปแบบ (ออนไลน์/ออนไซต์) แยกแต่ละตัวเลือกได้</p>
 
                                         {dates.map((dateStr, idx) => {
-                                            const currentVal = dateStr || "|08:00-10:30";
+                                            const currentVal = dateStr || "|08:00-10:30|ONLINE";
                                             const [dPart, tPart] = currentVal.includes('|') ? currentVal.split('|') : [currentVal, '08:00-10:30'];
                                             const safeTime = tPart || "08:00-10:30";
                                             const [startTime, endTime] = safeTime.split('-');
+                                            const slotType = getSlotType(currentVal);
 
                                             return (
                                                 <div key={idx} style={{ display: 'flex', gap: 10, marginBottom: 15, alignItems: 'flex-start', flexWrap: 'wrap' }}>
@@ -338,7 +376,7 @@ export default function S_Supervision() {
                                                             className="input"
                                                             style={{ flex: 1, minWidth: '130px' }}
                                                             value={dPart || ''}
-                                                            onChange={(e) => handleDateChange(idx, `${e.target.value}|${startTime}-${endTime}`)}
+                                                            onChange={(e) => handleDateChange(idx, `${e.target.value}|${startTime}-${endTime}|${slotType}`)}
                                                         />
 
                                                         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
@@ -346,7 +384,7 @@ export default function S_Supervision() {
                                                                 className="input"
                                                                 style={{ width: '100px', textAlign: 'center' }}
                                                                 value={startTime}
-                                                                onChange={(e) => handleDateChange(idx, `${dPart || ''}|${e.target.value}-${endTime}`)}
+                                                                onChange={(e) => handleDateChange(idx, `${dPart || ''}|${e.target.value}-${endTime}|${slotType}`)}
                                                             >
                                                                 {timeOptions.map(t => <option key={`start-${t}`} value={t}>{t.replace(':', '.')} น.</option>)}
                                                             </select>
@@ -355,11 +393,21 @@ export default function S_Supervision() {
                                                                 className="input"
                                                                 style={{ width: '100px', textAlign: 'center' }}
                                                                 value={endTime}
-                                                                onChange={(e) => handleDateChange(idx, `${dPart || ''}|${startTime}-${e.target.value}`)}
+                                                                onChange={(e) => handleDateChange(idx, `${dPart || ''}|${startTime}-${e.target.value}|${slotType}`)}
                                                             >
                                                                 {timeOptions.map(t => <option key={`end-${t}`} value={t}>{t.replace(':', '.')} น.</option>)}
                                                             </select>
                                                         </div>
+
+                                                        <select
+                                                            className="input"
+                                                            style={{ width: '130px' }}
+                                                            value={slotType}
+                                                            onChange={(e) => handleTypeChange(idx, e.target.value as 'ONLINE' | 'ONSITE')}
+                                                        >
+                                                            <option value="ONLINE">🌐 ออนไลน์</option>
+                                                            <option value="ONSITE">🏢 ออนไซต์</option>
+                                                        </select>
 
                                                         {dates.length > 1 && (
                                                             <button onClick={() => handleRemoveDate(idx)} style={{ background: '#fee2e2', color: '#dc2626', border: 'none', padding: '10px 14px', borderRadius: 8, cursor: 'pointer' }}>✕</button>
@@ -426,16 +474,10 @@ export default function S_Supervision() {
                                     {/* กล่องซ้าย: ข้อมูลที่คอนเฟิร์มแล้ว */}
                                     <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', padding: 24, borderRadius: 12, position: 'relative' }}>
 
-                                        {/* ปุ่มแก้ไข: โชว์เฉพาะตอนที่ยังไม่ออกเอกสาร */}
-                                        {appointment.status === 'DATE_CONFIRMED' && (
-                                            <button
-                                                className="btn-secondary"
-                                                style={{ position: 'absolute', top: 16, right: 16, fontSize: 12, padding: '6px 12px' }}
-                                                onClick={() => setIsEditing(true)}
-                                            >
-                                                ✏️ ขอแก้ไขวันเวลา
-                                            </button>
-                                        )}
+                                        {/* ล็อกหลังอาจารย์ยืนยัน — ไม่อนุญาตให้แก้ไข */}
+                                        <div style={{ position: 'absolute', top: 16, right: 16, fontSize: 12, padding: '5px 10px', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: 8, color: '#64748b', display: 'flex', alignItems: 'center', gap: 5 }}>
+                                            🔒 ล็อกแล้ว
+                                        </div>
 
                                         <div style={{ fontSize: 14, color: '#166534', fontWeight: 700, marginBottom: 8 }}>✅ วันเวลาที่อาจารย์ยืนยันแล้ว</div>
                                         <div style={{ fontSize: 20, color: '#14532d', fontWeight: 800, marginBottom: 16 }}>
