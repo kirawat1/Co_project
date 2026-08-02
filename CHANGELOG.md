@@ -1,5 +1,12 @@
 # CHANGELOG — Co_project
 
+## [2026-08-03] fix: student role 403 on t000 config
+
+- **S_Docs.tsx:** เปลี่ยนจาก `/api/admin/config/t000` เป็น `/api/coop/config/t000`
+- **coopRoutes.js:** เพิ่ม `GET /config/t000` (verifyToken เท่านั้น) ให้นักศึกษาอ่านค่าได้
+
+---
+
 ## [2026-08-03] fix/feat: Batch 1 — 12 system improvements
 
 ### ความปลอดภัย
