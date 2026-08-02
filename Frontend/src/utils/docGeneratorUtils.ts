@@ -19,6 +19,13 @@ export function thaiPrefix(prefix?: string): string {
   return prefix || "";
 }
 
+export function studyProgramLabel(sp?: string | null): string {
+  const v = (sp || "").toLowerCase();
+  if (v === "normal") return "ภาคปกติ";
+  if (v === "special") return "ภาคพิเศษ";
+  return "";
+}
+
 const SHARED_LETTER_CSS = `
     p { margin: 0; }
     .center { text-align: center; }
@@ -94,6 +101,7 @@ export function buildDispatchLetterHtml(opts: {
   docDate: string;
   studentName: string;
   studentId: string;
+  studyProgram?: string;
   companyName: string;
   companyContact?: string;   // ชื่อผู้ติดต่อ เช่น "คุณวิราภาณ์ต กาวิชัย  Talent Acquisition Partner"
   startDate: string;
@@ -101,8 +109,9 @@ export function buildDispatchLetterHtml(opts: {
   deanName: string;
   deanPosition: string;
 }): string {
-  const { docNumber, docDate, studentName, studentId, companyName,
+  const { docNumber, docDate, studentName, studentId, studyProgram, companyName,
           companyContact, startDate, endDate, deanName, deanPosition } = opts;
+  const spLabel = studyProgramLabel(studyProgram);
   const dateStr = toThaiDate(docDate);
   const startStr = toThaiDate(startDate);
   const endStr = toThaiDate(endDate);
@@ -146,7 +155,7 @@ export function buildDispatchLetterHtml(opts: {
 <p>&nbsp;</p>
 <p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ตามที่ ${companyName} ได้เข้าร่วมโครงการสหกิจศึกษากับมหาวิทยาลัยขอนแก่น วิทยาลัยการคอมพิวเตอร์ และยินดีรับนักศึกษาหลักสูตรวิทยาการคอมพิวเตอร์ เข้าปฏิบัติงานสหกิจศึกษากับบริษัทของท่าน ซึ่งมีกำหนดช่วงเวลาปฏิบัติงาน ระหว่างวันที่ ${startStr} ถึงวันที่ ${endStr} นั้น ในการนี้ ทางวิทยาลัยการคอมพิวเตอร์ จึงใคร่ขอให้ท่านพิจารณานักศึกษาเข้าร่วมโครงการสหกิจศึกษากับทาง ${companyName} จำนวน 1 คน ดังมีรายชื่อต่อไปนี้</p>
 <p>&nbsp;</p>
-<p class="center">${studentName}&nbsp;&nbsp;&nbsp;&nbsp;รหัสประจำตัว ${studentId}</p>
+<p class="center">${studentName}&nbsp;&nbsp;&nbsp;&nbsp;รหัสประจำตัว ${studentId}${spLabel ? `&nbsp;&nbsp;&nbsp;&nbsp;${spLabel}` : ''}</p>
 <p>&nbsp;</p>
 <p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;จึงเรียนมาเพื่อโปรดพิจารณาให้ความอนุเคราะห์ในการรับนักศึกษาเข้าร่วมโครงการสหกิจศึกษา หากผลการพิจารณาเป็นประการใด กรุณาแจ้งผลกลับมายัง<u>วิทยาลัยการคอมพิวเตอร์ มหาวิทยาลัยขอนแก่น 40002</u> หรือ E-mail: wijika@kku.ac.th ด้วยจักขอบคุณยิ่ง</p>
 <div class="sig-block">
