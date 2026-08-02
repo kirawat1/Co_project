@@ -169,6 +169,21 @@ exports.proposeSupervisionDate = async (req, res) => {
             return res.status(400).json({ ok: false, message: `ไม่พบอาจารย์ที่ปรึกษา "${advisorTrimmed}" ในระบบ กรุณาติดต่อเจ้าหน้าที่` });
         }
 
+        // ล็อกไม่ให้แก้ไขหลังอาจารย์ยืนยันแล้ว
+        const existingAppt = await prisma.supervisionAppointment.findUnique({
+            where: { studentId: student.id },
+            select: { status: true }
+        });
+        if (existingAppt) {
+            const LOCKED_STATUSES = ['DATE_CONFIRMED', 'LETTER_UPLOADED', 'COMPLETED'];
+            if (LOCKED_STATUSES.includes(existingAppt.status)) {
+                return res.status(403).json({
+                    ok: false,
+                    message: 'ไม่สามารถแก้ไขได้ เนื่องจากอาจารย์ยืนยันวันนิเทศแล้ว'
+                });
+            }
+        }
+
         const appointment = await prisma.supervisionAppointment.upsert({
             where: { studentId: student.id },
             update: {
@@ -338,7 +353,7 @@ exports.getSupervisionsForTeacher = async (req, res) => {
 exports.reviewSupervision = async (req, res) => {
     try {
         const { id } = req.params;
-        const { action, confirmedDate, rejectReason } = req.body;
+        const { action, confirmedDate, rejectReason, supervisionType } = req.body;
         const userId = req.user.id;
 
         // 1. ดึงข้อมูลอาจารย์ที่ล็อกอิน
@@ -403,7 +418,10 @@ exports.reviewSupervision = async (req, res) => {
             updateData = {
                 status: 'DATE_CONFIRMED',
                 confirmedDate: chosenDate,
-                rejectReason: null
+                rejectReason: null,
+                ...(supervisionType === 'ONLINE' || supervisionType === 'ONSITE'
+                    ? { supervisionType }
+                    : {}),
             };
         } else if (action === 'REJECT') {
             updateData = {
