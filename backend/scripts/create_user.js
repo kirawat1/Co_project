@@ -39,8 +39,10 @@ async function main() {
     process.exit(1);
   }
 
-  if (password.length < 6) {
-    console.error('\nError: password ต้องมีอย่างน้อย 6 ตัวอักษร\n');
+  const { validatePassword } = require('../utils/validatePassword');
+  const pwError = validatePassword(password);
+  if (pwError) {
+    console.error(`\nError: รหัสผ่านไม่ผ่านนโยบาย: ${pwError}\n`);
     process.exit(1);
   }
 

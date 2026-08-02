@@ -250,7 +250,7 @@ describe('createTeacher', () => {
   test('409 — email already exists', async () => {
     prisma.user.findFirst.mockResolvedValue({ id: 1, email: 'dup@kku.ac.th' });
 
-    const req = { body: { firstName: 'ก', lastName: 'ข', email: 'dup@kku.ac.th' } };
+    const req = { body: { firstName: 'ก', lastName: 'ข', email: 'dup@kku.ac.th', password: 'Secure1!' } };
     const res = makeRes();
     await createTeacher(req, res);
 
@@ -269,7 +269,7 @@ describe('createTeacher', () => {
       email: 'new@kku.ac.th',
     });
 
-    const req = { body: { firstName: 'ใหม่', lastName: 'ทดสอบ', email: 'new@kku.ac.th' } };
+    const req = { body: { firstName: 'ใหม่', lastName: 'ทดสอบ', email: 'new@kku.ac.th', password: 'Secure1!' } };
     const res = makeRes();
     await createTeacher(req, res);
 
