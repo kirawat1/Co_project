@@ -54,13 +54,15 @@ const formatDMYTime = (dateStr: string | null | undefined): string => {
     return `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear() + 543} ${h}:${m} น.`;
 };
 
-/** แปลง proposed date string "2024-12-25|09:00-12:00" → { dmy, time, dayKey } */
+/** แปลง proposed date string "2024-12-25|09:00-12:00|ONLINE" → { dmy, time, dayKey, type } */
 const parseProposed = (dateStr: string) => {
-    const [dPart = "", tPart = ""] = dateStr.includes("|") ? dateStr.split("|") : [dateStr, ""];
+    const parts = dateStr.includes("|") ? dateStr.split("|") : [dateStr, "", ""];
+    const [dPart = "", tPart = "", typePart = ""] = parts;
     const d = new Date(dPart);
     const dmy = isNaN(d.getTime()) ? dPart : formatDMY(dPart);
     const dayKey = dPart.slice(0, 10); // "2024-12-25"
-    return { dmy, time: tPart ? `${tPart} น.` : "", dayKey, raw: dateStr };
+    const type = typePart === "ONSITE" ? "ONSITE" : typePart === "ONLINE" ? "ONLINE" : undefined;
+    return { dmy, time: tPart ? `${tPart} น.` : "", dayKey, raw: dateStr, type };
 };
 
 export default function T_SupervisionReview() {
@@ -327,8 +329,9 @@ export default function T_SupervisionReview() {
                                                         return dates.map((d, i) => {
                                                             const p = parseProposed(d);
                                                             return (
-                                                                <div key={i} style={{ fontSize: 12, color: "#78350f", background: "#fef3c7", padding: "2px 6px", borderRadius: 4, marginBottom: 2 }}>
-                                                                    {p.dmy}{p.time ? ` · ${p.time}` : ""}
+                                                                <div key={i} style={{ fontSize: 12, color: "#78350f", background: "#fef3c7", padding: "2px 6px", borderRadius: 4, marginBottom: 2, display: "flex", alignItems: "center", gap: 4 }}>
+                                                                    <span>{p.dmy}{p.time ? ` · ${p.time}` : ""}</span>
+                                                                    {p.type && <span style={{ fontSize: 10, fontWeight: 600, padding: "1px 6px", borderRadius: 8, background: p.type === "ONLINE" ? "#dbeafe" : "#dcfce7", color: p.type === "ONLINE" ? "#1d4ed8" : "#15803d" }}>{p.type === "ONLINE" ? "🌐" : "🏢"} {p.type}</span>}
                                                                 </div>
                                                             );
                                                         });
@@ -444,8 +447,9 @@ export default function T_SupervisionReview() {
                                                             display: "flex", justifyContent: "space-between", alignItems: "center",
                                                         }}>
                                                             <div>
-                                                                <div style={{ fontWeight: 800, color: isBooked ? "#991b1b" : "#166534", fontSize: 15 }}>
+                                                                <div style={{ fontWeight: 800, color: isBooked ? "#991b1b" : "#166534", fontSize: 15, display: "flex", alignItems: "center", gap: 8 }}>
                                                                     {isBooked ? "🔒 " : ""}{parsed.dmy}
+                                                                    {parsed.type && <span style={{ fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 10, background: parsed.type === "ONLINE" ? "#dbeafe" : "#dcfce7", color: parsed.type === "ONLINE" ? "#1d4ed8" : "#15803d" }}>{parsed.type === "ONLINE" ? "🌐 ออนไลน์" : "🏢 ออนไซต์"}</span>}
                                                                 </div>
                                                                 <div style={{ color: isBooked ? "#b91c1c" : "#15803d", fontSize: 14, marginTop: 4 }}>{parsed.time}</div>
                                                                 {isBooked && bookedBy && (
@@ -490,7 +494,7 @@ export default function T_SupervisionReview() {
                                                 let dates: string[] = [];
                                                 try { dates = JSON.parse(selectedAppt.proposedDates || "[]"); } catch { dates = []; }
                                                 return <ul style={{ margin: 0, paddingLeft: 20, color: "#475569", fontSize: 14 }}>
-                                                    {dates.map((d, i) => { const p = parseProposed(d); return <li key={i} style={{ marginBottom: 6 }}>{p.dmy} {p.time}</li>; })}
+                                                    {dates.map((d, i) => { const p = parseProposed(d); return <li key={i} style={{ marginBottom: 6, display: "flex", alignItems: "center", gap: 8 }}><span>{p.dmy} {p.time}</span>{p.type && <span style={{ fontSize: 11, fontWeight: 600, padding: "1px 6px", borderRadius: 8, background: p.type === "ONLINE" ? "#dbeafe" : "#dcfce7", color: p.type === "ONLINE" ? "#1d4ed8" : "#15803d" }}>{p.type === "ONLINE" ? "🌐" : "🏢"} {p.type}</span>}</li>; })}
                                                 </ul>;
                                             })()}
                                         </div>
