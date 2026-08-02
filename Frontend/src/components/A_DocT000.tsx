@@ -19,15 +19,28 @@ interface StudentProfile {
     firstName?: string;
     lastName?: string;
     major?: string;
+    advisorName?: string | null;
+    generalAdvisor?: { id: number; prefix?: string; firstName: string; lastName: string } | null;
     documents?: StudentDocument[];
     docStatus?: "WAITING" | "WAITING_FOR_STAFF_CHECK" | "EDITS_REQUIRED" | "REQ_LETTER_ISSUED" | "DOCS_APPROVED" | "WAITING_FOR_PLACEMENT_LETTER" | "WAITING_FOR_STAFF_CHECK_LETTER" | "ACCEPTANCE_CHECKED" | "PLACEMENT_LETTER_ISSUED" | "QUALIFIED";
     teacherComment?: string;
     submittedAt?: string;
-    coopPeriodId?: number; // ไว้กรองรอบปีการศึกษา
+    coopPeriodId?: number;
     coop?: {
-        coopPeriodId?: number; // เผื่อกรณี Backend ซ้อนมาใน coop
+        coopPeriodId?: number;
         company?: { name: string };
     }
+}
+
+function advisorMismatchWarning(student: StudentProfile): string | null {
+    const linked = student.generalAdvisor;
+    if (!linked || !student.advisorName) return null;
+    const stored = student.advisorName.toLowerCase();
+    if (!stored.includes(linked.firstName.toLowerCase()) && !stored.includes(linked.lastName.toLowerCase())) {
+        const linkedFull = [linked.prefix, linked.firstName, linked.lastName].filter(Boolean).join(' ');
+        return `⚠️ ชื่ออาจารย์ไม่ตรง — นักศึกษากรอก "${student.advisorName}" / ระบบเชื่อมกับ "${linkedFull}"`;
+    }
+    return null;
 }
 
 interface DocConfig {
@@ -502,7 +515,14 @@ export default function A_DocT000() {
                             {list.map(s => (
                                 <tr key={s.id} style={{ background: '#fff', borderBottom: '1px solid #eee' }}>
                                     <td style={td} data-label="รหัสนักศึกษา">{s.studentId}</td>
-                                    <td style={td} data-label="ชื่อ-สกุล">{s.firstName} {s.lastName}</td>
+                                    <td style={td} data-label="ชื่อ-สกุล">
+                                        <div>{s.firstName} {s.lastName}</div>
+                                        {advisorMismatchWarning(s) && (
+                                            <div style={{ fontSize: 11, color: '#b45309', background: '#fef3c7', border: '1px solid #fcd34d', borderRadius: 6, padding: '3px 8px', marginTop: 4 }}>
+                                                {advisorMismatchWarning(s)}
+                                            </div>
+                                        )}
+                                    </td>
                                     <td style={td} data-label="ไฟล์">{s.documents?.length || 0}</td>
                                     <td style={td} data-label="วันที่ส่ง">{s.submittedAt ? new Date(s.submittedAt).toLocaleDateString('th-TH') : "-"}</td>
                                     <td style={td} data-label="สถานะ"><StatusBadge status={s.docStatus} /></td>

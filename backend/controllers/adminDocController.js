@@ -52,8 +52,8 @@ exports.getStudentsForT000 = async (req, res) => {
         coop: {
             include: { company: true }
         },
-        // ✅ เพิ่มบรรทัดนี้: ดึงใบสมัครมาด้วย (เพื่อเอาวันที่เริ่ม-จบ)
-        coopApplicationForm: true 
+        coopApplicationForm: true,
+        generalAdvisor: { select: { id: true, prefix: true, firstName: true, lastName: true } },
       },
       orderBy: { studentId: 'asc' }
     });
@@ -73,10 +73,10 @@ exports.getStudentsForT000 = async (req, res) => {
       documents: s.documents,
       submittedAt: s.documents[0]?.uploadedAt || null,
 
-      // ✅ ส่ง coopApplicationForm ไปให้ Frontend ใช้
       coopApplicationForm: s.coopApplicationForm,
-      // ส่ง coop object ทั้งก้อนไปด้วย (มี actualStartDate)
-      coop: s.coop 
+      coop: s.coop,
+      advisorName: s.advisorName || null,
+      generalAdvisor: s.generalAdvisor || null,
     }));
 
     res.json(data);
