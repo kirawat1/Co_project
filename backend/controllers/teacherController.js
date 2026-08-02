@@ -146,16 +146,16 @@ exports.getAllTeachers = async (req, res) => {
 exports.updateTeacherById = async (req, res) => {
   try {
     const { id } = req.params; // รับ Teacher ID
-    const { firstName, lastName, phone, faculty, major } = req.body;
+    const { firstName, lastName, phone, major, prefix } = req.body;
 
     const updated = await prisma.teacher.update({
-      where: { id: parseInt(id) }, // อัปเดตตาม Teacher ID
+      where: { id: parseInt(id) },
       data: {
         firstName,
         lastName,
         phone,
-        faculty,
-        major
+        major,
+        prefix: prefix || null,
       },
       include: {
         user: { select: { email: true } }
@@ -449,16 +449,19 @@ const bcrypt = require("bcryptjs");
 
 exports.createTeacher = async (req, res) => {
   try {
-    const { firstName, lastName, email, phone, faculty, major, prefix } = req.body;
-    if (!firstName || !lastName || !email) {
-      return res.status(400).json({ ok: false, message: "กรุณากรอก ชื่อ นามสกุล และอีเมล" });
+    const { validatePassword } = require('../utils/validatePassword');
+    const { firstName, lastName, email, phone, major, prefix, password } = req.body;
+    if (!firstName || !lastName || !email || !password) {
+      return res.status(400).json({ ok: false, message: "กรุณากรอก ชื่อ นามสกุล อีเมล และรหัสผ่าน" });
     }
+    const pwError = validatePassword(password);
+    if (pwError) return res.status(400).json({ ok: false, message: pwError });
 
     // ตรวจ email ซ้ำ
     const existing = await prisma.user.findFirst({ where: { OR: [{ username: email }, { email }] } });
     if (existing) return res.status(409).json({ ok: false, message: `อีเมล ${email} มีในระบบแล้ว` });
 
-    const hashed = await bcrypt.hash("1111111111111", 10);
+    const hashed = await bcrypt.hash(password, 10);
 
     const user = await prisma.user.create({
       data: {
@@ -476,8 +479,9 @@ exports.createTeacher = async (req, res) => {
         lastName,
         email,
         phone: phone || null,
-        faculty: faculty || "วิทยาลัยการคอมพิวเตอร์",
+        faculty: 'วิทยาลัยการคอมพิวเตอร์',
         major: major || null,
+        prefix: prefix || null,
       },
     });
 
@@ -531,9 +535,9 @@ exports.resetTeacherPassword = async (req, res) => {
   try {
     const { id } = req.params;
     const { newPassword } = req.body;
-    if (!newPassword || newPassword.length < 6) {
-      return res.status(400).json({ ok: false, message: "รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร" });
-    }
+    const { validatePassword } = require('../utils/validatePassword');
+    const pwError = validatePassword(newPassword);
+    if (pwError) return res.status(400).json({ ok: false, message: pwError });
     const teacher = await prisma.teacher.findUnique({ where: { id: parseInt(id) } });
     if (!teacher) return res.status(404).json({ ok: false, message: "ไม่พบอาจารย์" });
 
