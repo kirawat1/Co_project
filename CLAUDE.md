@@ -151,6 +151,21 @@ node backend/scripts/migrate_passwords.js
 
 ---
 
+## Git Commands
+
+ใช้ `git -C <path>` เสมอ — **ห้าม** `cd <path>; git ...` เพราะ cd ข้าม directory แล้วตามด้วย git จะโดน permission prompt ทุกครั้ง
+
+```powershell
+# ✓ ถูก
+git -C C:\xampp\htdocs\Co_project status
+git -C C:\xampp\htdocs\Co_project\backend log --oneline -5
+
+# ✗ ผิด — ทำให้เกิด permission prompt
+cd C:\xampp\htdocs\Co_project; git status
+```
+
+---
+
 ## ข้อควรระวัง
 
 1. **JWT_SECRET** ต้องตั้งใน `.env` ก่อน start server — มี startup check
