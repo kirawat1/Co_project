@@ -289,7 +289,7 @@ export default function S_Docs({ profile, setProfile }: { profile: LocalStudentP
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const resConf = await apiFetch("/api/admin/config/t000", { headers: { Authorization: `Bearer ${token}` } });
+        const resConf = await apiFetch("/api/coop/config/t000", { headers: { Authorization: `Bearer ${token}` } });
         if (resConf.ok) setConfig(await resConf.json());
 
         const resReq = await apiFetch("/api/students/doc-requirements", { headers: { Authorization: `Bearer ${token}` } });
