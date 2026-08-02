@@ -81,6 +81,7 @@ export default function IssueLetterModal({ student, onClose, onSuccess }: Props)
             const html = buildDispatchLetterHtml({
                 docNumber, docDate, studentName,
                 studentId: student.studentId,
+                studyProgram: student.studyProgram,
                 companyName: student.coop?.company?.name || "....",
                 companyContact: student.coop?.company?.contactPerson || undefined,
                 startDate: effectiveStartDate, endDate, deanName, deanPosition,
