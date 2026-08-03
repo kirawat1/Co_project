@@ -117,10 +117,11 @@ export default function IssueLetterModal({ student, onClose, onSuccess }: Props)
             formData.append("reqDocDate", docDate);
             formData.append("file", signedFile);
             const token = localStorage.getItem("coop.token");
-            await fetch("/api/admin/t000/review", { method: "PUT", headers: { Authorization: `Bearer ${token}` }, body: formData });
+            const res = await fetch("/api/admin/t000/review", { method: "PUT", headers: { Authorization: `Bearer ${token}` }, body: formData });
+            if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.message || `Server error ${res.status}`); }
             alert("✅ บันทึกและจัดเก็บไฟล์เรียบร้อย");
             onSuccess();
-        } catch (err) { alert("Error updating status"); }
+        } catch (err: any) { alert(`❌ เกิดข้อผิดพลาด: ${err.message || err}`); }
     };
 
     return (

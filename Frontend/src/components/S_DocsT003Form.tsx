@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { apiFetch } from "../utils/apiFetch";
 import { createT003PDF } from "../utils/pdfGeneratorT003";
 import StatusBadge from "./StatusBadge";
 import CountdownTimer from "../components/CountdownTimer"; // ✅ Import เข้ามา
@@ -186,7 +187,7 @@ export default function S_DocsT003Form({ profile, onRefresh }: Props) {
         if (!silent) setLoading(true);
         try {
             const token = localStorage.getItem("coop.token");
-            const res = await fetch("/api/docs/t003-form", {
+            const res = await apiFetch("/api/docs/t003-form", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",

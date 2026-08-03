@@ -264,6 +264,7 @@ export default function S_Docs({ profile, setProfile }: { profile: LocalStudentP
 
   // 💾 เวลาบันทึกอัตโนมัติล่าสุด
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+  const [saveFailed, setSaveFailed] = useState(false);
 
   const token = localStorage.getItem("coop.token");
 
@@ -331,9 +332,16 @@ export default function S_Docs({ profile, setProfile }: { profile: LocalStudentP
       const res = await apiFetch("/api/docs/save-form", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify(formData) });
       if (res.ok) {
         setLastSavedAt(new Date());
+        setSaveFailed(false);
         if (!silent) alert("✅ บันทึกข้อมูลแบบฟอร์มเรียบร้อยแล้ว");
+      } else {
+        setSaveFailed(true);
+        if (!silent) alert("Connection Error");
       }
-    } catch (err) { if (!silent) alert("Connection Error"); }
+    } catch (err) {
+      setSaveFailed(true);
+      if (!silent) alert("Connection Error");
+    }
     finally { if (!silent) setLoading(false); }
   };
 
@@ -457,7 +465,10 @@ export default function S_Docs({ profile, setProfile }: { profile: LocalStudentP
             <span style={{ background: '#e0f2fe', color: '#0284c7', width: 32, height: 32, display: 'flex', justifyContent: 'center', alignItems: 'center', borderRadius: '50%', fontSize: 16 }}>1</span>
             กรอกข้อมูลใบสมัคร (T000)
           </h2>
-          {lastSavedAt && (
+          {saveFailed && (
+            <span style={{ fontSize: 12, color: '#dc2626' }}>⚠️ บันทึกอัตโนมัติไม่สำเร็จ</span>
+          )}
+          {!saveFailed && lastSavedAt && (
             <span style={{ fontSize: 12, color: '#16a34a' }}>
               💾 บันทึกล่าสุด {lastSavedAt.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}
             </span>
