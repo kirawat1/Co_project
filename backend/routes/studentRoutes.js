@@ -29,7 +29,7 @@ router.post("/acknowledge-placement-letter", verifyToken, verifyRole('student'),
 router.get("/coop-periods/active", coopPeriodController.getActivePeriod);
 router.get('/coop-periods', verifyToken, coopPeriodController.getAllCoopPeriods);
 
-router.get('/doc-requirements', docReqController.getRequirements);
+router.get('/doc-requirements', verifyToken, docReqController.getRequirements);
 
 // ──────────────────────────────────────────
 // KKU REG API Integration

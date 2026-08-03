@@ -122,8 +122,11 @@ exports.getStudentSupervision = async (req, res) => {
 exports.proposeSupervisionDate = async (req, res) => {
     try {
         const { proposedDates, supervisionType, onlineLink, coTeacherName } = req.body;
+        if (supervisionType !== undefined && supervisionType !== 'ONLINE' && supervisionType !== 'ONSITE') {
+            return res.status(400).json({ ok: false, message: 'supervisionType ต้องเป็น ONLINE หรือ ONSITE เท่านั้น' });
+        }
         const student = await prisma.student.findUnique({ where: { userId: req.user.id } });
-        
+
         if (!student) return res.status(404).json({ ok: false, message: 'Student not found' });
 
         // หา Teacher ID จากชื่อที่ปรึกษา
