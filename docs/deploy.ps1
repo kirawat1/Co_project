@@ -135,11 +135,6 @@ if (-not $migrateOk) {
     Write-OK "Migrations applied"
 }
 
-Write-Step "Seeding teacher prefixes..."
-Set-Location $PROJECT_DIR\backend
-node scripts/update_teacher_prefixes.js 2>&1 | ForEach-Object { Write-Host "    $_" -ForegroundColor Gray }
-Write-OK "Teacher prefixes updated"
-
 Write-Step "Building frontend..."
 Set-Location $PROJECT_DIR\Frontend
 npm install --silent 2>$null
