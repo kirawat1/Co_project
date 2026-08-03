@@ -1,5 +1,14 @@
 # CHANGELOG — Co_project
 
+## [2026-08-03] test: เพิ่ม 28 unit tests (223 → 251)
+
+- **authController:** `registerStudent` — validation password 13 หลัก, email KKU, duplicate email/studentId, password hashing, 500 path
+- **docRequirementController:** ครอบ CRUD ทั้งหมด รวม P2002 unique conflict
+- **adminDocController:** `getT000Config` (config/default), `getStudentsForT000` (map + WAITING fallback), `reviewStudentStatus` (status update, date fields)
+- **mock:** เพิ่ม `documentRequirement` model ใน prismaClient mock
+
+---
+
 ## [2026-08-03] fix: student role 403 on t000 config
 
 - **S_Docs.tsx:** เปลี่ยนจาก `/api/admin/config/t000` เป็น `/api/coop/config/t000`
