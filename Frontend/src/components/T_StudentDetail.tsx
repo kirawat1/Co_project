@@ -64,6 +64,11 @@ interface StudentProfile {
   documents?: StudentDocument[];
 }
 
+const CURRICULUM_TH: Record<string, string> = {
+  normal: "ภาคปกติ",
+  special: "ภาคพิเศษ",
+};
+
 /* =========================
    Main Component
 ========================= */
@@ -252,7 +257,7 @@ export default function T_StudentDetail() {
               <InfoRow label="ชั้นปี" value={student.year || "-"} />
               <InfoRow label="คณะ" value={student.faculty || "วิทยาลัยการคอมพิวเตอร์"} />
               <InfoRow label="หลักสูตร" value={student.major || "-"} />
-              <InfoRow label="ภาคการศึกษา" value={student.studyProgram || "-"} />
+              <InfoRow label="ภาคการศึกษา" value={CURRICULUM_TH[student.studyProgram || ""] || student.studyProgram || "-"} />
               <InfoRow label="เบอร์โทรศัพท์" value={student.phone || "-"} />
               <InfoRow label="อีเมลมหาวิทยาลัย" value={student.user?.email || "-"} highlight />
               <InfoRow label="GPA" value={student.gpa?.toFixed(2) || "-"} />

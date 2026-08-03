@@ -23,10 +23,10 @@ export default function A_CriteriaPage() {
 
     const handleAddMajor = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!newMajorName.trim()) return alert("กรุณากรอกชื่อสาขา");
+        if (!newMajorName.trim()) return alert("กรุณากรอกชื่อหลักสูตร");
 
         if (criteriaList.some(c => c.major.toLowerCase() === newMajorName.trim().toLowerCase())) {
-            return alert("สาขานี้มีอยู่ในระบบแล้ว!");
+            return alert("หลักสูตรนี้มีอยู่ในระบบแล้ว!");
         }
 
         const token = localStorage.getItem("coop.token");
@@ -39,11 +39,11 @@ export default function A_CriteriaPage() {
             setAddMajorModalOpen(false);
             setNewMajorName("");
             fetchCriteria();
-        } catch (err: any) { alert(err.response?.data?.message || "เกิดข้อผิดพลาดในการเพิ่มสาขา"); }
+        } catch (err: any) { alert(err.response?.data?.message || "เกิดข้อผิดพลาดในการเพิ่มหลักสูตร"); }
     };
 
     const handleRemoveMajor = async (id: string, majorName: string) => {
-        if (!confirm(`⚠️ ยืนยันการลบสาขา ${majorName}?`)) return;
+        if (!confirm(`⚠️ ยืนยันการลบหลักสูตร ${majorName}?`)) return;
         const token = localStorage.getItem("coop.token");
         try {
             await axios.delete(`/api/admin/criteria/${id}`, {
@@ -78,7 +78,7 @@ export default function A_CriteriaPage() {
                                 <span style={{ fontSize: 12, fontWeight: 800, color: '#0ea5e9', textTransform: 'uppercase', letterSpacing: 1 }}>หลักสูตร</span>
                                 <div style={{ fontSize: 28, fontWeight: 900, color: '#0f172a', marginTop: 2 }}>{c.major}</div>
                             </div>
-                            <button style={delBtn} onClick={() => handleRemoveMajor(c.id, c.major)}>🗑️ ลบสาขา</button>
+                            <button style={delBtn} onClick={() => handleRemoveMajor(c.id, c.major)}>🗑️ ลบหลักสูตร</button>
                         </div>
                     ))}
                 </div>
@@ -99,13 +99,13 @@ export default function A_CriteriaPage() {
                                     className="input"
                                     value={newMajorName}
                                     onChange={e => setNewMajorName(e.target.value)}
-                                    placeholder="กรอกชื่อย่อสาขา..."
+                                    placeholder="กรอกชื่อย่อหลักสูตร..."
                                 />
                             </div>
 
                             <div style={{ display: "flex", gap: 12, marginTop: 24 }}>
                                 <button type="button" className="btn-ghost" style={{ flex: 1 }} onClick={() => setAddMajorModalOpen(false)}>ยกเลิก</button>
-                                <button type="submit" className="btn" style={{ flex: 1 }}>เพิ่มสาขา</button>
+                                <button type="submit" className="btn" style={{ flex: 1 }}>เพิ่มหลักสูตร</button>
                             </div>
                         </form>
                     </div>
