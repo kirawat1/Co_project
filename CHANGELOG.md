@@ -1,9 +1,9 @@
 # CHANGELOG — Co_project
 
-## [2026-08-03] fix: A_Teacher — prefix dropdown "-" + isCoopTeacher บันทึกไม่ได้
+## [2026-08-03] fix: A_Teacher — prefix spacing match DB + isCoopTeacher บันทึกไม่ได้
 
-- **A_Teacher.tsx:** dropdown prefix เพิ่ม option `-` ที่ตำแหน่งแรก, แก้ `value={form.prefix || 'อ.'}` → `value={form.prefix ?? ""}`, เรียงลำดับใหม่ให้ ผศ. ขึ้นก่อน
-- **teacherController.js `updateTeacherById`:** เพิ่ม `isCoopTeacher` ใน destructure + Prisma update — เดิมไม่ได้บันทึกค่านี้เลย
+- **A_Teacher.tsx:** แก้ TEACHER_PREFIXES ให้มีช่องว่างตรงกับ DB (`'ผศ. ดร.'` ไม่ใช่ `'ผศ.ดร.'`) ทำให้ dropdown แสดง prefix ที่บันทึกไว้ถูกต้อง; dropdown prefix เพิ่ม option `-` ที่ตำแหน่งแรก, แก้ `value={form.prefix || 'อ.'}` → `value={form.prefix ?? ""}`, เรียงลำดับใหม่ให้ ผศ. ขึ้นก่อน
+- **teacherController.js `adminUpdateTeacher`:** เพิ่ม `isCoopTeacher` ใน destructure + Prisma update — เดิมไม่ได้บันทึกค่านี้เลย (route `/api/admin/teachers/:id` ใช้ฟังก์ชันนี้)
 
 ---
 

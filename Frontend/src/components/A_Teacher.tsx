@@ -26,7 +26,7 @@ const MAJOR_TH: Record<string, string> = {
   CYB: "ความมั่นคงปลอดภัยไซเบอร์",
   AI: "ปัญญาประดิษฐ์",
 };
-const TEACHER_PREFIXES = ['ผศ.', 'ผศ.ดร.', 'รศ.', 'รศ.ดร.', 'ศ.', 'ศ.ดร.', 'อ.', 'อ.ดร.', 'ดร.'];
+const TEACHER_PREFIXES = ['ผศ.', 'ผศ. ดร.', 'รศ.', 'รศ. ดร.', 'ศ.', 'ศ. ดร.', 'อ.', 'อ. ดร.', 'ดร.'];
 
 const EMPTY_TEACHER: Omit<Teacher, "id"> = {
   prefix: '', firstName: "", lastName: "", email: "",
