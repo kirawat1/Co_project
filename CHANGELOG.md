@@ -1,5 +1,14 @@
 # CHANGELOG — Co_project
 
+## [2026-08-04] fix: security batch 8 — teacher controller info leak + route hardening
+
+- **teacherController.js createTeacher/adminUpdateTeacher:** ลบ `err.message` ออกจาก 500 response (information leak)
+- **T_Profile.tsx fetchPrefixes:** แทน raw `fetch` ด้วย `apiFetch` + `res.ok` guard — 401 ไม่ถูก swallow อีกต่อไป
+- **teacherRoutes.js GET /prefixes:** เพิ่ม `verifyRole('teacher', 'staff')` — ก่อนหน้านี้ทุก role เรียกได้
+- **teacherRoutes.js PUT /:id และ config/review routes:** ลบ `'admin'` ออกจาก `verifyRole` ทั้งหมด (ไม่มีใน Prisma Role enum)
+
+---
+
 ## [2026-08-04] fix: security batch 7 — raw fetch bypass + open register endpoint
 
 - **S_ProfilePage.tsx:** แทน raw `fetch` ด้วย `apiFetch` + เพิ่ม `r.ok` check — ป้องกัน 401 ถูก swallow แทนที่จะ auto-logout

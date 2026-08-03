@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { IcUser, IcEdit, IcSave } from "./icons";
+import { apiFetch } from "../utils/apiFetch";
 
 /* =========================
    Types & Enums
@@ -91,9 +92,10 @@ export default function T_Profile() {
 
   const fetchPrefixes = async () => {
     try {
-      const res = await fetch("/api/teacher/prefixes", {
+      const res = await apiFetch("/api/teacher/prefixes", {
         headers: { Authorization: `Bearer ${token}` }
       });
+      if (!res.ok) return;
       const data = await res.json();
       if (data.ok && data.prefixes?.length > 0) setPrefixOptions(data.prefixes);
     } catch {
