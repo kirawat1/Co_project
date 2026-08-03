@@ -1,5 +1,14 @@
 # CHANGELOG — Co_project
 
+## [2026-08-04] fix: S_StatusTracker — Phase 4 unreachable + dead SupervisionStatus keys
+
+- **Phase 3 entryStatuses:** ลบ `T003_APPROVED` ออก ทำให้ Phase 4 (นิเทศและรายงาน) ถูก reach ได้จริง
+- **Phase 4:** ลบ `COMPLETED` (เป็น SupervisionStatus ไม่ใช่ CoopStatus) ออกจาก entryStatuses/doneStatuses
+- **Phase 3 substeps:** ลบ substep 3.3–3.5 ที่มี `statuses:[]` ว่างเปล่า; ย้าย supervision ไป Phase 4
+- **ACTION_CONFIG:** ลบ keys PENDING_TEACHER/TEACHER_REJECTED/DATE_CONFIRMED/LETTER_UPLOADED/COMPLETED ซึ่งเป็น SupervisionStatus ที่ไม่มีวันตรงกับ CoopStatus
+
+---
+
 ## [2026-08-04] fix: security batch 10 — gateway fetch + admin route guard
 
 - **S_Gateway.tsx:** แทน raw `fetch` ด้วย `apiFetch` ให้ 401 trigger auto-logout ได้
