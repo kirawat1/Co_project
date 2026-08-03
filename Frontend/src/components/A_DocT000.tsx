@@ -540,11 +540,7 @@ export default function A_DocT000() {
                                     <td style={td} data-label="รหัสนักศึกษา">{s.studentId}</td>
                                     <td style={td} data-label="ชื่อ-สกุล">
                                         <div>{s.firstName} {s.lastName}</div>
-                                        {advisorMismatchWarning(s) && (
-                                            <div style={{ fontSize: 11, color: '#b45309', background: '#fef3c7', border: '1px solid #fcd34d', borderRadius: 6, padding: '3px 8px', marginTop: 4 }}>
-                                                {advisorMismatchWarning(s)}
-                                            </div>
-                                        )}
+                                        {(() => { const w = advisorMismatchWarning(s); return w && <div style={{ fontSize: 11, color: '#b45309', background: '#fef3c7', border: '1px solid #fcd34d', borderRadius: 6, padding: '3px 8px', marginTop: 4 }}>{w}</div>; })()}
                                     </td>
                                     <td style={td} data-label="ไฟล์">{s.documents?.length || 0}</td>
                                     <td style={td} data-label="วันที่ส่ง">{s.submittedAt ? new Date(s.submittedAt).toLocaleDateString('th-TH') : "-"}</td>
