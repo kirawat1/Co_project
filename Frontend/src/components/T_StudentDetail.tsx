@@ -251,8 +251,8 @@ export default function T_StudentDetail() {
               <InfoRow label="ชื่อ–นามสกุล" value={fullName} />
               <InfoRow label="ชั้นปี" value={student.year || "-"} />
               <InfoRow label="คณะ" value={student.faculty || "วิทยาลัยการคอมพิวเตอร์"} />
-              <InfoRow label="สาขาวิชา" value={student.major || "-"} />
-              <InfoRow label="รูปแบบการศึกษา" value={student.studyProgram || "-"} />
+              <InfoRow label="หลักสูตร" value={student.major || "-"} />
+              <InfoRow label="ภาคการศึกษา" value={student.studyProgram || "-"} />
               <InfoRow label="เบอร์โทรศัพท์" value={student.phone || "-"} />
               <InfoRow label="อีเมลมหาวิทยาลัย" value={student.user?.email || "-"} highlight />
               <InfoRow label="GPA" value={student.gpa?.toFixed(2) || "-"} />

@@ -266,7 +266,7 @@ export default function T_Students({ isCoopTeacher = false }: Props) {
           </select>
 
           <select className="input soft" style={{ width: 'auto' }} value={filterMajor} onChange={e => setFilterMajor(e.target.value)}>
-            <option value="all">🎓 ทุกสาขาวิชา</option>
+            <option value="all">🎓 ทุกหลักสูตร</option>
             {Object.entries(dynamicMajors).map(([key, label]) => (
               <option key={key} value={key}>{label}</option>
             ))}
@@ -281,7 +281,7 @@ export default function T_Students({ isCoopTeacher = false }: Props) {
             <tr>
               <th>รหัสนักศึกษา</th>
               <th>ชื่อ-นามสกุล</th>
-              <th>สาขาวิชา</th>
+              <th>หลักสูตร</th>
               <th>สถานประกอบการ</th>
               <th>สถานะคำร้อง</th>
               <th style={{ textAlign: 'right' }}>รายละเอียด</th>
@@ -303,7 +303,7 @@ export default function T_Students({ isCoopTeacher = false }: Props) {
                 <tr key={s.studentId} className="student-row">
                   <td style={{ fontWeight: 700, color: '#0ea5e9' }} data-label="รหัสนักศึกษา">{s.studentId}</td>
                   <td style={{ fontWeight: 600, color: '#1e293b' }} data-label="ชื่อ-นามสกุล">{name}</td>
-                  <td data-label="สาขาวิชา">{displayMajor}</td>
+                  <td data-label="หลักสูตร">{displayMajor}</td>
                   <td style={{ color: '#475569' }} data-label="สถานประกอบการ">{s.company?.name || "-"}</td>
                   <td data-label="สถานะคำร้อง"><StatusBadge status={st} /></td>
                   <td style={{ textAlign: 'right' }}>
@@ -429,8 +429,8 @@ function StudentViewModal({
                   <InfoRow label="ชื่อ-สกุล" value={fullName} />
                   <InfoRow label="ชั้นปี" value={student.year || "-"} />
                   <InfoRow label="คณะ" value={student.faculty || "วิทยาลัยการคอมพิวเตอร์"} />
-                  <InfoRow label="สาขาวิชา" value={displayMajor} />
-                  <InfoRow label="รูปแบบการศึกษา" value={student.studyProgram || "-"} />
+                  <InfoRow label="หลักสูตร" value={displayMajor} />
+                  <InfoRow label="ภาคการศึกษา" value={student.studyProgram || "-"} />
                   <InfoRow label="เกรดเฉลี่ย (GPA)" value={student.gpa?.toFixed(2) || "-"} />
                 </div>
               </div>

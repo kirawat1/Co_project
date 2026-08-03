@@ -406,13 +406,13 @@ export default function A_Students() {
           />
 
           <FilterBox
-            title="สาขาวิชา"
+            title="หลักสูตร"
             items={Object.keys(dynamicMajors).length > 0 ? dynamicMajors : LEGACY_MAJOR_TH} // 🟢 ใช้ Dynamic Majors
             values={filterMajors}
             onChange={setFilterMajors}
           />
           <FilterBox
-            title="หลักสูตร"
+            title="ภาคการศึกษา"
             items={CURRICULUM_TH}
             values={filterCurriculums}
             onChange={setFilterCurriculums}
@@ -429,7 +429,7 @@ export default function A_Students() {
         <table width="100%" className="responsive-table" style={{ borderCollapse: 'collapse' }}>
           <thead>
             <tr>
-              {["รหัส", "ชื่อ–นามสกุล", "อีเมล", "สาขา", "หลักสูตร", "สถานะ", "รายละเอียด"].map((h) => (
+              {["รหัส", "ชื่อ–นามสกุล", "อีเมล", "หลักสูตร", "ภาคการศึกษา", "สถานะ", "รายละเอียด"].map((h) => (
                 <th key={h} style={th}>
                   {h}
                 </th>
@@ -452,8 +452,8 @@ export default function A_Students() {
                   </td>
                   <td style={td} data-label="อีเมล">{s.user?.email || "-"}</td>
                   {/* 🟢 แสดงสาขาโดยเช็คจากข้อมูลเก่าเผื่อไว้ ถ้าไม่ตรงให้แสดงชื่อตรงๆ */}
-                  <td style={td} data-label="สาขา">{LEGACY_MAJOR_TH[s.major ?? ""] ?? s.major ?? "-"}</td>
-                  <td style={td} data-label="หลักสูตร">{CURRICULUM_TH[s.studyProgram ?? ""] ?? s.studyProgram ?? "-"}</td>
+                  <td style={td} data-label="หลักสูตร">{LEGACY_MAJOR_TH[s.major ?? ""] ?? s.major ?? "-"}</td>
+                  <td style={td} data-label="ภาคการศึกษา">{CURRICULUM_TH[s.studyProgram ?? ""] ?? s.studyProgram ?? "-"}</td>
                   <td style={td} data-label="สถานะ"><StatusBadge status={s.coop?.status || s.docStatus} /></td>
                   <td style={td} data-label="รายละเอียด">
                     <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
@@ -615,8 +615,8 @@ function StudentModal({
               <InfoRow label="ชื่อ-สกุล" value={fullName} />
               <InfoRow label="ชั้นปี" value={student.year} />
               <InfoRow label="คณะ" value={student.faculty || "วิทยาลัยการคอมพิวเตอร์"} />
-              <InfoRow label="สาขาวิชา" value={LEGACY_MAJOR_TH[student.major || ""] || student.major} />
-              <InfoRow label="หลักสูตร" value={CURRICULUM_TH[student.studyProgram || ""] || student.studyProgram} />
+              <InfoRow label="หลักสูตร" value={LEGACY_MAJOR_TH[student.major || ""] || student.major} />
+              <InfoRow label="ภาคการศึกษา" value={CURRICULUM_TH[student.studyProgram || ""] || student.studyProgram} />
               <InfoRow label="เบอร์โทร" value={student.phone} />
               <InfoRow label="อีเมล" value={student.user?.email} />
               <InfoRow label="GPA" value={student.gpa?.toFixed(2)} />

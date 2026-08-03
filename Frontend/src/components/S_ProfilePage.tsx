@@ -387,8 +387,8 @@ export default function S_ProfilePage() {
           <Info label="ชื่อ–นามสกุล (TH)" value={`${prefixMapToUI[profile.prefix as keyof typeof prefixMapToUI] || ""} ${profile.firstName ?? ""} ${profile.lastName ?? ""}`} />
           <Info label="ชื่อ–นามสกุล (EN)" value={`${profile.firstNameEn ?? "-"} ${profile.lastNameEn ?? "-"}`} />
           <Info label="ชั้นปี" value={profile.year || "-"} />
-          <Info label="สาขาวิชา" value={profile.major || "-"} />
-          <Info label="รูปแบบการศึกษา" value={studyProgramMapToUI[profile.studyProgram as string] || profile.studyProgram || "-"} />
+          <Info label="หลักสูตร" value={profile.major || "-"} />
+          <Info label="ภาคการศึกษา" value={studyProgramMapToUI[profile.studyProgram as string] || profile.studyProgram || "-"} />
           {/* อาจารย์ที่ปรึกษา */}
           <div style={{ marginTop: 16 }}>
             <div style={{ fontWeight: 700, fontSize: 14, color: '#334155', marginBottom: 10 }}>
@@ -560,17 +560,17 @@ function StudentModal({ profile, teachers, saveStudentInfo, closeModal }: any) {
           <div><label className="label">Last Name (EN)</label><input className="input" value={form.lastNameEn ?? ""} onChange={(e) => setForm({ ...form, lastNameEn: e.target.value })} /></div>
 
           <div>
-            <label className="label">สาขาวิชา</label>
+            <label className="label">หลักสูตร</label>
             <select className="input" value={form.major || ""} onChange={(e) => setForm({ ...form, major: e.target.value })}>
-              <option value="">-- เลือกสาขาวิชา --</option>
+              <option value="">-- เลือกหลักสูตร --</option>
               {majorOptions.map((major) => (<option key={major} value={major}>{major}</option>))}
             </select>
           </div>
 
           <div>
-            <label className="label">รูปแบบการศึกษา</label>
+            <label className="label">ภาคการศึกษา</label>
             <select className="input" value={form.studyProgram || ""} onChange={(e) => setForm({ ...form, studyProgram: e.target.value as any })}>
-              <option value="">เลือกรูปแบบ</option><option value="ภาคปกติ">ภาคปกติ</option><option value="ภาคพิเศษ">ภาคพิเศษ</option>
+              <option value="">เลือกภาคการศึกษา</option><option value="ภาคปกติ">ภาคปกติ</option><option value="ภาคพิเศษ">ภาคพิเศษ</option>
             </select>
           </div>
 

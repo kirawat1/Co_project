@@ -59,23 +59,23 @@ export default function A_CriteriaPage() {
             {/* HEADER */}
             <section style={{ ...card, marginBottom: 28, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
-                    <h2 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: '#1e293b' }}>⚙️ จัดการสาขาวิชาสหกิจศึกษา</h2>
-                    <div style={{ color: "#64748b", fontSize: 14, marginTop: 4 }}>รายชื่อสาขาวิชาที่นักศึกษาสามารถยื่นสมัครสหกิจศึกษาได้</div>
+                    <h2 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: '#1e293b' }}>⚙️ จัดการหลักสูตรสหกิจศึกษา</h2>
+                    <div style={{ color: "#64748b", fontSize: 14, marginTop: 4 }}>รายชื่อหลักสูตรที่นักศึกษาสามารถยื่นสมัครสหกิจศึกษาได้</div>
                 </div>
-                <button className="btn" onClick={() => setAddMajorModalOpen(true)}>+ เพิ่มสาขาวิชาใหม่</button>
+                <button className="btn" onClick={() => setAddMajorModalOpen(true)}>+ เพิ่มหลักสูตรใหม่</button>
             </section>
 
             {/* MAJOR LIST */}
             {criteriaList.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '40px', color: '#94a3b8', background: '#fff', borderRadius: 16 }}>
-                    ยังไม่มีข้อมูลสาขาวิชา กรุณากดปุ่ม "+ เพิ่มสาขาวิชาใหม่"
+                    ยังไม่มีข้อมูลหลักสูตร กรุณากดปุ่ม "+ เพิ่มหลักสูตรใหม่"
                 </div>
             ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 20 }}>
                     {criteriaList.map(c => (
                         <div key={c.id} style={majorCard}>
                             <div>
-                                <span style={{ fontSize: 12, fontWeight: 800, color: '#0ea5e9', textTransform: 'uppercase', letterSpacing: 1 }}>สาขาวิชา</span>
+                                <span style={{ fontSize: 12, fontWeight: 800, color: '#0ea5e9', textTransform: 'uppercase', letterSpacing: 1 }}>หลักสูตร</span>
                                 <div style={{ fontSize: 28, fontWeight: 900, color: '#0f172a', marginTop: 2 }}>{c.major}</div>
                             </div>
                             <button style={delBtn} onClick={() => handleRemoveMajor(c.id, c.major)}>🗑️ ลบสาขา</button>
@@ -88,11 +88,11 @@ export default function A_CriteriaPage() {
             {addMajorModalOpen && (
                 <div style={modalOverlay}>
                     <div style={{ ...modalContent, width: 400 }}>
-                        <h3 style={{ marginTop: 0, marginBottom: 8, color: '#0f172a' }}>✨ เพิ่มสาขาวิชาใหม่</h3>
+                        <h3 style={{ marginTop: 0, marginBottom: 8, color: '#0f172a' }}>✨ เพิ่มหลักสูตรใหม่</h3>
 
                         <form onSubmit={handleAddMajor}>
                             <div style={field}>
-                                <label style={label}>ตัวย่อสาขาวิชา (เช่น CS, IT, AI, GIS)</label>
+                                <label style={label}>ตัวย่อหลักสูตร (เช่น CS, IT, AI, GIS)</label>
                                 <input
                                     required
                                     autoFocus
