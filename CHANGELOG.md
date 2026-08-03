@@ -1,5 +1,13 @@
 # CHANGELOG — Co_project
 
+## [2026-08-03] feat: teacher profile — prefix (คำนำหน้า) dropdown
+
+- **T_Profile:** เพิ่มฟิลด์ "คำนำหน้า" เป็น dropdown ในฟอร์มแก้ไขโปรไฟล์อาจารย์ ตัวเลือก: อ., อ. ดร., ผศ., ผศ. ดร., รศ., รศ. ดร., ศ., ศ. ดร. (ดึงมาจาก computing.kku.ac.th/people)
+- **T_Profile:** แสดงคำนำหน้าในหน้า profile view (ชื่อบัตร + แถวข้อมูล)
+- **teacherController:** `updateProfile` รองรับ field `prefix` ในทั้ง update และ create path แล้ว
+
+---
+
 ## [2026-08-03] fix: UX improvements — 5 issues across Student / Teacher / Login
 
 - **S_Dashboard:** ปุ่ม "ยื่นคำร้อง" ซ่อนเมื่อนักศึกษาผ่านขั้นตอนสมัครแล้ว (QUALIFIED ขึ้นไป)

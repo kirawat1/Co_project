@@ -54,7 +54,7 @@ exports.getProfile = async (req, res) => {
 // ✅ 2. updateProfile: แก้ไข Upsert ให้ถูกต้อง (แก้ Error ก่อนหน้า)
 exports.updateProfile = async (req, res) => {
   try {
-    const { firstName, lastName, phone, faculty, major } = req.body;
+    const { firstName, lastName, phone, faculty, major, prefix } = req.body;
     
     if (!req.user || !req.user.id) {
         return res.status(401).json({ message: "Unauthorized" });
@@ -78,20 +78,22 @@ exports.updateProfile = async (req, res) => {
         userId: userId 
       },
       // กรณีมีข้อมูลอยู่แล้ว -> อัปเดตข้อมูลทั่วไป
-      update: { 
-        firstName, 
-        lastName, 
-        phone, 
-        faculty,
-        major
-      },
-      // กรณีไม่มีข้อมูล (สร้างใหม่) -> ต้องใส่ฟิลด์ Required ให้ครบ
-      create: { 
-        firstName, 
-        lastName, 
-        phone, 
+      update: {
+        firstName,
+        lastName,
+        phone,
         faculty,
         major,
+        prefix: prefix || null,
+      },
+      // กรณีไม่มีข้อมูล (สร้างใหม่) -> ต้องใส่ฟิลด์ Required ให้ครบ
+      create: {
+        firstName,
+        lastName,
+        phone,
+        faculty,
+        major,
+        prefix: prefix || null,
         email: currentUser.email, // ✅ ใส่ email ที่ดึงมา
         user: {                   
             connect: { id: userId } // ✅ เชื่อม Relation แบบที่ถูกต้อง
