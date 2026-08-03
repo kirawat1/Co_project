@@ -2,7 +2,7 @@
 const express = require("express");
 const rateLimit = require("express-rate-limit");
 const { signIn, getProfile, loginWithSSO, loginWithKKU, registerStudent, loginWithGoogle } = require("../controllers/authController");
-const { verifyToken } = require("../middlewares/authMiddleware");
+const { verifyToken, verifyRole } = require("../middlewares/authMiddleware");
 
 const router = express.Router();
 
@@ -26,7 +26,7 @@ router.post("/signin", loginLimiter, signIn);
 router.post("/login/sso", loginLimiter, loginWithSSO);
 // router.post("/login/kku", loginWithKKU);  // ปิดแล้ว — ใช้ Google OAuth แทน
 router.post("/login/google", loginLimiter, loginWithGoogle);
-router.post("/register", registerLimiter, registerStudent);
+router.post("/register", verifyToken, verifyRole('staff'), registerStudent);
 
 router.get("/me", verifyToken, getProfile);
 

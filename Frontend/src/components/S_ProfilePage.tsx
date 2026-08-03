@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { IcEdit, IcSave } from "./icons";
 import { useToast } from "./Toast";
 import Spinner from "./Spinner";
+import { apiFetch } from "../utils/apiFetch";
 
 /* ================= TYPES ================= */
 interface Mentor {
@@ -176,9 +177,9 @@ export default function S_ProfilePage() {
     if (!token) return;
 
     Promise.allSettled([
-      fetch("/api/students/me", { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()),
-      fetch("/api/companies", { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()),
-      fetch("/api/teachers", { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()),
+      apiFetch("/api/students/me", { headers: { Authorization: `Bearer ${token}` } }).then(r => { if (!r.ok) throw new Error(String(r.status)); return r.json(); }),
+      apiFetch("/api/companies", { headers: { Authorization: `Bearer ${token}` } }).then(r => { if (!r.ok) throw new Error(String(r.status)); return r.json(); }),
+      apiFetch("/api/teachers", { headers: { Authorization: `Bearer ${token}` } }).then(r => { if (!r.ok) throw new Error(String(r.status)); return r.json(); }),
     ])
       .then(([profileResult, companyResult, teacherResult]) => {
         if (profileResult.status === "fulfilled") {

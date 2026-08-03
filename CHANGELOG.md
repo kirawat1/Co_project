@@ -1,5 +1,12 @@
 # CHANGELOG — Co_project
 
+## [2026-08-04] fix: security batch 7 — raw fetch bypass + open register endpoint
+
+- **S_ProfilePage.tsx:** แทน raw `fetch` ด้วย `apiFetch` + เพิ่ม `r.ok` check — ป้องกัน 401 ถูก swallow แทนที่จะ auto-logout
+- **authRoutes.js POST /register:** เพิ่ม `verifyToken + verifyRole('staff')` — ปิดกั้น endpoint ที่ UI ถูกลบไปแล้วแต่ route ยังเปิดอยู่
+
+---
+
 ## [2026-08-04] fix: security batch 6 — soft-delete bypass + TOCTOU
 
 - **authController.signIn:** เพิ่ม `deletedAt` check — student ที่ถูก soft-delete ล็อกอินด้วย email/password ไม่ได้
