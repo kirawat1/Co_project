@@ -435,17 +435,17 @@ exports.restoreStudent = async (req, res) => {
 exports.permanentlyDeleteStudent = async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
-    const student = await prisma.student.findUnique({ where: { id } });
-    if (!student) return res.status(404).json({ ok: false, message: "ไม่พบนักศึกษา" });
-    if (!student.deletedAt) {
-      return res.status(400).json({ ok: false, message: "ต้องย้ายไปถังขยะก่อนจึงจะลบถาวรได้" });
-    }
-
+    let statusErr = null;
     // ลบ Student และ User (บัญชี login) คู่กัน ป้องกัน User เหลือค้างเป็น "ผี" ที่บล็อก username เดิมไว้
+    // Guard อยู่ใน transaction เพื่อกันเงื่อนไข TOCTOU (restore concurrently before delete)
     await prisma.$transaction(async (tx) => {
+      const s = await tx.student.findUnique({ where: { id } });
+      if (!s) { statusErr = { code: 404, msg: "ไม่พบนักศึกษา" }; throw new Error('not-found'); }
+      if (!s.deletedAt) { statusErr = { code: 400, msg: "ต้องย้ายไปถังขยะก่อนจึงจะลบถาวรได้" }; throw new Error('not-in-trash'); }
       await tx.student.delete({ where: { id } });
-      await tx.user.delete({ where: { id: student.userId } });
-    });
+      await tx.user.delete({ where: { id: s.userId } });
+    }).catch((err) => { if (!statusErr) throw err; });
+    if (statusErr) return res.status(statusErr.code).json({ ok: false, message: statusErr.msg });
     res.json({ ok: true, message: "ลบถาวรเรียบร้อย" });
   } catch (err) {
     console.error("PERMANENTLY DELETE STUDENT ERROR:", err);
@@ -465,6 +465,7 @@ exports.updateStudentBasicInfo = async (req, res) => {
 
     const student = await prisma.student.findUnique({ where: { id }, include: { user: true } });
     if (!student) return res.status(404).json({ ok: false, message: "ไม่พบนักศึกษา" });
+    if (student.deletedAt) return res.status(400).json({ ok: false, message: "ไม่สามารถแก้ไขนักศึกษาที่อยู่ในถังขยะได้" });
 
     if (email && email !== student.user.email) {
       const conflict = await prisma.user.findFirst({
