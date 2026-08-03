@@ -78,6 +78,12 @@ const LEGACY_MAJOR_TH: Record<string, string> = {
   GIS: "ภูมิสารสนเทศศาสตร์",
 };
 
+// --- Constants ---
+const CURRICULUM_TH: Record<string, string> = {
+  normal: "ภาคปกติ",
+  special: "ภาคพิเศษ",
+};
+
 // --- Helpers ---
 function getThaiPrefix(prefix?: string) {
   const p = (prefix || "").trim().toLowerCase();
@@ -430,7 +436,7 @@ function StudentViewModal({
                   <InfoRow label="ชั้นปี" value={student.year || "-"} />
                   <InfoRow label="คณะ" value={student.faculty || "วิทยาลัยการคอมพิวเตอร์"} />
                   <InfoRow label="หลักสูตร" value={displayMajor} />
-                  <InfoRow label="ภาคการศึกษา" value={student.studyProgram || "-"} />
+                  <InfoRow label="ภาคการศึกษา" value={CURRICULUM_TH[student.studyProgram || ""] || student.studyProgram || "-"} />
                   <InfoRow label="เกรดเฉลี่ย (GPA)" value={student.gpa?.toFixed(2) || "-"} />
                 </div>
               </div>
