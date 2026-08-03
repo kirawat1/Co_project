@@ -186,9 +186,13 @@ export default function T_SupervisionReview() {
                 finalConfirmedDate = `${dPart}T${startTime}:00`;
             }
 
+            const supervisionType = (action === "APPROVE" && confirmedDateStr)
+                ? parseProposed(confirmedDateStr).type ?? selectedAppt?.supervisionType
+                : undefined;
+
             await axios.put(
                 `/api/teacher/supervisions/${selectedAppt?.id}/review`,
-                { action, confirmedDate: finalConfirmedDate, rejectReason: action === "REJECT" ? rejectReason : null },
+                { action, confirmedDate: finalConfirmedDate, rejectReason: action === "REJECT" ? rejectReason : null, supervisionType },
                 { headers: { Authorization: `Bearer ${token}` } }
             );
 

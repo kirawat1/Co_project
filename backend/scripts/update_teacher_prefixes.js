@@ -60,7 +60,7 @@ async function main() {
 
   let updated = 0, skipped = 0;
   for (const p of parsed) {
-    const match = teachers.find(t => t.firstName && t.firstName.trim() === p.firstName.trim());
+    const match = teachers.find(t => t.firstName && t.firstName.trim() === p.firstName.trim() && t.lastName && t.lastName.trim() === p.lastName.trim());
     if (!match) {
       console.log(`NO MATCH: "${p.firstName} ${p.lastName}" (prefix: ${p.prefix})`);
       skipped++;

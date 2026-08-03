@@ -508,9 +508,9 @@ exports.registerStudent = async (req, res) => {
     if (missing.length) {
       return res.status(400).json({ ok: false, message: `กรุณากรอก: ${missing.join(", ")}` });
     }
-    if (!/^\d{13}$/.test(password.trim())) {
-      return res.status(400).json({ ok: false, message: "รหัสผ่านต้องเป็นเลขบัตรประชาชน 13 หลัก" });
-    }
+    const { validatePassword } = require('../utils/validatePassword');
+    const pwError = validatePassword(password.trim());
+    if (pwError) return res.status(400).json({ ok: false, message: pwError });
     if (!/^[^@\s]+@(kkumail\.com|kku\.ac\.th)$/i.test(email.trim())) {
       return res.status(400).json({ ok: false, message: "กรุณาใช้อีเมล @kkumail.com หรือ @kku.ac.th" });
     }
