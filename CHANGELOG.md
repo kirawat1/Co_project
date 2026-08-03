@@ -1,5 +1,16 @@
 # CHANGELOG — Co_project
 
+## [2026-08-03] fix: security & correctness batch 2
+
+- **docController:** เพิ่ม status precondition ก่อน upload CP-ACCEPTANCE/T002/T003; จำกัด PRE_INTERNSHIP_STATUSES เหลือแค่ PLACEMENT_LETTER_ISSUED
+- **studentRoutes:** เพิ่ม `verifyRole('student')` ให้ acknowledge-dispatch, download-placement-letter, acknowledge-placement-letter
+- **IssueLetterModal / IssuePlacementLetterModal:** เช็ค `response.ok` ก่อน alert success; แสดง error message จาก server
+- **S_DocsT003Form:** เปลี่ยนจาก raw `fetch` เป็น `apiFetch` ใน saveForm (auto-401-logout)
+- **S_DocsT002Form:** แก้ stale closure ของ `canEdit` ใน autosave ด้วย ref; แสดง indicator เมื่อ silent save ล้มเหลว
+- **S_Docs:** แสดง `⚠️ บันทึกอัตโนมัติไม่สำเร็จ` เมื่อ silent save ล้มเหลว
+
+---
+
 ## [2026-08-03] refactor: เปลี่ยนชื่อ label "สาขาวิชา" → "หลักสูตร" และ "หลักสูตร/รูปแบบการศึกษา" → "ภาคการศึกษา"
 
 - เปลี่ยน label UI เท่านั้น ไม่เปลี่ยน schema หรือ data
