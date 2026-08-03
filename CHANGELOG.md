@@ -1,5 +1,12 @@
 # CHANGELOG — Co_project
 
+## [2026-08-03] fix: A_Teacher — prefix dropdown "-" + isCoopTeacher บันทึกไม่ได้
+
+- **A_Teacher.tsx:** dropdown prefix เพิ่ม option `-` ที่ตำแหน่งแรก, แก้ `value={form.prefix || 'อ.'}` → `value={form.prefix ?? ""}`, เรียงลำดับใหม่ให้ ผศ. ขึ้นก่อน
+- **teacherController.js `updateTeacherById`:** เพิ่ม `isCoopTeacher` ใน destructure + Prisma update — เดิมไม่ได้บันทึกค่านี้เลย
+
+---
+
 ## [2026-08-03] fix: teacher prefix dropdown — empty option แสดงเป็น "-" แทน "-- ไม่ระบุ --"
 
 - **T_Profile:** เปลี่ยน label ของ option ว่าง (value="") จาก `-- ไม่ระบุ --` เป็น `-` ให้กระชับขึ้น
