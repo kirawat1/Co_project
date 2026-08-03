@@ -207,7 +207,8 @@ exports.proposeSupervisionDate = async (req, res) => {
             });
         }).catch(err => {
             if (err.status === 403) {
-                return res.status(403).json({ ok: false, message: 'ไม่สามารถแก้ไขได้ เนื่องจากอาจารย์ยืนยันวันนิเทศแล้ว' });
+                res.status(403).json({ ok: false, message: 'ไม่สามารถแก้ไขได้ เนื่องจากอาจารย์ยืนยันวันนิเทศแล้ว' });
+                return null;
             }
             throw err;
         });

@@ -7,7 +7,7 @@ const supervisionController = require('../controllers/supervisionController');
 const { verifyToken, verifyRole } = require('../middlewares/authMiddleware');
 const { pdfOrImageFileFilter } = require('../utils/fileFilters');
 
-const ADMIN_ROLES = ['admin', 'staff'];
+const ADMIN_ROLES = ['staff'];
 
 // --- ตั้งค่าโฟลเดอร์อัปโหลดสำหรับหนังสือนิเทศ ---
 const SUPERVISION_UPLOAD_DIR = path.join(__dirname, '../uploads/supervision');

@@ -563,7 +563,7 @@ export default function CoopRequestPage() {
               <h2 className="profile-title">ตรวจสอบเอกสาร (Preview)</h2>
               <button onClick={() => setShowPDFPopup(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '28px' }}>&times;</button>
             </div>
-            <iframe src={pdfDataUrl} style={{ flex: 1, border: "1px solid #e5e7eb", borderRadius: "12px", marginTop: '15px' }} title="Preview" />
+            <iframe src={pdfDataUrl} style={{ flex: 1, border: "1px solid #e5e7eb", borderRadius: "12px", marginTop: '15px', colorScheme: 'light' }} title="Preview" />
             <div className="action-row" style={{ marginTop: 20 }}>
               <button className="btn-secondary" onClick={() => setShowPDFPopup(false)}>ปิดหน้าต่าง</button>
               <button className="btn" style={{ background: '#2563eb' }} onClick={() => handleGeneratePDF("download")}>ดาวน์โหลด PDF</button>
