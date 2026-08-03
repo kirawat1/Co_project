@@ -297,14 +297,14 @@ export default function T_Dashboard() {
               <table className="responsive-table" style={{ width: "100%", borderCollapse: "collapse" }}>
                 <thead>
                   <tr style={{ borderBottom: '2px solid #f1f5f9' }}>
-                    {["รหัสนักศึกษา", "ชื่อนักศึกษา", "สถานที่ / รูปแบบ", "วันเวลานิเทศ", "สถานะ"].map((h) => (
+                    {["รหัสนักศึกษา", "ชื่อนักศึกษา", "สถานที่ / รูปแบบ", "วันเวลานิเทศ", "สถานะ", ""].map((h) => (
                       <th key={h} style={{ textAlign: "left", padding: "12px 8px", fontSize: 13, color: "#64748b", fontWeight: 700 }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {supervisions.length === 0 ? (
-                    <tr><td colSpan={5} style={{ padding: 30, color: "#94a3b8", textAlign: "center" }}>— ไม่มีคิวนัดนิเทศ —</td></tr>
+                    <tr><td colSpan={6} style={{ padding: 30, color: "#94a3b8", textAlign: "center" }}>— ไม่มีคิวนัดนิเทศ —</td></tr>
                   ) : (
                     supervisions.slice(0, 5).map((sup) => (
                       <tr key={sup.id} style={{ borderBottom: "1px solid #f8fafc" }}>
@@ -320,6 +320,13 @@ export default function T_Dashboard() {
                         </td>
                         <td style={td()} data-label="วันเวลานิเทศ"><b>{formatDateTime(sup.confirmedDate)}</b></td>
                         <td style={td()} data-label="สถานะ">{chip(sup.status)}</td>
+                        <td style={td()}>
+                          {sup.status === "PENDING_TEACHER" && (
+                            <Link to="/teacher/review-supervision" style={{ fontSize: 12, fontWeight: 700, color: '#fff', background: IOS_BLUE, padding: '5px 12px', borderRadius: 8, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+                              พิจารณา →
+                            </Link>
+                          )}
+                        </td>
                       </tr>
                     ))
                   )}

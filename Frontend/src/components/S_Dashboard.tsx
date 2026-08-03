@@ -44,6 +44,12 @@ const DOC_LABEL: Record<string, string> = {
   t003: "โครงร่างรายงานและแผนปฏิบัติงาน (T003)",
 };
 
+const DOC_ROUTE: Record<string, string> = {
+  t000: "/student/docs",
+  t002: "/student/docs-t002",
+  t003: "/student/docs-t003",
+};
+
 export default function S_Dashboard() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [supervisions, setSupervisions] = useState<SupervisionAppt | null>(null);
@@ -190,6 +196,11 @@ export default function S_Dashboard() {
             <div className="countdown-box">
               <div className="countdown-label">ปิดรับ {DOC_LABEL[nearestDeadline.id] ?? nearestDeadline.id}</div>
               <div className="countdown-timer">⏱ {countdown}</div>
+              {DOC_ROUTE[nearestDeadline.id] && (
+                <a href={DOC_ROUTE[nearestDeadline.id]} style={{ display: 'block', marginTop: 6, fontSize: 12, color: '#2563eb', fontWeight: 700, textDecoration: 'none' }}>
+                  → อัปโหลดเอกสารตอนนี้
+                </a>
+              )}
             </div>
           </div>
         </div>
@@ -283,12 +294,14 @@ export default function S_Dashboard() {
         </div>
       </div>
 
-      {/* SUBMIT BUTTON (ซ่อนถ้าได้รับการอนุมัติแล้ว) */}
-      <div className="dash-btn-wrapper">
-        <a href="/student/gateway" className="dash-btn">
-          ยื่นคำร้องเข้าร่วมโครงการ
-        </a>
-      </div>
+      {/* SUBMIT BUTTON: แสดงเฉพาะช่วงก่อนผ่านคุณสมบัติ */}
+      {["NOT_SUBMITTED", "APPLYING", "APPLICATION_EDITS_REQUIRED", "QUALIFICATION_FAILED"].includes(studentStatus) && (
+        <div className="dash-btn-wrapper">
+          <a href="/student/gateway" className="dash-btn">
+            ยื่นคำร้องเข้าร่วมโครงการ
+          </a>
+        </div>
+      )}
 
       {/* ANNOUNCEMENT MODAL */}
       {/* 🟢 MODAL: รายละเอียดประกาศ */}

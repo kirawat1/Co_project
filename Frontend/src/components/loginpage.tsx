@@ -355,10 +355,6 @@ export default function LoginPage() {
             </>
           )}
 
-          <p className="footnote">
-            · ตอนนี้ใช้ username ตามบทบาท และ password = เลขบัตรประชาชน 13 หลัก
-          </p>
-
           {/* ── สมัครสมาชิกใหม่ (นักศึกษาเท่านั้น) ── */}
           {role === "student" && (
             <div style={{ textAlign: "center", marginTop: 12 }}>

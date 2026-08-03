@@ -1,5 +1,15 @@
 # CHANGELOG — Co_project
 
+## [2026-08-03] fix: UX improvements — 5 issues across Student / Teacher / Login
+
+- **S_Dashboard:** ปุ่ม "ยื่นคำร้อง" ซ่อนเมื่อนักศึกษาผ่านขั้นตอนสมัครแล้ว (QUALIFIED ขึ้นไป)
+- **S_Dashboard:** Countdown เพิ่มลิงก์ "อัปโหลดเอกสารตอนนี้" ชี้ไปหน้าที่ถูกต้อง
+- **S_Sidebar:** เปลี่ยน label T002/T003 ให้สั้นและแยกแยะได้ ("T002 รายละเอียดงาน" / "T003 โครงร่างรายงาน")
+- **T_Dashboard:** เพิ่มปุ่ม "พิจารณา →" ในตารางนิเทศสำหรับแถวที่มีสถานะ PENDING_TEACHER
+- **loginpage:** ลบข้อความ debug hint ("password = เลขบัตรประชาชน") ออกจากหน้า login
+
+---
+
 ## [2026-08-03] fix: A_DocT000 — context-sensitive action buttons + filter grouping
 
 - **ปุ่ม "ตรวจสอบ T000":** แสดงเฉพาะนักศึกษาที่มีเอกสารและยังไม่ผ่านขั้นตอน 2 (ยังไม่ถึงช่วงใบตอบรับ)
