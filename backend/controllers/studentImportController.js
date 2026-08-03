@@ -40,7 +40,7 @@ function mapMajor(raw) {
   if (MAJOR_NAME_TO_CODE[trimmed]) return { code: MAJOR_NAME_TO_CODE[trimmed], unrecognized: false };
   const upper = trimmed.toUpperCase();
   if (KNOWN_MAJOR_CODES.has(upper)) return { code: upper, unrecognized: false };
-  return { code: trimmed, unrecognized: true };
+  return { code: trimmed.slice(0, 50), unrecognized: true };
 }
 
 // คอลัมน์ "ชื่อ-นามสกุล" เป็นช่องเดียว — แยกเป็น firstName/lastName โดยตัดที่เว้นวรรคแรก

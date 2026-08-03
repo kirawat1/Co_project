@@ -222,7 +222,7 @@ exports.uploadDocument = async (req, res) => {
         });
     } else if (dbType === 'T003_FORM') {
         const coop = await prisma.studentCoop.findUnique({ where: { studentId: student.id } });
-        const T003_VALID = ['T002_SUBMITTED', 'T002_GRADED'];
+        const T003_VALID = ['T002_SUBMITTED'];
         if (!coop || !T003_VALID.includes(coop.status)) {
             if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
             return res.status(400).json({ ok: false, message: 'สามารถส่ง T003 ได้หลังส่ง T002 แล้วเท่านั้น' });
@@ -443,6 +443,12 @@ exports.saveT002Form = async (req, res) => {
         const student = await prisma.student.findUnique({ where: { userId: req.user.id } });
         if (!student) return res.status(404).json({ ok: false, message: "Student not found" });
 
+        const coop = await prisma.studentCoop.findUnique({ where: { studentId: student.id } });
+        const T002_DRAFT_ALLOWED = ['INTERNSHIP_STARTED', 'T002_SUBMITTED', 'T002_EDITS_REQUIRED'];
+        if (!coop || !T002_DRAFT_ALLOWED.includes(coop.status)) {
+            return res.status(400).json({ ok: false, message: 'ยังไม่ถึงขั้นตอนกรอก T002' });
+        }
+
         const {
             companyNameTh, companyNameEn, addressNo, moo, soi, road, subDistrict, district, province, zipcode,
             companyPhone, companyFax, companyEmail,
@@ -485,9 +491,15 @@ exports.saveT003Form = async (req, res) => {
         const student = await prisma.student.findUnique({ where: { userId: req.user.id } });
         if (!student) return res.status(404).json({ ok: false, message: "Student not found" });
 
-        const { 
-            reportTitleTh, reportTitleEn, objectives, expectedOutcomes, 
-            significance, references, methodology, scope, otherSuggestions, workPlan 
+        const coopT3 = await prisma.studentCoop.findUnique({ where: { studentId: student.id } });
+        const T003_DRAFT_ALLOWED = ['T002_SUBMITTED', 'T003_SUBMITTED', 'T003_EDITS_REQUIRED'];
+        if (!coopT3 || !T003_DRAFT_ALLOWED.includes(coopT3.status)) {
+            return res.status(400).json({ ok: false, message: 'ยังไม่ถึงขั้นตอนกรอก T003' });
+        }
+
+        const {
+            reportTitleTh, reportTitleEn, objectives, expectedOutcomes,
+            significance, references, methodology, scope, otherSuggestions, workPlan
         } = req.body;
 
         // อัปเดตหรือสร้างใหม่ (Upsert)
