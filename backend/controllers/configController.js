@@ -281,6 +281,9 @@ exports.updateGatewaySettings = async (req, res) => {
         const { gradeSheetDescription, gradeSheetUrl, gradeSheetLinkText, uploadDescription } = req.body;
 
         // Validate URL protocol to prevent stored XSS via javascript: href
+        if (typeof gradeSheetLinkText === 'string' && !gradeSheetLinkText.trim()) {
+            return res.status(400).json({ ok: false, message: 'gradeSheetLinkText ต้องไม่ว่างเปล่า' });
+        }
         if (gradeSheetUrl) {
             const safe = safeUrl(gradeSheetUrl);
             if (!safe) {

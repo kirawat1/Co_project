@@ -122,7 +122,7 @@ export default function T_StudentDetail() {
     try {
       setLoading(true);
       // ค้นหาด้วย studentId โดยตรง + limit=1 ป้องกัน pagination ทำให้หาไม่เจอเมื่อมีนักศึกษา > 50 คน
-      const resStd = await apiFetch(`/api/students?search=${encodeURIComponent(studentId)}&limit=1`, {
+      const resStd = await apiFetch(`/api/students?search=${encodeURIComponent(studentId)}&limit=100`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (resStd.ok) {

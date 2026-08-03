@@ -132,17 +132,16 @@ exports.updateMyProfile = async (req, res) => {
 
     if (data.emails && Array.isArray(data.emails)) {
       const validEmails = data.emails.filter(e => e.email && e.email.trim() !== "");
-      // batch: ลบ email เก่าทั้งหมดแล้ว recreate — หลีกเลี่ยง N+1
-      await prisma.studentEmail.deleteMany({ where: { studentId: student.id } });
-      if (validEmails.length > 0) {
-        await prisma.studentEmail.createMany({
+      await prisma.$transaction([
+        prisma.studentEmail.deleteMany({ where: { studentId: student.id } }),
+        ...(validEmails.length > 0 ? [prisma.studentEmail.createMany({
           data: validEmails.map(e => ({
             email: e.email,
             primary: e.primary || false,
             studentId: student.id,
           })),
-        });
-      }
+        })] : []),
+      ]);
     }
 
     // ==========================================

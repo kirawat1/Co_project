@@ -175,23 +175,30 @@ export default function S_ProfilePage() {
   useEffect(() => {
     if (!token) return;
 
-    Promise.all([
+    Promise.allSettled([
       fetch("/api/students/me", { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()),
       fetch("/api/companies", { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()),
       fetch("/api/teachers", { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()),
     ])
-      .then(([profileData, companyData, teacherData]) => {
-        const emails = profileData.emails?.length > 0 ? profileData.emails : [{ email: "", primary: false }];
-        const company = profileData.coop ? { ...profileData.coop.company, mentor: profileData.coop.mentor } : profileData.company;
-        setProfile({ ...profileData, emails, company });
-
-        const companyList = Array.isArray(companyData) ? companyData : (companyData?.data ?? []);
-        setCompanies(companyList);
-
-        if (teacherData.ok && teacherData.teachers) setTeachers(teacherData.teachers);
-        else if (Array.isArray(teacherData)) setTeachers(teacherData);
+      .then(([profileResult, companyResult, teacherResult]) => {
+        if (profileResult.status === "fulfilled") {
+          const profileData = profileResult.value;
+          const emails = profileData.emails?.length > 0 ? profileData.emails : [{ email: "", primary: false }];
+          const company = profileData.coop ? { ...profileData.coop.company, mentor: profileData.coop.mentor } : profileData.company;
+          setProfile({ ...profileData, emails, company });
+        } else {
+          console.error("Error fetching profile:", profileResult.reason);
+        }
+        if (companyResult.status === "fulfilled") {
+          const companyData = companyResult.value;
+          setCompanies(Array.isArray(companyData) ? companyData : (companyData?.data ?? []));
+        }
+        if (teacherResult.status === "fulfilled") {
+          const teacherData = teacherResult.value;
+          if (teacherData.ok && teacherData.teachers) setTeachers(teacherData.teachers);
+          else if (Array.isArray(teacherData)) setTeachers(teacherData);
+        }
       })
-      .catch(err => console.error("Error fetching profile data:", err))
       .finally(() => setLoading(false));
   }, [token]);
 
