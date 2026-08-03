@@ -1,5 +1,13 @@
 # CHANGELOG — Co_project
 
+## [2026-08-03] fix: A_DocT000 — context-sensitive action buttons + filter grouping
+
+- **ปุ่ม "ตรวจสอบ T000":** แสดงเฉพาะนักศึกษาที่มีเอกสารและยังไม่ผ่านขั้นตอน 2 (ยังไม่ถึงช่วงใบตอบรับ)
+- **ปุ่ม "ตรวจสอบใบตอบรับ":** แสดงเฉพาะนักศึกษาที่อยู่ใน post-letter phase (`WAITING_FOR_PLACEMENT_LETTER` / `WAITING_FOR_STAFF_CHECK_LETTER` / `ACCEPTANCE_CHECKED` / `PLACEMENT_LETTER_ISSUED`)
+- **Filter checkboxes:** แยก 9 checkbox เป็น 2 กลุ่มมีป้ายกำกับ (ขั้นตอนที่ 1 / ขั้นตอนที่ 2) เพื่อไม่ overflow และเข้าใจง่ายขึ้น
+
+---
+
 ## [2026-08-03] test: เพิ่ม 28 unit tests (223 → 251)
 
 - **authController:** `registerStudent` — validation password 13 หลัก, email KKU, duplicate email/studentId, password hashing, 500 path
