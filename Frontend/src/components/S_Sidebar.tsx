@@ -99,10 +99,10 @@ export default function S_Sidebar({ profile, isOpen = false, onClose = () => {} 
 
             <NavItem to="/student/docs" label="เอกสารสหกิจ (CP-T000)" icon={<IcClipboard />} onClick={handleNav} />
 
-            <NavItem to="/student/docs-t002" label="เอกสารรายละเอียด (CP-T002)" icon={<IcList />}
+            <NavItem to="/student/docs-t002" label="T002 รายละเอียดงาน" icon={<IcList />}
               count={counts.T002_REVIEWED ?? 0} onClick={navAndRead} />
 
-            <NavItem to="/student/docs-t003" label="เอกสารรายละเอียด (CP-T003)" icon={<IcRoute />}
+            <NavItem to="/student/docs-t003" label="T003 โครงร่างรายงาน" icon={<IcRoute />}
               count={counts.T003_REVIEWED ?? 0} onClick={navAndRead} />
 
             <NavItem to="/student/supervision" label="นัดหมายนิเทศ" icon={<IcCalendar />}
