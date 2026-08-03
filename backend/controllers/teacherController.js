@@ -535,8 +535,8 @@ exports.deleteTeacher = async (req, res) => {
 
     // ต้องลบ Teacher ก่อน User เสมอ เพราะ Teacher.userId อ้างถึง User.id (ลบ User ก่อนจะติด FK constraint)
     await prisma.$transaction([
-      prisma.student.updateMany({ where: { generalAdvisorId: teacherId }, data: { generalAdvisorId: null } }),
-      prisma.student.updateMany({ where: { coopAdvisorId: teacherId }, data: { coopAdvisorId: null } }),
+      prisma.student.updateMany({ where: { generalAdvisorId: teacherId }, data: { generalAdvisorId: null, advisorName: null } }),
+      prisma.student.updateMany({ where: { coopAdvisorId: teacherId }, data: { coopAdvisorId: null, advisorName: null } }),
       prisma.teacher.delete({ where: { id: teacherId } }),
       prisma.user.delete({ where: { id: teacher.userId } }),
     ]);
