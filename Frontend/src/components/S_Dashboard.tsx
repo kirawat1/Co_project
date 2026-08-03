@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import axios from "axios";
 import { IcAnnounce, IcDocs } from "./icons";
 import StatusBadge from "./StatusBadge";
@@ -197,9 +198,9 @@ export default function S_Dashboard() {
               <div className="countdown-label">ปิดรับ {DOC_LABEL[nearestDeadline.id] ?? nearestDeadline.id}</div>
               <div className="countdown-timer">⏱ {countdown}</div>
               {DOC_ROUTE[nearestDeadline.id] && (
-                <a href={DOC_ROUTE[nearestDeadline.id]} style={{ display: 'block', marginTop: 6, fontSize: 12, color: '#2563eb', fontWeight: 700, textDecoration: 'none' }}>
+                <Link to={DOC_ROUTE[nearestDeadline.id]} style={{ display: 'block', marginTop: 6, fontSize: 12, color: '#2563eb', fontWeight: 700, textDecoration: 'none' }}>
                   → อัปโหลดเอกสารตอนนี้
-                </a>
+                </Link>
               )}
             </div>
           </div>
