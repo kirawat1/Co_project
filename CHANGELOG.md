@@ -1,5 +1,14 @@
 # CHANGELOG — Co_project
 
+## [2026-08-03] fix: security batch 4
+
+- **supervisionController:** แก้ ERR_HTTP_HEADERS_SENT เมื่อ lock hit — `.catch()` คืน `null` แทน Response object ให้ guard `if (!appointment) return` ทำงานถูกต้อง
+- **teacherController.deleteTeacher:** ล้าง `Student.advisorName` พร้อมกับ FK fields เพื่อป้องกันนักศึกษาโดนบล็อก supervision หลังลบอาจารย์
+- **S_Gateway CoopRequestPage:** เพิ่ม `colorScheme: 'light'` ให้ iframe ดูตัวอย่าง PDF (เหมือน fix ใน b1ec590 สำหรับ letter modals)
+- **supervisionRoutes:** ลบ `'admin'` ออกจาก ADMIN_ROLES (ไม่มีใน Prisma Role enum)
+
+---
+
 ## [2026-08-03] fix: security batch 3
 
 - **adminRoutes:** เพิ่ม `verifyToken + verifyRole` ให้ GET /api/admin/doc-requirements (เดิม unauthenticated)
