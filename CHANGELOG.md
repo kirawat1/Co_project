@@ -1,5 +1,11 @@
 # CHANGELOG — Co_project
 
+## [2026-08-03] fix: teacher prefix dropdown — empty option แสดงเป็น "-" แทน "-- ไม่ระบุ --"
+
+- **T_Profile:** เปลี่ยน label ของ option ว่าง (value="") จาก `-- ไม่ระบุ --` เป็น `-` ให้กระชับขึ้น
+
+---
+
 ## [2026-08-03] feat: teacher prefix — populate DB + dynamic dropdown + display throughout
 
 - **DB:** อัปเดต prefix สำหรับอาจารย์ 38 คนจากข้อมูล computing.kku.ac.th/people (ผศ. ดร. / รศ. ดร. / อ. ดร. / อ. / ผศ.)
