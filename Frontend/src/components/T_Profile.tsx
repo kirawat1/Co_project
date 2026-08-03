@@ -6,15 +6,17 @@ import { IcUser, IcEdit, IcSave } from "./icons";
 ========================= */
 export type TeacherProfile = {
   id?: number;
+  prefix?: string;
   firstName: string;
   lastName: string;
   email: string;
   phone: string;
   faculty?: string;
-  major?: string; // ✅ เปลี่ยนเป็น string ธรรมดา เพื่อรองรับชื่อสาขาจาก Database
+  major?: string;
 };
 
 const EMPTY: TeacherProfile = {
+  prefix: "",
   firstName: "",
   lastName: "",
   email: "",
@@ -22,6 +24,17 @@ const EMPTY: TeacherProfile = {
   faculty: "",
   major: "",
 };
+
+const PREFIX_OPTIONS = [
+  "อ.",
+  "อ. ดร.",
+  "ผศ.",
+  "ผศ. ดร.",
+  "รศ.",
+  "รศ. ดร.",
+  "ศ.",
+  "ศ. ดร.",
+];
 
 // ✅ เก็บ Map ไว้เผื่อกรณีมีข้อมูลเก่า (Legacy) ที่เซฟเป็นชื่อย่อไปแล้ว จะได้แสดงผลสวยงาม
 const MAJOR_MAP: Record<string, string> = {
@@ -159,7 +172,7 @@ export default function T_Profile() {
                   <IcUser width={30} height={30} style={{ color: '#2563eb' }} />
                 </div>
                 <div>
-                  <div className="profile-title">{profile.firstName} {profile.lastName}</div>
+                  <div className="profile-title">{profile.prefix ? `${profile.prefix} ` : ""}{profile.firstName} {profile.lastName}</div>
                   <div className="profile-sub">
                     {profile.faculty} {profile.major ? `• ${displayMajor}` : ""}
                   </div>
@@ -173,6 +186,10 @@ export default function T_Profile() {
             <div className="divider"></div>
 
             <div className="info-grid-single">
+              <div className="info-row">
+                <span className="label">คำนำหน้า</span>
+                <span className="value">{profile.prefix || "-"}</span>
+              </div>
               <div className="info-row">
                 <span className="label">ชื่อ-นามสกุล</span>
                 <span className="value">{profile.firstName} {profile.lastName}</span>
@@ -209,6 +226,20 @@ export default function T_Profile() {
             <p className="profile-sub" style={{ marginBottom: '20px' }}>กรุณากรอกข้อมูลส่วนตัวของคุณเพื่อใช้ในการนิเทศนักศึกษา</p>
 
             <div className="form-grid">
+              <div style={{ gridColumn: 'span 2' }}>
+                <label className="label">คำนำหน้า</label>
+                <select
+                  className="input"
+                  value={form.prefix || ""}
+                  onChange={(e) => setForm({ ...form, prefix: e.target.value })}
+                  style={{ appearance: 'none', background: '#fff url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23131313%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E") no-repeat right 12px center', backgroundSize: '12px' }}
+                >
+                  <option value="">-- ไม่ระบุ --</option>
+                  {PREFIX_OPTIONS.map((p) => (
+                    <option key={p} value={p}>{p}</option>
+                  ))}
+                </select>
+              </div>
               <div>
                 <label className="label">ชื่อ <span style={{ color: 'red' }}>*</span></label>
                 <input
