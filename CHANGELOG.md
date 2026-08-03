@@ -1,5 +1,13 @@
 # CHANGELOG — Co_project
 
+## [2026-08-03] fix: security batch 3
+
+- **adminRoutes:** เพิ่ม `verifyToken + verifyRole` ให้ GET /api/admin/doc-requirements (เดิม unauthenticated)
+- **studentRoutes:** เพิ่ม `verifyToken` ให้ GET /api/students/doc-requirements (เดิม unauthenticated)
+- **supervisionController:** validate `supervisionType` enum ก่อน upsert — ค่าผิดคืน 400 แทน 500
+
+---
+
 ## [2026-08-03] fix: security & correctness batch 2
 
 - **docController:** เพิ่ม status precondition ก่อน upload CP-ACCEPTANCE/T002/T003; จำกัด PRE_INTERNSHIP_STATUSES เหลือแค่ PLACEMENT_LETTER_ISSUED
