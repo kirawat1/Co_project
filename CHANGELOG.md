@@ -1,10 +1,13 @@
 # CHANGELOG — Co_project
 
-## [2026-08-03] feat: teacher profile — prefix (คำนำหน้า) dropdown
+## [2026-08-03] feat: teacher prefix — populate DB + dynamic dropdown + display throughout
 
-- **T_Profile:** เพิ่มฟิลด์ "คำนำหน้า" เป็น dropdown ในฟอร์มแก้ไขโปรไฟล์อาจารย์ ตัวเลือก: อ., อ. ดร., ผศ., ผศ. ดร., รศ., รศ. ดร., ศ., ศ. ดร. (ดึงมาจาก computing.kku.ac.th/people)
-- **T_Profile:** แสดงคำนำหน้าในหน้า profile view (ชื่อบัตร + แถวข้อมูล)
-- **teacherController:** `updateProfile` รองรับ field `prefix` ในทั้ง update และ create path แล้ว
+- **DB:** อัปเดต prefix สำหรับอาจารย์ 38 คนจากข้อมูล computing.kku.ac.th/people (ผศ. ดร. / รศ. ดร. / อ. ดร. / อ. / ผศ.)
+- **teacherController:** เพิ่ม `getTeacherPrefixes` endpoint คืน unique prefix จาก DB
+- **teacherRoutes:** เพิ่ม `GET /api/teacher/prefixes`
+- **T_Profile:** dropdown คำนำหน้าดึงจาก API (`/api/teacher/prefixes`) พร้อม fallback hardcode; แสดง prefix ในชื่อและแถวข้อมูล
+- **S_ProfilePage:** `AdvisorRow` แสดงคำนำหน้าอาจารย์ที่ปรึกษา (generalAdvisor / coopAdvisor) แทนคำว่า "อาจารย์" hardcode
+- **studentController + teacherController:** เพิ่ม `prefix: true` ใน advisor select ทุกจุด
 
 ---
 

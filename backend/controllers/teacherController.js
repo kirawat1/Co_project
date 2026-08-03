@@ -119,6 +119,23 @@ exports.updateProfile = async (req, res) => {
 
 // ... (โค้ดเดิม getProfile, updateProfile เก็บไว้เหมือนเดิม ห้ามลบ) ...
 
+// ✅ 2.5 คืน unique prefix ที่มีใน DB สำหรับ dropdown
+exports.getTeacherPrefixes = async (req, res) => {
+  try {
+    const rows = await prisma.teacher.findMany({
+      select: { prefix: true },
+      where: { prefix: { not: null } },
+      distinct: ['prefix'],
+      orderBy: { prefix: 'asc' },
+    });
+    const prefixes = rows.map(r => r.prefix).filter(Boolean);
+    res.json({ ok: true, prefixes });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ ok: false, message: 'Server error' });
+  }
+};
+
 // ✅ 3. [ADMIN] ดึงรายชื่ออาจารย์ทั้งหมด
 // หมายเหตุ: endpoint นี้เปิดให้ทุก role ที่ login แล้วเรียกได้โดยตั้งใจ — นักศึกษาใช้
 // ดึงรายชื่อ+อีเมลอาจารย์ไปแสดงในหน้าเลือกอาจารย์ที่ปรึกษา (S_ProfilePage.tsx)
@@ -645,8 +662,8 @@ exports.getMyStudents = async (req, res) => {
     const include = {
       user: { select: { email: true } },
       coop: { include: { company: true } },
-      generalAdvisor: { select: { firstName: true, lastName: true, email: true } },
-      coopAdvisor: { select: { firstName: true, lastName: true, email: true } },
+      generalAdvisor: { select: { prefix: true, firstName: true, lastName: true, email: true } },
+      coopAdvisor: { select: { prefix: true, firstName: true, lastName: true, email: true } },
       coopApplicationForm: { select: { gradeSheetUrl: true } },
     };
 
@@ -696,8 +713,8 @@ exports.exportMyStudents = async (req, res) => {
       where,
       include: {
         coop: { include: { company: true } },
-        generalAdvisor: { select: { firstName: true, lastName: true } },
-        coopAdvisor: { select: { firstName: true, lastName: true } },
+        generalAdvisor: { select: { prefix: true, firstName: true, lastName: true } },
+        coopAdvisor: { select: { prefix: true, firstName: true, lastName: true } },
       },
       orderBy: { studentId: 'asc' },
     });
