@@ -1,5 +1,15 @@
 # CHANGELOG — Co_project
 
+## [2026-08-03] refactor: button-style-unification — canonical CSS + self-registration removed
+
+- **S_Theme.tsx:** canonical button CSS ครบ (`.btn`, `.btn-primary`, `.btn-secondary`, `.btn-ghost`, `.btn-outline`, `.btn-success`, `.btn-danger`, `.btn-warning`, `.action-btn`, `.btn-copy`, `.close-btn`, `.btn-link`) พร้อม hover/active/disabled/focus-visible ทั้ง light + dark mode
+- **loginpage.tsx:** ลบ link "ยังไม่มีบัญชี? สมัครสมาชิกด้วยตนเอง" และ register modal ออกทั้งหมด (156 บรรทัด)
+- **A_DocT008.tsx:** `.btn` → `.btn-danger` ปุ่มลบภาพ (ลบ inline background/color)
+- **A_SupervisionManage.tsx:** `.btn` → `.btn-success` ปุ่มบันทึก config (ลบ inline background)
+- **S_DocT005_006.tsx:** `.btn.btn-primary` → `.btn-warning` ปุ่มเปิด template email (ลบ inline background)
+
+---
+
 ## [2026-08-03] fix: A_Teacher — prefix spacing match DB + isCoopTeacher บันทึกไม่ได้
 
 - **A_Teacher.tsx:** แก้ TEACHER_PREFIXES ให้มีช่องว่างตรงกับ DB (`'ผศ. ดร.'` ไม่ใช่ `'ผศ.ดร.'`) ทำให้ dropdown แสดง prefix ที่บันทึกไว้ถูกต้อง; dropdown prefix เพิ่ม option `-` ที่ตำแหน่งแรก, แก้ `value={form.prefix || 'อ.'}` → `value={form.prefix ?? ""}`, เรียงลำดับใหม่ให้ ผศ. ขึ้นก่อน

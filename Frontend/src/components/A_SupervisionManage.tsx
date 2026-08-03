@@ -418,7 +418,7 @@ export default function A_SupervisionManage() {
                             <option value="OPEN">🟢 เปิดระบบให้จอง</option>
                         </select>
                     </div>
-                    <button className="btn" style={{ background: '#10b981', height: 42, padding: '0 20px' }}
+                    <button className="btn-success"
                         onClick={handleSaveConfig} disabled={savingConfig || !selectedPeriodId}>
                         {savingConfig ? "กำลังบันทึก..." : "💾 บันทึก"}
                     </button>

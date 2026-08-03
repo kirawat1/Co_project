@@ -181,7 +181,7 @@ export default function S_DocT005_006() {
                             </button>
                         </div>
 
-                        <button className="btn btn-primary" style={{ background: '#f59e0b', width: '100%' }} onClick={() => window.open(config.templateLink, "_blank")}>
+                        <button className="btn-warning" style={{ width: '100%' }} onClick={() => window.open(config.templateLink, "_blank")}>
                             🔗 เปิดหน้า Template Email
                         </button>
                     </div>
