@@ -1,5 +1,11 @@
 # CHANGELOG — Co_project
 
+## [2026-08-04] fix: supervisionRoutes — ลบ dead 'admin' role จาก verifyRole
+
+- `PUT /teacher/supervisions/:id/review` และ `/:id/complete` เปลี่ยนจาก `verifyRole('teacher','admin','staff')` เป็น `verifyRole('teacher','staff')` ('admin' ไม่มีใน Prisma Role enum)
+
+---
+
 ## [2026-08-04] fix: S_StatusTracker — Phase 4 unreachable + dead SupervisionStatus keys
 
 - **Phase 3 entryStatuses:** ลบ `T003_APPROVED` ออก ทำให้ Phase 4 (นิเทศและรายงาน) ถูก reach ได้จริง
