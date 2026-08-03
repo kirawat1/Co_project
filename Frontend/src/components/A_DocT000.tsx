@@ -71,6 +71,14 @@ const CAN_ISSUE_REQUEST_LETTER_STATUSES = [
     'PLACEMENT_LETTER_ISSUED',
 ];
 
+// สถานะที่อยู่ในช่วง "ตรวจใบตอบรับ" (หลังออกหนังสือขอความอนุเคราะห์แล้ว)
+const POST_LETTER_STATUSES = [
+    'WAITING_FOR_PLACEMENT_LETTER',
+    'WAITING_FOR_STAFF_CHECK_LETTER',
+    'ACCEPTANCE_CHECKED',
+    'PLACEMENT_LETTER_ISSUED',
+];
+
 const isMatch = (docType: string, reqKey: string) => {
     if (docType === reqKey) return true;
     if (reqKey === 'CP-T000' && docType === 'T000_SIGNED') return true;
@@ -485,14 +493,29 @@ export default function A_DocT000() {
                     </select>
                 </div>
 
-                <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-                    {/* 🟢 เพิ่ม QUALIFIED เข้าไปในตัวกรอง */}
-                    {["QUALIFIED", "WAITING_FOR_STAFF_CHECK", "EDITS_REQUIRED", "DOCS_APPROVED", "REQ_LETTER_ISSUED", "WAITING_FOR_PLACEMENT_LETTER", "WAITING_FOR_STAFF_CHECK_LETTER", "ACCEPTANCE_CHECKED", "PLACEMENT_LETTER_ISSUED"].map(st => (
-                        <label key={st} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 13, cursor: 'pointer' }}>
-                            <input type="checkbox" checked={statusFilter.includes(st)} onChange={e => setStatusFilter(p => e.target.checked ? [...p, st] : p.filter(x => x !== st))} />
-                            {statusChip(st)}
-                        </label>
-                    ))}
+                <div style={{ marginBottom: 16 }}>
+                    <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>
+                        ขั้นตอนที่ 1 — ตรวจเอกสาร T000
+                    </div>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
+                        {["QUALIFIED", "WAITING_FOR_STAFF_CHECK", "EDITS_REQUIRED", "DOCS_APPROVED", "REQ_LETTER_ISSUED"].map(st => (
+                            <label key={st} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 13, cursor: 'pointer' }}>
+                                <input type="checkbox" checked={statusFilter.includes(st)} onChange={e => setStatusFilter(p => e.target.checked ? [...p, st] : p.filter(x => x !== st))} />
+                                {statusChip(st)}
+                            </label>
+                        ))}
+                    </div>
+                    <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>
+                        ขั้นตอนที่ 2 — ตรวจใบตอบรับ / ออกหนังสือส่งตัว
+                    </div>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        {["WAITING_FOR_PLACEMENT_LETTER", "WAITING_FOR_STAFF_CHECK_LETTER", "ACCEPTANCE_CHECKED", "PLACEMENT_LETTER_ISSUED"].map(st => (
+                            <label key={st} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 13, cursor: 'pointer' }}>
+                                <input type="checkbox" checked={statusFilter.includes(st)} onChange={e => setStatusFilter(p => e.target.checked ? [...p, st] : p.filter(x => x !== st))} />
+                                {statusChip(st)}
+                            </label>
+                        ))}
+                    </div>
                 </div>
 
                 <div style={{ overflowX: "auto" }}>
@@ -527,9 +550,11 @@ export default function A_DocT000() {
                                     <td style={td} data-label="วันที่ส่ง">{s.submittedAt ? new Date(s.submittedAt).toLocaleDateString('th-TH') : "-"}</td>
                                     <td style={td} data-label="สถานะ"><StatusBadge status={s.docStatus} /></td>
                                     <td style={td}>
-                                        <button className="btn" style={{ background: IOS_BLUE, color: 'white', fontSize: 12 }} onClick={() => openCheckModal(s, 1)}>
-                                            🔍 ตรวจสอบ T000
-                                        </button>
+                                        {(s.documents?.length || 0) > 0 && !POST_LETTER_STATUSES.includes(s.docStatus || '') && (
+                                            <button className="btn" style={{ background: IOS_BLUE, color: 'white', fontSize: 12 }} onClick={() => openCheckModal(s, 1)}>
+                                                🔍 ตรวจสอบ T000
+                                            </button>
+                                        )}
                                     </td>
                                     <td style={td}>
                                         {CAN_ISSUE_REQUEST_LETTER_STATUSES.includes(s.docStatus || '') && (
@@ -539,9 +564,11 @@ export default function A_DocT000() {
                                         )}
                                     </td>
                                     <td style={td}>
-                                        <button className="btn" style={{ background: '#3b82f6', color: 'white', fontSize: 12 }} onClick={() => openCheckModal(s, 2)}>
-                                            🔍 ตรวจสอบใบตอบรับ
-                                        </button>
+                                        {POST_LETTER_STATUSES.includes(s.docStatus || '') && (
+                                            <button className="btn" style={{ background: '#3b82f6', color: 'white', fontSize: 12 }} onClick={() => openCheckModal(s, 2)}>
+                                                🔍 ตรวจสอบใบตอบรับ
+                                            </button>
+                                        )}
                                     </td>
                                     <td style={td}>
                                         {(s.docStatus === 'ACCEPTANCE_CHECKED' || s.docStatus === 'PLACEMENT_LETTER_ISSUED') && (
