@@ -1,5 +1,14 @@
 # CHANGELOG — Co_project
 
+## [2026-08-03] refactor: เปลี่ยนชื่อ label "สาขาวิชา" → "หลักสูตร" และ "หลักสูตร/รูปแบบการศึกษา" → "ภาคการศึกษา"
+
+- เปลี่ยน label UI เท่านั้น ไม่เปลี่ยน schema หรือ data
+- ไฟล์ที่แก้: A_Students, A_StudentEditModal, A_Teacher, A_CriteriaPage, S_ProfilePage, S_Gateway, T_Students, T_StudentDetail, T_Profile
+- A_CriteriaPage: แก้ alert/confirm/button/placeholder ที่ยังเรียก "สาขา" ทั้ง 7 จุด
+- T_StudentDetail, T_Students: เพิ่ม CURRICULUM_TH mapping แสดง studyProgram เป็น "ภาคปกติ"/"ภาคพิเศษ" แทน raw enum
+
+---
+
 ## [2026-08-03] refactor: button-style-unification — canonical CSS + self-registration removed
 
 - **S_Theme.tsx:** canonical button CSS ครบ (`.btn`, `.btn-primary`, `.btn-secondary`, `.btn-ghost`, `.btn-outline`, `.btn-success`, `.btn-danger`, `.btn-warning`, `.action-btn`, `.btn-copy`, `.close-btn`, `.btn-link`) พร้อม hover/active/disabled/focus-visible ทั้ง light + dark mode
