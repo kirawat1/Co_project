@@ -565,6 +565,9 @@ exports.registerStudent = async (req, res) => {
       },
     });
   } catch (err) {
+    if (err.code === 'P2002') {
+      return res.status(409).json({ ok: false, message: "อีเมลหรือรหัสนักศึกษานี้มีในระบบแล้ว" });
+    }
     console.error("[registerStudent]", err);
     res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์" });
   }

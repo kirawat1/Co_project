@@ -1,5 +1,12 @@
 # CHANGELOG — Co_project
 
+## [2026-08-04] fix: correctness batch 9 — Prisma error code handling
+
+- **authController.registerStudent:** จับ P2002 unique constraint → คืน 409 แทน 500 (เพื่อกันกรณี race condition ที่ TOCTOU ผ่าน check แต่ write ชนกัน)
+- **docRequirementController.updateRequirement/deleteRequirement:** จับ P2025 not-found → คืน 404 แทน 500
+
+---
+
 ## [2026-08-04] fix: security batch 8 — teacher controller info leak + route hardening
 
 - **teacherController.js createTeacher/adminUpdateTeacher:** ลบ `err.message` ออกจาก 500 response (information leak)
