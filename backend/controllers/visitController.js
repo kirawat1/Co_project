@@ -43,14 +43,14 @@ exports.createVisit = async (req, res) => {
       where: { userId: teacherId }
     });
 
-    if (!teacher) return res.status(404).json({ message: "Teacher profile not found" });
+    if (!teacher) return res.status(404).json({ ok: false, message: "Teacher profile not found" });
 
     // กันนัดซ้ำ: อาจารย์คนเดียวกัน นัดวันเดียวกันกับนักศึกษาคนเดียวกันซ้ำ
     const conflict = await prisma.visit.findFirst({
       where: { teacherId: teacher.id, studentId: student.id, date: new Date(date) },
     });
     if (conflict) {
-      return res.status(409).json({ message: "มีนัดหมายของนักศึกษาคนนี้ในวันนี้อยู่แล้ว" });
+      return res.status(409).json({ ok: false, message: "มีนัดหมายของนักศึกษาคนนี้ในวันนี้อยู่แล้ว" });
     }
 
     const newVisit = await prisma.visit.create({
@@ -110,7 +110,7 @@ exports.deleteVisit = async (req, res) => {
     const visit = await prisma.visit.findUnique({ where: { id: parseInt(id) } });
     if (!visit) return res.status(404).json({ ok: false, message: "Visit not found" });
     if (!(await isOwnerOfVisit(req.user.id, visit))) {
-      return res.status(403).json({ message: "ไม่มีสิทธิ์ลบนัดหมายของอาจารย์ท่านอื่น" });
+      return res.status(403).json({ ok: false, message: "ไม่มีสิทธิ์ลบนัดหมายของอาจารย์ท่านอื่น" });
     }
 
     await prisma.visit.delete({ where: { id: parseInt(id) } });

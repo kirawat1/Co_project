@@ -169,42 +169,46 @@ exports.proposeSupervisionDate = async (req, res) => {
             return res.status(400).json({ ok: false, message: `ไม่พบอาจารย์ที่ปรึกษา "${advisorTrimmed}" ในระบบ กรุณาติดต่อเจ้าหน้าที่` });
         }
 
-        // ล็อกไม่ให้แก้ไขหลังอาจารย์ยืนยันแล้ว
-        const existingAppt = await prisma.supervisionAppointment.findUnique({
-            where: { studentId: student.id },
-            select: { status: true }
-        });
-        if (existingAppt) {
-            const LOCKED_STATUSES = ['DATE_CONFIRMED', 'LETTER_UPLOADED', 'COMPLETED'];
-            if (LOCKED_STATUSES.includes(existingAppt.status)) {
-                return res.status(403).json({
-                    ok: false,
-                    message: 'ไม่สามารถแก้ไขได้ เนื่องจากอาจารย์ยืนยันวันนิเทศแล้ว'
-                });
-            }
-        }
+        const LOCKED_STATUSES = ['DATE_CONFIRMED', 'LETTER_UPLOADED', 'COMPLETED'];
 
-        const appointment = await prisma.supervisionAppointment.upsert({
-            where: { studentId: student.id },
-            update: {
-                teacherId: teacher.id, // 🟢 เพิ่มบรรทัดนี้! เพื่อบังคับให้อัปเดตอาจารย์หลักเป็นคนปัจจุบันเสมอ
-                proposedDates,
-                supervisionType,
-                onlineLink,
-                coTeacherName,
-                status: 'PENDING_TEACHER',
-                rejectReason: null
-            },
-            create: {
-                studentId: student.id,
-                teacherId: teacher.id,
-                proposedDates,
-                supervisionType,
-                onlineLink,
-                coTeacherName,
-                status: 'PENDING_TEACHER'
+        const appointment = await prisma.$transaction(async (tx) => {
+            const existing = await tx.supervisionAppointment.findUnique({
+                where: { studentId: student.id },
+                select: { status: true }
+            });
+            if (existing && LOCKED_STATUSES.includes(existing.status)) {
+                const err = new Error('LOCKED');
+                err.status = 403;
+                throw err;
             }
+            return tx.supervisionAppointment.upsert({
+                where: { studentId: student.id },
+                update: {
+                    teacherId: teacher.id,
+                    proposedDates,
+                    supervisionType,
+                    onlineLink,
+                    coTeacherName,
+                    status: 'PENDING_TEACHER',
+                    rejectReason: null
+                },
+                create: {
+                    studentId: student.id,
+                    teacherId: teacher.id,
+                    proposedDates,
+                    supervisionType,
+                    onlineLink,
+                    coTeacherName,
+                    status: 'PENDING_TEACHER'
+                }
+            });
+        }).catch(err => {
+            if (err.status === 403) {
+                return res.status(403).json({ ok: false, message: 'ไม่สามารถแก้ไขได้ เนื่องจากอาจารย์ยืนยันวันนิเทศแล้ว' });
+            }
+            throw err;
         });
+        if (!appointment) return;
 
         res.json({ ok: true, appointment });
 
