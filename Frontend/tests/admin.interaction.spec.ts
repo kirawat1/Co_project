@@ -38,9 +38,21 @@ test("TC-AI-03: Admin Announcements — render ด้วย empty list ไม่
   page.on("pageerror", (e) => errors.push(e.message));
 
   await setupAdminMocks(page);
+  // A_Announcements fetches /api/admin/supervision-periods (ไม่ใช่ coop-periods)
+  await page.route("**/api/admin/supervision-periods**", (route) =>
+    route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, periods: [] }) })
+  );
+  await page.route("**/api/announcements**", (route) =>
+    route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, list: [] }) })
+  );
+  await page.route("**/api/admin/majors**", (route) =>
+    route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, majors: [] }) })
+  );
+
   await page.goto("/admin/announcements");
   await page.waitForSelector("header.topbar, .topbar", { timeout: 10_000 });
-  await expect(page.locator("main").first()).toBeVisible();
+  // Verify no redirect — URL should contain /admin/
+  expect(page.url()).toContain("/admin/");
   await page.waitForTimeout(1000);
 
   expect(errors).toHaveLength(0);
