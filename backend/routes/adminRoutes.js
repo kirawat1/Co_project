@@ -135,7 +135,7 @@ router.put('/config/t007', verifyToken, verifyRole(...ADMIN_ROLES), configContro
 router.get('/config/t008', verifyToken, configController.getT008Config);
 router.put('/config/t008', verifyToken, verifyRole(...ADMIN_ROLES), systemUpload.single('image'), configController.updateT008Config);
 
-router.get('/config/gateway', verifyToken, configController.getGatewaySettings);
+router.get('/config/gateway', verifyToken, verifyRole(...ADMIN_ROLES), configController.getGatewaySettings);
 router.put('/config/gateway', verifyToken, verifyRole(...ADMIN_ROLES), configController.updateGatewaySettings);
 
 // Supervision
