@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { apiFetch } from "../utils/apiFetch";
 import { useNavigate } from "react-router-dom";
 import { createCoopPDF } from "../utils/pdfGenerator";
 import StatusBadge from "../components/StatusBadge";
@@ -145,7 +146,7 @@ export default function CoopRequestPage() {
 
   useEffect(() => {
     const t = localStorage.getItem("coop.token");
-    fetch("/api/coop/config/gateway", { headers: { Authorization: `Bearer ${t}` } })
+    apiFetch("/api/coop/config/gateway", { headers: { Authorization: `Bearer ${t}` } })
       .then(r => r.ok ? r.json() : null)
       .then(d => { if (d?.ok && d.data) setGatewaySettings(d.data); })
       .catch(() => {});

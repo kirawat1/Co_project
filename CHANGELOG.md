@@ -1,5 +1,12 @@
 # CHANGELOG — Co_project
 
+## [2026-08-04] fix: security batch 10 — gateway fetch + admin route guard
+
+- **S_Gateway.tsx:** แทน raw `fetch` ด้วย `apiFetch` ให้ 401 trigger auto-logout ได้
+- **adminRoutes.js GET /config/gateway:** เพิ่ม `verifyRole(...ADMIN_ROLES)` — เดิม student ที่มี token เรียกได้
+
+---
+
 ## [2026-08-04] fix: correctness batch 9 — Prisma error code handling
 
 - **authController.registerStudent:** จับ P2002 unique constraint → คืน 409 แทน 500 (เพื่อกันกรณี race condition ที่ TOCTOU ผ่าน check แต่ write ชนกัน)
