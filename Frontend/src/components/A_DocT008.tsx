@@ -142,7 +142,7 @@ export default function A_DocT008() {
                             <div style={{ fontSize: 13, color: '#92400e', marginBottom: 5, fontWeight: 'bold' }}>พรีวิวรูปภาพ:</div>
                             <img src={imagePreview} alt="Preview" style={{ maxWidth: '100%', maxHeight: '400px', borderRadius: 8, border: '1px solid #fcd34d' }} />
                             <div>
-                                <button type="button" className="btn" onClick={handleRemoveImage} style={{ marginTop: 10, background: '#ef4444', color: 'white', padding: '8px 16px' }}>
+                                <button type="button" className="btn-danger" onClick={handleRemoveImage} style={{ marginTop: 10 }}>
                                     🗑️ ลบภาพ
                                 </button>
                             </div>
