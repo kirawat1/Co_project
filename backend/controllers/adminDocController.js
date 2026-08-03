@@ -73,6 +73,7 @@ exports.getStudentsForT000 = async (req, res) => {
       documents: s.documents,
       submittedAt: s.documents[0]?.uploadedAt || null,
 
+      studyProgram: s.studyProgram || null,
       coopApplicationForm: s.coopApplicationForm,
       coop: s.coop,
       advisorName: s.advisorName || null,
