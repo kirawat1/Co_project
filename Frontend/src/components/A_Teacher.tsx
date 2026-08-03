@@ -26,10 +26,10 @@ const MAJOR_TH: Record<string, string> = {
   CYB: "ความมั่นคงปลอดภัยไซเบอร์",
   AI: "ปัญญาประดิษฐ์",
 };
-const TEACHER_PREFIXES = ['อ.', 'ผศ.', 'ผศ.ดร.', 'รศ.', 'รศ.ดร.', 'ศ.', 'ศ.ดร.', 'ดร.'];
+const TEACHER_PREFIXES = ['ผศ.', 'ผศ.ดร.', 'รศ.', 'รศ.ดร.', 'ศ.', 'ศ.ดร.', 'อ.', 'อ.ดร.', 'ดร.'];
 
 const EMPTY_TEACHER: Omit<Teacher, "id"> = {
-  prefix: 'อ.', firstName: "", lastName: "", email: "",
+  prefix: '', firstName: "", lastName: "", email: "",
   phone: "", major: "",
   isCoopTeacher: false,
 };
@@ -429,7 +429,8 @@ function TeacherFields({ form, setForm, majorOptions, allowEmailEdit }: {
       </div>
       <div>
         <label style={labelStyle}>คำนำหน้า *</label>
-        <select style={{ ...inputStyle, cursor: "pointer" }} value={form.prefix || 'อ.'} onChange={e => setForm({ ...form, prefix: e.target.value })}>
+        <select style={{ ...inputStyle, cursor: "pointer" }} value={form.prefix ?? ""} onChange={e => setForm({ ...form, prefix: e.target.value })}>
+          <option value="">-</option>
           {TEACHER_PREFIXES.map(p => <option key={p} value={p}>{p}</option>)}
         </select>
       </div>

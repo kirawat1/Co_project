@@ -165,7 +165,7 @@ exports.getAllTeachers = async (req, res) => {
 exports.updateTeacherById = async (req, res) => {
   try {
     const { id } = req.params; // รับ Teacher ID
-    const { firstName, lastName, phone, major, prefix } = req.body;
+    const { firstName, lastName, phone, major, prefix, isCoopTeacher } = req.body;
 
     const updated = await prisma.teacher.update({
       where: { id: parseInt(id) },
@@ -175,6 +175,7 @@ exports.updateTeacherById = async (req, res) => {
         phone,
         major,
         prefix: prefix || null,
+        ...(isCoopTeacher !== undefined && { isCoopTeacher: Boolean(isCoopTeacher) }),
       },
       include: {
         user: { select: { email: true } }
