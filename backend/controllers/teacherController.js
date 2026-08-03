@@ -536,7 +536,7 @@ exports.createTeacher = async (req, res) => {
     res.json({ ok: true, teacher });
   } catch (err) {
     console.error("CREATE TEACHER ERROR:", err);
-    res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาด: " + err.message });
+    res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดที่ Server" });
   }
 };
 
@@ -644,7 +644,7 @@ exports.adminUpdateTeacher = async (req, res) => {
     res.json({ ok: true, data: updated });
   } catch (err) {
     console.error("ADMIN UPDATE TEACHER ERROR:", err);
-    res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาด: " + err.message });
+    res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดที่ Server" });
   }
 };
 
