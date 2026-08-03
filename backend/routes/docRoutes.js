@@ -5,7 +5,7 @@ const docController = require('../controllers/docController');
 
 // ✅ แก้ไข 1: Import แบบ Destructuring เพื่อดึง verifyToken ออกมาใช้ได้เลย
 // และแก้ไข Path ให้ตรงกับโฟลเดอร์ middlewares (มี s)
-const { verifyToken } = require('../middlewares/authMiddleware');
+const { verifyToken, verifyRole } = require('../middlewares/authMiddleware');
 
 // ✅ แก้ไข 2: แก้ไข Path ให้ตรง (มี s)
 const upload = require('../middlewares/uploadMiddleware'); 
@@ -23,7 +23,7 @@ router.delete('/delete/:id', verifyToken, docController.deleteDocument);
 
 router.delete('/document/type/:docType', verifyToken, docController.deleteDocumentByType);
 
-router.post('/t002-form', verifyToken, docController.saveT002Form);
-router.post('/t003-form', verifyToken, docController.saveT003Form);
+router.post('/t002-form', verifyToken, verifyRole('student'), docController.saveT002Form);
+router.post('/t003-form', verifyToken, verifyRole('student'), docController.saveT003Form);
 
 module.exports = router;
