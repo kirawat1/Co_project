@@ -36,8 +36,8 @@ interface StudentProfile {
   year?: string;
   major?: string;
   advisorName?: string;
-  generalAdvisor?: { firstName: string; lastName: string; email: string } | null;
-  coopAdvisor?: { firstName: string; lastName: string; email: string } | null;
+  generalAdvisor?: { prefix?: string; firstName: string; lastName: string; email: string } | null;
+  coopAdvisor?: { prefix?: string; firstName: string; lastName: string; email: string } | null;
   phone?: string;
   studyProgram?: "ภาคปกติ" | "ภาคพิเศษ" | "normal" | "special";
   email?: string;
@@ -78,21 +78,21 @@ function AdvisorRow({
   fallback,
 }: {
   label: string;
-  advisor?: { firstName: string; lastName: string; email: string } | null;
+  advisor?: { prefix?: string; firstName: string; lastName: string; email: string } | null;
   fallback?: string | null;
 }) {
-  const name = advisor
-    ? `${advisor.firstName} ${advisor.lastName}`
+  const displayName = advisor
+    ? `${advisor.prefix ? advisor.prefix + ' ' : ''}${advisor.firstName} ${advisor.lastName}`
     : (fallback || null);
 
-  if (!name) return null;
+  if (!displayName) return null;
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #f1f5f9' }}>
       <div>
         <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 2 }}>{label}</div>
         <div style={{ fontWeight: 600, fontSize: 14, color: '#1e293b' }}>
-          อาจารย์ {name}
+          {displayName}
         </div>
         {advisor?.email && (
           <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>{advisor.email}</div>

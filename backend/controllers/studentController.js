@@ -21,8 +21,8 @@ exports.getMyProfile = async (req, res) => {
         user: true,
         t002Form: true, // เพิ่มการดึงข้อมูลฟอร์ม T002
         t003Form: true, // เพิ่มการดึงข้อมูลฟอร์ม T003
-        generalAdvisor: { select: { firstName: true, lastName: true, email: true } },
-        coopAdvisor: { select: { firstName: true, lastName: true, email: true } },
+        generalAdvisor: { select: { prefix: true, firstName: true, lastName: true, email: true } },
+        coopAdvisor: { select: { prefix: true, firstName: true, lastName: true, email: true } },
       },
     });
 
@@ -265,8 +265,8 @@ exports.exportStudents = async (req, res) => {
       where,
       include: {
         coop: { include: { company: true } },
-        generalAdvisor: { select: { firstName: true, lastName: true } },
-        coopAdvisor: { select: { firstName: true, lastName: true } },
+        generalAdvisor: { select: { prefix: true, firstName: true, lastName: true } },
+        coopAdvisor: { select: { prefix: true, firstName: true, lastName: true } },
       },
       orderBy: { studentId: 'asc' },
     });
