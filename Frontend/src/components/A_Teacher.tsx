@@ -26,7 +26,7 @@ const MAJOR_TH: Record<string, string> = {
   CYB: "ความมั่นคงปลอดภัยไซเบอร์",
   AI: "ปัญญาประดิษฐ์",
 };
-const TEACHER_PREFIXES = ['ผศ.', 'ผศ. ดร.', 'รศ.', 'รศ. ดร.', 'ศ.', 'ศ. ดร.', 'อ.', 'อ. ดร.', 'ดร.'];
+const TEACHER_PREFIXES_DEFAULT = ['ผศ.', 'ผศ. ดร.', 'รศ.', 'รศ. ดร.', 'ศ.', 'ศ. ดร.', 'อ.', 'อ. ดร.', 'ดร.'];
 
 const EMPTY_TEACHER: Omit<Teacher, "id"> = {
   prefix: '', firstName: "", lastName: "", email: "",
@@ -42,6 +42,7 @@ export default function A_Teacher() {
   const [items, setItems] = useState<Teacher[]>([]);
   const [loading, setLoading] = useState(true);
   const [majorOptions, setMajorOptions] = useState<string[]>([]);
+  const [prefixOptions, setPrefixOptions] = useState<string[]>(TEACHER_PREFIXES_DEFAULT);
 
   // Filters
   const [q, setQ] = useState("");
@@ -84,7 +85,17 @@ export default function A_Teacher() {
     } catch {}
   };
 
-  useEffect(() => { fetchData(); fetchMajors(); }, []);
+  const fetchPrefixes = async () => {
+    try {
+      const res = await fetch("/api/teacher/prefixes", { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) setPrefixOptions(data);
+      }
+    } catch {}
+  };
+
+  useEffect(() => { fetchData(); fetchMajors(); fetchPrefixes(); }, []);
 
   // ─── CRUD handlers ────────────────────────────────────────
 
@@ -291,6 +302,7 @@ export default function A_Teacher() {
           title="แก้ไขข้อมูลอาจารย์"
           data={editModal}
           majorOptions={majorOptions}
+          prefixOptions={prefixOptions}
           saving={saving}
           onClose={() => setEditModal(null)}
           onSave={handleUpdate}
@@ -306,7 +318,7 @@ export default function A_Teacher() {
               <h2 style={{ margin: 0, fontSize: 20 }}>➕ เพิ่มอาจารย์ใหม่</h2>
               <button onClick={() => { setCreateModal(false); setCreatePassword(""); }} style={closeBtn}>✕</button>
             </div>
-            <TeacherFields form={createForm} setForm={setCreateForm} majorOptions={majorOptions} allowEmailEdit />
+            <TeacherFields form={createForm} setForm={setCreateForm} majorOptions={majorOptions} prefixOptions={prefixOptions} allowEmailEdit />
             <div style={{ marginTop: 16 }}>
               <label style={labelStyle}>รหัสผ่าน <span style={{ color: "red" }}>*</span></label>
               <input
@@ -368,10 +380,11 @@ export default function A_Teacher() {
 /* =========================
    TeacherFormModal
 ========================= */
-function TeacherFormModal({ title, data, majorOptions, saving, onClose, onSave, allowEmailEdit }: {
+function TeacherFormModal({ title, data, majorOptions, prefixOptions, saving, onClose, onSave, allowEmailEdit }: {
   title: string;
   data: Teacher;
   majorOptions: string[];
+  prefixOptions: string[];
   saving: boolean;
   onClose: () => void;
   onSave: (d: Teacher) => void;
@@ -385,7 +398,7 @@ function TeacherFormModal({ title, data, majorOptions, saving, onClose, onSave, 
           <h2 style={{ margin: 0, fontSize: 20 }}>{title}</h2>
           <button onClick={onClose} style={closeBtn}>✕</button>
         </div>
-        <TeacherFields form={form} setForm={setForm} majorOptions={majorOptions} allowEmailEdit={allowEmailEdit} />
+        <TeacherFields form={form} setForm={setForm} majorOptions={majorOptions} prefixOptions={prefixOptions} allowEmailEdit={allowEmailEdit} />
         <div style={modalFooter}>
           <button style={ghostBtn} onClick={onClose}>ยกเลิก</button>
           <button style={{ ...saveBtn, display: "flex", alignItems: "center", gap: 8 }} onClick={() => onSave(form)} disabled={saving}>
@@ -400,10 +413,11 @@ function TeacherFormModal({ title, data, majorOptions, saving, onClose, onSave, 
 /* =========================
    TeacherFields — form fields (shared)
 ========================= */
-function TeacherFields({ form, setForm, majorOptions, allowEmailEdit }: {
+function TeacherFields({ form, setForm, majorOptions, prefixOptions, allowEmailEdit }: {
   form: any;
   setForm: (f: any) => void;
   majorOptions: string[];
+  prefixOptions: string[];
   allowEmailEdit?: boolean;
 }) {
   return (
@@ -431,7 +445,7 @@ function TeacherFields({ form, setForm, majorOptions, allowEmailEdit }: {
         <label style={labelStyle}>คำนำหน้า *</label>
         <select style={{ ...inputStyle, cursor: "pointer" }} value={form.prefix ?? ""} onChange={e => setForm({ ...form, prefix: e.target.value })}>
           <option value="">-</option>
-          {TEACHER_PREFIXES.map(p => <option key={p} value={p}>{p}</option>)}
+          {prefixOptions.map((p: string) => <option key={p} value={p}>{p}</option>)}
         </select>
       </div>
       <div>
