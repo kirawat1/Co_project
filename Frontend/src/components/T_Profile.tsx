@@ -26,14 +26,14 @@ const EMPTY: TeacherProfile = {
 };
 
 const PREFIX_OPTIONS = [
-  "อ.",
-  "อ. ดร.",
   "ผศ.",
   "ผศ. ดร.",
   "รศ.",
   "รศ. ดร.",
   "ศ.",
   "ศ. ดร.",
+  "อ.",
+  "อ. ดร.",
 ];
 
 // ✅ เก็บ Map ไว้เผื่อกรณีมีข้อมูลเก่า (Legacy) ที่เซฟเป็นชื่อย่อไปแล้ว จะได้แสดงผลสวยงาม
@@ -170,7 +170,7 @@ export default function T_Profile() {
             </div>
             <h2 style={{ fontSize: '20px', fontWeight: 800, color: '#1e293b', margin: '0 0 8px' }}>ยินดีต้อนรับ!</h2>
             <p style={{ color: '#64748b', marginBottom: '24px' }}>คุณยังไม่ได้ตั้งค่าโปรไฟล์อาจารย์นิเทศ กรุณากรอกข้อมูลเพื่อเริ่มใช้งาน</p>
-            <button className="btn" onClick={() => { setForm(profile); setIsModalOpen(true); }}>
+            <button className="btn" onClick={() => { setForm({ ...profile, prefix: profile.prefix ?? "" }); setIsModalOpen(true); }}>
               ตั้งค่าโปรไฟล์ครั้งแรก
             </button>
           </div>
@@ -188,7 +188,7 @@ export default function T_Profile() {
                   </div>
                 </div>
               </div>
-              <button className="btn-edit" onClick={() => { setForm(profile); setIsModalOpen(true); }} style={editBtnStyle}>
+              <button className="btn-edit" onClick={() => { setForm({ ...profile, prefix: profile.prefix ?? "" }); setIsModalOpen(true); }} style={editBtnStyle}>
                 <IcEdit width={16} height={16} /> แก้ไขข้อมูล
               </button>
             </div>
@@ -240,7 +240,7 @@ export default function T_Profile() {
                 <label className="label">คำนำหน้า</label>
                 <select
                   className="input"
-                  value={form.prefix || ""}
+                  value={form.prefix ?? ""}
                   onChange={(e) => setForm({ ...form, prefix: e.target.value })}
                   style={{ appearance: 'none', background: '#fff url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23131313%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E") no-repeat right 12px center', backgroundSize: '12px' }}
                 >
