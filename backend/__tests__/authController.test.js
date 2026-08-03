@@ -14,7 +14,7 @@ jest.mock('google-auth-library', () => ({
 }));
 
 const { OAuth2Client } = require('google-auth-library');
-const { signIn, getProfile, loginWithGoogle } = require('../controllers/authController');
+const { signIn, getProfile, loginWithGoogle, registerStudent } = require('../controllers/authController');
 
 function makeRes() {
   const res = {
@@ -265,5 +265,120 @@ describe('loginWithGoogle', () => {
     await loginWithGoogle(req, res);
 
     expect(res.status).toHaveBeenCalledWith(400);
+  });
+});
+
+// =====================
+// registerStudent
+// =====================
+describe('registerStudent', () => {
+  function makeReq(overrides = {}) {
+    return {
+      body: {
+        studentId: '640212186',
+        firstName: 'ทดสอบ',
+        lastName: 'ระบบ',
+        email: 'test@kkumail.com',
+        password: '1234567890123',
+        ...overrides,
+      },
+    };
+  }
+
+  test('400 — ขาด field บังคับ (firstName ว่าง)', async () => {
+    const req = makeReq({ firstName: '' });
+    const res = makeRes();
+    await registerStudent(req, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json.mock.calls[0][0].ok).toBe(false);
+  });
+
+  test('400 — password ไม่ใช่เลข 13 หลัก', async () => {
+    const req = makeReq({ password: 'short' });
+    const res = makeRes();
+    await registerStudent(req, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json.mock.calls[0][0].message).toMatch(/13/);
+  });
+
+  test('400 — email ไม่ใช่ KKU domain', async () => {
+    const req = makeReq({ email: 'user@gmail.com' });
+    const res = makeRes();
+    await registerStudent(req, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json.mock.calls[0][0].message).toMatch(/kkumail|kku\.ac\.th/i);
+  });
+
+  test('400 — รองรับ @kku.ac.th ด้วย', async () => {
+    prisma.user.findFirst.mockResolvedValue(null);
+    prisma.student.findUnique.mockResolvedValue(null);
+    prisma.user.create.mockResolvedValue({
+      id: 5, email: 'u64@kku.ac.th', role: 'student',
+      student: { studentId: '640000001', firstName: 'ก', lastName: 'ข' },
+    });
+    const req = makeReq({ email: 'u64@kku.ac.th' });
+    const res = makeRes();
+    await registerStudent(req, res);
+    expect(res.json.mock.calls[0][0].ok).toBe(true);
+  });
+
+  test('409 — email ซ้ำในระบบ', async () => {
+    prisma.user.findFirst.mockResolvedValue({ id: 1 });
+    const req = makeReq();
+    const res = makeRes();
+    await registerStudent(req, res);
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(res.json.mock.calls[0][0].message).toMatch(/อีเมล/);
+  });
+
+  test('409 — studentId ซ้ำในระบบ', async () => {
+    prisma.user.findFirst.mockResolvedValue(null);
+    prisma.student.findUnique.mockResolvedValue({ id: 9 });
+    const req = makeReq();
+    const res = makeRes();
+    await registerStudent(req, res);
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(res.json.mock.calls[0][0].message).toMatch(/รหัสนักศึกษา/);
+  });
+
+  test('200 — สมัครสมาชิกสำเร็จ คืน token', async () => {
+    prisma.user.findFirst.mockResolvedValue(null);
+    prisma.student.findUnique.mockResolvedValue(null);
+    prisma.user.create.mockResolvedValue({
+      id: 10, email: 'test@kkumail.com', role: 'student',
+      student: { studentId: '640212186', firstName: 'ทดสอบ', lastName: 'ระบบ' },
+    });
+    const req = makeReq();
+    const res = makeRes();
+    await registerStudent(req, res);
+    const body = res.json.mock.calls[0][0];
+    expect(body.ok).toBe(true);
+    expect(body.token).toBeTruthy();
+    expect(body.user.studentId).toBe('640212186');
+  });
+
+  test('200 — password ถูก hash ก่อน create (ไม่เก็บ plaintext)', async () => {
+    prisma.user.findFirst.mockResolvedValue(null);
+    prisma.student.findUnique.mockResolvedValue(null);
+    prisma.user.create.mockResolvedValue({
+      id: 11, email: 'test@kkumail.com', role: 'student',
+      student: { studentId: '640212186', firstName: 'ทดสอบ', lastName: 'ระบบ' },
+    });
+    const req = makeReq();
+    const res = makeRes();
+    await registerStudent(req, res);
+    const createArg = prisma.user.create.mock.calls[0][0];
+    expect(createArg.data.password).not.toBe('1234567890123');
+    expect(createArg.data.password).toMatch(/^\$2[aby]\$/);
+  });
+
+  test('500 — DB error คืน 500', async () => {
+    prisma.user.findFirst.mockResolvedValue(null);
+    prisma.student.findUnique.mockResolvedValue(null);
+    prisma.user.create.mockRejectedValue(new Error('DB down'));
+    const req = makeReq();
+    const res = makeRes();
+    await registerStudent(req, res);
+    expect(res.status).toHaveBeenCalledWith(500);
   });
 });
