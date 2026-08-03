@@ -41,6 +41,7 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
 
     // 💾 เวลาบันทึกอัตโนมัติล่าสุด
     const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+    const [saveFailed, setSaveFailed] = useState(false);
 
     const uploadedT002 = profile?.documents?.find((d: any) => d.type === 'T002_FORM');
     const company = profile?.coop?.company || profile?.company || {};
@@ -203,12 +204,15 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
 
             if (res.ok) {
                 setLastSavedAt(new Date());
+                setSaveFailed(false);
                 if (!silent && typeof onRefresh === 'function') onRefresh();
-            } else if (!silent) {
-                alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล");
+            } else {
+                setSaveFailed(true);
+                if (!silent) alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล");
             }
         } catch (err) {
             console.error(err);
+            setSaveFailed(true);
             if (!silent) alert("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้");
         } finally {
             if (!silent) setLoading(false);
@@ -222,8 +226,8 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
             isFirstRender.current = false;
             return;
         }
-        if (!canEdit) return;
-        const timer = setTimeout(() => { saveForm(true); }, 1500);
+        if (!canEditRef.current) return;
+        const timer = setTimeout(() => { if (canEditRef.current) saveForm(true); }, 1500);
         return () => clearTimeout(timer);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [formData]);
@@ -267,6 +271,8 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
 
     const isUnlocked = T002_UNLOCK_STATUSES.includes(profile?.coop?.status);
     const canEdit = isSystemOpen && isUnlocked;
+    const canEditRef = useRef(canEdit);
+    useEffect(() => { canEditRef.current = canEdit; }, [canEdit]);
 
     return (
         <div className="t002-form" style={{ maxWidth: 900, margin: '0 auto', background: '#fff', padding: 30, borderRadius: 12, boxShadow: '0 4px 6px rgba(0,0,0,0.05)' }}>
@@ -316,7 +322,10 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
                     {/* 🟢 เรียกใช้ Component นัับถอยหลังตรงนี้โดยตรงเลย */}
                     <CountdownTimer endDate={config?.endDate} isOpen={config?.isOpen} />
 
-                    {lastSavedAt && (
+                    {saveFailed && (
+                        <span style={{ fontSize: 12, color: '#dc2626' }}>⚠️ บันทึกอัตโนมัติไม่สำเร็จ</span>
+                    )}
+                    {!saveFailed && lastSavedAt && (
                         <span style={{ fontSize: 12, color: '#16a34a' }}>
                             💾 บันทึกล่าสุด {lastSavedAt.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}
                         </span>

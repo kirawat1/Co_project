@@ -89,10 +89,11 @@ export default function IssuePlacementLetterModal({ student, onClose, onSuccess 
             formData.append("placeDocDate", placeDocDate);
             formData.append("file", signedFile);
             const token = localStorage.getItem("coop.token");
-            await fetch("/api/admin/t000/review", { method: "PUT", headers: { Authorization: `Bearer ${token}` }, body: formData });
+            const res = await fetch("/api/admin/t000/review", { method: "PUT", headers: { Authorization: `Bearer ${token}` }, body: formData });
+            if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.message || `Server error ${res.status}`); }
             alert("✅ บันทึกเข้าระบบเรียบร้อย");
             onSuccess();
-        } catch (err) { alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล"); }
+        } catch (err: any) { alert(`❌ เกิดข้อผิดพลาด: ${err.message || err}`); }
     };
 
     return (

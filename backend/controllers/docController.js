@@ -200,22 +200,36 @@ exports.uploadDocument = async (req, res) => {
     });
 
     if (dbType === 'CP-ACCEPTANCE') {
-        await prisma.studentCoop.upsert({
+        const coop = await prisma.studentCoop.findUnique({ where: { studentId: student.id } });
+        const CP_VALID = ['REQ_LETTER_ISSUED', 'WAITING_FOR_PLACEMENT_LETTER', 'WAITING_FOR_STAFF_CHECK_LETTER', 'ACCEPTANCE_CHECKED', 'PLACEMENT_LETTER_ISSUED'];
+        if (!coop || !CP_VALID.includes(coop.status)) {
+            if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+            return res.status(400).json({ ok: false, message: 'ไม่สามารถส่งใบตอบรับในสถานะปัจจุบัน' });
+        }
+        await prisma.studentCoop.update({
             where: { studentId: student.id },
-            update: { acceptanceFileUrl: req.file.filename, status: 'WAITING_FOR_STAFF_CHECK_LETTER' },
-            create: { studentId: student.id, acceptanceFileUrl: req.file.filename, status: 'WAITING_FOR_STAFF_CHECK_LETTER' }
+            data: { acceptanceFileUrl: req.file.filename, status: 'WAITING_FOR_STAFF_CHECK_LETTER' }
         });
     } else if (dbType === 'T002_FORM') {
-        await prisma.studentCoop.upsert({
+        const coop = await prisma.studentCoop.findUnique({ where: { studentId: student.id } });
+        if (!coop || coop.status !== 'INTERNSHIP_STARTED') {
+            if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+            return res.status(400).json({ ok: false, message: 'สามารถส่ง T002 ได้เมื่อเริ่มฝึกงานแล้วเท่านั้น' });
+        }
+        await prisma.studentCoop.update({
             where: { studentId: student.id },
-            update: { status: 'T002_SUBMITTED' },
-            create: { studentId: student.id, status: 'T002_SUBMITTED' }
+            data: { status: 'T002_SUBMITTED' }
         });
     } else if (dbType === 'T003_FORM') {
-        await prisma.studentCoop.upsert({
+        const coop = await prisma.studentCoop.findUnique({ where: { studentId: student.id } });
+        const T003_VALID = ['T002_SUBMITTED', 'T002_GRADED'];
+        if (!coop || !T003_VALID.includes(coop.status)) {
+            if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+            return res.status(400).json({ ok: false, message: 'สามารถส่ง T003 ได้หลังส่ง T002 แล้วเท่านั้น' });
+        }
+        await prisma.studentCoop.update({
             where: { studentId: student.id },
-            update: { status: 'T003_SUBMITTED' },
-            create: { studentId: student.id, status: 'T003_SUBMITTED' }
+            data: { status: 'T003_SUBMITTED' }
         });
     } else {
         const coop = await prisma.studentCoop.findUnique({ where: { studentId: student.id } });
@@ -329,10 +343,6 @@ exports.acknowledgeDispatchDownload = async (req, res) => {
 // ==========================================
 // สถานะที่ยังไม่เริ่มฝึกงาน (ก่อน INTERNSHIP_STARTED) ที่อนุญาตให้กดรับทราบหนังสือส่งตัวได้
 const PRE_INTERNSHIP_STATUSES = [
-  'REQ_LETTER_ISSUED',
-  'WAITING_FOR_PLACEMENT_LETTER',
-  'WAITING_FOR_STAFF_CHECK_LETTER',
-  'ACCEPTANCE_CHECKED',
   'PLACEMENT_LETTER_ISSUED',
 ];
 
