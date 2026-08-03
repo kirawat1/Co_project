@@ -37,6 +37,7 @@ exports.updateRequirement = async (req, res) => {
     });
     res.json({ ok: true, requirement: updated });
   } catch (error) {
+    if (error.code === 'P2025') return res.status(404).json({ ok: false, message: "ไม่พบข้อมูล" });
     res.status(500).json({ ok: false, error: "Server error" });
   }
 };
@@ -48,6 +49,7 @@ exports.deleteRequirement = async (req, res) => {
     await prisma.documentRequirement.delete({ where: { id: Number(id) } });
     res.json({ ok: true, message: "ลบสำเร็จ" });
   } catch (error) {
+    if (error.code === 'P2025') return res.status(404).json({ ok: false, message: "ไม่พบข้อมูล" });
     res.status(500).json({ ok: false, error: "Server error" });
   }
 };
