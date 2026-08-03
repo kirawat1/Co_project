@@ -73,14 +73,6 @@ export default function LoginPage() {
     return msg;
   }
 
-  // ── Self-Registration ─────────────────────
-  const [registerMode, setRegisterMode] = useState(false);
-  const [regForm, setRegForm] = useState({
-    studentId: "", prefix: "นาย", firstName: "", lastName: "",
-    email: "", password: "", major: "", year: "",
-  });
-  const [regLoading, setRegLoading] = useState(false);
-
   const navigate = useNavigate();
   const roleText = useMemo(() => ROLE_LABEL[role], [role]);
 
@@ -158,40 +150,6 @@ export default function LoginPage() {
       setLoading(false);
     }
   }
-
-  // ── Self-Register handler ─────────────────────────────
-  async function onRegisterSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(""); setNotice("");
-    const { studentId, firstName, lastName, email, password, major, year, prefix } = regForm;
-    if (!studentId.trim() || !firstName.trim() || !lastName.trim() || !email.trim() || !password.trim()) {
-      setError("กรุณากรอกข้อมูลให้ครบ: รหัสนักศึกษา, ชื่อ-นามสกุล, อีเมล, รหัสผ่าน");
-      return;
-    }
-    setRegLoading(true);
-    try {
-      const res = await fetch("/api/auth/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ studentId: studentId.trim(), prefix, firstName: firstName.trim(), lastName: lastName.trim(), email: email.trim(), password: password.trim(), major, year }),
-      });
-      const data = await res.json();
-      if (!data.ok || !data.token) throw new Error(data.message || "สมัครสมาชิกไม่สำเร็จ");
-
-      localStorage.setItem("coop.token", data.token);
-      if (data.user?.id) localStorage.setItem("coop.userId", String(data.user.id));
-
-      setNotice("สมัครสมาชิกสำเร็จ กำลังเข้าสู่ระบบ...");
-      setTimeout(() => navigate("/student", { replace: true }), 900);
-    } catch (er: unknown) {
-      setError(friendlyError(er instanceof Error ? er.message : String(er)));
-    } finally {
-      setRegLoading(false);
-    }
-  }
-
-  // helper to reset all modes
-  function resetMode() { setRegisterMode(false); setError(""); setNotice(""); }
 
   // ------------------------------------------------------
   // RENDER UI (CSS เดิมทั้งหมด)
@@ -355,122 +313,8 @@ export default function LoginPage() {
             </>
           )}
 
-          {/* ── สมัครสมาชิกใหม่ (นักศึกษาเท่านั้น) ── */}
-          {role === "student" && (
-            <div style={{ textAlign: "center", marginTop: 12 }}>
-              <span style={{ fontSize: 13, color: "var(--text-muted,#6b7280)" }}>ยังไม่มีบัญชี? </span>
-              <button
-                type="button"
-                onClick={() => { setRegisterMode(true); resetMode(); setRegisterMode(true); }}
-                style={{ background: "none", border: "none", color: "#0074B7", fontWeight: 700, fontSize: 13, cursor: "pointer", textDecoration: "underline", padding: "12px 4px" }}
-              >
-                สมัครสมาชิกด้วยตนเอง
-              </button>
-            </div>
-          )}
         </div>
       </div>
-
-      {/* ── Register Modal ── */}
-      {registerMode && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, backdropFilter: "blur(4px)", padding: 16 }}>
-          <div style={{ background: "var(--surface,#fff)", borderRadius: 20, padding: "28px 32px", width: 500, maxWidth: "100%", maxHeight: "95vh", overflowY: "auto", boxShadow: "0 20px 40px rgba(0,0,0,.25)" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-              <h3 style={{ margin: 0, fontSize: 20, fontWeight: 800 }}>📋 สมัครสมาชิกนักศึกษาใหม่</h3>
-              <button onClick={() => setRegisterMode(false)} style={{ background: "none", border: "none", fontSize: 22, cursor: "pointer", color: "#94a3b8" }}>✕</button>
-            </div>
-
-            <div style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 8, padding: "10px 14px", marginBottom: 20, fontSize: 13, color: "#92400e" }}>
-              ⚠️ สำหรับนักศึกษาที่ยังไม่เคยเข้าระบบ — รหัสผ่านคือเลขบัตรประชาชน 13 หลักของคุณ
-            </div>
-
-            <form onSubmit={onRegisterSubmit} className="form" noValidate>
-              {/* row: prefix + studentId */}
-              <div style={{ display: "grid", gridTemplateColumns: "110px 1fr", gap: 10 }}>
-                <div>
-                  <label className="label" style={{ fontSize: 12, marginBottom: 4, display: "block" }}>คำนำหน้า</label>
-                  <select className="input" value={regForm.prefix} onChange={e => setRegForm({ ...regForm, prefix: e.target.value })} style={{ height: 46 }}>
-                    <option value="นาย">นาย</option>
-                    <option value="นางสาว">นางสาว</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="label" style={{ fontSize: 12, marginBottom: 4, display: "block" }}>รหัสนักศึกษา *</label>
-                  <input className="input" placeholder="เช่น 6430212186" value={regForm.studentId}
-                    onChange={e => setRegForm({ ...regForm, studentId: e.target.value.replace(/\D/g, "").slice(0, 12) })}
-                    inputMode="numeric" required />
-                </div>
-              </div>
-
-              {/* row: ชื่อ + นามสกุล */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                <div>
-                  <label className="label" style={{ fontSize: 12, marginBottom: 4, display: "block" }}>ชื่อ (ภาษาไทย) *</label>
-                  <input className="input" placeholder="ชื่อจริง" value={regForm.firstName}
-                    onChange={e => setRegForm({ ...regForm, firstName: e.target.value })} required />
-                </div>
-                <div>
-                  <label className="label" style={{ fontSize: 12, marginBottom: 4, display: "block" }}>นามสกุล *</label>
-                  <input className="input" placeholder="นามสกุล" value={regForm.lastName}
-                    onChange={e => setRegForm({ ...regForm, lastName: e.target.value })} required />
-                </div>
-              </div>
-
-              {/* อีเมล */}
-              <div>
-                <label className="label" style={{ fontSize: 12, marginBottom: 4, display: "block" }}>อีเมล KKU * (@kkumail.com หรือ @kku.ac.th)</label>
-                <input className="input" type="email" placeholder="xxxxxx@kkumail.com"
-                  value={regForm.email} onChange={e => setRegForm({ ...regForm, email: e.target.value })}
-                  autoComplete="username" required />
-              </div>
-
-              {/* รหัสผ่าน (เลขบัตรประชาชน) */}
-              <div>
-                <label className="label" style={{ fontSize: 12, marginBottom: 4, display: "block" }}>รหัสผ่าน *</label>
-                <input className="input" type="password" placeholder="เลขบัตรประชาชน 13 หลัก"
-                  value={regForm.password} onChange={e => setRegForm({ ...regForm, password: e.target.value })}
-                  autoComplete="new-password" required />
-              </div>
-
-              {/* row: สาขา + ชั้นปี */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 100px", gap: 10 }}>
-                <div>
-                  <label className="label" style={{ fontSize: 12, marginBottom: 4, display: "block" }}>สาขาวิชา</label>
-                  <select className="input" value={regForm.major} onChange={e => setRegForm({ ...regForm, major: e.target.value })} style={{ height: 46 }}>
-                    <option value="">-- เลือกสาขา --</option>
-                    <option value="วิทยาการคอมพิวเตอร์">วิทยาการคอมพิวเตอร์</option>
-                    <option value="เทคโนโลยีสารสนเทศ">เทคโนโลยีสารสนเทศ</option>
-                    <option value="ภูมิสารสนเทศศาสตร์">ภูมิสารสนเทศศาสตร์</option>
-                    <option value="ความมั่นคงปลอดภัยไซเบอร์">ความมั่นคงปลอดภัยไซเบอร์</option>
-                    <option value="วิทยาการข้อมูลและปัญญาประดิษฐ์">วิทยาการข้อมูลและปัญญาประดิษฐ์</option>
-                    <option value="ปัญญาประดิษฐ์">ปัญญาประดิษฐ์</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="label" style={{ fontSize: 12, marginBottom: 4, display: "block" }}>ชั้นปี</label>
-                  <select className="input" value={regForm.year} onChange={e => setRegForm({ ...regForm, year: e.target.value })} style={{ height: 46 }}>
-                    <option value="">-</option>
-                    {["1","2","3","4"].map(y => <option key={y} value={y}>ปี {y}</option>)}
-                  </select>
-                </div>
-              </div>
-
-              <div aria-live="polite">
-                {error && <div className="alert error">{error}</div>}
-                {notice && <div className="alert ok">{notice}</div>}
-              </div>
-
-              <button className="btn" type="submit" disabled={regLoading} style={{ background: "#0074B7" }}>
-                {regLoading ? "กำลังสมัครสมาชิก..." : "✅ สมัครสมาชิกและเข้าสู่ระบบ"}
-              </button>
-              <button type="button" onClick={() => setRegisterMode(false)}
-                style={{ background: "none", border: "none", color: "#64748b", fontSize: 13, cursor: "pointer", textAlign: "center", padding: "4px 0" }}>
-                ← กลับไปหน้า Login
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* CSS เดิมของคุณทั้งหมด */}
       <style>{css("#0074B7")}</style>
