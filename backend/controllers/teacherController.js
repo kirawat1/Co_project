@@ -577,7 +577,7 @@ exports.resetTeacherPassword = async (req, res) => {
 exports.adminUpdateTeacher = async (req, res) => {
   try {
     const { id } = req.params;
-    const { firstName, lastName, email, phone, major, prefix } = req.body;
+    const { firstName, lastName, email, phone, major, prefix, isCoopTeacher } = req.body;
 
     const teacher = await prisma.teacher.findUnique({ where: { id: parseInt(id) } });
     if (!teacher) return res.status(404).json({ ok: false, message: "ไม่พบอาจารย์" });
@@ -599,7 +599,11 @@ exports.adminUpdateTeacher = async (req, res) => {
     const [updated] = await prisma.$transaction([
       prisma.teacher.update({
         where: { id: parseInt(id) },
-        data: { firstName, lastName, email, phone, major, prefix: prefix || null },
+        data: {
+          firstName, lastName, email, phone, major,
+          prefix: prefix || null,
+          ...(isCoopTeacher !== undefined && { isCoopTeacher: Boolean(isCoopTeacher) }),
+        },
       }),
       ...(email
         ? [prisma.user.update({
