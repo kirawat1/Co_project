@@ -1,5 +1,12 @@
 # CHANGELOG — Co_project
 
+## [2026-08-04] fix: batch 11 — raw fetch in admin modal + missing verifyRole on doc form routes
+
+- **A_StudentEditModal.tsx:** แทน raw `fetch` ด้วย `apiFetch` + `res.ok` guard ในการโหลด teacher list
+- **docRoutes.js POST /t002-form, /t003-form:** เพิ่ม `verifyRole('student')` — เดิมอนุญาตทุก authenticated role เข้าถึง student-only endpoint ได้
+
+---
+
 ## [2026-08-04] fix: supervisionRoutes — ลบ dead 'admin' role จาก verifyRole
 
 - `PUT /teacher/supervisions/:id/review` และ `/:id/complete` เปลี่ยนจาก `verifyRole('teacher','admin','staff')` เป็น `verifyRole('teacher','staff')` ('admin' ไม่มีใน Prisma Role enum)

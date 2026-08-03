@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import type { StudentProfile } from "./A_Students";
+import { apiFetch } from "../utils/apiFetch";
 
 const CURRICULUM_TH: Record<string, string> = {
   normal: "ภาคปกติ",
@@ -47,9 +48,9 @@ export default function A_StudentEditModal({ student, majors, onClose, onSaved }
 
   useEffect(() => {
     const token = localStorage.getItem("coop.token");
-    fetch("/api/teacher", { headers: { Authorization: `Bearer ${token}` } })
-      .then(res => res.json())
-      .then(data => setTeachers(Array.isArray(data) ? data : []))
+    apiFetch("/api/teacher", { headers: { Authorization: `Bearer ${token}` } })
+      .then(res => { if (!res.ok) return null; return res.json(); })
+      .then(data => data && setTeachers(Array.isArray(data) ? data : []))
       .catch(() => setTeachers([]));
   }, []);
 
