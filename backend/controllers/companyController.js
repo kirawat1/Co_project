@@ -71,7 +71,7 @@ exports.updateCompany = async (req, res) => {
         where: { id: Number(currentUserId) } 
     });
     
-    const isStaff = currentUser && (currentUser.role === "staff" || currentUser.role === "admin");
+    const isStaff = currentUser && (currentUser.role === "staff");
 
     // ถ้าไม่ใช่เจ้าหน้าที่ และไม่ใช่คนสร้างบริษัทนี้ ให้เด้งออก
     if (!isStaff && company.createdById !== Number(currentUserId)) {
@@ -117,7 +117,7 @@ exports.deleteCompany = async (req, res) => {
         where: { id: Number(currentUserId) } 
     });
     
-    const isStaff = currentUser && (currentUser.role === "staff" || currentUser.role === "admin");
+    const isStaff = currentUser && (currentUser.role === "staff");
 
     if (!isStaff && company.createdById !== Number(currentUserId)) {
       return res.status(403).json({ ok: false, message: "ไม่มีสิทธิ์ลบบริษัทนี้" });
@@ -138,7 +138,7 @@ exports.deleteCompany = async (req, res) => {
 // เช็คสิทธิ์แบบเดียวกับ company: staff/admin หรือเจ้าของบริษัทที่ mentor ผูกอยู่เท่านั้น
 async function isStaffOrCompanyOwner(currentUserId, companyId) {
   const currentUser = await prisma.user.findUnique({ where: { id: Number(currentUserId) } });
-  if (currentUser && (currentUser.role === "staff" || currentUser.role === "admin")) return true;
+  if (currentUser && (currentUser.role === "staff")) return true;
   const company = await prisma.company.findUnique({ where: { id: companyId } });
   return !!company && company.createdById === Number(currentUserId);
 }
@@ -188,7 +188,7 @@ exports.updateMentor = async (req, res) => {
     res.json({ ok: true, mentor: updatedMentor });
   } catch (err) {
     console.error("Update Mentor Error:", err);
-    res.status(500).json({ ok: false, message: "Server Error", error: err.message });
+    res.status(500).json({ ok: false, message: "แก้ไขพี่เลี้ยงไม่สำเร็จ" });
   }
 };
 

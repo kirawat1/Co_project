@@ -6,7 +6,7 @@ const { verifyToken, verifyRole } = require("../middlewares/authMiddleware");
 const router = express.Router();
 
 router.get("/", controller.getAnnouncements);
-router.post("/", verifyToken, verifyRole('admin', 'staff'), controller.upload.array("attachments"), controller.addOrUpdateAnnouncement);
-router.delete("/:id", verifyToken, verifyRole('admin', 'staff'), controller.deleteAnnouncement);
+router.post("/", verifyToken, verifyRole('staff'), controller.upload.array("attachments"), controller.addOrUpdateAnnouncement);
+router.delete("/:id", verifyToken, verifyRole('staff'), controller.deleteAnnouncement);
 
 module.exports = router;

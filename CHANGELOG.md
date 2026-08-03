@@ -1,5 +1,15 @@
 # CHANGELOG — Co_project
 
+## [2026-08-04] fix: batch 12 — calendar privacy + info leaks + dead admin role
+
+- **supervisionController.getSupervisionCalendar:** ลบ `onlineLink` ออกจาก student-facing calendar response — private meeting links ไม่ควรส่งให้นักศึกษาคนอื่น
+- **companyController.updateMentor:** ลบ `err.message` ออกจาก 500 response (information leak)
+- **announcementRoutes:** เปลี่ยน `verifyRole('admin','staff')` → `verifyRole('staff')` ('admin' ไม่มีใน Prisma enum)
+- **companyController isStaffOrCompanyOwner:** ลบ `|| role === "admin"` ออก (dead code)
+- **studentImportController:** Prisma errors (มี .code) ไม่ forward internal message ออกไปใน errorRows
+
+---
+
 ## [2026-08-04] fix: batch 11 — raw fetch in admin modal + missing verifyRole on doc form routes
 
 - **A_StudentEditModal.tsx:** แทน raw `fetch` ด้วย `apiFetch` + `res.ok` guard ในการโหลด teacher list

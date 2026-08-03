@@ -216,9 +216,13 @@ exports.importStudents = async (req, res) => {
           },
         });
       } catch (rowErr) {
-        console.error(`[importStudents] row ${i + 2}:`, rowErr.message);
+        console.error(`[importStudents] row ${i + 2}:`, rowErr);
         errors++;
-        errorRows.push({ row: i + 2, email, reason: rowErr.message });
+        // ถ้า Prisma error (มี .code เช่น P2002) ไม่ forward internal message ออกไป
+        const reason = rowErr.code
+          ? `เกิดข้อผิดพลาดในการบันทึกข้อมูล (${rowErr.code}) กรุณาติดต่อผู้ดูแลระบบ`
+          : rowErr.message;
+        errorRows.push({ row: i + 2, email, reason });
         // revert only the counter that this row incremented
         if (thisRowCountedAs === 'updated' && updated > 0) updated--;
         else if (thisRowCountedAs === 'created' && created > 0) created--;

@@ -615,7 +615,6 @@ exports.getSupervisionCalendar = async (_req, res) => {
             type: a.supervisionType,
             status: a.status,
             companyName: a.student.coop?.company?.name ?? null,
-            onlineLink: a.onlineLink ?? null,
         }));
 
         res.json({ ok: true, events });
