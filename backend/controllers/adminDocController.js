@@ -368,6 +368,11 @@ exports.reviewT002 = async (req, res) => {
             return res.status(400).json({ ok: false, message: "ไม่พบข้อมูล Student ID" });
         }
 
+        const T002_ALLOWED = ['T002_SUBMITTED', 'T002_EDITS_REQUIRED'];
+        if (!T002_ALLOWED.includes(status)) {
+            return res.status(400).json({ ok: false, message: 'status ไม่ถูกต้อง' });
+        }
+
         // 1. อัปเดตสถานะหลักของนักศึกษา
         await prisma.studentCoop.upsert({
             where: { studentId: parseInt(studentId) },
@@ -415,11 +420,7 @@ exports.reviewT002 = async (req, res) => {
         console.error(err);
         console.error("===============================");
         
-        res.status(500).json({ 
-            ok: false, 
-            message: "เกิดข้อผิดพลาดที่เซิร์ฟเวอร์", 
-            error: err.message // ส่งข้อความ Error กลับไปบอก Frontend ด้วย
-        });
+        res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดที่เซิร์ฟเวอร์" });
     }
 };
 
@@ -427,6 +428,11 @@ exports.reviewT003 = async (req, res) => {
     try {
         const { studentId, status, comment } = req.body;
         if (!studentId) return res.status(400).json({ ok: false, message: "ไม่พบ studentId" });
+
+        const T003_ALLOWED = ['T003_APPROVED', 'T003_EDITS_REQUIRED'];
+        if (!T003_ALLOWED.includes(status)) {
+            return res.status(400).json({ ok: false, message: 'status ไม่ถูกต้อง' });
+        }
 
         // 1. อัปเดตสถานะของนักศึกษา
         await prisma.studentCoop.upsert({

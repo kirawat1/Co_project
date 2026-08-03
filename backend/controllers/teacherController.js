@@ -198,6 +198,20 @@ exports.reviewT003 = async (req, res) => {
 
         if (!studentId) return res.status(400).json({ ok: false, message: "ไม่พบข้อมูล Student ID" });
 
+        const T003_ALLOWED = ['T003_APPROVED', 'T003_EDITS_REQUIRED'];
+        if (!T003_ALLOWED.includes(status)) {
+            return res.status(400).json({ ok: false, message: 'status ไม่ถูกต้อง' });
+        }
+
+        // Ownership: teacher must be the student's assigned advisor
+        const teacher = await prisma.teacher.findUnique({ where: { userId: req.user.id } });
+        if (!teacher) return res.status(403).json({ ok: false, message: 'ไม่พบข้อมูลอาจารย์' });
+        const student = await prisma.student.findUnique({ where: { id: parseInt(studentId) } });
+        if (!student) return res.status(404).json({ ok: false, message: 'ไม่พบนักศึกษา' });
+        if (student.generalAdvisorId !== teacher.id && student.coopAdvisorId !== teacher.id) {
+            return res.status(403).json({ ok: false, message: 'คุณไม่ใช่อาจารย์ที่ปรึกษาของนักศึกษาคนนี้' });
+        }
+
         // 1. อัปเดตสถานะในตาราง studentCoop
         await prisma.studentCoop.upsert({
             where: { studentId: parseInt(studentId) },
@@ -249,6 +263,20 @@ exports.reviewT002 = async (req, res) => {
         const { studentId, status, comment } = req.body;
 
         if (!studentId) return res.status(400).json({ ok: false, message: "ไม่พบข้อมูล Student ID" });
+
+        const T002_ALLOWED = ['T002_SUBMITTED', 'T002_EDITS_REQUIRED'];
+        if (!T002_ALLOWED.includes(status)) {
+            return res.status(400).json({ ok: false, message: 'status ไม่ถูกต้อง' });
+        }
+
+        // Ownership: teacher must be the student's assigned advisor
+        const teacher = await prisma.teacher.findUnique({ where: { userId: req.user.id } });
+        if (!teacher) return res.status(403).json({ ok: false, message: 'ไม่พบข้อมูลอาจารย์' });
+        const student = await prisma.student.findUnique({ where: { id: parseInt(studentId) } });
+        if (!student) return res.status(404).json({ ok: false, message: 'ไม่พบนักศึกษา' });
+        if (student.generalAdvisorId !== teacher.id && student.coopAdvisorId !== teacher.id) {
+            return res.status(403).json({ ok: false, message: 'คุณไม่ใช่อาจารย์ที่ปรึกษาของนักศึกษาคนนี้' });
+        }
 
         // 1. อัปเดตสถานะนักศึกษา
         await prisma.studentCoop.upsert({
