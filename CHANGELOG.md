@@ -1,5 +1,15 @@
 # CHANGELOG — Co_project
 
+## [2026-08-04] fix: security batch 6 — soft-delete bypass + TOCTOU
+
+- **authController.signIn:** เพิ่ม `deletedAt` check — student ที่ถูก soft-delete ล็อกอินด้วย email/password ไม่ได้
+- **authController.loginWithKKU:** เพิ่ม `deletedAt` check เช่นเดียวกัน ป้องกัน bypass ผ่าน KKU SSO
+- **studentController.permanentlyDeleteStudent:** ย้าย `!deletedAt` guard เข้าใน `$transaction` เพื่อกัน TOCTOU race ระหว่าง restore กับ permanent delete
+- **studentController.updateStudentBasicInfo:** ปฏิเสธการแก้ไขนักศึกษาที่อยู่ในถังขยะ — คืน 400
+- **studentRoutes GET /:** ลบ `'admin'` ออกจาก `verifyRole` (ไม่มีใน Prisma Role enum — dead code)
+
+---
+
 ## [2026-08-04] fix: security batch 5
 
 - **teacherController.reviewT002/T003:** whitelist status เฉพาะค่าที่ valid; เพิ่ม ownership check ให้อาจารย์ตรวจได้เฉพาะ advisee ตัวเอง

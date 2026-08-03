@@ -66,6 +66,10 @@ exports.signIn = async (req, res) => {
     const valid = await bcrypt.compare(password, user.password);
     if (!valid) return res.status(401).json({ ok: false, message: "รหัสผ่านไม่ถูกต้อง" });
 
+    if (user.role === 'student' && user.student?.deletedAt) {
+      return res.status(401).json({ ok: false, message: "บัญชีนี้ถูกระงับการใช้งาน" });
+    }
+
     let profile = {
       id: user.id,
       email: user.email,
@@ -452,6 +456,10 @@ exports.loginWithKKU = async (req, res) => {
         include: { student: true, teacher: true },
       });
       console.log(`[KKU] auto-created student: ${email} (${studentIdRaw})`);
+    }
+
+    if (user.role === 'student' && user.student?.deletedAt) {
+      return res.status(401).json({ ok: false, message: "บัญชีนี้ถูกระงับการใช้งาน" });
     }
 
     // 4. อัปเดตข้อมูลนักศึกษาจาก REG (ถ้าเป็น student)

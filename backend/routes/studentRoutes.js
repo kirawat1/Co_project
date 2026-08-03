@@ -19,7 +19,7 @@ router.get("/me", verifyToken, studentController.getMyProfile);
 router.put("/me", verifyToken, studentController.updateMyProfile);
 
 // ดึงรายชื่อนักศึกษาทั้งหมด — staff/teacher เท่านั้น (ไม่ใช่นักศึกษาคนอื่นมาดูข้อมูลกัน)
-router.get("/", verifyToken, verifyRole('admin', 'staff', 'teacher'), studentController.getStudents);
+router.get("/", verifyToken, verifyRole('staff', 'teacher'), studentController.getStudents);
 
 // ✅ Route สำหรับกดดาวน์โหลดหนังสือส่งตัว (ที่เพิ่มใหม่)
 router.post('/acknowledge-dispatch', verifyToken, verifyRole('student'), docController.acknowledgeDispatchDownload);
