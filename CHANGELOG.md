@@ -1,5 +1,15 @@
 # CHANGELOG — Co_project
 
+## [2026-08-04] fix: security batch 5
+
+- **teacherController.reviewT002/T003:** whitelist status เฉพาะค่าที่ valid; เพิ่ม ownership check ให้อาจารย์ตรวจได้เฉพาะ advisee ตัวเอง
+- **adminDocController.reviewT002/T003:** whitelist status เช่นเดียวกัน; ลบ `err.message` ออกจาก 500 response (information leak)
+- **docController:** ลบ `T002_GRADED` (ไม่มีใน Prisma enum) ออกจาก T003_VALID list
+- **docController.saveT002Form/saveT003Form:** เพิ่ม server-side progression lock — ต้องถึง status ที่ถูกต้องถึงจะบันทึก draft ได้
+- **studentImportController.mapMajor:** จำกัดความยาว unrecognized major value ไม่เกิน 50 ตัวอักษร
+
+---
+
 ## [2026-08-03] fix: security batch 4
 
 - **supervisionController:** แก้ ERR_HTTP_HEADERS_SENT เมื่อ lock hit — `.catch()` คืน `null` แทน Response object ให้ guard `if (!appointment) return` ทำงานถูกต้อง
