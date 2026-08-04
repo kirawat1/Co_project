@@ -1,5 +1,18 @@
 # CHANGELOG — Co_project
 
+## [2026-08-05] fix: batch 33 — $transaction wrap (announcementController + studentController) + apiFetch migration (6 components)
+
+- **announcementController.js `addOrUpdateAnnouncement` UPDATE branch:** wrap `annFile.deleteMany` + `announcement.update` ใน `prisma.$transaction`; ย้าย `fs.unlinkSync` มาหลัง transaction commit
+- **studentController.js `updateMyProfile`:** รวม `student.upsert` + `studentEmail` operations + `studentCoop.upsert` ใน `prisma.$transaction` เดียว — เดิมทั้ง 3 writes แยกกัน ถ้า write หลังล้มเหลวจะเกิด partial update
+- **A_App.tsx:** เปลี่ยน raw `fetch("/api/auth/me")` ด้วย manual auth header เป็น `apiFetch`
+- **A_DocT002Review.tsx:** เปลี่ยน raw fetch 3 จุด (fetchAllData coop-periods, loadConfig, handleSaveConfig) เป็น `apiFetch`
+- **T_T002Review.tsx:** เปลี่ยน raw fetch (fetchStudents coop-periods) เป็น `apiFetch`
+- **T_T003Review.tsx:** เปลี่ยน raw fetch (fetchStudents coop-periods) เป็น `apiFetch`
+- **T_SupervisionReview.tsx:** เปลี่ยน raw fetch (fetchData coop-periods) เป็น `apiFetch`
+- **IssueSupervisionLetterModal.tsx:** เปลี่ยน raw fetch (loadCommonData dean-info) เป็น `apiFetch`
+
+---
+
 ## [2026-08-05] fix: batch 32 — $transaction wrap (teacherController + docController) + raw fetch apiFetch (T_Profile, S_ProfilePage)
 
 - **teacherController.js `reviewT003`:** wrap `studentCoop.upsert` + `document.findFirst/update` ใน `prisma.$transaction` — เดิม 2 writes แยกกัน ถ้า `document.update` fail จะ studentCoop อัปเดตแต่ document ไม่อัปเดต

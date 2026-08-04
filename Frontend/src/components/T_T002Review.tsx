@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import type { CSSProperties } from "react";
 import axios from "axios";
+import { apiFetch } from "../utils/apiFetch";
 import AutoTextarea from "./AutoTextarea";
 
 // --- Types ---
@@ -47,7 +48,7 @@ export default function T_T002Review() {
             const token = localStorage.getItem("coop.token");
 
             // ดึงรอบปีการศึกษามาแสดงใน Dropdown
-            const resPeriods = await fetch("/api/admin/coop-periods/all", { headers: { Authorization: `Bearer ${token}` } });
+            const resPeriods = await apiFetch("/api/admin/coop-periods/all");
             if (resPeriods.ok) {
                 const periodsData = await resPeriods.json();
                 if (periodsData.ok && periodsData.periods) setCoopPeriods(periodsData.periods);

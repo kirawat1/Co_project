@@ -118,21 +118,24 @@ const addOrUpdateAnnouncement = async (req, res) => {
       const ann = await prisma.announcement.findUnique({ where: { id }, include: { files: true } });
       if (!ann) return res.status(404).json({ ok: false, message: "ไม่พบประกาศ" });
 
-      // ลบไฟล์ที่ไม่อยู่ใน keepFileIds — batch delete แทน loop
       const toDelete = ann.files.filter(f => !keepFileIds?.includes(f.id));
+
+      let updated;
+      await prisma.$transaction(async (tx) => {
+        if (toDelete.length > 0) {
+          await tx.annFile.deleteMany({ where: { id: { in: toDelete.map(f => f.id) } } });
+        }
+        updated = await tx.announcement.update({
+          where: { id },
+          data: { ...sharedData, files: { create: annFiles } },
+          include: { files: true },
+        });
+      });
+
+      // Delete files from disk only after transaction commits
       toDelete.forEach(f => {
         const filePath = path.join(__dirname, '../uploads', f.path);
         if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-      });
-      if (toDelete.length > 0) {
-        await prisma.annFile.deleteMany({ where: { id: { in: toDelete.map(f => f.id) } } });
-      }
-
-      // อัปเดตประกาศ
-      const updated = await prisma.announcement.update({
-        where: { id },
-        data: { ...sharedData, files: { create: annFiles } },
-        include: { files: true },
       });
 
       return res.json({ ok: true, announcement: updated });

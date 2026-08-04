@@ -94,82 +94,85 @@ exports.updateMyProfile = async (req, res) => {
     const gpa = data.gpa !== undefined ? parseFloat(data.gpa) : (currentStudent?.gpa || 0);
     const activityUnit = data.activityUnit !== undefined ? parseInt(data.activityUnit) : (currentStudent?.activityUnit || 0);
 
-    const student = await prisma.student.upsert({
-      where: { userId: userId },
-      update: {
-        studentId: data.studentId,
-        prefix: data.prefix === '' ? null : data.prefix,
-        firstName: data.firstName,
-        lastName: data.lastName,
-        firstNameEn: data.firstNameEn,
-        lastNameEn: data.lastNameEn,
-        year: data.year,
-        major: data.major || null,
-        studyProgram: data.studyProgram === '' ? null : data.studyProgram,
-        phone: data.phone,
-        email: data.email,
-        advisorName: data.advisorName,
-        jobPosition: data.jobPosition,
-        coopAdvisorId: data.coopAdvisorId !== undefined ? (data.coopAdvisorId ? Number(data.coopAdvisorId) : null) : undefined,
-        gpa: data.gpa !== undefined ? parseFloat(data.gpa) : undefined,
-        activityUnit: data.activityUnit !== undefined ? parseInt(data.activityUnit) : undefined,
-      },
-      create: {
-        userId: userId,
-        studentId: data.studentId || "",
-        prefix: data.prefix === '' ? null : data.prefix,
-        studyProgram: data.studyProgram === '' ? null : data.studyProgram,
-        firstName: data.firstName || "",
-        lastName: data.lastName || "",
-        major: (data.major && data.major !== "") ? data.major : null,
-        gpa: gpa,
-        activityUnit: activityUnit,
-        advisorName: data.advisorName,
-        jobPosition: data.jobPosition,
-        coopAdvisorId: data.coopAdvisorId ? Number(data.coopAdvisorId) : null,
-      },
-    });
-
-    if (data.emails && Array.isArray(data.emails)) {
-      const validEmails = data.emails.filter(e => e.email && e.email.trim() !== "");
-      await prisma.$transaction([
-        prisma.studentEmail.deleteMany({ where: { studentId: student.id } }),
-        ...(validEmails.length > 0 ? [prisma.studentEmail.createMany({
-          data: validEmails.map(e => ({
-            email: e.email,
-            primary: e.primary || false,
-            studentId: student.id,
-          })),
-        })] : []),
-      ]);
-    }
-
-    // ==========================================
-    // 3. จัดการสถานะการฝึกงาน (StudentCoop Table)
-    // ==========================================
+    let student;
     let updatedCoop = null;
-    
-    // ✅ แก้ไข: เช็คจาก 'undefined' แทนการเช็ค truthy value 
-    // เพื่อให้ทำงานได้แม้มีการส่ง { companyId: null } มาก็ตาม
-    if (data.companyId !== undefined) {
-      updatedCoop = await prisma.studentCoop.upsert({
-        where: { studentId: student.id },
+
+    await prisma.$transaction(async (tx) => {
+      student = await tx.student.upsert({
+        where: { userId: userId },
         update: {
-          companyId: data.companyId, // รับค่า null เพื่อลบข้อมูลเดิมออกได้
-          mentorId: data.mentorId || null, 
+          studentId: data.studentId,
+          prefix: data.prefix === '' ? null : data.prefix,
+          firstName: data.firstName,
+          lastName: data.lastName,
+          firstNameEn: data.firstNameEn,
+          lastNameEn: data.lastNameEn,
+          year: data.year,
+          major: data.major || null,
+          studyProgram: data.studyProgram === '' ? null : data.studyProgram,
+          phone: data.phone,
+          email: data.email,
+          advisorName: data.advisorName,
+          jobPosition: data.jobPosition,
+          coopAdvisorId: data.coopAdvisorId !== undefined ? (data.coopAdvisorId ? Number(data.coopAdvisorId) : null) : undefined,
+          gpa: data.gpa !== undefined ? parseFloat(data.gpa) : undefined,
+          activityUnit: data.activityUnit !== undefined ? parseInt(data.activityUnit) : undefined,
         },
         create: {
-          studentId: student.id,
-          companyId: data.companyId,
-          mentorId: data.mentorId || null,
-          status: "NOT_SUBMITTED", // กำหนดสถานะเริ่มต้นเมื่อมีการสร้างใหม่
-        },
-        include: {
-          company: { include: { mentors: true } },
-          mentor: true,
+          userId: userId,
+          studentId: data.studentId || "",
+          prefix: data.prefix === '' ? null : data.prefix,
+          studyProgram: data.studyProgram === '' ? null : data.studyProgram,
+          firstName: data.firstName || "",
+          lastName: data.lastName || "",
+          major: (data.major && data.major !== "") ? data.major : null,
+          gpa: gpa,
+          activityUnit: activityUnit,
+          advisorName: data.advisorName,
+          jobPosition: data.jobPosition,
+          coopAdvisorId: data.coopAdvisorId ? Number(data.coopAdvisorId) : null,
         },
       });
-    }
+
+      if (data.emails && Array.isArray(data.emails)) {
+        const validEmails = data.emails.filter(e => e.email && e.email.trim() !== "");
+        await tx.studentEmail.deleteMany({ where: { studentId: student.id } });
+        if (validEmails.length > 0) {
+          await tx.studentEmail.createMany({
+            data: validEmails.map(e => ({
+              email: e.email,
+              primary: e.primary || false,
+              studentId: student.id,
+            })),
+          });
+        }
+      }
+
+      // ==========================================
+      // 3. จัดการสถานะการฝึกงาน (StudentCoop Table)
+      // ==========================================
+      // เช็คจาก 'undefined' แทนการเช็ค truthy value
+      // เพื่อให้ทำงานได้แม้มีการส่ง { companyId: null } มาก็ตาม
+      if (data.companyId !== undefined) {
+        updatedCoop = await tx.studentCoop.upsert({
+          where: { studentId: student.id },
+          update: {
+            companyId: data.companyId,
+            mentorId: data.mentorId || null,
+          },
+          create: {
+            studentId: student.id,
+            companyId: data.companyId,
+            mentorId: data.mentorId || null,
+            status: "NOT_SUBMITTED",
+          },
+          include: {
+            company: { include: { mentors: true } },
+            mentor: true,
+          },
+        });
+      }
+    });
 
     const user = await prisma.user.findUnique({ where: { id: userId } });
     const finalEmails = await prisma.studentEmail.findMany({ where: { studentId: student.id } });

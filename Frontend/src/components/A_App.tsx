@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { apiFetch } from "../utils/apiFetch";
 import { ThemeToggleBtn } from "./ThemeContext";
 import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import Sidebar from "./A_Sidebar";
@@ -52,11 +53,7 @@ export default function AdminApp() {
       return;
     }
 
-    fetch("/api/auth/me", {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    })
+    apiFetch("/api/auth/me")
       .then(res => res.json())
       .then(data => {
         if (!data.ok) throw new Error();
