@@ -92,6 +92,10 @@ Write-Step "Pulling latest code from GitHub..."
 Set-Location $PROJECT_DIR
 $gitResult = git pull origin main 2>&1
 Write-Host "    $gitResult" -ForegroundColor Gray
+if ($LASTEXITCODE -ne 0) {
+    Write-ERR "git pull failed — aborting deploy. Fix conflicts then re-run."
+    exit 1
+}
 Write-OK "Code updated"
 
 Write-Step "Installing backend dependencies..."

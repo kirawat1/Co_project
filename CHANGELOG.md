@@ -1,5 +1,11 @@
 # CHANGELOG — Co_project
 
+## [2026-08-04] fix: batch 18 — deploy.ps1 unchecked git pull exit code
+
+- **docs/deploy.ps1:** เพิ่มตรวจ `$LASTEXITCODE` หลัง `git pull` — เดิม deploy ดำเนินต่อแม้ pull จะ fail (merge conflict, auth error, network timeout) ทำให้ deploy สำเร็จโดย restart บน codebase เก่า
+
+---
+
 ## [2026-08-04] fix: batch 17 — supervisionRoutes missing verifyRole + 4 cleanups
 
 - **supervisionRoutes GET /teacher/supervisions:** เพิ่ม `verifyRole('teacher', 'staff')` — เดิมมีแค่ `verifyToken` ทำให้ authenticated user ทุก role เข้าถึงได้
