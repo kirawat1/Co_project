@@ -11,7 +11,7 @@ exports.getAllCriteria = async (req, res) => {
     res.json({ ok: true, criteria });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ ok: false, error: err.message });
+    res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดที่ Server" });
   }
 };
 
@@ -63,6 +63,7 @@ exports.getMajorList = async (req, res) => {
 
     res.json({ ok: true, majors: majorList });
   } catch (err) {
-    res.status(500).json({ ok: false, error: err.message });
+    console.error(err);
+    res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดที่ Server" });
   }
 };

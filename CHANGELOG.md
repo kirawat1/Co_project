@@ -1,5 +1,15 @@
 # CHANGELOG — Co_project
 
+## [2026-08-04] fix: batch 14 — apiFetch auto-inject token + remaining raw fetch + P2002→409 + err.message in criteriaController
+
+- **apiFetch.ts:** auto-inject Authorization header from localStorage — ป้องกัน call site ลืมส่ง token
+- **A_Students.tsx:** แทน 3x raw `fetch` (fetchStudents, fetchData, handleImport) ด้วย `apiFetch`; ลบ `const token` ที่ไม่จำเป็น
+- **studentController updateMyProfile + updateStudentBasicInfo:** เปลี่ยน P2002 catch จาก 400 → 409 (Conflict)
+- **criteriaController getAllCriteria + getMajorList:** ลบ `err.message` ออกจาก 500 response; เพิ่ม `console.error` ใน getMajorList
+- **studentController.test.js:** อัปเดต assertion P2002 → 409 และแก้ stale mock ของ `exportStudents` (ขาด `prefix` ใน select)
+
+---
+
 ## [2026-08-04] fix: batch 13 — raw fetch in admin trash/student pages + 409 status for conflict states
 
 - **A_StudentTrash.tsx:** แทน 3x raw `fetch` ด้วย `apiFetch`; เพิ่ม `res.ok` guard ใน `fetchTrash`

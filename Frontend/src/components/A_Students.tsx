@@ -166,13 +166,10 @@ export default function A_Students() {
   // --- Fetch Data ---
   const fetchStudents = async (periodId: string, page = 1, search = "") => {
     try {
-      const token = localStorage.getItem("coop.token");
       const params = new URLSearchParams({ page: String(page), limit: String(PAGE_SIZE) });
       if (periodId !== "all") params.set("coopPeriodId", periodId);
       if (search.trim()) params.set("search", search.trim());
-      const res = await fetch(`/api/students?${params}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await apiFetch(`/api/students?${params}`);
       if (res.ok) {
         const data = await res.json();
         setItems(data?.data ?? []);
@@ -188,19 +185,14 @@ export default function A_Students() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem("coop.token");
 
-      const resPeriods = await fetch("/api/admin/coop-periods/all", {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const resPeriods = await apiFetch("/api/admin/coop-periods/all");
       if (resPeriods.ok) {
         const data = await resPeriods.json();
         if (data?.periods) setCoopPeriods(data.periods);
       }
 
-      const resMajors = await fetch("/api/admin/majors", {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const resMajors = await apiFetch("/api/admin/majors");
       if (resMajors.ok) {
         const dataMajors = await resMajors.json();
         if (dataMajors.ok) {
@@ -274,12 +266,10 @@ export default function A_Students() {
     setImportLoading(true);
     setImportResult(null);
     try {
-      const token = localStorage.getItem("coop.token");
       const form = new FormData();
       form.append("file", importFile);
-      const res = await fetch("/api/admin/students/import-excel", {
+      const res = await apiFetch("/api/admin/students/import-excel", {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
         body: form,
       });
       const data = await res.json();

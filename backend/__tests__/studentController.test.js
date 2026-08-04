@@ -341,7 +341,7 @@ describe('updateStudentBasicInfo', () => {
     expect(res.status).toHaveBeenCalledWith(404);
   });
 
-  test('400 — studentId ซ้ำ (P2002)', async () => {
+  test('409 — studentId ซ้ำ (P2002)', async () => {
     prisma.student.findUnique.mockResolvedValue({
       id: 1, userId: 10, user: { email: 'old@kkumail.com' },
     });
@@ -353,7 +353,7 @@ describe('updateStudentBasicInfo', () => {
 
     await updateStudentBasicInfo(req, res);
 
-    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.status).toHaveBeenCalledWith(409);
   });
 });
 
@@ -435,8 +435,8 @@ describe('exportStudents', () => {
       where: { deletedAt: null },
       include: {
         coop: { include: { company: true } },
-        generalAdvisor: { select: { firstName: true, lastName: true } },
-        coopAdvisor: { select: { firstName: true, lastName: true } },
+        generalAdvisor: { select: { firstName: true, lastName: true, prefix: true } },
+        coopAdvisor: { select: { firstName: true, lastName: true, prefix: true } },
       },
     }));
     expect(res.setHeader).toHaveBeenCalledWith(

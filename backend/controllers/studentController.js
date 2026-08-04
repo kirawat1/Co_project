@@ -189,9 +189,9 @@ exports.updateMyProfile = async (req, res) => {
     if (err.code === 'P2002') {
       const target = err.meta?.target;
       if (typeof target === 'string' && target.includes('studentId')) {
-         return res.status(400).json({ ok: false, message: "รหัสนักศึกษานี้มีอยู่ในระบบแล้ว (ซ้ำกับบัญชีอื่น)" });
+         return res.status(409).json({ ok: false, message: "รหัสนักศึกษานี้มีอยู่ในระบบแล้ว (ซ้ำกับบัญชีอื่น)" });
       }
-      return res.status(400).json({ ok: false, message: "ข้อมูลบางอย่างซ้ำกับในระบบ" });
+      return res.status(409).json({ ok: false, message: "ข้อมูลบางอย่างซ้ำกับในระบบ" });
     }
     res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดที่ Server" });
   }
@@ -525,9 +525,9 @@ exports.updateStudentBasicInfo = async (req, res) => {
     if (err.code === 'P2002') {
       const target = err.meta?.target;
       if (typeof target === 'string' && target.includes('studentId')) {
-        return res.status(400).json({ ok: false, message: "รหัสนักศึกษานี้มีอยู่ในระบบแล้ว (ซ้ำกับบัญชีอื่น)" });
+        return res.status(409).json({ ok: false, message: "รหัสนักศึกษานี้มีอยู่ในระบบแล้ว (ซ้ำกับบัญชีอื่น)" });
       }
-      return res.status(400).json({ ok: false, message: "ข้อมูลบางอย่างซ้ำกับในระบบ" });
+      return res.status(409).json({ ok: false, message: "ข้อมูลบางอย่างซ้ำกับในระบบ" });
     }
     console.error("UPDATE STUDENT BASIC INFO ERROR:", err);
     res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดที่ Server" });
