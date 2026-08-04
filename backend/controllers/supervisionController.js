@@ -549,6 +549,9 @@ exports.updateConfirmedDate = async (req, res) => {
         if (supervision.officialLetterPath) {
             return res.status(400).json({ ok: false, message: 'ไม่สามารถแก้ไขได้ เนื่องจากออกหนังสือนิเทศแล้ว' });
         }
+        if (supervision.status !== 'DATE_CONFIRMED') {
+            return res.status(400).json({ ok: false, message: 'สามารถแก้ไขวันนิเทศได้เฉพาะเมื่อสถานะเป็น DATE_CONFIRMED เท่านั้น' });
+        }
 
         const chosenDate = new Date(confirmedDate);
 

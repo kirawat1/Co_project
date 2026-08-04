@@ -1,5 +1,4 @@
 import { useMemo, useState, useEffect, useRef } from "react";
-import axios from "axios";
 import { apiFetch } from "../utils/apiFetch";
 import StatusBadge from "../components/StatusBadge";
 import StatusFilterChips, { STATUS_GROUPS } from "./StatusFilterChips";
@@ -154,13 +153,11 @@ export default function T_Students({ isCoopTeacher = false }: Props) {
 
   const fetchData = async () => {
     setLoading(true);
-    const token = localStorage.getItem("coop.token");
     try {
-      const resPeriods = await axios.get("/api/admin/coop-periods/all", {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (resPeriods.data?.periods) {
-        setCoopPeriods(resPeriods.data.periods);
+      const resPeriods = await apiFetch("/api/admin/coop-periods/all");
+      if (resPeriods.ok) {
+        const dataPeriods = await resPeriods.json();
+        if (dataPeriods?.periods) setCoopPeriods(dataPeriods.periods);
       }
 
       const resMajors = await apiFetch("/api/admin/majors");
