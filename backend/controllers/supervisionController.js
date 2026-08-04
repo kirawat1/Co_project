@@ -391,39 +391,18 @@ exports.reviewSupervision = async (req, res) => {
             });
         }
 
-        let updateData = {};
         if (action === 'APPROVE') {
             if (!confirmedDate) {
                 return res.status(400).json({ ok: false, message: 'กรุณาระบุวันที่นิเทศ' });
             }
 
             const chosenDate = new Date(confirmedDate);
-
-            // ตรวจสอบวันซ้ำ: อาจารย์คนเดียวกัน ยืนยันวันเดียวกันไปแล้วกับนักศึกษาคนอื่น
             const startOfDay = new Date(chosenDate);
             startOfDay.setHours(0, 0, 0, 0);
             const endOfDay = new Date(chosenDate);
             endOfDay.setHours(23, 59, 59, 999);
 
-            const conflict = await prisma.supervisionAppointment.findFirst({
-                where: {
-                    teacherId: teacher.id,
-                    id: { not: parseInt(id) },
-                    status: { in: ['DATE_CONFIRMED', 'LETTER_UPLOADED'] },
-                    confirmedDate: { gte: startOfDay, lte: endOfDay }
-                },
-                include: { student: { select: { firstName: true, lastName: true } } }
-            });
-
-            if (conflict) {
-                const conflictName = `${conflict.student.firstName} ${conflict.student.lastName}`;
-                return res.status(409).json({
-                    ok: false,
-                    message: `วันนี้มีการนิเทศของ ${conflictName} อยู่แล้ว กรุณาเลือกวันอื่น`
-                });
-            }
-
-            updateData = {
+            const approveData = {
                 status: 'DATE_CONFIRMED',
                 confirmedDate: chosenDate,
                 rejectReason: null,
@@ -431,19 +410,38 @@ exports.reviewSupervision = async (req, res) => {
                     ? { supervisionType }
                     : {}),
             };
-        } else if (action === 'REJECT') {
-            updateData = {
-                status: 'TEACHER_REJECTED',
-                confirmedDate: null,
-                rejectReason: rejectReason
-            };
-        }
 
-        // 3. บันทึกข้อมูล
-        await prisma.supervisionAppointment.update({
-            where: { id: parseInt(id) },
-            data: updateData
-        });
+            // Atomic conflict check + update to prevent double-booking on concurrent requests
+            await prisma.$transaction(async (tx) => {
+                const conflict = await tx.supervisionAppointment.findFirst({
+                    where: {
+                        teacherId: teacher.id,
+                        id: { not: parseInt(id) },
+                        status: { in: ['DATE_CONFIRMED', 'LETTER_UPLOADED'] },
+                        confirmedDate: { gte: startOfDay, lte: endOfDay }
+                    },
+                    include: { student: { select: { firstName: true, lastName: true } } }
+                });
+
+                if (conflict) {
+                    const conflictName = `${conflict.student.firstName} ${conflict.student.lastName}`;
+                    throw Object.assign(
+                        new Error(`วันนี้มีการนิเทศของ ${conflictName} อยู่แล้ว กรุณาเลือกวันอื่น`),
+                        { is409: true }
+                    );
+                }
+
+                await tx.supervisionAppointment.update({
+                    where: { id: parseInt(id) },
+                    data: approveData
+                });
+            });
+        } else if (action === 'REJECT') {
+            await prisma.supervisionAppointment.update({
+                where: { id: parseInt(id) },
+                data: { status: 'TEACHER_REJECTED', confirmedDate: null, rejectReason: rejectReason }
+            });
+        }
 
         res.json({ ok: true, message: "บันทึกผลพิจารณาสำเร็จ" });
 
@@ -463,6 +461,9 @@ exports.reviewSupervision = async (req, res) => {
           })
           .catch(console.error);
     } catch (err) {
+        if (err.is409) {
+            return res.status(409).json({ ok: false, message: err.message });
+        }
         console.error("Review Supervision Error:", err);
         res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดในการบันทึกข้อมูล" });
     }
@@ -559,30 +560,36 @@ exports.updateConfirmedDate = async (req, res) => {
         const startOfDay = new Date(chosenDate); startOfDay.setHours(0, 0, 0, 0);
         const endOfDay = new Date(chosenDate); endOfDay.setHours(23, 59, 59, 999);
 
-        const conflict = await prisma.supervisionAppointment.findFirst({
-            where: {
-                teacherId: supervision.teacherId,
-                id: { not: parseInt(id) },
-                status: { in: ['DATE_CONFIRMED', 'LETTER_UPLOADED'] },
-                confirmedDate: { gte: startOfDay, lte: endOfDay }
-            },
-            include: { student: { select: { firstName: true, lastName: true } } }
-        });
-
-        if (conflict) {
-            return res.status(409).json({
-                ok: false,
-                message: `วันนี้มีการนิเทศของ ${conflict.student.firstName} ${conflict.student.lastName} อยู่แล้ว`
+        let updated;
+        await prisma.$transaction(async (tx) => {
+            const conflict = await tx.supervisionAppointment.findFirst({
+                where: {
+                    teacherId: supervision.teacherId,
+                    id: { not: parseInt(id) },
+                    status: { in: ['DATE_CONFIRMED', 'LETTER_UPLOADED'] },
+                    confirmedDate: { gte: startOfDay, lte: endOfDay }
+                },
+                include: { student: { select: { firstName: true, lastName: true } } }
             });
-        }
 
-        const updated = await prisma.supervisionAppointment.update({
-            where: { id: parseInt(id) },
-            data: { confirmedDate: chosenDate }
+            if (conflict) {
+                throw Object.assign(
+                    new Error(`วันนี้มีการนิเทศของ ${conflict.student.firstName} ${conflict.student.lastName} อยู่แล้ว`),
+                    { is409: true }
+                );
+            }
+
+            updated = await tx.supervisionAppointment.update({
+                where: { id: parseInt(id) },
+                data: { confirmedDate: chosenDate }
+            });
         });
 
         res.json({ ok: true, appointment: updated });
     } catch (err) {
+        if (err.is409) {
+            return res.status(409).json({ ok: false, message: err.message });
+        }
         console.error('updateConfirmedDate error:', err);
         res.status(500).json({ ok: false, message: 'เกิดข้อผิดพลาดในการแก้ไขวันนิเทศ' });
     }

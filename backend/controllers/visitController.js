@@ -45,28 +45,33 @@ exports.createVisit = async (req, res) => {
 
     if (!teacher) return res.status(404).json({ ok: false, message: "Teacher profile not found" });
 
-    // กันนัดซ้ำ: อาจารย์คนเดียวกัน นัดวันเดียวกันกับนักศึกษาคนเดียวกันซ้ำ
-    const conflict = await prisma.visit.findFirst({
-      where: { teacherId: teacher.id, studentId: student.id, date: new Date(date) },
-    });
-    if (conflict) {
-      return res.status(409).json({ ok: false, message: "มีนัดหมายของนักศึกษาคนนี้ในวันนี้อยู่แล้ว" });
-    }
-
-    const newVisit = await prisma.visit.create({
-      data: {
-        date: new Date(date),
-        time,
-        location,
-        note,
-        status: "scheduled",
-        studentId: student.id,
-        teacherId: teacher.id
+    let newVisit;
+    await prisma.$transaction(async (tx) => {
+      // กันนัดซ้ำ: อาจารย์คนเดียวกัน นัดวันเดียวกันกับนักศึกษาคนเดียวกันซ้ำ
+      const conflict = await tx.visit.findFirst({
+        where: { teacherId: teacher.id, studentId: student.id, date: new Date(date) },
+      });
+      if (conflict) {
+        throw Object.assign(new Error("มีนัดหมายของนักศึกษาคนนี้ในวันนี้อยู่แล้ว"), { is409: true });
       }
+      newVisit = await tx.visit.create({
+        data: {
+          date: new Date(date),
+          time,
+          location,
+          note,
+          status: "scheduled",
+          studentId: student.id,
+          teacherId: teacher.id
+        }
+      });
     });
 
     res.json({ ok: true, data: newVisit });
   } catch (err) {
+    if (err.is409) {
+      return res.status(409).json({ ok: false, message: err.message });
+    }
     console.error(err);
     res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาด" });
   }

@@ -343,7 +343,7 @@ exports.getAdviseesForReview = async (req, res) => {
 
         // ดึงเฉพาะนักศึกษาที่มีอาจารย์คนนี้เป็นที่ปรึกษา (ทั้ง generalAdvisor และ coopAdvisor)
         const students = await prisma.student.findMany({
-            where: { OR: [{ generalAdvisorId: teacher.id }, { coopAdvisorId: teacher.id }] },
+            where: { deletedAt: null, OR: [{ generalAdvisorId: teacher.id }, { coopAdvisorId: teacher.id }] },
             include: {
                 coop: {
                     include: { company: true }
@@ -453,7 +453,7 @@ exports.getLatestRequests = async (req, res) => {
         // ดึงจากตาราง StudentCoop ตรงๆ จะได้ไม่ติด Error เรื่อง Relation
         const studentCoops = await prisma.studentCoop.findMany({
             where: {
-                student: { advisorName: { contains: teacher.firstName } },
+                student: { advisorName: { contains: teacher.firstName }, deletedAt: null },
                 status: { not: 'NOT_SUBMITTED' }, // เอาคนที่ยื่นแล้ว
                 ...(semesterInt && yearStr ? {
                     coopPeriod: { semester: semesterInt, academicYear: yearStr }
