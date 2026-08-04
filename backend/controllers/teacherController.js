@@ -341,9 +341,9 @@ exports.getAdviseesForReview = async (req, res) => {
             return res.status(404).json({ ok: false, message: "ไม่พบข้อมูลอาจารย์" });
         }
 
-        // ดึงเฉพาะนักศึกษาที่มี advisorId ตรงกับอาจารย์คนนี้
+        // ดึงเฉพาะนักศึกษาที่มีอาจารย์คนนี้เป็นที่ปรึกษา (ทั้ง generalAdvisor และ coopAdvisor)
         const students = await prisma.student.findMany({
-            where: { advisorId: teacher.id }, // 🟢 จุดสำคัญ: กรองเฉพาะเด็กของตัวเอง
+            where: { OR: [{ generalAdvisorId: teacher.id }, { coopAdvisorId: teacher.id }] },
             include: {
                 coop: {
                     include: { company: true }

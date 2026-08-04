@@ -1,5 +1,11 @@
 # CHANGELOG — Co_project
 
+## [2026-08-05] fix: batch 37 — teacherController getAdviseesForReview invalid Prisma field
+
+- **teacherController.js `getAdviseesForReview`:** แก้ `where: { advisorId: teacher.id }` → `where: { OR: [{ generalAdvisorId }, { coopAdvisorId }] }` — field `advisorId` ไม่มีใน Prisma schema จะ throw PrismaClientValidationError ทันทีถ้า route นี้ถูก mount; ยังเป็น dead code (ยังไม่ถูก mount ใน routes)
+
+---
+
 ## [2026-08-05] fix: batch 36 — coopPeriodController togglePeriod $transaction
 
 - **coopPeriodController.js `togglePeriod`:** wrap `coopPeriod.updateMany` (deactivate others) + `coopPeriod.update` (activate target) ใน `prisma.$transaction` — เดิมถ้า update ตัวที่ 2 ล้มเหลวจะเกิดสถานะที่ทุกรอบถูกปิดหมด (zero active periods)
