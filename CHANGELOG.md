@@ -1,5 +1,13 @@
 # CHANGELOG — Co_project
 
+## [2026-08-04] fix: batch 16 — coopStatusLabels T003_APPROVED + exportMyStudents soft-delete filter
+
+- **coopStatusLabels.js:** เพิ่ม `T003_APPROVED` ที่หายไป — ก่อนหน้านี้สถานะนี้แสดงเป็น "ยังไม่ยื่นสหกิจ" ใน Excel export อย่างผิดพลาด
+- **coopStatusLabels.js:** ลบ 8 dead keys ที่ไม่มีในเนม CoopStatus enum (T004_SUBMITTED, T004_EDITS_REQUIRED, PENDING_TEACHER, TEACHER_REJECTED, DATE_CONFIRMED, LETTER_UPLOADED, COMPLETED, WAITING)
+- **teacherController.exportMyStudents:** เพิ่ม `deletedAt: null` filter ในทุก where branch — นักศึกษาในถังขยะไม่ควรปรากฏใน Excel export ของอาจารย์ (admin export มีอยู่แล้ว)
+
+---
+
 ## [2026-08-04] fix: batch 15 — criteriaController deleteCriteria P2025 → 404
 
 - **criteriaController.deleteCriteria:** P2025 catch เพื่อคืน 404 แทน 500 เมื่อ delete record ที่ไม่มีอยู่; แก้ error key จาก `error:` → `message:` ให้ตรงกับ response format ที่ใช้ทั้งระบบ

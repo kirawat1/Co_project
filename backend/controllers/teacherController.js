@@ -734,12 +734,15 @@ exports.exportMyStudents = async (req, res) => {
 
     const advisorFilter = { OR: [{ generalAdvisorId: teacher.id }, { coopAdvisorId: teacher.id }] };
     const periodFilter = coopPeriodId ? { coop: { coopPeriodId } } : null;
+    const deletedFilter = { deletedAt: null };
 
     let where;
     if (teacher.isCoopTeacher) {
-      where = periodFilter || {};
+      where = periodFilter ? { AND: [deletedFilter, periodFilter] } : deletedFilter;
     } else {
-      where = periodFilter ? { AND: [periodFilter, advisorFilter] } : advisorFilter;
+      where = periodFilter
+        ? { AND: [deletedFilter, periodFilter, advisorFilter] }
+        : { AND: [deletedFilter, advisorFilter] };
     }
 
     const students = await prisma.student.findMany({

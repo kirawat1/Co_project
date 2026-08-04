@@ -19,14 +19,7 @@ const COOP_STATUS_LABEL_TH = {
   T002_EDITS_REQUIRED: 'ต้องแก้ไข T002',
   T003_SUBMITTED: 'ส่งโครงร่าง T003 แล้ว',
   T003_EDITS_REQUIRED: 'ต้องแก้ไขโครงร่าง T003',
-  T004_SUBMITTED: 'ส่งรายงาน T004 แล้ว',
-  T004_EDITS_REQUIRED: 'ต้องแก้ไขรายงาน T004',
-  PENDING_TEACHER: 'รออาจารย์เลือกวันนิเทศ',
-  TEACHER_REJECTED: 'แก้ไขวันนัดหมายนิเทศ',
-  DATE_CONFIRMED: 'รอเจ้าหน้าที่พิจารณาหนังสือนิเทศ',
-  LETTER_UPLOADED: 'อนุมัติหนังสือนิเทศแล้ว',
-  COMPLETED: 'นิเทศเสร็จสิ้น',
-  WAITING: 'รอดำเนินการ',
+  T003_APPROVED: 'อนุมัติโครงร่าง T003 แล้ว',
 };
 
 function getStatusLabelTh(status) {
