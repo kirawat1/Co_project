@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { IcSave, IcUser } from "./icons"; // อย่าลืมเช็ค path icons
+import { apiFetch } from "../utils/apiFetch";
 
 /* =========================
    Types
@@ -39,11 +40,7 @@ export default function A_Mentors() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem("coop.token");
-
-      const res = await fetch("/api/companies", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await apiFetch("/api/companies");
 
       if (res.ok) {
         const companies: Company[] = await res.json();
@@ -72,14 +69,9 @@ export default function A_Mentors() {
   // --- Update Data (Save) ---
   const handleUpdate = async (updatedData: Mentor) => {
     try {
-      const token = localStorage.getItem("coop.token");
-      // ใช้ API update mentor (ต้องมี route นี้ที่ backend)
-      const res = await fetch(`/api/companies/mentors/${updatedData.id}`, {
+      const res = await apiFetch(`/api/companies/mentors/${updatedData.id}`, {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(updatedData),
       });
 
@@ -101,11 +93,7 @@ export default function A_Mentors() {
   const handleDelete = async (id: string) => {
     if (!confirm("ต้องการลบพี่เลี้ยงคนนี้ใช่หรือไม่?")) return;
     try {
-      const token = localStorage.getItem("coop.token");
-      const res = await fetch(`/api/companies/mentors/${id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await apiFetch(`/api/companies/mentors/${id}`, { method: "DELETE" });
 
       if (res.ok) {
         alert("ลบข้อมูลสำเร็จ");
