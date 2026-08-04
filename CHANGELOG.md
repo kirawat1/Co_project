@@ -1,5 +1,12 @@
 # CHANGELOG — Co_project
 
+## [2026-08-04] fix: batch 26 — T_Students apiFetch coop-periods + supervisionController updateConfirmedDate status guard
+
+- **T_Students.tsx `fetchData`:** แทน `axios.get("/api/admin/coop-periods/all", { headers: { Authorization } })` ด้วย `apiFetch` + ลบ `const token` + ลบ unused `import axios` — เดิม 401 จาก token หมดอายุไม่ trigger auto-logout
+- **supervisionController.js `updateConfirmedDate`:** เพิ่ม guard `if (supervision.status !== 'DATE_CONFIRMED')` หลัง officialLetterPath check — เดิม admin สามารถตั้ง `confirmedDate` บน appointment ที่ยังเป็น PENDING_TEACHER หรือ TEACHER_REJECTED ได้ ทำให้ status กับ confirmedDate ไม่สอดคล้องกัน และ conflict-check บน same-day ก็จะไม่นับ slot นั้น เปิดช่องให้ double-book
+
+---
+
 ## [2026-08-04] fix: batch 25 — kkuRegService syncStudentAll silently succeeds on wrong creds + A_CriteriaPage apiFetch
 
 - **kkuRegService.js `syncStudentAll`:** แก้ guard จาก `if (!token)` เป็น `if (!token || typeof token !== 'string')` — เดิม `getStudentToken` คืน `{ error: "..." }` (truthy object) เมื่อ login ผิด ทำให้ object นี้ถูกส่งเป็น token ต่อ; sub-functions กลืน error ไว้ใน try/catch แล้ว return null; `syncStudentAll` จึงคืน `{ ok: true }` พร้อม info/grades null ทั้งหมด — นักศึกษา type password ผิดแต่ได้รับ "ซิงค์สำเร็จ (อัปเดต 1 ฟิลด์)"
