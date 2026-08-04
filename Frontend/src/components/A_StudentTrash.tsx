@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { apiFetch } from "../utils/apiFetch";
 import type { StudentProfile } from "./A_Students";
 
 export default function A_StudentTrash() {
@@ -10,10 +11,8 @@ export default function A_StudentTrash() {
   const fetchTrash = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem("coop.token");
-      const res = await fetch("/api/admin/students/trash", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await apiFetch("/api/admin/students/trash");
+      if (!res.ok) return;
       const data = await res.json();
       if (data.ok) setItems(data.data ?? []);
     } catch (err) {
@@ -29,10 +28,8 @@ export default function A_StudentTrash() {
 
   const handleRestore = async (s: StudentProfile) => {
     try {
-      const token = localStorage.getItem("coop.token");
-      const res = await fetch(`/api/admin/students/${s.id}/restore`, {
+      const res = await apiFetch(`/api/admin/students/${s.id}/restore`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
       if (!data.ok) {
@@ -51,10 +48,8 @@ export default function A_StudentTrash() {
       return;
     }
     try {
-      const token = localStorage.getItem("coop.token");
-      const res = await fetch(`/api/admin/students/${s.id}/permanent`, {
+      const res = await apiFetch(`/api/admin/students/${s.id}/permanent`, {
         method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
       if (!data.ok) {

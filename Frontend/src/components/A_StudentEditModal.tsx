@@ -63,10 +63,9 @@ export default function A_StudentEditModal({ student, majors, onClose, onSaved }
     setSaving(true);
     setError("");
     try {
-      const token = localStorage.getItem("coop.token");
-      const res = await fetch(`/api/admin/students/${student.id}`, {
+      const res = await apiFetch(`/api/admin/students/${student.id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...form, generalAdvisorId, coopAdvisorId }),
       });
       const data = await res.json();

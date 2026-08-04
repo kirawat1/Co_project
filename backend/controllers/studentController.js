@@ -390,7 +390,7 @@ exports.softDeleteStudent = async (req, res) => {
     const id = parseInt(req.params.id, 10);
     const student = await prisma.student.findUnique({ where: { id } });
     if (!student) return res.status(404).json({ ok: false, message: "ไม่พบนักศึกษา" });
-    if (student.deletedAt) return res.status(404).json({ ok: false, message: "นักศึกษาอยู่ในถังขยะแล้ว" });
+    if (student.deletedAt) return res.status(409).json({ ok: false, message: "นักศึกษาอยู่ในถังขยะแล้ว" });
 
     await prisma.student.update({ where: { id }, data: { deletedAt: new Date() } });
     res.json({ ok: true, message: "ย้ายไปถังขยะเรียบร้อย" });
@@ -421,7 +421,7 @@ exports.restoreStudent = async (req, res) => {
     const id = parseInt(req.params.id, 10);
     const student = await prisma.student.findUnique({ where: { id } });
     if (!student) return res.status(404).json({ ok: false, message: "ไม่พบนักศึกษา" });
-    if (!student.deletedAt) return res.status(404).json({ ok: false, message: "นักศึกษาไม่ได้อยู่ในถังขยะ" });
+    if (!student.deletedAt) return res.status(409).json({ ok: false, message: "นักศึกษาไม่ได้อยู่ในถังขยะ" });
 
     await prisma.student.update({ where: { id }, data: { deletedAt: null } });
     res.json({ ok: true, message: "กู้คืนเรียบร้อย" });
