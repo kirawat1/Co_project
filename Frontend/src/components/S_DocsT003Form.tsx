@@ -110,10 +110,7 @@ export default function S_DocsT003Form({ profile, onRefresh }: Props) {
     useEffect(() => {
         const loadConfig = async () => {
             try {
-                const token = localStorage.getItem("coop.token");
-                const res = await fetch("/api/admin/config/t003", {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
+                const res = await apiFetch("/api/admin/config/t003");
                 if (res.ok) {
                     const data = await res.json();
                     setConfig(data);
@@ -231,12 +228,7 @@ export default function S_DocsT003Form({ profile, onRefresh }: Props) {
             uploadData.append("files", selectedUploadFile);
             uploadData.append("docType", "T003_FORM");
 
-            const token = localStorage.getItem("coop.token");
-            const res = await fetch("/api/docs/upload", {
-                method: "POST",
-                headers: { Authorization: `Bearer ${token}` },
-                body: uploadData
-            });
+            const res = await apiFetch("/api/docs/upload", { method: "POST", body: uploadData });
 
             if (res.ok) {
                 alert("✅ อัปโหลดแบบฟอร์ม T003 สำเร็จ!");

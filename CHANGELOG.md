@@ -1,5 +1,18 @@
 # CHANGELOG — Co_project
 
+## [2026-08-05] fix: batch 31 — adminDocController updateDocStatus whitelist + raw fetch apiFetch migration (7 components)
+
+- **adminDocController.js `updateDocStatus`:** เพิ่ม `ALLOWED_DOC_STATUS` whitelist (5 statuses) ก่อน `prisma.document.update` — เดิมไม่มีการ validate ทำให้ teacher/staff ส่ง status ใดก็ได้
+- **A_DocT000.tsx:** แทน `fetch()` + manual token ด้วย `apiFetch` ทุก endpoint (config/t000 GET/POST, doc-requirements, t000/students, coop-periods/all, doc/:id/status PUT, t000/approve-all POST, t000/review PUT)
+- **A_DocT003Review.tsx:** แทน `fetch()` ด้วย `apiFetch` ใน loadConfig (config/t003 GET) และ handleSaveConfig (config/t003 POST)
+- **S_DocsT003Form.tsx:** แทน `fetch()` ด้วย `apiFetch` ใน loadConfig (config/t003 GET) และ upload (docs/upload POST)
+- **IssueLetterModal.tsx:** แทน `fetch()` ด้วย `apiFetch` ใน handleSubmit (t000/review PUT)
+- **IssuePlacementLetterModal.tsx:** แทน `fetch()` ด้วย `apiFetch` ใน handleSubmit (t000/review PUT)
+- **A_Company.tsx:** แทน `fetch()` ด้วย `apiFetch` ใน useEffect (companies GET, coop-periods/all GET), saveAdd, saveEdit, remove, saveMentor (ADD+EDIT), removeMentor
+- **S_Company.tsx:** แทน `fetch()` ด้วย `apiFetch` ใน useEffect (companies GET, coop-periods GET), saveAdd, saveEdit, removeCompany, saveMentor (ADD+EDIT), removeMentor
+
+---
+
 ## [2026-08-05] fix: batch 30 — A_Mentors / A_Settings / T_Profile raw fetch auto-logout bypass
 
 - **A_Mentors.tsx:** แทน `fetch()` + manual token ด้วย `apiFetch` ใน fetchData, handleUpdate, handleDelete

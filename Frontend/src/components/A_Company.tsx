@@ -2,6 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import React, { useMemo, useState, useEffect } from "react";
+import { apiFetch } from "../utils/apiFetch";
 
 /* ----------------------------------------------------
    Types
@@ -62,15 +63,8 @@ export default function A_Companies() {
   const [coopPeriods, setCoopPeriods] = useState<any[]>([]);
 
   useEffect(() => {
-    const token = localStorage.getItem("coop.token");
-
     // ดึงรายชื่อบริษัท
-    fetch("/api/companies", {
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-    })
+    apiFetch("/api/companies")
       .then(async res => {
         if (!res.ok) {
           const text = await res.text();
@@ -84,13 +78,10 @@ export default function A_Companies() {
   }, []);
 
   useEffect(() => {
-    const token = localStorage.getItem("coop.token");
     const fetchPeriods = async () => {
       try {
         // 🟢 เรียก API ของ admin ตาม Route ที่มีอยู่: /api/admin/coop-periods/all
-        const res = await fetch("/api/admin/coop-periods/all", {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        const res = await apiFetch("/api/admin/coop-periods/all");
         const data = await res.json();
         if (data.ok && data.periods) {
           setCoopPeriods(data.periods);
@@ -133,16 +124,10 @@ export default function A_Companies() {
   async function saveAdd(e: React.FormEvent) {
     e.preventDefault();
 
-    const token = localStorage.getItem("coop.token");
-    if (!token) return alert("กรุณาเข้าสู่ระบบ");
-
     try {
-      const res = await fetch("/api/companies", {
+      const res = await apiFetch("/api/companies", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       });
 
@@ -165,16 +150,12 @@ export default function A_Companies() {
 
   async function saveEdit(e: React.FormEvent) {
     e.preventDefault();
-    const token = localStorage.getItem("coop.token");
-    if (!token || !form.id) return alert("ข้อมูลไม่ครบถ้วน");
+    if (!form.id) return alert("ข้อมูลไม่ครบถ้วน");
 
     try {
-      const res = await fetch(`/api/companies/${form.id}`, {
+      const res = await apiFetch(`/api/companies/${form.id}`, {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       });
       const data = await res.json();
@@ -191,12 +172,7 @@ export default function A_Companies() {
   async function remove(id: string) {
     if (!confirm("ลบบริษัทนี้พร้อมพี่เลี้ยงทั้งหมดหรือไม่?")) return;
 
-    const token = localStorage.getItem("coop.token");
-
-    const res = await fetch(`/api/companies/${id}`, {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    const res = await apiFetch(`/api/companies/${id}`, { method: "DELETE" });
 
     const data = await res.json();
     if (!data.ok) return alert(data.message);
@@ -221,15 +197,12 @@ export default function A_Companies() {
       return;
     }
 
-    const token = localStorage.getItem("coop.token");
-    if (!token) return alert("กรุณาเข้าสู่ระบบ");
-
     try {
       if (!editingMentor) {
         // ---- ADD ----
-        const res = await fetch(`/api/companies/${viewCompany.id}/mentors`, {
+        const res = await apiFetch(`/api/companies/${viewCompany.id}/mentors`, {
           method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(mentorForm),
         });
         const data = await res.json();
@@ -240,9 +213,9 @@ export default function A_Companies() {
 
       } else {
         // ---- EDIT ----
-        const res = await fetch(`/api/companies/mentors/${editingMentor.id}`, {
+        const res = await apiFetch(`/api/companies/mentors/${editingMentor.id}`, {
           method: "PUT",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(mentorForm),
         });
         const data = await res.json();
@@ -269,13 +242,9 @@ export default function A_Companies() {
 
   async function removeMentor(mentorId: string) {
     if (!confirm("ลบพี่เลี้ยงคนนี้หรือไม่?")) return;
-    const token = localStorage.getItem("coop.token");
 
     try {
-      const res = await fetch(`/api/companies/mentors/${mentorId}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await apiFetch(`/api/companies/mentors/${mentorId}`, { method: "DELETE" });
 
       const data = await res.json();
       if (!data.ok) return alert(data.message || "ลบพี่เลี้ยงไม่สำเร็จ");

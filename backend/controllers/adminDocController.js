@@ -91,7 +91,12 @@ exports.getStudentsForT000 = async (req, res) => {
 exports.updateDocStatus = async (req, res) => {
   try {
     const { id } = req.params;
-    const { status } = req.body; 
+    const { status } = req.body;
+
+    const ALLOWED_DOC_STATUS = new Set(['PENDING', 'APPROVED', 'REJECTED', 'EDITS_REQUIRED', 'WAITING']);
+    if (!status || !ALLOWED_DOC_STATUS.has(status)) {
+      return res.status(400).json({ ok: false, message: 'status ไม่ถูกต้อง' });
+    }
 
     await prisma.document.update({
       where: { id: parseInt(id) },

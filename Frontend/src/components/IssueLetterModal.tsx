@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { apiFetch } from "../utils/apiFetch";
 import { createDispatchPDF } from "../utils/pdfDispatchGenerator";
 import { createWordBlob, createPreviewBlob, buildDispatchLetterHtml, thaiPrefix } from "../utils/docGeneratorUtils";
 import { FileReady, DeliveryPicker, MODAL_CSS } from "./LetterModalShared";
@@ -116,8 +117,7 @@ export default function IssueLetterModal({ student, onClose, onSuccess }: Props)
             formData.append("reqDocNumber", docNumber);
             formData.append("reqDocDate", docDate);
             formData.append("file", signedFile);
-            const token = localStorage.getItem("coop.token");
-            const res = await fetch("/api/admin/t000/review", { method: "PUT", headers: { Authorization: `Bearer ${token}` }, body: formData });
+            const res = await apiFetch("/api/admin/t000/review", { method: "PUT", body: formData });
             if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.message || `Server error ${res.status}`); }
             alert("✅ บันทึกและจัดเก็บไฟล์เรียบร้อย");
             onSuccess();

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { apiFetch } from "../utils/apiFetch";
 import StatusBadge from "../components/StatusBadge";
 import IssueLetterModal from "./IssueLetterModal";
 import IssuePlacementLetterModal from "./IssuePlacementLetterModal";
@@ -118,8 +119,6 @@ export default function A_DocT000() {
     const [sortKey, setSortKey] = useState<SortKey>('submittedAt');
     const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
-    const token = localStorage.getItem("coop.token");
-
     const phase1Docs = useMemo(() => {
         return reqDocs
             .filter(r => r.docKey !== 'CP-ACCEPTANCE')
@@ -139,22 +138,22 @@ export default function A_DocT000() {
         setLoading(true);
         try {
             // 1. ดึงตั้งค่าเวลา
-            const resConf = await fetch("/api/admin/config/t000", { headers: { Authorization: `Bearer ${token}` } });
+            const resConf = await apiFetch("/api/admin/config/t000");
             if (resConf.ok) setConfig(await resConf.json());
 
             // 2. ดึงหัวข้อเอกสาร
-            const resReq = await fetch("/api/admin/doc-requirements", { headers: { Authorization: `Bearer ${token}` } });
+            const resReq = await apiFetch("/api/admin/doc-requirements");
             if (resReq.ok) {
                 const reqData = await resReq.json();
                 if (reqData.ok) setReqDocs(reqData.requirements);
             }
 
             // 3. ดึงรายชื่อนักศึกษา
-            const resStd = await fetch("/api/admin/t000/students", { headers: { Authorization: `Bearer ${token}` } });
+            const resStd = await apiFetch("/api/admin/t000/students");
             if (resStd.ok) setStudents(await resStd.json());
 
-            // 4. ดึงข้อมูลปีการศึกษา 
-            const resPeriods = await fetch("/api/admin/coop-periods/all", { headers: { Authorization: `Bearer ${token}` } });
+            // 4. ดึงข้อมูลปีการศึกษา
+            const resPeriods = await apiFetch("/api/admin/coop-periods/all");
             if (resPeriods.ok) {
                 const periodsData = await resPeriods.json();
                 if (periodsData.ok && periodsData.periods) setCoopPeriods(periodsData.periods);
@@ -183,9 +182,9 @@ export default function A_DocT000() {
     // ================= ACTIONS =================
     const handleSaveConfig = async () => {
         try {
-            const res = await fetch("/api/admin/config/t000", {
+            const res = await apiFetch("/api/admin/config/t000", {
                 method: "POST",
-                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(config)
             });
             if (res.ok) alert("✅ บันทึกการตั้งค่าวันเวลาเรียบร้อยแล้ว");
@@ -208,9 +207,9 @@ export default function A_DocT000() {
         updateStudentState(selectedStudent.id, { documents: updatedDocs });
 
         try {
-            await fetch(`/api/admin/doc/${docId}/status`, {
+            await apiFetch(`/api/admin/doc/${docId}/status`, {
                 method: "PUT",
-                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ status })
             });
 
@@ -259,9 +258,9 @@ export default function A_DocT000() {
         setAdminComment("เอกสารครบถ้วน (รอออกหนังสือ)");
 
         try {
-            const res = await fetch(`/api/admin/t000/approve-all`, {
+            const res = await apiFetch("/api/admin/t000/approve-all", {
                 method: "POST",
-                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ studentId })
             });
             if (!res.ok) throw new Error("approve-all failed");
@@ -289,9 +288,9 @@ export default function A_DocT000() {
         if (autoComment) setAdminComment(autoComment);
 
         try {
-            await fetch("/api/admin/t000/review", {
+            await apiFetch("/api/admin/t000/review", {
                 method: "PUT",
-                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     studentId: selectedStudent.id,
                     status: status,
