@@ -27,7 +27,7 @@ exports.createPeriod = async (req, res) => {
     });
 
     if (existing) {
-      return res.status(400).json({ ok: false, error: "ปีการศึกษาและภาคเรียนนี้มีอยู่ในระบบแล้ว" });
+      return res.status(409).json({ ok: false, error: "ปีการศึกษาและภาคเรียนนี้มีอยู่ในระบบแล้ว" });
     }
 
     const newPeriod = await prisma.coopPeriod.create({
@@ -40,8 +40,11 @@ exports.createPeriod = async (req, res) => {
     });
     res.json({ ok: true, period: newPeriod });
   } catch (error) {
+    if (error.code === 'P2002') {
+      return res.status(409).json({ ok: false, error: "ปีการศึกษาและภาคเรียนนี้มีอยู่ในระบบแล้ว" });
+    }
     console.error("Create period error:", error);
-    res.status(500).json({ ok: false, error: "Server error" });
+    res.status(500).json({ ok: false, error: "เกิดข้อผิดพลาดที่ Server" });
   }
 };
 

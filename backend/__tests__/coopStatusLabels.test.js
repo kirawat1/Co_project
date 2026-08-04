@@ -4,7 +4,8 @@ describe('getStatusLabelTh', () => {
   test('คืน label ภาษาไทยตรงกับ status ที่รู้จัก', () => {
     expect(getStatusLabelTh('QUALIFIED')).toBe('ผ่านคุณสมบัติ');
     expect(getStatusLabelTh('INTERNSHIP_STARTED')).toBe('ออกฝึกสหกิจ');
-    expect(getStatusLabelTh('COMPLETED')).toBe('นิเทศเสร็จสิ้น');
+    // COMPLETED เป็น SupervisionStatus ไม่ใช่ CoopStatus — ถูกลบออกจาก map แล้ว
+    expect(getStatusLabelTh('T003_APPROVED')).toBe('อนุมัติโครงร่าง T003 แล้ว');
   });
 
   test('คืน "ยังไม่ยื่นสหกิจ" เมื่อ status เป็น null/undefined', () => {

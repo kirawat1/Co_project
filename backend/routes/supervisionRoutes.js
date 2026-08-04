@@ -40,6 +40,6 @@ router.put('/admin/supervisions/:id/complete', verifyToken, verifyRole(...ADMIN_
 // ================= ROUTE สำหรับ TEACHER =================
 router.put('/teacher/supervisions/:id/review', verifyToken, verifyRole('teacher', 'staff'), supervisionController.reviewSupervision);
 router.put('/teacher/supervisions/:id/complete', verifyToken, verifyRole('teacher', 'staff'), supervisionController.completeSupervision);
-router.get('/teacher/supervisions', verifyToken, supervisionController.getTeacherSupervisions);
+router.get('/teacher/supervisions', verifyToken, verifyRole('teacher', 'staff'), supervisionController.getTeacherSupervisions);
 
 module.exports = router;

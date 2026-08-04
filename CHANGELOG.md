@@ -1,5 +1,14 @@
 # CHANGELOG — Co_project
 
+## [2026-08-04] fix: batch 17 — supervisionRoutes missing verifyRole + 4 cleanups
+
+- **supervisionRoutes GET /teacher/supervisions:** เพิ่ม `verifyRole('teacher', 'staff')` — เดิมมีแค่ `verifyToken` ทำให้ authenticated user ทุก role เข้าถึงได้
+- **coopStatusLabels.test.js:** แก้ stale assertion `COMPLETED` (ถูกลบออกจาก map แล้ว) → เปลี่ยนเป็น `T003_APPROVED`
+- **server.js:** เปลี่ยน rate-limit skip จาก `/api/status` (ปัจจุบันต้องการ auth) → `/api/internal-status` (VM-local health check)
+- **coopPeriodController.createPeriod:** เปลี่ยน 400 → 409 สำหรับ duplicate period; เพิ่ม P2002 catch ใน catch block เพื่อป้องกัน race condition
+
+---
+
 ## [2026-08-04] fix: batch 16 — coopStatusLabels T003_APPROVED + exportMyStudents soft-delete filter
 
 - **coopStatusLabels.js:** เพิ่ม `T003_APPROVED` ที่หายไป — ก่อนหน้านี้สถานะนี้แสดงเป็น "ยังไม่ยื่นสหกิจ" ใน Excel export อย่างผิดพลาด
