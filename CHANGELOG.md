@@ -1,5 +1,15 @@
 # CHANGELOG — Co_project
 
+## [2026-08-05] fix: batch 40 — soft-delete + TOCTOU (auth/teacher) + apiFetch (3 modals)
+
+- **authController.js `loginWithKKU` (studentId conflict check):** เปลี่ยน `findUnique` → `findFirst` + เพิ่ม `deletedAt: null` — soft-deleted student ทำให้ login KKU ล้มเหลวด้วย 409 แบบผิดๆ
+- **authController.js `registerStudent` (studentId conflict check):** เหมือนกัน — soft-deleted student block การลงทะเบียนใหม่
+- **teacherController.js `createTeacher`:** ย้าย email conflict `findFirst` เข้าใน `$transaction` + ใช้ `throw { is409: true }` — concurrent requests ผ่าน check พร้อมกันแล้ว P2002 คืน 500 ผิด; เพิ่ม `if (err.is409)` ใน catch
+- **teacherController.js `adminUpdateTeacher`:** แปลง array-form `$transaction` → callback form; ย้าย email conflict check เข้าใน callback — same TOCTOU bug; เพิ่ม `if (err.is409)` ใน catch
+- **A_DocT003Review.tsx `fetchAllData`:** `fetch("/api/admin/coop-periods/all", { headers: ... })` → `apiFetch(...)` — expired token ไม่ auto-logout
+- **IssueLetterModal.tsx `loadCommonData`:** `fetch("/api/admin/config/dean-info", { headers: ... })` → `apiFetch(...)` — expired token คืนข้อมูลคณบดีผิดใน PDF ออกหนังสือ
+- **IssuePlacementLetterModal.tsx `loadCommonData`:** เหมือนกัน — modal ออกจดหมายตอบรับสถานประกอบการ
+
 ## [2026-08-05] fix: batch 39 — soft-delete filters (supervisions + dashboard + teacher advisor)
 
 - **adminDashboardController.js `getDashboardStats` `coopFilter`:** เพิ่ม `student: { deletedAt: null }` ทั้ง year-specific และ all-years branch — `studentCoop.findMany` คืน records ของ soft-deleted students
