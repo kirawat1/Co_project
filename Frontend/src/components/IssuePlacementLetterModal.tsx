@@ -24,7 +24,7 @@ export default function IssuePlacementLetterModal({ student, onClose, onSuccess 
     const loadCommonData = async () => {
         const [resAssets, resDean] = await Promise.all([
             fetch("/api/admin/assets"),
-            fetch("/api/admin/config/dean-info", { headers: { Authorization: `Bearer ${localStorage.getItem("coop.token")}` } }),
+            apiFetch("/api/admin/config/dean-info"),
         ]);
         const assets = (await resAssets.json()).assets || [];
         const getAsset = (key: string) => { const f = assets.find((a: any) => a.key === key); return f ? `/uploads/system/${f.path}` : null; };

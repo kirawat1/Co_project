@@ -509,17 +509,16 @@ exports.createTeacher = async (req, res) => {
     const pwError = validatePassword(password);
     if (pwError) return res.status(400).json({ ok: false, message: pwError });
 
-    // ตรวจ email ซ้ำ
-    const existing = await prisma.user.findFirst({ where: { OR: [{ username: email }, { email }] } });
-    if (existing) return res.status(409).json({ ok: false, message: `อีเมล ${email} มีในระบบแล้ว` });
-
     const hashed = await bcrypt.hash(password, 10);
 
-    const teacher = await prisma.$transaction(async (tx) => {
+    let teacher;
+    await prisma.$transaction(async (tx) => {
+      const existing = await tx.user.findFirst({ where: { OR: [{ username: email }, { email }] } });
+      if (existing) throw Object.assign(new Error(`อีเมล ${email} มีในระบบแล้ว`), { is409: true });
       const user = await tx.user.create({
         data: { username: email, email, password: hashed, role: "teacher" },
       });
-      return tx.teacher.create({
+      teacher = await tx.teacher.create({
         data: {
           userId: user.id,
           firstName,
@@ -535,6 +534,7 @@ exports.createTeacher = async (req, res) => {
 
     res.json({ ok: true, teacher });
   } catch (err) {
+    if (err.is409) return res.status(409).json({ ok: false, message: err.message });
     console.error("CREATE TEACHER ERROR:", err);
     res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดที่ Server" });
   }
@@ -610,39 +610,30 @@ exports.adminUpdateTeacher = async (req, res) => {
     const teacher = await prisma.teacher.findUnique({ where: { id: parseInt(id) } });
     if (!teacher) return res.status(404).json({ ok: false, message: "ไม่พบอาจารย์" });
 
-    // ตรวจ email ซ้ำก่อน update (เฉพาะกรณีเปลี่ยน email และ email ใหม่ไม่ใช่ email เดิม)
-    if (email && email !== teacher.email) {
-      const conflict = await prisma.user.findFirst({
-        where: {
-          OR: [{ email }, { username: email }],
-          NOT: { id: teacher.userId },
-        },
-      });
-      if (conflict) {
-        return res.status(409).json({ ok: false, message: `อีเมล ${email} มีในระบบแล้ว` });
+    let updated;
+    await prisma.$transaction(async (tx) => {
+      if (email && email !== teacher.email) {
+        const conflict = await tx.user.findFirst({
+          where: { OR: [{ email }, { username: email }], NOT: { id: teacher.userId } },
+        });
+        if (conflict) throw Object.assign(new Error(`อีเมล ${email} มีในระบบแล้ว`), { is409: true });
       }
-    }
-
-    // อัปเดต Teacher + User ใน transaction เดียว (ป้องกัน inconsistent state)
-    const [updated] = await prisma.$transaction([
-      prisma.teacher.update({
+      updated = await tx.teacher.update({
         where: { id: parseInt(id) },
         data: {
           firstName, lastName, email, phone, major,
           prefix: prefix || null,
           ...(isCoopTeacher !== undefined && { isCoopTeacher: Boolean(isCoopTeacher) }),
         },
-      }),
-      ...(email
-        ? [prisma.user.update({
-            where: { id: teacher.userId },
-            data: { email, username: email },
-          })]
-        : []),
-    ]);
+      });
+      if (email) {
+        await tx.user.update({ where: { id: teacher.userId }, data: { email, username: email } });
+      }
+    });
 
     res.json({ ok: true, data: updated });
   } catch (err) {
+    if (err.is409) return res.status(409).json({ ok: false, message: err.message });
     console.error("ADMIN UPDATE TEACHER ERROR:", err);
     res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดที่ Server" });
   }

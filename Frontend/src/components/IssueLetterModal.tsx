@@ -29,7 +29,7 @@ export default function IssueLetterModal({ student, onClose, onSuccess }: Props)
     const loadCommonData = async () => {
         const [resAssets, resDean] = await Promise.all([
             fetch("/api/admin/assets"),
-            fetch("/api/admin/config/dean-info", { headers: { Authorization: `Bearer ${localStorage.getItem("coop.token")}` } }),
+            apiFetch("/api/admin/config/dean-info"),
         ]);
         const assets = (await resAssets.json()).assets || [];
         const getAsset = (key: string) => {

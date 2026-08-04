@@ -415,8 +415,8 @@ exports.loginWithKKU = async (req, res) => {
       }
 
       // ── ตรวจ studentId ซ้ำ (อาจมีบัญชีที่สมัครด้วยตนเองด้วย studentId เดิม) ──
-      const existingByStudentId = await prisma.student.findUnique({
-        where: { studentId: studentIdRaw.toString() },
+      const existingByStudentId = await prisma.student.findFirst({
+        where: { studentId: studentIdRaw.toString(), deletedAt: null },
       });
       if (existingByStudentId) {
         return res.status(409).json({
@@ -526,7 +526,7 @@ exports.registerStudent = async (req, res) => {
     const existEmail = await prisma.user.findFirst({ where: { OR: [{ email: emailLower }, { username: emailLower }] } });
     if (existEmail) return res.status(409).json({ ok: false, message: "อีเมลนี้มีในระบบแล้ว" });
 
-    const existId = await prisma.student.findUnique({ where: { studentId: studentId.trim() } });
+    const existId = await prisma.student.findFirst({ where: { studentId: studentId.trim(), deletedAt: null } });
     if (existId) return res.status(409).json({ ok: false, message: "รหัสนักศึกษานี้มีในระบบแล้ว" });
 
     const hashed = await bcrypt.hash(password.trim(), 10);
