@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
+import { apiFetch } from "../utils/apiFetch";
 import { IcUsers, IcDocs, IcAnnounce, IcCalendar } from "./icons";
 
 // --- Types ---
@@ -38,18 +38,15 @@ export default function A_Dashboard() {
   // selectedPeriod เก็บเป็น "semester/year" หรือ "all"
   const [selectedPeriod, setSelectedPeriod] = useState<string>("");
 
-  const token = localStorage.getItem("coop.token");
-
   /* ==========================================
       1. ดึงรอบปีการศึกษาทั้งหมด และตั้งค่าเริ่มต้น
      ========================================== */
   const fetchPeriods = async () => {
     try {
-      const res = await axios.get("/api/admin/coop-periods", {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (res.data.ok) {
-        const periodList: CoopPeriod[] = res.data.periods;
+      const res = await apiFetch("/api/admin/coop-periods");
+      if (res.ok) {
+        const data = await res.json();
+        const periodList: CoopPeriod[] = data.periods;
         setPeriods(periodList);
 
         // 🟢 หาตัวที่ isActive เพื่อเป็นค่าเริ่มต้น
@@ -79,12 +76,10 @@ export default function A_Dashboard() {
         url += `?semester=${semester}&year=${year}`;
       }
 
-      const res = await axios.get(url, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-
-      if (res.data.ok) {
-        setStats(res.data.data);
+      const res = await apiFetch(url);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.ok) setStats(data.data);
       }
     } catch (err) {
       console.error("Failed to load dashboard stats", err);
@@ -104,12 +99,9 @@ export default function A_Dashboard() {
         if (match) coopPeriodId = String(match.id);
       }
 
-      const res = await axios.get(`/api/admin/students/export?coopPeriodId=${coopPeriodId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-        responseType: "blob",
-      });
-
-      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const res = await apiFetch(`/api/admin/students/export?coopPeriodId=${coopPeriodId}`);
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
       a.download = `students_${coopPeriodId}.xlsx`;

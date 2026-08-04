@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import axios from "axios";
+import { apiFetch } from "../utils/apiFetch";
 import { IcAnnounce, IcDocs } from "./icons";
 import StatusBadge from "./StatusBadge";
 import S_StatusTracker from "./S_StatusTracker";
@@ -61,34 +61,35 @@ export default function S_Dashboard() {
   const [statusExpanded, setStatusExpanded] = useState(false);
   const [loading, setLoading] = useState(true);
   const [selectedAnn, setSelectedAnn] = useState<Announcement | null>(null);
-  const token = localStorage.getItem("coop.token");
-
   const fetchData = async () => {
     setLoading(true);
     try {
       // 1. Profile first (to get major for announcement filtering)
-      const profileRes = await axios.get("/api/students/me", {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const major = profileRes.data?.major || "";
-      setStudentStatus(profileRes.data?.coop?.status || "NOT_SUBMITTED");
-      setLastComment(profileRes.data?.coop?.teacherCheckComment || profileRes.data?.coop?.t000Comment || "");
+      const profileRes = await apiFetch("/api/students/me");
+      const profileData = await profileRes.json();
+      const major = profileData?.major || "";
+      setStudentStatus(profileData?.coop?.status || "NOT_SUBMITTED");
+      setLastComment(profileData?.coop?.teacherCheckComment || profileData?.coop?.t000Comment || "");
       setStudentMajor(major);
 
       // 2. Announcements filtered by major
       const majorParam = major ? `?major=${encodeURIComponent(major)}` : "";
-      const annRes = await axios.get(`/api/announcements${majorParam}`);
-      if (annRes.data?.ok && Array.isArray(annRes.data.list)) {
-        setAnnouncements(annRes.data.list);
-      } else {
-        setAnnouncements([]);
+      const annRes = await apiFetch(`/api/announcements${majorParam}`);
+      if (annRes.ok) {
+        const annData = await annRes.json();
+        if (annData?.ok && Array.isArray(annData.list)) {
+          setAnnouncements(annData.list);
+        } else {
+          setAnnouncements([]);
+        }
       }
 
       // 3. ดึงข้อมูลนัดนิเทศของนักศึกษา
-      const supRes = await axios.get("/api/coop/supervision/me", {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (supRes.data?.appointment) setSupervisions(supRes.data.appointment);
+      const supRes = await apiFetch("/api/coop/supervision/me");
+      if (supRes.ok) {
+        const supData = await supRes.json();
+        if (supData?.appointment) setSupervisions(supData.appointment);
+      }
 
       // 4. ดึง Config วันที่เปิด-ปิดของแต่ละฟอร์ม (T000, T002, T003)
       const configKeys = ['t000', 't002', 't003'];
@@ -96,10 +97,8 @@ export default function S_Dashboard() {
 
       for (const key of configKeys) {
         try {
-          const res = await axios.get(`/api/admin/config/${key}`, {
-            headers: { Authorization: `Bearer ${token}` }
-          });
-          configData[key] = res.data;
+          const res = await apiFetch(`/api/admin/config/${key}`);
+          if (res.ok) configData[key] = await res.json();
         } catch (e) { console.error(`Error loading config for ${key}`); }
       }
       setConfigs(configData);

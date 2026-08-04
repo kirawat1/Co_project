@@ -247,6 +247,17 @@ exports.loginWithSSO = async (req, res) => {
       });
     }
 
+    // Block soft-deleted students (same check as signIn and loginWithKKU)
+    if (role === "student") {
+      const s = await prisma.student.findUnique({
+        where: { userId: user.id },
+        select: { deletedAt: true },
+      });
+      if (s?.deletedAt) {
+        return res.status(401).json({ ok: false, message: "บัญชีนี้ถูกระงับการใช้งาน" });
+      }
+    }
+
     // --- 5. สร้าง JWT Token ของระบบเรา ---
     const token = jwt.sign(
       { id: user.id, role: user.role, username: user.username },
