@@ -35,7 +35,7 @@ const globalLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { ok: false, message: 'Too many requests, please try again later.' },
-  skip: (req) => req.originalUrl === '/api/status', // health check ไม่ต้อง limit
+  skip: (req) => req.originalUrl === '/api/internal-status', // VM-local health check ไม่ต้อง limit
 });
 app.use('/api', globalLimiter);
 
