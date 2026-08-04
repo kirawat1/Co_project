@@ -1,5 +1,16 @@
 # CHANGELOG — Co_project
 
+## [2026-08-05] fix: batch 28 — adminDocController status whitelists + $transaction wrapping
+
+- **adminDocController.js `reviewStudentStatus`:** เพิ่ม `REVIEW_STATUS_ALLOWED` whitelist (12 statuses) — เดิม admin ส่ง status ใด ๆ ก็ได้รวมถึงค่าที่ไม่มีใน CoopStatus enum
+- **adminDocController.js `updateCoopApplicationStatus`:** เพิ่ม `APP_STATUS_ALLOWED` whitelist (5 statuses) — เดิมไม่มีการ validate status ก่อน upsert
+- **adminDocController.js `reviewStudentStatus`:** ห่อ `document.findFirst/create/update` + `studentCoop.upsert` ด้วย `prisma.$transaction` — เดิม DB ไม่สอดคล้องกันได้หาก upsert สำเร็จแต่ document update ล้มเหลว
+- **adminDocController.js `approveAllDocs`:** ห่อ `document.updateMany` + `studentCoop.upsert` ด้วย `prisma.$transaction`
+- **adminDocController.js `reviewT002`:** ห่อ `studentCoop.upsert` + `document.findFirst/update` ด้วย `prisma.$transaction`
+- **adminDocController.js `reviewT003`:** ห่อ `studentCoop.upsert` + `document.findFirst/update` ด้วย `prisma.$transaction`
+
+---
+
 ## [2026-08-04] fix: batch 27 — test suite fixes (coopPeriod 409, teacherController reviewT002 + exportMyStudents)
 
 - **coopPeriodController.test.js:** แก้ label และ `expect(res.status).toHaveBeenCalledWith(400)` → `409` สำหรับ test duplicate period — controller คืน 409 มาตั้งแต่ต้นแต่ test ยังเขียน 400 ไว้

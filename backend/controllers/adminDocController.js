@@ -122,6 +122,17 @@ exports.reviewStudentStatus = async (req, res) => {
 
     const parsedStudentId = parseInt(studentId);
 
+    const REVIEW_STATUS_ALLOWED = new Set([
+      'QUALIFIED', 'QUALIFICATION_FAILED', 'APPLICATION_EDITS_REQUIRED',
+      'WAITING_FOR_STAFF_CHECK', 'EDITS_REQUIRED', 'DOCS_APPROVED',
+      'REQ_LETTER_ISSUED', 'WAITING_FOR_PLACEMENT_LETTER',
+      'WAITING_FOR_STAFF_CHECK_LETTER', 'ACCEPTANCE_CHECKED',
+      'PLACEMENT_LETTER_ISSUED', 'INTERNSHIP_STARTED',
+    ]);
+    if (!status || !REVIEW_STATUS_ALLOWED.has(status)) {
+      return res.status(400).json({ ok: false, message: 'status ไม่ถูกต้อง' });
+    }
+
     const updateData = {
       status,
       t000Comment: comment
@@ -149,47 +160,32 @@ exports.reviewStudentStatus = async (req, res) => {
         updateData.placeLetterUrl = req.file.filename;
       }
 
-      // ✅ 2. เพิ่มส่วนนี้: บันทึกไฟล์ลงตาราง Document เพื่อให้ Frontend ดึงไปโชว์ได้
-      if (docType) {
-        const existingDoc = await prisma.document.findFirst({
-          where: { 
-            studentId: parsedStudentId, 
-            type: docType 
-          }
-        });
+    }
 
+    await prisma.$transaction(async (tx) => {
+      if (req.file && docType) {
+        const existingDoc = await tx.document.findFirst({
+          where: { studentId: parsedStudentId, type: docType }
+        });
         if (existingDoc) {
-          // ถ้าเคยมีไฟล์ประเภทนี้แล้ว ให้อัปเดตทับเลย
-          await prisma.document.update({
+          await tx.document.update({
             where: { id: existingDoc.id },
-            data: {
-              path: req.file.filename,
-              name: req.file.originalname,
-              status: 'APPROVED'
-            }
+            data: { path: req.file.filename, name: req.file.originalname, status: 'APPROVED' }
           });
         } else {
-          // ถ้ายังไม่เคยมี ให้สร้าง Document ใหม่
-          await prisma.document.create({
+          await tx.document.create({
             data: {
-              studentId: parsedStudentId,
-              type: docType,
-              path: req.file.filename,
-              name: req.file.originalname,
-              status: 'APPROVED'
+              studentId: parsedStudentId, type: docType,
+              path: req.file.filename, name: req.file.originalname, status: 'APPROVED'
             }
           });
         }
       }
-    }
-
-    await prisma.studentCoop.upsert({
-      where: { studentId: parsedStudentId },
-      update: updateData,
-      create: {
-        studentId: parsedStudentId,
-        ...updateData
-      }
+      await tx.studentCoop.upsert({
+        where: { studentId: parsedStudentId },
+        update: updateData,
+        create: { studentId: parsedStudentId, ...updateData }
+      });
     });
 
     res.json({ ok: true });
@@ -232,22 +228,20 @@ exports.approveAllDocs = async (req, res) => {
   try {
     const { studentId } = req.body;
 
-    await prisma.document.updateMany({
-      where: { studentId: parseInt(studentId) },
-      data: { status: 'APPROVED' }
-    });
-
-    await prisma.studentCoop.upsert({
-      where: { studentId: parseInt(studentId) },
-      update: { 
-        status: 'DOCS_APPROVED', 
-        t000Comment: 'เอกสารครบถ้วน (รอออกหนังสือ)'
-      },
-      create: {
-        studentId: parseInt(studentId),
-        status: 'DOCS_APPROVED',
-        t000Comment: 'เอกสารครบถ้วน (รอออกหนังสือ)'
-      }
+    await prisma.$transaction(async (tx) => {
+      await tx.document.updateMany({
+        where: { studentId: parseInt(studentId) },
+        data: { status: 'APPROVED' }
+      });
+      await tx.studentCoop.upsert({
+        where: { studentId: parseInt(studentId) },
+        update: { status: 'DOCS_APPROVED', t000Comment: 'เอกสารครบถ้วน (รอออกหนังสือ)' },
+        create: {
+          studentId: parseInt(studentId),
+          status: 'DOCS_APPROVED',
+          t000Comment: 'เอกสารครบถ้วน (รอออกหนังสือ)'
+        }
+      });
     });
 
     res.json({ ok: true, message: "Approve all success" });
@@ -288,12 +282,20 @@ exports.updateCoopApplicationStatus = async (req, res) => {
   try {
     const { id } = req.params;
     const { status, comment } = req.body;
-    
+
+    const APP_STATUS_ALLOWED = new Set([
+      'WAITING_FOR_STAFF_CHECK', 'EDITS_REQUIRED', 'QUALIFIED',
+      'QUALIFICATION_FAILED', 'APPLICATION_EDITS_REQUIRED',
+    ]);
+    if (!status || !APP_STATUS_ALLOWED.has(status)) {
+      return res.status(400).json({ ok: false, message: 'status ไม่ถูกต้อง' });
+    }
+
     const updated = await prisma.studentCoop.update({
       where: { id: Number(id) },
       data: {
         status: status,
-        staffCheckComment: comment || null, // บันทึกเหตุผลกรณีตีกลับ
+        staffCheckComment: comment || null,
       }
     });
     res.json({ ok: true, application: updated });
@@ -373,30 +375,26 @@ exports.reviewT002 = async (req, res) => {
             return res.status(400).json({ ok: false, message: 'status ไม่ถูกต้อง' });
         }
 
-        // 1. อัปเดตสถานะหลักของนักศึกษา
-        await prisma.studentCoop.upsert({
-            where: { studentId: parseInt(studentId) },
-            update: { status: status },
-            create: { studentId: parseInt(studentId), status: status }
-        });
-
-        // 2. หาไฟล์ T002 ล่าสุด แล้วอัปเดตผลตรวจ + ใส่เหตุผล
-        // ✅ เปลี่ยนจาก createdAt เป็น id เพื่อป้องกัน Error กรณี Database ไม่มีฟิลด์ Date
-        const doc = await prisma.document.findFirst({
-            where: { studentId: parseInt(studentId), type: 'T002_FORM' },
-            orderBy: { id: 'desc' } 
-        });
-
-        if (doc) {
-            await prisma.document.update({
-                where: { id: doc.id },
-                data: {
-                    // ✅ ระวัง: หากตาราง Document มีการล็อก Enum status ไว้ ต้องให้แน่ใจว่ามีคำว่า 'APPROVED' และ 'REJECTED' ด้วย
-                    status: status === 'T002_EDITS_REQUIRED' ? 'REJECTED' : 'APPROVED',
-                    rejectReason: comment || null 
-                }
+        await prisma.$transaction(async (tx) => {
+            await tx.studentCoop.upsert({
+                where: { studentId: parseInt(studentId) },
+                update: { status: status },
+                create: { studentId: parseInt(studentId), status: status }
             });
-        }
+            const doc = await tx.document.findFirst({
+                where: { studentId: parseInt(studentId), type: 'T002_FORM' },
+                orderBy: { id: 'desc' }
+            });
+            if (doc) {
+                await tx.document.update({
+                    where: { id: doc.id },
+                    data: {
+                        status: status === 'T002_EDITS_REQUIRED' ? 'REJECTED' : 'APPROVED',
+                        rejectReason: comment || null
+                    }
+                });
+            }
+        });
 
         res.json({ ok: true, message: "บันทึกผลการตรวจสอบสำเร็จ" });
 
@@ -434,28 +432,26 @@ exports.reviewT003 = async (req, res) => {
             return res.status(400).json({ ok: false, message: 'status ไม่ถูกต้อง' });
         }
 
-        // 1. อัปเดตสถานะของนักศึกษา
-        await prisma.studentCoop.upsert({
-            where: { studentId: parseInt(studentId) },
-            update: { status: status },
-            create: { studentId: parseInt(studentId), status: status }
-        });
-
-        // 2. อัปเดตสถานะไฟล์
-        const doc = await prisma.document.findFirst({
-            where: { studentId: parseInt(studentId), type: 'T003_FORM' },
-            orderBy: { id: 'desc' } 
-        });
-
-        if (doc) {
-            await prisma.document.update({
-                where: { id: doc.id },
-                data: {
-                    status: status === 'T003_EDITS_REQUIRED' ? 'REJECTED' : 'APPROVED',
-                    rejectReason: comment || null 
-                }
+        await prisma.$transaction(async (tx) => {
+            await tx.studentCoop.upsert({
+                where: { studentId: parseInt(studentId) },
+                update: { status: status },
+                create: { studentId: parseInt(studentId), status: status }
             });
-        }
+            const doc = await tx.document.findFirst({
+                where: { studentId: parseInt(studentId), type: 'T003_FORM' },
+                orderBy: { id: 'desc' }
+            });
+            if (doc) {
+                await tx.document.update({
+                    where: { id: doc.id },
+                    data: {
+                        status: status === 'T003_EDITS_REQUIRED' ? 'REJECTED' : 'APPROVED',
+                        rejectReason: comment || null
+                    }
+                });
+            }
+        });
 
         res.json({ ok: true, message: "Review T003 saved successfully" });
 
