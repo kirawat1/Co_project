@@ -172,8 +172,8 @@ export default function S_Dashboard() {
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", background:"#fff", borderRadius:16, padding:"14px 20px", marginBottom:16, boxShadow:"0 1px 4px rgba(0,0,0,.06)", border:"1px solid #e2e8f0" }}>
         <div style={{ display:"flex", alignItems:"center", gap:12 }}>
           <span style={{ fontSize:28 }}>
-            {["EDITS_REQUIRED","T002_EDITS_REQUIRED","T003_EDITS_REQUIRED","APPLICATION_EDITS_REQUIRED","TEACHER_REJECTED","QUALIFICATION_FAILED"].includes(studentStatus) ? "⚠️"
-              : ["COMPLETED","PLACEMENT_LETTER_ISSUED","ACCEPTANCE_CHECKED"].includes(studentStatus) ? "✅"
+            {["EDITS_REQUIRED","T002_EDITS_REQUIRED","T003_EDITS_REQUIRED","APPLICATION_EDITS_REQUIRED","QUALIFICATION_FAILED"].includes(studentStatus) ? "⚠️"
+              : ["PLACEMENT_LETTER_ISSUED","ACCEPTANCE_CHECKED"].includes(studentStatus) ? "✅"
               : ["INTERNSHIP_STARTED","T002_SUBMITTED","T003_SUBMITTED"].includes(studentStatus) ? "🚀"
               : "📋"}
           </span>
