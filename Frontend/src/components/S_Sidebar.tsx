@@ -57,12 +57,7 @@ export default function S_Sidebar({ profile, isOpen = false, onClose = () => {} 
     coop?.status === 'T002_EDITS_REQUIRED' ||
     coop?.status === 'T003_SUBMITTED' ||
     coop?.status === 'T003_EDITS_REQUIRED' ||
-    coop?.status === 'T003_APPROVED' ||
-    coop?.status === 'PENDING_TEACHER' ||
-    coop?.status === 'TEACHER_REJECTED' ||
-    coop?.status === 'DATE_CONFIRMED' ||
-    coop?.status === 'LETTER_UPLOADED' ||
-    coop?.status === 'COMPLETED';
+    coop?.status === 'T003_APPROVED';
 
   return (
     <aside className={`sidebar${isOpen ? " open" : ""}`}>

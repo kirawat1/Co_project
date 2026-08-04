@@ -1,5 +1,15 @@
 # CHANGELOG — Co_project
 
+## [2026-08-04] fix: batch 24 — announcementController linkUrl + XSS URL validation + dead SupervisionStatus values
+
+- **announcementController.js `addOrUpdateAnnouncement`:** (F2) เปลี่ยน `linkUrl: ... : undefined` เป็น `null` — เดิม Prisma UPDATE ไม่ลบ linkUrl เก่าเมื่อ admin ลบลิงก์ทั้งหมด; (F3) ย้าย `JSON.parse(linkUrls)` ออกจาก `sharedData` object literal มาเป็น early-return พร้อม try/catch ก่อน file I/O — เดิม parse error ทำให้ multer files ที่ upload มาแล้วค้างบน disk (orphaned); (F6 backend) เพิ่มตรวจ URL protocol: ปฏิเสธทุก URL ที่ไม่ขึ้นต้นด้วย `http://` หรือ `https://` ก่อนบันทึก DB
+- **A_Announcements.tsx:** (F1) แก้ endpoint `fetchMajors` จาก `/api/admin/majors` (CoopCriteria) เป็น `/api/admin/students/majors` (distinct student majors) — เดิม dropdown targeting ประกาศแสดง major ผิด; (F6 admin) `addLink()` validate protocol ก่อน add URL — เดิม admin สามารถ add `javascript:` URL เข้า announcement
+- **S_Announcements.tsx:** (F6 student) เพิ่ม `safeUrl()` helper ที่กรองเหลือเฉพาะ `http[s]://` แล้วใช้กับ `window.open` (บัตรประกาศ) และ `href` (modal) — เดิม stored `javascript:` URL ถูก execute ได้เมื่อนักศึกษากดลิงก์
+- **S_Sidebar.tsx:** (F4) ลบ 5 ค่า SupervisionStatus ออกจาก `showDocsMenu` (PENDING_TEACHER, TEACHER_REJECTED, DATE_CONFIRMED, LETTER_UPLOADED, COMPLETED) — ค่าเหล่านี้ไม่ใช่ CoopStatus ทำให้ comparison เป็น always-false
+- **S_Dashboard.tsx:** (F5) ลบ PENDING_TEACHER, DATE_CONFIRMED, LETTER_UPLOADED ออกจาก icon ternary — เหตุผลเดียวกัน
+
+---
+
 ## [2026-08-04] fix: batch 23 — S_ProfilePage apiFetch + loginWithGoogle null student guard + import $transaction
 
 - **S_ProfilePage.tsx:** แทน 5x raw `fetch` ด้วย `apiFetch` (reg-status, sync-from-reg, me x3) + ลบ manual Authorization header ออกจาก apiFetch calls ที่มีอยู่แล้ว — เดิม 401 ถูกกลืน นักศึกษา stuck ไม่ถูก redirect logout

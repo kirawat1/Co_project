@@ -75,6 +75,23 @@ const addOrUpdateAnnouncement = async (req, res) => {
     if (!title || !date || !year)
       return res.status(400).json({ ok: false, message: "ข้อมูลไม่ครบ" });
 
+    // Validate linkUrls early — before any DB I/O — so bad input returns 400 without
+    // leaving multer-uploaded files orphaned on disk (F2: null not undefined; F3: try/catch)
+    let parsedLinkUrls = null;
+    if (linkUrls) {
+      let parsed;
+      try { parsed = JSON.parse(linkUrls); } catch {
+        files.forEach(f => { try { fs.unlinkSync(path.join(__dirname, '../uploads', f.filename)); } catch {} });
+        return res.status(400).json({ ok: false, message: 'linkUrls มี JSON ไม่ถูกต้อง' });
+      }
+      const badUrl = parsed.find(u => !/^https?:\/\//i.test(u));
+      if (badUrl) {
+        files.forEach(f => { try { fs.unlinkSync(path.join(__dirname, '../uploads', f.filename)); } catch {} });
+        return res.status(400).json({ ok: false, message: `URL ไม่ปลอดภัย: "${badUrl}" — รองรับเฉพาะ http:// และ https://` });
+      }
+      parsedLinkUrls = parsed;
+    }
+
     let targetMajors = [];
     if (rawTargetMajors) {
       try { targetMajors = JSON.parse(rawTargetMajors); } catch { targetMajors = []; }
@@ -92,7 +109,7 @@ const addOrUpdateAnnouncement = async (req, res) => {
       body,
       date: new Date(date),
       year,
-      linkUrl: linkUrls ? JSON.stringify(JSON.parse(linkUrls)) : undefined,
+      linkUrl: parsedLinkUrls ? JSON.stringify(parsedLinkUrls) : null,
       targetMajors,
     };
 

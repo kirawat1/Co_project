@@ -175,7 +175,7 @@ export default function S_Dashboard() {
           <span style={{ fontSize:28 }}>
             {["EDITS_REQUIRED","T002_EDITS_REQUIRED","T003_EDITS_REQUIRED","APPLICATION_EDITS_REQUIRED","TEACHER_REJECTED","QUALIFICATION_FAILED"].includes(studentStatus) ? "⚠️"
               : ["COMPLETED","PLACEMENT_LETTER_ISSUED","ACCEPTANCE_CHECKED"].includes(studentStatus) ? "✅"
-              : ["INTERNSHIP_STARTED","T002_SUBMITTED","T003_SUBMITTED","PENDING_TEACHER","DATE_CONFIRMED","LETTER_UPLOADED"].includes(studentStatus) ? "🚀"
+              : ["INTERNSHIP_STARTED","T002_SUBMITTED","T003_SUBMITTED"].includes(studentStatus) ? "🚀"
               : "📋"}
           </span>
           <div>

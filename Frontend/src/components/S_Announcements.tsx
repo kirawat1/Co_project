@@ -12,6 +12,10 @@ interface Announcement {
   attachments: { type: string; name: string; url: string }[];
 }
 
+function safeUrl(url: string): string {
+  return /^https?:\/\//i.test(url) ? url : "#";
+}
+
 export default function S_Announcements() {
   const [items, setItems] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
@@ -73,7 +77,7 @@ export default function S_Announcements() {
                     <span
                       key={i}
                       style={chip}
-                      onClick={e => { e.stopPropagation(); window.open(at.url, "_blank"); }}
+                      onClick={e => { e.stopPropagation(); window.open(safeUrl(at.url), "_blank"); }}
                     >
                       {at.type === "link" ? "🔗" : at.type === "image" ? "🖼️" : "📄"}{" "}
                       <span style={chipText}>{at.name}</span>
@@ -109,7 +113,7 @@ export default function S_Announcements() {
                     {selected.attachments.map((at, i) => (
                       <a
                         key={i}
-                        href={at.url}
+                        href={safeUrl(at.url)}
                         target="_blank"
                         rel="noreferrer"
                         style={{ ...chip, textDecoration: "none" }}
