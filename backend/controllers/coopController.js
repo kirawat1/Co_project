@@ -72,7 +72,19 @@ const submitCoopApplication = async (req, res) => {
       studentId: student.id,
     }));
 
-    // ใช้ Transaction เพื่อความชัวร์
+    // ตรวจสอบ gradeSheetUrl — รับเฉพาะ http/https เพื่อป้องกัน javascript: URI injection
+    let safeGradeUrl = null;
+    if (gradeSheetUrl) {
+      try {
+        const u = new URL(gradeSheetUrl.trim());
+        if (!['https:', 'http:'].includes(u.protocol)) throw new Error('bad protocol');
+        safeGradeUrl = gradeSheetUrl.trim();
+      } catch {
+        return res.status(400).json({ ok: false, message: 'gradeSheetUrl ต้องเป็น URL แบบ http/https เท่านั้น' });
+      }
+    }
+
+    // ใช้ Transaction เพื่อความชัวร์ — รวม gradeSheetUrl ไว้ใน transaction เดียวกัน
     await prisma.$transaction(async (tx) => {
       // 2.1 บันทึกไฟล์ลง Table Document
       if (docData.length > 0) {
@@ -85,27 +97,27 @@ const submitCoopApplication = async (req, res) => {
       await tx.studentCoop.upsert({
         where: { studentId: student.id },
         update: {
-          status: "APPLYING", 
-          jobPosition: jobPosition, 
-          coopPeriodId: Number(coopPeriodId), // ✅ บันทึกว่ายื่นในเทอม/ปีไหน (กรณีเคยมี record แล้ว)
+          status: "APPLYING",
+          jobPosition: jobPosition,
+          coopPeriodId: Number(coopPeriodId),
         },
         create: {
           studentId: student.id,
           status: "APPLYING",
-          jobPosition: jobPosition, 
-          coopPeriodId: Number(coopPeriodId), // ✅ บันทึกว่ายื่นในเทอม/ปีไหน (กรณียื่นครั้งแรก)
+          jobPosition: jobPosition,
+          coopPeriodId: Number(coopPeriodId),
         },
       });
-    });
 
-    // บันทึก gradeSheetUrl ลง CoopApplicationForm (ถ้ามี)
-    if (gradeSheetUrl) {
-      await prisma.coopApplicationForm.upsert({
-        where: { studentId: student.id },
-        update: { gradeSheetUrl },
-        create: { studentId: student.id, gradeSheetUrl },
-      });
-    }
+      // 2.3 บันทึก gradeSheetUrl ลง CoopApplicationForm (ถ้ามี)
+      if (safeGradeUrl) {
+        await tx.coopApplicationForm.upsert({
+          where: { studentId: student.id },
+          update: { gradeSheetUrl: safeGradeUrl },
+          create: { studentId: student.id, gradeSheetUrl: safeGradeUrl },
+        });
+      }
+    });
 
     res.json({ ok: true, message: "ยื่นคำร้องให้ตรวจสอบเรียบร้อยแล้ว" });
 
