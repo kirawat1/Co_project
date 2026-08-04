@@ -1,5 +1,13 @@
 # CHANGELOG — Co_project
 
+## [2026-08-04] fix: batch 19 — gradeSheetUrl XSS + transaction + visitRoutes IDOR
+
+- **coopController.submitApplication:** เพิ่ม URL validation สำหรับ `gradeSheetUrl` — รับเฉพาะ http/https เพื่อป้องกัน `javascript:` URI injection ที่ render เป็น `<a href>` ในหน้า admin/teacher
+- **coopController.submitApplication:** ย้าย `gradeSheetUrl` upsert เข้าไปใน `$transaction` เดิม — เดิมอยู่นอก transaction ทำให้ถ้า upsert fail หลัง transaction commit นักศึกษาจะ stuck (ยื่นซ้ำไม่ได้เพราะสถานะเปลี่ยนแล้ว)
+- **visitRoutes.js:** เพิ่ม `verifyRole('teacher', 'staff')` ทุก route — เดิม GET `/student/:studentId` เป็น IDOR (นักศึกษาดูข้อมูลนิเทศของคนอื่นได้); write routes ก็ขาด role guard ที่ชัดเจน
+
+---
+
 ## [2026-08-04] fix: batch 18 — deploy.ps1 unchecked git pull exit code
 
 - **docs/deploy.ps1:** เพิ่มตรวจ `$LASTEXITCODE` หลัง `git pull` — เดิม deploy ดำเนินต่อแม้ pull จะ fail (merge conflict, auth error, network timeout) ทำให้ deploy สำเร็จโดย restart บน codebase เก่า
