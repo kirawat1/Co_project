@@ -146,106 +146,92 @@ exports.loginWithSSO = async (req, res) => {
       username = kkuUser.username || kkuUser.citizen_id;
     }
 
-    // --- 3. Upsert User (Table User) ---
-    const user = await prisma.user.upsert({
-      where: { username: username }, // ค้นหาจาก username
-      update: {
-        kkuAccessToken: kkuAccessToken,
-        email: kkuUser.mail,
-        // อัปเดตข้อมูลล่าสุดเสมอ
-      },
-      create: {
-        username: username,
-        email: kkuUser.mail,
-        role: role, // student หรือ teacher
-        provider: "kku-sso",
-        kkuAccessToken: kkuAccessToken,
-        // citizenId: kkuUser.citizen_id // ถ้าใน Model User มี field นี้ให้ uncomment
-      }
-      
-    });
-
-    // --- 4. จัดการข้อมูล Profile (Student / Teacher) ---
+    // --- 3. ดึงข้อมูลเพิ่มเติมจาก KKU API ก่อนเปิด transaction ---
+    let extraInfo = {};
+    let majorEnum, prefixEnum;
     if (role === "student") {
-      // 4.1 ดึงข้อมูลรายละเอียดนักศึกษาเพิ่ม (API: /student/info)
-      let extraInfo = {};
       try {
         const infoRes = await axios.get(`${KKU_API_URL}/student/info`, {
-          headers: { "x-access-token": kkuAccessToken } // ใช้ Token ของ นศ. เอง
+          headers: { "x-access-token": kkuAccessToken }
         });
         if (infoRes.data.status.code === 200) {
-           extraInfo = infoRes.data.student_info;
+          extraInfo = infoRes.data.student_info;
         }
       } catch (e) {
         console.warn("Fetch extra student info warning:", e.message);
       }
-
-      // 4.2 Mapping ข้อมูล
-      const majorEnum = mapMajor(extraInfo.program_name); 
-      const prefixEnum = mapPrefix(kkuUser.prefix || extraInfo.prefix);
-
-      // 4.3 Upsert Student
-      await prisma.student.upsert({
-        where: { userId: user.id },
-        update: {
-           firstName: kkuUser.firstname_th,
-           lastName: kkuUser.lastname_th,
-           firstNameEn: kkuUser.firstname,
-           lastNameEn: kkuUser.lastname,
-           email: kkuUser.mail,
-           
-           // ข้อมูลจาก API Info
-           year: extraInfo.student_year ? extraInfo.student_year.toString() : undefined,
-           gpa: extraInfo.gpa ? parseFloat(extraInfo.gpa) : undefined,
-           major: majorEnum || undefined,
-
-           apiSyncedAt: new Date()
-        },
-        create: {
-           userId: user.id,
-           studentId: kkuUser.student_id,
-
-           prefix: prefixEnum,
-           firstName: kkuUser.firstname_th,
-           lastName: kkuUser.lastname_th,
-           firstNameEn: kkuUser.firstname,
-           lastNameEn: kkuUser.lastname,
-           email: kkuUser.mail,
-
-           // ข้อมูลการศึกษา
-           year: extraInfo.student_year ? extraInfo.student_year.toString() : null,
-           gpa: extraInfo.gpa ? parseFloat(extraInfo.gpa) : 0.00,
-           major: majorEnum,
-
-           // Default Values
-           activityUnit: 0,
-
-           apiSyncedAt: new Date()
-        }
-      });
-
-    } else if (role === "teacher") {
-      // Upsert Teacher
-      await prisma.teacher.upsert({
-        where: { userId: user.id },
-        update: {
-           firstName: kkuUser.firstname_th,
-           lastName: kkuUser.lastname_th,
-           email: kkuUser.mail
-        },
-        create: {
-           userId: user.id,
-           firstName: kkuUser.firstname_th,
-           lastName: kkuUser.lastname_th,
-           email: kkuUser.mail, 
-           
-           // Default Values
-           phone: null,
-           faculty: null,
-           major: null
-        }
-      });
+      majorEnum = mapMajor(extraInfo.program_name);
+      prefixEnum = mapPrefix(kkuUser.prefix || extraInfo.prefix);
     }
+
+    // --- 4. Upsert User + Profile ใน transaction เดียว ---
+    let user;
+    await prisma.$transaction(async (tx) => {
+      user = await tx.user.upsert({
+        where: { username: username },
+        update: {
+          kkuAccessToken: kkuAccessToken,
+          email: kkuUser.mail,
+        },
+        create: {
+          username: username,
+          email: kkuUser.mail,
+          role: role,
+          provider: "kku-sso",
+          kkuAccessToken: kkuAccessToken,
+        }
+      });
+
+      if (role === "student") {
+        await tx.student.upsert({
+          where: { userId: user.id },
+          update: {
+             firstName: kkuUser.firstname_th,
+             lastName: kkuUser.lastname_th,
+             firstNameEn: kkuUser.firstname,
+             lastNameEn: kkuUser.lastname,
+             email: kkuUser.mail,
+             year: extraInfo.student_year ? extraInfo.student_year.toString() : undefined,
+             gpa: extraInfo.gpa ? parseFloat(extraInfo.gpa) : undefined,
+             major: majorEnum || undefined,
+             apiSyncedAt: new Date()
+          },
+          create: {
+             userId: user.id,
+             studentId: kkuUser.student_id,
+             prefix: prefixEnum,
+             firstName: kkuUser.firstname_th,
+             lastName: kkuUser.lastname_th,
+             firstNameEn: kkuUser.firstname,
+             lastNameEn: kkuUser.lastname,
+             email: kkuUser.mail,
+             year: extraInfo.student_year ? extraInfo.student_year.toString() : null,
+             gpa: extraInfo.gpa ? parseFloat(extraInfo.gpa) : 0.00,
+             major: majorEnum,
+             activityUnit: 0,
+             apiSyncedAt: new Date()
+          }
+        });
+      } else if (role === "teacher") {
+        await tx.teacher.upsert({
+          where: { userId: user.id },
+          update: {
+             firstName: kkuUser.firstname_th,
+             lastName: kkuUser.lastname_th,
+             email: kkuUser.mail
+          },
+          create: {
+             userId: user.id,
+             firstName: kkuUser.firstname_th,
+             lastName: kkuUser.lastname_th,
+             email: kkuUser.mail,
+             phone: null,
+             faculty: null,
+             major: null
+          }
+        });
+      }
+    });
 
     // Block soft-deleted students (same check as signIn and loginWithKKU)
     if (role === "student") {

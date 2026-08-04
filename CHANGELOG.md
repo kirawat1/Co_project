@@ -1,5 +1,12 @@
 # CHANGELOG — Co_project
 
+## [2026-08-05] fix: batch 35 — authController loginWithSSO $transaction + S_Dashboard wrong enum
+
+- **authController.js `loginWithSSO`:** ย้าย external KKU API call มาก่อน transaction แล้ว wrap `user.upsert` + `student.upsert`/`teacher.upsert` ใน `prisma.$transaction` — เดิมถ้า profile write ล้มเหลวจะเกิด User row โดยไม่มี profile row
+- **S_Dashboard.tsx status icon logic:** ลบ `TEACHER_REJECTED` ออกจาก ⚠️ list และ `COMPLETED` ออกจาก ✅ list — ทั้งสองค่าเป็น `SupervisionStatus` enum ไม่ใช่ `CoopStatus` ทำให้ comparison เป็น false เสมอ
+
+---
+
 ## [2026-08-05] fix: batch 34 — PlacementLetterCard raw fetch → apiFetch
 
 - **PlacementLetterCard.tsx `handleDownloadAndAck`:** เปลี่ยน multi-line raw `fetch("/api/students/acknowledge-placement-letter")` ด้วย manual Authorization header เป็น `apiFetch` — ถูก grep พลาดเพราะ URL อยู่คนละบรรทัดกับ `fetch(`
