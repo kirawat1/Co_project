@@ -120,8 +120,6 @@ export default function S_ProfilePage() {
   const [teachers, setTeachers] = useState<any[]>([]);
   const [openStudentModal, setOpenStudentModal] = useState(false);
   const [loading, setLoading] = useState(true);
-  const token = localStorage.getItem("coop.token");
-
   // ── KKU REG Sync ──────────────────────────────
   const [kkuModalOpen, setKkuModalOpen] = useState(false);
   const [kkuUser, setKkuUser] = useState("");
@@ -131,7 +129,7 @@ export default function S_ProfilePage() {
 
   // ตรวจสอบว่า KKU REG API พร้อมใช้ไหม
   useEffect(() => {
-    fetch("/api/students/reg-status", { headers: { Authorization: `Bearer ${token}` } })
+    apiFetch("/api/students/reg-status")
       .then(r => r.ok ? r.json() : null)
       .then(d => { if (d) setKkuAvailable(d.configured); })
       .catch(() => setKkuAvailable(false));
@@ -144,9 +142,9 @@ export default function S_ProfilePage() {
     }
     setKkuSyncing(true);
     try {
-      const res = await fetch("/api/students/sync-from-reg", {
+      const res = await apiFetch("/api/students/sync-from-reg", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ kkuUsername: kkuUser.trim(), kkuPassword: kkuPass }),
       });
       const data = await res.json();
@@ -155,7 +153,7 @@ export default function S_ProfilePage() {
         setKkuModalOpen(false);
         setKkuUser(""); setKkuPass("");
         // รีโหลดข้อมูล Profile
-        fetch("/api/students/me", { headers: { Authorization: `Bearer ${token}` } })
+        apiFetch("/api/students/me")
           .then(r => r.json()).then(d => setProfile(d)).catch(() => {});
       } else {
         toast.error(data.message || "ซิงค์ไม่สำเร็จ");
@@ -174,12 +172,12 @@ export default function S_ProfilePage() {
   const studyProgramMapToUI = { normal: "ภาคปกติ", special: "ภาคพิเศษ", ภาคปกติ: "ภาคปกติ", ภาคพิเศษ: "ภาคพิเศษ" } as any;
 
   useEffect(() => {
-    if (!token) return;
+    if (!localStorage.getItem("coop.token")) return;
 
     Promise.allSettled([
-      apiFetch("/api/students/me", { headers: { Authorization: `Bearer ${token}` } }).then(r => { if (!r.ok) throw new Error(String(r.status)); return r.json(); }),
-      apiFetch("/api/companies", { headers: { Authorization: `Bearer ${token}` } }).then(r => { if (!r.ok) throw new Error(String(r.status)); return r.json(); }),
-      apiFetch("/api/teachers", { headers: { Authorization: `Bearer ${token}` } }).then(r => { if (!r.ok) throw new Error(String(r.status)); return r.json(); }),
+      apiFetch("/api/students/me").then(r => { if (!r.ok) throw new Error(String(r.status)); return r.json(); }),
+      apiFetch("/api/companies").then(r => { if (!r.ok) throw new Error(String(r.status)); return r.json(); }),
+      apiFetch("/api/teachers").then(r => { if (!r.ok) throw new Error(String(r.status)); return r.json(); }),
     ])
       .then(([profileResult, companyResult, teacherResult]) => {
         if (profileResult.status === "fulfilled") {
@@ -201,7 +199,7 @@ export default function S_ProfilePage() {
         }
       })
       .finally(() => setLoading(false));
-  }, [token]);
+  }, []);
 
   if (loading || !profile) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 80, gap: 12 }}>
@@ -213,9 +211,9 @@ export default function S_ProfilePage() {
   /* ================= SAVE ================= */
   async function saveStudentInfo(updatedProfile: StudentProfile) {
     try {
-      const res = await fetch("/api/students/me", {
+      const res = await apiFetch("/api/students/me", {
         method: "PUT",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...updatedProfile,
           prefix: prefixMapToPrisma[updatedProfile.prefix as keyof typeof prefixMapToPrisma] || updatedProfile.prefix,
@@ -230,9 +228,7 @@ export default function S_ProfilePage() {
       }
 
       // re-fetch เต็มหลัง save เพื่อให้ได้ข้อมูลครบ (firstNameEn, curriculum, coop, ฯลฯ)
-      const fresh = await fetch("/api/students/me", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const fresh = await apiFetch("/api/students/me");
       if (fresh.ok) {
         const data = await fresh.json();
         const emails = data.emails?.length > 0 ? data.emails : [{ email: "", primary: false }];
@@ -250,9 +246,9 @@ export default function S_ProfilePage() {
   async function saveStudentCompany() {
     if (!profile) return;
     try {
-      const res = await fetch("/api/students/me", {
+      const res = await apiFetch("/api/students/me", {
         method: "PUT",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           major: profile.major,
           companyId: profile.company?.id || null,

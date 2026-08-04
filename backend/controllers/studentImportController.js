@@ -145,33 +145,13 @@ exports.importStudents = async (req, res) => {
 
         // 1. Find or create User — ใช้ pre-fetched map แทน per-row query
         const existingUser = userByEmail.get(email);
-        let user;
-        if (existingUser) {
-          user = existingUser;
-          updated++;
-          thisRowCountedAs = 'updated';
-        } else {
+        let user = existingUser || null;
+        if (!existingUser) {
           // Check username collision ใน pre-fetched map
           const existingByUsername = userByUsername.get(studentId);
           if (existingByUsername && existingByUsername.email !== email) {
             throw new Error(`username '${studentId}' ถูกใช้โดยบัญชีอื่นแล้ว (email: ${existingByUsername.email})`);
           }
-          user = await prisma.user.upsert({
-            where: { username: studentId },
-            update: { email },
-            create: {
-              username: studentId,
-              email,
-              password: null,
-              role: 'student',
-              provider: 'google',
-            },
-          });
-          // อัปเดต map สำหรับ rows ที่ตามมา (กรณี email ซ้ำกันในไฟล์เดียวกัน)
-          userByEmail.set(email, user);
-          userByUsername.set(studentId, user);
-          created++;
-          thisRowCountedAs = 'created';
         }
 
         // 2. Resolve generalAdvisorId by matching advisor name against pre-fetched teachers.
@@ -200,21 +180,41 @@ exports.importStudents = async (req, res) => {
           throw new Error(`นักศึกษารหัส ${studentId} อยู่ในถังขยะ — กรุณากู้คืนก่อนนำเข้าข้อมูลใหม่`);
         }
 
-        // 4. Upsert Student. generalAdvisorId: null = clear, undefined = leave existing value untouched (Prisma ignores undefined fields).
-        await prisma.student.upsert({
-          where: { studentId },
-          update: {
-            prefix, firstName, lastName, firstNameEn, lastNameEn,
-            year, major, phone, email, gpa, advisorName, studyProgram,
-            generalAdvisorId,
-          },
-          create: {
-            studentId, prefix, firstName, lastName, firstNameEn, lastNameEn,
-            year, major, phone, email, gpa,
-            advisorName, generalAdvisorId: generalAdvisorId ?? null, studyProgram,
-            userId: user.id,
-          },
+        // 4. Atomically upsert User (if new) + Student to prevent orphaned User rows.
+        await prisma.$transaction(async (tx) => {
+          if (!existingUser) {
+            user = await tx.user.upsert({
+              where: { username: studentId },
+              update: { email },
+              create: { username: studentId, email, password: null, role: 'student', provider: 'google' },
+            });
+          }
+          await tx.student.upsert({
+            where: { studentId },
+            update: {
+              prefix, firstName, lastName, firstNameEn, lastNameEn,
+              year, major, phone, email, gpa, advisorName, studyProgram,
+              generalAdvisorId,
+            },
+            create: {
+              studentId, prefix, firstName, lastName, firstNameEn, lastNameEn,
+              year, major, phone, email, gpa,
+              advisorName, generalAdvisorId: generalAdvisorId ?? null, studyProgram,
+              userId: user.id,
+            },
+          });
         });
+
+        // Update in-memory maps and counters only after successful transaction
+        if (!existingUser) {
+          userByEmail.set(email, user);
+          userByUsername.set(studentId, user);
+          created++;
+          thisRowCountedAs = 'created';
+        } else {
+          updated++;
+          thisRowCountedAs = 'updated';
+        }
       } catch (rowErr) {
         console.error(`[importStudents] row ${i + 2}:`, rowErr);
         errors++;
