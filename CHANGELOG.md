@@ -1,5 +1,11 @@
 # CHANGELOG — Co_project
 
+## [2026-08-04] fix: batch 15 — criteriaController deleteCriteria P2025 → 404
+
+- **criteriaController.deleteCriteria:** P2025 catch เพื่อคืน 404 แทน 500 เมื่อ delete record ที่ไม่มีอยู่; แก้ error key จาก `error:` → `message:` ให้ตรงกับ response format ที่ใช้ทั้งระบบ
+
+---
+
 ## [2026-08-04] fix: batch 14 — apiFetch auto-inject token + remaining raw fetch + P2002→409 + err.message in criteriaController
 
 - **apiFetch.ts:** auto-inject Authorization header from localStorage — ป้องกัน call site ลืมส่ง token

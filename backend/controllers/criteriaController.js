@@ -48,7 +48,10 @@ exports.deleteCriteria = async (req, res) => {
     res.json({ ok: true, message: "Deleted successfully" });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ ok: false, error: "Delete failed" });
+    if (err.code === 'P2025') {
+      return res.status(404).json({ ok: false, message: "ไม่พบข้อมูลที่ต้องการลบ" });
+    }
+    res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดที่ Server" });
   }
 };
 
