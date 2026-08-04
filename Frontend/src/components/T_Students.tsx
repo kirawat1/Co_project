@@ -1,5 +1,6 @@
 import { useMemo, useState, useEffect, useRef } from "react";
 import axios from "axios";
+import { apiFetch } from "../utils/apiFetch";
 import StatusBadge from "../components/StatusBadge";
 import StatusFilterChips, { STATUS_GROUPS } from "./StatusFilterChips";
 import { useDebounce } from "../hooks/useDebounce";
@@ -131,7 +132,6 @@ export default function T_Students({ isCoopTeacher = false }: Props) {
 
   // --- 1. Fetch Data ---
   const fetchStudents = async (periodId: string, search = "") => {
-    const token = localStorage.getItem("coop.token");
     const params = new URLSearchParams({ limit: "50" });
     if (periodId !== "all") params.set("coopPeriodId", periodId);
     if (search.trim()) params.set("search", search.trim());
@@ -142,9 +142,7 @@ export default function T_Students({ isCoopTeacher = false }: Props) {
       : `/api/teacher/my-students?${params}`;
 
     try {
-      const resStd = await fetch(endpoint, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const resStd = await apiFetch(endpoint);
       if (resStd.ok) {
         const data = await resStd.json();
         setAllStudents(data?.data ?? []);
@@ -165,9 +163,7 @@ export default function T_Students({ isCoopTeacher = false }: Props) {
         setCoopPeriods(resPeriods.data.periods);
       }
 
-      const resMajors = await fetch("/api/admin/majors", {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const resMajors = await apiFetch("/api/admin/majors");
       if (resMajors.ok) {
         const dataMajors = await resMajors.json();
         if (dataMajors.ok) {

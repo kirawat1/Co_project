@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
+import { apiFetch } from "../utils/apiFetch";
 import { ThemeToggleBtn } from "./ThemeContext";
 
 import Sidebar from "./T_Sidebar";
@@ -50,7 +51,7 @@ export default function TeacherApp() {
 
     // fetch ชื่อจาก API เสมอ เพื่อให้ได้ข้อมูลของ user ปัจจุบัน (ไม่ใช่ user เก่าที่ค้างใน localStorage)
     if (token) {
-      fetch("/api/teacher/me", { headers: { Authorization: `Bearer ${token}` } })
+      apiFetch("/api/teacher/me")
         .then(r => r.ok ? r.json() : null)
         .then(data => {
           if (data) {
