@@ -1,5 +1,11 @@
 # CHANGELOG — Co_project
 
+## [2026-08-05] fix: batch 36 — coopPeriodController togglePeriod $transaction
+
+- **coopPeriodController.js `togglePeriod`:** wrap `coopPeriod.updateMany` (deactivate others) + `coopPeriod.update` (activate target) ใน `prisma.$transaction` — เดิมถ้า update ตัวที่ 2 ล้มเหลวจะเกิดสถานะที่ทุกรอบถูกปิดหมด (zero active periods)
+
+---
+
 ## [2026-08-05] fix: batch 35 — authController loginWithSSO $transaction + S_Dashboard wrong enum
 
 - **authController.js `loginWithSSO`:** ย้าย external KKU API call มาก่อน transaction แล้ว wrap `user.upsert` + `student.upsert`/`teacher.upsert` ใน `prisma.$transaction` — เดิมถ้า profile write ล้มเหลวจะเกิด User row โดยไม่มี profile row
