@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { apiFetch } from "../utils/apiFetch";
 
 export type NotifCounts = Record<string, number>;
 
@@ -8,9 +9,7 @@ export function useNotifCounts(): { counts: NotifCounts; markAllRead: () => Prom
 
   useEffect(() => {
     if (!token) return;
-    fetch("/api/notifications/counts", {
-      headers: { Authorization: `Bearer ${token}` },
-    })
+    apiFetch("/api/notifications/counts")
       .then(r => r.json())
       .then(d => setCounts(d.counts ?? {}))
       .catch(() => {});
@@ -19,10 +18,7 @@ export function useNotifCounts(): { counts: NotifCounts; markAllRead: () => Prom
   const markAllRead = async () => {
     if (!token) return;
     try {
-      await fetch("/api/notifications/mark-all-read", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await apiFetch("/api/notifications/mark-all-read", { method: "POST" });
       setCounts({});
     } catch { /* silent */ }
   };
