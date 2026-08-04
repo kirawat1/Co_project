@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import type { CSSProperties } from "react";
 import axios from "axios";
+import { apiFetch } from "../utils/apiFetch";
 import AutoTextarea from "./AutoTextarea";
 
 // --- Types ---
@@ -67,7 +68,7 @@ export default function A_T002Review() {
         try {
             const token = localStorage.getItem("coop.token");
 
-            const resPeriods = await fetch("/api/admin/coop-periods/all", { headers: { Authorization: `Bearer ${token}` } });
+            const resPeriods = await apiFetch("/api/admin/coop-periods/all");
             if (resPeriods.ok) {
                 const periodsData = await resPeriods.json();
                 if (periodsData.ok && periodsData.periods) setCoopPeriods(periodsData.periods);
@@ -191,10 +192,7 @@ export default function A_T002Review() {
 
     const loadConfig = async () => {
         try {
-            const token = localStorage.getItem("coop.token");
-            const res = await fetch("/api/admin/config/t002", {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            const res = await apiFetch("/api/admin/config/t002");
             if (res.ok) setConfig(await res.json());
         } catch (err) { console.error("Load config error", err); }
     };
@@ -203,10 +201,9 @@ export default function A_T002Review() {
 
     const handleSaveConfig = async () => {
         try {
-            const token = localStorage.getItem("coop.token");
-            const res = await fetch("/api/admin/config/t002", {
+            const res = await apiFetch("/api/admin/config/t002", {
                 method: "POST",
-                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(config)
             });
             if (res.ok) alert("✅ บันทึกการตั้งค่าวันเวลาเรียบร้อยแล้ว");

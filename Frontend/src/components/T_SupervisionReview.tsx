@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import type { CSSProperties } from "react";
 import axios from "axios";
+import { apiFetch } from "../utils/apiFetch";
 import StatusBadge from "./StatusBadge";
 import SupervisionCalendar from "./SupervisionCalendar";
 import type { CalendarEvent } from "./SupervisionCalendar";
@@ -82,9 +83,7 @@ export default function T_SupervisionReview() {
     const fetchData = async () => {
         setLoading(true);
         try {
-            const resPeriods = await fetch("/api/admin/coop-periods/all", {
-                headers: { Authorization: `Bearer ${token}` },
-            });
+            const resPeriods = await apiFetch("/api/admin/coop-periods/all");
             if (resPeriods.ok) {
                 const periodsData = await resPeriods.json();
                 if (periodsData.ok && periodsData.periods) setCoopPeriods(periodsData.periods);

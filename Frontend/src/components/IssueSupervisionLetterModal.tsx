@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import axios from "axios";
+import { apiFetch } from "../utils/apiFetch";
 import { createSupervisionLetterPDF } from "../utils/pdfSupervisionLetterGenerator";
 import { createWordBlob, createPreviewBlob, buildSupervisionLetterHtml, thaiPrefix } from "../utils/docGeneratorUtils";
 import { FileReady, DeliveryPicker, MODAL_CSS } from "./LetterModalShared";
@@ -23,7 +24,7 @@ export default function IssueSupervisionLetterModal({ supervision, onClose, onSu
     const loadCommonData = async () => {
         const [resAssets, resDean] = await Promise.all([
             fetch("/api/admin/assets"),
-            fetch("/api/admin/config/dean-info", { headers: { Authorization: `Bearer ${localStorage.getItem("coop.token")}` } }),
+            apiFetch("/api/admin/config/dean-info"),
         ]);
         const assets = (await resAssets.json()).assets || [];
         const getAsset = (key: string) => { const f = assets.find((a: any) => a.key === key); return f ? `/uploads/system/${f.path}` : null; };
