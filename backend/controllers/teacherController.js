@@ -383,8 +383,8 @@ exports.getDashboardStats = async (req, res) => {
         // เพื่อไม่ให้ตัวเลขในแดชบอร์ดไม่ตรงกับรายชื่อ นศ. ในดูแลจริง
         // (อาจารย์ผู้ประสานงานสหกิจ isCoopTeacher เห็นทุกคน เหมือน getMyStudents)
         const advisorFilter = teacher.isCoopTeacher
-            ? {}
-            : { OR: [{ generalAdvisorId: teacher.id }, { coopAdvisorId: teacher.id }] };
+            ? { deletedAt: null }
+            : { deletedAt: null, OR: [{ generalAdvisorId: teacher.id }, { coopAdvisorId: teacher.id }] };
 
         // 1. นับนักศึกษาทั้งหมดในดูแล
         let myStudentsCount = 0;
