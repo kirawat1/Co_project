@@ -1,5 +1,14 @@
 # CHANGELOG — Co_project
 
+## [2026-08-04] fix: batch 22 — teacherRoutes verifyRole + getMyStudents deletedAt + createTeacher $transaction + A_Teacher apiFetch
+
+- **teacherRoutes.js:** เพิ่ม `verifyRole('teacher')` ที่ `GET /my-students` และ `GET /students/export` — เดิมนักศึกษา/staff ที่มี token valid เรียกได้
+- **teacherController.getMyStudents:** เพิ่ม `deletedAt: null` ใน `baseWhere` — เดิม soft-deleted students ปรากฏในรายชื่อ teacher ทั้งที่ exportMyStudents กรองถูกต้องแล้ว (inconsistency)
+- **teacherController.createTeacher:** ห่อ `user.create` + `teacher.create` ใน `$transaction` — เดิมถ้า teacher.create fail หลัง user.create สำเร็จ จะเกิด orphaned User row ที่ login ได้แต่ไม่มี profile
+- **A_Teacher.tsx:** แทน 7x raw `fetch` ด้วย `apiFetch` — เดิม 401 ถูกกลืน staff ไม่ถูก redirect logout เมื่อ session หมดอายุ
+
+---
+
 ## [2026-08-04] fix: batch 21 — S_Gateway + T_App + T_Students raw fetch → apiFetch
 
 - **S_Gateway.tsx:** แทน 4x raw `fetch` ด้วย `apiFetch` (GET /api/students/me, GET /api/students/coop-periods/active, DELETE /api/coop/documents/:id, POST /api/coop/apply) — เดิม 401 ถูกกลืนโดยไม่ auto-logout; ยังลบ manual Authorization header ออกเพราะ apiFetch inject ให้เอง

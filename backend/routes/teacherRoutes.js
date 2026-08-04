@@ -10,8 +10,8 @@ const supervisionController = require('../controllers/supervisionController');
 router.get("/me", verifyToken, teacherController.getProfile);
 router.put("/me", verifyToken, teacherController.updateProfile);
 router.get("/prefixes", verifyToken, verifyRole('teacher', 'staff'), teacherController.getTeacherPrefixes);
-router.get('/my-students', verifyToken, teacherController.getMyStudents);
-router.get('/students/export', verifyToken, teacherController.exportMyStudents);
+router.get('/my-students', verifyToken, verifyRole('teacher'), teacherController.getMyStudents);
+router.get('/students/export', verifyToken, verifyRole('teacher'), teacherController.exportMyStudents);
 
 // --- Route สำหรับ Admin จัดการอาจารย์ ---
 // GET / เปิดให้ทุก role ดึงได้ตั้งใจ (นักศึกษาใช้เลือกอาจารย์ที่ปรึกษาในหน้าโปรไฟล์)

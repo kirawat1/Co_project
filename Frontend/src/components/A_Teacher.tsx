@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { apiFetch } from "../utils/apiFetch";
 import { IcSave, IcUser } from "./icons";
 import { useToast } from "./Toast";
 import ConfirmDialog from "./ConfirmDialog";
@@ -60,12 +61,10 @@ export default function A_Teacher() {
   // ConfirmDialog
   const [confirmDel, setConfirmDel] = useState<Teacher | null>(null);
 
-  const token = localStorage.getItem("coop.token");
-
   const fetchData = async () => {
     try {
       setLoading(true);
-      const res = await fetch("/api/teacher", { headers: { Authorization: `Bearer ${token}` } });
+      const res = await apiFetch("/api/teacher");
       if (res.ok) {
         const data = await res.json();
         setItems((Array.isArray(data) ? data : []).map((t: any) => ({
@@ -79,7 +78,7 @@ export default function A_Teacher() {
 
   const fetchMajors = async () => {
     try {
-      const res = await fetch("/api/admin/majors", { headers: { Authorization: `Bearer ${token}` } });
+      const res = await apiFetch("/api/admin/majors");
       const data = await res.json();
       if (data.ok) setMajorOptions(data.majors);
     } catch {}
@@ -87,7 +86,7 @@ export default function A_Teacher() {
 
   const fetchPrefixes = async () => {
     try {
-      const res = await fetch("/api/teacher/prefixes", { headers: { Authorization: `Bearer ${token}` } });
+      const res = await apiFetch("/api/teacher/prefixes");
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data) && data.length > 0) setPrefixOptions(data);
@@ -106,9 +105,9 @@ export default function A_Teacher() {
     }
     setSaving(true);
     try {
-      const res = await fetch("/api/admin/teachers", {
+      const res = await apiFetch("/api/admin/teachers", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...createForm, password: createPassword }),
       });
       const data = await res.json();
@@ -128,9 +127,9 @@ export default function A_Teacher() {
   const handleUpdate = async (updated: Teacher) => {
     setSaving(true);
     try {
-      const res = await fetch(`/api/admin/teachers/${updated.id}`, {
+      const res = await apiFetch(`/api/admin/teachers/${updated.id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(updated),
       });
       const data = await res.json();
@@ -148,10 +147,7 @@ export default function A_Teacher() {
   const handleDelete = async (t: Teacher) => {
     setSaving(true);
     try {
-      const res = await fetch(`/api/admin/teachers/${t.id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await apiFetch(`/api/admin/teachers/${t.id}`, { method: "DELETE" });
       const data = await res.json();
       if (res.ok) {
         toast.success(`ลบ ${t.firstName} ${t.lastName} เรียบร้อย`);
@@ -171,9 +167,9 @@ export default function A_Teacher() {
     }
     setSaving(true);
     try {
-      const res = await fetch(`/api/admin/teachers/${pwModal.id}/password`, {
+      const res = await apiFetch(`/api/admin/teachers/${pwModal.id}/password`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ newPassword }),
       });
       const data = await res.json();

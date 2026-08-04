@@ -511,26 +511,22 @@ exports.createTeacher = async (req, res) => {
 
     const hashed = await bcrypt.hash(password, 10);
 
-    const user = await prisma.user.create({
-      data: {
-        username: email,
-        email,
-        password: hashed,
-        role: "teacher",
-      },
-    });
-
-    const teacher = await prisma.teacher.create({
-      data: {
-        userId: user.id,
-        firstName,
-        lastName,
-        email,
-        phone: phone || null,
-        faculty: 'วิทยาลัยการคอมพิวเตอร์',
-        major: major || null,
-        prefix: prefix || null,
-      },
+    const teacher = await prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
+        data: { username: email, email, password: hashed, role: "teacher" },
+      });
+      return tx.teacher.create({
+        data: {
+          userId: user.id,
+          firstName,
+          lastName,
+          email,
+          phone: phone || null,
+          faculty: 'วิทยาลัยการคอมพิวเตอร์',
+          major: major || null,
+          prefix: prefix || null,
+        },
+      });
     });
 
     res.json({ ok: true, teacher });
@@ -667,6 +663,7 @@ exports.getMyStudents = async (req, res) => {
     const coopPeriodId = req.query.coopPeriodId ? parseInt(req.query.coopPeriodId) : undefined;
 
     const baseWhere = {
+      deletedAt: null,
       ...(search && {
         OR: [
           { firstName: { contains: search } },
