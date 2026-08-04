@@ -84,8 +84,6 @@ export default function CoopRequestPage() {
     uploadDescription: 'เช่น ใบคำร้อง, ทรานสคริปต์, หนังสือรับรอง ฯลฯ (รองรับ PDF, รูปภาพ)'
   });
 
-  const token = localStorage.getItem("coop.token");
-
   // --- Helpers ---
   // Sanitize href: only allow http/https to prevent javascript: XSS
   const safeHref = (url: string) => {
@@ -106,9 +104,7 @@ export default function CoopRequestPage() {
   const fetchData = async () => {
     try {
       // 1. ดึงข้อมูลนักศึกษา
-      const res = await fetch("/api/students/me", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await apiFetch("/api/students/me");
       if (res.ok) {
         const data = await res.json();
         setProfile({
@@ -125,9 +121,7 @@ export default function CoopRequestPage() {
       }
 
       // 2. ดึงรอบรับสมัครที่เปิดอยู่ (Active Period)
-      const periodRes = await fetch("/api/students/coop-periods/active", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const periodRes = await apiFetch("/api/students/coop-periods/active");
       if (periodRes.ok) {
         const pData = await periodRes.json();
         if (pData.ok && pData.period) {
@@ -145,8 +139,7 @@ export default function CoopRequestPage() {
   }, [token]);
 
   useEffect(() => {
-    const t = localStorage.getItem("coop.token");
-    apiFetch("/api/coop/config/gateway", { headers: { Authorization: `Bearer ${t}` } })
+    apiFetch("/api/coop/config/gateway")
       .then(r => r.ok ? r.json() : null)
       .then(d => { if (d?.ok && d.data) setGatewaySettings(d.data); })
       .catch(() => {});
@@ -168,10 +161,7 @@ export default function CoopRequestPage() {
   const doRemoveFile = async (docId: number) => {
     setConfirmDelete(null);
     try {
-      const res = await fetch(`/api/coop/documents/${docId}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await apiFetch(`/api/coop/documents/${docId}`, { method: "DELETE" });
       const data = await res.json();
       if (data.ok) {
         setProfile((prev) => {
@@ -241,11 +231,7 @@ export default function CoopRequestPage() {
 
     setSubmitting(true);
     try {
-      const res = await fetch("/api/coop/apply", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData,
-      });
+      const res = await apiFetch("/api/coop/apply", { method: "POST", body: formData });
       const data = await res.json();
       if (res.ok) {
         toast.success("ส่งคำร้องเรียบร้อยแล้ว สถานะ: รออาจารย์ตรวจสอบ");

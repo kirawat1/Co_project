@@ -1,5 +1,13 @@
 # CHANGELOG — Co_project
 
+## [2026-08-04] fix: batch 21 — S_Gateway + T_App + T_Students raw fetch → apiFetch
+
+- **S_Gateway.tsx:** แทน 4x raw `fetch` ด้วย `apiFetch` (GET /api/students/me, GET /api/students/coop-periods/active, DELETE /api/coop/documents/:id, POST /api/coop/apply) — เดิม 401 ถูกกลืนโดยไม่ auto-logout; ยังลบ manual Authorization header ออกเพราะ apiFetch inject ให้เอง
+- **T_App.tsx:** แทน raw `fetch("/api/teacher/me")` ด้วย `apiFetch` — เดิม token หมดอายุจะ fallback เป็น localStorage silently ทำให้ `isCoopTeacher` ผิด (ค้างเป็น false) ส่งผลให้ T_Students routing ไปผิด endpoint
+- **T_Students.tsx:** แทน raw `fetch(endpoint)` (students) และ raw `fetch("/api/admin/majors")` ด้วย `apiFetch` — เดิม 401 ถูกกลืน ตารางนักศึกษาเงียบๆ ไม่โหลด
+
+---
+
 ## [2026-08-04] fix: batch 20 — useNotifCounts raw fetch + TOCTOU in coop submit + notif dedup
 
 - **useNotifCounts.ts:** แทน 2x raw `fetch` ด้วย `apiFetch` — เดิม 401 ถูกกลืนหาย ทำให้ sidebar ทั้ง 3 ไม่ auto-logout เมื่อ token หมดอายุ
