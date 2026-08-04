@@ -52,7 +52,7 @@ export default function A_Announcements() {
   /* ================= 0. LOAD MAJORS ================= */
   const fetchMajors = async () => {
     try {
-      const res = await axios.get("/api/admin/majors", {
+      const res = await axios.get("/api/admin/students/majors", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.data.ok) setAvailableMajors(res.data.majors);
@@ -135,6 +135,10 @@ export default function A_Announcements() {
   function addLink() {
     const url = prompt("กรอก URL (เช่น https://google.com)");
     if (!url) return;
+    if (!/^https?:\/\//i.test(url)) {
+      alert("URL ต้องเริ่มต้นด้วย https:// หรือ http://");
+      return;
+    }
     setAttachments(prev => [...prev, { type: "link", name: url, url }]);
   }
 
