@@ -1,5 +1,14 @@
 # CHANGELOG — Co_project
 
+## [2026-08-05] fix: batch 39 — soft-delete filters (supervisions + dashboard + teacher advisor)
+
+- **adminDashboardController.js `getDashboardStats` `coopFilter`:** เพิ่ม `student: { deletedAt: null }` ทั้ง year-specific และ all-years branch — `studentCoop.findMany` คืน records ของ soft-deleted students
+- **teacherController.js `getDashboardStats` `advisorFilter`:** เพิ่ม `deletedAt: null` ทั้ง `isCoopTeacher` branch และ OR branch — teacher dashboard นับ/แสดง soft-deleted students
+- **supervisionController.js `getAllSupervisions`:** เพิ่ม `where: { student: { deletedAt: null } }` — admin supervision list แสดงนัดหมายของ soft-deleted students
+- **supervisionController.js `getTeacherSupervisions`:** เพิ่ม `student: { deletedAt: null }` ใน where ควบคู่กับ `OR: [...]` — teacher supervision list แสดงนัดหมายของ soft-deleted students
+- **supervisionController.js `getSupervisionsForTeacher`:** เหมือนกัน — `/api/teacher/supervisions` endpoint
+- **supervisionController.js `getSupervisionCalendar`:** เพิ่ม `student: { deletedAt: null }` ใน where clause ปฏิทิน — soft-deleted students ปรากฏบนปฏิทินนิเทศ
+
 ## [2026-08-05] fix: batch 38 — TOCTOU $transaction + soft-delete filters
 
 - **visitController.js `createVisit`:** wrap duplicate-visit `findFirst` + `create` ใน `$transaction` — concurrent requests ผ่าน findFirst check พร้อมกันได้ ทำให้เกิดนัดหมายซ้ำ

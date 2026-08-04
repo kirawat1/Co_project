@@ -7,10 +7,9 @@ exports.getDashboardStats = async (req, res) => {
 
     // 1. สร้างเงื่อนไขการกรอง (Filter)
     const coopFilter = year && year !== 'all' ? {
-      coopPeriod: {
-        academicYear: year
-      }
-    } : {}; // ถ้าเป็น all จะเป็น {} คือไม่กรอง
+      coopPeriod: { academicYear: year },
+      student: { deletedAt: null }
+    } : { student: { deletedAt: null } }; // กรอง soft-deleted เสมอ
 
     // 2. ดึงข้อมูลโครงการสหกิจตามเงื่อนไข
     const coops = await prisma.studentCoop.findMany({

@@ -47,6 +47,7 @@ exports.saveSupervisionPeriod = async (req, res) => {
 exports.getAllSupervisions = async (_req, res) => {
     try {
         const supervisions = await prisma.supervisionAppointment.findMany({
+            where: { student: { deletedAt: null } },
             include: {
                 student: {
                     include: { coop: { include: { company: true } } }
@@ -246,6 +247,7 @@ exports.getTeacherSupervisions = async (req, res) => {
 
         const supervisions = await prisma.supervisionAppointment.findMany({
             where: {
+                student: { deletedAt: null },
                 OR: [
                     { teacherId: teacher.id },
                     // ตรวจสอบความยาว firstName ก่อน ป้องกัน false-positive กับชื่อสั้น
@@ -314,8 +316,9 @@ exports.getSupervisionsForTeacher = async (req, res) => {
         }
 
         // 2. ดึงข้อมูลการนิเทศ จากตาราง SupervisionAppointment โดยตรง
-        const supervisions = await prisma.supervisionAppointment.findMany({ 
+        const supervisions = await prisma.supervisionAppointment.findMany({
             where: {
+                student: { deletedAt: null },
                 OR: [
                     // 🟢 เงื่อนไขที่ 1: เป็นที่ปรึกษาหลัก (ดูจาก teacherId ตรงๆ ได้เลย!)
                     { teacherId: teacher.id },
@@ -604,7 +607,8 @@ exports.getSupervisionCalendar = async (_req, res) => {
         const appointments = await prisma.supervisionAppointment.findMany({
             where: {
                 confirmedDate: { not: null },
-                status: { in: ['DATE_CONFIRMED', 'LETTER_UPLOADED', 'COMPLETED'] }
+                status: { in: ['DATE_CONFIRMED', 'LETTER_UPLOADED', 'COMPLETED'] },
+                student: { deletedAt: null }
             },
             include: {
                 student: {
