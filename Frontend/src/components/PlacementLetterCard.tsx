@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { apiFetch } from "../utils/apiFetch";
 
 interface Props {
     placeLetterUrl?: string;
@@ -35,19 +36,12 @@ export default function PlacementLetterCard({
         window.open(fileUrl, "_blank");
 
         try {
-            const token = localStorage.getItem("coop.token");
-
-            const res = await fetch(
+            const res = await apiFetch(
                 "/api/students/acknowledge-placement-letter",
                 {
                     method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        Authorization: `Bearer ${token}`
-                    },
-                    body: JSON.stringify({
-                        status: "INTERNSHIP_STARTED"
-                    })
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ status: "INTERNSHIP_STARTED" })
                 }
             );
 
