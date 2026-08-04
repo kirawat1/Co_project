@@ -63,7 +63,7 @@ describe('getPeriods', () => {
 // createPeriod
 // ---------------------------------------------------------------------------
 describe('createPeriod', () => {
-  test('400 – duplicate academicYear+semester returns error', async () => {
+  test('409 – duplicate academicYear+semester returns error', async () => {
     prisma.coopPeriod.findUnique.mockResolvedValue({ id: 1, academicYear: '2567', semester: 1 });
 
     const req = {
@@ -78,7 +78,7 @@ describe('createPeriod', () => {
 
     await createPeriod(req, res);
 
-    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.status).toHaveBeenCalledWith(409);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({ ok: false })
     );

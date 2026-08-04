@@ -165,11 +165,13 @@ describe('reviewT002', () => {
   });
 
   test('200 — success: upserts studentCoop and updates document', async () => {
+    prisma.teacher.findUnique.mockResolvedValue({ id: 10 });
+    prisma.student.findUnique.mockResolvedValue({ id: 1, generalAdvisorId: 10, coopAdvisorId: null });
     prisma.studentCoop.upsert.mockResolvedValue({});
     prisma.document.findFirst.mockResolvedValue({ id: 55 });
     prisma.document.update.mockResolvedValue({});
 
-    const req = { body: { studentId: 1, status: 'T002_APPROVED', comment: '' } };
+    const req = { body: { studentId: 1, status: 'T002_SUBMITTED', comment: '' }, user: { id: 99 } };
     const res = makeRes();
     await reviewT002(req, res);
 
@@ -188,10 +190,12 @@ describe('reviewT002', () => {
   });
 
   test('200 — no document found: skips document update', async () => {
+    prisma.teacher.findUnique.mockResolvedValue({ id: 10 });
+    prisma.student.findUnique.mockResolvedValue({ id: 2, generalAdvisorId: 10, coopAdvisorId: null });
     prisma.studentCoop.upsert.mockResolvedValue({});
     prisma.document.findFirst.mockResolvedValue(null);
 
-    const req = { body: { studentId: 2, status: 'T002_EDITS_REQUIRED', comment: 'แก้ด้วย' } };
+    const req = { body: { studentId: 2, status: 'T002_EDITS_REQUIRED', comment: 'แก้ด้วย' }, user: { id: 99 } };
     const res = makeRes();
     await reviewT002(req, res);
 
@@ -338,7 +342,7 @@ describe('exportMyStudents', () => {
 
     expect(prisma.student.findMany).toHaveBeenCalledWith(expect.objectContaining({
       where: {
-        OR: [{ generalAdvisorId: 7 }, { coopAdvisorId: 7 }],
+        AND: [{ deletedAt: null }, { OR: [{ generalAdvisorId: 7 }, { coopAdvisorId: 7 }] }],
       },
     }));
     expect(res.setHeader).toHaveBeenCalledWith(
@@ -357,7 +361,7 @@ describe('exportMyStudents', () => {
     await exportMyStudents(req, res);
 
     expect(prisma.student.findMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: {},
+      where: { deletedAt: null },
     }));
   });
 

@@ -1,5 +1,13 @@
 # CHANGELOG — Co_project
 
+## [2026-08-04] fix: batch 27 — test suite fixes (coopPeriod 409, teacherController reviewT002 + exportMyStudents)
+
+- **coopPeriodController.test.js:** แก้ label และ `expect(res.status).toHaveBeenCalledWith(400)` → `409` สำหรับ test duplicate period — controller คืน 409 มาตั้งแต่ต้นแต่ test ยังเขียน 400 ไว้
+- **teacherController.test.js `reviewT002`:** เพิ่ม `req.user = { id: 99 }`, mock `teacher.findUnique` + `student.findUnique` สำหรับ ownership check ที่ controller เพิ่มมา; แก้ status จาก `T002_APPROVED` (ไม่มีใน allowlist) เป็น `T002_SUBMITTED`
+- **teacherController.test.js `exportMyStudents`:** อัปเดต `where` expectation ให้ตรงกับ controller ที่เพิ่ม `deletedAt: null`: อาจารย์ปกติ → `{ AND: [{ deletedAt: null }, { OR: [...] }] }`, isCoopTeacher → `{ deletedAt: null }`
+
+---
+
 ## [2026-08-04] fix: batch 26 — T_Students apiFetch coop-periods + supervisionController updateConfirmedDate status guard
 
 - **T_Students.tsx `fetchData`:** แทน `axios.get("/api/admin/coop-periods/all", { headers: { Authorization } })` ด้วย `apiFetch` + ลบ `const token` + ลบ unused `import axios` — เดิม 401 จาก token หมดอายุไม่ trigger auto-logout
