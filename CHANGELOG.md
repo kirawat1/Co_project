@@ -1,5 +1,11 @@
 # CHANGELOG — Co_project
 
+## [2026-08-05] fix: batch 34 — PlacementLetterCard raw fetch → apiFetch
+
+- **PlacementLetterCard.tsx `handleDownloadAndAck`:** เปลี่ยน multi-line raw `fetch("/api/students/acknowledge-placement-letter")` ด้วย manual Authorization header เป็น `apiFetch` — ถูก grep พลาดเพราะ URL อยู่คนละบรรทัดกับ `fetch(`
+
+---
+
 ## [2026-08-05] fix: batch 33 — $transaction wrap (announcementController + studentController) + apiFetch migration (6 components)
 
 - **announcementController.js `addOrUpdateAnnouncement` UPDATE branch:** wrap `annFile.deleteMany` + `announcement.update` ใน `prisma.$transaction`; ย้าย `fs.unlinkSync` มาหลัง transaction commit
