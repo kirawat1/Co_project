@@ -76,17 +76,19 @@ exports.togglePeriod = async (req, res) => {
     const { id } = req.params;
     const { isActive } = req.body;
 
-    // ✅ ถ้ากำลังจะเปิดรอบนี้ ให้ไป ปิด (isActive: false) รอบอื่นๆ ทั้งหมดก่อน
-    if (isActive === true) {
-      await prisma.coopPeriod.updateMany({
-        where: { id: { not: Number(id) } },
-        data: { isActive: false },
+    let updated;
+    await prisma.$transaction(async (tx) => {
+      // ถ้ากำลังจะเปิดรอบนี้ ให้ปิดรอบอื่นๆ ทั้งหมดก่อน
+      if (isActive === true) {
+        await tx.coopPeriod.updateMany({
+          where: { id: { not: Number(id) } },
+          data: { isActive: false },
+        });
+      }
+      updated = await tx.coopPeriod.update({
+        where: { id: Number(id) },
+        data: { isActive },
       });
-    }
-
-    const updated = await prisma.coopPeriod.update({
-      where: { id: Number(id) },
-      data: { isActive },
     });
     res.json({ ok: true, period: updated });
   } catch (error) {
