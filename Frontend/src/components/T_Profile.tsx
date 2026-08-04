@@ -77,7 +77,7 @@ export default function T_Profile() {
 
   const fetchMajors = async () => {
     try {
-      const res = await fetch("/api/admin/majors");
+      const res = await apiFetch("/api/admin/majors");
       const data = await res.json();
       if (data.ok) setMajorOptions(data.majors);
     } catch (err) {
