@@ -1,5 +1,6 @@
 // Frontend/src/components/IssuePlacementLetterModal.tsx
 import React, { useState } from "react";
+import { apiFetch } from "../utils/apiFetch";
 import { createPlacementPDF } from "../utils/pdfGeneratorPlacement";
 import { createWordBlob, createPreviewBlob, buildPlacementLetterHtml, thaiPrefix } from "../utils/docGeneratorUtils";
 import { FileReady, DeliveryPicker, MODAL_CSS } from "./LetterModalShared";
@@ -88,8 +89,7 @@ export default function IssuePlacementLetterModal({ student, onClose, onSuccess 
             formData.append("placeDocNumber", placeDocNumber);
             formData.append("placeDocDate", placeDocDate);
             formData.append("file", signedFile);
-            const token = localStorage.getItem("coop.token");
-            const res = await fetch("/api/admin/t000/review", { method: "PUT", headers: { Authorization: `Bearer ${token}` }, body: formData });
+            const res = await apiFetch("/api/admin/t000/review", { method: "PUT", body: formData });
             if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.message || `Server error ${res.status}`); }
             alert("✅ บันทึกเข้าระบบเรียบร้อย");
             onSuccess();

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import type { CSSProperties } from "react";
 import axios from "axios";
+import { apiFetch } from "../utils/apiFetch";
 import { useToast } from "./Toast";
 import ConfirmDialog from "./ConfirmDialog";
 import AutoTextarea from "./AutoTextarea";
@@ -70,10 +71,7 @@ export default function A_DocT003Review() {
 
     const loadConfig = async () => {
         try {
-            const token = localStorage.getItem("coop.token");
-            const res = await fetch("/api/admin/config/t003", {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            const res = await apiFetch("/api/admin/config/t003");
             if (res.ok) setConfig(await res.json());
         } catch (err) { console.error("Load config error", err); }
     };
@@ -82,10 +80,9 @@ export default function A_DocT003Review() {
 
     const handleSaveConfig = async () => {
         try {
-            const token = localStorage.getItem("coop.token");
-            const res = await fetch("/api/admin/config/t003", {
+            const res = await apiFetch("/api/admin/config/t003", {
                 method: "POST",
-                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(config)
             });
             if (res.ok) toast.success("บันทึกการตั้งค่าวันเวลาเรียบร้อยแล้ว");

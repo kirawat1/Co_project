@@ -2,6 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // Frontend/src/components/S_Company.tsx
 import React, { useEffect, useState, useMemo } from "react";
+import { apiFetch } from "../utils/apiFetch";
 
 interface MentorRecord {
     id: string;
@@ -67,9 +68,7 @@ export default function Company({ profile }: { profile: any }) {
     useEffect(() => {
         if (!token) return;
         // 1. ดึงข้อมูลบริษัท
-        fetch("/api/companies", {
-            headers: { Authorization: `Bearer ${token}` },
-        })
+        apiFetch("/api/companies")
             .then(res => res.json())
             .then(data => setItems(Array.isArray(data) ? data : (data?.data ?? [])))
             .catch(err => console.error(err))
@@ -78,10 +77,7 @@ export default function Company({ profile }: { profile: any }) {
         // 🟢 2. ดึงข้อมูลเทอม/ปีการศึกษา
         const fetchPeriods = async () => {
             try {
-                // เรียก Route ของฝั่งนักศึกษาที่คุณสร้างไว้
-                const res = await fetch("/api/students/coop-periods", {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
+                const res = await apiFetch("/api/students/coop-periods");
                 const data = await res.json();
                 if (data.ok && data.periods) {
                     setCoopPeriods(data.periods);
@@ -106,9 +102,9 @@ export default function Company({ profile }: { profile: any }) {
         if (!token) return alert("กรุณาเข้าสู่ระบบ");
 
         try {
-            const res = await fetch("/api/companies", {
+            const res = await apiFetch("/api/companies", {
                 method: "POST",
-                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ ...form, createdBy: userId }),
             });
             const data = await res.json();
@@ -129,9 +125,9 @@ export default function Company({ profile }: { profile: any }) {
             return alert("คุณไม่มีสิทธิ์แก้ไขข้อมูลบริษัทที่เพิ่มโดยผู้อื่นครับ");
         }
         try {
-            const res = await fetch(`/api/companies/${form.id}`, {
+            const res = await apiFetch(`/api/companies/${form.id}`, {
                 method: "PUT",
-                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(form),
             });
             const data = await res.json();
@@ -152,10 +148,7 @@ export default function Company({ profile }: { profile: any }) {
         if (!token) return alert("กรุณาเข้าสู่ระบบ");
 
         try {
-            const res = await fetch(`/api/companies/${id}`, {
-                method: "DELETE",
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            const res = await apiFetch(`/api/companies/${id}`, { method: "DELETE" });
             const data = await res.json();
             if (!data.ok) return alert(data.message);
 
@@ -177,9 +170,9 @@ export default function Company({ profile }: { profile: any }) {
 
         try {
             if (!editingMentor) {
-                const res = await fetch(`/api/companies/${viewCompany.id}/mentors`, {
+                const res = await apiFetch(`/api/companies/${viewCompany.id}/mentors`, {
                     method: "POST",
-                    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                    headers: { "Content-Type": "application/json" },
                     body: JSON.stringify(mentorForm)
                 });
                 const data = await res.json();
@@ -188,9 +181,9 @@ export default function Company({ profile }: { profile: any }) {
                 setViewCompany(prev => prev ? { ...prev, mentors: [...(prev.mentors || []), data.mentor] } : prev);
                 setItems(prev => prev.map(c => c.id === viewCompany?.id ? { ...c, mentors: [...(c.mentors || []), data.mentor] } : c));
             } else {
-                const res = await fetch(`/api/companies/mentors/${editingMentor.id}`, {
+                const res = await apiFetch(`/api/companies/mentors/${editingMentor.id}`, {
                     method: "PUT",
-                    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                    headers: { "Content-Type": "application/json" },
                     body: JSON.stringify(mentorForm)
                 });
                 const data = await res.json();
@@ -216,7 +209,7 @@ export default function Company({ profile }: { profile: any }) {
         if (!token) return alert("กรุณาเข้าสู่ระบบ");
 
         try {
-            const res = await fetch(`/api/companies/mentors/${mentorId}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+            const res = await apiFetch(`/api/companies/mentors/${mentorId}`, { method: "DELETE" });
             const data = await res.json();
             if (!data.ok) return alert(data.message);
 
