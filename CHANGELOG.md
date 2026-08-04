@@ -1,5 +1,13 @@
 # CHANGELOG — Co_project
 
+## [2026-08-05] fix: batch 30 — A_Mentors / A_Settings / T_Profile raw fetch auto-logout bypass
+
+- **A_Mentors.tsx:** แทน `fetch()` + manual token ด้วย `apiFetch` ใน fetchData, handleUpdate, handleDelete
+- **A_Settings.tsx:** แทน `fetch()` + manual token ด้วย `apiFetch` ใน loadData (dean-info GET), handleUpload (assets POST), handleDeleteAsset (assets DELETE), handleSaveDeanInfo (dean-info POST) — เดิม 401 ไม่ trigger auto-logout
+- **T_Profile.tsx:** แทน `fetch()` + manual token ด้วย `apiFetch` ใน fetchProfile (teacher/me GET) และ handleSave (teacher/me PUT); ลบ manual `Authorization` header ที่ซ้ำซ้อนออกจาก fetchPrefixes ที่ใช้ apiFetch อยู่แล้ว
+
+---
+
 ## [2026-08-05] fix: batch 29 — loginWithSSO soft-delete bypass + dashboard apiFetch migration
 
 - **authController.js `loginWithSSO`:** เพิ่ม soft-delete check (`student.deletedAt`) ก่อน sign JWT — เดิม login ผ่าน SSO (KKU) ข้ามการตรวจสอบนี้ ทำให้นักศึกษาที่ถูก soft-delete (deletedAt non-null) ยังได้รับ JWT ที่ valid ได้ ต่างจาก `signIn`, `loginWithKKU`, `loginWithGoogle` ที่ตรวจสอบแล้ว

@@ -55,15 +55,12 @@ export default function T_Profile() {
   const [prefixOptions, setPrefixOptions] = useState<string[]>(PREFIX_OPTIONS);
 
   const timerRef = useRef<number | null>(null);
-  const token = localStorage.getItem("coop.token");
 
   // ---------- Fetch Data ----------
   const fetchProfile = async () => {
     try {
       setLoading(true);
-      const res = await fetch("/api/teacher/me", {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await apiFetch("/api/teacher/me");
       if (res.ok) {
         const data = await res.json();
         setProfile({
@@ -80,9 +77,7 @@ export default function T_Profile() {
 
   const fetchMajors = async () => {
     try {
-      const res = await fetch("/api/admin/majors", {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await fetch("/api/admin/majors");
       const data = await res.json();
       if (data.ok) setMajorOptions(data.majors);
     } catch (err) {
@@ -92,9 +87,7 @@ export default function T_Profile() {
 
   const fetchPrefixes = async () => {
     try {
-      const res = await apiFetch("/api/teacher/prefixes", {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await apiFetch("/api/teacher/prefixes");
       if (!res.ok) return;
       const data = await res.json();
       if (data.ok && data.prefixes?.length > 0) setPrefixOptions(data.prefixes);
@@ -112,12 +105,9 @@ export default function T_Profile() {
 
   const handleSave = async () => {
     try {
-      const res = await fetch("/api/teacher/me", {
+      const res = await apiFetch("/api/teacher/me", {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       });
 

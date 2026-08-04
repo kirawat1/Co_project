@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { apiFetch } from "../utils/apiFetch";
 
 // --- Config สำหรับไฟล์แม่แบบ ---
 const ASSET_KEYS = [
@@ -17,8 +18,6 @@ export default function A_Settings() {
   const [assets, setAssets] = useState<any[]>([]);
   const [uploadingKey, setUploadingKey] = useState<string | null>(null);
 
-  const token = localStorage.getItem("coop.token");
-
   // --- Effect: Load Data ---
   const loadData = async () => {
     try {
@@ -26,9 +25,7 @@ export default function A_Settings() {
       const dataAssets = await resAssets.json();
       if (dataAssets.ok) setAssets(dataAssets.assets);
 
-      const resDean = await fetch("/api/admin/config/dean-info", {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const resDean = await apiFetch("/api/admin/config/dean-info");
       if (resDean.ok) {
         const dataDean = await resDean.json();
         if (dataDean.deanName) setDeanName(dataDean.deanName);
@@ -51,11 +48,7 @@ export default function A_Settings() {
     formData.append("label", label);
 
     try {
-      const res = await fetch("/api/admin/assets", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData,
-      });
+      const res = await apiFetch("/api/admin/assets", { method: "POST", body: formData });
       if (res.ok) {
         alert("✅ อัปโหลดเรียบร้อย");
         loadData();
@@ -71,10 +64,7 @@ export default function A_Settings() {
     if (!confirm(`⚠️ ยืนยันการลบไฟล์แม่แบบ "${key}" ใช่หรือไม่?\n(หากลบไปแล้ว ระบบจะไม่สามารถดึงไฟล์นี้ไปสร้าง PDF ได้จนกว่าจะอัปโหลดใหม่)`)) return;
 
     try {
-      const res = await fetch(`/api/admin/assets/${key}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await apiFetch(`/api/admin/assets/${key}`, { method: "DELETE" });
       if (res.ok) {
         alert("🗑️ ลบไฟล์เรียบร้อยแล้ว");
         loadData();
@@ -89,12 +79,9 @@ export default function A_Settings() {
   // --- Handlers: Save Dean Info ---
   const handleSaveDeanInfo = async () => {
     try {
-      const res = await fetch("/api/admin/config/dean-info", {
+      const res = await apiFetch("/api/admin/config/dean-info", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ deanName, deanPosition })
       });
 
