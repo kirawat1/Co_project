@@ -610,7 +610,7 @@ exports.loginWithGoogle = async (req, res) => {
       where: { email, role: 'student' },
       include: { student: true },
     });
-    if (!user || user.student?.deletedAt) {
+    if (!user || !user.student || user.student.deletedAt) {
       return res.status(401).json({ ok: false, message: "ไม่พบรายชื่อในระบบ กรุณาติดต่อเจ้าหน้าที่" });
     }
 

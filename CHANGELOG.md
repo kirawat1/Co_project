@@ -1,5 +1,13 @@
 # CHANGELOG — Co_project
 
+## [2026-08-04] fix: batch 23 — S_ProfilePage apiFetch + loginWithGoogle null student guard + import $transaction
+
+- **S_ProfilePage.tsx:** แทน 5x raw `fetch` ด้วย `apiFetch` (reg-status, sync-from-reg, me x3) + ลบ manual Authorization header ออกจาก apiFetch calls ที่มีอยู่แล้ว — เดิม 401 ถูกกลืน นักศึกษา stuck ไม่ถูก redirect logout
+- **authController.loginWithGoogle:** เปลี่ยน guard จาก `!user || user.student?.deletedAt` เป็น `!user || !user.student || user.student.deletedAt` — เดิม User ที่ไม่มี Student row (orphan) ผ่านการ login ได้และได้รับ JWT แต่ใช้งานหน้าต่างๆ ไม่ได้
+- **studentImportController.importStudents:** ห่อ `user.upsert` + `student.upsert` ใน `$transaction` — เดิมถ้า student.upsert fail หลัง user.upsert commit จะเกิด orphaned User row ซึ่งเป็น precondition ของ bug loginWithGoogle ด้านบน
+
+---
+
 ## [2026-08-04] fix: batch 22 — teacherRoutes verifyRole + getMyStudents deletedAt + createTeacher $transaction + A_Teacher apiFetch
 
 - **teacherRoutes.js:** เพิ่ม `verifyRole('teacher')` ที่ `GET /my-students` และ `GET /students/export` — เดิมนักศึกษา/staff ที่มี token valid เรียกได้
