@@ -1,5 +1,16 @@
 # CHANGELOG — Co_project
 
+## [2026-08-05] fix: batch 38 — TOCTOU $transaction + soft-delete filters
+
+- **visitController.js `createVisit`:** wrap duplicate-visit `findFirst` + `create` ใน `$transaction` — concurrent requests ผ่าน findFirst check พร้อมกันได้ ทำให้เกิดนัดหมายซ้ำ
+- **supervisionController.js `reviewSupervision` (APPROVE path):** wrap conflict `findFirst` + `update` ใน `$transaction` — concurrent APPROVE requests ผ่าน conflict check พร้อมกันได้ ทำให้อาจารย์มีนิเทศ 2 นัดในวันเดียวกัน
+- **supervisionController.js `updateConfirmedDate`:** เหมือนกัน — wrap ใน `$transaction`; 409 ทั้งสอง function ใช้ `throw { is409: true }` แทน early return เพื่อให้ transaction roll back ก่อน
+- **teacherController.js `getAdviseesForReview`:** เพิ่ม `deletedAt: null` ใน where clause — นักศึกษาที่ถูก soft-delete ปรากฏใน review list
+- **adminDashboardController.js `getDashboardStats`:** เพิ่ม `{ where: { deletedAt: null } }` ใน `student.count()` — สถิติ "นักศึกษาทั้งหมด" นับรวม soft-deleted students
+- **teacherController.js `getLatestRequests`:** เพิ่ม `deletedAt: null` ใน student relation filter
+
+---
+
 ## [2026-08-05] fix: batch 37 — teacherController getAdviseesForReview invalid Prisma field
 
 - **teacherController.js `getAdviseesForReview`:** แก้ `where: { advisorId: teacher.id }` → `where: { OR: [{ generalAdvisorId }, { coopAdvisorId }] }` — field `advisorId` ไม่มีใน Prisma schema จะ throw PrismaClientValidationError ทันทีถ้า route นี้ถูก mount; ยังเป็น dead code (ยังไม่ถูก mount ใน routes)

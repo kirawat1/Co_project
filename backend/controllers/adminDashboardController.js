@@ -24,7 +24,7 @@ exports.getDashboardStats = async (req, res) => {
       totalStudents = coops.length; 
     } else {
       // ถ้าเลือก "แสดงทั้งหมด" ให้นับนักศึกษาที่มีในระบบทั้งหมด
-      totalStudents = await prisma.student.count();
+      totalStudents = await prisma.student.count({ where: { deletedAt: null } });
     }
 
     // 4. จำนวนประกาศ (กรองตามปีด้วยถ้ามีการเลือก)
