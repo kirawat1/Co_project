@@ -182,63 +182,75 @@ exports.uploadDocument = async (req, res) => {
     const oldDoc = await prisma.document.findFirst({
         where: { studentId: student.id, type: dbType }
     });
+
+    let newDoc;
+    try {
+        await prisma.$transaction(async (tx) => {
+            if (oldDoc) {
+                await tx.document.delete({ where: { id: oldDoc.id } });
+            }
+            newDoc = await tx.document.create({
+              data: {
+                studentId: student.id,
+                name: originalName,
+                path: req.file.filename,
+                type: dbType,
+                status: 'WAITING',
+                rejectReason: null
+              }
+            });
+
+            if (dbType === 'CP-ACCEPTANCE') {
+                const coop = await tx.studentCoop.findUnique({ where: { studentId: student.id } });
+                const CP_VALID = ['REQ_LETTER_ISSUED', 'WAITING_FOR_PLACEMENT_LETTER', 'WAITING_FOR_STAFF_CHECK_LETTER', 'ACCEPTANCE_CHECKED', 'PLACEMENT_LETTER_ISSUED'];
+                if (!coop || !CP_VALID.includes(coop.status)) {
+                    throw Object.assign(new Error('ไม่สามารถส่งใบตอบรับในสถานะปัจจุบัน'), { is400: true });
+                }
+                await tx.studentCoop.update({
+                    where: { studentId: student.id },
+                    data: { acceptanceFileUrl: req.file.filename, status: 'WAITING_FOR_STAFF_CHECK_LETTER' }
+                });
+            } else if (dbType === 'T002_FORM') {
+                const coop = await tx.studentCoop.findUnique({ where: { studentId: student.id } });
+                if (!coop || coop.status !== 'INTERNSHIP_STARTED') {
+                    throw Object.assign(new Error('สามารถส่ง T002 ได้เมื่อเริ่มฝึกงานแล้วเท่านั้น'), { is400: true });
+                }
+                await tx.studentCoop.update({
+                    where: { studentId: student.id },
+                    data: { status: 'T002_SUBMITTED' }
+                });
+            } else if (dbType === 'T003_FORM') {
+                const coop = await tx.studentCoop.findUnique({ where: { studentId: student.id } });
+                const T003_VALID = ['T002_SUBMITTED'];
+                if (!coop || !T003_VALID.includes(coop.status)) {
+                    throw Object.assign(new Error('สามารถส่ง T003 ได้หลังส่ง T002 แล้วเท่านั้น'), { is400: true });
+                }
+                await tx.studentCoop.update({
+                    where: { studentId: student.id },
+                    data: { status: 'T003_SUBMITTED' }
+                });
+            } else {
+                const coop = await tx.studentCoop.findUnique({ where: { studentId: student.id } });
+                if (coop && (coop.status === "EDITS_REQUIRED" || coop.status === "APPLICATION_EDITS_REQUIRED")) {
+                    await tx.studentCoop.update({
+                        where: { studentId: student.id },
+                        data: { status: "WAITING_FOR_STAFF_CHECK" }
+                    });
+                }
+            }
+        });
+    } catch (err) {
+        if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+        if (err.is400) {
+            return res.status(400).json({ ok: false, message: err.message });
+        }
+        throw err;
+    }
+
+    // Delete old file only after transaction commits successfully
     if (oldDoc) {
         const oldPath = path.join(__dirname, '../uploads', oldDoc.path);
         if (fs.existsSync(oldPath)) { try { fs.unlinkSync(oldPath); } catch(e){} }
-        await prisma.document.delete({ where: { id: oldDoc.id } });
-    }
-
-    const newDoc = await prisma.document.create({
-      data: {
-        studentId: student.id,
-        name: originalName, 
-        path: req.file.filename,
-        type: dbType, 
-        status: 'WAITING',
-        rejectReason: null 
-      }
-    });
-
-    if (dbType === 'CP-ACCEPTANCE') {
-        const coop = await prisma.studentCoop.findUnique({ where: { studentId: student.id } });
-        const CP_VALID = ['REQ_LETTER_ISSUED', 'WAITING_FOR_PLACEMENT_LETTER', 'WAITING_FOR_STAFF_CHECK_LETTER', 'ACCEPTANCE_CHECKED', 'PLACEMENT_LETTER_ISSUED'];
-        if (!coop || !CP_VALID.includes(coop.status)) {
-            if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
-            return res.status(400).json({ ok: false, message: 'ไม่สามารถส่งใบตอบรับในสถานะปัจจุบัน' });
-        }
-        await prisma.studentCoop.update({
-            where: { studentId: student.id },
-            data: { acceptanceFileUrl: req.file.filename, status: 'WAITING_FOR_STAFF_CHECK_LETTER' }
-        });
-    } else if (dbType === 'T002_FORM') {
-        const coop = await prisma.studentCoop.findUnique({ where: { studentId: student.id } });
-        if (!coop || coop.status !== 'INTERNSHIP_STARTED') {
-            if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
-            return res.status(400).json({ ok: false, message: 'สามารถส่ง T002 ได้เมื่อเริ่มฝึกงานแล้วเท่านั้น' });
-        }
-        await prisma.studentCoop.update({
-            where: { studentId: student.id },
-            data: { status: 'T002_SUBMITTED' }
-        });
-    } else if (dbType === 'T003_FORM') {
-        const coop = await prisma.studentCoop.findUnique({ where: { studentId: student.id } });
-        const T003_VALID = ['T002_SUBMITTED'];
-        if (!coop || !T003_VALID.includes(coop.status)) {
-            if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
-            return res.status(400).json({ ok: false, message: 'สามารถส่ง T003 ได้หลังส่ง T002 แล้วเท่านั้น' });
-        }
-        await prisma.studentCoop.update({
-            where: { studentId: student.id },
-            data: { status: 'T003_SUBMITTED' }
-        });
-    } else {
-        const coop = await prisma.studentCoop.findUnique({ where: { studentId: student.id } });
-        if (coop && (coop.status === "EDITS_REQUIRED" || coop.status === "APPLICATION_EDITS_REQUIRED")) {
-            await prisma.studentCoop.update({
-                where: { studentId: student.id },
-                data: { status: "WAITING_FOR_STAFF_CHECK" }
-            });
-        }
     }
 
     res.json({ ok: true, message: "อัปโหลดสำเร็จ", data: newDoc });

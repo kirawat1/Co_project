@@ -212,28 +212,30 @@ exports.reviewT003 = async (req, res) => {
             return res.status(403).json({ ok: false, message: 'คุณไม่ใช่อาจารย์ที่ปรึกษาของนักศึกษาคนนี้' });
         }
 
-        // 1. อัปเดตสถานะในตาราง studentCoop
-        await prisma.studentCoop.upsert({
-            where: { studentId: parseInt(studentId) },
-            update: { status: status },
-            create: { studentId: parseInt(studentId), status: status }
-        });
-
-        // 2. ค้นหาไฟล์ T003 ล่าสุดเพื่ออัปเดตสถานะไฟล์และคอมเมนต์
-        const doc = await prisma.document.findFirst({
-            where: { studentId: parseInt(studentId), type: 'T003_FORM' },
-            orderBy: { id: 'desc' }
-        });
-
-        if (doc) {
-            await prisma.document.update({
-                where: { id: doc.id },
-                data: {
-                    status: status === 'T003_EDITS_REQUIRED' ? 'REJECTED' : 'APPROVED',
-                    rejectReason: comment || null
-                }
+        await prisma.$transaction(async (tx) => {
+            // 1. อัปเดตสถานะในตาราง studentCoop
+            await tx.studentCoop.upsert({
+                where: { studentId: parseInt(studentId) },
+                update: { status: status },
+                create: { studentId: parseInt(studentId), status: status }
             });
-        }
+
+            // 2. ค้นหาไฟล์ T003 ล่าสุดเพื่ออัปเดตสถานะไฟล์และคอมเมนต์
+            const doc = await tx.document.findFirst({
+                where: { studentId: parseInt(studentId), type: 'T003_FORM' },
+                orderBy: { id: 'desc' }
+            });
+
+            if (doc) {
+                await tx.document.update({
+                    where: { id: doc.id },
+                    data: {
+                        status: status === 'T003_EDITS_REQUIRED' ? 'REJECTED' : 'APPROVED',
+                        rejectReason: comment || null
+                    }
+                });
+            }
+        });
 
         res.json({ ok: true, message: "บันทึกผลตรวจสอบ T003 สำเร็จ" });
 
@@ -278,28 +280,30 @@ exports.reviewT002 = async (req, res) => {
             return res.status(403).json({ ok: false, message: 'คุณไม่ใช่อาจารย์ที่ปรึกษาของนักศึกษาคนนี้' });
         }
 
-        // 1. อัปเดตสถานะนักศึกษา
-        await prisma.studentCoop.upsert({
-            where: { studentId: parseInt(studentId) },
-            update: { status: status },
-            create: { studentId: parseInt(studentId), status: status }
-        });
-
-        // 2. อัปเดตสถานะไฟล์ T002
-        const doc = await prisma.document.findFirst({
-            where: { studentId: parseInt(studentId), type: 'T002_FORM' },
-            orderBy: { id: 'desc' }
-        });
-
-        if (doc) {
-            await prisma.document.update({
-                where: { id: doc.id },
-                data: {
-                    status: status === 'T002_EDITS_REQUIRED' ? 'REJECTED' : 'APPROVED',
-                    rejectReason: comment || null
-                }
+        await prisma.$transaction(async (tx) => {
+            // 1. อัปเดตสถานะนักศึกษา
+            await tx.studentCoop.upsert({
+                where: { studentId: parseInt(studentId) },
+                update: { status: status },
+                create: { studentId: parseInt(studentId), status: status }
             });
-        }
+
+            // 2. อัปเดตสถานะไฟล์ T002
+            const doc = await tx.document.findFirst({
+                where: { studentId: parseInt(studentId), type: 'T002_FORM' },
+                orderBy: { id: 'desc' }
+            });
+
+            if (doc) {
+                await tx.document.update({
+                    where: { id: doc.id },
+                    data: {
+                        status: status === 'T002_EDITS_REQUIRED' ? 'REJECTED' : 'APPROVED',
+                        rejectReason: comment || null
+                    }
+                });
+            }
+        });
 
         res.json({ ok: true, message: "บันทึกผลการตรวจสอบสำเร็จ" });
 

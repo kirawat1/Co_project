@@ -523,7 +523,7 @@ function StudentModal({ profile, teachers, saveStudentInfo, closeModal }: any) {
   const [majorOptions, setMajorOptions] = useState<string[]>([]);
 
   useEffect(() => {
-    fetch("/api/admin/majors")
+    apiFetch("/api/admin/majors")
       .then(res => res.json())
       .then(data => { if (data.ok) setMajorOptions(data.majors); })
       .catch(err => console.error("Failed to load majors", err));

@@ -1,5 +1,15 @@
 # CHANGELOG — Co_project
 
+## [2026-08-05] fix: batch 32 — $transaction wrap (teacherController + docController) + raw fetch apiFetch (T_Profile, S_ProfilePage)
+
+- **teacherController.js `reviewT003`:** wrap `studentCoop.upsert` + `document.findFirst/update` ใน `prisma.$transaction` — เดิม 2 writes แยกกัน ถ้า `document.update` fail จะ studentCoop อัปเดตแต่ document ไม่อัปเดต
+- **teacherController.js `reviewT002`:** เหมือนกัน — wrap ใน `prisma.$transaction`
+- **docController.js `uploadDocument`:** wrap `document.delete` + `document.create` + `studentCoop.update` ทุก branch ใน `prisma.$transaction` — ย้าย `fs.unlinkSync(oldPath)` มาหลัง transaction commit เพื่อไม่ให้ orphaned file; 400 errors ใน transaction ใช้ throw + `err.is400` flag แทน early return
+- **T_Profile.tsx `fetchMajors`:** เปลี่ยน `fetch("/api/admin/majors")` เป็น `apiFetch` เพื่อ consistency กับ apiFetch pattern ทั้งระบบ
+- **S_ProfilePage.tsx StudentModal:** เปลี่ยน `fetch("/api/admin/majors")` เป็น `apiFetch` (apiFetch import มีอยู่แล้ว)
+
+---
+
 ## [2026-08-05] fix: batch 31 — adminDocController updateDocStatus whitelist + raw fetch apiFetch migration (7 components)
 
 - **adminDocController.js `updateDocStatus`:** เพิ่ม `ALLOWED_DOC_STATUS` whitelist (5 statuses) ก่อน `prisma.document.update` — เดิมไม่มีการ validate ทำให้ teacher/staff ส่ง status ใดก็ได้
