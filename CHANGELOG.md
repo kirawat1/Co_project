@@ -1,5 +1,12 @@
 # CHANGELOG — Co_project
 
+## [2026-08-04] fix: batch 25 — kkuRegService syncStudentAll silently succeeds on wrong creds + A_CriteriaPage apiFetch
+
+- **kkuRegService.js `syncStudentAll`:** แก้ guard จาก `if (!token)` เป็น `if (!token || typeof token !== 'string')` — เดิม `getStudentToken` คืน `{ error: "..." }` (truthy object) เมื่อ login ผิด ทำให้ object นี้ถูกส่งเป็น token ต่อ; sub-functions กลืน error ไว้ใน try/catch แล้ว return null; `syncStudentAll` จึงคืน `{ ok: true }` พร้อม info/grades null ทั้งหมด — นักศึกษา type password ผิดแต่ได้รับ "ซิงค์สำเร็จ (อัปเดต 1 ฟิลด์)"
+- **A_CriteriaPage.tsx:** แทน `axios.post` และ `axios.delete` ด้วย `apiFetch` + ลบ `const token` — เดิม 401 (token หมดอายุ) ไม่ trigger auto-logout
+
+---
+
 ## [2026-08-04] fix: batch 24 — announcementController linkUrl + XSS URL validation + dead SupervisionStatus values
 
 - **announcementController.js `addOrUpdateAnnouncement`:** (F2) เปลี่ยน `linkUrl: ... : undefined` เป็น `null` — เดิม Prisma UPDATE ไม่ลบ linkUrl เก่าเมื่อ admin ลบลิงก์ทั้งหมด; (F3) ย้าย `JSON.parse(linkUrls)` ออกจาก `sharedData` object literal มาเป็น early-return พร้อม try/catch ก่อน file I/O — เดิม parse error ทำให้ multer files ที่ upload มาแล้วค้างบน disk (orphaned); (F6 backend) เพิ่มตรวจ URL protocol: ปฏิเสธทุก URL ที่ไม่ขึ้นต้นด้วย `http://` หรือ `https://` ก่อนบันทึก DB
