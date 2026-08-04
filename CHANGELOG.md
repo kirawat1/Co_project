@@ -1,5 +1,16 @@
 # CHANGELOG — Co_project
 
+## [2026-08-04] fix: batch 13 — raw fetch in admin trash/student pages + 409 status for conflict states
+
+- **A_StudentTrash.tsx:** แทน 3x raw `fetch` ด้วย `apiFetch`; เพิ่ม `res.ok` guard ใน `fetchTrash`
+- **A_StudentEditModal.tsx handleSubmit:** แทน raw `fetch` ด้วย `apiFetch` (เดิมซ่อม teacher-list แล้วแต่ handleSubmit ยังไม่ได้แก้)
+- **A_Students.tsx handleDeleteStudent:** แทน raw `fetch` ด้วย `apiFetch`
+- **studentController.softDeleteStudent:** เปลี่ยน status 404 → 409 เมื่อนักศึกษาอยู่ในถังขยะแล้ว (conflict ≠ not found)
+- **studentController.restoreStudent:** เปลี่ยน status 404 → 409 เมื่อนักศึกษาไม่ได้อยู่ในถังขยะ (conflict ≠ not found)
+- **studentController.test.js:** อัปเดต assertion 404 → 409 สำหรับทั้ง 2 กรณีข้างต้น
+
+---
+
 ## [2026-08-04] fix: batch 12 — calendar privacy + info leaks + dead admin role
 
 - **supervisionController.getSupervisionCalendar:** ลบ `onlineLink` ออกจาก student-facing calendar response — private meeting links ไม่ควรส่งให้นักศึกษาคนอื่น

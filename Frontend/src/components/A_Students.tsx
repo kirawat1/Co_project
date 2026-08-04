@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
+import { apiFetch } from "../utils/apiFetch";
 import StatusBadge from "../components/StatusBadge";
 import StatusFilterChips, { STATUS_GROUPS } from "./StatusFilterChips";
 import { useDebounce } from "../hooks/useDebounce";
@@ -254,10 +255,8 @@ export default function A_Students() {
     const fullName = `${s.firstName ?? ""} ${s.lastName ?? ""}`.trim();
     if (!window.confirm(`ย้าย "${fullName || s.studentId}" ไปถังขยะ?`)) return;
     try {
-      const token = localStorage.getItem("coop.token");
-      const res = await fetch(`/api/admin/students/${s.id}`, {
+      const res = await apiFetch(`/api/admin/students/${s.id}`, {
         method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
       if (!data.ok) {

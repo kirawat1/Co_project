@@ -163,7 +163,7 @@ describe('softDeleteStudent', () => {
     expect(prisma.student.update).not.toHaveBeenCalled();
   });
 
-  test('404 — อยู่ในถังขยะอยู่แล้ว', async () => {
+  test('409 — อยู่ในถังขยะอยู่แล้ว', async () => {
     prisma.student.findUnique.mockResolvedValue({ id: 1, deletedAt: new Date() });
 
     const req = { params: { id: '1' } };
@@ -171,7 +171,7 @@ describe('softDeleteStudent', () => {
 
     await softDeleteStudent(req, res);
 
-    expect(res.status).toHaveBeenCalledWith(404);
+    expect(res.status).toHaveBeenCalledWith(409);
     expect(prisma.student.update).not.toHaveBeenCalled();
   });
 });
@@ -209,7 +209,7 @@ describe('restoreStudent', () => {
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: true }));
   });
 
-  test('404 — ไม่ได้อยู่ในถังขยะ', async () => {
+  test('409 — ไม่ได้อยู่ในถังขยะ', async () => {
     prisma.student.findUnique.mockResolvedValue({ id: 1, deletedAt: null });
 
     const req = { params: { id: '1' } };
@@ -217,7 +217,7 @@ describe('restoreStudent', () => {
 
     await restoreStudent(req, res);
 
-    expect(res.status).toHaveBeenCalledWith(404);
+    expect(res.status).toHaveBeenCalledWith(409);
     expect(prisma.student.update).not.toHaveBeenCalled();
   });
 });
