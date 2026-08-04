@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+import { apiFetch } from "../utils/apiFetch";
 import type { CSSProperties } from "react";
 
 type Criteria = {
@@ -29,12 +30,11 @@ export default function A_CriteriaPage() {
             return alert("หลักสูตรนี้มีอยู่ในระบบแล้ว!");
         }
 
-        const token = localStorage.getItem("coop.token");
         try {
-            await axios.post("/api/admin/criteria", {
-                major: newMajorName.trim().toUpperCase(), // แนะนำให้เก็บเป็นตัวพิมพ์ใหญ่ (เช่น CS, IT)
-            }, {
-                headers: { Authorization: `Bearer ${token}` }
+            await apiFetch("/api/admin/criteria", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ major: newMajorName.trim().toUpperCase() }),
             });
             setAddMajorModalOpen(false);
             setNewMajorName("");
@@ -44,11 +44,8 @@ export default function A_CriteriaPage() {
 
     const handleRemoveMajor = async (id: string, majorName: string) => {
         if (!confirm(`⚠️ ยืนยันการลบหลักสูตร ${majorName}?`)) return;
-        const token = localStorage.getItem("coop.token");
         try {
-            await axios.delete(`/api/admin/criteria/${id}`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            await apiFetch(`/api/admin/criteria/${id}`, { method: "DELETE" });
             fetchCriteria();
         } catch (err) { alert("ลบไม่สำเร็จ"); }
     };

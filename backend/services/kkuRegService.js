@@ -228,7 +228,9 @@ async function searchCourses(query) {
 // ──────────────────────────────────────────
 async function syncStudentAll(username, password) {
   const token = await getStudentToken(username, password);
-  if (!token) return { ok: false, message: "ไม่สามารถเชื่อมต่อ KKU REG ได้ — ตรวจสอบ username/password" };
+  if (!token || typeof token !== 'string') {
+    return { ok: false, message: token?.error || "ไม่สามารถเชื่อมต่อ KKU REG ได้ — ตรวจสอบ username/password" };
+  }
 
   const [info, grades, advisor, image] = await Promise.allSettled([
     getStudentInfo(token),
