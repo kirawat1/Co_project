@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import axios from "axios";
+import { apiFetch } from "../utils/apiFetch";
 
 const IOS_BLUE = "#0074B7";
 
@@ -91,18 +91,15 @@ export default function T_Dashboard() {
   const [supPendingCount, setSupPendingCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  const token = localStorage.getItem("coop.token");
-
   /* ==========================================
       1. ดึงรอบปีการศึกษาทั้งหมด
      ========================================== */
   const fetchPeriods = async () => {
     try {
-      const res = await axios.get("/api/admin/coop-periods", {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (res.data.ok) {
-        const periodList: CoopPeriod[] = res.data.periods;
+      const res = await apiFetch("/api/admin/coop-periods");
+      if (res.ok) {
+        const data = await res.json();
+        const periodList: CoopPeriod[] = data.periods;
         setPeriods(periodList);
 
         const active = periodList.find(p => p.isActive);
@@ -127,43 +124,43 @@ export default function T_Dashboard() {
       }
 
       // 2.1 ดึงสถิติ
-      const statsRes = await axios.get(`/api/teacher/stats${query}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (statsRes.data?.ok) setStats(statsRes.data.data);
+      const statsRes = await apiFetch(`/api/teacher/stats${query}`);
+      if (statsRes.ok) { const d = await statsRes.json(); if (d?.ok) setStats(d.data); }
 
       // 2.2 ดึงคำร้อง
-      const listRes = await axios.get(`/api/teacher/latest-requests${query}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (listRes.data?.ok) {
-        const allStudents: StudentRequest[] = listRes.data.students || [];
-        // 🟢 แยกนักศึกษา "รอพิจารณา"
-        setPendingStudents(allStudents.filter(s => s.coop?.status === 'submitted' || s.coop?.status === 'pending').slice(0, 5));
-        // 🟢 แยกนักศึกษา "ผ่านคุณสมบัติ"
-        setApprovedStudents(allStudents.filter(s => s.coop?.status === 'approved').slice(0, 5));
+      const listRes = await apiFetch(`/api/teacher/latest-requests${query}`);
+      if (listRes.ok) {
+        const listData = await listRes.json();
+        if (listData?.ok) {
+          const allStudents: StudentRequest[] = listData.students || [];
+          // 🟢 แยกนักศึกษา "รอพิจารณา"
+          setPendingStudents(allStudents.filter(s => s.coop?.status === 'submitted' || s.coop?.status === 'pending').slice(0, 5));
+          // 🟢 แยกนักศึกษา "ผ่านคุณสมบัติ"
+          setApprovedStudents(allStudents.filter(s => s.coop?.status === 'approved').slice(0, 5));
+        }
       }
 
       // 2.3 ดึงนัดนิเทศของอาจารย์
       try {
-        const supRes = await axios.get(`/api/teacher/supervisions${query}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        if (supRes.data?.ok) {
-          const supList = supRes.data.supervisions || supRes.data.list || [];
-          setSupervisions(supList);
-          setSupPendingCount(supList.filter((s: SupervisionAppt) => s.status === "PENDING_TEACHER").length);
+        const supRes = await apiFetch(`/api/teacher/supervisions${query}`);
+        if (supRes.ok) {
+          const supData = await supRes.json();
+          if (supData?.ok) {
+            const supList = supData.supervisions || supData.list || [];
+            setSupervisions(supList);
+            setSupPendingCount(supList.filter((s: SupervisionAppt) => s.status === "PENDING_TEACHER").length);
+          }
         }
       } catch (err) { console.warn("Supervision API not ready or error", err); }
 
       // 2.4 ดึงจำนวน T002/T003 รอตรวจ
       try {
         const [t002Res, t003Res] = await Promise.allSettled([
-          axios.get(`/api/admin/students${query ? query + "&" : "?"}status=T002_SUBMITTED&limit=1`, { headers: { Authorization: `Bearer ${token}` } }),
-          axios.get(`/api/admin/students${query ? query + "&" : "?"}status=T003_SUBMITTED&limit=1`, { headers: { Authorization: `Bearer ${token}` } }),
+          apiFetch(`/api/admin/students${query ? query + "&" : "?"}status=T002_SUBMITTED&limit=1`).then(r => r.json()),
+          apiFetch(`/api/admin/students${query ? query + "&" : "?"}status=T003_SUBMITTED&limit=1`).then(r => r.json()),
         ]);
-        if (t002Res.status === "fulfilled" && t002Res.value.data?.meta) setT002Count(t002Res.value.data.meta.total ?? 0);
-        if (t003Res.status === "fulfilled" && t003Res.value.data?.meta) setT003Count(t003Res.value.data.meta.total ?? 0);
+        if (t002Res.status === "fulfilled" && t002Res.value?.meta) setT002Count(t002Res.value.meta.total ?? 0);
+        if (t003Res.status === "fulfilled" && t003Res.value?.meta) setT003Count(t003Res.value.meta.total ?? 0);
       } catch { /* silent */ }
 
     } catch (err) {
@@ -181,12 +178,9 @@ export default function T_Dashboard() {
         if (match) coopPeriodId = String(match.id);
       }
 
-      const res = await axios.get(`/api/teacher/students/export?coopPeriodId=${coopPeriodId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-        responseType: "blob",
-      });
-
-      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const res = await apiFetch(`/api/teacher/students/export?coopPeriodId=${coopPeriodId}`);
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
       a.download = `students_${coopPeriodId}.xlsx`;

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import axios from "axios";
+import { apiFetch } from "../utils/apiFetch";
 import type { CSSProperties } from "react";
 import AutoTextarea from "./AutoTextarea";
 
@@ -47,15 +47,11 @@ export default function A_Announcements() {
   const [targetMajors, setTargetMajors] = useState<string[]>([]);
   const [filterMajor, setFilterMajor] = useState<string>(""); // "" = ทั้งหมด, "ALL" = ทุกสาขา, "<major>" = เฉพาะสาขา
 
-  const token = localStorage.getItem("coop.token");
-
   /* ================= 0. LOAD MAJORS ================= */
   const fetchMajors = async () => {
     try {
-      const res = await axios.get("/api/admin/students/majors", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.data.ok) setAvailableMajors(res.data.majors);
+      const res = await apiFetch("/api/admin/students/majors");
+      if (res.ok) { const data = await res.json(); if (data.ok) setAvailableMajors(data.majors); }
     } catch { /* silent */ }
   };
 
@@ -63,12 +59,12 @@ export default function A_Announcements() {
   const fetchPeriods = async () => {
     try {
       // ดึงรอบปีการศึกษาทั้งหมด (ใช้ Endpoint ของเจ้าหน้าที่)
-      const res = await axios.get("/api/admin/supervision-periods", {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await apiFetch("/api/admin/supervision-periods");
 
-      if (res.data?.periods) {
-        const periodList: CoopPeriod[] = res.data.periods;
+      if (res.ok) {
+        const resData = await res.json();
+        if (!resData?.periods) return;
+        const periodList: CoopPeriod[] = resData.periods;
         setPeriods(periodList);
 
         // 🟢 ค้นหารอบที่ isActive: true เพื่อตั้งค่าเริ่มต้น
@@ -91,10 +87,11 @@ export default function A_Announcements() {
     setLoading(true);
     try {
       // ส่ง query parameter 'year' ในรูปแบบ "1/2569"
-      const res = await axios.get(`/api/announcements?year=${selectedPeriod}`);
-      if (res.data.ok) {
-        setItems(
-          res.data.list.map((a: any) => ({
+      const res = await apiFetch(`/api/announcements?year=${selectedPeriod}`);
+      if (res.ok) {
+        const resData = await res.json();
+        if (resData.ok) setItems(
+          resData.list.map((a: any) => ({
             ...a,
             targetMajors: a.targetMajors || [],
             attachments: [
@@ -180,9 +177,7 @@ export default function A_Announcements() {
     if (keepFileIds.length) form.append("keepFileIds", JSON.stringify(keepFileIds));
 
     try {
-      await axios.post("/api/announcements", form, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await apiFetch("/api/announcements", { method: "POST", body: form });
       resetForm();
       fetchAnnouncements();
     } catch (err) {
@@ -209,9 +204,7 @@ export default function A_Announcements() {
   const remove = async (id: string) => {
     if (!confirm("ลบประกาศนี้? ข้อมูลจะไม่สามารถกู้คืนได้")) return;
     try {
-      await axios.delete(`/api/announcements/${id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await apiFetch(`/api/announcements/${id}`, { method: "DELETE" });
       fetchAnnouncements();
     } catch (err) { alert("ลบไม่สำเร็จ"); }
   };

@@ -1,5 +1,15 @@
 # CHANGELOG — Co_project
 
+## [2026-08-05] fix: batch 29 — loginWithSSO soft-delete bypass + dashboard apiFetch migration
+
+- **authController.js `loginWithSSO`:** เพิ่ม soft-delete check (`student.deletedAt`) ก่อน sign JWT — เดิม login ผ่าน SSO (KKU) ข้ามการตรวจสอบนี้ ทำให้นักศึกษาที่ถูก soft-delete (deletedAt non-null) ยังได้รับ JWT ที่ valid ได้ ต่างจาก `signIn`, `loginWithKKU`, `loginWithGoogle` ที่ตรวจสอบแล้ว
+- **T_Dashboard.tsx:** แทน `axios` (manual token) ด้วย `apiFetch` ทุก endpoint (fetchPeriods, fetchData stats/requests/supervisions/T002T003 counts, handleExport blob)
+- **A_Dashboard.tsx:** แทน `axios` ด้วย `apiFetch` (fetchPeriods, fetchStats, handleExport blob)
+- **S_Dashboard.tsx:** แทน `axios` ด้วย `apiFetch` (profile, announcements, supervision/me, config keys)
+- **A_Announcements.tsx:** แทน `axios` ด้วย `apiFetch` (fetchMajors, fetchPeriods, fetchAnnouncements, save POST, remove DELETE)
+
+---
+
 ## [2026-08-05] fix: batch 28 — adminDocController status whitelists + $transaction wrapping
 
 - **adminDocController.js `reviewStudentStatus`:** เพิ่ม `REVIEW_STATUS_ALLOWED` whitelist (12 statuses) — เดิม admin ส่ง status ใด ๆ ก็ได้รวมถึงค่าที่ไม่มีใน CoopStatus enum
