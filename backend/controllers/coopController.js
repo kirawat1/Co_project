@@ -57,13 +57,6 @@ const submitCoopApplication = async (req, res) => {
       return res.status(404).json({ ok: false, message: "ไม่พบข้อมูลนักศึกษา" });
     }
 
-    // ตรวจสถานะปัจจุบัน — ไม่อนุญาตให้ re-apply หากผ่านขั้นตอนไปแล้ว
-    const REAPPLY_ALLOWED = new Set(['NOT_SUBMITTED', 'APPLYING', 'QUALIFICATION_FAILED', 'APPLICATION_EDITS_REQUIRED']);
-    const existingCoop = await prisma.studentCoop.findUnique({ where: { studentId: student.id }, select: { status: true } });
-    if (existingCoop && !REAPPLY_ALLOWED.has(existingCoop.status)) {
-      return res.status(409).json({ ok: false, message: "ไม่สามารถยื่นคำร้องใหม่ได้ เนื่องจากกระบวนการสหกิจดำเนินไปแล้ว" });
-    }
-
     // เตรียมข้อมูลไฟล์ (แก้ชื่อภาษาไทยเพี้ยน)
     const docData = files.map((f) => ({
       name: Buffer.from(f.originalname, "latin1").toString("utf8"), // ชื่อไฟล์เดิม (ไว้อ่าน)
@@ -84,8 +77,18 @@ const submitCoopApplication = async (req, res) => {
       }
     }
 
-    // ใช้ Transaction เพื่อความชัวร์ — รวม gradeSheetUrl ไว้ใน transaction เดียวกัน
+    const REAPPLY_ALLOWED = new Set(['NOT_SUBMITTED', 'APPLYING', 'QUALIFICATION_FAILED', 'APPLICATION_EDITS_REQUIRED']);
+
+    // ใช้ Transaction เพื่อความชัวร์ — รวม gradeSheetUrl และตรวจสถานะไว้ใน transaction เดียวกัน
+    let reapplyBlocked = false;
     await prisma.$transaction(async (tx) => {
+      // 2.0 ตรวจสถานะ inside transaction เพื่อป้องกัน TOCTOU race
+      const freshCoop = await tx.studentCoop.findUnique({ where: { studentId: student.id }, select: { status: true } });
+      if (freshCoop && !REAPPLY_ALLOWED.has(freshCoop.status)) {
+        reapplyBlocked = true;
+        return;
+      }
+
       // 2.1 บันทึกไฟล์ลง Table Document
       if (docData.length > 0) {
         await tx.document.createMany({
@@ -118,6 +121,10 @@ const submitCoopApplication = async (req, res) => {
         });
       }
     });
+
+    if (reapplyBlocked) {
+      return res.status(409).json({ ok: false, message: "ไม่สามารถยื่นคำร้องใหม่ได้ เนื่องจากกระบวนการสหกิจดำเนินไปแล้ว" });
+    }
 
     res.json({ ok: true, message: "ยื่นคำร้องให้ตรวจสอบเรียบร้อยแล้ว" });
 

@@ -1,5 +1,14 @@
 # CHANGELOG — Co_project
 
+## [2026-08-04] fix: batch 20 — useNotifCounts raw fetch + TOCTOU in coop submit + notif dedup
+
+- **useNotifCounts.ts:** แทน 2x raw `fetch` ด้วย `apiFetch` — เดิม 401 ถูกกลืนหาย ทำให้ sidebar ทั้ง 3 ไม่ auto-logout เมื่อ token หมดอายุ
+- **NotificationBell.tsx:** ลบออก — dead code (ไม่มี import ไหนใช้), มีปัญหา raw fetch เหมือนกัน
+- **notificationHelper.createNotifications:** ห่อ findMany+createMany ใน `$transaction` เพื่อ serialize dedup check และ insert (ลด TOCTOU race ที่ทำให้ notification ซ้ำ)
+- **coopController.submitApplication:** ย้าย REAPPLY_ALLOWED guard เข้าไปใน `$transaction` — เดิมอยู่นอก transaction ทำให้ double-submit race ผ่าน guard ได้ แล้ว insert document ซ้ำกัน
+
+---
+
 ## [2026-08-04] fix: batch 19 — gradeSheetUrl XSS + transaction + visitRoutes IDOR
 
 - **coopController.submitApplication:** เพิ่ม URL validation สำหรับ `gradeSheetUrl` — รับเฉพาะ http/https เพื่อป้องกัน `javascript:` URI injection ที่ render เป็น `<a href>` ในหน้า admin/teacher
