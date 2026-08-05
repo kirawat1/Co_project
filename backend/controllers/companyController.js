@@ -91,6 +91,7 @@ exports.updateCompany = async (req, res) => {
 
     res.json({ ok: true, company: updated });
   } catch (err) {
+    if (err.code === 'P2025') return res.status(404).json({ ok: false, message: 'ไม่พบบริษัท' });
     console.error("Update Company Error:", err);
     res.status(500).json({ ok: false, message: "แก้ไขไม่สำเร็จ" });
   }
@@ -187,6 +188,7 @@ exports.updateMentor = async (req, res) => {
 
     res.json({ ok: true, mentor: updatedMentor });
   } catch (err) {
+    if (err.code === 'P2025') return res.status(404).json({ ok: false, message: 'ไม่พบพี่เลี้ยง' });
     console.error("Update Mentor Error:", err);
     res.status(500).json({ ok: false, message: "แก้ไขพี่เลี้ยงไม่สำเร็จ" });
   }

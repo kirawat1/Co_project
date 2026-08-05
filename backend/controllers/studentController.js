@@ -100,6 +100,8 @@ exports.updateMyProfile = async (req, res) => {
     }
 
     const gpa = data.gpa !== undefined ? parseFloat(data.gpa) : (currentStudent?.gpa || 0);
+    if (data.gpa !== undefined && isNaN(gpa))
+      return res.status(400).json({ ok: false, message: 'gpa ไม่ถูกต้อง' });
     const activityUnit = data.activityUnit !== undefined ? parseInt(data.activityUnit) : (currentStudent?.activityUnit || 0);
     if (data.activityUnit !== undefined && isNaN(activityUnit))
       return res.status(400).json({ ok: false, message: 'activityUnit ไม่ถูกต้อง' });

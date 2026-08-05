@@ -423,9 +423,15 @@ exports.reviewSupervision = async (req, res) => {
             await prisma.$transaction(async (tx) => {
                 const current = await tx.supervisionAppointment.findUnique({
                     where: { id: parsedId },
-                    select: { status: true }
+                    select: { status: true, teacherId: true }
                 });
-                if (!current || current.status !== 'PENDING_TEACHER') {
+                if (!current) {
+                    throw Object.assign(new Error('ไม่พบข้อมูลการนัดหมาย'), { is404: true });
+                }
+                if (current.teacherId !== teacher.id) {
+                    throw Object.assign(new Error('คุณไม่มีสิทธิ์ทำรายการนี้ เฉพาะอาจารย์ที่ปรึกษาหลักเท่านั้น'), { is403: true });
+                }
+                if (current.status !== 'PENDING_TEACHER') {
                     throw Object.assign(
                         new Error('สามารถอนุมัติได้เฉพาะเมื่อสถานะเป็น PENDING_TEACHER เท่านั้น'),
                         { is400: true }
@@ -459,9 +465,15 @@ exports.reviewSupervision = async (req, res) => {
             await prisma.$transaction(async (tx) => {
                 const current = await tx.supervisionAppointment.findUnique({
                     where: { id: parsedId },
-                    select: { status: true }
+                    select: { status: true, teacherId: true }
                 });
-                if (!current || (current.status !== 'PENDING_TEACHER' && current.status !== 'TEACHER_REJECTED')) {
+                if (!current) {
+                    throw Object.assign(new Error('ไม่พบข้อมูลการนัดหมาย'), { is404: true });
+                }
+                if (current.teacherId !== teacher.id) {
+                    throw Object.assign(new Error('คุณไม่มีสิทธิ์ทำรายการนี้ เฉพาะอาจารย์ที่ปรึกษาหลักเท่านั้น'), { is403: true });
+                }
+                if ((current.status !== 'PENDING_TEACHER' && current.status !== 'TEACHER_REJECTED')) {
                     throw Object.assign(
                         new Error('สามารถปฏิเสธได้เฉพาะเมื่อสถานะเป็น PENDING_TEACHER หรือ TEACHER_REJECTED เท่านั้น'),
                         { is400: true }
@@ -492,12 +504,10 @@ exports.reviewSupervision = async (req, res) => {
           })
           .catch(console.error);
     } catch (err) {
-        if (err.is409) {
-            return res.status(409).json({ ok: false, message: err.message });
-        }
-        if (err.is400) {
-            return res.status(400).json({ ok: false, message: err.message });
-        }
+        if (err.is409) return res.status(409).json({ ok: false, message: err.message });
+        if (err.is404) return res.status(404).json({ ok: false, message: err.message });
+        if (err.is403) return res.status(403).json({ ok: false, message: err.message });
+        if (err.is400) return res.status(400).json({ ok: false, message: err.message });
         console.error("Review Supervision Error:", err);
         res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดในการบันทึกข้อมูล" });
     }
@@ -526,16 +536,23 @@ exports.completeSupervision = async (req, res) => {
 
         // อาจารย์ — ต้องเป็นอาจารย์ที่ปรึกษาหลักของนัดนี้เท่านั้น (เหมือน reviewSupervision)
         // admin/staff — ผ่านได้ทันที ไม่ต้องเช็คความเป็นเจ้าของ
+        let teacherRecord = null;
         if (role === 'teacher') {
-            const teacher = await prisma.teacher.findUnique({ where: { userId: req.user.id } });
-            if (!teacher || supervision.teacherId !== teacher.id) {
+            teacherRecord = await prisma.teacher.findUnique({ where: { userId: req.user.id } });
+            if (!teacherRecord || supervision.teacherId !== teacherRecord.id) {
                 return res.status(403).json({ ok: false, message: "คุณไม่มีสิทธิ์ทำรายการนี้ เฉพาะอาจารย์ที่ปรึกษาหลักเท่านั้น" });
             }
         }
 
         await prisma.$transaction(async (tx) => {
-            const fresh = await tx.supervisionAppointment.findUnique({ where: { id: parsedId } });
+            const fresh = await tx.supervisionAppointment.findUnique({
+                where: { id: parsedId },
+                select: { status: true, teacherId: true }
+            });
             if (!fresh) throw Object.assign(new Error('ไม่พบข้อมูลการนัดหมาย'), { is404: true });
+            if (role === 'teacher' && fresh.teacherId !== teacherRecord.id) {
+                throw Object.assign(new Error('คุณไม่มีสิทธิ์ทำรายการนี้'), { is403: true });
+            }
             if (fresh.status !== 'LETTER_UPLOADED') {
                 throw Object.assign(new Error("ยังไม่สามารถจบนิเทศได้ในสถานะปัจจุบัน"), { is400: true });
             }
@@ -559,6 +576,7 @@ exports.completeSupervision = async (req, res) => {
           .catch(console.error);
     } catch (err) {
         if (err.is404) return res.status(404).json({ ok: false, message: err.message });
+        if (err.is403) return res.status(403).json({ ok: false, message: err.message });
         if (err.is400) return res.status(400).json({ ok: false, message: err.message });
         console.error("Complete Supervision Error:", err);
         res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดในการบันทึกข้อมูล" });

@@ -148,6 +148,7 @@ const addOrUpdateAnnouncement = async (req, res) => {
       return res.json({ ok: true, announcement: ann });
     }
   } catch (err) {
+    (req.files || []).forEach(f => { try { fs.unlinkSync(path.join(UPLOAD_DIR, f.filename)); } catch (_) {} });
     console.error(err);
     res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาด" });
   }
