@@ -168,6 +168,10 @@ exports.reviewStudentStatus = async (req, res) => {
     }
 
     await prisma.$transaction(async (tx) => {
+      const studentCheck = await tx.student.findUnique({ where: { id: parsedStudentId }, select: { deletedAt: true } });
+      if (!studentCheck || studentCheck.deletedAt) {
+        throw Object.assign(new Error('ไม่พบนักศึกษา'), { is404: true });
+      }
       if (req.file && docType) {
         const existingDoc = await tx.document.findFirst({
           where: { studentId: parsedStudentId, type: docType }
@@ -223,6 +227,8 @@ exports.reviewStudentStatus = async (req, res) => {
         .catch(console.error);
     }
   } catch (err) {
+    if (err.is404) return res.status(404).json({ ok: false, message: err.message });
+    if (err.is400) return res.status(400).json({ ok: false, message: err.message });
     console.error(err);
     res.status(500).json({ ok: false, message: "Error" });
   }
@@ -234,6 +240,10 @@ exports.approveAllDocs = async (req, res) => {
     const { studentId } = req.body;
 
     await prisma.$transaction(async (tx) => {
+      const studentCheck = await tx.student.findUnique({ where: { id: parseInt(studentId) }, select: { deletedAt: true } });
+      if (!studentCheck || studentCheck.deletedAt) {
+        throw Object.assign(new Error('ไม่พบนักศึกษา'), { is404: true });
+      }
       await tx.document.updateMany({
         where: { studentId: parseInt(studentId) },
         data: { status: 'APPROVED' }
@@ -251,6 +261,7 @@ exports.approveAllDocs = async (req, res) => {
 
     res.json({ ok: true, message: "Approve all success" });
   } catch (err) {
+    if (err.is404) return res.status(404).json({ ok: false, message: err.message });
     console.error(err);
     res.status(500).json({ ok: false, message: "Error approving all" });
   }
@@ -381,10 +392,13 @@ exports.reviewT002 = async (req, res) => {
         }
 
         await prisma.$transaction(async (tx) => {
-            await tx.studentCoop.upsert({
+            const coop = await tx.studentCoop.findUnique({ where: { studentId: parseInt(studentId) }, select: { status: true } });
+            if (!coop || coop.status !== 'T002_SUBMITTED') {
+                throw Object.assign(new Error('สามารถตรวจสอบ T002 ได้เฉพาะเมื่อสถานะเป็น T002_SUBMITTED เท่านั้น'), { is400: true });
+            }
+            await tx.studentCoop.update({
                 where: { studentId: parseInt(studentId) },
-                update: { status: status },
-                create: { studentId: parseInt(studentId), status: status }
+                data: { status: status }
             });
             const doc = await tx.document.findFirst({
                 where: { studentId: parseInt(studentId), type: 'T002_FORM' },
@@ -418,11 +432,10 @@ exports.reviewT002 = async (req, res) => {
           })
           .catch(console.error);
     } catch (err) {
-        // ✅ พิมพ์ Error ตัวจริงออกมาที่หน้าจอดำ (Terminal) ของ Backend
+        if (err.is400) return res.status(400).json({ ok: false, message: err.message });
         console.error("====== REVIEW T002 ERROR ======");
         console.error(err);
         console.error("===============================");
-        
         res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดที่เซิร์ฟเวอร์" });
     }
 };
@@ -438,10 +451,13 @@ exports.reviewT003 = async (req, res) => {
         }
 
         await prisma.$transaction(async (tx) => {
-            await tx.studentCoop.upsert({
+            const coop = await tx.studentCoop.findUnique({ where: { studentId: parseInt(studentId) }, select: { status: true } });
+            if (!coop || coop.status !== 'T003_SUBMITTED') {
+                throw Object.assign(new Error('สามารถตรวจสอบ T003 ได้เฉพาะเมื่อสถานะเป็น T003_SUBMITTED เท่านั้น'), { is400: true });
+            }
+            await tx.studentCoop.update({
                 where: { studentId: parseInt(studentId) },
-                update: { status: status },
-                create: { studentId: parseInt(studentId), status: status }
+                data: { status: status }
             });
             const doc = await tx.document.findFirst({
                 where: { studentId: parseInt(studentId), type: 'T003_FORM' },
@@ -475,6 +491,7 @@ exports.reviewT003 = async (req, res) => {
           })
           .catch(console.error);
     } catch (err) {
+        if (err.is400) return res.status(400).json({ ok: false, message: err.message });
         console.error("Review T003 Error:", err);
         res.status(500).json({ ok: false, message: "Server error" });
     }

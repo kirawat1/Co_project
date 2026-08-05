@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import axios from "axios";
 import { apiFetch } from "../utils/apiFetch";
 import { createSupervisionLetterPDF } from "../utils/pdfSupervisionLetterGenerator";
 import { createWordBlob, createPreviewBlob, buildSupervisionLetterHtml, thaiPrefix } from "../utils/docGeneratorUtils";
@@ -92,10 +91,11 @@ export default function IssueSupervisionLetterModal({ supervision, onClose, onSu
             const formData = new FormData();
             formData.append("file", signedFile);
             formData.append("deliveryMethod", deliveryMethod);
-            const token = localStorage.getItem("coop.token");
-            await axios.post(`/api/admin/supervisions/${supervision.id}/upload-letter`, formData, {
-                headers: { Authorization: `Bearer ${token}`, "Content-Type": "multipart/form-data" }
+            const res = await apiFetch(`/api/admin/supervisions/${supervision.id}/upload-letter`, {
+                method: 'POST',
+                body: formData,
             });
+            if (!res.ok) throw new Error('upload failed');
             alert("✅ บันทึกและจัดเก็บไฟล์หนังสือนิเทศเรียบร้อยแล้ว");
             onSuccess();
         } catch (err) { alert("เกิดข้อผิดพลาดในการอัปเดตข้อมูล"); }

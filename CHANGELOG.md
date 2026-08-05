@@ -1,5 +1,15 @@
 # CHANGELOG — Co_project
 
+## [2026-08-05] fix: batch 47 — T002/T003 re-upload gates + admin status gates + soft-delete + apiFetch
+
+- **docController.js `uploadDocument` T002 gate:** เพิ่ม `T002_EDITS_REQUIRED` ใน valid statuses — นักศึกษา re-upload หลังถูก reject ไม่ได้ (ติด 400)
+- **docController.js `uploadDocument` T003 gate:** เพิ่ม `T003_EDITS_REQUIRED` ใน valid statuses — เหมือนกัน
+- **adminDocController.js `reviewStudentStatus`:** เพิ่ม soft-delete guard ใน `$transaction` — staff เปลี่ยนสถานะของ soft-deleted student ได้; เพิ่ม `is404/is400` catch
+- **adminDocController.js `approveAllDocs`:** เพิ่ม soft-delete guard ใน `$transaction` — เหมือนกัน; เพิ่ม `is404` catch
+- **adminDocController.js `reviewT002`:** เพิ่ม `coop.status === 'T002_SUBMITTED'` check ใน `$transaction` + เปลี่ยน `upsert` → `update` — admin reverse status ของ student ที่อยู่ใน T003 ขั้นตอนได้; เพิ่ม `is400` catch
+- **adminDocController.js `reviewT003`:** เหมือนกัน — `T003_SUBMITTED` gate + `upsert` → `update`
+- **IssueSupervisionLetterModal.tsx:** เปลี่ยน raw `axios.post` + manual token → `apiFetch` — ไม่มี unified 401-auto-logout; ลบ unused `axios` import
+
 ## [2026-08-05] fix: batch 46 — status gates in updateCoopStatus/reviewSupervision/reviewT002/T003 + FK advisor lookup
 
 - **coopController.js `updateCoopStatus`:** wrap soft-delete check + update ใน `$transaction` + ตรวจ `coop.status ∈ {APPLYING, WAITING_FOR_STAFF_CHECK}` ก่อน update — staff/teacher เปลี่ยน status ได้ทุก status ทำให้ถอยสถานะกลับได้; เพิ่ม `is404/is400` catch
