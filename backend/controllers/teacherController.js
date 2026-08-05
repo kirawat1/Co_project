@@ -187,6 +187,7 @@ exports.updateTeacherById = async (req, res) => {
 
     res.json({ ok: true, data: { ...updated, email: updated.user?.email } });
   } catch (err) {
+    if (err.code === 'P2025') return res.status(404).json({ ok: false, message: 'ไม่พบอาจารย์' });
     console.error("UPDATE TEACHER BY ID ERROR:", err);
     res.status(500).json({ ok: false, message: "Update failed" });
   }

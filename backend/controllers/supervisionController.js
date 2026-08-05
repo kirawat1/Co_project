@@ -41,6 +41,7 @@ exports.saveSupervisionPeriod = async (req, res) => {
 
         res.json({ ok: true, period: updatedPeriod });
     } catch (err) {
+        if (err.code === 'P2025') return res.status(404).json({ ok: false, message: 'ไม่พบรอบสหกิจ' });
         console.error(err);
         res.status(500).json({ ok: false, message: 'Server error' });
     }

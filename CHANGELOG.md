@@ -1,5 +1,14 @@
 # CHANGELOG — Co_project
 
+## [2026-08-06] fix: batch 58 — file cleanup on 409 + P2025 → 404 x4 + startDate/endDate guard
+
+- **coopController.js `submitCoopApplication`:** เพิ่ม `fs.unlinkSync` cleanup สำหรับทุก multer file ก่อนคืน 409 reapplyBlocked — ก่อนหน้านี้ไฟล์ค้างใน uploads/ โดยไม่มี Document row
+- **coopPeriodController.js `togglePeriod`:** เพิ่ม `P2025 → 404` ใน catch — ก่อนหน้านี้ id ที่ไม่มีจริงทำให้คืน 500
+- **supervisionController.js `saveSupervisionPeriod`:** เพิ่ม `P2025 → 404` ใน catch — ก่อนหน้านี้ periodId ที่ไม่มีจริงทำให้คืน 500
+- **teacherController.js `updateTeacherById`:** เพิ่ม `P2025 → 404` ใน catch — ก่อนหน้านี้ teacher id ที่ไม่มีจริงทำให้คืน 500 "Update failed"
+- **adminDocController.js `updateDocStatus`:** เพิ่ม `P2025 → 404` ใน catch — ก่อนหน้านี้ doc id ที่ไม่มีจริงทำให้คืน 500
+- **coopPeriodController.js `createPeriod` + `updatePeriod`:** เพิ่ม `if (!startDate || !endDate) → 400` ก่อน `new Date()` — ก่อนหน้านี้ `new Date(undefined)` ทำให้ Prisma throw PrismaClientValidationError แล้วคืน 500
+
 ## [2026-08-06] fix: batch 57 — updatePeriod NaN + page clamp + coop-periods authz + teacher config authz + orphan file guard
 
 - **coopPeriodController.js `updatePeriod`:** เปลี่ยน `semester: parsedSemester` → conditional spread `...(semester !== undefined && { semester: parsedSemester })` — ก่อนหน้านี้ NaN ถูกส่งไป Prisma เมื่อ semester ไม่ได้ส่งมาใน request body
