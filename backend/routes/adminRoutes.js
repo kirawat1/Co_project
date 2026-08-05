@@ -52,8 +52,8 @@ router.get("/coop-periods/all", verifyToken, coopPeriodController.getAllCoopPeri
 router.get('/dashboard-stats', verifyToken, verifyRole(...ADMIN_ROLES), adminDashboardController.getDashboardStats);
 
 // Criteria
-router.get('/majors', criteriaController.getMajorList);
-router.get('/criteria', criteriaController.getAllCriteria);
+router.get('/majors', verifyToken, criteriaController.getMajorList);
+router.get('/criteria', verifyToken, criteriaController.getAllCriteria);
 router.post('/criteria', verifyToken, verifyRole(...ADMIN_ROLES), criteriaController.saveCriteria);
 router.put('/criteria/:id', verifyToken, verifyRole(...ADMIN_ROLES), criteriaController.saveCriteria);
 router.delete('/criteria/:id', verifyToken, verifyRole(...ADMIN_ROLES), criteriaController.deleteCriteria);

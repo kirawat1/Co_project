@@ -1,5 +1,15 @@
 # CHANGELOG — Co_project
 
+## [2026-08-06] fix: batch 60 — announcement file orphan + stale letter file + TOCTOU x2 + P2025 x2 + gpa NaN + authz
+
+- **announcementController.js `addOrUpdateAnnouncement`:** เพิ่ม `req.files` cleanup ใน catch — ก่อนหน้านี้ไฟล์แนบประกาศค้างใน uploads/ เมื่อ DB throw error
+- **adminDocController.js `reviewStudentStatus`:** เพิ่มการดึง `reqLetterUrl`/`placeLetterUrl` เก่าก่อน transaction และลบออกจาก disk หลัง commit — ก่อนหน้านี้ไฟล์หนังสือฉบับเก่าค้างบน disk เมื่อออกหนังสือใหม่แทน
+- **supervisionController.js `reviewSupervision` (APPROVE + REJECT):** เพิ่ม `teacherId` ใน select ภายใน transaction และ re-verify ownership — ก่อนหน้านี้ TOCTOU ทำให้อาจารย์เก่า approve/reject การนิเทศที่ถูก reassign ไปแล้ว; เพิ่ม `is403`/`is404` ใน catch
+- **supervisionController.js `completeSupervision`:** ย้าย `teacherRecord` ออกนอก `if (role === 'teacher')` เพื่อใช้ใน transaction; เพิ่ม `teacherId` re-verify ใน tx + `is403` ใน catch
+- **companyController.js `updateCompany` + `updateMentor`:** เพิ่ม `P2025 → 404` ใน catch
+- **studentController.js `updateMyProfile`:** เพิ่ม `isNaN(gpa)` guard หลัง `parseFloat` — ก่อนหน้านี้ gpa เป็น string ทำให้ Prisma throw 500
+- **adminRoutes.js GET /majors + GET /criteria:** เพิ่ม `verifyToken` — ก่อนหน้านี้ข้อมูล criteria รั่วออกสู่ public
+
 ## [2026-08-06] fix: batch 59 — T008 file orphan + coTeacher full-name match + reviewT002/T003 TOCTOU + P2025 x4
 
 - **configController.js `updateT008Config`:** เพิ่ม `path`/`fs` imports + cleanup `req.file` ใน catch — ก่อนหน้านี้ไฟล์รูปภาพ T008 ค้างใน `uploads/system/` เมื่อ Prisma upsert ล้มเหลว

@@ -183,6 +183,19 @@ exports.reviewStudentStatus = async (req, res) => {
       }
     }
 
+    // ดึง letter URL เก่าก่อน transaction เพื่อลบออกจาก disk หลัง commit สำเร็จ
+    let staleLetterFile = null;
+    if (updateData.reqLetterUrl || updateData.placeLetterUrl) {
+      const prevCoop = await prisma.studentCoop.findUnique({
+        where: { studentId: parsedStudentId },
+        select: { reqLetterUrl: true, placeLetterUrl: true }
+      });
+      if (prevCoop) {
+        const oldUrl = updateData.reqLetterUrl ? prevCoop.reqLetterUrl : prevCoop.placeLetterUrl;
+        if (oldUrl && oldUrl !== req.file.filename) staleLetterFile = oldUrl;
+      }
+    }
+
     await prisma.$transaction(async (tx) => {
       const studentCheck = await tx.student.findUnique({ where: { id: parsedStudentId }, select: { deletedAt: true } });
       if (!studentCheck || studentCheck.deletedAt) {
@@ -214,6 +227,12 @@ exports.reviewStudentStatus = async (req, res) => {
     });
 
     res.json({ ok: true });
+
+    // ลบ letter file เก่าออกจาก disk หลัง commit สำเร็จ
+    if (staleLetterFile) {
+      const fp = path.join(__dirname, '../uploads', staleLetterFile);
+      try { fs.unlinkSync(fp); } catch (_) {}
+    }
 
     // Notify student when their status changes
     const statusMessages = {
