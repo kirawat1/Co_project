@@ -371,6 +371,8 @@ exports.getAllStudentsForReview = async (req, res) => {
         const coopPeriodId = req.query.coopPeriodId
             ? parseInt(req.query.coopPeriodId, 10)
             : undefined;
+        if (coopPeriodId !== undefined && isNaN(coopPeriodId))
+            return res.status(400).json({ ok: false, message: 'coopPeriodId ไม่ถูกต้อง' });
         const search = (req.query.search || "").trim();
         const status = (req.query.status || "").trim();
 

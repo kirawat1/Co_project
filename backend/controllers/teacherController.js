@@ -393,7 +393,9 @@ exports.getDashboardStats = async (req, res) => {
         }
 
         // แปลง semester ให้เป็นตัวเลข (Int) ตาม Schema
-        const semesterInt = semester ? parseInt(semester) : undefined;
+        const semesterInt = semester ? parseInt(semester, 10) : undefined;
+        if (semesterInt !== undefined && (isNaN(semesterInt) || semesterInt <= 0))
+            return res.status(400).json({ ok: false, message: 'semester ไม่ถูกต้อง' });
         const yearStr = year ? String(year) : undefined;
 
         // ใช้ FK (generalAdvisorId / coopAdvisorId) แบบเดียวกับ getMyStudents
@@ -464,7 +466,9 @@ exports.getLatestRequests = async (req, res) => {
         const teacher = await prisma.teacher.findUnique({ where: { userId: parseInt(userId) } });
         if (!teacher) return res.json({ ok: true, students: [] });
 
-        const semesterInt = semester ? parseInt(semester) : undefined;
+        const semesterInt = semester ? parseInt(semester, 10) : undefined;
+        if (semesterInt !== undefined && (isNaN(semesterInt) || semesterInt <= 0))
+            return res.status(400).json({ ok: false, message: 'semester ไม่ถูกต้อง' });
         const yearStr = year ? String(year) : undefined;
 
         // ดึงจากตาราง StudentCoop ตรงๆ จะได้ไม่ติด Error เรื่อง Relation
