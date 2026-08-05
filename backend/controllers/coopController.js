@@ -225,7 +225,11 @@ const deleteDocument = async (req, res) => {
     });
 
     if (!doc) return res.status(404).json({ ok: false, message: "ไม่พบไฟล์" });
-    
+
+    if (doc.student.deletedAt) {
+        return res.status(403).json({ ok: false, message: "บัญชีถูกระงับการใช้งาน" });
+    }
+
     // เช็คสิทธิ์: ต้องเป็นเจ้าของไฟล์ หรือเป็น Admin/Teacher (ถ้ามี role)
     if (doc.student.userId !== userId) {
         return res.status(403).json({ ok: false, message: "ไม่มีสิทธิ์ลบไฟล์นี้" });

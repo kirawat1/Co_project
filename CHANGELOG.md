@@ -1,5 +1,13 @@
 # CHANGELOG — Co_project
 
+## [2026-08-05] fix: batch 44 — TOCTOU in status transitions + soft-delete in deleteDocument
+
+- **studentController.js `downloadPlacementLetter`:** wrap status check + `studentCoop.update` ใน `$transaction` — concurrent status change ระหว่าง check/write ทำให้ coop เป็น INTERNSHIP_STARTED จากสถานะผิด; เพิ่ม `is400` catch
+- **docController.js `acknowledgePlacementLetter`:** เหมือนกัน — re-check status ใน `$transaction` ก่อน update; เพิ่ม `is400` catch
+- **supervisionController.js `completeSupervision`:** wrap `supervision.status` check + `update` ใน `$transaction` — concurrent reject ทำให้ supervision ถูก mark COMPLETED จากสถานะ TEACHER_REJECTED; เพิ่ม `is400` catch
+- **docController.js `deleteDocument`:** เพิ่ม `doc.student.deletedAt` guard — soft-deleted student ลบเอกสารตัวเองได้ใน 24h window
+- **coopController.js `deleteDocument`:** เหมือนกัน
+
 ## [2026-08-05] fix: batch 43 — soft-delete guards + TOCTOU in auth/student/doc/supervision
 
 - **authController.js `getProfile`:** เพิ่ม `deletedAt` guard — soft-deleted student ดูข้อมูล profile ผ่าน JWT ยังไม่หมดอายุ
