@@ -34,13 +34,14 @@ const submitCoopApplication = async (req, res) => {
     const files = req.files || [];
 
     // เช็คว่ามีข้อมูลรอบรับสมัครส่งมาด้วยหรือไม่
-    if (!coopPeriodId) {
-      return res.status(400).json({ ok: false, message: "ไม่พบข้อมูลรอบรับสมัคร กรุณารีเฟรชหน้าเว็บแล้วลองใหม่" });
+    const parsedPeriodId = Number(coopPeriodId);
+    if (!Number.isInteger(parsedPeriodId) || parsedPeriodId <= 0) {
+      return res.status(400).json({ ok: false, message: "coopPeriodId ไม่ถูกต้อง กรุณารีเฟรชหน้าเว็บแล้วลองใหม่" });
     }
 
     // (Option เสริมเพื่อความปลอดภัย) เช็คว่ารอบรับสมัครนี้มีอยู่จริงและยังเปิดอยู่ไหม
     let activePeriod = await prisma.coopPeriod.findUnique({
-      where: { id: Number(coopPeriodId) }
+      where: { id: parsedPeriodId }
     });
     activePeriod = await autoCloseIfExpired(activePeriod);
 
@@ -102,13 +103,13 @@ const submitCoopApplication = async (req, res) => {
         update: {
           status: "APPLYING",
           jobPosition: jobPosition,
-          coopPeriodId: Number(coopPeriodId),
+          coopPeriodId: parsedPeriodId,
         },
         create: {
           studentId: student.id,
           status: "APPLYING",
           jobPosition: jobPosition,
-          coopPeriodId: Number(coopPeriodId),
+          coopPeriodId: parsedPeriodId,
         },
       });
 

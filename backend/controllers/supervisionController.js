@@ -283,6 +283,10 @@ exports.assignCoTeachers = async (req, res) => {
             return res.status(400).json({ ok: false, message: 'id ไม่ถูกต้อง' });
         }
 
+        const appt = await prisma.supervisionAppointment.findUnique({ where: { id: parsedId } });
+        if (!appt) {
+            return res.status(404).json({ ok: false, message: 'ไม่พบข้อมูลการนัดหมาย' });
+        }
         await prisma.supervisionAppointment.update({
             where: { id: parsedId },
             data: { coTeacherName: coTeacherName } // บันทึกลงฐานข้อมูล
@@ -364,6 +368,9 @@ exports.reviewSupervision = async (req, res) => {
         if (isNaN(parsedId) || parsedId <= 0)
             return res.status(400).json({ ok: false, message: 'id ไม่ถูกต้อง' });
         const { action, confirmedDate, rejectReason, supervisionType } = req.body;
+        if (!['APPROVE', 'REJECT'].includes(action)) {
+            return res.status(400).json({ ok: false, message: "action ต้องเป็น APPROVE หรือ REJECT" });
+        }
         const userId = req.user.id;
 
         // 1. ดึงข้อมูลอาจารย์ที่ล็อกอิน
