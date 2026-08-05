@@ -16,7 +16,7 @@ const docReqController = require('../controllers/docRequirementController');
 router.get("/me", verifyToken, studentController.getMyProfile);
 
 // อัปเดตข้อมูลโปรไฟล์ตัวเอง
-router.put("/me", verifyToken, studentController.updateMyProfile);
+router.put("/me", verifyToken, verifyRole('student'), studentController.updateMyProfile);
 
 // ดึงรายชื่อนักศึกษาทั้งหมด — staff/teacher เท่านั้น (ไม่ใช่นักศึกษาคนอื่นมาดูข้อมูลกัน)
 router.get("/", verifyToken, verifyRole('staff', 'teacher'), studentController.getStudents);

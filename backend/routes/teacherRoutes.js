@@ -30,11 +30,11 @@ router.post('/config/t003', verifyToken, verifyRole('teacher', 'staff'), configC
 router.put('/documents/review-t002', verifyToken, verifyRole('teacher', 'staff'), teacherController.reviewT002);
 router.put('/documents/review-t003', verifyToken, verifyRole('teacher', 'staff'), teacherController.reviewT003);
 
-router.get('/supervisions', verifyToken, supervisionController.getSupervisionsForTeacher);
+router.get('/supervisions', verifyToken, verifyRole('teacher', 'staff'), supervisionController.getSupervisionsForTeacher);
 router.put('/supervisions/:id/review', verifyToken, verifyRole('teacher', 'staff'), supervisionController.reviewSupervision);
 
-router.get('/stats', verifyToken, teacherController.getDashboardStats);
-router.get('/latest-requests', verifyToken, teacherController.getLatestRequests);
+router.get('/stats', verifyToken, verifyRole('teacher', 'staff'), teacherController.getDashboardStats);
+router.get('/latest-requests', verifyToken, verifyRole('teacher', 'staff'), teacherController.getLatestRequests);
 
 
 module.exports = router;

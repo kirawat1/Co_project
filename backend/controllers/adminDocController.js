@@ -255,6 +255,11 @@ exports.approveAllDocs = async (req, res) => {
       if (!studentCheck || studentCheck.deletedAt) {
         throw Object.assign(new Error('ไม่พบนักศึกษา'), { is404: true });
       }
+      const coop = await tx.studentCoop.findUnique({ where: { studentId: parsedId }, select: { status: true } });
+      const APPROVABLE = new Set(['APPLYING', 'WAITING_FOR_STAFF_CHECK', 'EDITS_REQUIRED', 'APPLICATION_EDITS_REQUIRED', 'QUALIFIED', 'QUALIFICATION_FAILED', 'DOCS_APPROVED']);
+      if (coop && !APPROVABLE.has(coop.status)) {
+        throw Object.assign(new Error('ไม่สามารถอนุมัติได้ในสถานะปัจจุบัน'), { is400: true });
+      }
       await tx.document.updateMany({
         where: { studentId: parsedId },
         data: { status: 'APPROVED' }
@@ -273,6 +278,7 @@ exports.approveAllDocs = async (req, res) => {
     res.json({ ok: true, message: "Approve all success" });
   } catch (err) {
     if (err.is404) return res.status(404).json({ ok: false, message: err.message });
+    if (err.is400) return res.status(400).json({ ok: false, message: err.message });
     console.error(err);
     res.status(500).json({ ok: false, message: "Error approving all" });
   }

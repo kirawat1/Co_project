@@ -71,6 +71,9 @@ exports.getAllSupervisions = async (_req, res) => {
 exports.uploadOfficialLetter = async (req, res) => {
     try {
         const { id } = req.params;
+        const parsedId = parseInt(id, 10);
+        if (isNaN(parsedId) || parsedId <= 0)
+            return res.status(400).json({ ok: false, message: 'id ไม่ถูกต้อง' });
         if (!req.file) {
             return res.status(400).json({ ok: false, message: 'กรุณาอัปโหลดไฟล์ PDF' });
         }
@@ -78,12 +81,12 @@ exports.uploadOfficialLetter = async (req, res) => {
         let appointment;
         try {
             await prisma.$transaction(async (tx) => {
-                const current = await tx.supervisionAppointment.findUnique({ where: { id: parseInt(id) } });
+                const current = await tx.supervisionAppointment.findUnique({ where: { id: parsedId } });
                 if (!current || current.status !== 'DATE_CONFIRMED') {
                     throw Object.assign(new Error('สามารถออกหนังสือนิเทศได้เฉพาะเมื่อยืนยันวันแล้ว'), { is400: true });
                 }
                 appointment = await tx.supervisionAppointment.update({
-                    where: { id: parseInt(id) },
+                    where: { id: parsedId },
                     data: { officialLetterPath: req.file.filename, status: 'LETTER_UPLOADED' }
                 });
             });
@@ -357,6 +360,9 @@ exports.getSupervisionsForTeacher = async (req, res) => {
 exports.reviewSupervision = async (req, res) => {
     try {
         const { id } = req.params;
+        const parsedId = parseInt(id, 10);
+        if (isNaN(parsedId) || parsedId <= 0)
+            return res.status(400).json({ ok: false, message: 'id ไม่ถูกต้อง' });
         const { action, confirmedDate, rejectReason, supervisionType } = req.body;
         const userId = req.user.id;
 
@@ -371,7 +377,7 @@ exports.reviewSupervision = async (req, res) => {
 
         // 2. ดึงข้อมูลการนิเทศรายการนี้
         const supervision = await prisma.supervisionAppointment.findUnique({
-            where: { id: parseInt(id) }
+            where: { id: parsedId }
         });
 
         if (!supervision) {
@@ -410,7 +416,7 @@ exports.reviewSupervision = async (req, res) => {
             // Atomic conflict check + update to prevent double-booking on concurrent requests
             await prisma.$transaction(async (tx) => {
                 const current = await tx.supervisionAppointment.findUnique({
-                    where: { id: parseInt(id) },
+                    where: { id: parsedId },
                     select: { status: true }
                 });
                 if (!current || current.status !== 'PENDING_TEACHER') {
@@ -423,7 +429,7 @@ exports.reviewSupervision = async (req, res) => {
                 const conflict = await tx.supervisionAppointment.findFirst({
                     where: {
                         teacherId: teacher.id,
-                        id: { not: parseInt(id) },
+                        id: { not: parsedId },
                         status: { in: ['DATE_CONFIRMED', 'LETTER_UPLOADED'] },
                         confirmedDate: { gte: startOfDay, lte: endOfDay }
                     },
@@ -439,14 +445,14 @@ exports.reviewSupervision = async (req, res) => {
                 }
 
                 await tx.supervisionAppointment.update({
-                    where: { id: parseInt(id) },
+                    where: { id: parsedId },
                     data: approveData
                 });
             });
         } else if (action === 'REJECT') {
             await prisma.$transaction(async (tx) => {
                 const current = await tx.supervisionAppointment.findUnique({
-                    where: { id: parseInt(id) },
+                    where: { id: parsedId },
                     select: { status: true }
                 });
                 if (!current || (current.status !== 'PENDING_TEACHER' && current.status !== 'TEACHER_REJECTED')) {
@@ -456,7 +462,7 @@ exports.reviewSupervision = async (req, res) => {
                     );
                 }
                 await tx.supervisionAppointment.update({
-                    where: { id: parseInt(id) },
+                    where: { id: parsedId },
                     data: { status: 'TEACHER_REJECTED', confirmedDate: null, rejectReason: rejectReason }
                 });
             });
@@ -499,10 +505,13 @@ exports.reviewSupervision = async (req, res) => {
 exports.completeSupervision = async (req, res) => {
     try {
         const { id } = req.params;
+        const parsedId = parseInt(id, 10);
+        if (isNaN(parsedId) || parsedId <= 0)
+            return res.status(400).json({ ok: false, message: 'id ไม่ถูกต้อง' });
         const role = (req.user?.role || '').toLowerCase();
 
         const supervision = await prisma.supervisionAppointment.findUnique({
-            where: { id: parseInt(id) }
+            where: { id: parsedId }
         });
 
         if (!supervision) {
@@ -519,11 +528,11 @@ exports.completeSupervision = async (req, res) => {
         }
 
         await prisma.$transaction(async (tx) => {
-            const fresh = await tx.supervisionAppointment.findUnique({ where: { id: parseInt(id) } });
+            const fresh = await tx.supervisionAppointment.findUnique({ where: { id: parsedId } });
             if (fresh.status !== 'LETTER_UPLOADED') {
                 throw Object.assign(new Error("ยังไม่สามารถจบนิเทศได้ในสถานะปัจจุบัน"), { is400: true });
             }
-            await tx.supervisionAppointment.update({ where: { id: parseInt(id) }, data: { status: 'COMPLETED' } });
+            await tx.supervisionAppointment.update({ where: { id: parsedId }, data: { status: 'COMPLETED' } });
         });
 
         res.json({ ok: true, message: "บันทึกผลนิเทศเสร็จสิ้นสำเร็จ" });
@@ -555,6 +564,9 @@ exports.completeSupervision = async (req, res) => {
 exports.updateConfirmedDate = async (req, res) => {
     try {
         const { id } = req.params;
+        const parsedId = parseInt(id, 10);
+        if (isNaN(parsedId) || parsedId <= 0)
+            return res.status(400).json({ ok: false, message: 'id ไม่ถูกต้อง' });
         const { confirmedDate } = req.body;
 
         if (!confirmedDate) {
@@ -567,7 +579,7 @@ exports.updateConfirmedDate = async (req, res) => {
 
         let updated;
         await prisma.$transaction(async (tx) => {
-            const fresh = await tx.supervisionAppointment.findUnique({ where: { id: parseInt(id) } });
+            const fresh = await tx.supervisionAppointment.findUnique({ where: { id: parsedId } });
             if (!fresh) {
                 throw Object.assign(new Error('ไม่พบข้อมูลการนัดหมาย'), { is404: true });
             }
@@ -581,7 +593,7 @@ exports.updateConfirmedDate = async (req, res) => {
             const conflict = await tx.supervisionAppointment.findFirst({
                 where: {
                     teacherId: fresh.teacherId,
-                    id: { not: parseInt(id) },
+                    id: { not: parsedId },
                     status: { in: ['DATE_CONFIRMED', 'LETTER_UPLOADED'] },
                     confirmedDate: { gte: startOfDay, lte: endOfDay }
                 },
@@ -596,7 +608,7 @@ exports.updateConfirmedDate = async (req, res) => {
             }
 
             updated = await tx.supervisionAppointment.update({
-                where: { id: parseInt(id) },
+                where: { id: parsedId },
                 data: { confirmedDate: chosenDate }
             });
         });

@@ -165,10 +165,13 @@ exports.getAllTeachers = async (req, res) => {
 exports.updateTeacherById = async (req, res) => {
   try {
     const { id } = req.params; // รับ Teacher ID
+    const parsedTeacherId = parseInt(id, 10);
+    if (isNaN(parsedTeacherId) || parsedTeacherId <= 0)
+      return res.status(400).json({ ok: false, message: 'id ไม่ถูกต้อง' });
     const { firstName, lastName, phone, major, prefix, isCoopTeacher } = req.body;
 
     const updated = await prisma.teacher.update({
-      where: { id: parseInt(id) },
+      where: { id: parsedTeacherId },
       data: {
         firstName,
         lastName,
@@ -560,7 +563,9 @@ exports.createTeacher = async (req, res) => {
 // ==========================================
 exports.deleteTeacher = async (req, res) => {
   try {
-    const teacherId = parseInt(req.params.id);
+    const teacherId = parseInt(req.params.id, 10);
+    if (isNaN(teacherId) || teacherId <= 0)
+      return res.status(400).json({ ok: false, message: 'id ไม่ถูกต้อง' });
     const teacher = await prisma.teacher.findUnique({ where: { id: teacherId } });
     if (!teacher) return res.status(404).json({ ok: false, message: "ไม่พบอาจารย์" });
 
@@ -596,11 +601,14 @@ exports.deleteTeacher = async (req, res) => {
 exports.resetTeacherPassword = async (req, res) => {
   try {
     const { id } = req.params;
+    const parsedId = parseInt(id, 10);
+    if (isNaN(parsedId) || parsedId <= 0)
+      return res.status(400).json({ ok: false, message: 'id ไม่ถูกต้อง' });
     const { newPassword } = req.body;
     const { validatePassword } = require('../utils/validatePassword');
     const pwError = validatePassword(newPassword);
     if (pwError) return res.status(400).json({ ok: false, message: pwError });
-    const teacher = await prisma.teacher.findUnique({ where: { id: parseInt(id) } });
+    const teacher = await prisma.teacher.findUnique({ where: { id: parsedId } });
     if (!teacher) return res.status(404).json({ ok: false, message: "ไม่พบอาจารย์" });
 
     const hashed = await bcrypt.hash(newPassword, 10);
@@ -619,9 +627,12 @@ exports.resetTeacherPassword = async (req, res) => {
 exports.adminUpdateTeacher = async (req, res) => {
   try {
     const { id } = req.params;
+    const parsedId = parseInt(id, 10);
+    if (isNaN(parsedId) || parsedId <= 0)
+      return res.status(400).json({ ok: false, message: 'id ไม่ถูกต้อง' });
     const { firstName, lastName, email, phone, major, prefix, isCoopTeacher } = req.body;
 
-    const teacher = await prisma.teacher.findUnique({ where: { id: parseInt(id) } });
+    const teacher = await prisma.teacher.findUnique({ where: { id: parsedId } });
     if (!teacher) return res.status(404).json({ ok: false, message: "ไม่พบอาจารย์" });
 
     let updated;
@@ -633,7 +644,7 @@ exports.adminUpdateTeacher = async (req, res) => {
         if (conflict) throw Object.assign(new Error(`อีเมล ${email} มีในระบบแล้ว`), { is409: true });
       }
       updated = await tx.teacher.update({
-        where: { id: parseInt(id) },
+        where: { id: parsedId },
         data: {
           firstName, lastName, email, phone, major,
           prefix: prefix || null,
