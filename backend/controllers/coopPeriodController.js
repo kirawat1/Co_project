@@ -33,6 +33,9 @@ exports.createPeriod = async (req, res) => {
       return res.status(409).json({ ok: false, error: "ปีการศึกษาและภาคเรียนนี้มีอยู่ในระบบแล้ว" });
     }
 
+    if (!startDate || !endDate)
+      return res.status(400).json({ ok: false, error: 'startDate และ endDate ต้องระบุ' });
+
     const newPeriod = await prisma.coopPeriod.create({
       data: {
         academicYear,
@@ -65,6 +68,9 @@ exports.updatePeriod = async (req, res) => {
     const parsedSemester = Number(semester);
     if (semester !== undefined && (!Number.isInteger(parsedSemester) || parsedSemester <= 0))
       return res.status(400).json({ ok: false, error: 'semester ไม่ถูกต้อง' });
+
+    if (!startDate || !endDate)
+      return res.status(400).json({ ok: false, error: 'startDate และ endDate ต้องระบุ' });
 
     const updated = await prisma.coopPeriod.update({
       where: { id: parsedId },
@@ -108,6 +114,7 @@ exports.togglePeriod = async (req, res) => {
     });
     res.json({ ok: true, period: updated });
   } catch (error) {
+    if (error.code === 'P2025') return res.status(404).json({ ok: false, error: 'ไม่พบรอบสหกิจ' });
     console.error("Toggle period error:", error);
     res.status(500).json({ ok: false, error: "Server error" });
   }

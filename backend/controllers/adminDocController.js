@@ -111,6 +111,7 @@ exports.updateDocStatus = async (req, res) => {
 
     res.json({ ok: true, message: "Updated document status" });
   } catch (err) {
+    if (err.code === 'P2025') return res.status(404).json({ ok: false, message: 'ไม่พบเอกสาร' });
     console.error(err);
     res.status(500).json({ ok: false, message: "Error updating document" });
   }

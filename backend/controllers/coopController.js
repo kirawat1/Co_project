@@ -124,6 +124,7 @@ const submitCoopApplication = async (req, res) => {
     });
 
     if (reapplyBlocked) {
+      files.forEach(f => { try { fs.unlinkSync(f.path); } catch (_) {} });
       return res.status(409).json({ ok: false, message: "ไม่สามารถยื่นคำร้องใหม่ได้ เนื่องจากกระบวนการสหกิจดำเนินไปแล้ว" });
     }
 
