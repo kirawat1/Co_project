@@ -242,9 +242,8 @@ exports.getTeacherSupervisions = async (req, res) => {
                 student: { deletedAt: null },
                 OR: [
                     { teacherId: teacher.id },
-                    // ตรวจสอบความยาว firstName ก่อน ป้องกัน false-positive กับชื่อสั้น
-                    ...(teacher.firstName && teacher.firstName.length >= 2
-                        ? [{ coTeacherName: { contains: teacher.firstName } }]
+                    ...(teacher.firstName && teacher.lastName
+                        ? [{ coTeacherName: { contains: `${teacher.firstName} ${teacher.lastName}` } }]
                         : [])
                 ]
             },
@@ -324,10 +323,9 @@ exports.getSupervisionsForTeacher = async (req, res) => {
                     // 🟢 เงื่อนไขที่ 1: เป็นที่ปรึกษาหลัก (ดูจาก teacherId ตรงๆ ได้เลย!)
                     { teacherId: teacher.id },
 
-                    // 🟢 เงื่อนไขที่ 2: เป็นอาจารย์นิเทศร่วม (ค้นหาจากชื่อใน coTeacherName)
-                    // ตรวจสอบความยาว firstName ก่อน ป้องกัน false-positive กับชื่อสั้น
-                    ...(teacher.firstName && teacher.firstName.length >= 2
-                        ? [{ coTeacherName: { contains: teacher.firstName } }]
+                    // 🟢 เงื่อนไขที่ 2: เป็นอาจารย์นิเทศร่วม (ค้นหาจากชื่อ-นามสกุลใน coTeacherName)
+                    ...(teacher.firstName && teacher.lastName
+                        ? [{ coTeacherName: { contains: `${teacher.firstName} ${teacher.lastName}` } }]
                         : [])
                 ]
             },

@@ -1,5 +1,14 @@
 # CHANGELOG — Co_project
 
+## [2026-08-06] fix: batch 59 — T008 file orphan + coTeacher full-name match + reviewT002/T003 TOCTOU + P2025 x4
+
+- **configController.js `updateT008Config`:** เพิ่ม `path`/`fs` imports + cleanup `req.file` ใน catch — ก่อนหน้านี้ไฟล์รูปภาพ T008 ค้างใน `uploads/system/` เมื่อ Prisma upsert ล้มเหลว
+- **supervisionController.js `getTeacherSupervisions` + `getSupervisionsForTeacher`:** เปลี่ยน `contains: teacher.firstName` → `contains: \`${teacher.firstName} ${teacher.lastName}\`` — ก่อนหน้านี้ teacher ที่มีชื่อเป็น substring ของอาจารย์คนอื่นจะเห็น supervision ที่ไม่ใช่ของตัวเอง
+- **teacherController.js `reviewT003` + `reviewT002`:** เพิ่มการ re-verify `generalAdvisorId`/`coopAdvisorId` ใน `$transaction` + `is403` catch — ก่อนหน้านี้ admin เปลี่ยนอาจารย์ที่ปรึกษาระหว่าง ownership check กับ transaction ทำให้อาจารย์คนเดิม review ได้ต่อ
+- **visitController.js `toggleVisitStatus` + `deleteVisit`:** เพิ่ม `P2025 → 404` — ก่อนหน้านี้ concurrent request ทำให้คืน 500
+- **coopController.js `deleteDocument`:** เพิ่ม `P2025 → 404` — concurrent delete คืน 500
+- **docController.js `deleteDocument`:** เพิ่ม `P2025 → 404` — concurrent delete คืน 500
+
 ## [2026-08-06] fix: batch 58 — file cleanup on 409 + P2025 → 404 x4 + startDate/endDate guard
 
 - **coopController.js `submitCoopApplication`:** เพิ่ม `fs.unlinkSync` cleanup สำหรับทุก multer file ก่อนคืน 409 reapplyBlocked — ก่อนหน้านี้ไฟล์ค้างใน uploads/ โดยไม่มี Document row

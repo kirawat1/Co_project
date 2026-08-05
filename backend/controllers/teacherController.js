@@ -219,6 +219,13 @@ exports.reviewT003 = async (req, res) => {
         }
 
         await prisma.$transaction(async (tx) => {
+            const freshStudent = await tx.student.findUnique({
+                where: { id: parsedStudentId },
+                select: { generalAdvisorId: true, coopAdvisorId: true, deletedAt: true }
+            });
+            if (!freshStudent || freshStudent.deletedAt || (freshStudent.generalAdvisorId !== teacher.id && freshStudent.coopAdvisorId !== teacher.id)) {
+                throw Object.assign(new Error('คุณไม่ใช่อาจารย์ที่ปรึกษาของนักศึกษาคนนี้'), { is403: true });
+            }
             const coop = await tx.studentCoop.findUnique({ where: { studentId: parsedStudentId }, select: { status: true } });
             if (!coop || coop.status !== 'T003_SUBMITTED') {
                 throw Object.assign(new Error('สามารถตรวจสอบ T003 ได้เฉพาะเมื่อสถานะเป็น T003_SUBMITTED เท่านั้น'), { is400: true });
@@ -265,6 +272,7 @@ exports.reviewT003 = async (req, res) => {
             }
           }).catch(console.error);
     } catch (err) {
+        if (err.is403) return res.status(403).json({ ok: false, message: err.message });
         if (err.is400) return res.status(400).json({ ok: false, message: err.message });
         console.error("Teacher Review T003 Error:", err);
         res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดที่เซิร์ฟเวอร์" });
@@ -294,6 +302,13 @@ exports.reviewT002 = async (req, res) => {
         }
 
         await prisma.$transaction(async (tx) => {
+            const freshStudent = await tx.student.findUnique({
+                where: { id: parsedStudentId },
+                select: { generalAdvisorId: true, coopAdvisorId: true, deletedAt: true }
+            });
+            if (!freshStudent || freshStudent.deletedAt || (freshStudent.generalAdvisorId !== teacher.id && freshStudent.coopAdvisorId !== teacher.id)) {
+                throw Object.assign(new Error('คุณไม่ใช่อาจารย์ที่ปรึกษาของนักศึกษาคนนี้'), { is403: true });
+            }
             const coop = await tx.studentCoop.findUnique({ where: { studentId: parsedStudentId }, select: { status: true } });
             if (!coop || coop.status !== 'T002_SUBMITTED') {
                 throw Object.assign(new Error('สามารถตรวจสอบ T002 ได้เฉพาะเมื่อสถานะเป็น T002_SUBMITTED เท่านั้น'), { is400: true });
@@ -340,6 +355,7 @@ exports.reviewT002 = async (req, res) => {
             }
           }).catch(console.error);
     } catch (err) {
+        if (err.is403) return res.status(403).json({ ok: false, message: err.message });
         if (err.is400) return res.status(400).json({ ok: false, message: err.message });
         console.error("Teacher Review T002 Error:", err);
         res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดที่เซิร์ฟเวอร์" });
