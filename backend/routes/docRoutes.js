@@ -11,17 +11,17 @@ const { verifyToken, verifyRole } = require('../middlewares/authMiddleware');
 const upload = require('../middlewares/uploadMiddleware'); 
 
 // Route สำหรับบันทึกฟอร์ม
-router.post('/save-form', verifyToken, docController.saveApplicationForm);
+router.post('/save-form', verifyToken, verifyRole('student'), docController.saveApplicationForm);
 
 // Route สำหรับดึงข้อมูลฟอร์ม
-router.get('/my-application', verifyToken, docController.getMyApplication);
+router.get('/my-application', verifyToken, verifyRole('student'), docController.getMyApplication);
 
 // Route สำหรับอัปโหลดไฟล์
-router.post('/upload', verifyToken, upload.single('files'), docController.uploadDocument);
+router.post('/upload', verifyToken, verifyRole('student'), upload.single('files'), docController.uploadDocument);
 
-router.delete('/delete/:id', verifyToken, docController.deleteDocument);
+router.delete('/delete/:id', verifyToken, verifyRole('student'), docController.deleteDocument);
 
-router.delete('/document/type/:docType', verifyToken, docController.deleteDocumentByType);
+router.delete('/document/type/:docType', verifyToken, verifyRole('student'), docController.deleteDocumentByType);
 
 router.post('/t002-form', verifyToken, verifyRole('student'), docController.saveT002Form);
 router.post('/t003-form', verifyToken, verifyRole('student'), docController.saveT003Form);

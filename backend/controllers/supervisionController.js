@@ -536,6 +536,7 @@ exports.completeSupervision = async (req, res) => {
 
         await prisma.$transaction(async (tx) => {
             const fresh = await tx.supervisionAppointment.findUnique({ where: { id: parsedId } });
+            if (!fresh) throw Object.assign(new Error('ไม่พบข้อมูลการนัดหมาย'), { is404: true });
             if (fresh.status !== 'LETTER_UPLOADED') {
                 throw Object.assign(new Error("ยังไม่สามารถจบนิเทศได้ในสถานะปัจจุบัน"), { is400: true });
             }
@@ -558,6 +559,7 @@ exports.completeSupervision = async (req, res) => {
           })
           .catch(console.error);
     } catch (err) {
+        if (err.is404) return res.status(404).json({ ok: false, message: err.message });
         if (err.is400) return res.status(400).json({ ok: false, message: err.message });
         console.error("Complete Supervision Error:", err);
         res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดในการบันทึกข้อมูล" });

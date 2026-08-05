@@ -18,11 +18,14 @@ exports.getPeriods = async (req, res) => {
 exports.createPeriod = async (req, res) => {
   try {
     const { academicYear, semester, startDate, endDate } = req.body;
-    
+    const parsedSemester = Number(semester);
+    if (!Number.isInteger(parsedSemester) || parsedSemester <= 0)
+      return res.status(400).json({ ok: false, error: 'semester ไม่ถูกต้อง' });
+
     // ตรวจสอบปี/เทอม ซ้ำ
     const existing = await prisma.coopPeriod.findUnique({
       where: {
-        academicYear_semester: { academicYear, semester: Number(semester) }
+        academicYear_semester: { academicYear, semester: parsedSemester }
       }
     });
 
@@ -33,7 +36,7 @@ exports.createPeriod = async (req, res) => {
     const newPeriod = await prisma.coopPeriod.create({
       data: {
         academicYear,
-        semester: Number(semester),
+        semester: parsedSemester,
         startDate: new Date(startDate),
         endDate: new Date(endDate),
       },

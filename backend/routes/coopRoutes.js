@@ -10,15 +10,16 @@ const configController = require("../controllers/configController");
 router.post(
   "/apply",
   verifyToken,
+  verifyRole('student'),
   coopController.upload.array("files"),
   coopController.submitCoopApplication
 );
 
-router.delete("/documents/:id", verifyToken, coopController.deleteDocument);
+router.delete("/documents/:id", verifyToken, verifyRole('student'), coopController.deleteDocument);
 router.put("/status", verifyToken, verifyRole('staff', 'teacher'), coopController.updateCoopStatus);
 
 // Student supervision routes — วางไว้ใน coopRoutes เพื่อหลีกเลี่ยง routing ambiguity
-router.get("/supervision/me", verifyToken, supervisionController.getStudentSupervision);
+router.get("/supervision/me", verifyToken, verifyRole('student'), supervisionController.getStudentSupervision);
 router.post("/supervision/propose", verifyToken, verifyRole('student'), supervisionController.proposeSupervisionDate);
 // ปฏิทินนิเทศ (ทุก role เข้าถึงได้)
 router.get("/supervision/calendar", verifyToken, supervisionController.getSupervisionCalendar);
