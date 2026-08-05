@@ -1,5 +1,13 @@
 # CHANGELOG — Co_project
 
+## [2026-08-05] fix: batch 50 — auth gap on PUT /teacher/me + isNaN guards
+
+- **teacherRoutes.js `PUT /me`:** เพิ่ม `verifyRole('teacher', 'staff')` — ก่อนหน้านี้นักศึกษา (role=student) เรียก endpoint นี้ได้และสร้าง Teacher row ใน DB ได้ ทำให้เกิด ghost teacher entries
+- **teacherController.js `reviewT003` + `reviewT002`:** เพิ่ม `isNaN(parsedStudentId)` guard + แปลง `parseInt(studentId)` → `parsedStudentId` ทุกจุดในแต่ละฟังก์ชัน
+- **adminDocController.js `updateDocStatus`:** เพิ่ม `isNaN` guard บน `parseInt(id)` → 400 แทน 500
+- **supervisionController.js `saveSupervisionPeriod`:** เพิ่ม `isNaN` guard บน `parseInt(periodId)` → 400 แทน 500
+- **supervisionController.js `assignCoTeachers`:** เพิ่ม `isNaN` guard บน `parseInt(id)` → 400 แทน 500
+
 ## [2026-08-05] fix: batch 49 — advisorName/FK consistency + deleteDocument NaN guard
 
 - **studentImportController.js:** เมื่อ `generalAdvisorId === undefined` (หาอาจารย์ไม่เจอ/ชื่อซ้ำ) ให้ suppress `advisorName` update ด้วย — ก่อนหน้านี้ FK เก่าถูกรักษาไว้แต่ `advisorName` ถูก overwrite ด้วยชื่อที่ resolve ไม่ได้ ทำให้ FK/display name ไม่ตรงกัน

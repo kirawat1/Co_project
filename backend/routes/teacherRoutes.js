@@ -8,7 +8,7 @@ const supervisionController = require('../controllers/supervisionController');
 // --- Route สำหรับอาจารย์ดูของตัวเอง (User) ---
 // (สมมติว่าคุณใช้ verifyToken แทน authMiddleware เพื่อให้เป็นมาตรฐานเดียวกัน)
 router.get("/me", verifyToken, teacherController.getProfile);
-router.put("/me", verifyToken, teacherController.updateProfile);
+router.put("/me", verifyToken, verifyRole('teacher', 'staff'), teacherController.updateProfile);
 router.get("/prefixes", verifyToken, verifyRole('teacher', 'staff'), teacherController.getTeacherPrefixes);
 router.get('/my-students', verifyToken, verifyRole('teacher'), teacherController.getMyStudents);
 router.get('/students/export', verifyToken, verifyRole('teacher'), teacherController.exportMyStudents);
