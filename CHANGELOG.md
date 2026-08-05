@@ -1,5 +1,13 @@
 # CHANGELOG — Co_project
 
+## [2026-08-05] fix: batch 51 — config route authz + NaN bypass + isNaN guards
+
+- **adminRoutes.js `/config/t002|t003|evaluation|t007|t008` GET:** เพิ่ม `verifyRole(...ADMIN_ROLES)` — ก่อนหน้านี้ผู้ใช้ที่ login แล้ว (ทุก role) ดึง config ได้โดยไม่ต้องเป็น admin/staff
+- **authController.js `loginWithKKU`:** เพิ่ม `isNaN(classYear) ||` ในเงื่อนไข block classYear=0 — ป้องกัน `parseInt("x") → NaN` ผ่านด่านตรวจ class_year
+- **visitController.js `toggleVisitStatus` + `deleteVisit`:** เพิ่ม `isNaN` guard บน `parseInt(id, 10)` → 400 + แปลงทุก `parseInt(id)` → `numId`
+- **docController.js `deleteDocument` (student):** เพิ่ม `isNaN` guard บน `parseInt(id, 10)` → 400 + แปลง `parseInt(id)` → `numId`
+- **studentController.js `softDeleteStudent` + `restoreStudent` + `permanentlyDeleteStudent` + `updateStudentBasicInfo`:** เพิ่ม `isNaN` guard บน `parseInt(req.params.id, 10)` → 400 ทั้ง 4 ฟังก์ชัน
+
 ## [2026-08-05] fix: batch 50 — auth gap on PUT /teacher/me + isNaN guards
 
 - **teacherRoutes.js `PUT /me`:** เพิ่ม `verifyRole('teacher', 'staff')` — ก่อนหน้านี้นักศึกษา (role=student) เรียก endpoint นี้ได้และสร้าง Teacher row ใน DB ได้ ทำให้เกิด ghost teacher entries

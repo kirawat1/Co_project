@@ -396,7 +396,7 @@ exports.loginWithKKU = async (req, res) => {
       // ── ชั้นที่ 3: ตรวจชั้นปี ──
       // อนุญาตเฉพาะปี 3 ขึ้นไป — ถ้าไม่ทราบชั้นปี (classYear=0) ให้ block ไว้ก่อน
       const classYear = parseInt(studentInfo.class_year || "0");
-      if (classYear === 0) {
+      if (isNaN(classYear) || classYear === 0) {
         return res.status(403).json({
           ok: false,
           message: "ไม่สามารถตรวจสอบชั้นปีได้จาก KKU REG กรุณาติดต่อเจ้าหน้าที่วิทยาลัยการคอมพิวเตอร์",

@@ -286,9 +286,11 @@ exports.deleteDocument = async (req, res) => {
   try {
     const userId = req.user.id;
     const { id } = req.params; // รับ document ID
+    const numId = parseInt(id, 10);
+    if (isNaN(numId)) return res.status(400).json({ ok: false, message: "Invalid document ID" });
 
     const doc = await prisma.document.findUnique({
-      where: { id: parseInt(id) },
+      where: { id: numId },
       include: { student: true } 
     });
 
@@ -313,7 +315,7 @@ exports.deleteDocument = async (req, res) => {
 
     // ลบออกจาก Database
     await prisma.document.delete({
-      where: { id: parseInt(id) }
+      where: { id: numId }
     });
 
     res.json({ ok: true, message: "ลบเอกสารเรียบร้อยแล้ว" });

@@ -397,6 +397,7 @@ exports.syncFromReg = async (req, res) => {
 exports.softDeleteStudent = async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) return res.status(400).json({ ok: false, message: "id ไม่ถูกต้อง" });
     const student = await prisma.student.findUnique({ where: { id } });
     if (!student) return res.status(404).json({ ok: false, message: "ไม่พบนักศึกษา" });
     if (student.deletedAt) return res.status(409).json({ ok: false, message: "นักศึกษาอยู่ในถังขยะแล้ว" });
@@ -428,6 +429,7 @@ exports.getTrashedStudents = async (req, res) => {
 exports.restoreStudent = async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) return res.status(400).json({ ok: false, message: "id ไม่ถูกต้อง" });
     const student = await prisma.student.findUnique({ where: { id } });
     if (!student) return res.status(404).json({ ok: false, message: "ไม่พบนักศึกษา" });
     if (!student.deletedAt) return res.status(409).json({ ok: false, message: "นักศึกษาไม่ได้อยู่ในถังขยะ" });
@@ -444,6 +446,7 @@ exports.restoreStudent = async (req, res) => {
 exports.permanentlyDeleteStudent = async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) return res.status(400).json({ ok: false, message: "id ไม่ถูกต้อง" });
     let statusErr = null;
     // ลบ Student และ User (บัญชี login) คู่กัน ป้องกัน User เหลือค้างเป็น "ผี" ที่บล็อก username เดิมไว้
     // Guard อยู่ใน transaction เพื่อกันเงื่อนไข TOCTOU (restore concurrently before delete)
@@ -466,6 +469,7 @@ exports.permanentlyDeleteStudent = async (req, res) => {
 exports.updateStudentBasicInfo = async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) return res.status(400).json({ ok: false, message: "id ไม่ถูกต้อง" });
     const {
       prefix, firstName, lastName, firstNameEn, lastNameEn,
       studentId, major, studyProgram, year, phone, email,
