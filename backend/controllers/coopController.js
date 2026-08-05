@@ -227,9 +227,14 @@ const deleteDocument = async (req, res) => {
     const { id } = req.params; // รับ document ID
     const userId = req.user.id; // รับ user ID จาก token เพื่อความปลอดภัย
 
+    const parsedDocId = parseInt(id, 10);
+    if (isNaN(parsedDocId) || parsedDocId <= 0) {
+      return res.status(400).json({ ok: false, message: 'document id ไม่ถูกต้อง' });
+    }
+
     // 1. หาไฟล์ก่อนว่ามีอยู่จริงไหม และเป็นของนักศึกษาคนนี้จริงไหม
     const doc = await prisma.document.findUnique({
-      where: { id: parseInt(id) },
+      where: { id: parsedDocId },
       include: { student: { include: { user: true } } }
     });
 
@@ -267,7 +272,7 @@ const deleteDocument = async (req, res) => {
     }
 
     // 3. ลบ Record จาก Database
-    await prisma.document.delete({ where: { id: parseInt(id) } });
+    await prisma.document.delete({ where: { id: parsedDocId } });
 
     res.json({ ok: true, message: "ลบไฟล์สำเร็จ" });
 

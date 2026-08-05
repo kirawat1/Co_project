@@ -1,5 +1,10 @@
 # CHANGELOG — Co_project
 
+## [2026-08-05] fix: batch 49 — advisorName/FK consistency + deleteDocument NaN guard
+
+- **studentImportController.js:** เมื่อ `generalAdvisorId === undefined` (หาอาจารย์ไม่เจอ/ชื่อซ้ำ) ให้ suppress `advisorName` update ด้วย — ก่อนหน้านี้ FK เก่าถูกรักษาไว้แต่ `advisorName` ถูก overwrite ด้วยชื่อที่ resolve ไม่ได้ ทำให้ FK/display name ไม่ตรงกัน
+- **coopController.js `deleteDocument`:** เพิ่ม `isNaN` guard บน `parseInt(id)` + ใช้ `parsedDocId` ทั้งฟังก์ชัน — non-integer id ทำ Prisma error 500 แทน 400
+
 ## [2026-08-05] fix: batch 48 — NaN guards + status gates + TOCTOU + apiFetch cleanup
 
 - **adminDocController.js `reviewStudentStatus`:** เพิ่ม `isNaN` guard หลัง `parseInt(studentId)`

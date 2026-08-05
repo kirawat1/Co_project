@@ -193,7 +193,8 @@ exports.importStudents = async (req, res) => {
             where: { studentId },
             update: {
               prefix, firstName, lastName, firstNameEn, lastNameEn,
-              year, major, phone, email, gpa, advisorName, studyProgram,
+              year, major, phone, email, gpa, studyProgram,
+              advisorName: generalAdvisorId !== undefined ? advisorName : undefined,
               generalAdvisorId,
             },
             create: {
