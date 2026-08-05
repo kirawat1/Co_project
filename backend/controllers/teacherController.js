@@ -680,8 +680,8 @@ exports.getMyStudents = async (req, res) => {
       return res.status(404).json({ ok: false, message: "ไม่พบข้อมูลอาจารย์" });
     }
 
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 50;
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.max(1, parseInt(req.query.limit, 10) || 50);
     const skip = (page - 1) * limit;
     const search = (req.query.search || "").trim();
     const coopPeriodId = req.query.coopPeriodId ? parseInt(req.query.coopPeriodId) : undefined;

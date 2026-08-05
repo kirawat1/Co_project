@@ -174,6 +174,12 @@ exports.reviewStudentStatus = async (req, res) => {
         updateData.placeLetterUrl = req.file.filename;
       }
 
+      // ถ้าไฟล์ถูกอัปโหลดมาแต่ไม่ได้ใช้ (status ไม่ใช่ letter และไม่มี docType) → ลบไฟล์ทิ้งแล้วคืน error
+      if (!updateData.reqLetterUrl && !updateData.placeLetterUrl && !req.body.docType) {
+        const fp = path.join(__dirname, '../uploads', req.file.filename);
+        try { fs.unlinkSync(fp); } catch (_) {}
+        return res.status(400).json({ ok: false, message: 'docType ต้องระบุเมื่ออัปโหลดไฟล์' });
+      }
     }
 
     await prisma.$transaction(async (tx) => {
