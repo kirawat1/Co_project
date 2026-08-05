@@ -212,8 +212,9 @@ exports.uploadDocument = async (req, res) => {
                 });
             } else if (dbType === 'T002_FORM') {
                 const coop = await tx.studentCoop.findUnique({ where: { studentId: student.id } });
-                if (!coop || coop.status !== 'INTERNSHIP_STARTED') {
-                    throw Object.assign(new Error('สามารถส่ง T002 ได้เมื่อเริ่มฝึกงานแล้วเท่านั้น'), { is400: true });
+                const T002_VALID = ['INTERNSHIP_STARTED', 'T002_EDITS_REQUIRED'];
+                if (!coop || !T002_VALID.includes(coop.status)) {
+                    throw Object.assign(new Error('สามารถส่ง T002 ได้เมื่อเริ่มฝึกงานแล้ว หรือหลังได้รับคำขอแก้ไข'), { is400: true });
                 }
                 await tx.studentCoop.update({
                     where: { studentId: student.id },
@@ -221,9 +222,9 @@ exports.uploadDocument = async (req, res) => {
                 });
             } else if (dbType === 'T003_FORM') {
                 const coop = await tx.studentCoop.findUnique({ where: { studentId: student.id } });
-                const T003_VALID = ['T002_SUBMITTED'];
+                const T003_VALID = ['T002_SUBMITTED', 'T003_EDITS_REQUIRED'];
                 if (!coop || !T003_VALID.includes(coop.status)) {
-                    throw Object.assign(new Error('สามารถส่ง T003 ได้หลังส่ง T002 แล้วเท่านั้น'), { is400: true });
+                    throw Object.assign(new Error('สามารถส่ง T003 ได้หลังส่ง T002 แล้ว หรือหลังได้รับคำขอแก้ไข'), { is400: true });
                 }
                 await tx.studentCoop.update({
                     where: { studentId: student.id },
