@@ -57,7 +57,7 @@ const getStudentIdFromUser = async (userId) => {
   const student = await prisma.student.findUnique({
     where: { userId: parseInt(userId) }
   });
-  if (!student) throw new Error("ไม่พบข้อมูลนักศึกษาสำหรับ User นี้");
+  if (!student || student.deletedAt) throw new Error("ไม่พบข้อมูลนักศึกษาสำหรับ User นี้");
   return student.id; 
 };
 
@@ -172,20 +172,20 @@ exports.uploadDocument = async (req, res) => {
       where: { userId: parseInt(userId) }
     });
 
-    if (!student) {
+    if (!student || student.deletedAt) {
         if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
         return res.status(404).json({ ok: false, message: "ไม่พบข้อมูลนักศึกษาในระบบ" });
     }
 
     const dbType = docType;
 
-    const oldDoc = await prisma.document.findFirst({
-        where: { studentId: student.id, type: dbType }
-    });
-
     let newDoc;
+    let oldDoc;
     try {
         await prisma.$transaction(async (tx) => {
+            oldDoc = await tx.document.findFirst({
+                where: { studentId: student.id, type: dbType }
+            });
             if (oldDoc) {
                 await tx.document.delete({ where: { id: oldDoc.id } });
             }
@@ -331,7 +331,7 @@ exports.acknowledgeDispatchDownload = async (req, res) => {
         where: { userId: parseInt(userId) }
     });
 
-    if (!student) {
+    if (!student || student.deletedAt) {
         return res.status(404).json({ message: "Student not found" });
     }
 
@@ -370,7 +370,7 @@ exports.acknowledgePlacementLetter = async (req, res) => {
       include: { coop: true }
     });
 
-    if (!student) {
+    if (!student || student.deletedAt) {
       return res.status(404).json({ ok: false, message: "Student not found" });
     }
 
@@ -405,7 +405,7 @@ exports.deleteDocumentByType = async (req, res) => {
     const student = await prisma.student.findUnique({
       where: { userId: parseInt(userId) }
     });
-    if (!student) {
+    if (!student || student.deletedAt) {
       return res.status(404).json({ message: "Student not found" });
     }
 
