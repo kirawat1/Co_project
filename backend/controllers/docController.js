@@ -126,7 +126,7 @@ exports.getMyApplication = async (req, res) => {
         where: { userId: parseInt(userId) }
     });
 
-    if (!student) {
+    if (!student || student.deletedAt) {
         return res.status(404).json({ ok: false, message: "Student Profile not found" });
     }
     
@@ -453,7 +453,7 @@ exports.deleteDocumentByType = async (req, res) => {
 exports.saveT002Form = async (req, res) => {
     try {
         const student = await prisma.student.findUnique({ where: { userId: req.user.id } });
-        if (!student) return res.status(404).json({ ok: false, message: "Student not found" });
+        if (!student || student.deletedAt) return res.status(404).json({ ok: false, message: "Student not found" });
 
         const coop = await prisma.studentCoop.findUnique({ where: { studentId: student.id } });
         const T002_DRAFT_ALLOWED = ['INTERNSHIP_STARTED', 'T002_SUBMITTED', 'T002_EDITS_REQUIRED'];
@@ -501,7 +501,7 @@ exports.saveT003Form = async (req, res) => {
     try {
         // หา studentId จาก user id
         const student = await prisma.student.findUnique({ where: { userId: req.user.id } });
-        if (!student) return res.status(404).json({ ok: false, message: "Student not found" });
+        if (!student || student.deletedAt) return res.status(404).json({ ok: false, message: "Student not found" });
 
         const coopT3 = await prisma.studentCoop.findUnique({ where: { studentId: student.id } });
         const T003_DRAFT_ALLOWED = ['T002_SUBMITTED', 'T003_SUBMITTED', 'T003_EDITS_REQUIRED'];

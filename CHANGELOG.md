@@ -1,5 +1,17 @@
 # CHANGELOG — Co_project
 
+## [2026-08-05] fix: batch 43 — soft-delete guards + TOCTOU in auth/student/doc/supervision
+
+- **authController.js `getProfile`:** เพิ่ม `deletedAt` guard — soft-deleted student ดูข้อมูล profile ผ่าน JWT ยังไม่หมดอายุ
+- **studentController.js `getMyProfile`:** เพิ่ม `deletedAt` guard ก่อน `if (!student)` — soft-deleted student ดูข้อมูลทั้งหมดรวมเอกสาร/coop
+- **studentController.js `syncFromReg`:** `if (!student)` → `if (!student || student.deletedAt)` — soft-deleted student sync KKU ข้อมูลกลับได้
+- **docController.js `getMyApplication`:** เพิ่ม `|| student.deletedAt`
+- **docController.js `saveT002Form`:** เพิ่ม `|| student.deletedAt`
+- **docController.js `saveT003Form`:** เพิ่ม `|| student.deletedAt`
+- **supervisionController.js `getStudentSupervision`:** เพิ่ม `|| student.deletedAt`
+- **authController.js `registerStudent`:** ย้าย email+studentId duplicate `findFirst` + `user.create` ใน `$transaction` — TOCTOU: concurrent requests ผ่าน check พร้อมกัน; ใช้ `throw { is409: true }` + `is409` catch
+- **authController.js `loginWithKKU`:** เพิ่ม inner transaction guard (re-check studentId conflict + `user.create` ใน `$transaction`); เพิ่ม `is409` และ `P2002` ใน catch — concurrent first-time login คืน 500 แทน 409
+
 ## [2026-08-05] fix: batch 42 — soft-delete guards + TOCTOU in doc/coop/supervision/student
 
 - **coopController.js `submitCoopApplication`:** เพิ่ม `|| student.deletedAt` — soft-deleted student ยื่นคำร้องได้
