@@ -1,5 +1,12 @@
 # CHANGELOG — Co_project
 
+## [2026-08-06] fix: batch 56 — T002/T003 delete gate + semester NaN + coopPeriodId NaN guards
+
+- **docController.js `deleteDocument`:** เพิ่ม T002/T003 locked-state gate — ป้องกันนักศึกษาลบ T002 ขณะอาจารย์กำลัง review โดยเปลี่ยนมาเรียก `/api/docs/delete/:id` แทน `/api/coop/documents/:id`
+- **teacherController.js `getDashboardStats` + `getLatestRequests`:** เพิ่ม `isNaN(semesterInt)` guard → 400 — ก่อนหน้านี้ NaN ทำให้ตัวกรอง semester หายไปเงียบๆ
+- **adminDocController.js `getAllStudentsForReview`:** เพิ่ม `isNaN(coopPeriodId)` guard → 400 — ป้องกัน NaN ทำให้ filter period หายไปและคืนนักศึกษาทั้งหมด
+- **studentController.js `getStudents` + `exportStudents`:** เพิ่ม `isNaN(coopPeriodId)` guard → 400 ทั้งสองฟังก์ชัน
+
 ## [2026-08-06] fix: batch 55 — semester NaN + review-t002/t003 authz + GET /teacher/me + coopPeriodId NaN + file cleanup
 
 - **coopPeriodController.js `updatePeriod`:** เพิ่ม `parsedSemester` + `!Number.isInteger` guard — ก่อนหน้านี้ `Number(semester)` ส่ง NaN ไป Prisma ถ้า semester ไม่ใช่ตัวเลข
