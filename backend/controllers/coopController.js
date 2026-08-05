@@ -164,18 +164,25 @@ const updateCoopStatus = async (req, res) => {
     if (status === 'APPROVED') dbStatus = 'QUALIFIED';
     else if (status === 'REJECTED') dbStatus = 'QUALIFICATION_FAILED';
 
-    const studentCheck = await prisma.student.findUnique({ where: { id: parsedId }, select: { deletedAt: true } });
-    if (!studentCheck || studentCheck.deletedAt) return res.status(404).json({ ok: false, message: "ไม่พบนักศึกษา" });
-
-    const updated = await prisma.studentCoop.update({
-      where: {
-        studentId: parsedId
-      },
-      data: {
-        status: dbStatus, // ใช้ค่าที่แปลงแล้ว
-        teacherCheckComment: comment, // ✅ แก้ชื่อฟิลด์ให้ตรง Schema
-        teacherCheckDate: new Date()  // (Optional) บันทึกวันที่ตรวจสอบด้วยก็ดีครับ
+    let updated;
+    await prisma.$transaction(async (tx) => {
+      const studentCheck = await tx.student.findUnique({ where: { id: parsedId }, select: { deletedAt: true } });
+      if (!studentCheck || studentCheck.deletedAt) {
+        throw Object.assign(new Error('ไม่พบนักศึกษา'), { is404: true });
       }
+      const coop = await tx.studentCoop.findUnique({ where: { studentId: parsedId }, select: { status: true } });
+      const REVIEWABLE_STATUSES = ['APPLYING', 'WAITING_FOR_STAFF_CHECK'];
+      if (!coop || !REVIEWABLE_STATUSES.includes(coop.status)) {
+        throw Object.assign(new Error('ไม่สามารถเปลี่ยนสถานะได้ในขั้นตอนนี้'), { is400: true });
+      }
+      updated = await tx.studentCoop.update({
+        where: { studentId: parsedId },
+        data: {
+          status: dbStatus,
+          teacherCheckComment: comment,
+          teacherCheckDate: new Date()
+        }
+      });
     });
 
     res.json({ ok: true, message: "บันทึกสถานะเรียบร้อยแล้ว", data: updated });
@@ -203,6 +210,8 @@ const updateCoopStatus = async (req, res) => {
     }
 
   } catch (err) {
+    if (err.is404) return res.status(404).json({ ok: false, message: err.message });
+    if (err.is400) return res.status(400).json({ ok: false, message: err.message });
     console.error("Update Status Error:", err);
     res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดในการบันทึกสถานะ" });
   }

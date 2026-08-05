@@ -213,11 +213,15 @@ exports.reviewT003 = async (req, res) => {
         }
 
         await prisma.$transaction(async (tx) => {
+            const coop = await tx.studentCoop.findUnique({ where: { studentId: parseInt(studentId) }, select: { status: true } });
+            if (!coop || coop.status !== 'T003_SUBMITTED') {
+                throw Object.assign(new Error('สามารถตรวจสอบ T003 ได้เฉพาะเมื่อสถานะเป็น T003_SUBMITTED เท่านั้น'), { is400: true });
+            }
+
             // 1. อัปเดตสถานะในตาราง studentCoop
-            await tx.studentCoop.upsert({
+            await tx.studentCoop.update({
                 where: { studentId: parseInt(studentId) },
-                update: { status: status },
-                create: { studentId: parseInt(studentId), status: status }
+                data: { status: status }
             });
 
             // 2. ค้นหาไฟล์ T003 ล่าสุดเพื่ออัปเดตสถานะไฟล์และคอมเมนต์
@@ -255,6 +259,7 @@ exports.reviewT003 = async (req, res) => {
             }
           }).catch(console.error);
     } catch (err) {
+        if (err.is400) return res.status(400).json({ ok: false, message: err.message });
         console.error("Teacher Review T003 Error:", err);
         res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดที่เซิร์ฟเวอร์" });
     }
@@ -281,11 +286,15 @@ exports.reviewT002 = async (req, res) => {
         }
 
         await prisma.$transaction(async (tx) => {
+            const coop = await tx.studentCoop.findUnique({ where: { studentId: parseInt(studentId) }, select: { status: true } });
+            if (!coop || coop.status !== 'T002_SUBMITTED') {
+                throw Object.assign(new Error('สามารถตรวจสอบ T002 ได้เฉพาะเมื่อสถานะเป็น T002_SUBMITTED เท่านั้น'), { is400: true });
+            }
+
             // 1. อัปเดตสถานะนักศึกษา
-            await tx.studentCoop.upsert({
+            await tx.studentCoop.update({
                 where: { studentId: parseInt(studentId) },
-                update: { status: status },
-                create: { studentId: parseInt(studentId), status: status }
+                data: { status: status }
             });
 
             // 2. อัปเดตสถานะไฟล์ T002
@@ -323,6 +332,7 @@ exports.reviewT002 = async (req, res) => {
             }
           }).catch(console.error);
     } catch (err) {
+        if (err.is400) return res.status(400).json({ ok: false, message: err.message });
         console.error("Teacher Review T002 Error:", err);
         res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดที่เซิร์ฟเวอร์" });
     }
