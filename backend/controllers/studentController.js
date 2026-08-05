@@ -26,6 +26,10 @@ exports.getMyProfile = async (req, res) => {
       },
     });
 
+    if (student?.deletedAt) {
+      return res.status(403).json({ ok: false, message: 'บัญชีถูกระงับการใช้งาน' });
+    }
+
     if (!student) {
       const user = await prisma.user.findUnique({ where: { id: req.userId } });
       return res.json({
@@ -341,7 +345,7 @@ exports.syncFromReg = async (req, res) => {
 
   try {
     const student = await prisma.student.findUnique({ where: { userId: req.userId } });
-    if (!student) return res.status(404).json({ ok: false, message: "ไม่พบข้อมูลนักศึกษา" });
+    if (!student || student.deletedAt) return res.status(404).json({ ok: false, message: "ไม่พบข้อมูลนักศึกษา" });
 
     // 1. ดึงข้อมูลพื้นฐาน (syncStudentAll ทำ login 1 ครั้ง แล้วดึงทุกอย่างพร้อมกัน)
     const result = await kkuReg.syncStudentAll(kkuUsername, kkuPassword);

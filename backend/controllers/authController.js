@@ -285,6 +285,9 @@ exports.getProfile = async (req, res) => {
     });
 
     if (!user) return res.status(404).json({ ok: false, message: "ไม่พบผู้ใช้งาน" });
+    if (user.role === 'student' && user.student?.deletedAt) {
+      return res.status(401).json({ ok: false, message: 'บัญชีถูกระงับการใช้งาน' });
+    }
 
     let profile = {
       id: user.id,
@@ -414,7 +417,7 @@ exports.loginWithKKU = async (req, res) => {
         });
       }
 
-      // ── ตรวจ studentId ซ้ำ (อาจมีบัญชีที่สมัครด้วยตนเองด้วย studentId เดิม) ──
+      // ── ตรวจ studentId ซ้ำ (early return) ──
       const existingByStudentId = await prisma.student.findFirst({
         where: { studentId: studentIdRaw.toString(), deletedAt: null },
       });
@@ -433,24 +436,31 @@ exports.loginWithKKU = async (req, res) => {
       const prefix = ["mr","นาย"].includes(prefixRaw) ? "MR"
         : ["ms","miss","mrs","นางสาว","นาง"].includes(prefixRaw) ? "MS" : undefined;
 
-      user = await prisma.user.create({
-        data: {
-          username: email, email, password: defaultHash, role: "student",
-          student: {
-            create: {
-              studentId:   studentIdRaw.toString(),
-              firstName:   studentInfo.first_name_th  || "นักศึกษา",
-              lastName:    studentInfo.last_name_th   || "ใหม่",
-              firstNameEn: studentInfo.first_name_en  || null,
-              lastNameEn:  studentInfo.last_name_en   || null,
-              major:       studentInfo.major_name_th   || null,
-              year:        studentInfo.class_year ? String(studentInfo.class_year) : null,
-              advisorName: advName,
-              ...(prefix ? { prefix } : {}),
+      // TOCTOU guard: re-check inside $transaction before create
+      await prisma.$transaction(async (tx) => {
+        const conflict = await tx.student.findFirst({
+          where: { studentId: studentIdRaw.toString(), deletedAt: null },
+        });
+        if (conflict) throw Object.assign(new Error("รหัสนักศึกษานี้มีในระบบแล้ว (อาจสมัครด้วยตนเองไว้แล้ว) กรุณา login ด้วย email/password ที่ลงทะเบียนไว้"), { is409: true });
+        user = await tx.user.create({
+          data: {
+            username: email, email, password: defaultHash, role: "student",
+            student: {
+              create: {
+                studentId:   studentIdRaw.toString(),
+                firstName:   studentInfo.first_name_th  || "นักศึกษา",
+                lastName:    studentInfo.last_name_th   || "ใหม่",
+                firstNameEn: studentInfo.first_name_en  || null,
+                lastNameEn:  studentInfo.last_name_en   || null,
+                major:       studentInfo.major_name_th   || null,
+                year:        studentInfo.class_year ? String(studentInfo.class_year) : null,
+                advisorName: advName,
+                ...(prefix ? { prefix } : {}),
+              },
             },
           },
-        },
-        include: { student: true, teacher: true },
+          include: { student: true, teacher: true },
+        });
       });
       console.log(`[KKU] auto-created student: ${email} (${studentIdRaw})`);
     }
@@ -495,6 +505,12 @@ exports.loginWithKKU = async (req, res) => {
 
     return res.json({ ok: true, message: "เข้าสู่ระบบด้วย KKU สำเร็จ", token, user: profile });
   } catch (err) {
+    if (err.is409) {
+      return res.status(409).json({ ok: false, message: err.message });
+    }
+    if (err.code === 'P2002') {
+      return res.status(409).json({ ok: false, message: "อีเมลนี้มีในระบบแล้ว กรุณา login ด้วย email/password ที่ลงทะเบียนไว้" });
+    }
     console.error("[loginWithKKU]", err);
     return res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์" });
   }
@@ -522,31 +538,33 @@ exports.registerStudent = async (req, res) => {
 
     const emailLower = email.trim().toLowerCase();
 
-    // ตรวจ duplicate
-    const existEmail = await prisma.user.findFirst({ where: { OR: [{ email: emailLower }, { username: emailLower }] } });
-    if (existEmail) return res.status(409).json({ ok: false, message: "อีเมลนี้มีในระบบแล้ว" });
-
-    const existId = await prisma.student.findFirst({ where: { studentId: studentId.trim(), deletedAt: null } });
-    if (existId) return res.status(409).json({ ok: false, message: "รหัสนักศึกษานี้มีในระบบแล้ว" });
-
     const hashed = await bcrypt.hash(password.trim(), 10);
     const prefixEnum = mapPrefix(prefix) || undefined;
 
-    const user = await prisma.user.create({
-      data: {
-        username: emailLower, email: emailLower, password: hashed, role: "student",
-        student: {
-          create: {
-            studentId: studentId.trim(),
-            firstName: firstName.trim(),
-            lastName:  lastName.trim(),
-            major:     major?.trim() || null,
-            year:      year?.trim()  || null,
-            ...(prefixEnum ? { prefix: prefixEnum } : {}),
+    let user;
+    await prisma.$transaction(async (tx) => {
+      const existEmail = await tx.user.findFirst({ where: { OR: [{ email: emailLower }, { username: emailLower }] } });
+      if (existEmail) throw Object.assign(new Error("อีเมลนี้มีในระบบแล้ว"), { is409: true });
+
+      const existId = await tx.student.findFirst({ where: { studentId: studentId.trim(), deletedAt: null } });
+      if (existId) throw Object.assign(new Error("รหัสนักศึกษานี้มีในระบบแล้ว"), { is409: true });
+
+      user = await tx.user.create({
+        data: {
+          username: emailLower, email: emailLower, password: hashed, role: "student",
+          student: {
+            create: {
+              studentId: studentId.trim(),
+              firstName: firstName.trim(),
+              lastName:  lastName.trim(),
+              major:     major?.trim() || null,
+              year:      year?.trim()  || null,
+              ...(prefixEnum ? { prefix: prefixEnum } : {}),
+            },
           },
         },
-      },
-      include: { student: true },
+        include: { student: true },
+      });
     });
 
     const token = jwt.sign({ id: user.id, role: "student" }, process.env.JWT_SECRET, { expiresIn: "24h" });
@@ -562,6 +580,9 @@ exports.registerStudent = async (req, res) => {
       },
     });
   } catch (err) {
+    if (err.is409) {
+      return res.status(409).json({ ok: false, message: err.message });
+    }
     if (err.code === 'P2002') {
       return res.status(409).json({ ok: false, message: "อีเมลหรือรหัสนักศึกษานี้มีในระบบแล้ว" });
     }

@@ -107,7 +107,7 @@ exports.uploadOfficialLetter = async (req, res) => {
 exports.getStudentSupervision = async (req, res) => {
     try {
         const student = await prisma.student.findUnique({ where: { userId: req.user.id } });
-        if (!student) return res.status(404).json({ ok: false, message: 'Student not found' });
+        if (!student || student.deletedAt) return res.status(404).json({ ok: false, message: 'Student not found' });
 
         const appointment = await prisma.supervisionAppointment.findUnique({
             where: { studentId: student.id }
