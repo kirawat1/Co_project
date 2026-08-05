@@ -105,6 +105,7 @@ exports.toggleVisitStatus = async (req, res) => {
 
     res.json({ ok: true, data: updated });
   } catch (err) {
+    if (err.code === 'P2025') return res.status(404).json({ ok: false, message: 'Visit not found' });
     console.error(err);
     res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาด" });
   }
@@ -125,6 +126,7 @@ exports.deleteVisit = async (req, res) => {
     await prisma.visit.delete({ where: { id: numId } });
     res.json({ ok: true, message: "Deleted successfully" });
   } catch (err) {
+    if (err.code === 'P2025') return res.status(404).json({ ok: false, message: 'Visit not found' });
     console.error(err);
     res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาด" });
   }

@@ -1,5 +1,7 @@
 // backend/controllers/configController.js
 const prisma = require('../config/prismaClient');
+const path = require('path');
+const fs = require('fs');
 
 // 1. ดึง Config
 exports.getDocConfig = async (req, res) => {
@@ -172,6 +174,7 @@ exports.updateT008Config = async (req, res) => {
 
         res.json({ ok: true, message: "บันทึกการตั้งค่าเรียบร้อยแล้ว", imagePath });
     } catch (err) {
+        if (req.file) { try { fs.unlinkSync(path.join(__dirname, '../uploads/system', req.file.filename)); } catch(_){} }
         console.error("Error updating T008 config:", err);
         res.status(500).json({ ok: false, message: "Server error" });
     }

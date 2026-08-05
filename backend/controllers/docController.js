@@ -334,6 +334,7 @@ exports.deleteDocument = async (req, res) => {
     res.json({ ok: true, message: "ลบเอกสารเรียบร้อยแล้ว" });
 
   } catch (err) {
+    if (err.code === 'P2025') return res.status(404).json({ ok: false, message: 'ไม่พบเอกสาร' });
     console.error("Delete Error:", err);
     res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดในการลบไฟล์" });
   }
