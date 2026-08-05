@@ -54,8 +54,13 @@ exports.updatePeriod = async (req, res) => {
     const { id } = req.params;
     const { academicYear, semester, startDate, endDate } = req.body;
 
+    const parsedId = Number(id);
+    if (!Number.isInteger(parsedId) || parsedId <= 0) {
+      return res.status(400).json({ ok: false, error: 'id ไม่ถูกต้อง' });
+    }
+
     const updated = await prisma.coopPeriod.update({
-      where: { id: Number(id) },
+      where: { id: parsedId },
       data: {
         academicYear,
         semester: Number(semester),
@@ -65,6 +70,7 @@ exports.updatePeriod = async (req, res) => {
     });
     res.json({ ok: true, period: updated });
   } catch (error) {
+    if (error.code === 'P2025') return res.status(404).json({ ok: false, error: 'ไม่พบรอบสหกิจ' });
     console.error("Update period error:", error);
     res.status(500).json({ ok: false, error: "Server error" });
   }
@@ -101,11 +107,16 @@ exports.togglePeriod = async (req, res) => {
 exports.deletePeriod = async (req, res) => {
   try {
     const { id } = req.params;
+    const parsedId = Number(id);
+    if (!Number.isInteger(parsedId) || parsedId <= 0) {
+      return res.status(400).json({ ok: false, error: 'id ไม่ถูกต้อง' });
+    }
     await prisma.coopPeriod.delete({
-      where: { id: Number(id) },
+      where: { id: parsedId },
     });
     res.json({ ok: true, message: "Deleted successfully" });
   } catch (error) {
+    if (error.code === 'P2025') return res.status(404).json({ ok: false, error: 'ไม่พบรอบสหกิจ' });
     console.error("Delete period error:", error);
     res.status(500).json({ ok: false, error: "Server error" });
   }

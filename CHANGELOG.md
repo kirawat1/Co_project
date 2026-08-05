@@ -1,5 +1,16 @@
 # CHANGELOG — Co_project
 
+## [2026-08-05] fix: batch 48 — NaN guards + status gates + TOCTOU + apiFetch cleanup
+
+- **adminDocController.js `reviewStudentStatus`:** เพิ่ม `isNaN` guard หลัง `parseInt(studentId)`
+- **adminDocController.js `approveAllDocs`:** เพิ่ม `isNaN` guard + แก้ตัวแปร `parsedId` ให้ consistent ทั้งฟังก์ชัน
+- **adminDocController.js `reviewT002` + `reviewT003`:** เพิ่ม `isNaN` guard + แก้ `parseInt(studentId)` → `parsedStudentId` ทุกจุดใน transaction
+- **adminDocController.js `updateCoopApplicationStatus`:** เพิ่ม `Number.isInteger` guard + wrap ใน `$transaction` + soft-delete guard + status gate `{APPLYING, WAITING_FOR_STAFF_CHECK, APPLICATION_EDITS_REQUIRED, EDITS_REQUIRED, QUALIFIED, QUALIFICATION_FAILED}` + is404/is400 catch
+- **supervisionController.js `updateConfirmedDate`:** ย้าย `officialLetterPath` + `status !== DATE_CONFIRMED` check เข้าใน `$transaction` — TOCTOU window ระหว่าง check/write; เพิ่ม is404/is400/is409 catch
+- **coopPeriodController.js `updatePeriod` + `deletePeriod`:** เพิ่ม `Number.isInteger` guard + P2025 catch → 404 แทน 500
+- **coopController.js `deleteDocument`:** เพิ่ม status gate — T002_FORM ลบไม่ได้เมื่อ T002 อยู่ระหว่าง review; T003_FORM เช่นกัน
+- **A_DocT003Review.tsx:** แปลง axios.get (line 104, 138) + axios.put (line 233) → `apiFetch`; ลบ unused `axios` import
+
 ## [2026-08-05] fix: batch 47 — T002/T003 re-upload gates + admin status gates + soft-delete + apiFetch
 
 - **docController.js `uploadDocument` T002 gate:** เพิ่ม `T002_EDITS_REQUIRED` ใน valid statuses — นักศึกษา re-upload หลังถูก reject ไม่ได้ (ติด 400)

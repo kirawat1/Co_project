@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import type { CSSProperties } from "react";
-import axios from "axios";
 import { apiFetch } from "../utils/apiFetch";
 import { useToast } from "./Toast";
 import ConfirmDialog from "./ConfirmDialog";
@@ -93,25 +92,21 @@ export default function A_DocT003Review() {
     const fetchAllData = async () => {
         setLoading(true);
         try {
-            const token = localStorage.getItem("coop.token");
-
             const resPeriods = await apiFetch("/api/admin/coop-periods/all");
             if (resPeriods.ok) {
                 const periodsData = await resPeriods.json();
                 if (periodsData.ok && periodsData.periods) setCoopPeriods(periodsData.periods);
             }
 
-            const res = await axios.get("/api/admin/students", {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-
+            const resStudents = await apiFetch("/api/admin/students");
+            const studentsData = await resStudents.json();
             let allStudents = [];
-            if (Array.isArray(res.data)) {
-                allStudents = res.data;
-            } else if (res.data?.data) {
-                allStudents = res.data.data;
-            } else if (res.data?.students) {
-                allStudents = res.data.students;
+            if (Array.isArray(studentsData)) {
+                allStudents = studentsData;
+            } else if (studentsData?.data) {
+                allStudents = studentsData.data;
+            } else if (studentsData?.students) {
+                allStudents = studentsData.students;
             }
 
             const t003Students = allStudents.filter((student: any) => {
@@ -132,11 +127,11 @@ export default function A_DocT003Review() {
 
     const reloadStudents = async (period: string) => {
         try {
-            const token = localStorage.getItem("coop.token");
             const params = new URLSearchParams();
             if (period !== "all") params.set("coopPeriodId", period);
-            const res = await axios.get(`/api/admin/students?${params}`, { headers: { Authorization: `Bearer ${token}` } });
-            const allStudents: any[] = Array.isArray(res.data) ? res.data : (res.data?.data || res.data?.students || []);
+            const res = await apiFetch(`/api/admin/students?${params}`);
+            const resData = await res.json();
+            const allStudents: any[] = Array.isArray(resData) ? resData : (resData?.data || resData?.students || []);
             setStudents(allStudents.filter((s: any) => {
                 const hasT003Doc = s.documents?.some((d: any) => d.type === 'T003_FORM');
                 const isStatusMatch = ['T003_SUBMITTED', 'T003_EDITS_REQUIRED', 'T003_APPROVED', 'INTERNSHIP_STARTED'].includes(s.coop?.status || s.docStatus);
@@ -233,12 +228,15 @@ export default function A_DocT003Review() {
                 closeConfirm();
                 setLoading(true);
                 try {
-                    const token = localStorage.getItem("coop.token");
                     const newStatus = action === 'APPROVE' ? 'T003_APPROVED' : 'T003_EDITS_REQUIRED';
-                    await axios.put(`/api/admin/documents/review-t003`, {
-                        studentId: selectedStudent?.id, status: newStatus,
-                        comment: action === 'REJECT' ? comment : null
-                    }, { headers: { Authorization: `Bearer ${token}` } });
+                    await apiFetch(`/api/admin/documents/review-t003`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            studentId: selectedStudent?.id, status: newStatus,
+                            comment: action === 'REJECT' ? comment : null
+                        })
+                    });
                     toast.success(`บันทึกผลเรียบร้อย (${action === 'APPROVE' ? 'อนุมัติ' : 'ตีกลับ'})`);
                     setModalOpen(false);
                     fetchAllData();
