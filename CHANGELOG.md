@@ -1,5 +1,13 @@
 # CHANGELOG — Co_project
 
+## [2026-08-06] fix: batch 55 — semester NaN + review-t002/t003 authz + GET /teacher/me + coopPeriodId NaN + file cleanup
+
+- **coopPeriodController.js `updatePeriod`:** เพิ่ม `parsedSemester` + `!Number.isInteger` guard — ก่อนหน้านี้ `Number(semester)` ส่ง NaN ไป Prisma ถ้า semester ไม่ใช่ตัวเลข
+- **adminRoutes.js `review-t002/t003`:** เปลี่ยน `verifyRole(...ADMIN_ROLES)` → `verifyRole(...STAFF_ONLY)` — ป้องกัน teacher ทุกคน bypass advisor ownership check บน admin review endpoint
+- **teacherRoutes.js `GET /me`:** เพิ่ม `verifyRole('teacher', 'staff')` — ก่อนหน้านี้นักศึกษาเรียกได้และรับ email ตัวเองในรูปแบบ teacher profile
+- **teacherController.js `getMyStudents` + `exportMyStudents`:** เพิ่ม `isNaN(coopPeriodId)` guard → 400 — ก่อนหน้านี้ NaN ทำให้ตัวกรอง period หายไปเงียบๆ และคืนนักศึกษาทั้งหมดแทน
+- **adminDocController.js `reviewStudentStatus`:** เพิ่ม `req.file` cleanup ใน catch block + import `path`/`fs` — ป้องกัน orphan file เมื่อ transaction throw
+
 ## [2026-08-05] fix: batch 54 — null guard + NaN guards + status gate + student route authz
 
 - **supervisionController.js `completeSupervision`:** เพิ่ม `if (!fresh)` null check ก่อน `fresh.status` ใน `$transaction` + เพิ่ม `is404` catch — ป้องกัน TypeError เมื่อ row ถูกลบระหว่าง outer guard กับ transaction

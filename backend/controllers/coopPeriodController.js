@@ -62,11 +62,15 @@ exports.updatePeriod = async (req, res) => {
       return res.status(400).json({ ok: false, error: 'id ไม่ถูกต้อง' });
     }
 
+    const parsedSemester = Number(semester);
+    if (semester !== undefined && (!Number.isInteger(parsedSemester) || parsedSemester <= 0))
+      return res.status(400).json({ ok: false, error: 'semester ไม่ถูกต้อง' });
+
     const updated = await prisma.coopPeriod.update({
       where: { id: parsedId },
       data: {
         academicYear,
-        semester: Number(semester),
+        semester: parsedSemester,
         startDate: new Date(startDate),
         endDate: new Date(endDate),
       },

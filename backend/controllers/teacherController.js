@@ -681,6 +681,8 @@ exports.getMyStudents = async (req, res) => {
     const skip = (page - 1) * limit;
     const search = (req.query.search || "").trim();
     const coopPeriodId = req.query.coopPeriodId ? parseInt(req.query.coopPeriodId) : undefined;
+    if (coopPeriodId !== undefined && isNaN(coopPeriodId))
+      return res.status(400).json({ ok: false, message: 'coopPeriodId ไม่ถูกต้อง' });
 
     const baseWhere = {
       deletedAt: null,
@@ -748,6 +750,8 @@ exports.exportMyStudents = async (req, res) => {
     const coopPeriodId = req.query.coopPeriodId && req.query.coopPeriodId !== 'all'
       ? parseInt(req.query.coopPeriodId, 10)
       : undefined;
+    if (coopPeriodId !== undefined && isNaN(coopPeriodId))
+      return res.status(400).json({ ok: false, message: 'coopPeriodId ไม่ถูกต้อง' });
 
     const advisorFilter = { OR: [{ generalAdvisorId: teacher.id }, { coopAdvisorId: teacher.id }] };
     const periodFilter = coopPeriodId ? { coop: { coopPeriodId } } : null;
