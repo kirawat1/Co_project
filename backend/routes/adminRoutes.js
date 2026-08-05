@@ -116,8 +116,8 @@ router.post('/config/dean-info', verifyToken, verifyRole(...ADMIN_ROLES), system
 
 // Students Review
 router.get('/students', verifyToken, verifyRole(...ADMIN_ROLES), adminDocController.getAllStudentsForReview);
-router.put('/documents/review-t002', verifyToken, verifyRole(...ADMIN_ROLES), adminDocController.reviewT002);
-router.put('/documents/review-t003', verifyToken, verifyRole(...ADMIN_ROLES), adminDocController.reviewT003);
+router.put('/documents/review-t002', verifyToken, verifyRole(...STAFF_ONLY), adminDocController.reviewT002);
+router.put('/documents/review-t003', verifyToken, verifyRole(...STAFF_ONLY), adminDocController.reviewT003);
 
 // Config
 router.get('/config/t002', verifyToken, verifyRole(...ADMIN_ROLES), configController.getT002Config);

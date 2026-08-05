@@ -1,5 +1,7 @@
 const prisma = require('../config/prismaClient');
 const { createNotifications } = require('../utils/notificationHelper');
+const path = require('path');
+const fs = require('fs');
 
 // 1. ดึงค่า Config
 exports.getT000Config = async (req, res) => {
@@ -234,6 +236,10 @@ exports.reviewStudentStatus = async (req, res) => {
         .catch(console.error);
     }
   } catch (err) {
+    if (req.file) {
+      const fp = path.join(__dirname, '../uploads', req.file.filename);
+      if (fs.existsSync(fp)) try { fs.unlinkSync(fp); } catch (_) {}
+    }
     if (err.is404) return res.status(404).json({ ok: false, message: err.message });
     if (err.is400) return res.status(400).json({ ok: false, message: err.message });
     console.error(err);
