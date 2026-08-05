@@ -53,7 +53,7 @@ const submitCoopApplication = async (req, res) => {
       where: { userId: userId },
     });
 
-    if (!student) {
+    if (!student || student.deletedAt) {
       return res.status(404).json({ ok: false, message: "ไม่พบข้อมูลนักศึกษา" });
     }
 

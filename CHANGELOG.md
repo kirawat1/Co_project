@@ -1,5 +1,17 @@
 # CHANGELOG — Co_project
 
+## [2026-08-05] fix: batch 42 — soft-delete guards + TOCTOU in doc/coop/supervision/student
+
+- **coopController.js `submitCoopApplication`:** เพิ่ม `|| student.deletedAt` — soft-deleted student ยื่นคำร้องได้
+- **docController.js `getStudentIdFromUser` helper:** เพิ่ม `|| student.deletedAt` — helper ที่ใช้ใน `saveApplicationForm` คืน student ที่ถูกลบ
+- **docController.js `uploadDocument`:** เพิ่ม `|| student.deletedAt`; ย้าย `oldDoc = findFirst(...)` เข้าใน `$transaction` — TOCTOU: 2 concurrent requests เกิด P2025 บน document.delete (deleted by first tx)
+- **docController.js `acknowledgeDispatchDownload`:** เพิ่ม `|| student.deletedAt`
+- **docController.js `acknowledgePlacementLetter`:** เพิ่ม `|| student.deletedAt`
+- **docController.js `deleteDocumentByType`:** เพิ่ม `|| student.deletedAt`
+- **supervisionController.js `proposeSupervisionDate`:** เพิ่ม `|| student.deletedAt` — soft-deleted student นัดนิเทศได้
+- **studentController.js `updateMyProfile`:** เพิ่ม `deletedAt` guard หลัง currentStudent lookup — soft-deleted student แก้ profile ได้
+- **studentController.js `downloadPlacementLetter`:** เพิ่ม `|| student.deletedAt` — soft-deleted student เปลี่ยนสถานะ coop ได้
+
 ## [2026-08-05] fix: batch 41 — soft-delete guards in visit/coop/teacher/student controllers
 
 - **visitController.js `getVisitsByStudent`:** เพิ่ม `|| student.deletedAt` — soft-deleted student ให้ visit history แก่ผู้เรียกได้

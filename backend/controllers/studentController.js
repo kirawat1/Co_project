@@ -91,6 +91,10 @@ exports.updateMyProfile = async (req, res) => {
       where: { userId: userId }
     });
 
+    if (currentStudent?.deletedAt) {
+      return res.status(403).json({ ok: false, message: "บัญชีถูกระงับการใช้งาน" });
+    }
+
     const gpa = data.gpa !== undefined ? parseFloat(data.gpa) : (currentStudent?.gpa || 0);
     const activityUnit = data.activityUnit !== undefined ? parseInt(data.activityUnit) : (currentStudent?.activityUnit || 0);
 
@@ -298,7 +302,7 @@ exports.downloadPlacementLetter = async (req, res) => {
   try {
     // ต้องหา Student.id จาก User.id ก่อน — สองตาราง มี id คนละ sequence กัน
     const student = await prisma.student.findUnique({ where: { userId: req.user.id } });
-    if (!student) return res.status(404).json({ ok: false, message: "ไม่พบข้อมูลนักศึกษา" });
+    if (!student || student.deletedAt) return res.status(404).json({ ok: false, message: "ไม่พบข้อมูลนักศึกษา" });
 
     const studentId = student.id;
     const coop = await prisma.studentCoop.findUnique({ where: { studentId } });

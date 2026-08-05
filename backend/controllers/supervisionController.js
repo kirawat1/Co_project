@@ -128,7 +128,7 @@ exports.proposeSupervisionDate = async (req, res) => {
         }
         const student = await prisma.student.findUnique({ where: { userId: req.user.id } });
 
-        if (!student) return res.status(404).json({ ok: false, message: 'Student not found' });
+        if (!student || student.deletedAt) return res.status(404).json({ ok: false, message: 'Student not found' });
 
         // หา Teacher ID จากชื่อที่ปรึกษา
         if (!student.advisorName) {
