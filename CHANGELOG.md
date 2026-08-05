@@ -1,5 +1,14 @@
 # CHANGELOG — Co_project
 
+## [2026-08-05] fix: batch 54 — null guard + NaN guards + status gate + student route authz
+
+- **supervisionController.js `completeSupervision`:** เพิ่ม `if (!fresh)` null check ก่อน `fresh.status` ใน `$transaction` + เพิ่ม `is404` catch — ป้องกัน TypeError เมื่อ row ถูกลบระหว่าง outer guard กับ transaction
+- **coopPeriodController.js `createPeriod`:** เพิ่ม `!Number.isInteger(parsedSemester)` guard + แปลง `Number(semester)` → `parsedSemester`
+- **studentController.js `updateMyProfile`:** เพิ่ม `isNaN(activityUnit)` และ `isNaN(Number(coopAdvisorId))` guards → 400 ก่อน transaction
+- **studentController.js `downloadPlacementLetter`:** แคบ `PRE_INTERNSHIP_STATUSES` เหลือ `['PLACEMENT_LETTER_ISSUED']` — ตรงกับ `acknowledgePlacementLetter` และป้องกัน skip acceptance-letter step
+- **coopRoutes.js:** เพิ่ม `verifyRole('student')` ใน POST /apply, DELETE /documents/:id, GET /supervision/me
+- **docRoutes.js:** เพิ่ม `verifyRole('student')` ใน 5 routes (save-form, my-application, upload, delete/:id, document/type/:docType)
+
 ## [2026-08-05] fix: batch 53 — action guard + coopPeriodId NaN + assignCoTeachers 404 + mentor authz
 
 - **supervisionController.js `reviewSupervision`:** เพิ่ม early-return guard `if (!['APPROVE','REJECT'].includes(action))` → 400 — ป้องกัน unknown action คืน 200 + ส่ง false "rejected" notification ให้นักศึกษา

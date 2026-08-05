@@ -101,6 +101,10 @@ exports.updateMyProfile = async (req, res) => {
 
     const gpa = data.gpa !== undefined ? parseFloat(data.gpa) : (currentStudent?.gpa || 0);
     const activityUnit = data.activityUnit !== undefined ? parseInt(data.activityUnit) : (currentStudent?.activityUnit || 0);
+    if (data.activityUnit !== undefined && isNaN(activityUnit))
+      return res.status(400).json({ ok: false, message: 'activityUnit ไม่ถูกต้อง' });
+    if (data.coopAdvisorId !== undefined && data.coopAdvisorId !== null && data.coopAdvisorId !== '' && isNaN(Number(data.coopAdvisorId)))
+      return res.status(400).json({ ok: false, message: 'coopAdvisorId ไม่ถูกต้อง' });
 
     let student;
     let updatedCoop = null;
@@ -294,13 +298,7 @@ exports.exportStudents = async (req, res) => {
 
 
 // สถานะที่ยังไม่เริ่มฝึกงาน (ก่อน INTERNSHIP_STARTED) ที่อนุญาตให้ดาวน์โหลดหนังสือส่งตัวได้
-const PRE_INTERNSHIP_STATUSES = [
-  'REQ_LETTER_ISSUED',
-  'WAITING_FOR_PLACEMENT_LETTER',
-  'WAITING_FOR_STAFF_CHECK_LETTER',
-  'ACCEPTANCE_CHECKED',
-  'PLACEMENT_LETTER_ISSUED',
-];
+const PRE_INTERNSHIP_STATUSES = ['PLACEMENT_LETTER_ISSUED'];
 
 exports.downloadPlacementLetter = async (req, res) => {
   try {
