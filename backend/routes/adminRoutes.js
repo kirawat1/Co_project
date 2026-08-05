@@ -120,19 +120,19 @@ router.put('/documents/review-t002', verifyToken, verifyRole(...ADMIN_ROLES), ad
 router.put('/documents/review-t003', verifyToken, verifyRole(...ADMIN_ROLES), adminDocController.reviewT003);
 
 // Config
-router.get('/config/t002', verifyToken, configController.getT002Config);
+router.get('/config/t002', verifyToken, verifyRole(...ADMIN_ROLES), configController.getT002Config);
 router.post('/config/t002', verifyToken, verifyRole(...ADMIN_ROLES), configController.saveT002Config);
 
-router.get('/config/t003', verifyToken, configController.getT003Config);
+router.get('/config/t003', verifyToken, verifyRole(...ADMIN_ROLES), configController.getT003Config);
 router.post('/config/t003', verifyToken, verifyRole(...ADMIN_ROLES), configController.saveT003Config);
 
-router.get('/config/evaluation', verifyToken, configController.getEvaluationConfig);
+router.get('/config/evaluation', verifyToken, verifyRole(...ADMIN_ROLES), configController.getEvaluationConfig);
 router.put('/config/evaluation', verifyToken, verifyRole(...ADMIN_ROLES), configController.updateEvaluationConfig);
 
-router.get('/config/t007', verifyToken, configController.getT007Config);
+router.get('/config/t007', verifyToken, verifyRole(...ADMIN_ROLES), configController.getT007Config);
 router.put('/config/t007', verifyToken, verifyRole(...ADMIN_ROLES), configController.updateT007Config);
 
-router.get('/config/t008', verifyToken, configController.getT008Config);
+router.get('/config/t008', verifyToken, verifyRole(...ADMIN_ROLES), configController.getT008Config);
 router.put('/config/t008', verifyToken, verifyRole(...ADMIN_ROLES), systemUpload.single('image'), configController.updateT008Config);
 
 router.get('/config/gateway', verifyToken, verifyRole(...ADMIN_ROLES), configController.getGatewaySettings);

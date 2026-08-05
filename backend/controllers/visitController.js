@@ -87,7 +87,9 @@ async function isOwnerOfVisit(userId, visit) {
 exports.toggleVisitStatus = async (req, res) => {
   try {
     const { id } = req.params;
-    const visit = await prisma.visit.findUnique({ where: { id: parseInt(id) } });
+    const numId = parseInt(id, 10);
+    if (isNaN(numId)) return res.status(400).json({ ok: false, message: "Invalid ID" });
+    const visit = await prisma.visit.findUnique({ where: { id: numId } });
 
     if (!visit) return res.status(404).json({ ok: false, message: "Visit not found" });
     if (!(await isOwnerOfVisit(req.user.id, visit))) {
@@ -97,7 +99,7 @@ exports.toggleVisitStatus = async (req, res) => {
     const newStatus = visit.status === "scheduled" ? "done" : "scheduled";
 
     const updated = await prisma.visit.update({
-      where: { id: parseInt(id) },
+      where: { id: numId },
       data: { status: newStatus }
     });
 
@@ -112,13 +114,15 @@ exports.toggleVisitStatus = async (req, res) => {
 exports.deleteVisit = async (req, res) => {
   try {
     const { id } = req.params;
-    const visit = await prisma.visit.findUnique({ where: { id: parseInt(id) } });
+    const numId = parseInt(id, 10);
+    if (isNaN(numId)) return res.status(400).json({ ok: false, message: "Invalid ID" });
+    const visit = await prisma.visit.findUnique({ where: { id: numId } });
     if (!visit) return res.status(404).json({ ok: false, message: "Visit not found" });
     if (!(await isOwnerOfVisit(req.user.id, visit))) {
       return res.status(403).json({ ok: false, message: "ไม่มีสิทธิ์ลบนัดหมายของอาจารย์ท่านอื่น" });
     }
 
-    await prisma.visit.delete({ where: { id: parseInt(id) } });
+    await prisma.visit.delete({ where: { id: numId } });
     res.json({ ok: true, message: "Deleted successfully" });
   } catch (err) {
     console.error(err);
