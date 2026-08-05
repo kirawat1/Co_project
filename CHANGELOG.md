@@ -1,5 +1,12 @@
 # CHANGELOG — Co_project
 
+## [2026-08-05] fix: batch 53 — action guard + coopPeriodId NaN + assignCoTeachers 404 + mentor authz
+
+- **supervisionController.js `reviewSupervision`:** เพิ่ม early-return guard `if (!['APPROVE','REJECT'].includes(action))` → 400 — ป้องกัน unknown action คืน 200 + ส่ง false "rejected" notification ให้นักศึกษา
+- **supervisionController.js `assignCoTeachers`:** เพิ่ม `findUnique` ก่อน `update` — ป้องกัน P2025 (record not found) คืน 500 แทน 404
+- **coopController.js `submitCoopApplication`:** แปลง `!coopPeriodId` falsy check → `!Number.isInteger(parsedPeriodId) || parsedPeriodId <= 0` + แปลง `Number(coopPeriodId)` → `parsedPeriodId` ทุกจุด
+- **companyRoutes.js:** ลบ `'student'` ออกจาก `verifyRole` ของ POST/PUT/DELETE mentor endpoints — นักศึกษาไม่ควรเข้าถึง handler เหล่านี้ได้
+
 ## [2026-08-05] fix: batch 52 — teacher/student route authz + isNaN guards + approveAllDocs status gate
 
 - **teacherRoutes.js:** เพิ่ม `verifyRole('teacher', 'staff')` ใน GET /supervisions, /stats, /latest-requests — ก่อนหน้านี้ทุก role เรียกได้
