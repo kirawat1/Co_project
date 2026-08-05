@@ -244,6 +244,22 @@ const deleteDocument = async (req, res) => {
         return res.status(403).json({ ok: false, message: "ไม่มีสิทธิ์ลบไฟล์นี้" });
     }
 
+    // ป้องกันลบเอกสารที่อยู่ระหว่างการตรวจสอบ
+    if (doc.type === 'T002_FORM' || doc.type === 'T003_FORM') {
+        const coop = await prisma.studentCoop.findUnique({
+            where: { studentId: doc.studentId },
+            select: { status: true }
+        });
+        const LOCKED_BY_T002 = new Set(['T002_SUBMITTED', 'T003_SUBMITTED', 'T003_EDITS_REQUIRED', 'T003_APPROVED', 'INTERNSHIP_STARTED', 'COMPLETED']);
+        const LOCKED_BY_T003 = new Set(['T003_SUBMITTED', 'T003_APPROVED', 'INTERNSHIP_STARTED', 'COMPLETED']);
+        if (doc.type === 'T002_FORM' && coop && LOCKED_BY_T002.has(coop.status)) {
+            return res.status(409).json({ ok: false, message: "ไม่สามารถลบ T002 ที่อยู่ระหว่างการตรวจสอบ" });
+        }
+        if (doc.type === 'T003_FORM' && coop && LOCKED_BY_T003.has(coop.status)) {
+            return res.status(409).json({ ok: false, message: "ไม่สามารถลบ T003 ที่อยู่ระหว่างการตรวจสอบ" });
+        }
+    }
+
     // 2. ลบไฟล์ออกจาก Server (ถ้ามี)
     const filePath = path.join(__dirname, '../uploads', doc.path);
     if (fs.existsSync(filePath)) {

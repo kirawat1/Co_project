@@ -551,32 +551,26 @@ exports.updateConfirmedDate = async (req, res) => {
             return res.status(400).json({ ok: false, message: 'กรุณาระบุวันที่นิเทศ' });
         }
 
-        const supervision = await prisma.supervisionAppointment.findUnique({
-            where: { id: parseInt(id) }
-        });
-        if (!supervision) {
-            return res.status(404).json({ ok: false, message: 'ไม่พบข้อมูลการนัดหมาย' });
-        }
-
-        // ป้องกัน: ถ้าออก PDF แล้วแก้ไขไม่ได้
-        if (supervision.officialLetterPath) {
-            return res.status(400).json({ ok: false, message: 'ไม่สามารถแก้ไขได้ เนื่องจากออกหนังสือนิเทศแล้ว' });
-        }
-        if (supervision.status !== 'DATE_CONFIRMED') {
-            return res.status(400).json({ ok: false, message: 'สามารถแก้ไขวันนิเทศได้เฉพาะเมื่อสถานะเป็น DATE_CONFIRMED เท่านั้น' });
-        }
-
         const chosenDate = new Date(confirmedDate);
-
-        // ตรวจสอบวันซ้ำกับอาจารย์คนเดียวกัน
         const startOfDay = new Date(chosenDate); startOfDay.setHours(0, 0, 0, 0);
         const endOfDay = new Date(chosenDate); endOfDay.setHours(23, 59, 59, 999);
 
         let updated;
         await prisma.$transaction(async (tx) => {
+            const fresh = await tx.supervisionAppointment.findUnique({ where: { id: parseInt(id) } });
+            if (!fresh) {
+                throw Object.assign(new Error('ไม่พบข้อมูลการนัดหมาย'), { is404: true });
+            }
+            if (fresh.officialLetterPath) {
+                throw Object.assign(new Error('ไม่สามารถแก้ไขได้ เนื่องจากออกหนังสือนิเทศแล้ว'), { is400: true });
+            }
+            if (fresh.status !== 'DATE_CONFIRMED') {
+                throw Object.assign(new Error('สามารถแก้ไขวันนิเทศได้เฉพาะเมื่อสถานะเป็น DATE_CONFIRMED เท่านั้น'), { is400: true });
+            }
+
             const conflict = await tx.supervisionAppointment.findFirst({
                 where: {
-                    teacherId: supervision.teacherId,
+                    teacherId: fresh.teacherId,
                     id: { not: parseInt(id) },
                     status: { in: ['DATE_CONFIRMED', 'LETTER_UPLOADED'] },
                     confirmedDate: { gte: startOfDay, lte: endOfDay }
@@ -599,9 +593,9 @@ exports.updateConfirmedDate = async (req, res) => {
 
         res.json({ ok: true, appointment: updated });
     } catch (err) {
-        if (err.is409) {
-            return res.status(409).json({ ok: false, message: err.message });
-        }
+        if (err.is404) return res.status(404).json({ ok: false, message: err.message });
+        if (err.is400) return res.status(400).json({ ok: false, message: err.message });
+        if (err.is409) return res.status(409).json({ ok: false, message: err.message });
         console.error('updateConfirmedDate error:', err);
         res.status(500).json({ ok: false, message: 'เกิดข้อผิดพลาดในการแก้ไขวันนิเทศ' });
     }

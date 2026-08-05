@@ -125,7 +125,10 @@ exports.reviewStudentStatus = async (req, res) => {
       docType // ✅ 1. เพิ่มการรับค่า docType จาก Frontend
     } = req.body;
 
-    const parsedStudentId = parseInt(studentId);
+    const parsedStudentId = parseInt(studentId, 10);
+    if (isNaN(parsedStudentId) || parsedStudentId <= 0) {
+      return res.status(400).json({ ok: false, message: 'studentId ต้องเป็นตัวเลขที่ถูกต้อง' });
+    }
 
     const REVIEW_STATUS_ALLOWED = new Set([
       'QUALIFIED', 'QUALIFICATION_FAILED', 'APPLICATION_EDITS_REQUIRED',
@@ -238,18 +241,22 @@ exports.reviewStudentStatus = async (req, res) => {
 exports.approveAllDocs = async (req, res) => {
   try {
     const { studentId } = req.body;
+    const parsedId = parseInt(studentId, 10);
+    if (isNaN(parsedId) || parsedId <= 0) {
+      return res.status(400).json({ ok: false, message: 'studentId ต้องเป็นตัวเลขที่ถูกต้อง' });
+    }
 
     await prisma.$transaction(async (tx) => {
-      const studentCheck = await tx.student.findUnique({ where: { id: parseInt(studentId) }, select: { deletedAt: true } });
+      const studentCheck = await tx.student.findUnique({ where: { id: parsedId }, select: { deletedAt: true } });
       if (!studentCheck || studentCheck.deletedAt) {
         throw Object.assign(new Error('ไม่พบนักศึกษา'), { is404: true });
       }
       await tx.document.updateMany({
-        where: { studentId: parseInt(studentId) },
+        where: { studentId: parsedId },
         data: { status: 'APPROVED' }
       });
       await tx.studentCoop.upsert({
-        where: { studentId: parseInt(studentId) },
+        where: { studentId: parsedId },
         update: { status: 'DOCS_APPROVED', t000Comment: 'เอกสารครบถ้วน (รอออกหนังสือ)' },
         create: {
           studentId: parseInt(studentId),
@@ -299,6 +306,11 @@ exports.updateCoopApplicationStatus = async (req, res) => {
     const { id } = req.params;
     const { status, comment } = req.body;
 
+    const parsedId = Number(id);
+    if (!Number.isInteger(parsedId) || parsedId <= 0) {
+      return res.status(400).json({ ok: false, message: 'id ไม่ถูกต้อง' });
+    }
+
     const APP_STATUS_ALLOWED = new Set([
       'WAITING_FOR_STAFF_CHECK', 'EDITS_REQUIRED', 'QUALIFIED',
       'QUALIFICATION_FAILED', 'APPLICATION_EDITS_REQUIRED',
@@ -307,15 +319,32 @@ exports.updateCoopApplicationStatus = async (req, res) => {
       return res.status(400).json({ ok: false, message: 'status ไม่ถูกต้อง' });
     }
 
-    const updated = await prisma.studentCoop.update({
-      where: { id: Number(id) },
-      data: {
-        status: status,
-        staffCheckComment: comment || null,
+    let updated;
+    await prisma.$transaction(async (tx) => {
+      const record = await tx.studentCoop.findUnique({
+        where: { id: parsedId },
+        select: { status: true, student: { select: { deletedAt: true } } }
+      });
+      if (!record || record.student.deletedAt) {
+        throw Object.assign(new Error('ไม่พบข้อมูลคำร้อง'), { is404: true });
       }
+      const REVIEWABLE = new Set([
+        'APPLYING', 'WAITING_FOR_STAFF_CHECK', 'APPLICATION_EDITS_REQUIRED',
+        'EDITS_REQUIRED', 'QUALIFIED', 'QUALIFICATION_FAILED',
+      ]);
+      if (!REVIEWABLE.has(record.status)) {
+        throw Object.assign(new Error('ไม่สามารถเปลี่ยนสถานะได้ในขั้นตอนนี้'), { is400: true });
+      }
+      updated = await tx.studentCoop.update({
+        where: { id: parsedId },
+        data: { status, staffCheckComment: comment || null }
+      });
     });
+
     res.json({ ok: true, application: updated });
   } catch (error) {
+    if (error.is404) return res.status(404).json({ ok: false, message: error.message });
+    if (error.is400) return res.status(400).json({ ok: false, message: error.message });
     console.error("Update Status Error:", error);
     res.status(500).json({ ok: false, error: "Server error" });
   }
@@ -385,6 +414,10 @@ exports.reviewT002 = async (req, res) => {
         if (!studentId) {
             return res.status(400).json({ ok: false, message: "ไม่พบข้อมูล Student ID" });
         }
+        const parsedStudentId = parseInt(studentId, 10);
+        if (isNaN(parsedStudentId) || parsedStudentId <= 0) {
+            return res.status(400).json({ ok: false, message: 'studentId ต้องเป็นตัวเลขที่ถูกต้อง' });
+        }
 
         const T002_ALLOWED = ['T002_SUBMITTED', 'T002_EDITS_REQUIRED'];
         if (!T002_ALLOWED.includes(status)) {
@@ -392,16 +425,16 @@ exports.reviewT002 = async (req, res) => {
         }
 
         await prisma.$transaction(async (tx) => {
-            const coop = await tx.studentCoop.findUnique({ where: { studentId: parseInt(studentId) }, select: { status: true } });
+            const coop = await tx.studentCoop.findUnique({ where: { studentId: parsedStudentId }, select: { status: true } });
             if (!coop || coop.status !== 'T002_SUBMITTED') {
                 throw Object.assign(new Error('สามารถตรวจสอบ T002 ได้เฉพาะเมื่อสถานะเป็น T002_SUBMITTED เท่านั้น'), { is400: true });
             }
             await tx.studentCoop.update({
-                where: { studentId: parseInt(studentId) },
+                where: { studentId: parsedStudentId },
                 data: { status: status }
             });
             const doc = await tx.document.findFirst({
-                where: { studentId: parseInt(studentId), type: 'T002_FORM' },
+                where: { studentId: parsedStudentId, type: 'T002_FORM' },
                 orderBy: { id: 'desc' }
             });
             if (doc) {
@@ -418,7 +451,7 @@ exports.reviewT002 = async (req, res) => {
         res.json({ ok: true, message: "บันทึกผลการตรวจสอบสำเร็จ" });
 
         // Notify student
-        prisma.student.findUnique({ where: { id: parseInt(studentId) }, select: { userId: true } })
+        prisma.student.findUnique({ where: { id: parsedStudentId }, select: { userId: true } })
           .then(student => {
             if (student?.userId) {
               return createNotifications([student.userId], {
@@ -444,6 +477,10 @@ exports.reviewT003 = async (req, res) => {
     try {
         const { studentId, status, comment } = req.body;
         if (!studentId) return res.status(400).json({ ok: false, message: "ไม่พบ studentId" });
+        const parsedStudentId = parseInt(studentId, 10);
+        if (isNaN(parsedStudentId) || parsedStudentId <= 0) {
+            return res.status(400).json({ ok: false, message: 'studentId ต้องเป็นตัวเลขที่ถูกต้อง' });
+        }
 
         const T003_ALLOWED = ['T003_APPROVED', 'T003_EDITS_REQUIRED'];
         if (!T003_ALLOWED.includes(status)) {
@@ -451,16 +488,16 @@ exports.reviewT003 = async (req, res) => {
         }
 
         await prisma.$transaction(async (tx) => {
-            const coop = await tx.studentCoop.findUnique({ where: { studentId: parseInt(studentId) }, select: { status: true } });
+            const coop = await tx.studentCoop.findUnique({ where: { studentId: parsedStudentId }, select: { status: true } });
             if (!coop || coop.status !== 'T003_SUBMITTED') {
                 throw Object.assign(new Error('สามารถตรวจสอบ T003 ได้เฉพาะเมื่อสถานะเป็น T003_SUBMITTED เท่านั้น'), { is400: true });
             }
             await tx.studentCoop.update({
-                where: { studentId: parseInt(studentId) },
+                where: { studentId: parsedStudentId },
                 data: { status: status }
             });
             const doc = await tx.document.findFirst({
-                where: { studentId: parseInt(studentId), type: 'T003_FORM' },
+                where: { studentId: parsedStudentId, type: 'T003_FORM' },
                 orderBy: { id: 'desc' }
             });
             if (doc) {
@@ -477,7 +514,7 @@ exports.reviewT003 = async (req, res) => {
         res.json({ ok: true, message: "Review T003 saved successfully" });
 
         // Notify student
-        prisma.student.findUnique({ where: { id: parseInt(studentId) }, select: { userId: true } })
+        prisma.student.findUnique({ where: { id: parsedStudentId }, select: { userId: true } })
           .then(student => {
             if (student?.userId) {
               return createNotifications([student.userId], {
