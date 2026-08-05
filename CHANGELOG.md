@@ -1,5 +1,14 @@
 # CHANGELOG — Co_project
 
+## [2026-08-05] fix: batch 52 — teacher/student route authz + isNaN guards + approveAllDocs status gate
+
+- **teacherRoutes.js:** เพิ่ม `verifyRole('teacher', 'staff')` ใน GET /supervisions, /stats, /latest-requests — ก่อนหน้านี้ทุก role เรียกได้
+- **studentRoutes.js:** เพิ่ม `verifyRole('student')` ใน PUT /me — ป้องกัน teacher/staff สร้าง phantom Student row ผ่าน upsert
+- **teacherController.js `updateTeacherById` + `deleteTeacher` + `resetTeacherPassword` + `adminUpdateTeacher`:** เพิ่ม `isNaN` guard บน `parseInt(id)` → 400 แทน 500 ทุกฟังก์ชัน
+- **supervisionController.js `reviewSupervision` + `completeSupervision` + `uploadOfficialLetter` + `updateConfirmedDate`:** เพิ่ม `parsedId` + `isNaN` guard ทุกฟังก์ชัน + แปลง `parseInt(id)` → `parsedId` ทุกจุดในแต่ละฟังก์ชัน
+- **coopPeriodController.js `togglePeriod`:** เพิ่ม `!Number.isInteger / <= 0` guard + แปลง `Number(id)` → `parsedId` ให้ตรงกับ sibling functions
+- **adminDocController.js `approveAllDocs`:** เพิ่ม status gate ใน `$transaction` — ป้องกัน staff override สถานะ T003_APPROVED/INTERNSHIP_STARTED กลับไปเป็น DOCS_APPROVED
+
 ## [2026-08-05] fix: batch 51 — config route authz + NaN bypass + isNaN guards
 
 - **adminRoutes.js `/config/t002|t003|evaluation|t007|t008` GET:** เพิ่ม `verifyRole(...ADMIN_ROLES)` — ก่อนหน้านี้ผู้ใช้ที่ login แล้ว (ทุก role) ดึง config ได้โดยไม่ต้องเป็น admin/staff

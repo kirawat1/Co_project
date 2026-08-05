@@ -80,6 +80,9 @@ exports.updatePeriod = async (req, res) => {
 exports.togglePeriod = async (req, res) => {
   try {
     const { id } = req.params;
+    const parsedId = Number(id);
+    if (!Number.isInteger(parsedId) || parsedId <= 0)
+      return res.status(400).json({ ok: false, message: 'id ไม่ถูกต้อง' });
     const { isActive } = req.body;
 
     let updated;
@@ -87,12 +90,12 @@ exports.togglePeriod = async (req, res) => {
       // ถ้ากำลังจะเปิดรอบนี้ ให้ปิดรอบอื่นๆ ทั้งหมดก่อน
       if (isActive === true) {
         await tx.coopPeriod.updateMany({
-          where: { id: { not: Number(id) } },
+          where: { id: { not: parsedId } },
           data: { isActive: false },
         });
       }
       updated = await tx.coopPeriod.update({
-        where: { id: Number(id) },
+        where: { id: parsedId },
         data: { isActive },
       });
     });
