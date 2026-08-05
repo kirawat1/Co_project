@@ -311,19 +311,17 @@ exports.downloadPlacementLetter = async (req, res) => {
     const studentId = student.id;
     const coop = await prisma.studentCoop.findUnique({ where: { studentId } });
 
-    if (!coop?.placeLetterUrl || !PRE_INTERNSHIP_STATUSES.includes(coop.status)) {
-      return res.status(400).json({ ok: false, message: "ยังไม่สามารถดาวน์โหลดหนังสือส่งตัวได้ในสถานะปัจจุบัน" });
-    }
-
-    await prisma.studentCoop.update({
-      where: { studentId },
-      data: {
-        status: 'INTERNSHIP_STARTED'
+    await prisma.$transaction(async (tx) => {
+      const freshCoop = await tx.studentCoop.findUnique({ where: { studentId } });
+      if (!freshCoop?.placeLetterUrl || !PRE_INTERNSHIP_STATUSES.includes(freshCoop.status)) {
+        throw Object.assign(new Error("ยังไม่สามารถดาวน์โหลดหนังสือส่งตัวได้ในสถานะปัจจุบัน"), { is400: true });
       }
+      await tx.studentCoop.update({ where: { studentId }, data: { status: 'INTERNSHIP_STARTED' } });
     });
 
     res.json({ ok: true });
   } catch (err) {
+    if (err.is400) return res.status(400).json({ ok: false, message: err.message });
     console.error('downloadPlacementLetter error:', err);
     res.status(500).json({ ok: false });
   }

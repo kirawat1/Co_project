@@ -499,18 +499,17 @@ exports.completeSupervision = async (req, res) => {
             }
         }
 
-        if (supervision.status !== 'LETTER_UPLOADED') {
-            return res.status(400).json({ ok: false, message: "ยังไม่สามารถจบนิเทศได้ในสถานะปัจจุบัน" });
-        }
-
-        await prisma.supervisionAppointment.update({
-            where: { id: parseInt(id) },
-            data: { status: 'COMPLETED' }
+        await prisma.$transaction(async (tx) => {
+            const fresh = await tx.supervisionAppointment.findUnique({ where: { id: parseInt(id) } });
+            if (fresh.status !== 'LETTER_UPLOADED') {
+                throw Object.assign(new Error("ยังไม่สามารถจบนิเทศได้ในสถานะปัจจุบัน"), { is400: true });
+            }
+            await tx.supervisionAppointment.update({ where: { id: parseInt(id) }, data: { status: 'COMPLETED' } });
         });
 
         res.json({ ok: true, message: "บันทึกผลนิเทศเสร็จสิ้นสำเร็จ" });
 
-        prisma.student.findUnique({ where: { id: supervision.studentId }, select: { userId: true } })
+        prisma.student.findUnique({ where: { id: supervision.studentId }, select: { userId: true, deletedAt: true } })
           .then(student => {
             if (student?.userId) {
               return createNotifications([student.userId], {
@@ -524,6 +523,7 @@ exports.completeSupervision = async (req, res) => {
           })
           .catch(console.error);
     } catch (err) {
+        if (err.is400) return res.status(400).json({ ok: false, message: err.message });
         console.error("Complete Supervision Error:", err);
         res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดในการบันทึกข้อมูล" });
     }

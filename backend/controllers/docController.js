@@ -295,6 +295,10 @@ exports.deleteDocument = async (req, res) => {
       return res.status(404).json({ ok: false, message: "ไม่พบเอกสาร" });
     }
 
+    if (doc.student.deletedAt) {
+      return res.status(403).json({ ok: false, message: "บัญชีถูกระงับการใช้งาน" });
+    }
+
     // Check ownership
     if (doc.student.userId !== userId) {
       return res.status(403).json({ ok: false, message: "ไม่มีสิทธิ์ลบไฟล์นี้" });
@@ -374,23 +378,18 @@ exports.acknowledgePlacementLetter = async (req, res) => {
       return res.status(404).json({ ok: false, message: "Student not found" });
     }
 
-    if (!student.coop?.placeLetterUrl || !PRE_INTERNSHIP_STATUSES.includes(student.coop.status)) {
-      return res.status(400).json({ ok: false, message: "ยังไม่สามารถยืนยันรับหนังสือส่งตัวได้ในสถานะปัจจุบัน" });
-    }
-
-    // อัปเดตสถานะเป็น INTERNSHIP_STARTED เท่านั้น (ค่าคงที่ฝั่ง server ไม่รับจาก client)
-    await prisma.studentCoop.update({
-      where: { studentId: student.id },
-      data: {
-        status: 'INTERNSHIP_STARTED'
+    const sid = student.id;
+    await prisma.$transaction(async (tx) => {
+      const freshCoop = await tx.studentCoop.findUnique({ where: { studentId: sid } });
+      if (!freshCoop?.placeLetterUrl || !PRE_INTERNSHIP_STATUSES.includes(freshCoop.status)) {
+        throw Object.assign(new Error("ยังไม่สามารถยืนยันรับหนังสือส่งตัวได้ในสถานะปัจจุบัน"), { is400: true });
       }
+      await tx.studentCoop.update({ where: { studentId: sid }, data: { status: 'INTERNSHIP_STARTED' } });
     });
 
-    res.json({
-      ok: true,
-      newStatus: 'INTERNSHIP_STARTED'
-    });
+    res.json({ ok: true, newStatus: 'INTERNSHIP_STARTED' });
   } catch (err) {
+    if (err.is400) return res.status(400).json({ ok: false, message: err.message });
     console.error("acknowledgePlacementLetter error:", err);
     res.status(500).json({ ok: false, message: "Update placement letter status failed" });
   }
