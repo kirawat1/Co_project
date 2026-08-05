@@ -1,5 +1,11 @@
 # CHANGELOG — Co_project
 
+## [2026-08-05] fix: batch 45 — status gate + TOCTOU in acknowledge/letter upload + advisor filter
+
+- **docController.js `acknowledgeDispatchDownload`:** wrap ใน `$transaction` + ตรวจ `coop.status === 'REQ_LETTER_ISSUED'` ก่อน update — student ส่ง request ได้ในทุก status ทำให้ถอยสถานะกลับได้
+- **supervisionController.js `uploadOfficialLetter`:** wrap ใน `$transaction` + ตรวจ `status === 'DATE_CONFIRMED'` ก่อน update — admin อัปโหลดหนังสือนิเทศกับ appointment ที่ COMPLETED/REJECTED ได้ ทำให้ status ถอยกลับ; ลบไฟล์ที่ upload แล้วถ้า transaction fail
+- **teacherController.js `getLatestRequests`:** เปลี่ยน `advisorName: { contains: teacher.firstName }` → `OR: [{ generalAdvisorId: teacher.id }, { coopAdvisorId: teacher.id }]` — ชื่อสั้นทำให้เห็นนักศึกษาของอาจารย์ท่านอื่น (data leakage)
+
 ## [2026-08-05] fix: batch 44 — TOCTOU in status transitions + soft-delete in deleteDocument
 
 - **studentController.js `downloadPlacementLetter`:** wrap status check + `studentCoop.update` ใน `$transaction` — concurrent status change ระหว่าง check/write ทำให้ coop เป็น INTERNSHIP_STARTED จากสถานะผิด; เพิ่ม `is400` catch

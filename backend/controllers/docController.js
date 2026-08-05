@@ -339,16 +339,18 @@ exports.acknowledgeDispatchDownload = async (req, res) => {
         return res.status(404).json({ message: "Student not found" });
     }
 
-    // อัปเดตสถานะเป็น WAITING_FOR_PLACEMENT_LETTER (รอเอาไปยื่น)
-    await prisma.studentCoop.update({
-      where: { studentId: student.id },
-      data: {
-        status: 'WAITING_FOR_PLACEMENT_LETTER' 
+    // อัปเดตสถานะเป็น WAITING_FOR_PLACEMENT_LETTER — ตรวจสถานะใน $transaction กันนักศึกษาถอยสถานะ
+    await prisma.$transaction(async (tx) => {
+      const coop = await tx.studentCoop.findUnique({ where: { studentId: student.id } });
+      if (!coop || coop.status !== 'REQ_LETTER_ISSUED') {
+        throw Object.assign(new Error('ไม่สามารถดำเนินการได้ในสถานะปัจจุบัน'), { is400: true });
       }
+      await tx.studentCoop.update({ where: { studentId: student.id }, data: { status: 'WAITING_FOR_PLACEMENT_LETTER' } });
     });
 
     res.json({ ok: true });
   } catch (err) {
+    if (err.is400) return res.status(400).json({ ok: false, message: err.message });
     console.error(err);
     res.status(500).json({ message: "Update status failed" });
   }

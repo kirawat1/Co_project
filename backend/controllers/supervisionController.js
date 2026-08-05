@@ -70,10 +70,26 @@ exports.uploadOfficialLetter = async (req, res) => {
             return res.status(400).json({ ok: false, message: 'กรุณาอัปโหลดไฟล์ PDF' });
         }
 
-        const appointment = await prisma.supervisionAppointment.update({
-            where: { id: parseInt(id) },
-            data: { officialLetterPath: req.file.filename, status: 'LETTER_UPLOADED' }
-        });
+        let appointment;
+        try {
+            await prisma.$transaction(async (tx) => {
+                const current = await tx.supervisionAppointment.findUnique({ where: { id: parseInt(id) } });
+                if (!current || current.status !== 'DATE_CONFIRMED') {
+                    throw Object.assign(new Error('สามารถออกหนังสือนิเทศได้เฉพาะเมื่อยืนยันวันแล้ว'), { is400: true });
+                }
+                appointment = await tx.supervisionAppointment.update({
+                    where: { id: parseInt(id) },
+                    data: { officialLetterPath: req.file.filename, status: 'LETTER_UPLOADED' }
+                });
+            });
+        } catch (txErr) {
+            if (req.file) {
+                const fp = path.join(__dirname, '../uploads', req.file.filename);
+                if (fs.existsSync(fp)) fs.unlinkSync(fp);
+            }
+            if (txErr.is400) return res.status(400).json({ ok: false, message: txErr.message });
+            throw txErr;
+        }
 
         res.json({ ok: true, appointment });
 
