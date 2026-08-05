@@ -97,9 +97,13 @@ exports.updateDocStatus = async (req, res) => {
     if (!status || !ALLOWED_DOC_STATUS.has(status)) {
       return res.status(400).json({ ok: false, message: 'status ไม่ถูกต้อง' });
     }
+    const parsedId = parseInt(id, 10);
+    if (isNaN(parsedId) || parsedId <= 0) {
+      return res.status(400).json({ ok: false, message: 'id ไม่ถูกต้อง' });
+    }
 
     await prisma.document.update({
-      where: { id: parseInt(id) },
+      where: { id: parsedId },
       data: { status: status }
     });
 

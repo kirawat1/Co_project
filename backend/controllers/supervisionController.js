@@ -25,8 +25,13 @@ exports.saveSupervisionPeriod = async (req, res) => {
     try {
         const { periodId, isSupervisionOpen, supervisionStartDate, supervisionEndDate } = req.body;
 
+        const parsedPeriodId = parseInt(periodId, 10);
+        if (isNaN(parsedPeriodId) || parsedPeriodId <= 0) {
+            return res.status(400).json({ ok: false, message: 'periodId ไม่ถูกต้อง' });
+        }
+
         const updatedPeriod = await prisma.coopPeriod.update({
-            where: { id: parseInt(periodId) },
+            where: { id: parsedPeriodId },
             data: {
                 isSupervisionOpen,
                 supervisionStartDate: supervisionStartDate ? new Date(supervisionStartDate) : null,
@@ -270,8 +275,13 @@ exports.assignCoTeachers = async (req, res) => {
         const { id } = req.params;
         const { coTeacherName } = req.body; // รับเป็น String เช่น "ผศ.ดร.ก, อ.ข"
 
+        const parsedId = parseInt(id, 10);
+        if (isNaN(parsedId) || parsedId <= 0) {
+            return res.status(400).json({ ok: false, message: 'id ไม่ถูกต้อง' });
+        }
+
         await prisma.supervisionAppointment.update({
-            where: { id: parseInt(id) },
+            where: { id: parsedId },
             data: { coTeacherName: coTeacherName } // บันทึกลงฐานข้อมูล
         });
 

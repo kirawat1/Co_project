@@ -197,6 +197,8 @@ exports.reviewT003 = async (req, res) => {
         const { studentId, status, comment } = req.body;
 
         if (!studentId) return res.status(400).json({ ok: false, message: "ไม่พบข้อมูล Student ID" });
+        const parsedStudentId = parseInt(studentId, 10);
+        if (isNaN(parsedStudentId) || parsedStudentId <= 0) return res.status(400).json({ ok: false, message: 'studentId ต้องเป็นตัวเลขที่ถูกต้อง' });
 
         const T003_ALLOWED = ['T003_APPROVED', 'T003_EDITS_REQUIRED'];
         if (!T003_ALLOWED.includes(status)) {
@@ -206,27 +208,27 @@ exports.reviewT003 = async (req, res) => {
         // Ownership: teacher must be the student's assigned advisor
         const teacher = await prisma.teacher.findUnique({ where: { userId: req.user.id } });
         if (!teacher) return res.status(403).json({ ok: false, message: 'ไม่พบข้อมูลอาจารย์' });
-        const student = await prisma.student.findUnique({ where: { id: parseInt(studentId) } });
+        const student = await prisma.student.findUnique({ where: { id: parsedStudentId } });
         if (!student || student.deletedAt) return res.status(404).json({ ok: false, message: 'ไม่พบนักศึกษา' });
         if (student.generalAdvisorId !== teacher.id && student.coopAdvisorId !== teacher.id) {
             return res.status(403).json({ ok: false, message: 'คุณไม่ใช่อาจารย์ที่ปรึกษาของนักศึกษาคนนี้' });
         }
 
         await prisma.$transaction(async (tx) => {
-            const coop = await tx.studentCoop.findUnique({ where: { studentId: parseInt(studentId) }, select: { status: true } });
+            const coop = await tx.studentCoop.findUnique({ where: { studentId: parsedStudentId }, select: { status: true } });
             if (!coop || coop.status !== 'T003_SUBMITTED') {
                 throw Object.assign(new Error('สามารถตรวจสอบ T003 ได้เฉพาะเมื่อสถานะเป็น T003_SUBMITTED เท่านั้น'), { is400: true });
             }
 
             // 1. อัปเดตสถานะในตาราง studentCoop
             await tx.studentCoop.update({
-                where: { studentId: parseInt(studentId) },
+                where: { studentId: parsedStudentId },
                 data: { status: status }
             });
 
             // 2. ค้นหาไฟล์ T003 ล่าสุดเพื่ออัปเดตสถานะไฟล์และคอมเมนต์
             const doc = await tx.document.findFirst({
-                where: { studentId: parseInt(studentId), type: 'T003_FORM' },
+                where: { studentId: parsedStudentId, type: 'T003_FORM' },
                 orderBy: { id: 'desc' }
             });
 
@@ -244,7 +246,7 @@ exports.reviewT003 = async (req, res) => {
         res.json({ ok: true, message: "บันทึกผลตรวจสอบ T003 สำเร็จ" });
 
         // Notify student
-        prisma.student.findUnique({ where: { id: parseInt(studentId) }, select: { userId: true } })
+        prisma.student.findUnique({ where: { id: parsedStudentId }, select: { userId: true } })
           .then(student => {
             if (student?.userId) {
               return createNotifications([student.userId], {
@@ -270,6 +272,8 @@ exports.reviewT002 = async (req, res) => {
         const { studentId, status, comment } = req.body;
 
         if (!studentId) return res.status(400).json({ ok: false, message: "ไม่พบข้อมูล Student ID" });
+        const parsedStudentId = parseInt(studentId, 10);
+        if (isNaN(parsedStudentId) || parsedStudentId <= 0) return res.status(400).json({ ok: false, message: 'studentId ต้องเป็นตัวเลขที่ถูกต้อง' });
 
         const T002_ALLOWED = ['T002_SUBMITTED', 'T002_EDITS_REQUIRED'];
         if (!T002_ALLOWED.includes(status)) {
@@ -279,27 +283,27 @@ exports.reviewT002 = async (req, res) => {
         // Ownership: teacher must be the student's assigned advisor
         const teacher = await prisma.teacher.findUnique({ where: { userId: req.user.id } });
         if (!teacher) return res.status(403).json({ ok: false, message: 'ไม่พบข้อมูลอาจารย์' });
-        const student = await prisma.student.findUnique({ where: { id: parseInt(studentId) } });
+        const student = await prisma.student.findUnique({ where: { id: parsedStudentId } });
         if (!student || student.deletedAt) return res.status(404).json({ ok: false, message: 'ไม่พบนักศึกษา' });
         if (student.generalAdvisorId !== teacher.id && student.coopAdvisorId !== teacher.id) {
             return res.status(403).json({ ok: false, message: 'คุณไม่ใช่อาจารย์ที่ปรึกษาของนักศึกษาคนนี้' });
         }
 
         await prisma.$transaction(async (tx) => {
-            const coop = await tx.studentCoop.findUnique({ where: { studentId: parseInt(studentId) }, select: { status: true } });
+            const coop = await tx.studentCoop.findUnique({ where: { studentId: parsedStudentId }, select: { status: true } });
             if (!coop || coop.status !== 'T002_SUBMITTED') {
                 throw Object.assign(new Error('สามารถตรวจสอบ T002 ได้เฉพาะเมื่อสถานะเป็น T002_SUBMITTED เท่านั้น'), { is400: true });
             }
 
             // 1. อัปเดตสถานะนักศึกษา
             await tx.studentCoop.update({
-                where: { studentId: parseInt(studentId) },
+                where: { studentId: parsedStudentId },
                 data: { status: status }
             });
 
             // 2. อัปเดตสถานะไฟล์ T002
             const doc = await tx.document.findFirst({
-                where: { studentId: parseInt(studentId), type: 'T002_FORM' },
+                where: { studentId: parsedStudentId, type: 'T002_FORM' },
                 orderBy: { id: 'desc' }
             });
 
@@ -317,7 +321,7 @@ exports.reviewT002 = async (req, res) => {
         res.json({ ok: true, message: "บันทึกผลการตรวจสอบสำเร็จ" });
 
         // Notify student
-        prisma.student.findUnique({ where: { id: parseInt(studentId) }, select: { userId: true } })
+        prisma.student.findUnique({ where: { id: parsedStudentId }, select: { userId: true } })
           .then(student => {
             if (student?.userId) {
               return createNotifications([student.userId], {
