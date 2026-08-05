@@ -70,7 +70,7 @@ exports.updatePeriod = async (req, res) => {
       where: { id: parsedId },
       data: {
         academicYear,
-        semester: parsedSemester,
+        ...(semester !== undefined && { semester: parsedSemester }),
         startDate: new Date(startDate),
         endDate: new Date(endDate),
       },

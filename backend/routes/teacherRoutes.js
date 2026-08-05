@@ -20,10 +20,10 @@ router.get("/", verifyToken, teacherController.getAllTeachers);
 router.put("/:id", verifyToken, verifyRole('staff'), teacherController.updateTeacherById);
 
 // --- Config Routes ---
-router.get('/config/t002', verifyToken, configController.getT002Config);
+router.get('/config/t002', verifyToken, verifyRole('teacher', 'staff'), configController.getT002Config);
 router.post('/config/t002', verifyToken, verifyRole('teacher', 'staff'), configController.saveT002Config);
 
-router.get('/config/t003', verifyToken, configController.getT003Config);
+router.get('/config/t003', verifyToken, verifyRole('teacher', 'staff'), configController.getT003Config);
 router.post('/config/t003', verifyToken, verifyRole('teacher', 'staff'), configController.saveT003Config);
 
 // --- Review Documents Routes ---

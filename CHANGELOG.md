@@ -1,5 +1,13 @@
 # CHANGELOG — Co_project
 
+## [2026-08-06] fix: batch 57 — updatePeriod NaN + page clamp + coop-periods authz + teacher config authz + orphan file guard
+
+- **coopPeriodController.js `updatePeriod`:** เปลี่ยน `semester: parsedSemester` → conditional spread `...(semester !== undefined && { semester: parsedSemester })` — ก่อนหน้านี้ NaN ถูกส่งไป Prisma เมื่อ semester ไม่ได้ส่งมาใน request body
+- **teacherController.js `getMyStudents`:** เปลี่ยน `parseInt(page) || 1` → `Math.max(1, parseInt(page, 10) || 1)` และ `limit` เช่นกัน — ป้องกัน `page=-1` ทำให้ `skip=-100` และ Prisma throw 500
+- **adminRoutes.js GET /coop-periods (3 routes):** เพิ่ม `verifyToken` ก่อน controller — ก่อนหน้านี้ข้อมูลรอบสหกิจ (ปีการศึกษา, วันเปิด-ปิดรับสมัคร) รั่วออกสู่ public
+- **teacherRoutes.js GET /config/t002, /config/t003:** เพิ่ม `verifyRole('teacher', 'staff')` — ก่อนหน้านี้ student หรือ token ใดก็ดึง config ได้
+- **adminDocController.js `reviewStudentStatus`:** เพิ่ม guard ตรวจไฟล์ที่อัปโหลดมาแต่ไม่มี status letter และไม่มี docType — ลบไฟล์ทันทีและคืน 400 แทนการให้ไฟล์ค้างอยู่ใน uploads/ โดยไม่ถูกอ้างถึง
+
 ## [2026-08-06] fix: batch 56 — T002/T003 delete gate + semester NaN + coopPeriodId NaN guards
 
 - **docController.js `deleteDocument`:** เพิ่ม T002/T003 locked-state gate — ป้องกันนักศึกษาลบ T002 ขณะอาจารย์กำลัง review โดยเปลี่ยนมาเรียก `/api/docs/delete/:id` แทน `/api/coop/documents/:id`
