@@ -1,5 +1,14 @@
 # CHANGELOG — Co_project
 
+## [2026-08-05] fix: batch 41 — soft-delete guards in visit/coop/teacher/student controllers
+
+- **visitController.js `getVisitsByStudent`:** เพิ่ม `|| student.deletedAt` — soft-deleted student ให้ visit history แก่ผู้เรียกได้
+- **visitController.js `createVisit`:** เพิ่ม `|| student.deletedAt` — สร้าง Visit record ให้ soft-deleted student ได้
+- **studentController.js `updateMyProfile` (studentId dup check):** เพิ่ม `deletedAt: null` ใน `findFirst` — soft-deleted student บล็อก studentId ของ account ใหม่แบบผิดๆ
+- **teacherController.js `reviewT003`:** เพิ่ม `|| student.deletedAt` — อาจารย์เปลี่ยน coop status ของ soft-deleted student ได้
+- **teacherController.js `reviewT002`:** เหมือนกัน
+- **coopController.js `updateCoopStatus`:** เพิ่ม student soft-delete guard ก่อน `studentCoop.update` — staff เปลี่ยน coop status ของ soft-deleted student ได้
+
 ## [2026-08-05] fix: batch 40 — soft-delete + TOCTOU (auth/teacher) + apiFetch (3 modals)
 
 - **authController.js `loginWithKKU` (studentId conflict check):** เปลี่ยน `findUnique` → `findFirst` + เพิ่ม `deletedAt: null` — soft-deleted student ทำให้ login KKU ล้มเหลวด้วย 409 แบบผิดๆ

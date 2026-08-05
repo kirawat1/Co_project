@@ -207,7 +207,7 @@ exports.reviewT003 = async (req, res) => {
         const teacher = await prisma.teacher.findUnique({ where: { userId: req.user.id } });
         if (!teacher) return res.status(403).json({ ok: false, message: 'ไม่พบข้อมูลอาจารย์' });
         const student = await prisma.student.findUnique({ where: { id: parseInt(studentId) } });
-        if (!student) return res.status(404).json({ ok: false, message: 'ไม่พบนักศึกษา' });
+        if (!student || student.deletedAt) return res.status(404).json({ ok: false, message: 'ไม่พบนักศึกษา' });
         if (student.generalAdvisorId !== teacher.id && student.coopAdvisorId !== teacher.id) {
             return res.status(403).json({ ok: false, message: 'คุณไม่ใช่อาจารย์ที่ปรึกษาของนักศึกษาคนนี้' });
         }
@@ -275,7 +275,7 @@ exports.reviewT002 = async (req, res) => {
         const teacher = await prisma.teacher.findUnique({ where: { userId: req.user.id } });
         if (!teacher) return res.status(403).json({ ok: false, message: 'ไม่พบข้อมูลอาจารย์' });
         const student = await prisma.student.findUnique({ where: { id: parseInt(studentId) } });
-        if (!student) return res.status(404).json({ ok: false, message: 'ไม่พบนักศึกษา' });
+        if (!student || student.deletedAt) return res.status(404).json({ ok: false, message: 'ไม่พบนักศึกษา' });
         if (student.generalAdvisorId !== teacher.id && student.coopAdvisorId !== teacher.id) {
             return res.status(403).json({ ok: false, message: 'คุณไม่ใช่อาจารย์ที่ปรึกษาของนักศึกษาคนนี้' });
         }

@@ -80,7 +80,7 @@ exports.updateMyProfile = async (req, res) => {
       }
       // ป้องกัน unique constraint crash: ตรวจว่ารหัสนี้ถูกใช้โดยนักศึกษาคนอื่นหรือไม่
       const taken = await prisma.student.findFirst({
-        where: { studentId: data.studentId, NOT: { userId } }
+        where: { studentId: data.studentId, NOT: { userId }, deletedAt: null }
       });
       if (taken) {
         return res.status(409).json({ ok: false, message: "รหัสนักศึกษานี้ถูกใช้งานแล้ว กรุณาตรวจสอบอีกครั้ง" });

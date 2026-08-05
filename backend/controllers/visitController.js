@@ -10,7 +10,7 @@ exports.getVisitsByStudent = async (req, res) => {
       where: { studentId: studentId },
     });
 
-    if (!student) return res.status(404).json({ ok: false, message: "Student not found" });
+    if (!student || student.deletedAt) return res.status(404).json({ ok: false, message: "Student not found" });
 
     const visits = await prisma.visit.findMany({
       where: { studentId: student.id },
@@ -36,7 +36,7 @@ exports.createVisit = async (req, res) => {
       where: { studentId: studentId }
     });
 
-    if (!student) return res.status(404).json({ ok: false, message: "Student not found" });
+    if (!student || student.deletedAt) return res.status(404).json({ ok: false, message: "Student not found" });
 
     // หา Teacher ID (Int) จาก User ID
     const teacher = await prisma.teacher.findUnique({

@@ -164,6 +164,9 @@ const updateCoopStatus = async (req, res) => {
     if (status === 'APPROVED') dbStatus = 'QUALIFIED';
     else if (status === 'REJECTED') dbStatus = 'QUALIFICATION_FAILED';
 
+    const studentCheck = await prisma.student.findUnique({ where: { id: parsedId }, select: { deletedAt: true } });
+    if (!studentCheck || studentCheck.deletedAt) return res.status(404).json({ ok: false, message: "ไม่พบนักศึกษา" });
+
     const updated = await prisma.studentCoop.update({
       where: {
         studentId: parsedId
