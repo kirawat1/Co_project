@@ -1,5 +1,14 @@
 # CHANGELOG — Co_project
 
+## [2026-08-05] fix: batch 46 — status gates in updateCoopStatus/reviewSupervision/reviewT002/T003 + FK advisor lookup
+
+- **coopController.js `updateCoopStatus`:** wrap soft-delete check + update ใน `$transaction` + ตรวจ `coop.status ∈ {APPLYING, WAITING_FOR_STAFF_CHECK}` ก่อน update — staff/teacher เปลี่ยน status ได้ทุก status ทำให้ถอยสถานะกลับได้; เพิ่ม `is404/is400` catch
+- **supervisionController.js `reviewSupervision` APPROVE:** เพิ่ม re-read `current.status !== 'PENDING_TEACHER'` ภายใน `$transaction` เดิม — อาจารย์ APPROVE appointment ที่ COMPLETED/DATE_CONFIRMED ได้ทำให้ status ถดถอย
+- **supervisionController.js `reviewSupervision` REJECT:** wrap ใน `$transaction` + ตรวจ `status ∈ {PENDING_TEACHER, TEACHER_REJECTED}` — อาจารย์ REJECT appointment ที่ COMPLETED ได้ทำให้ `confirmedDate` ถูก null; เพิ่ม `is400` catch
+- **teacherController.js `reviewT003`:** เพิ่ม `coop.status === 'T003_SUBMITTED'` check ใน `$transaction` เดิม — อาจารย์ review T003 ซ้ำหรือ backward ได้; เปลี่ยน `upsert` → `update`; เพิ่ม `is400` catch
+- **teacherController.js `reviewT002`:** เหมือนกัน — `coop.status === 'T002_SUBMITTED'` check + `upsert` → `update` + `is400` catch
+- **supervisionController.js `proposeSupervisionDate`:** เปลี่ยนจาก name-substring lookup → `prisma.teacher.findUnique({ where: { id: student.generalAdvisorId } })` — substring match บนชื่อสั้นทำให้ routing ผิดอาจารย์ และ data leakage ข้ามอาจารย์
+
 ## [2026-08-05] fix: batch 45 — status gate + TOCTOU in acknowledge/letter upload + advisor filter
 
 - **docController.js `acknowledgeDispatchDownload`:** wrap ใน `$transaction` + ตรวจ `coop.status === 'REQ_LETTER_ISSUED'` ก่อน update — student ส่ง request ได้ในทุก status ทำให้ถอยสถานะกลับได้

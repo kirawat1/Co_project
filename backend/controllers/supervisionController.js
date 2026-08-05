@@ -146,47 +146,14 @@ exports.proposeSupervisionDate = async (req, res) => {
 
         if (!student || student.deletedAt) return res.status(404).json({ ok: false, message: 'Student not found' });
 
-        // หา Teacher ID จากชื่อที่ปรึกษา
-        if (!student.advisorName) {
-            return res.status(400).json({ ok: false, message: 'ไม่พบข้อมูลอาจารย์ที่ปรึกษา กรุณาอัปเดตในหน้า Profile' });
+        // หา Teacher จาก generalAdvisorId (FK) โดยตรง ป้องกัน data leak จากการ substring match
+        if (!student.generalAdvisorId) {
+            return res.status(400).json({ ok: false, message: 'ไม่พบอาจารย์ที่ปรึกษา กรุณาอัปเดตในหน้า Profile' });
         }
 
-        // ค้นหาอาจารย์จาก advisorName: ลอง exact match ก่อน แล้วค่อย fallback
-        // ป้องกัน: whitespace-only → contains("") → จับอาจารย์คนแรก random
-        const advisorTrimmed = student.advisorName.trim();
-        if (!advisorTrimmed) {
-            return res.status(400).json({ ok: false, message: 'ไม่พบข้อมูลอาจารย์ที่ปรึกษา กรุณาอัปเดตในหน้า Profile' });
-        }
-
-        // แยก firstName + lastName จาก advisorName โดยกรองคำนำหน้า (ที่มีจุด เช่น ผศ., ดร.) ออกก่อน
-        const rawParts = advisorTrimmed.split(/\s+/).filter(Boolean);
-        const nameParts = rawParts.filter(p => !p.includes('.'));
-        const lastName = nameParts.length >= 1 ? nameParts[nameParts.length - 1] : "";
-        const firstName = nameParts.length >= 2 ? nameParts[nameParts.length - 2] : "";
-
-        // ค้นหาด้วย firstName + lastName พร้อมกัน (ป้องกันนามสกุลซ้ำ)
-        let teacher = lastName
-            ? await prisma.teacher.findFirst({
-                where: firstName
-                    ? {
-                        AND: [
-                            { lastName: { contains: lastName } },
-                            { firstName: { contains: firstName } },
-                        ],
-                    }
-                    : { lastName: { contains: lastName } },
-            })
-            : null;
-
-        // fallback: ค้นด้วยนามสกุลอย่างเดียวแบบ contains (กรณี firstName ไม่ตรง format)
-        if (!teacher && lastName && lastName.length >= 2) {
-            teacher = await prisma.teacher.findFirst({
-                where: { lastName: { contains: lastName } },
-            });
-        }
-
+        const teacher = await prisma.teacher.findUnique({ where: { id: student.generalAdvisorId } });
         if (!teacher) {
-            return res.status(400).json({ ok: false, message: `ไม่พบอาจารย์ที่ปรึกษา "${advisorTrimmed}" ในระบบ กรุณาติดต่อเจ้าหน้าที่` });
+            return res.status(400).json({ ok: false, message: 'ไม่พบข้อมูลอาจารย์ที่ปรึกษาในระบบ กรุณาติดต่อเจ้าหน้าที่' });
         }
 
         const LOCKED_STATUSES = ['DATE_CONFIRMED', 'LETTER_UPLOADED', 'COMPLETED'];
@@ -432,6 +399,17 @@ exports.reviewSupervision = async (req, res) => {
 
             // Atomic conflict check + update to prevent double-booking on concurrent requests
             await prisma.$transaction(async (tx) => {
+                const current = await tx.supervisionAppointment.findUnique({
+                    where: { id: parseInt(id) },
+                    select: { status: true }
+                });
+                if (!current || current.status !== 'PENDING_TEACHER') {
+                    throw Object.assign(
+                        new Error('สามารถอนุมัติได้เฉพาะเมื่อสถานะเป็น PENDING_TEACHER เท่านั้น'),
+                        { is400: true }
+                    );
+                }
+
                 const conflict = await tx.supervisionAppointment.findFirst({
                     where: {
                         teacherId: teacher.id,
@@ -456,9 +434,21 @@ exports.reviewSupervision = async (req, res) => {
                 });
             });
         } else if (action === 'REJECT') {
-            await prisma.supervisionAppointment.update({
-                where: { id: parseInt(id) },
-                data: { status: 'TEACHER_REJECTED', confirmedDate: null, rejectReason: rejectReason }
+            await prisma.$transaction(async (tx) => {
+                const current = await tx.supervisionAppointment.findUnique({
+                    where: { id: parseInt(id) },
+                    select: { status: true }
+                });
+                if (!current || (current.status !== 'PENDING_TEACHER' && current.status !== 'TEACHER_REJECTED')) {
+                    throw Object.assign(
+                        new Error('สามารถปฏิเสธได้เฉพาะเมื่อสถานะเป็น PENDING_TEACHER หรือ TEACHER_REJECTED เท่านั้น'),
+                        { is400: true }
+                    );
+                }
+                await tx.supervisionAppointment.update({
+                    where: { id: parseInt(id) },
+                    data: { status: 'TEACHER_REJECTED', confirmedDate: null, rejectReason: rejectReason }
+                });
             });
         }
 
@@ -482,6 +472,9 @@ exports.reviewSupervision = async (req, res) => {
     } catch (err) {
         if (err.is409) {
             return res.status(409).json({ ok: false, message: err.message });
+        }
+        if (err.is400) {
+            return res.status(400).json({ ok: false, message: err.message });
         }
         console.error("Review Supervision Error:", err);
         res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดในการบันทึกข้อมูล" });
