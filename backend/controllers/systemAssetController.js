@@ -106,26 +106,22 @@ exports.deleteAsset = async (req, res) => {
       return res.status(404).json({ ok: false, message: "ไม่พบข้อมูลไฟล์ในระบบ" });
     }
 
-    // 2. ลบไฟล์จริงออกจาก Folder uploads/system
-    const filePath = path.join(__dirname, '../uploads/system', asset.path);
-    
-    if (fs.existsSync(filePath)) {
-      try {
-        fs.unlinkSync(filePath);
-      } catch (err) {
-        console.error("Physical file deletion failed:", err);
-        // ถึงลบไฟล์ในโฟลเดอร์ไม่ได้ (เช่น permission) แต่เราจะไปลบใน DB ต่อ
-      }
-    }
-
-    // 3. ลบข้อมูลออกจาก Database
+    // 2. ลบ DB ก่อน แล้วค่อยลบไฟล์
     await prisma.systemAsset.delete({
       where: { key: key }
     });
 
+    const filePath = path.join(__dirname, '../uploads/system', asset.path);
+    if (fs.existsSync(filePath)) {
+      try { fs.unlinkSync(filePath); } catch (err) {
+        console.error("Physical file deletion failed:", err);
+      }
+    }
+
     res.json({ ok: true, message: "ลบไฟล์แม่แบบเรียบร้อยแล้ว" });
 
   } catch (error) {
+    if (error.code === 'P2025') return res.status(404).json({ ok: false, message: 'ไม่พบไฟล์ในระบบ' });
     console.error("Delete Asset Error:", error);
     res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดในการลบไฟล์" });
   }

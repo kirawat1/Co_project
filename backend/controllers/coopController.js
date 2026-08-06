@@ -272,14 +272,13 @@ const deleteDocument = async (req, res) => {
         }
     }
 
-    // 2. ลบไฟล์ออกจาก Server (ถ้ามี)
+    // 2. ลบ DB ก่อน แล้วค่อยลบไฟล์
+    await prisma.document.delete({ where: { id: parsedDocId } });
+
     const filePath = path.join(__dirname, '../uploads', doc.path);
     if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
+      try { fs.unlinkSync(filePath); } catch (_) {}
     }
-
-    // 3. ลบ Record จาก Database
-    await prisma.document.delete({ where: { id: parsedDocId } });
 
     res.json({ ok: true, message: "ลบไฟล์สำเร็จ" });
 

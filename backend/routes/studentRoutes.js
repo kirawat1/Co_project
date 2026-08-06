@@ -13,7 +13,7 @@ const docReqController = require('../controllers/docRequirementController');
 // --- Routes ---
 
 // ดึงข้อมูลโปรไฟล์ตัวเอง
-router.get("/me", verifyToken, studentController.getMyProfile);
+router.get("/me", verifyToken, verifyRole('student'), studentController.getMyProfile);
 
 // อัปเดตข้อมูลโปรไฟล์ตัวเอง
 router.put("/me", verifyToken, verifyRole('student'), studentController.updateMyProfile);
