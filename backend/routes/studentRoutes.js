@@ -26,7 +26,7 @@ router.post('/acknowledge-dispatch', verifyToken, verifyRole('student'), docCont
 router.post('/download-placement-letter', verifyToken, verifyRole('student'), studentController.downloadPlacementLetter);
 router.post("/acknowledge-placement-letter", verifyToken, verifyRole('student'), docController.acknowledgePlacementLetter);
 
-router.get("/coop-periods/active", coopPeriodController.getActivePeriod);
+router.get("/coop-periods/active", verifyToken, coopPeriodController.getActivePeriod);
 router.get('/coop-periods', verifyToken, coopPeriodController.getAllCoopPeriods);
 
 router.get('/doc-requirements', verifyToken, docReqController.getRequirements);
@@ -53,11 +53,16 @@ router.post('/sync-from-reg', verifyToken, verifyRole('student'), studentControl
 
 // GET /api/students/reg-semester — ดึงภาคเรียนปัจจุบันจาก KKU REG
 router.get('/reg-semester', verifyToken, async (req, res) => {
-  if (!kkuReg.isConfigured()) {
-    return res.json({ ok: false, message: "ยังไม่ได้ตั้งค่า KKU REG API", data: null });
+  try {
+    if (!kkuReg.isConfigured()) {
+      return res.json({ ok: false, message: "ยังไม่ได้ตั้งค่า KKU REG API", data: null });
+    }
+    const data = await kkuReg.getCurrentSemester();
+    res.json({ ok: !!data, data });
+  } catch (err) {
+    console.error('[reg-semester]', err);
+    res.status(500).json({ ok: false, message: 'เกิดข้อผิดพลาดในการดึงภาคเรียน', data: null });
   }
-  const data = await kkuReg.getCurrentSemester();
-  res.json({ ok: !!data, data });
 });
 
 module.exports = router;

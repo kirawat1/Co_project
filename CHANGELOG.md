@@ -1,5 +1,12 @@
 # CHANGELOG — Co_project
 
+## [2026-08-06] fix: batch 65 — authz x3 + advisor ownership + BUG (unhandled async)
+
+- **studentRoutes.js GET /coop-periods/active:** เพิ่ม `verifyToken` — ก่อนหน้านี้ endpoint ไม่มี auth ทำให้ public เข้าถึงได้
+- **studentRoutes.js GET /reg-semester:** ครอบ try/catch — ก่อนหน้านี้ถ้า KKU REG API timeout ทำให้เกิด unhandled rejection → process crash (Node ≥ 15)
+- **adminRoutes.js POST /t000/approve-all + PUT /t000/review:** เปลี่ยนจาก `verifyRole(...ADMIN_ROLES)` เป็น `verifyRole(...STAFF_ONLY)` — ก่อนหน้านี้ teacher ออกหนังสือ/อนุมัติเอกสารให้นักศึกษาคนใดก็ได้โดยไม่ต้องเป็นอาจารย์ที่ปรึกษา
+- **coopController.js `updateCoopStatus`:** เพิ่ม advisor ownership check ใน transaction สำหรับ teacher caller — staff ผ่านได้ทุกนักศึกษา; teacher ต้องเป็น generalAdvisor/coopAdvisor เท่านั้น; เพิ่ม `is403` ใน catch
+
 ## [2026-08-06] fix: batch 64 — authz x2 + file orphan x3 + P2025 x3 + BUG + TOCTOU x2
 
 - **adminRoutes.js GET /majors + GET /criteria:** เพิ่ม `verifyRole(...ADMIN_ROLES)` — ก่อนหน้านี้ student สามารถดึง criteria ทั้งหมดได้
