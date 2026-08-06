@@ -73,8 +73,10 @@ exports.uploadOfficialLetter = async (req, res) => {
     try {
         const { id } = req.params;
         const parsedId = parseInt(id, 10);
-        if (isNaN(parsedId) || parsedId <= 0)
+        if (isNaN(parsedId) || parsedId <= 0) {
+            if (req.file) try { fs.unlinkSync(path.join(__dirname, '../uploads/supervision', req.file.filename)); } catch (_) {}
             return res.status(400).json({ ok: false, message: 'id ไม่ถูกต้อง' });
+        }
         if (!req.file) {
             return res.status(400).json({ ok: false, message: 'กรุณาอัปโหลดไฟล์ PDF' });
         }

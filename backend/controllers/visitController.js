@@ -12,6 +12,14 @@ exports.getVisitsByStudent = async (req, res) => {
 
     if (!student || student.deletedAt) return res.status(404).json({ ok: false, message: "Student not found" });
 
+    // Teacher callers may only view visits for their own advisees
+    if (req.user.role === 'teacher') {
+      const teacher = await prisma.teacher.findUnique({ where: { userId: req.user.id }, select: { id: true } });
+      if (!teacher || (student.generalAdvisorId !== teacher.id && student.coopAdvisorId !== teacher.id)) {
+        return res.status(403).json({ ok: false, message: "คุณไม่ใช่อาจารย์ที่ปรึกษาของนักศึกษาคนนี้" });
+      }
+    }
+
     const visits = await prisma.visit.findMany({
       where: { studentId: student.id },
       orderBy: { date: 'desc' },

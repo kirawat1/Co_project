@@ -32,6 +32,7 @@ router.put('/documents/review-t003', verifyToken, verifyRole('teacher', 'staff')
 
 router.get('/supervisions', verifyToken, verifyRole('teacher', 'staff'), supervisionController.getSupervisionsForTeacher);
 router.put('/supervisions/:id/review', verifyToken, verifyRole('teacher', 'staff'), supervisionController.reviewSupervision);
+router.put('/supervisions/:id/complete', verifyToken, verifyRole('teacher', 'staff'), supervisionController.completeSupervision);
 
 router.get('/stats', verifyToken, verifyRole('teacher', 'staff'), teacherController.getDashboardStats);
 router.get('/latest-requests', verifyToken, verifyRole('teacher', 'staff'), teacherController.getLatestRequests);

@@ -1,5 +1,13 @@
 # CHANGELOG — Co_project
 
+## [2026-08-06] fix: batch 68 — FILE-ORPHAN x1 + AUTHZ x3 + BUG x1 + TOCTOU x1
+
+- **supervisionController.js `uploadOfficialLetter`:** เพิ่ม file cleanup เมื่อ isNaN(parsedId) early return — ก่อนหน้านี้ไฟล์ที่ upload มาค้างบน disk
+- **adminDocController.js `updateCoopApplicationStatus`:** เพิ่ม advisor ownership check ใน transaction สำหรับ teacher caller — ก่อนหน้านี้ teacher ใดก็ได้ approve/reject คำร้องของนักศึกษาคนใดก็ได้
+- **visitController.js `getVisitsByStudent`:** เพิ่ม advisor ownership check สำหรับ teacher caller — ก่อนหน้านี้ teacher อ่าน visit notes ของนักศึกษาที่ไม่ใช่ลูกศิษย์ได้
+- **teacherRoutes.js:** เพิ่ม `PUT /supervisions/:id/complete` route — ก่อนหน้านี้ `completeSupervision` ขาด teacher-facing route ทำให้ teacher เรียกไม่ได้ (dead code)
+- **studentController.js `updateStudentBasicInfo`:** ย้าย email uniqueness check เข้าไปใน `$transaction` แบบ atomic — ก่อนหน้านี้ TOCTOU ทำให้ race condition bypass application-level check (DB constraint ยังป้องกันอยู่แต่ intent ไม่ชัด)
+
 ## [2026-08-06] fix: batch 67 — FILE-ORPHAN x1 + AUTHZ x2 + BUG x2
 
 - **adminDocController.js `reviewStudentStatus`:** เพิ่ม `req.file` cleanup ใน 2 early returns (invalid studentId, invalid status) — ก่อนหน้านี้ไฟล์ที่ upload มาค้างบน disk โดยไม่มี DB record
