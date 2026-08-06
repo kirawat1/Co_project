@@ -183,6 +183,25 @@ exports.uploadDocument = async (req, res) => {
     let oldDoc;
     try {
         await prisma.$transaction(async (tx) => {
+            if (dbType !== 'CP-ACCEPTANCE') {
+                let configKey = "T000_CONFIG";
+                if (dbType === 'T002_FORM') configKey = "T002_CONFIG";
+                else if (dbType === 'T003_FORM') configKey = "T003_CONFIG";
+                const config = await tx.systemConfig.findUnique({ where: { key: configKey } });
+                let txIsOpen = !config;
+                if (config) {
+                    try {
+                        const { startDate, endDate, isOpen } = JSON.parse(config.value);
+                        if (isOpen) {
+                            const now = new Date();
+                            const withinStart = !startDate || startDate.trim() === '' || new Date(startDate) <= now;
+                            const endOk = !endDate || endDate.trim() === '' || (() => { const e = new Date(endDate); e.setHours(23,59,59,999); return now <= e; })();
+                            txIsOpen = withinStart && endOk;
+                        }
+                    } catch (_) {}
+                }
+                if (!txIsOpen) throw Object.assign(new Error("⛔ ระบบปิดรับเอกสารประเภทนี้แล้ว (หรือเกินกำหนดเวลา)"), { is403: true });
+            }
             oldDoc = await tx.document.findFirst({
                 where: { studentId: student.id, type: dbType }
             });
@@ -244,6 +263,9 @@ exports.uploadDocument = async (req, res) => {
         if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
         if (err.is400) {
             return res.status(400).json({ ok: false, message: err.message });
+        }
+        if (err.is403) {
+            return res.status(403).json({ ok: false, message: err.message });
         }
         throw err;
     }

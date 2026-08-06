@@ -1,5 +1,12 @@
 # CHANGELOG — Co_project
 
+## [2026-08-07] fix: batch 73 — TOCTOU x3 + BUG x1
+
+- **companyController.js:** ลบ dead function `isStaffOrCompanyOwner` — callers ทั้งหมดย้าย logic inline ไป `$transaction` ตั้งแต่ batch 72 แล้ว
+- **configController.js `updateT008Config`:** ย้าย `findUnique` (อ่าน oldImagePath) เข้า `$transaction` เดียวกับ `upsert` — race condition concurrent upload ทำให้ imagePath ที่ commit อาจถูกลบทิ้งเป็น orphan
+- **coopController.js `submitCoopApplication`:** เพิ่ม `student.deletedAt` re-check ภายใน `$transaction` — ป้องกัน student ที่ถูกลบระหว่าง outer check กับ transaction เข้าทำ upsert ได้; เพิ่ม `is404` ใน catch
+- **docController.js `uploadDocument`:** inline logic ของ `checkSystemOpen` ภายใน `$transaction` ด้วย `tx.systemConfig.findUnique` — ป้องกัน race ระหว่าง config read กับ document write; เพิ่ม `is403` handler ใน inner catch
+
 ## [2026-08-06] fix: batch 72 — TOCTOU x3 + P2025 x2
 
 - **companyController.js `addMentor`:** รวม ownership check + create เข้า `$transaction` — ก่อนหน้านี้ race condition บน `createdById` ทำให้ user ที่ไม่ใช่เจ้าของเพิ่มพี่เลี้ยงได้

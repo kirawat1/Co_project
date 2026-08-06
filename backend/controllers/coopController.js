@@ -94,6 +94,11 @@ const submitCoopApplication = async (req, res) => {
         throw Object.assign(new Error('ไม่สามารถยื่นคำร้องได้ เนื่องจากรอบรับสมัครนี้ถูกปิดไปแล้ว'), { is400: true });
       }
 
+      const freshStudent = await tx.student.findUnique({ where: { id: student.id }, select: { deletedAt: true } });
+      if (!freshStudent || freshStudent.deletedAt) {
+        throw Object.assign(new Error('ไม่พบข้อมูลนักศึกษา'), { is404: true });
+      }
+
       const freshCoop = await tx.studentCoop.findUnique({ where: { studentId: student.id }, select: { status: true } });
       if (freshCoop && !REAPPLY_ALLOWED.has(freshCoop.status)) {
         reapplyBlocked = true;
@@ -154,6 +159,7 @@ const submitCoopApplication = async (req, res) => {
   } catch (err) {
     (req.files || []).forEach(f => { try { fs.unlinkSync(f.path); } catch (_) {} });
     if (err.is400) return res.status(400).json({ ok: false, message: err.message });
+    if (err.is404) return res.status(404).json({ ok: false, message: err.message });
     console.error("Submit Error:", err);
     res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดในการบันทึกข้อมูล" });
   }
