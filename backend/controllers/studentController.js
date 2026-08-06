@@ -485,15 +485,6 @@ exports.updateStudentBasicInfo = async (req, res) => {
     if (!student) return res.status(404).json({ ok: false, message: "ไม่พบนักศึกษา" });
     if (student.deletedAt) return res.status(400).json({ ok: false, message: "ไม่สามารถแก้ไขนักศึกษาที่อยู่ในถังขยะได้" });
 
-    if (email && email !== student.user.email) {
-      const conflict = await prisma.user.findFirst({
-        where: { email, NOT: { id: student.userId } },
-      });
-      if (conflict) {
-        return res.status(409).json({ ok: false, message: `อีเมล ${email} มีในระบบแล้ว` });
-      }
-    }
-
     const advisorData = {};
     // generalAdvisorId/coopAdvisorId เป็น FK จริงที่ทั้งระบบใช้ (dashboard, advisee list, นัดนิเทศ) —
     // advisorName เป็นแค่ข้อความที่ derive มาจาก generalAdvisorId เสมอ ห้ามรับ advisorName ดิบๆ
@@ -522,6 +513,14 @@ exports.updateStudentBasicInfo = async (req, res) => {
     }
 
     const updated = await prisma.$transaction(async (tx) => {
+      if (email && email !== student.user.email) {
+        const conflict = await tx.user.findFirst({
+          where: { email, NOT: { id: student.userId } },
+        });
+        if (conflict) {
+          throw Object.assign(new Error(`อีเมล ${email} มีในระบบแล้ว`), { is409: true });
+        }
+      }
       const updatedStudent = await tx.student.update({
         where: { id },
         data: {
@@ -542,6 +541,7 @@ exports.updateStudentBasicInfo = async (req, res) => {
 
     res.json({ ok: true, data: updated });
   } catch (err) {
+    if (err.is409) return res.status(409).json({ ok: false, message: err.message });
     if (err.code === 'P2002') {
       const target = err.meta?.target;
       if (typeof target === 'string' && target.includes('studentId')) {
