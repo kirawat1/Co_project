@@ -122,6 +122,7 @@ exports.toggleVisitStatus = async (req, res) => {
   } catch (err) {
     if (err.is404) return res.status(404).json({ ok: false, message: err.message });
     if (err.is403) return res.status(403).json({ ok: false, message: err.message });
+    if (err.code === 'P2025') return res.status(404).json({ ok: false, message: 'ไม่พบนัดหมาย' });
     console.error(err);
     res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาด" });
   }
@@ -148,6 +149,7 @@ exports.deleteVisit = async (req, res) => {
   } catch (err) {
     if (err.is404) return res.status(404).json({ ok: false, message: err.message });
     if (err.is403) return res.status(403).json({ ok: false, message: err.message });
+    if (err.code === 'P2025') return res.status(404).json({ ok: false, message: 'ไม่พบนัดหมาย' });
     console.error(err);
     res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาด" });
   }
