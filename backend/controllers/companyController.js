@@ -60,37 +60,32 @@ exports.updateCompany = async (req, res) => {
         contactPerson, contactPosition 
     } = req.body;
 
-    const company = await prisma.company.findUnique({
-      where: { id: req.params.id }, 
-    });
+    let updated;
+    await prisma.$transaction(async (tx) => {
+      const company = await tx.company.findUnique({ where: { id: req.params.id } });
+      if (!company) throw Object.assign(new Error("ไม่พบบริษัท"), { is404: true });
 
-    if (!company) return res.status(404).json({ ok: false, message: "ไม่พบบริษัท" });
+      const currentUser = await tx.user.findUnique({ where: { id: Number(currentUserId) } });
+      const isStaff = currentUser && currentUser.role === "staff";
+      if (!isStaff && company.createdById !== Number(currentUserId)) {
+        throw Object.assign(new Error("ไม่มีสิทธิ์แก้ไขบริษัทนี้"), { is403: true });
+      }
 
-    // ✅ 2. แปลง currentUserId เป็น Number เสมอ ป้องกัน Prisma หาไม่เจอ
-    const currentUser = await prisma.user.findUnique({ 
-        where: { id: Number(currentUserId) } 
-    });
-    
-    const isStaff = currentUser && (currentUser.role === "staff");
-
-    // ถ้าไม่ใช่เจ้าหน้าที่ และไม่ใช่คนสร้างบริษัทนี้ ให้เด้งออก
-    if (!isStaff && company.createdById !== Number(currentUserId)) {
-      return res.status(403).json({ ok: false, message: "ไม่มีสิทธิ์แก้ไขบริษัทนี้" });
-    }
-
-    // อัปเดตข้อมูลทั้งหมด
-    const updated = await prisma.company.update({
-      where: { id: req.params.id },
-      data: { 
-        name, nameEn, address, addressNo, moo, soi, road, 
-        subDistrict, district, province, zipcode, 
-        email, phone, fax, website, pastYears, 
-        contactPerson, contactPosition 
-      },
+      updated = await tx.company.update({
+        where: { id: req.params.id },
+        data: {
+          name, nameEn, address, addressNo, moo, soi, road,
+          subDistrict, district, province, zipcode,
+          email, phone, fax, website, pastYears,
+          contactPerson, contactPosition
+        },
+      });
     });
 
     res.json({ ok: true, company: updated });
   } catch (err) {
+    if (err.is404) return res.status(404).json({ ok: false, message: err.message });
+    if (err.is403) return res.status(403).json({ ok: false, message: err.message });
     if (err.code === 'P2025') return res.status(404).json({ ok: false, message: 'ไม่พบบริษัท' });
     console.error("Update Company Error:", err);
     res.status(500).json({ ok: false, message: "แก้ไขไม่สำเร็จ" });
@@ -105,32 +100,23 @@ exports.deleteCompany = async (req, res) => {
     // ✅ ใช้ Logic ดึง ID แบบเดียวกัน
     const currentUserId = req.userId || (req.user && req.user.id);
 
-    const company = await prisma.company.findUnique({
-        where: { id }
-    });
+    await prisma.$transaction(async (tx) => {
+      const company = await tx.company.findUnique({ where: { id } });
+      if (!company) throw Object.assign(new Error("ไม่พบบริษัท"), { is404: true });
 
-    if (!company) {
-        return res.status(404).json({ ok: false, message: "ไม่พบบริษัท" });
-    }
+      const currentUser = await tx.user.findUnique({ where: { id: Number(currentUserId) } });
+      const isStaff = currentUser && currentUser.role === "staff";
+      if (!isStaff && company.createdById !== Number(currentUserId)) {
+        throw Object.assign(new Error("ไม่มีสิทธิ์ลบบริษัทนี้"), { is403: true });
+      }
 
-    // ✅ ค้นหา User แบบครอบด้วย Number()
-    const currentUser = await prisma.user.findUnique({ 
-        where: { id: Number(currentUserId) } 
-    });
-    
-    const isStaff = currentUser && (currentUser.role === "staff");
-
-    if (!isStaff && company.createdById !== Number(currentUserId)) {
-      return res.status(403).json({ ok: false, message: "ไม่มีสิทธิ์ลบบริษัทนี้" });
-    }
-
-    // เมื่อเช็คสิทธิ์ผ่าน ค่อยสั่งลบ
-    await prisma.company.delete({
-      where: { id },
+      await tx.company.delete({ where: { id } });
     });
 
     res.json({ ok: true, message: "ลบบริษัทและพี่เลี้ยงสำเร็จ" });
   } catch (err) {
+    if (err.is404) return res.status(404).json({ ok: false, message: err.message });
+    if (err.is403) return res.status(403).json({ ok: false, message: err.message });
     if (err.code === 'P2025') return res.status(404).json({ ok: false, message: 'ไม่พบบริษัท' });
     console.error("Delete Company Error:", err);
     res.status(500).json({ ok: false, message: "ลบไม่สำเร็จ" });
