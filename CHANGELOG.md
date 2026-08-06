@@ -1,5 +1,11 @@
 # CHANGELOG — Co_project
 
+## [2026-08-06] fix: batch 69 — TOCTOU x1 + BUG x2
+
+- **coopController.js `submitCoopApplication`:** เพิ่ม re-read `coopPeriod.isActive` ใน transaction — ก่อนหน้านี้ race condition ทำให้นักศึกษาสมัครลง period ที่ปิดไปแล้วได้ถ้า admin ปิดพร้อมกัน
+- **visitController.js:** ลบ dead helper `isOwnerOfVisit` ออก — ไม่เคยถูกเรียกจริง (ownership check ทำ inline ใน transaction แล้ว)
+- **supervisionController.js:** ลบ dead export `getTeacherSupervisions` ออก — ไม่มี route อ้างถึง (ถูกแทนที่ด้วย `getSupervisionsForTeacher` ที่มี isPrimaryAdvisor mapping)
+
 ## [2026-08-06] fix: batch 68 — FILE-ORPHAN x1 + AUTHZ x3 + BUG x1 + TOCTOU x1
 
 - **supervisionController.js `uploadOfficialLetter`:** เพิ่ม file cleanup เมื่อ isNaN(parsedId) early return — ก่อนหน้านี้ไฟล์ที่ upload มาค้างบน disk

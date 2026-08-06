@@ -99,12 +99,6 @@ exports.createVisit = async (req, res) => {
   }
 };
 
-// เช็คว่าอาจารย์ที่เรียก (req.user.id) เป็นเจ้าของนัดหมายนี้จริง
-async function isOwnerOfVisit(userId, visit) {
-  const teacher = await prisma.teacher.findUnique({ where: { userId } });
-  return !!teacher && teacher.id === visit.teacherId;
-}
-
 // อัปเดตสถานะ (Toggle Done)
 exports.toggleVisitStatus = async (req, res) => {
   try {

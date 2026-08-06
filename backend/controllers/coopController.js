@@ -88,6 +88,12 @@ const submitCoopApplication = async (req, res) => {
     let reapplyBlocked = false;
     await prisma.$transaction(async (tx) => {
       // 2.0 ตรวจสถานะ inside transaction เพื่อป้องกัน TOCTOU race
+      // Re-verify period is still active inside the transaction
+      const freshPeriod = await tx.coopPeriod.findUnique({ where: { id: parsedPeriodId }, select: { isActive: true } });
+      if (!freshPeriod || !freshPeriod.isActive) {
+        throw Object.assign(new Error('ไม่สามารถยื่นคำร้องได้ เนื่องจากรอบรับสมัครนี้ถูกปิดไปแล้ว'), { is400: true });
+      }
+
       const freshCoop = await tx.studentCoop.findUnique({ where: { studentId: student.id }, select: { status: true } });
       if (freshCoop && !REAPPLY_ALLOWED.has(freshCoop.status)) {
         reapplyBlocked = true;
@@ -147,6 +153,7 @@ const submitCoopApplication = async (req, res) => {
 
   } catch (err) {
     (req.files || []).forEach(f => { try { fs.unlinkSync(f.path); } catch (_) {} });
+    if (err.is400) return res.status(400).json({ ok: false, message: err.message });
     console.error("Submit Error:", err);
     res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดในการบันทึกข้อมูล" });
   }
