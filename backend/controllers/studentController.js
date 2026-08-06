@@ -313,7 +313,6 @@ exports.downloadPlacementLetter = async (req, res) => {
     if (!student || student.deletedAt) return res.status(404).json({ ok: false, message: "ไม่พบข้อมูลนักศึกษา" });
 
     const studentId = student.id;
-    const coop = await prisma.studentCoop.findUnique({ where: { studentId } });
 
     await prisma.$transaction(async (tx) => {
       const freshCoop = await tx.studentCoop.findUnique({ where: { studentId } });
