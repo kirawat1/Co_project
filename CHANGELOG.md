@@ -1,5 +1,18 @@
 # CHANGELOG — Co_project
 
+## [2026-08-06] fix: batch 61 — authz gap + file-before-DB x4 + file orphan x4 + P2025 x6 + TOCTOU null/is404 x2 + NaN guards x2
+
+- **adminRoutes.js GET /coop-periods, /coop-periods/active, /coop-periods/all:** เพิ่ม `verifyRole(...ADMIN_ROLES)` — ก่อนหน้านี้ authenticated user ทุก role เข้าถึงได้
+- **coopController.js `submitCoopApplication`:** เพิ่ม `files.forEach(unlinkSync)` ใน 4 early return paths (parsedPeriodId, period closed, student not found, bad gradeSheetUrl) และ outer catch — ก่อนหน้านี้ไฟล์ค้างใน uploads/ เมื่อ early return
+- **systemAssetController.js `updateAsset`:** ย้ายการลบไฟล์เดิมมาหลัง upsert + เพิ่ม `req.file` cleanup ใน catch — ก่อนหน้านี้ถ้า upsert fail ไฟล์เดิมหายไปแล้วแต่ DB ยังชี้ไฟล์เดิม
+- **announcementController.js `deleteAnnouncement`:** ย้าย file loop มาหลัง DB delete + เพิ่ม `P2025 → 404` — ก่อนหน้านี้ถ้า delete fail ไฟล์หายไปแล้วแต่ announcement ยังอยู่ใน DB
+- **announcementController.js `addOrUpdateAnnouncement`:** เพิ่ม `P2025 → 404` ใน catch — ก่อนหน้านี้ update ที่หา record ไม่เจอ return 500
+- **companyController.js `deleteCompany` + `deleteMentor`:** เพิ่ม `P2025 → 404` ใน catch
+- **teacherController.js `deleteTeacher` + `adminUpdateTeacher`:** เพิ่ม `P2025 → 404` ใน catch
+- **teacherController.js `reviewT003` + `reviewT002`:** แยก combined null/advisor condition เป็น `is404` (freshStudent null/deletedAt) และ `is403` (advisor mismatch) แยกกัน + เพิ่ม `is404` ใน catch — ก่อนหน้านี้ student ที่ถูกลบระหว่าง transaction return 403 แทน 404
+- **docController.js `deleteDocumentByType`:** ย้ายการลบไฟล์มาหลัง DB delete + เพิ่ม `P2025 → 404` — ก่อนหน้านี้ถ้า delete fail ไฟล์หายไปแล้วแต่ document ยังอยู่ใน DB
+- **studentController.js `updateStudentBasicInfo`:** เพิ่ม `!Number.isInteger(Number(...))` guard ก่อน `findUnique` สำหรับทั้ง `generalAdvisorId` และ `coopAdvisorId` — ก่อนหน้านี้ค่า NaN ทำให้ Prisma throw 500
+
 ## [2026-08-06] fix: batch 60 — announcement file orphan + stale letter file + TOCTOU x2 + P2025 x2 + gpa NaN + authz
 
 - **announcementController.js `addOrUpdateAnnouncement`:** เพิ่ม `req.files` cleanup ใน catch — ก่อนหน้านี้ไฟล์แนบประกาศค้างใน uploads/ เมื่อ DB throw error

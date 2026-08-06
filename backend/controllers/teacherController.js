@@ -223,7 +223,10 @@ exports.reviewT003 = async (req, res) => {
                 where: { id: parsedStudentId },
                 select: { generalAdvisorId: true, coopAdvisorId: true, deletedAt: true }
             });
-            if (!freshStudent || freshStudent.deletedAt || (freshStudent.generalAdvisorId !== teacher.id && freshStudent.coopAdvisorId !== teacher.id)) {
+            if (!freshStudent || freshStudent.deletedAt) {
+                throw Object.assign(new Error('ไม่พบนักศึกษา'), { is404: true });
+            }
+            if (freshStudent.generalAdvisorId !== teacher.id && freshStudent.coopAdvisorId !== teacher.id) {
                 throw Object.assign(new Error('คุณไม่ใช่อาจารย์ที่ปรึกษาของนักศึกษาคนนี้'), { is403: true });
             }
             const coop = await tx.studentCoop.findUnique({ where: { studentId: parsedStudentId }, select: { status: true } });
@@ -272,6 +275,7 @@ exports.reviewT003 = async (req, res) => {
             }
           }).catch(console.error);
     } catch (err) {
+        if (err.is404) return res.status(404).json({ ok: false, message: err.message });
         if (err.is403) return res.status(403).json({ ok: false, message: err.message });
         if (err.is400) return res.status(400).json({ ok: false, message: err.message });
         console.error("Teacher Review T003 Error:", err);
@@ -306,7 +310,10 @@ exports.reviewT002 = async (req, res) => {
                 where: { id: parsedStudentId },
                 select: { generalAdvisorId: true, coopAdvisorId: true, deletedAt: true }
             });
-            if (!freshStudent || freshStudent.deletedAt || (freshStudent.generalAdvisorId !== teacher.id && freshStudent.coopAdvisorId !== teacher.id)) {
+            if (!freshStudent || freshStudent.deletedAt) {
+                throw Object.assign(new Error('ไม่พบนักศึกษา'), { is404: true });
+            }
+            if (freshStudent.generalAdvisorId !== teacher.id && freshStudent.coopAdvisorId !== teacher.id) {
                 throw Object.assign(new Error('คุณไม่ใช่อาจารย์ที่ปรึกษาของนักศึกษาคนนี้'), { is403: true });
             }
             const coop = await tx.studentCoop.findUnique({ where: { studentId: parsedStudentId }, select: { status: true } });
@@ -355,6 +362,7 @@ exports.reviewT002 = async (req, res) => {
             }
           }).catch(console.error);
     } catch (err) {
+        if (err.is404) return res.status(404).json({ ok: false, message: err.message });
         if (err.is403) return res.status(403).json({ ok: false, message: err.message });
         if (err.is400) return res.status(400).json({ ok: false, message: err.message });
         console.error("Teacher Review T002 Error:", err);
@@ -610,6 +618,7 @@ exports.deleteTeacher = async (req, res) => {
     ]);
     res.json({ ok: true, message: "ลบอาจารย์เรียบร้อย" });
   } catch (err) {
+    if (err.code === 'P2025') return res.status(404).json({ ok: false, message: 'ไม่พบอาจารย์' });
     console.error("DELETE TEACHER ERROR:", err);
     res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดในการลบอาจารย์" });
   }
@@ -680,6 +689,7 @@ exports.adminUpdateTeacher = async (req, res) => {
     res.json({ ok: true, data: updated });
   } catch (err) {
     if (err.is409) return res.status(409).json({ ok: false, message: err.message });
+    if (err.code === 'P2025') return res.status(404).json({ ok: false, message: 'ไม่พบอาจารย์' });
     console.error("ADMIN UPDATE TEACHER ERROR:", err);
     res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดที่ Server" });
   }

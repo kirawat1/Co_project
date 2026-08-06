@@ -40,13 +40,13 @@ router.post('/assets', verifyToken, verifyRole(...ADMIN_ROLES), systemUpload.sin
 router.delete('/assets/:key', verifyToken, verifyRole(...ADMIN_ROLES), systemAssetController.deleteAsset);
 
 // Coop Period
-router.get("/coop-periods", verifyToken, coopPeriodController.getPeriods);
+router.get("/coop-periods", verifyToken, verifyRole(...ADMIN_ROLES), coopPeriodController.getPeriods);
 router.post("/coop-periods", verifyToken, verifyRole(...ADMIN_ROLES), coopPeriodController.createPeriod);
 router.put("/coop-periods/:id", verifyToken, verifyRole(...ADMIN_ROLES), coopPeriodController.updatePeriod);
 router.patch("/coop-periods/:id/toggle", verifyToken, verifyRole(...ADMIN_ROLES), coopPeriodController.togglePeriod);
 router.delete("/coop-periods/:id", verifyToken, verifyRole(...ADMIN_ROLES), coopPeriodController.deletePeriod);
-router.get("/coop-periods/active", verifyToken, coopPeriodController.getActivePeriod);
-router.get("/coop-periods/all", verifyToken, coopPeriodController.getAllCoopPeriods);
+router.get("/coop-periods/active", verifyToken, verifyRole(...ADMIN_ROLES), coopPeriodController.getActivePeriod);
+router.get("/coop-periods/all", verifyToken, verifyRole(...ADMIN_ROLES), coopPeriodController.getAllCoopPeriods);
 
 // Dashboard
 router.get('/dashboard-stats', verifyToken, verifyRole(...ADMIN_ROLES), adminDashboardController.getDashboardStats);

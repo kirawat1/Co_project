@@ -502,6 +502,7 @@ exports.updateStudentBasicInfo = async (req, res) => {
         advisorData.generalAdvisorId = null;
         advisorData.advisorName = null;
       } else {
+        if (!Number.isInteger(Number(generalAdvisorId))) return res.status(400).json({ ok: false, message: "generalAdvisorId ไม่ถูกต้อง" });
         const advisor = await prisma.teacher.findUnique({ where: { id: Number(generalAdvisorId) } });
         if (!advisor) return res.status(400).json({ ok: false, message: "ไม่พบอาจารย์ที่ปรึกษาปกติที่เลือก" });
         advisorData.generalAdvisorId = advisor.id;
@@ -512,6 +513,7 @@ exports.updateStudentBasicInfo = async (req, res) => {
       if (!coopAdvisorId) {
         advisorData.coopAdvisorId = null;
       } else {
+        if (!Number.isInteger(Number(coopAdvisorId))) return res.status(400).json({ ok: false, message: "coopAdvisorId ไม่ถูกต้อง" });
         const advisor = await prisma.teacher.findUnique({ where: { id: Number(coopAdvisorId) } });
         if (!advisor) return res.status(400).json({ ok: false, message: "ไม่พบอาจารย์ที่ปรึกษาโครงการที่เลือก" });
         advisorData.coopAdvisorId = advisor.id;
