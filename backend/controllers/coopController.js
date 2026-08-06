@@ -36,6 +36,7 @@ const submitCoopApplication = async (req, res) => {
     // เช็คว่ามีข้อมูลรอบรับสมัครส่งมาด้วยหรือไม่
     const parsedPeriodId = Number(coopPeriodId);
     if (!Number.isInteger(parsedPeriodId) || parsedPeriodId <= 0) {
+      files.forEach(f => { try { fs.unlinkSync(f.path); } catch (_) {} });
       return res.status(400).json({ ok: false, message: "coopPeriodId ไม่ถูกต้อง กรุณารีเฟรชหน้าเว็บแล้วลองใหม่" });
     }
 
@@ -46,6 +47,7 @@ const submitCoopApplication = async (req, res) => {
     activePeriod = await autoCloseIfExpired(activePeriod);
 
     if (!activePeriod || !activePeriod.isActive) {
+      files.forEach(f => { try { fs.unlinkSync(f.path); } catch (_) {} });
       return res.status(400).json({ ok: false, message: "ไม่สามารถยื่นคำร้องได้ เนื่องจากรอบรับสมัครนี้ถูกปิดไปแล้ว" });
     }
 
@@ -55,6 +57,7 @@ const submitCoopApplication = async (req, res) => {
     });
 
     if (!student || student.deletedAt) {
+      files.forEach(f => { try { fs.unlinkSync(f.path); } catch (_) {} });
       return res.status(404).json({ ok: false, message: "ไม่พบข้อมูลนักศึกษา" });
     }
 
@@ -74,6 +77,7 @@ const submitCoopApplication = async (req, res) => {
         if (!['https:', 'http:'].includes(u.protocol)) throw new Error('bad protocol');
         safeGradeUrl = gradeSheetUrl.trim();
       } catch {
+        files.forEach(f => { try { fs.unlinkSync(f.path); } catch (_) {} });
         return res.status(400).json({ ok: false, message: 'gradeSheetUrl ต้องเป็น URL แบบ http/https เท่านั้น' });
       }
     }
@@ -142,6 +146,7 @@ const submitCoopApplication = async (req, res) => {
     ).catch(console.error);
 
   } catch (err) {
+    (req.files || []).forEach(f => { try { fs.unlinkSync(f.path); } catch (_) {} });
     console.error("Submit Error:", err);
     res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดในการบันทึกข้อมูล" });
   }

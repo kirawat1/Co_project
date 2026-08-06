@@ -451,17 +451,17 @@ exports.deleteDocumentByType = async (req, res) => {
       return res.status(404).json({ message: "Document not found" });
     }
 
-    // ลบไฟล์
+    // ลบ DB ก่อน แล้วค่อยลบไฟล์
+    await prisma.document.delete({ where: { id: doc.id } });
+
     const filePath = path.join(__dirname, '../uploads', doc.path);
     if (fs.existsSync(filePath)) {
       try { fs.unlinkSync(filePath); } catch (e) { console.warn("Delete file error:", e); }
     }
 
-    // ลบ DB
-    await prisma.document.delete({ where: { id: doc.id } });
-
     res.json({ ok: true });
   } catch (err) {
+    if (err.code === 'P2025') return res.status(404).json({ message: 'Document not found' });
     console.error(err);
     res.status(500).json({ message: "Delete failed" });
   }

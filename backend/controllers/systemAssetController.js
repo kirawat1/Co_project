@@ -19,20 +19,16 @@ exports.updateAsset = async (req, res) => {
     const { key, label } = req.body;
     if (!req.file) return res.status(400).json({ message: "No file uploaded" });
 
-    // 1. หาไฟล์เดิมเพื่อลบทิ้ง (ถ้ามี)
+    // 1. หาไฟล์เดิม (ยังไม่ลบ)
     const oldAsset = await prisma.systemAsset.findUnique({ where: { key } });
-    if (oldAsset && oldAsset.path) {
-      const oldPath = path.join(__dirname, '../uploads/system', oldAsset.path);
-      if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
-    }
 
-    // 2. บันทึกข้อมูลใหม่
+    // 2. บันทึกข้อมูลใหม่ก่อน
     const updated = await prisma.systemAsset.upsert({
       where: { key },
       update: {
         path: req.file.filename,
         mimeType: req.file.mimetype,
-        label: label || oldAsset?.label // ถ้าไม่ส่ง label มา ให้ใช้ของเดิม
+        label: label || oldAsset?.label
       },
       create: {
         key,
@@ -42,8 +38,15 @@ exports.updateAsset = async (req, res) => {
       }
     });
 
+    // 3. ลบไฟล์เดิมหลัง upsert สำเร็จ
+    if (oldAsset && oldAsset.path) {
+      const oldPath = path.join(__dirname, '../uploads/system', oldAsset.path);
+      if (fs.existsSync(oldPath)) try { fs.unlinkSync(oldPath); } catch (_) {}
+    }
+
     res.json({ ok: true, asset: updated });
   } catch (err) {
+    if (req.file) { try { fs.unlinkSync(path.join(__dirname, '../uploads/system', req.file.filename)); } catch (_) {} }
     console.error(err);
     res.status(500).json({ ok: false, message: "Upload failed" });
   }

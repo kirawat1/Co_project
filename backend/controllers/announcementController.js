@@ -149,6 +149,7 @@ const addOrUpdateAnnouncement = async (req, res) => {
     }
   } catch (err) {
     (req.files || []).forEach(f => { try { fs.unlinkSync(path.join(UPLOAD_DIR, f.filename)); } catch (_) {} });
+    if (err.code === 'P2025') return res.status(404).json({ ok: false, message: 'ไม่พบประกาศ' });
     console.error(err);
     res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาด" });
   }
@@ -160,14 +161,16 @@ const deleteAnnouncement = async (req, res) => {
     const ann = await prisma.announcement.findUnique({ where: { id }, include: { files: true } });
     if (!ann) return res.status(404).json({ ok: false, message: "ไม่พบประกาศ" });
 
+    await prisma.announcement.delete({ where: { id } });
+
     for (const f of ann.files) {
       const filePath = path.join(__dirname, '../uploads', f.path);
-      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+      if (fs.existsSync(filePath)) try { fs.unlinkSync(filePath); } catch (_) {}
     }
 
-    await prisma.announcement.delete({ where: { id } });
     res.json({ ok: true });
   } catch (err) {
+    if (err.code === 'P2025') return res.status(404).json({ ok: false, message: 'ไม่พบประกาศ' });
     console.error(err);
     res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาด" });
   }
