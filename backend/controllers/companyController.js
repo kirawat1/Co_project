@@ -137,20 +137,27 @@ exports.addMentor = async (req, res) => {
     const userId = req.user.id;
     const companyId = req.params.companyId;
 
-    if (!(await isStaffOrCompanyOwner(userId, companyId))) {
-      return res.status(403).json({ ok: false, message: "ไม่มีสิทธิ์เพิ่มพี่เลี้ยงของบริษัทนี้" });
-    }
-
-    const mentor = await prisma.mentor.create({
-      data: {
-        firstName, lastName, department, position, email, phone,
-        company: { connect: { id: companyId } },
-        createdBy: { connect: { id: userId } },
-      },
+    let mentor;
+    await prisma.$transaction(async (tx) => {
+      const currentUser = await tx.user.findUnique({ where: { id: Number(userId) }, select: { role: true } });
+      if (!currentUser || currentUser.role !== 'staff') {
+        const company = await tx.company.findUnique({ where: { id: companyId }, select: { createdById: true } });
+        if (!company || company.createdById !== Number(userId)) {
+          throw Object.assign(new Error("ไม่มีสิทธิ์เพิ่มพี่เลี้ยงของบริษัทนี้"), { is403: true });
+        }
+      }
+      mentor = await tx.mentor.create({
+        data: {
+          firstName, lastName, department, position, email, phone,
+          company: { connect: { id: companyId } },
+          createdBy: { connect: { id: userId } },
+        },
+      });
     });
 
     res.json({ ok: true, mentor });
   } catch (err) {
+    if (err.is403) return res.status(403).json({ ok: false, message: err.message });
     console.error("Add Mentor Error:", err);
     res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดในการเพิ่มพี่เลี้ยง" });
   }
@@ -162,19 +169,29 @@ exports.updateMentor = async (req, res) => {
     const { firstName, lastName, department, position, email, phone } = req.body;
     const currentUserId = req.userId || (req.user && req.user.id);
 
-    const mentor = await prisma.mentor.findUnique({ where: { id: String(id) } });
-    if (!mentor) return res.status(404).json({ ok: false, message: "ไม่พบพี่เลี้ยง" });
-    if (!(await isStaffOrCompanyOwner(currentUserId, mentor.companyId))) {
-      return res.status(403).json({ ok: false, message: "ไม่มีสิทธิ์แก้ไขพี่เลี้ยงคนนี้" });
-    }
+    let updatedMentor;
+    await prisma.$transaction(async (tx) => {
+      const mentor = await tx.mentor.findUnique({ where: { id: String(id) } });
+      if (!mentor) throw Object.assign(new Error("ไม่พบพี่เลี้ยง"), { is404: true });
 
-    const updatedMentor = await prisma.mentor.update({
-      where: { id: String(id) }, // เปลี่ยนเป็น Number(id) ถ้า id ใน schema เป็น Int
-      data: { firstName, lastName, department, position, email, phone },
+      const currentUser = await tx.user.findUnique({ where: { id: Number(currentUserId) }, select: { role: true } });
+      if (!currentUser || currentUser.role !== 'staff') {
+        const company = await tx.company.findUnique({ where: { id: mentor.companyId }, select: { createdById: true } });
+        if (!company || company.createdById !== Number(currentUserId)) {
+          throw Object.assign(new Error("ไม่มีสิทธิ์แก้ไขพี่เลี้ยงคนนี้"), { is403: true });
+        }
+      }
+
+      updatedMentor = await tx.mentor.update({
+        where: { id: String(id) },
+        data: { firstName, lastName, department, position, email, phone },
+      });
     });
 
     res.json({ ok: true, mentor: updatedMentor });
   } catch (err) {
+    if (err.is404) return res.status(404).json({ ok: false, message: err.message });
+    if (err.is403) return res.status(403).json({ ok: false, message: err.message });
     if (err.code === 'P2025') return res.status(404).json({ ok: false, message: 'ไม่พบพี่เลี้ยง' });
     console.error("Update Mentor Error:", err);
     res.status(500).json({ ok: false, message: "แก้ไขพี่เลี้ยงไม่สำเร็จ" });
@@ -184,17 +201,26 @@ exports.updateMentor = async (req, res) => {
 exports.deleteMentor = async (req, res) => {
   try {
     const currentUserId = req.userId || (req.user && req.user.id);
-    const mentor = await prisma.mentor.findUnique({ where: { id: req.params.id } });
-    if (!mentor) return res.status(404).json({ ok: false, message: "ไม่พบพี่เลี้ยง" });
-    if (!(await isStaffOrCompanyOwner(currentUserId, mentor.companyId))) {
-      return res.status(403).json({ ok: false, message: "ไม่มีสิทธิ์ลบพี่เลี้ยงคนนี้" });
-    }
 
-    await prisma.mentor.delete({
-        where: { id: req.params.id }
+    await prisma.$transaction(async (tx) => {
+      const mentor = await tx.mentor.findUnique({ where: { id: req.params.id } });
+      if (!mentor) throw Object.assign(new Error("ไม่พบพี่เลี้ยง"), { is404: true });
+
+      const currentUser = await tx.user.findUnique({ where: { id: Number(currentUserId) }, select: { role: true } });
+      if (!currentUser || currentUser.role !== 'staff') {
+        const company = await tx.company.findUnique({ where: { id: mentor.companyId }, select: { createdById: true } });
+        if (!company || company.createdById !== Number(currentUserId)) {
+          throw Object.assign(new Error("ไม่มีสิทธิ์ลบพี่เลี้ยงคนนี้"), { is403: true });
+        }
+      }
+
+      await tx.mentor.delete({ where: { id: req.params.id } });
     });
+
     res.json({ ok: true });
   } catch (err) {
+    if (err.is404) return res.status(404).json({ ok: false, message: err.message });
+    if (err.is403) return res.status(403).json({ ok: false, message: err.message });
     if (err.code === 'P2025') return res.status(404).json({ ok: false, message: 'ไม่พบพี่เลี้ยง' });
     console.error("Delete Mentor Error:", err);
     res.status(500).json({ ok: false, message: "ลบพี่เลี้ยงไม่สำเร็จ" });

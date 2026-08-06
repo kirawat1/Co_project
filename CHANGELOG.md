@@ -1,5 +1,13 @@
 # CHANGELOG — Co_project
 
+## [2026-08-06] fix: batch 72 — TOCTOU x3 + P2025 x2
+
+- **companyController.js `addMentor`:** รวม ownership check + create เข้า `$transaction` — ก่อนหน้านี้ race condition บน `createdById` ทำให้ user ที่ไม่ใช่เจ้าของเพิ่มพี่เลี้ยงได้
+- **companyController.js `updateMentor`:** รวม ownership check + update เข้า `$transaction` — เหมือนกัน
+- **companyController.js `deleteMentor`:** รวม ownership check + delete เข้า `$transaction` — เหมือนกัน
+- **visitController.js `toggleVisitStatus`:** เพิ่ม `P2025 → 404` ใน catch — concurrent delete ทำให้ `tx.visit.update` throw P2025 → 500
+- **visitController.js `deleteVisit`:** เพิ่ม `P2025 → 404` ใน catch — เหมือนกัน
+
 ## [2026-08-06] fix: batch 71 — P2025 x1 + TOCTOU x4
 
 - **studentController.js `updateStudentBasicInfo`:** เพิ่ม `P2025 → 404` ใน catch — ก่อนหน้านี้ concurrent student delete ระหว่าง transaction คืน 500
