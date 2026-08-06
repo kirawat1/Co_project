@@ -1,5 +1,12 @@
 # CHANGELOG — Co_project
 
+## [2026-08-07] fix: batch 74 — TOCTOU x4
+
+- **studentController.js `softDeleteStudent`:** รวม findUnique + update เข้า `$transaction` ด้วย statusErr pattern — race condition ทำให้ double-delete ผ่าน guard ได้
+- **studentController.js `restoreStudent`:** เหมือนกัน — race condition กับ softDelete ทำให้ state ไม่แน่นอน
+- **studentController.js `updateMyProfile`:** ย้าย `studentId` uniqueness `findFirst` เข้า `$transaction` ด้วย `throw is409` — เดิมอยู่นอก tx ทำให้ concurrent submit ผ่านได้ทั้งคู่
+- **announcementController.js `deleteAnnouncement`:** รวม `findUnique` + `delete` เข้า `$transaction` เดียว และ capture `filesToClean` ภายใน tx — ป้องกัน concurrent upload เพิ่ม AnnFile ระหว่าง findUnique กับ delete ทำให้ file record ถูกลบแต่ไฟล์บนดิสก์ตกค้าง
+
 ## [2026-08-07] fix: batch 73 — TOCTOU x3 + BUG x1
 
 - **companyController.js:** ลบ dead function `isStaffOrCompanyOwner` — callers ทั้งหมดย้าย logic inline ไป `$transaction` ตั้งแต่ batch 72 แล้ว

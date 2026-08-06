@@ -166,12 +166,17 @@ const addOrUpdateAnnouncement = async (req, res) => {
 const deleteAnnouncement = async (req, res) => {
   try {
     const { id } = req.params;
-    const ann = await prisma.announcement.findUnique({ where: { id }, include: { files: true } });
-    if (!ann) return res.status(404).json({ ok: false, message: "ไม่พบประกาศ" });
+    let filesToClean = [];
+    let statusErr = null;
+    await prisma.$transaction(async (tx) => {
+      const ann = await tx.announcement.findUnique({ where: { id }, include: { files: true } });
+      if (!ann) { statusErr = { code: 404, msg: "ไม่พบประกาศ" }; throw new Error('not-found'); }
+      filesToClean = ann.files;
+      await tx.announcement.delete({ where: { id } });
+    }).catch((err) => { if (!statusErr) throw err; });
+    if (statusErr) return res.status(statusErr.code).json({ ok: false, message: statusErr.msg });
 
-    await prisma.announcement.delete({ where: { id } });
-
-    for (const f of ann.files) {
+    for (const f of filesToClean) {
       const filePath = path.join(__dirname, '../uploads', f.path);
       if (fs.existsSync(filePath)) try { fs.unlinkSync(filePath); } catch (_) {}
     }
