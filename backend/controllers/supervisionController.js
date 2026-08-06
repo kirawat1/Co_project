@@ -294,6 +294,7 @@ exports.assignCoTeachers = async (req, res) => {
 
         res.json({ ok: true, message: "อัปเดตอาจารย์นิเทศร่วมสำเร็จ" });
     } catch (error) {
+        if (error.code === 'P2025') return res.status(404).json({ ok: false, message: 'ไม่พบข้อมูลการนัดหมาย' });
         console.error("Assign Co-Teachers Error:", error);
         res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดในการบันทึกข้อมูล" });
     }

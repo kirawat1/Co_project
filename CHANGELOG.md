@@ -1,5 +1,16 @@
 # CHANGELOG — Co_project
 
+## [2026-08-06] fix: batch 64 — authz x2 + file orphan x3 + P2025 x3 + BUG + TOCTOU x2
+
+- **adminRoutes.js GET /majors + GET /criteria:** เพิ่ม `verifyRole(...ADMIN_ROLES)` — ก่อนหน้านี้ student สามารถดึง criteria ทั้งหมดได้
+- **announcementController.js `addOrUpdateAnnouncement`:** เพิ่ม file cleanup ใน 2 early returns (missing title/date/year และ announcement not found) — ก่อนหน้านี้ไฟล์ที่ upload มาค้างบน disk
+- **configController.js `updateT008Config`:** อ่าน old imagePath ก่อน upsert แล้วลบหลัง commit — ก่อนหน้านี้ทุก upload ทิ้งรูปเก่าไว้บน disk
+- **supervisionController.js `assignCoTeachers`:** เพิ่ม `P2025 → 404` ใน catch
+- **studentController.js `softDeleteStudent` + `restoreStudent`:** เพิ่ม `P2025 → 404` ใน catch
+- **visitRoutes.js POST/PUT/DELETE:** เปลี่ยนจาก `verifyRole('teacher','staff')` เป็น `verifyRole('teacher')` — staff ไม่มี Teacher record ทำให้ controller return 403/404 เสมอ
+- **docController.js `deleteDocument`:** รวม status lock check + delete เข้า `$transaction` + เพิ่ม `is409` ใน catch — ก่อนหน้านี้ TOCTOU ทำให้ลบ T002/T003 ที่กำลัง review ได้
+- **coopController.js `deleteDocument`:** เช่นเดียวกัน — TOCTOU fix เดียวกัน
+
 ## [2026-08-06] fix: batch 63 — wrong upload path + authz gap + NaN x2 + TOCTOU x2
 
 - **supervisionController.js `uploadSupervisionLetter`:** แก้ path ใน cleanup จาก `uploads/` เป็น `uploads/supervision/` — ก่อนหน้านี้ไฟล์ที่ upload มาลงที่ `uploads/supervision/` แต่ cleanup ไป unlink จาก `uploads/` ทำให้ไฟล์ค้าง

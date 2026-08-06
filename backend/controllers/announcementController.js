@@ -72,8 +72,10 @@ const addOrUpdateAnnouncement = async (req, res) => {
     const { id, title, body, date, year, linkUrls, keepFileIds, targetMajors: rawTargetMajors } = req.body;
     const files = req.files || [];
 
-    if (!title || !date || !year)
+    if (!title || !date || !year) {
+      files.forEach(f => { try { fs.unlinkSync(path.join(UPLOAD_DIR, f.filename)); } catch (_) {} });
       return res.status(400).json({ ok: false, message: "ข้อมูลไม่ครบ" });
+    }
 
     // Validate linkUrls early — before any DB I/O — so bad input returns 400 without
     // leaving multer-uploaded files orphaned on disk (F2: null not undefined; F3: try/catch)
@@ -116,7 +118,10 @@ const addOrUpdateAnnouncement = async (req, res) => {
     if (id) {
       // UPDATE
       const ann = await prisma.announcement.findUnique({ where: { id }, include: { files: true } });
-      if (!ann) return res.status(404).json({ ok: false, message: "ไม่พบประกาศ" });
+      if (!ann) {
+        files.forEach(f => { try { fs.unlinkSync(path.join(UPLOAD_DIR, f.filename)); } catch (_) {} });
+        return res.status(404).json({ ok: false, message: "ไม่พบประกาศ" });
+      }
 
       const toDelete = ann.files.filter(f => !keepFileIds?.includes(f.id));
 
