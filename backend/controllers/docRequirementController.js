@@ -30,9 +30,11 @@ exports.createRequirement = async (req, res) => {
 exports.updateRequirement = async (req, res) => {
   try {
     const { id } = req.params;
+    const numId = parseInt(id, 10);
+    if (isNaN(numId)) return res.status(400).json({ ok: false, message: "ID ไม่ถูกต้อง" });
     const { docKey, title, description, isRequired, isActive } = req.body;
     const updated = await prisma.documentRequirement.update({
-      where: { id: Number(id) },
+      where: { id: numId },
       data: { docKey, title, description, isRequired, isActive }
     });
     res.json({ ok: true, requirement: updated });
@@ -46,7 +48,9 @@ exports.updateRequirement = async (req, res) => {
 exports.deleteRequirement = async (req, res) => {
   try {
     const { id } = req.params;
-    await prisma.documentRequirement.delete({ where: { id: Number(id) } });
+    const numId = parseInt(id, 10);
+    if (isNaN(numId)) return res.status(400).json({ ok: false, message: "ID ไม่ถูกต้อง" });
+    await prisma.documentRequirement.delete({ where: { id: numId } });
     res.json({ ok: true, message: "ลบสำเร็จ" });
   } catch (error) {
     if (error.code === 'P2025') return res.status(404).json({ ok: false, message: "ไม่พบข้อมูล" });

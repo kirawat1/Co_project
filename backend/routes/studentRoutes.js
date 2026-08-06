@@ -49,7 +49,7 @@ router.get('/reg-status', verifyToken, (req, res) => {
 
 // POST /api/students/sync-from-reg — sync ข้อมูลทั้งหมดจาก KKU REG
 // Body: { kkuUsername, kkuPassword }
-router.post('/sync-from-reg', verifyToken, studentController.syncFromReg);
+router.post('/sync-from-reg', verifyToken, verifyRole('student'), studentController.syncFromReg);
 
 // GET /api/students/reg-semester — ดึงภาคเรียนปัจจุบันจาก KKU REG
 router.get('/reg-semester', verifyToken, async (req, res) => {
