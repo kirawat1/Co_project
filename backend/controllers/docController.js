@@ -375,43 +375,6 @@ exports.acknowledgeDispatchDownload = async (req, res) => {
 // 7. รับทราบการดาวน์โหลดหนังสือส่งตัว
 // ==========================================
 // สถานะที่ยังไม่เริ่มฝึกงาน (ก่อน INTERNSHIP_STARTED) ที่อนุญาตให้กดรับทราบหนังสือส่งตัวได้
-const PRE_INTERNSHIP_STATUSES = [
-  'PLACEMENT_LETTER_ISSUED',
-];
-
-exports.acknowledgePlacementLetter = async (req, res) => {
-  try {
-    const userId = req.user.id;
-
-    // หา student พร้อมสถานะ coop ปัจจุบัน — ห้ามรับ status จาก client เด็ดขาด
-    // เพราะ endpoint นี้มีไว้ "รับทราบการดาวน์โหลดหนังสือส่งตัว" เท่านั้น
-    // ไม่ใช่ให้นักศึกษากำหนดสถานะของตัวเองได้ตามใจ
-    const student = await prisma.student.findUnique({
-      where: { userId: parseInt(userId) },
-      include: { coop: true }
-    });
-
-    if (!student || student.deletedAt) {
-      return res.status(404).json({ ok: false, message: "Student not found" });
-    }
-
-    const sid = student.id;
-    await prisma.$transaction(async (tx) => {
-      const freshCoop = await tx.studentCoop.findUnique({ where: { studentId: sid } });
-      if (!freshCoop?.placeLetterUrl || !PRE_INTERNSHIP_STATUSES.includes(freshCoop.status)) {
-        throw Object.assign(new Error("ยังไม่สามารถยืนยันรับหนังสือส่งตัวได้ในสถานะปัจจุบัน"), { is400: true });
-      }
-      await tx.studentCoop.update({ where: { studentId: sid }, data: { status: 'INTERNSHIP_STARTED' } });
-    });
-
-    res.json({ ok: true, newStatus: 'INTERNSHIP_STARTED' });
-  } catch (err) {
-    if (err.is400) return res.status(400).json({ ok: false, message: err.message });
-    console.error("acknowledgePlacementLetter error:", err);
-    res.status(500).json({ ok: false, message: "Update placement letter status failed" });
-  }
-  
-};
 
 exports.deleteDocumentByType = async (req, res) => {
   try {

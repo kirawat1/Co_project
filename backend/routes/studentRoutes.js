@@ -24,7 +24,7 @@ router.get("/", verifyToken, verifyRole('staff', 'teacher'), studentController.g
 // ✅ Route สำหรับกดดาวน์โหลดหนังสือส่งตัว (ที่เพิ่มใหม่)
 router.post('/acknowledge-dispatch', verifyToken, verifyRole('student'), docController.acknowledgeDispatchDownload);
 router.post('/download-placement-letter', verifyToken, verifyRole('student'), studentController.downloadPlacementLetter);
-router.post("/acknowledge-placement-letter", verifyToken, verifyRole('student'), docController.acknowledgePlacementLetter);
+router.post("/acknowledge-placement-letter", verifyToken, verifyRole('student'), studentController.downloadPlacementLetter);
 
 router.get("/coop-periods/active", verifyToken, coopPeriodController.getActivePeriod);
 router.get('/coop-periods', verifyToken, coopPeriodController.getAllCoopPeriods);
