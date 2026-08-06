@@ -47,6 +47,18 @@ exports.createVisit = async (req, res) => {
 
     let newVisit;
     await prisma.$transaction(async (tx) => {
+      // ตรวจสอบ advisor ownership — อาจารย์ต้องเป็นที่ปรึกษาของนักศึกษา
+      const freshStudent = await tx.student.findUnique({
+        where: { id: student.id },
+        select: { generalAdvisorId: true, coopAdvisorId: true, deletedAt: true },
+      });
+      if (!freshStudent || freshStudent.deletedAt) {
+        throw Object.assign(new Error("Student not found"), { is404: true });
+      }
+      if (freshStudent.generalAdvisorId !== teacher.id && freshStudent.coopAdvisorId !== teacher.id) {
+        throw Object.assign(new Error("คุณไม่ใช่อาจารย์ที่ปรึกษาของนักศึกษาคนนี้"), { is403: true });
+      }
+
       // กันนัดซ้ำ: อาจารย์คนเดียวกัน นัดวันเดียวกันกับนักศึกษาคนเดียวกันซ้ำ
       const conflict = await tx.visit.findFirst({
         where: { teacherId: teacher.id, studentId: student.id, date: new Date(date) },
@@ -69,6 +81,8 @@ exports.createVisit = async (req, res) => {
 
     res.json({ ok: true, data: newVisit });
   } catch (err) {
+    if (err.is403) return res.status(403).json({ ok: false, message: err.message });
+    if (err.is404) return res.status(404).json({ ok: false, message: err.message });
     if (err.is409) {
       return res.status(409).json({ ok: false, message: err.message });
     }
