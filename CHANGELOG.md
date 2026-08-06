@@ -1,5 +1,12 @@
 # CHANGELOG — Co_project
 
+## [2026-08-06] fix: batch 66 — TOCTOU x1 + FILE x1 + BUG x1 + P2025 x1
+
+- **teacherController.js `deleteTeacher`:** ย้าย apptCount/visitCount check เข้าไปใน interactive `$transaction` — ก่อนหน้านี้ race condition ทำให้ลบอาจารย์ที่มีนัดหมายได้ถ้า insert เกิดขึ้น concurrent; เพิ่ม `is409` ใน catch
+- **announcementController.js `addOrUpdateAnnouncement`:** ครอบแต่ละ `fs.unlinkSync` ด้วย try/catch ใน `toDelete.forEach` — ก่อนหน้านี้ถ้า unlink โยน error หลัง transaction commit, outer catch จะลบไฟล์ใหม่ที่ commit แล้วออกด้วย
+- **studentController.js `downloadPlacementLetter`:** ลบ `const coop = await prisma.studentCoop.findUnique(...)` ที่ซ้ำซ้อนและไม่ได้ใช้ออก (query ที่ใช้จริงอยู่ใน transaction แล้ว)
+- **teacherController.js `resetTeacherPassword`:** เพิ่ม `P2025 → 404` ใน catch
+
 ## [2026-08-06] fix: batch 65 — authz x3 + advisor ownership + BUG (unhandled async)
 
 - **studentRoutes.js GET /coop-periods/active:** เพิ่ม `verifyToken` — ก่อนหน้านี้ endpoint ไม่มี auth ทำให้ public เข้าถึงได้

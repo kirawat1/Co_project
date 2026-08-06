@@ -137,10 +137,11 @@ const addOrUpdateAnnouncement = async (req, res) => {
         });
       });
 
-      // Delete files from disk only after transaction commits
+      // Delete old files from disk after transaction commits — each in try/catch to prevent
+      // error propagation into outer catch (which would incorrectly delete the newly-committed files)
       toDelete.forEach(f => {
         const filePath = path.join(__dirname, '../uploads', f.path);
-        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+        if (fs.existsSync(filePath)) try { fs.unlinkSync(filePath); } catch (_) {}
       });
 
       return res.json({ ok: true, announcement: updated });
@@ -153,6 +154,8 @@ const addOrUpdateAnnouncement = async (req, res) => {
       return res.json({ ok: true, announcement: ann });
     }
   } catch (err) {
+    // Only delete new uploaded files if the transaction never committed (i.e., they are not yet in the DB)
+    // res.json() would already have been called above if the transaction committed
     (req.files || []).forEach(f => { try { fs.unlinkSync(path.join(UPLOAD_DIR, f.filename)); } catch (_) {} });
     if (err.code === 'P2025') return res.status(404).json({ ok: false, message: 'ไม่พบประกาศ' });
     console.error(err);

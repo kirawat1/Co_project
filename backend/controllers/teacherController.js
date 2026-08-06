@@ -598,26 +598,25 @@ exports.deleteTeacher = async (req, res) => {
     const teacher = await prisma.teacher.findUnique({ where: { id: teacherId } });
     if (!teacher) return res.status(404).json({ ok: false, message: "ไม่พบอาจารย์" });
 
-    const [apptCount, visitCount] = await Promise.all([
-      prisma.supervisionAppointment.count({ where: { teacherId } }),
-      prisma.visit.count({ where: { teacherId } }),
-    ]);
-    if (apptCount > 0 || visitCount > 0) {
-      return res.status(409).json({
-        ok: false,
-        message: `ไม่สามารถลบอาจารย์ได้ เนื่องจากมีนัดหมายนิเทศ ${apptCount} รายการ หรือการนิเทศ ${visitCount} รายการ ผูกกับอาจารย์คนนี้อยู่ กรุณามอบหมายอาจารย์อื่นหรือยกเลิกรายการดังกล่าวก่อน`,
-      });
-    }
-
-    // ต้องลบ Teacher ก่อน User เสมอ เพราะ Teacher.userId อ้างถึง User.id (ลบ User ก่อนจะติด FK constraint)
-    await prisma.$transaction([
-      prisma.student.updateMany({ where: { generalAdvisorId: teacherId }, data: { generalAdvisorId: null, advisorName: null } }),
-      prisma.student.updateMany({ where: { coopAdvisorId: teacherId }, data: { coopAdvisorId: null, advisorName: null } }),
-      prisma.teacher.delete({ where: { id: teacherId } }),
-      prisma.user.delete({ where: { id: teacher.userId } }),
-    ]);
+    // Re-verify counts inside transaction to prevent TOCTOU race
+    await prisma.$transaction(async (tx) => {
+      const [freshApptCount, freshVisitCount] = await Promise.all([
+        tx.supervisionAppointment.count({ where: { teacherId } }),
+        tx.visit.count({ where: { teacherId } }),
+      ]);
+      if (freshApptCount > 0 || freshVisitCount > 0) {
+        throw Object.assign(new Error(
+          `ไม่สามารถลบอาจารย์ได้ เนื่องจากมีนัดหมายนิเทศ ${freshApptCount} รายการ หรือการนิเทศ ${freshVisitCount} รายการ ผูกกับอาจารย์คนนี้อยู่ กรุณามอบหมายอาจารย์อื่นหรือยกเลิกรายการดังกล่าวก่อน`
+        ), { is409: true });
+      }
+      await tx.student.updateMany({ where: { generalAdvisorId: teacherId }, data: { generalAdvisorId: null, advisorName: null } });
+      await tx.student.updateMany({ where: { coopAdvisorId: teacherId }, data: { coopAdvisorId: null, advisorName: null } });
+      await tx.teacher.delete({ where: { id: teacherId } });
+      await tx.user.delete({ where: { id: teacher.userId } });
+    });
     res.json({ ok: true, message: "ลบอาจารย์เรียบร้อย" });
   } catch (err) {
+    if (err.is409) return res.status(409).json({ ok: false, message: err.message });
     if (err.code === 'P2025') return res.status(404).json({ ok: false, message: 'ไม่พบอาจารย์' });
     console.error("DELETE TEACHER ERROR:", err);
     res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดในการลบอาจารย์" });
@@ -645,6 +644,7 @@ exports.resetTeacherPassword = async (req, res) => {
     await prisma.user.update({ where: { id: teacher.userId }, data: { password: hashed } });
     res.json({ ok: true, message: "รีเซ็ตรหัสผ่านเรียบร้อย" });
   } catch (err) {
+    if (err.code === 'P2025') return res.status(404).json({ ok: false, message: 'ไม่พบอาจารย์' });
     console.error("RESET PASSWORD ERROR:", err);
     res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาด" });
   }
