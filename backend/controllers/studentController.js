@@ -82,13 +82,6 @@ exports.updateMyProfile = async (req, res) => {
       if (data.studentId.length === 0 || data.studentId.length > 10) {
         return res.status(400).json({ ok: false, message: "รหัสนักศึกษาต้องเป็นตัวเลขไม่เกิน 10 หลัก" });
       }
-      // ป้องกัน unique constraint crash: ตรวจว่ารหัสนี้ถูกใช้โดยนักศึกษาคนอื่นหรือไม่
-      const taken = await prisma.student.findFirst({
-        where: { studentId: data.studentId, NOT: { userId }, deletedAt: null }
-      });
-      if (taken) {
-        return res.status(409).json({ ok: false, message: "รหัสนักศึกษานี้ถูกใช้งานแล้ว กรุณาตรวจสอบอีกครั้ง" });
-      }
     }
 
     const currentStudent = await prisma.student.findUnique({
@@ -112,6 +105,12 @@ exports.updateMyProfile = async (req, res) => {
     let updatedCoop = null;
 
     await prisma.$transaction(async (tx) => {
+      if (data.studentId) {
+        const taken = await tx.student.findFirst({
+          where: { studentId: data.studentId, NOT: { userId }, deletedAt: null }
+        });
+        if (taken) throw Object.assign(new Error("รหัสนักศึกษานี้ถูกใช้งานแล้ว กรุณาตรวจสอบอีกครั้ง"), { is409: true });
+      }
       student = await tx.student.upsert({
         where: { userId: userId },
         update: {
@@ -202,6 +201,7 @@ exports.updateMyProfile = async (req, res) => {
     });
 
   } catch (err) {
+    if (err.is409) return res.status(409).json({ ok: false, message: err.message });
     console.error("Update Error:", err);
     if (err.code === 'P2002') {
       const target = err.meta?.target;
@@ -401,11 +401,14 @@ exports.softDeleteStudent = async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
     if (isNaN(id)) return res.status(400).json({ ok: false, message: "id ไม่ถูกต้อง" });
-    const student = await prisma.student.findUnique({ where: { id } });
-    if (!student) return res.status(404).json({ ok: false, message: "ไม่พบนักศึกษา" });
-    if (student.deletedAt) return res.status(409).json({ ok: false, message: "นักศึกษาอยู่ในถังขยะแล้ว" });
-
-    await prisma.student.update({ where: { id }, data: { deletedAt: new Date() } });
+    let statusErr = null;
+    await prisma.$transaction(async (tx) => {
+      const s = await tx.student.findUnique({ where: { id } });
+      if (!s) { statusErr = { code: 404, msg: "ไม่พบนักศึกษา" }; throw new Error('not-found'); }
+      if (s.deletedAt) { statusErr = { code: 409, msg: "นักศึกษาอยู่ในถังขยะแล้ว" }; throw new Error('already-deleted'); }
+      await tx.student.update({ where: { id }, data: { deletedAt: new Date() } });
+    }).catch((err) => { if (!statusErr) throw err; });
+    if (statusErr) return res.status(statusErr.code).json({ ok: false, message: statusErr.msg });
     res.json({ ok: true, message: "ย้ายไปถังขยะเรียบร้อย" });
   } catch (err) {
     if (err.code === 'P2025') return res.status(404).json({ ok: false, message: 'ไม่พบนักศึกษา' });
@@ -434,11 +437,14 @@ exports.restoreStudent = async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
     if (isNaN(id)) return res.status(400).json({ ok: false, message: "id ไม่ถูกต้อง" });
-    const student = await prisma.student.findUnique({ where: { id } });
-    if (!student) return res.status(404).json({ ok: false, message: "ไม่พบนักศึกษา" });
-    if (!student.deletedAt) return res.status(409).json({ ok: false, message: "นักศึกษาไม่ได้อยู่ในถังขยะ" });
-
-    await prisma.student.update({ where: { id }, data: { deletedAt: null } });
+    let statusErr = null;
+    await prisma.$transaction(async (tx) => {
+      const s = await tx.student.findUnique({ where: { id } });
+      if (!s) { statusErr = { code: 404, msg: "ไม่พบนักศึกษา" }; throw new Error('not-found'); }
+      if (!s.deletedAt) { statusErr = { code: 409, msg: "นักศึกษาไม่ได้อยู่ในถังขยะ" }; throw new Error('not-in-trash'); }
+      await tx.student.update({ where: { id }, data: { deletedAt: null } });
+    }).catch((err) => { if (!statusErr) throw err; });
+    if (statusErr) return res.status(statusErr.code).json({ ok: false, message: statusErr.msg });
     res.json({ ok: true, message: "กู้คืนเรียบร้อย" });
   } catch (err) {
     if (err.code === 'P2025') return res.status(404).json({ ok: false, message: 'ไม่พบนักศึกษา' });
