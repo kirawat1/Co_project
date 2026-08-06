@@ -230,47 +230,6 @@ exports.proposeSupervisionDate = async (req, res) => {
 // ==========================================
 // 👨‍🏫 [TEACHER] ฝั่งอาจารย์
 // ==========================================
-exports.getTeacherSupervisions = async (req, res) => {
-    try {
-        const userId = req.user.id;
-
-        const teacher = await prisma.teacher.findUnique({ where: { userId } });
-        if (!teacher) {
-            return res.json({ ok: true, supervisions: [] });
-        }
-
-        const supervisions = await prisma.supervisionAppointment.findMany({
-            where: {
-                student: { deletedAt: null },
-                OR: [
-                    { teacherId: teacher.id },
-                    ...(teacher.firstName && teacher.lastName
-                        ? [{ coTeacherName: { contains: `${teacher.firstName} ${teacher.lastName}` } }]
-                        : [])
-                ]
-            },
-            include: {
-                student: {
-                    select: {
-                        studentId: true, firstName: true, lastName: true, phone: true,
-                        coop: { include: { company: true } }
-                    }
-                }
-            },
-            orderBy: { updatedAt: 'desc' }
-        });
-
-        const mappedData = supervisions.map(sup => ({
-            ...sup,
-            isPrimaryAdvisor: sup.teacherId === teacher.id
-        }));
-
-        res.json({ ok: true, supervisions: mappedData });
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ ok: false, message: 'Server error' });
-    }
-};
 
 // ==========================================
 // อัปเดตอาจารย์นิเทศร่วม (Co-Teachers)
