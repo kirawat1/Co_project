@@ -256,24 +256,22 @@ const deleteDocument = async (req, res) => {
         return res.status(403).json({ ok: false, message: "ไม่มีสิทธิ์ลบไฟล์นี้" });
     }
 
-    // ป้องกันลบเอกสารที่อยู่ระหว่างการตรวจสอบ
-    if (doc.type === 'T002_FORM' || doc.type === 'T003_FORM') {
-        const coop = await prisma.studentCoop.findUnique({
-            where: { studentId: doc.studentId },
-            select: { status: true }
-        });
-        const LOCKED_BY_T002 = new Set(['T002_SUBMITTED', 'T003_SUBMITTED', 'T003_EDITS_REQUIRED', 'T003_APPROVED', 'INTERNSHIP_STARTED', 'COMPLETED']);
-        const LOCKED_BY_T003 = new Set(['T003_SUBMITTED', 'T003_APPROVED', 'INTERNSHIP_STARTED', 'COMPLETED']);
-        if (doc.type === 'T002_FORM' && coop && LOCKED_BY_T002.has(coop.status)) {
-            return res.status(409).json({ ok: false, message: "ไม่สามารถลบ T002 ที่อยู่ระหว่างการตรวจสอบ" });
+    // ลบ DB ภายใน transaction — status check + delete atomic กัน ป้องกัน TOCTOU
+    await prisma.$transaction(async (tx) => {
+        if (doc.type === 'T002_FORM' || doc.type === 'T003_FORM') {
+            const coop = await tx.studentCoop.findUnique({
+                where: { studentId: doc.studentId },
+                select: { status: true }
+            });
+            const LOCKED_BY_T002 = new Set(['T002_SUBMITTED', 'T003_SUBMITTED', 'T003_EDITS_REQUIRED', 'T003_APPROVED', 'INTERNSHIP_STARTED', 'COMPLETED']);
+            const LOCKED_BY_T003 = new Set(['T003_SUBMITTED', 'T003_APPROVED', 'INTERNSHIP_STARTED', 'COMPLETED']);
+            if (doc.type === 'T002_FORM' && coop && LOCKED_BY_T002.has(coop.status))
+                throw Object.assign(new Error('ไม่สามารถลบ T002 ที่อยู่ระหว่างการตรวจสอบ'), { is409: true });
+            if (doc.type === 'T003_FORM' && coop && LOCKED_BY_T003.has(coop.status))
+                throw Object.assign(new Error('ไม่สามารถลบ T003 ที่อยู่ระหว่างการตรวจสอบ'), { is409: true });
         }
-        if (doc.type === 'T003_FORM' && coop && LOCKED_BY_T003.has(coop.status)) {
-            return res.status(409).json({ ok: false, message: "ไม่สามารถลบ T003 ที่อยู่ระหว่างการตรวจสอบ" });
-        }
-    }
-
-    // 2. ลบ DB ก่อน แล้วค่อยลบไฟล์
-    await prisma.document.delete({ where: { id: parsedDocId } });
+        await tx.document.delete({ where: { id: parsedDocId } });
+    });
 
     const filePath = path.join(__dirname, '../uploads', doc.path);
     if (fs.existsSync(filePath)) {
@@ -283,6 +281,7 @@ const deleteDocument = async (req, res) => {
     res.json({ ok: true, message: "ลบไฟล์สำเร็จ" });
 
   } catch (err) {
+    if (err.is409) return res.status(409).json({ ok: false, message: err.message });
     if (err.code === 'P2025') return res.status(404).json({ ok: false, message: 'ไม่พบเอกสาร' });
     console.error(err);
     res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดในการลบไฟล์" });

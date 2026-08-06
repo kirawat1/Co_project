@@ -409,6 +409,7 @@ exports.softDeleteStudent = async (req, res) => {
     await prisma.student.update({ where: { id }, data: { deletedAt: new Date() } });
     res.json({ ok: true, message: "ย้ายไปถังขยะเรียบร้อย" });
   } catch (err) {
+    if (err.code === 'P2025') return res.status(404).json({ ok: false, message: 'ไม่พบนักศึกษา' });
     console.error("SOFT DELETE STUDENT ERROR:", err);
     res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดที่ Server" });
   }
@@ -441,6 +442,7 @@ exports.restoreStudent = async (req, res) => {
     await prisma.student.update({ where: { id }, data: { deletedAt: null } });
     res.json({ ok: true, message: "กู้คืนเรียบร้อย" });
   } catch (err) {
+    if (err.code === 'P2025') return res.status(404).json({ ok: false, message: 'ไม่พบนักศึกษา' });
     console.error("RESTORE STUDENT ERROR:", err);
     res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดที่ Server" });
   }

@@ -157,11 +157,19 @@ exports.getT008Config = async (req, res) => {
 exports.updateT008Config = async (req, res) => {
     try {
         const { instructionText, driveLink, existingImage } = req.body;
-        
-        // ถ้ารูปภาพมีการอัปโหลดเข้ามาใหม่ ให้ใช้ชื่อไฟล์ใหม่ แต่ถ้าไม่มีให้ใช้ชื่อไฟล์เดิม
+
         let imagePath = existingImage || null;
         if (req.file) {
-            imagePath = req.file.filename; // ได้ชื่อไฟล์จาก Middleware systemUpload
+            imagePath = req.file.filename;
+        }
+
+        // ดึง imagePath เก่าก่อน upsert เพื่อลบหลัง commit สำเร็จ
+        let oldImagePath = null;
+        if (req.file) {
+            const old = await prisma.systemConfig.findUnique({ where: { key: 'CONFIG_T008' } });
+            if (old) {
+                try { const prev = JSON.parse(old.value); oldImagePath = prev.imagePath || null; } catch (_) {}
+            }
         }
 
         const payload = { instructionText, driveLink, imagePath };
@@ -173,6 +181,12 @@ exports.updateT008Config = async (req, res) => {
         });
 
         res.json({ ok: true, message: "บันทึกการตั้งค่าเรียบร้อยแล้ว", imagePath });
+
+        // ลบรูปเก่าหลัง upsert สำเร็จ
+        if (oldImagePath && oldImagePath !== req.file?.filename) {
+            const oldPath = path.join(__dirname, '../uploads/system', oldImagePath);
+            if (fs.existsSync(oldPath)) try { fs.unlinkSync(oldPath); } catch (_) {}
+        }
     } catch (err) {
         if (req.file) { try { fs.unlinkSync(path.join(__dirname, '../uploads/system', req.file.filename)); } catch(_){} }
         console.error("Error updating T008 config:", err);
