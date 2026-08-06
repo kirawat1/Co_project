@@ -163,21 +163,21 @@ exports.updateT008Config = async (req, res) => {
             imagePath = req.file.filename;
         }
 
-        // ดึง imagePath เก่าก่อน upsert เพื่อลบหลัง commit สำเร็จ
         let oldImagePath = null;
-        if (req.file) {
-            const old = await prisma.systemConfig.findUnique({ where: { key: 'CONFIG_T008' } });
-            if (old) {
-                try { const prev = JSON.parse(old.value); oldImagePath = prev.imagePath || null; } catch (_) {}
-            }
-        }
-
         const payload = { instructionText, driveLink, imagePath };
 
-        await prisma.systemConfig.upsert({
-            where: { key: 'CONFIG_T008' },
-            update: { value: JSON.stringify(payload) },
-            create: { key: 'CONFIG_T008', value: JSON.stringify(payload) }
+        await prisma.$transaction(async (tx) => {
+            if (req.file) {
+                const old = await tx.systemConfig.findUnique({ where: { key: 'CONFIG_T008' } });
+                if (old) {
+                    try { const prev = JSON.parse(old.value); oldImagePath = prev.imagePath || null; } catch (_) {}
+                }
+            }
+            await tx.systemConfig.upsert({
+                where: { key: 'CONFIG_T008' },
+                update: { value: JSON.stringify(payload) },
+                create: { key: 'CONFIG_T008', value: JSON.stringify(payload) }
+            });
         });
 
         res.json({ ok: true, message: "บันทึกการตั้งค่าเรียบร้อยแล้ว", imagePath });

@@ -123,13 +123,6 @@ exports.deleteCompany = async (req, res) => {
   }
 };
 // ---------------- Mentor ----------------
-// เช็คสิทธิ์แบบเดียวกับ company: staff/admin หรือเจ้าของบริษัทที่ mentor ผูกอยู่เท่านั้น
-async function isStaffOrCompanyOwner(currentUserId, companyId) {
-  const currentUser = await prisma.user.findUnique({ where: { id: Number(currentUserId) } });
-  if (currentUser && (currentUser.role === "staff")) return true;
-  const company = await prisma.company.findUnique({ where: { id: companyId } });
-  return !!company && company.createdById === Number(currentUserId);
-}
 
 exports.addMentor = async (req, res) => {
   try {
