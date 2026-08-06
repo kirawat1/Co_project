@@ -1,5 +1,12 @@
 # CHANGELOG — Co_project
 
+## [2026-08-06] fix: batch 63 — wrong upload path + authz gap + NaN x2 + TOCTOU x2
+
+- **supervisionController.js `uploadSupervisionLetter`:** แก้ path ใน cleanup จาก `uploads/` เป็น `uploads/supervision/` — ก่อนหน้านี้ไฟล์ที่ upload มาลงที่ `uploads/supervision/` แต่ cleanup ไป unlink จาก `uploads/` ทำให้ไฟล์ค้าง
+- **studentRoutes.js POST /sync-from-reg:** เพิ่ม `verifyRole('student')` — ก่อนหน้านี้ teacher/staff สามารถเรียก KKU REG API ด้วย credentials ที่ส่งมาได้
+- **docRequirementController.js `updateRequirement` + `deleteRequirement`:** เพิ่ม `parseInt(id, 10)` + `isNaN` guard — ก่อนหน้านี้ `Number(id)` บน string ที่ไม่ใช่ตัวเลขได้ NaN → Prisma throw 500
+- **visitController.js `toggleVisitStatus` + `deleteVisit`:** ย้าย ownership check เข้าใน `$transaction` — ก่อนหน้านี้ TOCTOU ทำให้ re-assign ระหว่าง check กับ mutate ผ่านได้; ใช้ is403/is404 throws
+
 ## [2026-08-06] fix: batch 62 — file-before-DB x3 + authz gap + TOCTOU letter file + P2025
 
 - **docController.js `deleteDocument` (by id):** ย้ายการลบไฟล์มาหลัง DB delete — ก่อนหน้านี้ถ้า DB throw ไฟล์หายไปแล้วแต่ record ยังอยู่

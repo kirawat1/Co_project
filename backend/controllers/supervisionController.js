@@ -93,8 +93,8 @@ exports.uploadOfficialLetter = async (req, res) => {
             });
         } catch (txErr) {
             if (req.file) {
-                const fp = path.join(__dirname, '../uploads', req.file.filename);
-                if (fs.existsSync(fp)) fs.unlinkSync(fp);
+                const fp = path.join(__dirname, '../uploads/supervision', req.file.filename);
+                if (fs.existsSync(fp)) try { fs.unlinkSync(fp); } catch (_) {}
             }
             if (txErr.is400) return res.status(400).json({ ok: false, message: txErr.message });
             throw txErr;
@@ -119,7 +119,7 @@ exports.uploadOfficialLetter = async (req, res) => {
     } catch (err) {
         console.error(err);
         if (req.file) {
-            const filePath = path.join(__dirname, '../uploads', req.file.filename);
+            const filePath = path.join(__dirname, '../uploads/supervision', req.file.filename);
             try { fs.unlinkSync(filePath); } catch (_) {}
         }
         res.status(500).json({ ok: false, message: 'Upload error' });

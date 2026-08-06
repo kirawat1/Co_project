@@ -89,23 +89,23 @@ exports.toggleVisitStatus = async (req, res) => {
     const { id } = req.params;
     const numId = parseInt(id, 10);
     if (isNaN(numId)) return res.status(400).json({ ok: false, message: "Invalid ID" });
-    const visit = await prisma.visit.findUnique({ where: { id: numId } });
 
-    if (!visit) return res.status(404).json({ ok: false, message: "Visit not found" });
-    if (!(await isOwnerOfVisit(req.user.id, visit))) {
-      return res.status(403).json({ ok: false, message: "ไม่มีสิทธิ์แก้ไขนัดหมายของอาจารย์ท่านอื่น" });
-    }
-
-    const newStatus = visit.status === "scheduled" ? "done" : "scheduled";
-
-    const updated = await prisma.visit.update({
-      where: { id: numId },
-      data: { status: newStatus }
+    let updated;
+    await prisma.$transaction(async (tx) => {
+      const visit = await tx.visit.findUnique({ where: { id: numId } });
+      if (!visit) throw Object.assign(new Error('Visit not found'), { is404: true });
+      const teacher = await tx.teacher.findUnique({ where: { userId: req.user.id } });
+      if (!teacher || teacher.id !== visit.teacherId) {
+        throw Object.assign(new Error('ไม่มีสิทธิ์แก้ไขนัดหมายของอาจารย์ท่านอื่น'), { is403: true });
+      }
+      const newStatus = visit.status === "scheduled" ? "done" : "scheduled";
+      updated = await tx.visit.update({ where: { id: numId }, data: { status: newStatus } });
     });
 
     res.json({ ok: true, data: updated });
   } catch (err) {
-    if (err.code === 'P2025') return res.status(404).json({ ok: false, message: 'Visit not found' });
+    if (err.is404) return res.status(404).json({ ok: false, message: err.message });
+    if (err.is403) return res.status(403).json({ ok: false, message: err.message });
     console.error(err);
     res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาด" });
   }
@@ -117,16 +117,21 @@ exports.deleteVisit = async (req, res) => {
     const { id } = req.params;
     const numId = parseInt(id, 10);
     if (isNaN(numId)) return res.status(400).json({ ok: false, message: "Invalid ID" });
-    const visit = await prisma.visit.findUnique({ where: { id: numId } });
-    if (!visit) return res.status(404).json({ ok: false, message: "Visit not found" });
-    if (!(await isOwnerOfVisit(req.user.id, visit))) {
-      return res.status(403).json({ ok: false, message: "ไม่มีสิทธิ์ลบนัดหมายของอาจารย์ท่านอื่น" });
-    }
 
-    await prisma.visit.delete({ where: { id: numId } });
+    await prisma.$transaction(async (tx) => {
+      const visit = await tx.visit.findUnique({ where: { id: numId } });
+      if (!visit) throw Object.assign(new Error('Visit not found'), { is404: true });
+      const teacher = await tx.teacher.findUnique({ where: { userId: req.user.id } });
+      if (!teacher || teacher.id !== visit.teacherId) {
+        throw Object.assign(new Error('ไม่มีสิทธิ์ลบนัดหมายของอาจารย์ท่านอื่น'), { is403: true });
+      }
+      await tx.visit.delete({ where: { id: numId } });
+    });
+
     res.json({ ok: true, message: "Deleted successfully" });
   } catch (err) {
-    if (err.code === 'P2025') return res.status(404).json({ ok: false, message: 'Visit not found' });
+    if (err.is404) return res.status(404).json({ ok: false, message: err.message });
+    if (err.is403) return res.status(403).json({ ok: false, message: err.message });
     console.error(err);
     res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาด" });
   }
