@@ -1,5 +1,13 @@
 # CHANGELOG — Co_project
 
+## [2026-08-06] fix: batch 71 — P2025 x1 + TOCTOU x4
+
+- **studentController.js `updateStudentBasicInfo`:** เพิ่ม `P2025 → 404` ใน catch — ก่อนหน้านี้ concurrent student delete ระหว่าง transaction คืน 500
+- **companyController.js `updateCompany`:** รวม ownership check + update เข้า `$transaction` — ก่อนหน้านี้ race condition ทำให้ตรวจสอบ createdById แล้ว update แยกกัน
+- **companyController.js `deleteCompany`:** รวม ownership check + delete เข้า `$transaction` — เหมือนกัน
+- **docController.js `saveT002Form`:** รวม status check + upsert เข้า `$transaction` — ก่อนหน้านี้ status เปลี่ยนระหว่าง check กับ upsert ได้
+- **docController.js `saveT003Form`:** รวม status check + upsert เข้า `$transaction` — เหมือนกัน
+
 ## [2026-08-06] fix: batch 70 — TOCTOU x1 + BUG x2
 
 - **studentController.js `updateStudentBasicInfo`:** ย้าย advisor `teacher.findUnique` lookups เข้าไปใน `$transaction` — ก่อนหน้านี้ concurrent teacher delete ระหว่าง request จะทำให้ DB throw P2003 → 500 แทน 400

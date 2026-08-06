@@ -551,6 +551,7 @@ exports.updateStudentBasicInfo = async (req, res) => {
   } catch (err) {
     if (err.is400) return res.status(400).json({ ok: false, message: err.message });
     if (err.is409) return res.status(409).json({ ok: false, message: err.message });
+    if (err.code === 'P2025') return res.status(404).json({ ok: false, message: 'ไม่พบนักศึกษา' });
     if (err.code === 'P2002') {
       const target = err.meta?.target;
       if (typeof target === 'string' && target.includes('studentId')) {

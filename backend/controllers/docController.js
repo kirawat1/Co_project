@@ -434,12 +434,6 @@ exports.saveT002Form = async (req, res) => {
         const student = await prisma.student.findUnique({ where: { userId: req.user.id } });
         if (!student || student.deletedAt) return res.status(404).json({ ok: false, message: "Student not found" });
 
-        const coop = await prisma.studentCoop.findUnique({ where: { studentId: student.id } });
-        const T002_DRAFT_ALLOWED = ['INTERNSHIP_STARTED', 'T002_SUBMITTED', 'T002_EDITS_REQUIRED'];
-        if (!coop || !T002_DRAFT_ALLOWED.includes(coop.status)) {
-            return res.status(400).json({ ok: false, message: 'ยังไม่ถึงขั้นตอนกรอก T002' });
-        }
-
         const {
             companyNameTh, companyNameEn, addressNo, moo, soi, road, subDistrict, district, province, zipcode,
             companyPhone, companyFax, companyEmail,
@@ -462,14 +456,23 @@ exports.saveT002Form = async (req, res) => {
             emergencyName, emergencyAddress, emergencyPhone, emergencyFax, emergencyEmail
         };
 
-        const t002 = await prisma.coopT002Form.upsert({
-            where: { studentId: student.id },
-            update: data,
-            create: { studentId: student.id, ...data }
+        const T002_DRAFT_ALLOWED = ['INTERNSHIP_STARTED', 'T002_SUBMITTED', 'T002_EDITS_REQUIRED'];
+        let t002;
+        await prisma.$transaction(async (tx) => {
+            const freshCoop = await tx.studentCoop.findUnique({ where: { studentId: student.id }, select: { status: true } });
+            if (!freshCoop || !T002_DRAFT_ALLOWED.includes(freshCoop.status)) {
+                throw Object.assign(new Error('ยังไม่ถึงขั้นตอนกรอก T002'), { is400: true });
+            }
+            t002 = await tx.coopT002Form.upsert({
+                where: { studentId: student.id },
+                update: data,
+                create: { studentId: student.id, ...data }
+            });
         });
 
         res.json({ ok: true, data: t002 });
     } catch (err) {
+        if (err.is400) return res.status(400).json({ ok: false, message: err.message });
         console.error("Save T002 Error:", err);
         res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดในการบันทึกข้อมูล" });
     }
@@ -482,35 +485,37 @@ exports.saveT003Form = async (req, res) => {
         const student = await prisma.student.findUnique({ where: { userId: req.user.id } });
         if (!student || student.deletedAt) return res.status(404).json({ ok: false, message: "Student not found" });
 
-        const coopT3 = await prisma.studentCoop.findUnique({ where: { studentId: student.id } });
-        const T003_DRAFT_ALLOWED = ['T002_SUBMITTED', 'T003_SUBMITTED', 'T003_EDITS_REQUIRED'];
-        if (!coopT3 || !T003_DRAFT_ALLOWED.includes(coopT3.status)) {
-            return res.status(400).json({ ok: false, message: 'ยังไม่ถึงขั้นตอนกรอก T003' });
-        }
-
         const {
             reportTitleTh, reportTitleEn, objectives, expectedOutcomes,
             significance, references, methodology, scope, otherSuggestions, workPlan
         } = req.body;
 
-        // อัปเดตหรือสร้างใหม่ (Upsert)
-        const t003 = await prisma.coopT003Form.upsert({
-            where: { studentId: student.id },
-            update: {
-                reportTitleTh, reportTitleEn, objectives, expectedOutcomes,
-                significance, references, methodology, scope, otherSuggestions,
-                workPlan: workPlan // Prisma จะแปลงเป็น JSON ให้อัตโนมัติ
-            },
-            create: {
-                studentId: student.id,
-                reportTitleTh, reportTitleEn, objectives, expectedOutcomes,
-                significance, references, methodology, scope, otherSuggestions,
-                workPlan: workPlan
+        const T003_DRAFT_ALLOWED = ['T002_SUBMITTED', 'T003_SUBMITTED', 'T003_EDITS_REQUIRED'];
+        let t003;
+        await prisma.$transaction(async (tx) => {
+            const freshCoop = await tx.studentCoop.findUnique({ where: { studentId: student.id }, select: { status: true } });
+            if (!freshCoop || !T003_DRAFT_ALLOWED.includes(freshCoop.status)) {
+                throw Object.assign(new Error('ยังไม่ถึงขั้นตอนกรอก T003'), { is400: true });
             }
+            t003 = await tx.coopT003Form.upsert({
+                where: { studentId: student.id },
+                update: {
+                    reportTitleTh, reportTitleEn, objectives, expectedOutcomes,
+                    significance, references, methodology, scope, otherSuggestions,
+                    workPlan: workPlan
+                },
+                create: {
+                    studentId: student.id,
+                    reportTitleTh, reportTitleEn, objectives, expectedOutcomes,
+                    significance, references, methodology, scope, otherSuggestions,
+                    workPlan: workPlan
+                }
+            });
         });
 
         res.json({ ok: true, data: t003 });
     } catch (err) {
+        if (err.is400) return res.status(400).json({ ok: false, message: err.message });
         console.error("Save T003 Error:", err);
         res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดในการบันทึกข้อมูล" });
     }
