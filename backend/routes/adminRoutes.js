@@ -31,8 +31,8 @@ router.get('/config/t000', verifyToken, verifyRole(...ADMIN_ROLES), adminDocCont
 router.post('/config/t000', verifyToken, verifyRole(...ADMIN_ROLES), adminDocController.saveT000Config);
 router.get('/t000/students', verifyToken, verifyRole(...ADMIN_ROLES), adminDocController.getStudentsForT000);
 router.put('/doc/:id/status', verifyToken, verifyRole(...ADMIN_ROLES), adminDocController.updateDocStatus);
-router.post('/t000/approve-all', verifyToken, verifyRole(...ADMIN_ROLES), adminDocController.approveAllDocs);
-router.put('/t000/review', verifyToken, verifyRole(...ADMIN_ROLES), upload.single('file'), adminDocController.reviewStudentStatus);
+router.post('/t000/approve-all', verifyToken, verifyRole(...STAFF_ONLY), adminDocController.approveAllDocs);
+router.put('/t000/review', verifyToken, verifyRole(...STAFF_ONLY), upload.single('file'), adminDocController.reviewStudentStatus);
 
 // System Assets (ไม่ต้องการ auth — เป็นข้อมูล public เช่น โลโก้)
 router.get('/assets', systemAssetController.getAllAssets);

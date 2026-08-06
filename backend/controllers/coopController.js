@@ -173,9 +173,19 @@ const updateCoopStatus = async (req, res) => {
 
     let updated;
     await prisma.$transaction(async (tx) => {
-      const studentCheck = await tx.student.findUnique({ where: { id: parsedId }, select: { deletedAt: true } });
+      const studentCheck = await tx.student.findUnique({
+        where: { id: parsedId },
+        select: { deletedAt: true, generalAdvisorId: true, coopAdvisorId: true }
+      });
       if (!studentCheck || studentCheck.deletedAt) {
         throw Object.assign(new Error('ไม่พบนักศึกษา'), { is404: true });
+      }
+      // ถ้าผู้เรียกเป็นอาจารย์ (ไม่ใช่เจ้าหน้าที่) ต้องเป็นอาจารย์ที่ปรึกษาเท่านั้น
+      if (req.user.role === 'teacher') {
+        const teacher = await tx.teacher.findUnique({ where: { userId: req.user.id }, select: { id: true } });
+        if (!teacher || (studentCheck.generalAdvisorId !== teacher.id && studentCheck.coopAdvisorId !== teacher.id)) {
+          throw Object.assign(new Error('คุณไม่ใช่อาจารย์ที่ปรึกษาของนักศึกษาคนนี้'), { is403: true });
+        }
       }
       const coop = await tx.studentCoop.findUnique({ where: { studentId: parsedId }, select: { status: true } });
       const REVIEWABLE_STATUSES = ['APPLYING', 'WAITING_FOR_STAFF_CHECK'];
@@ -218,6 +228,7 @@ const updateCoopStatus = async (req, res) => {
 
   } catch (err) {
     if (err.is404) return res.status(404).json({ ok: false, message: err.message });
+    if (err.is403) return res.status(403).json({ ok: false, message: err.message });
     if (err.is400) return res.status(400).json({ ok: false, message: err.message });
     console.error("Update Status Error:", err);
     res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดในการบันทึกสถานะ" });
