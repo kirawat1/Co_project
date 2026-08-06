@@ -1,5 +1,11 @@
 # CHANGELOG — Co_project
 
+## [2026-08-06] fix: batch 70 — TOCTOU x1 + BUG x2
+
+- **studentController.js `updateStudentBasicInfo`:** ย้าย advisor `teacher.findUnique` lookups เข้าไปใน `$transaction` — ก่อนหน้านี้ concurrent teacher delete ระหว่าง request จะทำให้ DB throw P2003 → 500 แทน 400
+- **docController.js + studentRoutes.js:** ลบ `acknowledgePlacementLetter` ที่ duplicate logic กับ `downloadPlacementLetter` ออก; route `/acknowledge-placement-letter` ชี้ไปที่ `studentController.downloadPlacementLetter` แทน
+- **teacherController.js:** ลบ dead export `getAdviseesForReview` ออก — ไม่มี route อ้างถึงและดึง `documents: true` โดยไม่มี pagination
+
 ## [2026-08-06] fix: batch 69 — TOCTOU x1 + BUG x2
 
 - **coopController.js `submitCoopApplication`:** เพิ่ม re-read `coopPeriod.isActive` ใน transaction — ก่อนหน้านี้ race condition ทำให้นักศึกษาสมัครลง period ที่ปิดไปแล้วได้ถ้า admin ปิดพร้อมกัน

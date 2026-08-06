@@ -370,36 +370,6 @@ exports.reviewT002 = async (req, res) => {
     }
 };
 
-exports.getAdviseesForReview = async (req, res) => {
-    try {
-        const userId = req.user.id;
-
-        // หาข้อมูลอาจารย์จาก userId ที่ล็อกอิน
-        const teacher = await prisma.teacher.findUnique({
-            where: { userId: parseInt(userId) }
-        });
-
-        if (!teacher) {
-            return res.status(404).json({ ok: false, message: "ไม่พบข้อมูลอาจารย์" });
-        }
-
-        // ดึงเฉพาะนักศึกษาที่มีอาจารย์คนนี้เป็นที่ปรึกษา (ทั้ง generalAdvisor และ coopAdvisor)
-        const students = await prisma.student.findMany({
-            where: { deletedAt: null, OR: [{ generalAdvisorId: teacher.id }, { coopAdvisorId: teacher.id }] },
-            include: {
-                coop: {
-                    include: { company: true }
-                },
-                documents: true // ดึงประวัติไฟล์แนบมาหา T002, T003
-            }
-        });
-
-        res.json({ ok: true, data: students });
-    } catch (err) {
-        console.error("Get Advisees Error:", err);
-        res.status(500).json({ ok: false, message: "ไม่สามารถดึงข้อมูลนักศึกษาได้" });
-    }
-};
 // ==========================================
 // 1. ดึงสถิติ Dashboard ของอาจารย์
 // ==========================================

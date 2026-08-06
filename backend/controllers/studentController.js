@@ -485,31 +485,15 @@ exports.updateStudentBasicInfo = async (req, res) => {
     if (!student) return res.status(404).json({ ok: false, message: "ไม่พบนักศึกษา" });
     if (student.deletedAt) return res.status(400).json({ ok: false, message: "ไม่สามารถแก้ไขนักศึกษาที่อยู่ในถังขยะได้" });
 
-    const advisorData = {};
+    // Integer validation only (sync) — DB lookups happen inside the transaction
     // generalAdvisorId/coopAdvisorId เป็น FK จริงที่ทั้งระบบใช้ (dashboard, advisee list, นัดนิเทศ) —
     // advisorName เป็นแค่ข้อความที่ derive มาจาก generalAdvisorId เสมอ ห้ามรับ advisorName ดิบๆ
     // จาก client แยกต่างหาก เพราะจะทำให้ข้อความกับ FK ไม่ตรงกัน (สาเหตุของบั๊กเดิมที่แก้ไม่ได้จริง)
-    if (generalAdvisorId !== undefined) {
-      if (!generalAdvisorId) {
-        advisorData.generalAdvisorId = null;
-        advisorData.advisorName = null;
-      } else {
-        if (!Number.isInteger(Number(generalAdvisorId))) return res.status(400).json({ ok: false, message: "generalAdvisorId ไม่ถูกต้อง" });
-        const advisor = await prisma.teacher.findUnique({ where: { id: Number(generalAdvisorId) } });
-        if (!advisor) return res.status(400).json({ ok: false, message: "ไม่พบอาจารย์ที่ปรึกษาปกติที่เลือก" });
-        advisorData.generalAdvisorId = advisor.id;
-        advisorData.advisorName = `${advisor.firstName} ${advisor.lastName}`.trim();
-      }
+    if (generalAdvisorId !== undefined && generalAdvisorId) {
+      if (!Number.isInteger(Number(generalAdvisorId))) return res.status(400).json({ ok: false, message: "generalAdvisorId ไม่ถูกต้อง" });
     }
-    if (coopAdvisorId !== undefined) {
-      if (!coopAdvisorId) {
-        advisorData.coopAdvisorId = null;
-      } else {
-        if (!Number.isInteger(Number(coopAdvisorId))) return res.status(400).json({ ok: false, message: "coopAdvisorId ไม่ถูกต้อง" });
-        const advisor = await prisma.teacher.findUnique({ where: { id: Number(coopAdvisorId) } });
-        if (!advisor) return res.status(400).json({ ok: false, message: "ไม่พบอาจารย์ที่ปรึกษาโครงการที่เลือก" });
-        advisorData.coopAdvisorId = advisor.id;
-      }
+    if (coopAdvisorId !== undefined && coopAdvisorId) {
+      if (!Number.isInteger(Number(coopAdvisorId))) return res.status(400).json({ ok: false, message: "coopAdvisorId ไม่ถูกต้อง" });
     }
 
     const updated = await prisma.$transaction(async (tx) => {
@@ -521,6 +505,30 @@ exports.updateStudentBasicInfo = async (req, res) => {
           throw Object.assign(new Error(`อีเมล ${email} มีในระบบแล้ว`), { is409: true });
         }
       }
+
+      // Advisor lookups inside transaction to prevent TOCTOU (concurrent teacher delete → P2003)
+      const advisorData = {};
+      if (generalAdvisorId !== undefined) {
+        if (!generalAdvisorId) {
+          advisorData.generalAdvisorId = null;
+          advisorData.advisorName = null;
+        } else {
+          const advisor = await tx.teacher.findUnique({ where: { id: Number(generalAdvisorId) } });
+          if (!advisor) throw Object.assign(new Error("ไม่พบอาจารย์ที่ปรึกษาปกติที่เลือก"), { is400: true });
+          advisorData.generalAdvisorId = advisor.id;
+          advisorData.advisorName = `${advisor.firstName} ${advisor.lastName}`.trim();
+        }
+      }
+      if (coopAdvisorId !== undefined) {
+        if (!coopAdvisorId) {
+          advisorData.coopAdvisorId = null;
+        } else {
+          const advisor = await tx.teacher.findUnique({ where: { id: Number(coopAdvisorId) } });
+          if (!advisor) throw Object.assign(new Error("ไม่พบอาจารย์ที่ปรึกษาโครงการที่เลือก"), { is400: true });
+          advisorData.coopAdvisorId = advisor.id;
+        }
+      }
+
       const updatedStudent = await tx.student.update({
         where: { id },
         data: {
@@ -541,6 +549,7 @@ exports.updateStudentBasicInfo = async (req, res) => {
 
     res.json({ ok: true, data: updated });
   } catch (err) {
+    if (err.is400) return res.status(400).json({ ok: false, message: err.message });
     if (err.is409) return res.status(409).json({ ok: false, message: err.message });
     if (err.code === 'P2002') {
       const target = err.meta?.target;
