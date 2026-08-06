@@ -139,7 +139,7 @@ router.get('/config/gateway', verifyToken, verifyRole(...ADMIN_ROLES), configCon
 router.put('/config/gateway', verifyToken, verifyRole(...ADMIN_ROLES), configController.updateGatewaySettings);
 
 // Supervision
-router.put('/supervisions/:id/co-teachers', verifyToken, verifyRole(...ADMIN_ROLES), supervisionController.assignCoTeachers);
+router.put('/supervisions/:id/co-teachers', verifyToken, verifyRole(...STAFF_ONLY), supervisionController.assignCoTeachers);
 
 // ==========================================
 // TEACHER MANAGEMENT — เจ้าหน้าที่จัดการอาจารย์

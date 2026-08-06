@@ -1,5 +1,13 @@
 # CHANGELOG — Co_project
 
+## [2026-08-06] fix: batch 67 — FILE-ORPHAN x1 + AUTHZ x2 + BUG x2
+
+- **adminDocController.js `reviewStudentStatus`:** เพิ่ม `req.file` cleanup ใน 2 early returns (invalid studentId, invalid status) — ก่อนหน้านี้ไฟล์ที่ upload มาค้างบน disk โดยไม่มี DB record
+- **adminRoutes.js `PUT /supervisions/:id/co-teachers`:** เปลี่ยนจาก `verifyRole(...ADMIN_ROLES)` เป็น `verifyRole(...STAFF_ONLY)` — ก่อนหน้านี้ teacher ใดก็ได้แก้ไข co-teacher ของนัดหมายนิเทศของ teacher คนอื่นได้
+- **visitController.js `createVisit`:** เพิ่ม advisor ownership check ใน transaction — ก่อนหน้านี้ teacher ใดก็ได้สร้างบันทึกนิเทศให้นักศึกษาคนใดก็ได้
+- **supervisionRoutes.js:** ลบ dead routes (`GET/PUT /teacher/supervisions*`) ที่ shadow โดย teacherRoutes.js ออก — `getTeacherSupervisions` ไม่เคยถูกเรียกจริง
+- **adminDocController.js `reviewT002` + `reviewT003`:** เพิ่ม `student.deletedAt` check ใน transaction — ก่อนหน้านี้ staff สามารถ review เอกสารของนักศึกษาที่ soft-delete แล้วได้
+
 ## [2026-08-06] fix: batch 66 — TOCTOU x1 + FILE x1 + BUG x1 + P2025 x1
 
 - **teacherController.js `deleteTeacher`:** ย้าย apptCount/visitCount check เข้าไปใน interactive `$transaction` — ก่อนหน้านี้ race condition ทำให้ลบอาจารย์ที่มีนัดหมายได้ถ้า insert เกิดขึ้น concurrent; เพิ่ม `is409` ใน catch

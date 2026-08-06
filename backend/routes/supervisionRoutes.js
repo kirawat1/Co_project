@@ -38,8 +38,8 @@ router.put('/admin/supervisions/:id/complete', verifyToken, verifyRole(...ADMIN_
 // ถูกย้ายไปอยู่ใน coopRoutes.js แล้ว เพื่อหลีกเลี่ยง routing ambiguity
 
 // ================= ROUTE สำหรับ TEACHER =================
-router.put('/teacher/supervisions/:id/review', verifyToken, verifyRole('teacher', 'staff'), supervisionController.reviewSupervision);
-router.put('/teacher/supervisions/:id/complete', verifyToken, verifyRole('teacher', 'staff'), supervisionController.completeSupervision);
-router.get('/teacher/supervisions', verifyToken, verifyRole('teacher', 'staff'), supervisionController.getTeacherSupervisions);
+// NOTE: GET /teacher/supervisions, PUT /teacher/supervisions/:id/review, and
+// PUT /teacher/supervisions/:id/complete are handled by teacherRoutes.js (mounted at /api/teacher)
+// and would be shadowed here — removed to avoid dead code.
 
 module.exports = router;
