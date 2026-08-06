@@ -1,5 +1,13 @@
 # CHANGELOG — Co_project
 
+## [2026-08-06] fix: batch 62 — file-before-DB x3 + authz gap + TOCTOU letter file + P2025
+
+- **docController.js `deleteDocument` (by id):** ย้ายการลบไฟล์มาหลัง DB delete — ก่อนหน้านี้ถ้า DB throw ไฟล์หายไปแล้วแต่ record ยังอยู่
+- **coopController.js `deleteDocument`:** ย้ายการลบไฟล์มาหลัง DB delete + เพิ่ม try/catch รอบ unlinkSync — ก่อนหน้านี้เหมือนกัน
+- **systemAssetController.js `deleteAsset`:** ย้ายการลบไฟล์มาหลัง DB delete + เพิ่ม `P2025 → 404` ใน catch — ก่อนหน้านี้ทั้งไฟล์และ DB อาจ inconsistent
+- **studentRoutes.js GET /students/me:** เพิ่ม `verifyRole('student')` — ก่อนหน้านี้ teacher/staff สามารถเรียก student profile endpoint ได้
+- **adminDocController.js `reviewStudentStatus`:** ย้าย `prevCoop` findUnique เข้าไปใน transaction — ก่อนหน้านี้ TOCTOU ทำให้ไฟล์หนังสือเก่าอาจไม่ถูกลบเมื่อ 2 request ทำงานพร้อมกัน
+
 ## [2026-08-06] fix: batch 61 — authz gap + file-before-DB x4 + file orphan x4 + P2025 x6 + TOCTOU null/is404 x2 + NaN guards x2
 
 - **adminRoutes.js GET /coop-periods, /coop-periods/active, /coop-periods/all:** เพิ่ม `verifyRole(...ADMIN_ROLES)` — ก่อนหน้านี้ authenticated user ทุก role เข้าถึงได้

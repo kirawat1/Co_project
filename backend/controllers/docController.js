@@ -320,16 +320,15 @@ exports.deleteDocument = async (req, res) => {
         return res.status(409).json({ ok: false, message: 'ไม่สามารถลบ T003 ที่อยู่ระหว่างการตรวจสอบ' });
     }
 
-    // ลบไฟล์ออกจากโฟลเดอร์
+    // ลบ DB ก่อน แล้วค่อยลบไฟล์
+    await prisma.document.delete({
+      where: { id: numId }
+    });
+
     const filePath = path.join(__dirname, '../uploads', doc.path);
     if (fs.existsSync(filePath)) {
       try { fs.unlinkSync(filePath); } catch(e) { console.warn("Delete file error:", e); }
     }
-
-    // ลบออกจาก Database
-    await prisma.document.delete({
-      where: { id: numId }
-    });
 
     res.json({ ok: true, message: "ลบเอกสารเรียบร้อยแล้ว" });
 
