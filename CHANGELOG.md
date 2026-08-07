@@ -1,5 +1,36 @@
 # CHANGELOG — Co_project
 
+## [2026-08-07] — Batch 1: 12 system improvements (Plan B)
+
+### ความปลอดภัย
+- **รหัสผ่าน:** นโยบายใหม่ — อย่างน้อย 8 ตัว, ต้องมีพิมพ์ใหญ่+เล็ก+เลข+อักขระพิเศษ — บังคับใช้ที่ทุก endpoint และ script (`utils/validatePassword.js`)
+
+### ฐานข้อมูล
+- **Teacher.prefix:** เพิ่ม field คำนำหน้าอาจารย์ (อ., ผศ., รศ., ศ., ดร. ฯลฯ) — migration: `teacher_prefix_advisor_set_null`
+- **onDelete: SetNull:** FK constraint บน Student→Teacher (generalAdvisor, coopAdvisor)
+
+### ระบบนิเทศ
+- **เลือก ONLINE/ONSITE แต่ละวัน:** นักศึกษาเลือกรูปแบบแยกต่างหากสำหรับแต่ละวันที่เสนอ (S_Supervision.tsx)
+- **ล็อกหลังยืนยัน:** ไม่สามารถแก้ไขวันนิเทศได้หลังอาจารย์ยืนยัน (frontend + backend)
+- **Auto-extract type:** backend ดึง ONLINE/ONSITE จาก proposedDates entry เมื่ออาจารย์ยืนยัน
+- **ข้อความสถานะ:** แสดงข้อความ+ไอคอนแทนสีเพียงอย่างเดียว (SUPERVISION_STATUS_UI)
+
+### อาจารย์
+- **คำนำหน้า:** ฟอร์มสร้าง/แก้ไขอาจารย์มี dropdown คำนำหน้า (A_Teacher.tsx)
+- **รหัสผ่านสร้างใหม่:** ต้องกำหนดรหัสผ่านตอนสร้าง (ลบ hardcoded "1111111111111" ออก)
+- **ซ่อนคณะ:** ฟิลด์คณะถูกซ่อนจากฟอร์ม
+
+### เอกสาร
+- **วันที่เริ่มฝึก:** modal ออกเอกสารมีช่องกรอกวันที่เมื่อไม่พบในระบบ (IssueLetterModal.tsx)
+- **Dark mode:** modal ออกเอกสารบังคับ light mode — ไม่ขึ้นหน้าดำ (LetterModalShared.tsx)
+- **คำแนะนำเอกสาร:** S_Docs แสดงข้อความแนะนำต่อประเภทเอกสาร จาก `/api/students/doc-requirements`
+- **studyProgramLabel:** ฟังก์ชัน export ใน docGeneratorUtils.ts แปลง normal/special → ภาษาไทย; ใส่ใน dispatch letter
+
+### ผู้ดูแลระบบ
+- **ตรวจชื่ออาจารย์:** A_DocT000 แสดงคำเตือนเมื่อชื่อที่นักศึกษากรอกไม่ตรงกับ Teacher record ในระบบ
+
+---
+
 ## [2026-08-07] — หลักสูตร/ภาคการศึกษา: แทนที่สาขาวิชา (CS/IT/AI/CYB/GIS) ด้วยหลักสูตร (ภาคปกติ/ภาคพิเศษ)
 
 - ยกเลิกการแสดง/แก้ไข field `major` (CS/IT/AI) ทั่วทั้งระบบ (ยังคงอยู่ใน DB เป็น historical data)
