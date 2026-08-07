@@ -225,6 +225,7 @@ describe('restoreStudent', () => {
 describe('permanentlyDeleteStudent', () => {
   test('200 — ลบจริงเมื่ออยู่ในถังขยะแล้ว และลบ User (บัญชี login) คู่กันด้วย', async () => {
     prisma.student.findUnique.mockResolvedValue({ id: 1, userId: 10, deletedAt: new Date() });
+    prisma.company.count.mockResolvedValue(0);
     prisma.student.delete.mockResolvedValue({ id: 1 });
     prisma.user.delete.mockResolvedValue({ id: 10 });
 
@@ -236,6 +237,20 @@ describe('permanentlyDeleteStudent', () => {
     expect(prisma.student.delete).toHaveBeenCalledWith({ where: { id: 1 } });
     expect(prisma.user.delete).toHaveBeenCalledWith({ where: { id: 10 } });
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: true }));
+  });
+
+  test('409 — ปฏิเสธถ้านักศึกษายังเป็นเจ้าของบริษัท', async () => {
+    prisma.student.findUnique.mockResolvedValue({ id: 1, userId: 10, deletedAt: new Date() });
+    prisma.company.count.mockResolvedValue(2);
+
+    const req = { params: { id: '1' } };
+    const res = makeRes();
+
+    await permanentlyDeleteStudent(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(prisma.student.delete).not.toHaveBeenCalled();
+    expect(prisma.user.delete).not.toHaveBeenCalled();
   });
 
   test('400 — ปฏิเสธถ้ายังไม่ได้ย้ายไปถังขยะ', async () => {

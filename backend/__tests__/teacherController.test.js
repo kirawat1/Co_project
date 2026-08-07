@@ -307,6 +307,11 @@ describe('deleteTeacher', () => {
 
   test('200 — success deletes user (cascades to teacher)', async () => {
     prisma.teacher.findUnique.mockResolvedValue({ id: 5, userId: 20 });
+    prisma.supervisionAppointment.count.mockResolvedValue(0);
+    prisma.visit.count.mockResolvedValue(0);
+    prisma.company.count.mockResolvedValue(0);
+    prisma.student.updateMany.mockResolvedValue({ count: 0 });
+    prisma.teacher.delete.mockResolvedValue({ id: 5 });
     prisma.user.delete.mockResolvedValue({ id: 20 });
 
     const req = { params: { id: '5' } };
@@ -317,6 +322,21 @@ describe('deleteTeacher', () => {
 
     const body = res.json.mock.calls[0][0];
     expect(body.ok).toBe(true);
+  });
+
+  test('409 — ปฏิเสธถ้าอาจารย์ยังเป็นเจ้าของบริษัท', async () => {
+    prisma.teacher.findUnique.mockResolvedValue({ id: 5, userId: 20 });
+    prisma.supervisionAppointment.count.mockResolvedValue(0);
+    prisma.visit.count.mockResolvedValue(0);
+    prisma.company.count.mockResolvedValue(3);
+
+    const req = { params: { id: '5' } };
+    const res = makeRes();
+    await deleteTeacher(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(prisma.teacher.delete).not.toHaveBeenCalled();
+    expect(prisma.user.delete).not.toHaveBeenCalled();
   });
 });
 
