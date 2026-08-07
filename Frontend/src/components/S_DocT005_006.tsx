@@ -46,7 +46,7 @@ export default function S_DocT005_006() {
         const fetchAll = async () => {
             try {
                 const [configRes, profileRes] = await Promise.allSettled([
-                    axios.get("/api/admin/config/evaluation", { headers: { Authorization: `Bearer ${token}` } }),
+                    axios.get("/api/coop/config/evaluation", { headers: { Authorization: `Bearer ${token}` } }),
                     axios.get("/api/students/me", { headers: { Authorization: `Bearer ${token}` } }),
                 ]);
                 setConfig(configRes.status === "fulfilled" && configRes.value.data?.config
