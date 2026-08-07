@@ -1,5 +1,13 @@
 # CHANGELOG — Co_project
 
+## [2026-08-07] fix: batch 75 — TOCTOU x4 + BUG x1
+
+- **docController.js `uploadDocument`:** เพิ่ม `student.deletedAt` re-check ภายใน `$transaction` — ป้องกัน admin soft-delete student ระหว่าง outer check กับ tx
+- **docController.js `deleteDocument`:** เพิ่ม `student.deletedAt` re-check ภายใน `$transaction`; เพิ่ม `is403` ใน catch
+- **coopController.js `deleteDocument`:** เพิ่ม `student.deletedAt` re-check ภายใน `$transaction`; เพิ่ม `is403` ใน catch
+- **studentController.js `updateMyProfile`:** เพิ่ม `deletedAt` re-check ภายใน `$transaction` ด้วย `throw is403`; เพิ่ม `is403` ใน catch
+- **studentRoutes.js:** ลบ duplicate route `/acknowledge-placement-letter` ที่ชี้ไปยัง `downloadPlacementLetter` (dead surface หลังจาก batch 70 ลบ acknowledgePlacementLetter)
+
 ## [2026-08-07] fix: batch 74 — TOCTOU x4
 
 - **studentController.js `softDeleteStudent`:** รวม findUnique + update เข้า `$transaction` ด้วย statusErr pattern — race condition ทำให้ double-delete ผ่าน guard ได้
