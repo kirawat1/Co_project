@@ -280,12 +280,10 @@ describe('addOrUpdateAnnouncement', () => {
         title: 'Updated',
         date: '2025-06-01',
         year: '2568',
-        keepFileIds: JSON.stringify(['keep-file-2']),  // raw string won't be used as array
+        keepFileIds: JSON.stringify(['keep-file-2']),  // multer multipart → always a JSON string
       },
       files: [],
     };
-    // keepFileIds needs to be an array in body for includes() to work
-    req.body.keepFileIds = ['keep-file-2'];
 
     const res = makeRes();
 
