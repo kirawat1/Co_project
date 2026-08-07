@@ -1,5 +1,15 @@
 # CHANGELOG — Co_project
 
+## [2026-08-08] — Fix: announcement file deletion skips files whose ID appears as substring in keepFileIds
+
+### Bug fix
+- **`announcementController.js:126`**: `keepFileIds` ที่ frontend ส่งมาเป็น JSON string (เช่น `"[10,20]"`)
+  ถูกใช้กับ `String.prototype.includes(f.id)` โดยตรง — JavaScript coerce integer ID เป็น string
+  แล้วทำ substring match แทน array membership check
+- ผลลัพธ์: file ที่มี ID เป็นตัวเลขที่บังเอิญอยู่ใน JSON string (เช่น ID=1 อยู่ใน `"[10,20]"`) 
+  จะไม่ถูกลบออกแม้ admin ไม่ต้องการเก็บไว้ — เอกสารเก่ายังคงแสดงผลในประกาศ
+- แก้ไข: `JSON.parse(keepFileIds)` ก่อน แล้วค่อยใช้ array `.includes()` เหมือนกับ `linkUrls` และ `targetMajors`
+
 ## [2026-08-08] — Fix: student dashboard never shows active doc windows
 
 ### Bug fix

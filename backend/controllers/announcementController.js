@@ -123,7 +123,11 @@ const addOrUpdateAnnouncement = async (req, res) => {
         return res.status(404).json({ ok: false, message: "ไม่พบประกาศ" });
       }
 
-      const toDelete = ann.files.filter(f => !keepFileIds?.includes(f.id));
+      let parsedKeepFileIds = [];
+      if (keepFileIds) {
+        try { parsedKeepFileIds = JSON.parse(keepFileIds); } catch { parsedKeepFileIds = []; }
+      }
+      const toDelete = ann.files.filter(f => !parsedKeepFileIds.includes(f.id));
 
       let updated;
       await prisma.$transaction(async (tx) => {
