@@ -125,6 +125,9 @@ exports.importStudents = async (req, res) => {
           if (existingByUsername && existingByUsername.email !== email) {
             throw new Error(`username '${studentId}' ถูกใช้โดยบัญชีอื่นแล้ว (email: ${existingByUsername.email})`);
           }
+        } else if (existingUser.username !== studentId) {
+          // Email already belongs to a different student (intra-batch duplicate or DB mismatch)
+          throw new Error(`อีเมล '${email}' ถูกใช้โดยรหัสนักศึกษา '${existingUser.username}' แล้ว`);
         }
 
         // 2. Resolve generalAdvisorId by matching advisor name against pre-fetched teachers.

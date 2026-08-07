@@ -4,6 +4,7 @@ const prisma = require('../config/prismaClient');
 exports.getRequirements = async (req, res) => {
   try {
     const requirements = await prisma.documentRequirement.findMany({
+      where: { isActive: true },
       orderBy: { id: 'asc' }
     });
     res.json({ ok: true, requirements });
