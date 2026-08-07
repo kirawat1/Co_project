@@ -97,7 +97,6 @@ describe('importStudents', () => {
         firstNameEn: 'Somchai',
         lastNameEn: 'Jaidee',
         year: '3',
-        major: 'CS',
         phone: '0812345678',
         email: 'stu1@kkumail.com',
         gpa: 3.45,
@@ -161,8 +160,9 @@ describe('importStudents', () => {
     }]);
 
     // นักศึกษาเดิม: user.findMany (by email) ต้องคืน user นั้น เพื่อให้ controller เข้า update path
+    // username must match studentId (as in DB — User.username = student ID)
     prisma.user.findMany
-      .mockResolvedValueOnce([{ id: 2, email: 'stu2@kkumail.com' }]) // by email
+      .mockResolvedValueOnce([{ id: 2, email: 'stu2@kkumail.com', username: '645040002-1' }]) // by email
       .mockResolvedValueOnce([]); // by username
     prisma.student.upsert.mockResolvedValue({ id: 2 });
     prisma.teacher.findMany.mockResolvedValue([]);
