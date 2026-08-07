@@ -111,6 +111,7 @@ exports.importStudents = async (req, res) => {
         const year = String(row['ชั้นปี'] || '').trim();
         const phone = String(row['เบอร์โทรศัพท์'] || '').trim() || null;
         const advisorName = String(row['ชื่ออาจารย์ที่ปรึกษา'] || '').trim() || null;
+        const major = String(row['สาขาวิชา/แผนกการศึกษา'] || '').trim() || null;
         const rawProgram = String(row['ภาคการศึกษา (ปกติ/พิเศษ)'] || '').trim();
         const studyProgram = STUDY_PROGRAM_MAP[rawProgram] ?? null;
         const rawGpa = String(row['เกรดเฉลี่ยสะสม (GPA)'] || '').trim();
@@ -169,13 +170,13 @@ exports.importStudents = async (req, res) => {
             where: { studentId },
             update: {
               prefix, firstName, lastName, firstNameEn, lastNameEn,
-              year, phone, email, gpa, studyProgram,
+              year, phone, email, gpa, major, studyProgram,
               advisorName: generalAdvisorId !== undefined ? advisorName : undefined,
               generalAdvisorId,
             },
             create: {
               studentId, prefix, firstName, lastName, firstNameEn, lastNameEn,
-              year, phone, email, gpa,
+              year, phone, email, gpa, major,
               advisorName, generalAdvisorId: generalAdvisorId ?? null, studyProgram,
               userId: user.id,
             },
