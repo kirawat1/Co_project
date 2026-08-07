@@ -1,5 +1,12 @@
 # CHANGELOG — Co_project
 
+## [2026-08-07] — Fix: Excel import missing major field
+
+### Bug fix
+- **`studentImportController.importStudents`**: คอลัมน์ `สาขาวิชา/แผนกการศึกษา` ถูกระบุไว้ในเทมเพลตแต่ไม่ได้อ่านค่า
+  — นักศึกษาใหม่ที่ import จะได้ `major: null` เสมอ และนักศึกษาเดิมจะไม่ถูก update field นี้
+  — เพิ่มการอ่าน `major` จากคอลัมน์ดังกล่าวและส่งเข้า `update` และ `create` block ของ upsert
+
 ## [2026-08-07] — Fix: T000 re-submit notification was never sent
 
 ### Bug fix
