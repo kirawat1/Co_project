@@ -282,6 +282,8 @@ const deleteDocument = async (req, res) => {
 
     // ลบ DB ภายใน transaction — status check + delete atomic กัน ป้องกัน TOCTOU
     await prisma.$transaction(async (tx) => {
+        const freshSt = await tx.student.findUnique({ where: { id: doc.studentId }, select: { deletedAt: true } });
+        if (!freshSt || freshSt.deletedAt) throw Object.assign(new Error('บัญชีถูกระงับการใช้งาน'), { is403: true });
         if (doc.type === 'T002_FORM' || doc.type === 'T003_FORM') {
             const coop = await tx.studentCoop.findUnique({
                 where: { studentId: doc.studentId },
@@ -305,6 +307,7 @@ const deleteDocument = async (req, res) => {
     res.json({ ok: true, message: "ลบไฟล์สำเร็จ" });
 
   } catch (err) {
+    if (err.is403) return res.status(403).json({ ok: false, message: err.message });
     if (err.is409) return res.status(409).json({ ok: false, message: err.message });
     if (err.code === 'P2025') return res.status(404).json({ ok: false, message: 'ไม่พบเอกสาร' });
     console.error(err);

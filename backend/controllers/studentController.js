@@ -105,6 +105,8 @@ exports.updateMyProfile = async (req, res) => {
     let updatedCoop = null;
 
     await prisma.$transaction(async (tx) => {
+      const currentCheck = await tx.student.findUnique({ where: { userId }, select: { deletedAt: true } });
+      if (currentCheck?.deletedAt) throw Object.assign(new Error('บัญชีถูกระงับการใช้งาน'), { is403: true });
       if (data.studentId) {
         const taken = await tx.student.findFirst({
           where: { studentId: data.studentId, NOT: { userId }, deletedAt: null }
@@ -201,6 +203,7 @@ exports.updateMyProfile = async (req, res) => {
     });
 
   } catch (err) {
+    if (err.is403) return res.status(403).json({ ok: false, message: err.message });
     if (err.is409) return res.status(409).json({ ok: false, message: err.message });
     console.error("Update Error:", err);
     if (err.code === 'P2002') {

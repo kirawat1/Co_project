@@ -202,6 +202,8 @@ exports.uploadDocument = async (req, res) => {
                 }
                 if (!txIsOpen) throw Object.assign(new Error("⛔ ระบบปิดรับเอกสารประเภทนี้แล้ว (หรือเกินกำหนดเวลา)"), { is403: true });
             }
+            const freshStudent = await tx.student.findUnique({ where: { id: student.id }, select: { deletedAt: true } });
+            if (!freshStudent || freshStudent.deletedAt) throw Object.assign(new Error('บัญชีถูกระงับการใช้งาน'), { is403: true });
             oldDoc = await tx.document.findFirst({
                 where: { studentId: student.id, type: dbType }
             });
@@ -331,6 +333,8 @@ exports.deleteDocument = async (req, res) => {
 
     // ลบ DB ภายใน transaction — status check + delete atomic กัน ป้องกัน TOCTOU
     await prisma.$transaction(async (tx) => {
+      const freshSt = await tx.student.findUnique({ where: { id: doc.studentId }, select: { deletedAt: true } });
+      if (!freshSt || freshSt.deletedAt) throw Object.assign(new Error('บัญชีถูกระงับการใช้งาน'), { is403: true });
       if (doc.type === 'T002_FORM' || doc.type === 'T003_FORM') {
         const coop = await tx.studentCoop.findUnique({
           where: { studentId: doc.studentId }, select: { status: true }
@@ -353,6 +357,7 @@ exports.deleteDocument = async (req, res) => {
     res.json({ ok: true, message: "ลบเอกสารเรียบร้อยแล้ว" });
 
   } catch (err) {
+    if (err.is403) return res.status(403).json({ ok: false, message: err.message });
     if (err.is409) return res.status(409).json({ ok: false, message: err.message });
     if (err.code === 'P2025') return res.status(404).json({ ok: false, message: 'ไม่พบเอกสาร' });
     console.error("Delete Error:", err);
