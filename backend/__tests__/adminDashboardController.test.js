@@ -33,8 +33,8 @@ describe('getDashboardStats', () => {
 
     await getDashboardStats(req, res);
 
-    // With year=all, filter should be {}
-    expect(prisma.studentCoop.findMany).toHaveBeenCalledWith({ where: {} });
+    // With year=all, filter should exclude deleted students
+    expect(prisma.studentCoop.findMany).toHaveBeenCalledWith({ where: { student: { deletedAt: null } } });
     // Should use student.count() not coops.length
     expect(prisma.student.count).toHaveBeenCalled();
     expect(prisma.announcement.count).toHaveBeenCalledWith();
@@ -66,7 +66,7 @@ describe('getDashboardStats', () => {
 
     await getDashboardStats(req, res);
 
-    expect(prisma.studentCoop.findMany).toHaveBeenCalledWith({ where: {} });
+    expect(prisma.studentCoop.findMany).toHaveBeenCalledWith({ where: { student: { deletedAt: null } } });
     expect(prisma.student.count).toHaveBeenCalled();
 
     expect(res.json).toHaveBeenCalledWith({
@@ -97,9 +97,9 @@ describe('getDashboardStats', () => {
 
     await getDashboardStats(req, res);
 
-    // With a specific year, filter should include coopPeriod.academicYear
+    // With a specific year, filter should include coopPeriod.academicYear and exclude deleted students
     expect(prisma.studentCoop.findMany).toHaveBeenCalledWith({
-      where: { coopPeriod: { academicYear: '2567' } },
+      where: { coopPeriod: { academicYear: '2567' }, student: { deletedAt: null } },
     });
     // Should NOT call student.count() — uses coops.length instead
     expect(prisma.student.count).not.toHaveBeenCalled();

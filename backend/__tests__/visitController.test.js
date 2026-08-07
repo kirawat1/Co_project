@@ -12,7 +12,10 @@ describe('visitController', () => {
 
   describe('createVisit', () => {
     test('409 — มีนัดของนักศึกษาคนนี้ในวันเดียวกันกับอาจารย์คนนี้อยู่แล้ว', async () => {
-      prisma.student.findUnique.mockResolvedValue({ id: 1, studentId: '640001' });
+      // Controller calls student.findUnique twice: once outside tx (by studentId), once inside tx (by id for advisor check)
+      prisma.student.findUnique
+        .mockResolvedValueOnce({ id: 1, studentId: '640001' })
+        .mockResolvedValueOnce({ id: 1, generalAdvisorId: 5, coopAdvisorId: null, deletedAt: null });
       prisma.teacher.findUnique.mockResolvedValue({ id: 5, userId: 99 });
       prisma.visit.findFirst.mockResolvedValue({ id: 10 }); // มีนัดซ้ำ
 
@@ -25,7 +28,10 @@ describe('visitController', () => {
     });
 
     test('200 — ไม่มีนัดซ้ำ สร้างนัดใหม่สำเร็จ', async () => {
-      prisma.student.findUnique.mockResolvedValue({ id: 1, studentId: '640001' });
+      // Controller calls student.findUnique twice: once outside tx (by studentId), once inside tx (by id for advisor check)
+      prisma.student.findUnique
+        .mockResolvedValueOnce({ id: 1, studentId: '640001' })
+        .mockResolvedValueOnce({ id: 1, generalAdvisorId: 5, coopAdvisorId: null, deletedAt: null });
       prisma.teacher.findUnique.mockResolvedValue({ id: 5, userId: 99 });
       prisma.visit.findFirst.mockResolvedValue(null);
       prisma.visit.create.mockResolvedValue({ id: 11 });
