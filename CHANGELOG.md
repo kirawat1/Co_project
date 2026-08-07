@@ -1,5 +1,17 @@
 # CHANGELOG — Co_project
 
+## [2026-08-07] — Test suite fully green (251/251)
+
+### Tests
+- **Synced all 8 test files** to match controller reality after Plan B + TOCTOU fixes
+- `authController`: password policy updated, loginWithGoogle mock fixed, clearAllMocks → explicit resets
+- `visitController/teacherController/coopController`: TOCTOU re-fetch mocks added
+- `adminDashboard`: `deletedAt` filter added to studentCoop.findMany expectation
+- `supervisionController`: uploadOfficialLetter, calendar, getSupervisionsForTeacher all synced
+- `docRequirementController`: isActive filter assertion updated
+- `studentImportController`: collision check mock + stale major assertion removed
+- **Prisma mock**: added `student.findFirst` (was missing, caused auth test leaks)
+
 ## [2026-08-07] — Batch 1: 12 system improvements (Plan B)
 
 ### ความปลอดภัย
