@@ -1,5 +1,15 @@
 # CHANGELOG — Co_project
 
+## [2026-08-08] — Fix: students could not add/delete companies or mentors despite controller supporting it
+
+### Bug fix
+- **`companyRoutes.js`**: `POST /api/companies`, `DELETE /api/companies/:id`, and all 3 mentor mutation
+  routes (`POST /:companyId/mentors`, `PUT /mentors/:id`, `DELETE /mentors/:id`) had `verifyRole('staff', 'teacher')`
+  — blocking students, even though all 5 controllers contain ownership checks (`company.createdById === currentUserId`)
+  that explicitly allow non-staff users who created the resource
+- `S_Company.tsx` shows add/delete UI to students and calls these endpoints, causing silent 403 failures
+- Fix: added `'student'` to `verifyRole(...)` for all 5 routes; controller-level ownership checks remain the authority
+
 ## [2026-08-08] — Fix: announcement file deletion skips files whose ID appears as substring in keepFileIds
 
 ### Bug fix
