@@ -1,5 +1,16 @@
 # CHANGELOG — Co_project
 
+## [2026-08-08] — Fix: stored XSS via javascript: URLs in evaluation/T007/T008 config links
+
+### Bug fix
+- **`configController.js:updateEvaluationConfig`, `updateT007Config`, `updateT008Config`**:
+  `t005Link`, `t006Link`, `templateLink`, `t007Link`, `driveLink` were stored without validation
+- Student pages (`S_DocT005_006.tsx`, `S_DocT007.tsx`, `S_DocT008.tsx`) call
+  `window.open(url, "_blank")` on these values — a `javascript:` URL would execute in the
+  student's browser and could steal the session token (stored XSS, requires staff privilege)
+- Fix: applied the existing `safeUrl()` helper (already used in `updateGatewaySettings`) to
+  all five link fields; non-http/https URLs are rejected with 400
+
 ## [2026-08-08] — Fix: permanent student/teacher deletion 500 when user owns companies
 
 ### Bug fix
