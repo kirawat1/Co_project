@@ -149,8 +149,8 @@ export default function A_Teacher() {
 
   const handleResetPassword = async () => {
     if (!pwModal) return;
-    if (!newPassword || newPassword.length < 8) {
-      toast.warning("รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร");
+    if (!newPassword || newPassword.length < 8 || !/[A-Z]/.test(newPassword) || !/[a-z]/.test(newPassword) || !/\d/.test(newPassword) || !/[!@#$%^&*]/.test(newPassword)) {
+      toast.warning("รหัสผ่านต้องมีอย่างน้อย 8 ตัว • พิมพ์ใหญ่+เล็ก+เลข+อักขระพิเศษ (!@#$%^&*)");
       return;
     }
     setSaving(true);
