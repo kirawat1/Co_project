@@ -1,5 +1,14 @@
 # CHANGELOG — Co_project
 
+## [2026-08-07] — หลักสูตร/ภาคการศึกษา: แทนที่สาขาวิชา (CS/IT/AI/CYB/GIS) ด้วยหลักสูตร (ภาคปกติ/ภาคพิเศษ)
+
+- ยกเลิกการแสดง/แก้ไข field `major` (CS/IT/AI) ทั่วทั้งระบบ (ยังคงอยู่ใน DB เป็น historical data)
+- เปลี่ยน label "สาขาวิชา" → "หลักสูตร" ทุกหน้า (A_Students, A_StudentEditModal, S_ProfilePage, S_Gateway, T_Students, T_StudentDetail, A_Teacher, T_Profile)
+- ใช้ field `studyProgram` (enum `normal`/`special` = ภาคปกติ/ภาคพิเศษ) เป็นค่าหลักสำหรับ "หลักสูตร"
+- A_Teacher และ T_Profile: เปลี่ยน options สาขาวิชาอาจารย์เป็น ภาคปกติ/ภาคพิเศษ — ลบ fetchMajors() และ majorOptions state ออก
+- A_CriteriaPage: เปลี่ยนจากหน้าจัดการสาขาวิชาเป็น notice แสดงหลักสูตรที่ใช้ในระบบ
+- studentImportController.js: ไม่นำเข้า field `major` จากคอลัมน์ Excel อีกต่อไป — ลบ MAJOR_NAME_TO_CODE, KNOWN_MAJOR_CODES, mapMajor()
+
 ## [2026-08-07] fix: batch 75 — TOCTOU x4 + BUG x1
 
 - **docController.js `uploadDocument`:** เพิ่ม `student.deletedAt` re-check ภายใน `$transaction` — ป้องกัน admin soft-delete student ระหว่าง outer check กับ tx
