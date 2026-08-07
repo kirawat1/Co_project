@@ -256,7 +256,7 @@ exports.reviewStudentStatus = async (req, res) => {
               type: 'STATUS_UPDATED',
               title: 'สถานะสหกิจศึกษาอัปเดต',
               message: msg,
-              link: '/student/status-tracker',
+              link: '/student/dashboard',
               relatedId: String(parsedStudentId),
             });
           }
@@ -396,6 +396,30 @@ exports.updateCoopApplicationStatus = async (req, res) => {
     });
 
     res.json({ ok: true, application: updated });
+
+    const notifMsgs = {
+      WAITING_FOR_STAFF_CHECK: 'คำร้องของคุณกำลังรอการตรวจสอบจากเจ้าหน้าที่',
+      EDITS_REQUIRED: 'คำร้องของคุณต้องแก้ไข กรุณาตรวจสอบ',
+      QUALIFIED: 'คำร้องของคุณผ่านการพิจารณา ✅',
+      QUALIFICATION_FAILED: 'คำร้องของคุณไม่ผ่านการพิจารณา',
+      APPLICATION_EDITS_REQUIRED: 'คำร้องของคุณต้องแก้ไข กรุณาตรวจสอบ',
+    };
+    const notifMsg = notifMsgs[status];
+    if (notifMsg && updated?.studentId) {
+      prisma.student.findUnique({ where: { id: updated.studentId }, select: { userId: true } })
+        .then(s => {
+          if (s?.userId) {
+            return createNotifications([s.userId], {
+              type: 'STATUS_UPDATED',
+              title: 'สถานะสหกิจศึกษาอัปเดต',
+              message: notifMsg,
+              link: '/student/dashboard',
+              relatedId: String(updated.studentId),
+            });
+          }
+        })
+        .catch(console.error);
+    }
   } catch (error) {
     if (error.is403) return res.status(403).json({ ok: false, message: error.message });
     if (error.is404) return res.status(404).json({ ok: false, message: error.message });

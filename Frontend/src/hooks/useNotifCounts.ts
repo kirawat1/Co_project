@@ -9,10 +9,14 @@ export function useNotifCounts(): { counts: NotifCounts; markAllRead: () => Prom
 
   useEffect(() => {
     if (!token) return;
-    apiFetch("/api/notifications/counts")
-      .then(r => r.json())
-      .then(d => setCounts(d.counts ?? {}))
-      .catch(() => {});
+    const fetchCounts = () =>
+      apiFetch("/api/notifications/counts")
+        .then(r => r.json())
+        .then(d => setCounts(d.counts ?? {}))
+        .catch(() => {});
+    fetchCounts();
+    const id = setInterval(fetchCounts, 60_000);
+    return () => clearInterval(id);
   }, [token]);
 
   const markAllRead = async () => {

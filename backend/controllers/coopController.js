@@ -156,6 +156,27 @@ const submitCoopApplication = async (req, res) => {
       })
     ).catch(console.error);
 
+    // Notify personal advisors (generalAdvisor, coopAdvisor) who may not be in coopTeachers
+    prisma.student.findUnique({
+      where: { id: student.id },
+      select: { generalAdvisorId: true, coopAdvisorId: true },
+    }).then(async s => {
+      if (!s) return;
+      const teacherIds = [...new Set([s.generalAdvisorId, s.coopAdvisorId].filter(Boolean))];
+      if (!teacherIds.length) return;
+      const teachers = await prisma.teacher.findMany({ where: { id: { in: teacherIds } }, select: { userId: true } });
+      const advisorUserIds = teachers.map(t => t.userId);
+      if (advisorUserIds.length) {
+        return createNotifications(advisorUserIds, {
+          type: 'COOP_APPLICATION_SUBMITTED',
+          title: 'นักศึกษายื่นคำร้องสหกิจ',
+          message: 'นักศึกษาในที่ปรึกษาของคุณยื่นคำร้องสหกิจศึกษาใหม่',
+          link: '/teacher/requests',
+          relatedId: String(userId),
+        });
+      }
+    }).catch(console.error);
+
   } catch (err) {
     (req.files || []).forEach(f => { try { fs.unlinkSync(f.path); } catch (_) {} });
     if (err.is400) return res.status(400).json({ ok: false, message: err.message });
@@ -232,7 +253,7 @@ const updateCoopStatus = async (req, res) => {
               type: 'STATUS_UPDATED',
               title: 'สถานะสหกิจศึกษาอัปเดต',
               message: msg,
-              link: '/student/status-tracker',
+              link: '/student/dashboard',
               relatedId: String(parsedId),
             });
           }

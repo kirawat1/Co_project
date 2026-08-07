@@ -1,5 +1,15 @@
 # CHANGELOG — Co_project
 
+## [2026-08-07] — Feat: notification creation + polling
+
+### Feature
+- **`coopController.submitCoopApplication`**: เพิ่ม notify ไปยัง generalAdvisor + coopAdvisor โดยตรง (นอกเหนือจาก staff+coopTeachers)
+- **`coopController.updateCoopStatus`**: แก้ link notification `/student/status-tracker` → `/student/dashboard`
+- **`adminDocController.reviewStudentStatus`**: แก้ link notification `/student/status-tracker` → `/student/dashboard`
+- **`adminDocController.updateCoopApplicationStatus`**: เพิ่ม notify student เมื่อสถานะเปลี่ยน (5 สถานะ)
+- **`supervisionController.proposeSupervisionDate`**: เพิ่ม notify อาจารย์ผู้รับผิดชอบ (teacher link → `/teacher/review-supervision`)
+- **`useNotifCounts.ts`**: เพิ่ม polling 60 วินาทีให้ badge count อัปเดตอัตโนมัติ
+
 ## [2026-08-07] — Fix: admin doc-requirements endpoint now shows inactive records
 
 ### Bug fix

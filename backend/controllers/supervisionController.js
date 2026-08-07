@@ -221,6 +221,16 @@ exports.proposeSupervisionDate = async (req, res) => {
             relatedId: String(req.user.id),
           })
         ).catch(console.error);
+
+        if (appointment && teacher?.userId) {
+          createNotifications([teacher.userId], {
+            type: 'SUPERVISION_PROPOSED',
+            title: 'นักศึกษาเสนอวันนิเทศ',
+            message: 'นักศึกษาในที่ปรึกษาของคุณเสนอวันนิเทศ กรุณาตรวจสอบและยืนยัน',
+            link: '/teacher/review-supervision',
+            relatedId: String(appointment.id),
+          }).catch(console.error);
+        }
     } catch (err) {
         console.error("Propose Supervision Error:", err);
         res.status(500).json({ ok: false, message: 'เกิดข้อผิดพลาดในการบันทึก' });
