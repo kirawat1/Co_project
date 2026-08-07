@@ -219,7 +219,7 @@ export default function T_StudentDetail() {
             <div style={{ color: "#64748b", fontSize: 14, display: 'flex', gap: 16, alignItems: 'center' }}>
               <span>รหัสนักศึกษา: <b style={{ color: '#0ea5e9' }}>{student.studentId}</b></span>
               <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#cbd5e1' }} />
-              <span>สาขา: <b>{student.major || "-"}</b></span>
+              <span>หลักสูตร: <b>{CURRICULUM_TH[student.studyProgram || ""] || student.studyProgram || "-"}</b></span>
               <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#cbd5e1' }} />
               <span>บริษัท: <b>{companyData?.name || "-"}</b></span>
             </div>
@@ -256,8 +256,7 @@ export default function T_StudentDetail() {
               <InfoRow label="ชื่อ–นามสกุล" value={fullName} />
               <InfoRow label="ชั้นปี" value={student.year || "-"} />
               <InfoRow label="คณะ" value={student.faculty || "วิทยาลัยการคอมพิวเตอร์"} />
-              <InfoRow label="หลักสูตร" value={student.major || "-"} />
-              <InfoRow label="ภาคการศึกษา" value={CURRICULUM_TH[student.studyProgram || ""] || student.studyProgram || "-"} />
+              <InfoRow label="หลักสูตร" value={CURRICULUM_TH[student.studyProgram || ""] || student.studyProgram || "-"} />
               <InfoRow label="เบอร์โทรศัพท์" value={student.phone || "-"} />
               <InfoRow label="อีเมลมหาวิทยาลัย" value={student.user?.email || "-"} highlight />
               <InfoRow label="GPA" value={student.gpa?.toFixed(2) || "-"} />
