@@ -468,6 +468,11 @@ exports.permanentlyDeleteStudent = async (req, res) => {
       const s = await tx.student.findUnique({ where: { id } });
       if (!s) { statusErr = { code: 404, msg: "ไม่พบนักศึกษา" }; throw new Error('not-found'); }
       if (!s.deletedAt) { statusErr = { code: 400, msg: "ต้องย้ายไปถังขยะก่อนจึงจะลบถาวรได้" }; throw new Error('not-in-trash'); }
+      const companyCount = await tx.company.count({ where: { createdById: s.userId } });
+      if (companyCount > 0) {
+        statusErr = { code: 409, msg: `ไม่สามารถลบได้ เนื่องจากนักศึกษาเป็นเจ้าของบริษัท ${companyCount} รายการ กรุณาลบบริษัทเหล่านั้นก่อน` };
+        throw new Error('has-companies');
+      }
       await tx.student.delete({ where: { id } });
       await tx.user.delete({ where: { id: s.userId } });
     }).catch((err) => { if (!statusErr) throw err; });
