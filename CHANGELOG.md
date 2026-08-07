@@ -1,5 +1,12 @@
 # CHANGELOG — Co_project
 
+## [2026-08-08] — Fix: student dashboard never shows active doc windows
+
+### Bug fix
+- **`S_Dashboard.tsx`**: เรียก `/api/admin/config/{t000,t002,t003}` ซึ่ง require teacher/staff role
+  — นักศึกษาได้ 403 ทุก key ทำให้ `configs` ว่างเสมอ และ "เอกสารที่เปิดรับอยู่ขณะนี้" บน Dashboard ไม่แสดงผลเลย
+- อัปเดต URL เป็น `/api/coop/config/${key}` ซึ่งเปิดให้ทุก role อ่านได้ (routes ถูกเพิ่มใน commit ก่อนหน้า)
+
 ## [2026-08-08] — Fix: student doc config pages always show hardcoded defaults
 
 ### Bug fix
