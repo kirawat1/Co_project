@@ -372,13 +372,30 @@ exports.reviewSupervision = async (req, res) => {
             const endOfDay = new Date(chosenDate);
             endOfDay.setHours(23, 59, 59, 999);
 
+            // Auto-extract type from matching proposedDates entry (3rd pipe segment)
+            // when the teacher frontend doesn't send supervisionType explicitly
+            let resolvedType = (supervisionType === 'ONLINE' || supervisionType === 'ONSITE')
+                ? supervisionType
+                : null;
+            if (!resolvedType && supervision.proposedDates) {
+                try {
+                    const proposed = JSON.parse(supervision.proposedDates);
+                    const confirmedDateStr = chosenDate.toISOString().slice(0, 10); // "YYYY-MM-DD"
+                    for (const entry of proposed) {
+                        const parts = entry.split('|');
+                        if (parts[0] === confirmedDateStr && (parts[2] === 'ONLINE' || parts[2] === 'ONSITE')) {
+                            resolvedType = parts[2];
+                            break;
+                        }
+                    }
+                } catch (_) { /* malformed JSON — ignore */ }
+            }
+
             const approveData = {
                 status: 'DATE_CONFIRMED',
                 confirmedDate: chosenDate,
                 rejectReason: null,
-                ...(supervisionType === 'ONLINE' || supervisionType === 'ONSITE'
-                    ? { supervisionType }
-                    : {}),
+                ...(resolvedType ? { supervisionType: resolvedType } : {}),
             };
 
             // Atomic conflict check + update to prevent double-booking on concurrent requests
