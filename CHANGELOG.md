@@ -1,5 +1,15 @@
 # CHANGELOG — Co_project
 
+## [2026-08-08] — Fix: notify.ts JSON.parse throws on corrupted localStorage
+
+### Bug fix
+- **`Frontend/src/components/notify.ts`**: `pushNotify` and `loadNotify` called `JSON.parse`
+  without try/catch — if `coop.student.notifications.v1` held corrupted JSON (e.g. truncated
+  write), both functions threw an uncaught exception, silently breaking any feature that reads
+  or writes notifications
+- Fix: extracted a `loadAll()` helper with try/catch that clears the corrupted key and returns
+  `[]`, making both callers resilient to bad localStorage state
+
 ## [2026-08-08] — Fix: stored XSS via javascript: URLs in evaluation/T007/T008 config links
 
 ### Bug fix

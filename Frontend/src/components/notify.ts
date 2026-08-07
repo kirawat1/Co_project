@@ -2,15 +2,21 @@ import type { StudentNotification } from "./store";
 
 const LS_NOTIFY = "coop.student.notifications.v1";
 
+function loadAll(): StudentNotification[] {
+  try {
+    return JSON.parse(localStorage.getItem(LS_NOTIFY) || "[]");
+  } catch {
+    localStorage.removeItem(LS_NOTIFY);
+    return [];
+  }
+}
+
 export function pushNotify(n: StudentNotification) {
-  const list: StudentNotification[] =
-    JSON.parse(localStorage.getItem(LS_NOTIFY) || "[]");
+  const list = loadAll();
   list.unshift(n);
   localStorage.setItem(LS_NOTIFY, JSON.stringify(list));
 }
 
 export function loadNotify(studentId: string) {
-  const list: StudentNotification[] =
-    JSON.parse(localStorage.getItem(LS_NOTIFY) || "[]");
-  return list.filter((n) => n.studentId === studentId);
+  return loadAll().filter((n) => n.studentId === studentId);
 }
