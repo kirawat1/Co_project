@@ -83,13 +83,6 @@ export interface StudentProfile {
 /* =========================
    Mapping Helpers
 ========================= */
-// เก็บไว้เผื่อเป็น Fallback สำหรับข้อมูลเก่าในระบบ
-const LEGACY_MAJOR_TH: Record<string, string> = {
-  CS: "วิทยาการคอมพิวเตอร์",
-  IT: "เทคโนโลยีสารสนเทศ",
-  GIS: "ภูมิสารสนเทศศาสตร์",
-};
-
 const CURRICULUM_TH: Record<string, string> = {
   normal: "ภาคปกติ",
   special: "ภาคพิเศษ",
@@ -132,13 +125,9 @@ export default function A_Students() {
   const [items, setItems] = useState<StudentProfile[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // 🟢 State สำหรับเก็บสาขาวิชาจาก API
-  const [dynamicMajors, setDynamicMajors] = useState<Record<string, string>>({});
-
   // Filters
   const [q, setQ] = useState("");
   const debouncedQ = useDebounce(q, 300);
-  const [filterMajors, setFilterMajors] = useState<string[]>([]);
   const [filterCurriculums, setFilterCurriculums] = useState<string[]>([]);
   const [filterStatuses, setFilterStatuses] = useState<string[]>([]);
   const [activeStatusGroup, setActiveStatusGroup] = useState<string>("ALL");
@@ -192,18 +181,6 @@ export default function A_Students() {
         if (data?.periods) setCoopPeriods(data.periods);
       }
 
-      const resMajors = await apiFetch("/api/admin/majors");
-      if (resMajors.ok) {
-        const dataMajors = await resMajors.json();
-        if (dataMajors.ok) {
-          const majorDict: Record<string, string> = { ...LEGACY_MAJOR_TH };
-          dataMajors.majors.forEach((m: string) => {
-            majorDict[m] = m;
-          });
-          setDynamicMajors(majorDict);
-        }
-      }
-
       await fetchStudents(selectedPeriodId, 1, "");
     } catch (err) {
       console.error(err);
@@ -238,7 +215,6 @@ export default function A_Students() {
 
   function resetFilters() {
     setQ("");
-    setFilterMajors([]);
     setFilterCurriculums([]);
     setFilterStatuses([]);
   }
@@ -293,12 +269,11 @@ export default function A_Students() {
     return items.filter((s) => {
       const rawStatus = s.coop?.status ?? "";   // ใช้ raw status (uppercase) สำหรับ StatusFilterChips
       return (
-        (filterMajors.length === 0 || filterMajors.includes(s.major ?? "")) &&
         (filterCurriculums.length === 0 || filterCurriculums.includes(s.studyProgram ?? "")) &&
         (filterStatuses.length === 0 || filterStatuses.includes(rawStatus))
       );
     });
-  }, [items, filterMajors, filterCurriculums, filterStatuses]);
+  }, [items, filterCurriculums, filterStatuses]);
 
   if (loading) return <div style={{ padding: 28, marginLeft: 35 }}>กำลังโหลดข้อมูล...</div>;
 
@@ -396,12 +371,6 @@ export default function A_Students() {
 
           <FilterBox
             title="หลักสูตร"
-            items={Object.keys(dynamicMajors).length > 0 ? dynamicMajors : LEGACY_MAJOR_TH} // 🟢 ใช้ Dynamic Majors
-            values={filterMajors}
-            onChange={setFilterMajors}
-          />
-          <FilterBox
-            title="ภาคการศึกษา"
             items={CURRICULUM_TH}
             values={filterCurriculums}
             onChange={setFilterCurriculums}
@@ -418,7 +387,7 @@ export default function A_Students() {
         <table width="100%" className="responsive-table" style={{ borderCollapse: 'collapse' }}>
           <thead>
             <tr>
-              {["รหัส", "ชื่อ–นามสกุล", "อีเมล", "หลักสูตร", "ภาคการศึกษา", "สถานะ", "รายละเอียด"].map((h) => (
+              {["รหัส", "ชื่อ–นามสกุล", "อีเมล", "หลักสูตร", "สถานะ", "รายละเอียด"].map((h) => (
                 <th key={h} style={th}>
                   {h}
                 </th>
@@ -428,7 +397,7 @@ export default function A_Students() {
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={7} style={{ padding: 20, textAlign: 'center', color: "#64748b" }}>
+                <td colSpan={6} style={{ padding: 20, textAlign: 'center', color: "#64748b" }}>
                   ไม่พบนักศึกษาตามเงื่อนไข
                 </td>
               </tr>
@@ -440,9 +409,7 @@ export default function A_Students() {
                     {getThaiPrefix(s.prefix)} {s.firstName} {s.lastName}
                   </td>
                   <td style={td} data-label="อีเมล">{s.user?.email || "-"}</td>
-                  {/* 🟢 แสดงสาขาโดยเช็คจากข้อมูลเก่าเผื่อไว้ ถ้าไม่ตรงให้แสดงชื่อตรงๆ */}
-                  <td style={td} data-label="หลักสูตร">{LEGACY_MAJOR_TH[s.major ?? ""] ?? s.major ?? "-"}</td>
-                  <td style={td} data-label="ภาคการศึกษา">{CURRICULUM_TH[s.studyProgram ?? ""] ?? s.studyProgram ?? "-"}</td>
+                  <td style={td} data-label="หลักสูตร">{CURRICULUM_TH[s.studyProgram ?? ""] ?? s.studyProgram ?? "-"}</td>
                   <td style={td} data-label="สถานะ"><StatusBadge status={s.coop?.status || s.docStatus} /></td>
                   <td style={td} data-label="รายละเอียด">
                     <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
@@ -554,7 +521,6 @@ export default function A_Students() {
       {editStudent && (
         <A_StudentEditModal
           student={editStudent}
-          majors={Object.keys(dynamicMajors).length > 0 ? dynamicMajors : LEGACY_MAJOR_TH}
           onClose={() => setEditStudent(null)}
           onSaved={() => fetchStudents(selectedPeriodId, currentPage, debouncedQ)}
         />
@@ -604,8 +570,7 @@ function StudentModal({
               <InfoRow label="ชื่อ-สกุล" value={fullName} />
               <InfoRow label="ชั้นปี" value={student.year} />
               <InfoRow label="คณะ" value={student.faculty || "วิทยาลัยการคอมพิวเตอร์"} />
-              <InfoRow label="หลักสูตร" value={LEGACY_MAJOR_TH[student.major || ""] || student.major} />
-              <InfoRow label="ภาคการศึกษา" value={CURRICULUM_TH[student.studyProgram || ""] || student.studyProgram} />
+              <InfoRow label="หลักสูตร" value={CURRICULUM_TH[student.studyProgram || ""] || student.studyProgram} />
               <InfoRow label="เบอร์โทร" value={student.phone} />
               <InfoRow label="อีเมล" value={student.user?.email} />
               <InfoRow label="GPA" value={student.gpa?.toFixed(2)} />
