@@ -149,7 +149,11 @@ describe('uploadOfficialLetter', () => {
 
   test('200 — success updates appointment', async () => {
     const appointment = { id: 1, officialLetterPath: 'letter.pdf', status: 'LETTER_UPLOADED' };
+    // Controller now uses $transaction: findUnique first to check status, then update
+    prisma.supervisionAppointment.findUnique.mockResolvedValue({ id: 1, status: 'DATE_CONFIRMED' });
     prisma.supervisionAppointment.update.mockResolvedValue(appointment);
+    // Notify student after update (student.findUnique inside .then — won't block test)
+    prisma.student.findUnique.mockResolvedValue(null);
 
     const req = {
       params: { id: '1' },
@@ -344,7 +348,6 @@ describe('getSupervisionCalendar', () => {
           type: 'ONSITE',
           status: 'DATE_CONFIRMED',
           companyName: 'บริษัท เอบีซี จำกัด',
-          onlineLink: null,
         },
         {
           id: 8,
@@ -354,7 +357,6 @@ describe('getSupervisionCalendar', () => {
           type: 'ONLINE',
           status: 'LETTER_UPLOADED',
           companyName: null,
-          onlineLink: 'https://meet.google.com/abc-defg',
         },
       ],
     });
@@ -395,6 +397,7 @@ describe('getSupervisionsForTeacher', () => {
   });
 
   test('ชื่ออาจารย์สั้นกว่า 2 ตัวอักษร — ไม่เพิ่มเงื่อนไข coTeacherName (กัน false-positive)', async () => {
+    // No lastName → condition (firstName && lastName) is false → coTeacherName not added
     prisma.teacher.findUnique.mockResolvedValue({ id: 5, firstName: 'ก' });
     prisma.supervisionAppointment.findMany.mockResolvedValue([]);
 
@@ -404,13 +407,14 @@ describe('getSupervisionsForTeacher', () => {
 
     expect(prisma.supervisionAppointment.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { OR: [{ teacherId: 5 }] },
+        where: { OR: [{ teacherId: 5 }], student: { deletedAt: null } },
       })
     );
   });
 
   test('ชื่ออาจารย์ปกติ — เพิ่มเงื่อนไข coTeacherName ค้นหาอาจารย์นิเทศร่วม', async () => {
-    prisma.teacher.findUnique.mockResolvedValue({ id: 5, firstName: 'สมชาย' });
+    // Both firstName + lastName present → coTeacherName: { contains: 'firstName lastName' }
+    prisma.teacher.findUnique.mockResolvedValue({ id: 5, firstName: 'สมชาย', lastName: 'ใจดี' });
     prisma.supervisionAppointment.findMany.mockResolvedValue([]);
 
     const req = { user: { id: 1 } };
@@ -419,7 +423,7 @@ describe('getSupervisionsForTeacher', () => {
 
     expect(prisma.supervisionAppointment.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { OR: [{ teacherId: 5 }, { coTeacherName: { contains: 'สมชาย' } }] },
+        where: { OR: [{ teacherId: 5 }, { coTeacherName: { contains: 'สมชาย ใจดี' } }], student: { deletedAt: null } },
       })
     );
   });

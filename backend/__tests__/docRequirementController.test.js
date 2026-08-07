@@ -32,7 +32,7 @@ describe('getRequirements', () => {
     const res = makeRes();
     await getRequirements(req, res);
 
-    expect(prisma.documentRequirement.findMany).toHaveBeenCalledWith({ orderBy: { id: 'asc' } });
+    expect(prisma.documentRequirement.findMany).toHaveBeenCalledWith({ where: { isActive: true }, orderBy: { id: 'asc' } });
     const body = res.json.mock.calls[0][0];
     expect(body.ok).toBe(true);
     expect(body.requirements).toHaveLength(2);

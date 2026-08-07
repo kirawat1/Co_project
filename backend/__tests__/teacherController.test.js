@@ -166,8 +166,10 @@ describe('reviewT002', () => {
 
   test('200 — success: upserts studentCoop and updates document', async () => {
     prisma.teacher.findUnique.mockResolvedValue({ id: 10 });
-    prisma.student.findUnique.mockResolvedValue({ id: 1, generalAdvisorId: 10, coopAdvisorId: null });
-    prisma.studentCoop.upsert.mockResolvedValue({});
+    prisma.student.findUnique.mockResolvedValue({ id: 1, generalAdvisorId: 10, coopAdvisorId: null, deletedAt: null });
+    // Controller re-fetches inside $transaction: TOCTOU check requires coop.status === 'T002_SUBMITTED'
+    prisma.studentCoop.findUnique.mockResolvedValue({ status: 'T002_SUBMITTED' });
+    prisma.studentCoop.update.mockResolvedValue({});
     prisma.document.findFirst.mockResolvedValue({ id: 55 });
     prisma.document.update.mockResolvedValue({});
 
@@ -175,7 +177,7 @@ describe('reviewT002', () => {
     const res = makeRes();
     await reviewT002(req, res);
 
-    expect(prisma.studentCoop.upsert).toHaveBeenCalledWith(
+    expect(prisma.studentCoop.update).toHaveBeenCalledWith(
       expect.objectContaining({ where: { studentId: 1 } })
     );
     expect(prisma.document.findFirst).toHaveBeenCalledWith(
@@ -191,8 +193,10 @@ describe('reviewT002', () => {
 
   test('200 — no document found: skips document update', async () => {
     prisma.teacher.findUnique.mockResolvedValue({ id: 10 });
-    prisma.student.findUnique.mockResolvedValue({ id: 2, generalAdvisorId: 10, coopAdvisorId: null });
-    prisma.studentCoop.upsert.mockResolvedValue({});
+    prisma.student.findUnique.mockResolvedValue({ id: 2, generalAdvisorId: 10, coopAdvisorId: null, deletedAt: null });
+    // Controller re-fetches inside $transaction: TOCTOU check requires coop.status === 'T002_SUBMITTED'
+    prisma.studentCoop.findUnique.mockResolvedValue({ status: 'T002_SUBMITTED' });
+    prisma.studentCoop.update.mockResolvedValue({});
     prisma.document.findFirst.mockResolvedValue(null);
 
     const req = { body: { studentId: 2, status: 'T002_EDITS_REQUIRED', comment: 'แก้ด้วย' }, user: { id: 99 } };
