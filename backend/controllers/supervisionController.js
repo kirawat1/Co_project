@@ -212,25 +212,29 @@ exports.proposeSupervisionDate = async (req, res) => {
         res.json({ ok: true, appointment });
 
         // Fire notification async without blocking response
-        getStaffAndCoopTeacherIds().then(ids =>
-          createNotifications(ids, {
-            type: 'SUPERVISION_PROPOSED',
-            title: 'นักศึกษาเสนอวันนิเทศ',
-            message: 'มีนักศึกษาเสนอวันนิเทศสหกิจศึกษา กรุณาตรวจสอบและยืนยัน',
-            link: '/admin/students',
-            relatedId: String(req.user.id),
-          })
-        ).catch(console.error);
-
-        if (appointment && teacher?.userId) {
-          createNotifications([teacher.userId], {
-            type: 'SUPERVISION_PROPOSED',
-            title: 'นักศึกษาเสนอวันนิเทศ',
-            message: 'นักศึกษาในที่ปรึกษาของคุณเสนอวันนิเทศ กรุณาตรวจสอบและยืนยัน',
-            link: '/teacher/review-supervision',
-            relatedId: String(appointment.id),
-          }).catch(console.error);
-        }
+        // Staff / coop-teachers (excluding the assigned teacher to avoid duplicate)
+        // then notify the assigned teacher separately with the teacher-facing link
+        getStaffAndCoopTeacherIds().then(async ids => {
+          const staffIds = teacher?.userId ? ids.filter(id => id !== teacher.userId) : ids;
+          if (staffIds.length) {
+            await createNotifications(staffIds, {
+              type: 'SUPERVISION_PROPOSED',
+              title: 'นักศึกษาเสนอวันนิเทศ',
+              message: 'มีนักศึกษาเสนอวันนิเทศสหกิจศึกษา กรุณาตรวจสอบและยืนยัน',
+              link: '/admin/students',
+              relatedId: String(req.user.id),
+            });
+          }
+          if (teacher?.userId) {
+            await createNotifications([teacher.userId], {
+              type: 'SUPERVISION_PROPOSED',
+              title: 'นักศึกษาเสนอวันนิเทศ',
+              message: 'นักศึกษาในที่ปรึกษาของคุณเสนอวันนิเทศ กรุณาตรวจสอบและยืนยัน',
+              link: '/teacher/review-supervision',
+              relatedId: String(appointment.id),
+            });
+          }
+        }).catch(console.error);
     } catch (err) {
         console.error("Propose Supervision Error:", err);
         res.status(500).json({ ok: false, message: 'เกิดข้อผิดพลาดในการบันทึก' });
