@@ -105,7 +105,7 @@ router.get('/coop-applications', verifyToken, verifyRole(...ADMIN_ROLES), adminD
 router.patch('/coop-applications/:id/status', verifyToken, verifyRole(...ADMIN_ROLES), adminDocController.updateCoopApplicationStatus);
 
 // Doc Requirements
-router.get('/doc-requirements', verifyToken, verifyRole(...ADMIN_ROLES), docReqController.getRequirements);
+router.get('/doc-requirements', verifyToken, verifyRole(...ADMIN_ROLES), docReqController.getAllRequirements);
 router.post('/doc-requirements', verifyToken, verifyRole(...ADMIN_ROLES), docReqController.createRequirement);
 router.put('/doc-requirements/:id', verifyToken, verifyRole(...ADMIN_ROLES), docReqController.updateRequirement);
 router.delete('/doc-requirements/:id', verifyToken, verifyRole(...ADMIN_ROLES), docReqController.deleteRequirement);
