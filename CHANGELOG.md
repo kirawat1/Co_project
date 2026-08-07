@@ -1,5 +1,12 @@
 # CHANGELOG — Co_project
 
+## [2026-08-07] — Fix: T000 re-submit notification was never sent
+
+### Bug fix
+- **`docController.uploadDocument`**: `newDoc.status` (เสมอเป็น `WAITING`) ถูกเช็คแทน coop status
+  — เพิ่ม flag `t000Resubmitted` ภายใน transaction; set `true` เมื่อ coop อัปเดตเป็น `WAITING_FOR_STAFF_CHECK`
+  — ทำให้ notification `T000_SUBMITTED` ถูก fire เมื่อนักศึกษา re-submit T000 หลังถูกส่งกลับแก้ไข
+
 ## [2026-08-07] — Feat: notification creation + polling
 
 ### Feature

@@ -181,6 +181,7 @@ exports.uploadDocument = async (req, res) => {
 
     let newDoc;
     let oldDoc;
+    let t000Resubmitted = false;
     try {
         await prisma.$transaction(async (tx) => {
             if (dbType !== 'CP-ACCEPTANCE') {
@@ -258,6 +259,7 @@ exports.uploadDocument = async (req, res) => {
                         where: { studentId: student.id },
                         data: { status: "WAITING_FOR_STAFF_CHECK" }
                     });
+                    t000Resubmitted = true;
                 }
             }
         });
@@ -286,7 +288,7 @@ exports.uploadDocument = async (req, res) => {
       'T003_FORM': { type: 'T003_SUBMITTED', title: 'นักศึกษาส่ง T003', message: 'มีนักศึกษาส่งเอกสาร T003 โครงร่างรายงาน กรุณาตรวจสอบ', link: '/admin/students' },
       'CP-ACCEPTANCE': { type: 'ACCEPTANCE_UPLOADED', title: 'นักศึกษาอัปโหลดใบตอบรับ', message: 'มีนักศึกษาอัปโหลดใบตอบรับจากบริษัท กรุณาตรวจสอบ', link: '/admin/students' },
     };
-    const notif = notifyTypes[dbType] || (newDoc.status === 'WAITING_FOR_STAFF_CHECK' ? { type: 'T000_SUBMITTED', title: 'นักศึกษาส่งเอกสาร T000', message: 'มีนักศึกษาส่งเอกสาร T000 กรุณาตรวจสอบ', link: '/admin/students' } : null);
+    const notif = notifyTypes[dbType] || (t000Resubmitted ? { type: 'T000_SUBMITTED', title: 'นักศึกษาส่งเอกสาร T000', message: 'มีนักศึกษาส่งเอกสาร T000 กรุณาตรวจสอบ', link: '/admin/students' } : null);
     if (notif) {
       getStaffAndCoopTeacherIds().then(ids =>
         // relatedId = Student.id (PK) เพื่อ dedup ต่อนักศึกษา ไม่ใช่ userId
