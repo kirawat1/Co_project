@@ -250,7 +250,6 @@ export default function S_ProfilePage() {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          major: profile.major,
           companyId: profile.company?.id || null,
           mentorId: profile.company?.mentor?.id || null,
         }),
@@ -391,8 +390,7 @@ export default function S_ProfilePage() {
           <Info label="ชื่อ–นามสกุล (TH)" value={`${prefixMapToUI[profile.prefix as keyof typeof prefixMapToUI] || ""} ${profile.firstName ?? ""} ${profile.lastName ?? ""}`} />
           <Info label="ชื่อ–นามสกุล (EN)" value={`${profile.firstNameEn ?? "-"} ${profile.lastNameEn ?? "-"}`} />
           <Info label="ชั้นปี" value={profile.year || "-"} />
-          <Info label="หลักสูตร" value={profile.major || "-"} />
-          <Info label="ภาคการศึกษา" value={studyProgramMapToUI[profile.studyProgram as string] || profile.studyProgram || "-"} />
+          <Info label="หลักสูตร" value={studyProgramMapToUI[profile.studyProgram as string] || profile.studyProgram || "-"} />
           {/* อาจารย์ที่ปรึกษา */}
           <div style={{ marginTop: 16 }}>
             <div style={{ fontWeight: 700, fontSize: 14, color: '#334155', marginBottom: 10 }}>
@@ -520,15 +518,6 @@ function StudentModal({ profile, teachers, saveStudentInfo, closeModal }: any) {
     studyProgram: studyProgramMapToUI[profile.studyProgram] || profile.studyProgram || "",
   }));
 
-  const [majorOptions, setMajorOptions] = useState<string[]>([]);
-
-  useEffect(() => {
-    apiFetch("/api/admin/majors")
-      .then(res => res.json())
-      .then(data => { if (data.ok) setMajorOptions(data.majors); })
-      .catch(err => console.error("Failed to load majors", err));
-  }, []);
-
   return (
     <div className="modal-backdrop">
       <div className="modal-card">
@@ -565,14 +554,6 @@ function StudentModal({ profile, teachers, saveStudentInfo, closeModal }: any) {
 
           <div>
             <label className="label">หลักสูตร</label>
-            <select className="input" value={form.major || ""} onChange={(e) => setForm({ ...form, major: e.target.value })}>
-              <option value="">-- เลือกหลักสูตร --</option>
-              {majorOptions.map((major) => (<option key={major} value={major}>{major}</option>))}
-            </select>
-          </div>
-
-          <div>
-            <label className="label">ภาคการศึกษา</label>
             <select className="input" value={form.studyProgram || ""} onChange={(e) => setForm({ ...form, studyProgram: e.target.value as any })}>
               <option value="">เลือกภาคการศึกษา</option><option value="ภาคปกติ">ภาคปกติ</option><option value="ภาคพิเศษ">ภาคพิเศษ</option>
             </select>
