@@ -1,5 +1,14 @@
 # CHANGELOG — Co_project
 
+## [2026-08-08] — Fix: student doc config pages always show hardcoded defaults
+
+### Bug fix
+- **`S_DocT005_006.tsx`, `S_DocT007.tsx`, `S_DocT008.tsx`**: เรียก `/api/admin/config/evaluation`,
+  `/api/admin/config/t007`, `/api/admin/config/t008` ซึ่ง require role teacher/staff
+  — นักศึกษาได้รับ 403 ทุกครั้ง ทำให้เห็นแต่ค่า default hardcoded แทนที่จะเป็นข้อมูลที่ admin ตั้งค่าไว้
+- **`coopRoutes.js`**: เพิ่ม route `GET /api/coop/config/evaluation`, `t007`, `t008`
+  (read-only, verifyToken เท่านั้น) และอัปเดต frontend ทั้งสามไฟล์
+
 ## [2026-08-08] — Fix: T002/T003 system-open config inaccessible to students
 
 ### Bug fix

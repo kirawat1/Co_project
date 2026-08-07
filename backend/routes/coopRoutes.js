@@ -33,6 +33,11 @@ router.get("/config/t000", verifyToken, adminDocController.getT000Config);
 router.get("/config/t002", verifyToken, configController.getT002Config);
 router.get("/config/t003", verifyToken, configController.getT003Config);
 
+// T005/T006 evaluation, T007, T008 content config — read-only, students need these for their doc pages
+router.get("/config/evaluation", verifyToken, configController.getEvaluationConfig);
+router.get("/config/t007", verifyToken, configController.getT007Config);
+router.get("/config/t008", verifyToken, configController.getT008Config);
+
 // Doc requirements — read-only, accessible by all authenticated users (students need this for S_Docs)
 const docReqController = require("../controllers/docRequirementController");
 router.get("/doc-requirements", verifyToken, docReqController.getRequirements);

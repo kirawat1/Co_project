@@ -40,7 +40,7 @@ export default function S_DocT008() {
     useEffect(() => {
         const fetchConfig = async () => {
             try {
-                const res = await axios.get("/api/admin/config/t008", {
+                const res = await axios.get("/api/coop/config/t008", {
                     headers: { Authorization: `Bearer ${token}` }
                 });
                 if (res.data?.config) {

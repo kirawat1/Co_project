@@ -22,7 +22,7 @@ export default function S_DocT007() {
     useEffect(() => {
         const fetchConfig = async () => {
             try {
-                const res = await axios.get("/api/admin/config/t007", {
+                const res = await axios.get("/api/coop/config/t007", {
                     headers: { Authorization: `Bearer ${token}` }
                 });
                 if (res.data?.config) {
