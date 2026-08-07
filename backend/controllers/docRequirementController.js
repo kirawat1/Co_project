@@ -1,10 +1,22 @@
 const prisma = require('../config/prismaClient');
 
-// 1. ดึงรายการเอกสารทั้งหมด
+// 1a. ดึงเฉพาะเอกสารที่ active (สำหรับนักศึกษา)
 exports.getRequirements = async (req, res) => {
   try {
     const requirements = await prisma.documentRequirement.findMany({
       where: { isActive: true },
+      orderBy: { id: 'asc' }
+    });
+    res.json({ ok: true, requirements });
+  } catch (error) {
+    res.status(500).json({ ok: false, error: "Server error" });
+  }
+};
+
+// 1b. ดึงเอกสารทั้งหมด รวม inactive (สำหรับ admin จัดการ)
+exports.getAllRequirements = async (req, res) => {
+  try {
+    const requirements = await prisma.documentRequirement.findMany({
       orderBy: { id: 'asc' }
     });
     res.json({ ok: true, requirements });

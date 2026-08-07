@@ -1,5 +1,14 @@
 # CHANGELOG — Co_project
 
+## [2026-08-07] — Fix: admin doc-requirements endpoint now shows inactive records
+
+### Bug fix
+- **`docRequirementController`**: เพิ่ม `getAllRequirements` (ไม่ filter `isActive`) สำหรับ admin
+  — route `/api/admin/doc-requirements GET` เปลี่ยนไปใช้ `getAllRequirements`
+  — route นักศึกษา (`/api/coop/doc-requirements` + `/api/students/doc-requirements`) ยังใช้ `getRequirements` (filter `isActive: true`)
+  — เหตุผล: `A_DocRequirements.tsx` มีปุ่ม toggle `isActive` แต่ filter เดิมซ่อน inactive rows ทำให้ admin toggle กลับไม่ได้
+- **Test**: เพิ่ม 2 test สำหรับ `getAllRequirements` — รวม 253/253 green
+
 ## [2026-08-07] — Test suite fully green (251/251)
 
 ### Tests

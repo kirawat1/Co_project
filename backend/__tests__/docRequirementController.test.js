@@ -3,6 +3,7 @@ jest.mock('../config/prismaClient', () => require('./__mocks__/prismaClient'));
 const prisma = require('../config/prismaClient');
 const {
   getRequirements,
+  getAllRequirements,
   createRequirement,
   updateRequirement,
   deleteRequirement,
@@ -52,6 +53,38 @@ describe('getRequirements', () => {
     const req = {};
     const res = makeRes();
     await getRequirements(req, res);
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json.mock.calls[0][0].ok).toBe(false);
+  });
+});
+
+// =====================
+// getAllRequirements (admin — includes inactive)
+// =====================
+describe('getAllRequirements', () => {
+  test('200 — คืนรายการทั้งหมดรวม inactive', async () => {
+    const mockList = [
+      { id: 1, docKey: 'T000', title: 'ใบสมัคร', isRequired: true, isActive: true },
+      { id: 2, docKey: 'T002', title: 'รายงาน', isRequired: false, isActive: false },
+    ];
+    prisma.documentRequirement.findMany.mockResolvedValue(mockList);
+
+    const req = {};
+    const res = makeRes();
+    await getAllRequirements(req, res);
+
+    expect(prisma.documentRequirement.findMany).toHaveBeenCalledWith({ orderBy: { id: 'asc' } });
+    const body = res.json.mock.calls[0][0];
+    expect(body.ok).toBe(true);
+    expect(body.requirements).toHaveLength(2);
+    expect(body.requirements[1].isActive).toBe(false);
+  });
+
+  test('500 — DB error คืน 500', async () => {
+    prisma.documentRequirement.findMany.mockRejectedValue(new Error('DB fail'));
+    const req = {};
+    const res = makeRes();
+    await getAllRequirements(req, res);
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json.mock.calls[0][0].ok).toBe(false);
   });
