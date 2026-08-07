@@ -16,12 +16,11 @@ interface TeacherOption {
 
 interface Props {
   student: StudentProfile;
-  majors: Record<string, string>;
   onClose: () => void;
   onSaved: () => void;
 }
 
-export default function A_StudentEditModal({ student, majors, onClose, onSaved }: Props) {
+export default function A_StudentEditModal({ student, onClose, onSaved }: Props) {
   const [form, setForm] = useState({
     prefix: student.prefix ?? "",
     firstName: student.firstName ?? "",
@@ -29,7 +28,6 @@ export default function A_StudentEditModal({ student, majors, onClose, onSaved }
     firstNameEn: student.firstNameEn ?? "",
     lastNameEn: student.lastNameEn ?? "",
     studentId: student.studentId ?? "",
-    major: student.major ?? "",
     studyProgram: student.studyProgram ?? "",
     year: student.year ?? "",
     phone: student.phone ?? "",
@@ -113,12 +111,6 @@ export default function A_StudentEditModal({ student, majors, onClose, onSaved }
             <input style={input} value={form.lastNameEn} onChange={e => update("lastNameEn", e.target.value)} />
           </Field>
           <Field label="หลักสูตร">
-            <select style={input} value={form.major} onChange={e => update("major", e.target.value)}>
-              <option value="">-</option>
-              {Object.keys(majors).map(m => <option key={m} value={m}>{majors[m]}</option>)}
-            </select>
-          </Field>
-          <Field label="ภาคการศึกษา">
             <select style={input} value={form.studyProgram} onChange={e => update("studyProgram", e.target.value)}>
               <option value="">-</option>
               {Object.entries(CURRICULUM_TH).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
