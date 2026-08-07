@@ -1,5 +1,16 @@
 # CHANGELOG — Co_project
 
+## [2026-08-08] — Fix: permanent student/teacher deletion 500 when user owns companies
+
+### Bug fix
+- **`studentController.js:permanentlyDeleteStudent`**: `tx.user.delete` threw P2003 FK constraint violation
+  (MySQL RESTRICT on `Company.createdById → User.id`) if the student had created any companies — root cause
+  triggered by prior fix that opened company creation to students
+- **`teacherController.js:deleteTeacher`**: same pre-existing gap — teachers could always create companies
+  but the dependency count check only covered `supervisionAppointment` + `visit`
+- Fix: both functions now count owned companies inside the `$transaction` and return 409 with a descriptive
+  Thai message ("กรุณาลบบริษัทเหล่านั้นก่อน") instead of crashing on FK violation
+
 ## [2026-08-08] — Fix: students could not add/delete companies or mentors despite controller supporting it
 
 ### Bug fix

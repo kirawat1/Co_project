@@ -570,13 +570,14 @@ exports.deleteTeacher = async (req, res) => {
 
     // Re-verify counts inside transaction to prevent TOCTOU race
     await prisma.$transaction(async (tx) => {
-      const [freshApptCount, freshVisitCount] = await Promise.all([
+      const [freshApptCount, freshVisitCount, freshCompanyCount] = await Promise.all([
         tx.supervisionAppointment.count({ where: { teacherId } }),
         tx.visit.count({ where: { teacherId } }),
+        tx.company.count({ where: { createdById: teacher.userId } }),
       ]);
-      if (freshApptCount > 0 || freshVisitCount > 0) {
+      if (freshApptCount > 0 || freshVisitCount > 0 || freshCompanyCount > 0) {
         throw Object.assign(new Error(
-          `ไม่สามารถลบอาจารย์ได้ เนื่องจากมีนัดหมายนิเทศ ${freshApptCount} รายการ หรือการนิเทศ ${freshVisitCount} รายการ ผูกกับอาจารย์คนนี้อยู่ กรุณามอบหมายอาจารย์อื่นหรือยกเลิกรายการดังกล่าวก่อน`
+          `ไม่สามารถลบอาจารย์ได้ เนื่องจากมีนัดหมายนิเทศ ${freshApptCount} รายการ การนิเทศ ${freshVisitCount} รายการ หรือบริษัทที่สร้าง ${freshCompanyCount} รายการ ผูกกับอาจารย์คนนี้อยู่ กรุณาจัดการรายการดังกล่าวก่อน`
         ), { is409: true });
       }
       await tx.student.updateMany({ where: { generalAdvisorId: teacherId }, data: { generalAdvisorId: null, advisorName: null } });
