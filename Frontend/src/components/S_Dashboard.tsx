@@ -97,7 +97,7 @@ export default function S_Dashboard() {
 
       for (const key of configKeys) {
         try {
-          const res = await apiFetch(`/api/admin/config/${key}`);
+          const res = await apiFetch(`/api/coop/config/${key}`);
           if (res.ok) configData[key] = await res.json();
         } catch (e) { console.error(`Error loading config for ${key}`); }
       }
