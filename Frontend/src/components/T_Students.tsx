@@ -71,13 +71,6 @@ interface CoopPeriod {
   academicYear: string;
 }
 
-// Fallback สำหรับข้อมูลเก่า
-const LEGACY_MAJOR_TH: Record<string, string> = {
-  CS: "วิทยาการคอมพิวเตอร์",
-  IT: "เทคโนโลยีสารสนเทศ",
-  GIS: "ภูมิสารสนเทศศาสตร์",
-};
-
 // --- Constants ---
 const CURRICULUM_TH: Record<string, string> = {
   normal: "ภาคปกติ",
@@ -123,8 +116,7 @@ export default function T_Students({ isCoopTeacher = false }: Props) {
   const [coopPeriods, setCoopPeriods] = useState<CoopPeriod[]>([]);
   const [selectedPeriod, setSelectedPeriod] = useState<string>("all");
 
-  const [dynamicMajors, setDynamicMajors] = useState<Record<string, string>>({});
-  const [filterMajor, setFilterMajor] = useState<string>("all");
+  const [filterCurriculum, setFilterCurriculum] = useState<string>("all");
 
   // ✅ State สำหรับควบคุม Modal แบบ Admin
   const [modalStudent, setModalStudent] = useState<StudentProfile | null>(null);
@@ -158,18 +150,6 @@ export default function T_Students({ isCoopTeacher = false }: Props) {
       if (resPeriods.ok) {
         const dataPeriods = await resPeriods.json();
         if (dataPeriods?.periods) setCoopPeriods(dataPeriods.periods);
-      }
-
-      const resMajors = await apiFetch("/api/admin/majors");
-      if (resMajors.ok) {
-        const dataMajors = await resMajors.json();
-        if (dataMajors.ok) {
-          const majorDict: Record<string, string> = { ...LEGACY_MAJOR_TH };
-          dataMajors.majors.forEach((m: string) => {
-            majorDict[m] = m;
-          });
-          setDynamicMajors(majorDict);
-        }
       }
 
       await fetchStudents(selectedPeriod, "");
@@ -213,11 +193,11 @@ export default function T_Students({ isCoopTeacher = false }: Props) {
   // --- 2. Filter Logic ---
   const filteredStudents = useMemo(() => {
     return allStudents.filter((s) => {
-      const matchMajor = filterMajor === "all" || s.major === filterMajor;
+      const matchCurriculum = filterCurriculum === "all" || s.studyProgram === filterCurriculum;
       const matchGroup = statusGroupFilter.length === 0 || statusGroupFilter.includes(s.coop?.status ?? "");
-      return matchMajor && matchGroup;
+      return matchCurriculum && matchGroup;
     });
-  }, [allStudents, filterMajor, statusGroupFilter]);
+  }, [allStudents, filterCurriculum, statusGroupFilter]);
 
   if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>กำลังโหลดข้อมูล...</div>;
 
@@ -264,11 +244,10 @@ export default function T_Students({ isCoopTeacher = false }: Props) {
             ))}
           </select>
 
-          <select className="input soft" style={{ width: 'auto' }} value={filterMajor} onChange={e => setFilterMajor(e.target.value)}>
-            <option value="all">🎓 ทุกหลักสูตร</option>
-            {Object.entries(dynamicMajors).map(([key, label]) => (
-              <option key={key} value={key}>{label}</option>
-            ))}
+          <select className="input soft" style={{ width: 'auto' }} value={filterCurriculum} onChange={e => setFilterCurriculum(e.target.value)}>
+            <option value="all">📚 ทุกหลักสูตร</option>
+            <option value="normal">ภาคปกติ</option>
+            <option value="special">ภาคพิเศษ</option>
           </select>
         </div>
       </section>
@@ -296,13 +275,13 @@ export default function T_Students({ isCoopTeacher = false }: Props) {
             ) : filteredStudents.map((s) => {
               const name = `${s.firstName || ""} ${s.lastName || ""}`.trim() || "-";
               const st = s.coop?.status || s.coopRequest?.status || s.docStatus || "WAITING";
-              const displayMajor = dynamicMajors[s.major || ""] || s.major || "-";
+              const displayCurriculum = CURRICULUM_TH[s.studyProgram || ""] || s.studyProgram || "-";
 
               return (
                 <tr key={s.studentId} className="student-row">
                   <td style={{ fontWeight: 700, color: '#0ea5e9' }} data-label="รหัสนักศึกษา">{s.studentId}</td>
                   <td style={{ fontWeight: 600, color: '#1e293b' }} data-label="ชื่อ-นามสกุล">{name}</td>
-                  <td data-label="หลักสูตร">{displayMajor}</td>
+                  <td data-label="หลักสูตร">{displayCurriculum}</td>
                   <td style={{ color: '#475569' }} data-label="สถานประกอบการ">{s.company?.name || "-"}</td>
                   <td data-label="สถานะคำร้อง"><StatusBadge status={st} /></td>
                   <td style={{ textAlign: 'right' }}>
@@ -334,7 +313,6 @@ export default function T_Students({ isCoopTeacher = false }: Props) {
       {modalStudent && (
         <StudentViewModal
           student={modalStudent}
-          dynamicMajors={dynamicMajors}
           onClose={() => setModalStudent(null)}
         />
       )}
@@ -376,20 +354,17 @@ export default function T_Students({ isCoopTeacher = false }: Props) {
 ========================= */
 function StudentViewModal({
   student,
-  dynamicMajors,
   onClose,
 }: {
   student: StudentProfile;
-  dynamicMajors: Record<string, string>;
   onClose: () => void;
 }) {
-  // ✅ ตัด Tab 'visits' ทิ้ง เหลือแค่ 3 แท็บ
   const [tab, setTab] = useState<"profile" | "company" | "docs">("profile");
 
   const companyData = student.coop?.company || student.company;
   const mentorData = student.coop?.mentor;
   const fullName = `${getThaiPrefix(student.prefix)} ${student.firstName} ${student.lastName}`.trim();
-  const displayMajor = dynamicMajors[student.major || ""] || student.major || "-";
+  const displayCurriculum = CURRICULUM_TH[student.studyProgram || ""] || student.studyProgram || "-";
   const st = student.coop?.status || student.docStatus || "WAITING";
 
   return (
@@ -428,8 +403,7 @@ function StudentViewModal({
                   <InfoRow label="ชื่อ-สกุล" value={fullName} />
                   <InfoRow label="ชั้นปี" value={student.year || "-"} />
                   <InfoRow label="คณะ" value={student.faculty || "วิทยาลัยการคอมพิวเตอร์"} />
-                  <InfoRow label="หลักสูตร" value={displayMajor} />
-                  <InfoRow label="ภาคการศึกษา" value={CURRICULUM_TH[student.studyProgram || ""] || student.studyProgram || "-"} />
+                  <InfoRow label="หลักสูตร" value={displayCurriculum} />
                   <InfoRow label="เกรดเฉลี่ย (GPA)" value={student.gpa?.toFixed(2) || "-"} />
                 </div>
               </div>
