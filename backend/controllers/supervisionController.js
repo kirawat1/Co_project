@@ -380,8 +380,10 @@ exports.reviewSupervision = async (req, res) => {
             if (!resolvedType && supervision.proposedDates) {
                 try {
                     const proposed = JSON.parse(supervision.proposedDates);
-                    // Use raw confirmedDate string (starts "YYYY-MM-DD") to avoid UTC-offset date shift
-                    const confirmedDateStr = typeof confirmedDate === 'string' ? confirmedDate.slice(0, 10) : chosenDate.toISOString().slice(0, 10);
+                    // Slice raw string first (avoids UTC-offset date shift); fall back to local-time YYYY-MM-DD
+                    const confirmedDateStr = typeof confirmedDate === 'string'
+                        ? confirmedDate.slice(0, 10)
+                        : `${chosenDate.getFullYear()}-${String(chosenDate.getMonth() + 1).padStart(2, '0')}-${String(chosenDate.getDate()).padStart(2, '0')}`;
                     for (const entry of proposed) {
                         const parts = entry.split('|');
                         if (parts[0] === confirmedDateStr && (parts[2] === 'ONLINE' || parts[2] === 'ONSITE')) {
