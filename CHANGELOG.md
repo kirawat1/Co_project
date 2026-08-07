@@ -1,5 +1,12 @@
 # CHANGELOG — Co_project
 
+## [2026-08-07] — Fix: dead badge counts in student sidebar
+
+### Bug fix
+- **`S_Sidebar.tsx`**: `counts.REQ_LETTER_ISSUED` และ `counts.PLACEMENT_LETTER_ISSUED` ถูกรวมใน Dashboard badge
+  แต่ backend ไม่เคยสร้าง notification ด้วย type เหล่านี้ (ใช้ `STATUS_UPDATED` เสมอ)
+  — ลบ term ที่ dead ออก ให้ Dashboard badge แสดงเฉพาะ `STATUS_UPDATED` อย่างถูกต้อง
+
 ## [2026-08-07] — Fix: Excel import missing major field
 
 ### Bug fix
