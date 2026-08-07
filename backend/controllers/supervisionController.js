@@ -380,7 +380,8 @@ exports.reviewSupervision = async (req, res) => {
             if (!resolvedType && supervision.proposedDates) {
                 try {
                     const proposed = JSON.parse(supervision.proposedDates);
-                    const confirmedDateStr = chosenDate.toISOString().slice(0, 10); // "YYYY-MM-DD"
+                    // Use raw confirmedDate string (starts "YYYY-MM-DD") to avoid UTC-offset date shift
+                    const confirmedDateStr = typeof confirmedDate === 'string' ? confirmedDate.slice(0, 10) : chosenDate.toISOString().slice(0, 10);
                     for (const entry of proposed) {
                         const parts = entry.split('|');
                         if (parts[0] === confirmedDateStr && (parts[2] === 'ONLINE' || parts[2] === 'ONSITE')) {
