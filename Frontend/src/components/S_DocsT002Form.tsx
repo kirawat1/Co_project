@@ -116,7 +116,7 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
         const loadConfig = async () => {
             try {
                 const token = localStorage.getItem("coop.token");
-                const res = await apiFetch("/api/admin/config/t002", {
+                const res = await apiFetch("/api/coop/config/t002", {
                     headers: { Authorization: `Bearer ${token}` }
                 });
                 if (res.ok) {

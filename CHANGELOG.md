@@ -1,5 +1,15 @@
 # CHANGELOG — Co_project
 
+## [2026-08-08] — Fix: T002/T003 system-open config inaccessible to students
+
+### Bug fix
+- **`S_DocsT002Form.tsx`, `S_DocsT003Form.tsx`**: ทั้งสองไฟล์เรียก `/api/admin/config/t002` และ `/api/admin/config/t003`
+  ซึ่ง require role teacher/staff — นักศึกษาจะได้ 403 เสมอ ทำให้ `isSystemOpen` ค้างเป็น `true` ตลอด
+  — ไม่มี system-closed banner, ไม่มี countdown timer, และนักศึกษาสามารถแก้ไข form ได้แม้ระบบจะปิดอยู่
+- **`coopRoutes.js`**: เพิ่ม route `GET /api/coop/config/t002` และ `GET /api/coop/config/t003`
+  (read-only, verifyToken เท่านั้น) ตามรูปแบบเดียวกับ `/api/coop/config/t000` ที่มีอยู่แล้ว
+- อัปเดต frontend ให้เรียก `/api/coop/config/t002` และ `/api/coop/config/t003` แทน
+
 ## [2026-08-07] — Fix: dead badge counts in student sidebar
 
 ### Bug fix

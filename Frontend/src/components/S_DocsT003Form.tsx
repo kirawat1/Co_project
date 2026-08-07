@@ -110,7 +110,7 @@ export default function S_DocsT003Form({ profile, onRefresh }: Props) {
     useEffect(() => {
         const loadConfig = async () => {
             try {
-                const res = await apiFetch("/api/admin/config/t003");
+                const res = await apiFetch("/api/coop/config/t003");
                 if (res.ok) {
                     const data = await res.json();
                     setConfig(data);
