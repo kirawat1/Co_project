@@ -5,6 +5,12 @@ import { IcAnnounce, IcDocs } from "./icons";
 import StatusBadge from "./StatusBadge";
 import S_StatusTracker from "./S_StatusTracker";
 
+function safeHref(url: string | null | undefined): string | undefined {
+  if (!url) return undefined;
+  try { const u = new URL(url); return ['http:', 'https:'].includes(u.protocol) ? url : undefined; }
+  catch { return undefined; }
+}
+
 /* ===============================
     Types
 =============================== */
@@ -335,7 +341,7 @@ export default function S_Dashboard() {
                             <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>{file.name}</div>
                           </div>
                         ) : (
-                          <a href={file.url} target="_blank" rel="noreferrer" className="attachment-link">
+                          <a href={safeHref(file.url)} target="_blank" rel="noreferrer" className="attachment-link">
                             {file.type === 'link' ? '🔗' : '📄'} {file.name}
                           </a>
                         )}

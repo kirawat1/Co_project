@@ -1,5 +1,15 @@
 # CHANGELOG — Co_project
 
+## [2026-08-11] — Fix: batch 82 — safeHref for announcement link attachments in S_Dashboard
+
+### Bug fixes
+- **`Frontend/src/components/S_Dashboard.tsx:348`**: announcement attachment links were rendered
+  as bare `<a href={file.url}>` with no protocol check. The backend now validates link URLs
+  (`https?://` only) before storing, but legacy data could still hold `javascript:` URLs.
+  Added `safeHref()` helper (same pattern as other components) and applied it to the href.
+  `S_Announcements.tsx` already had an equivalent guard (`safeUrl()`) — this fix brings
+  S_Dashboard into parity.
+
 ## [2026-08-11] — Fix: batch 81 — company website XSS (backend validation + frontend safeHref)
 
 ### Bug fixes
