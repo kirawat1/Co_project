@@ -1,5 +1,24 @@
 # CHANGELOG — Co_project
 
+## [2026-08-12] — Fix: batch 87 — safeHref for gradeSheetUrl anchor in A_Students
+
+### Bug fixes
+- **`Frontend/src/components/A_Students.tsx:439`**: `s.coopApplicationForm.gradeSheetUrl` was rendered
+  as a bare `<a href={...}>` in the student list table with no protocol check. Same field pattern as
+  batch 83 (A_CoopApplications). Added `safeHref()` helper and applied it to the anchor.
+
+---
+
+## [2026-08-12] — Fix: batch 86 — safeHref for announcement link attachment in A_Announcements
+
+### Bug fixes
+- **`Frontend/src/components/A_Announcements.tsx:291`**: `window.open(at.url, '_blank')` was called
+  with an unvalidated URL for link-type attachments from the DB. `addLink()` validates on input
+  (lines 135–138), but legacy data could contain unsafe URLs. Added `safeHref()` helper and guarded
+  `window.open` to only fire for http/https URLs.
+
+---
+
 ## [2026-08-11] — Fix: batch 85 — safeHref for onlineUrl anchor in T_Exams
 
 ### Bug fixes
