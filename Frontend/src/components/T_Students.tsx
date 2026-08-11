@@ -72,6 +72,12 @@ interface CoopPeriod {
 }
 
 // --- Constants ---
+function safeHref(url: string | null | undefined): string | undefined {
+  if (!url) return undefined;
+  try { const u = new URL(url); return ['http:', 'https:'].includes(u.protocol) ? url : undefined; }
+  catch { return undefined; }
+}
+
 const CURRICULUM_TH: Record<string, string> = {
   normal: "ภาคปกติ",
   special: "ภาคพิเศษ",
@@ -428,7 +434,7 @@ function StudentViewModal({
                     <InfoRow label="ที่อยู่" value={getFullAddress(companyData)} />
                     <InfoRow label="อีเมล" value={companyData.email} />
                     <InfoRow label="เบอร์โทร" value={companyData.phone} />
-                    <InfoRow label="เว็บไซต์" value={companyData.website ? <a href={companyData.website} target="_blank" rel="noreferrer" style={{ color: '#0ea5e9' }}>{companyData.website}</a> : "-"} />
+                    <InfoRow label="เว็บไซต์" value={companyData.website ? <a href={safeHref(companyData.website)} target="_blank" rel="noreferrer" style={{ color: '#0ea5e9' }}>{companyData.website}</a> : "-"} />
                   </div>
                 ) : <div style={{ color: '#94a3b8', textAlign: 'center', padding: 20 }}>นักศึกษายังไม่ได้ระบุข้อมูลบริษัท</div>}
               </div>

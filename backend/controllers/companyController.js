@@ -1,6 +1,15 @@
 // backend/controllers/companyController.js
 const prisma = require('../config/prismaClient');
 
+const ALLOWED_URL_PROTOCOLS = ['https:', 'http:'];
+function safeUrl(raw) {
+  if (typeof raw !== 'string' || !raw.trim()) return null;
+  try {
+    const u = new URL(raw.trim());
+    return ALLOWED_URL_PROTOCOLS.includes(u.protocol) ? raw.trim() : null;
+  } catch { return null; }
+}
+
 // ---------------- Company ----------------
 exports.getCompanies = async (req, res) => {
   try {
@@ -28,14 +37,18 @@ exports.addCompany = async (req, res) => {
         contactPerson, contactPosition 
     } = req.body;
 
+    if (website && !safeUrl(website)) {
+      return res.status(400).json({ ok: false, message: 'website ต้องเป็น URL แบบ http/https เท่านั้น' });
+    }
+
     const company = await prisma.company.create({
       data: {
-        name, nameEn, 
-        address, addressNo, moo, soi, road, 
-        subDistrict, district, province, zipcode, 
-        email, phone, fax, website, pastYears, 
+        name, nameEn,
+        address, addressNo, moo, soi, road,
+        subDistrict, district, province, zipcode,
+        email, phone, fax, website: safeUrl(website) ?? null, pastYears,
         contactPerson, contactPosition,
-        createdById: userId, // ต้องมี
+        createdById: userId,
       },
     });
 
@@ -71,12 +84,16 @@ exports.updateCompany = async (req, res) => {
         throw Object.assign(new Error("ไม่มีสิทธิ์แก้ไขบริษัทนี้"), { is403: true });
       }
 
+      if (website && !safeUrl(website)) {
+        throw Object.assign(new Error('website ต้องเป็น URL แบบ http/https เท่านั้น'), { is400: true });
+      }
+
       updated = await tx.company.update({
         where: { id: req.params.id },
         data: {
           name, nameEn, address, addressNo, moo, soi, road,
           subDistrict, district, province, zipcode,
-          email, phone, fax, website, pastYears,
+          email, phone, fax, website: safeUrl(website) ?? null, pastYears,
           contactPerson, contactPosition
         },
       });
@@ -84,6 +101,7 @@ exports.updateCompany = async (req, res) => {
 
     res.json({ ok: true, company: updated });
   } catch (err) {
+    if (err.is400) return res.status(400).json({ ok: false, message: err.message });
     if (err.is404) return res.status(404).json({ ok: false, message: err.message });
     if (err.is403) return res.status(403).json({ ok: false, message: err.message });
     if (err.code === 'P2025') return res.status(404).json({ ok: false, message: 'ไม่พบบริษัท' });

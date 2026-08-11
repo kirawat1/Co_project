@@ -1,5 +1,17 @@
 # CHANGELOG — Co_project
 
+## [2026-08-11] — Fix: batch 81 — company website XSS (backend validation + frontend safeHref)
+
+### Bug fixes
+- **`backend/controllers/companyController.js`**: `addCompany` and `updateCompany` stored the
+  `website` field without any URL validation — a `javascript:` URL could be written to the DB and
+  later rendered as a clickable anchor. Added `safeUrl()` helper (same pattern as configController)
+  and applied it in both create and update paths; returns 400 if the value is not http/https.
+- **`Frontend/src/components/T_StudentDetail.tsx:284`** and **`T_Students.tsx:436`**: both
+  rendered `companyData.website` as a bare `href` with no protocol check. Added `safeHref()`
+  helper in each file and applied it to the anchor href — strips the href to `undefined` for any
+  URL that is not http or https.
+
 ## [2026-08-11] — Fix: batch 80 — defense-in-depth safeHref for onlineLink in calendar and review modal
 
 ### Bug fixes
