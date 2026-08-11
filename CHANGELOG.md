@@ -1,5 +1,17 @@
 # CHANGELOG — Co_project
 
+## [2026-08-11] — Feat: soft-delete only for students (no permanent delete)
+
+### Changes
+- **`backend/routes/adminRoutes.js`**: removed `DELETE /api/admin/students/:id/permanent` route —
+  permanent student deletion is disabled; data, documents, and files are preserved for historical
+  viewing and can always be restored.
+- **`Frontend/src/components/A_StudentTrash.tsx`**: removed "ลบถาวร" button, confirm dialog,
+  `handlePermanentDelete` function, and related state. Trash page now shows only "กู้คืน" action.
+- **`backend/prisma/schema.prisma`** + migration `20260811140435`: `Company.createdById` and
+  `Mentor.createdById` changed to nullable (`Int?`) — harmless schema change applied during this
+  session.
+
 ## [2026-08-11] — Fix: batch 78 — hardcoded default password, P2003 gaps, keepFileIds array guard, multer size limit
 
 ### Bug fixes
