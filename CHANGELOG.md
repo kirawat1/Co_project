@@ -1,5 +1,15 @@
 # CHANGELOG — Co_project
 
+## [2026-08-12] — Fix: batch 90 — safeHref for gradeSheetUrl anchor in T_Students
+
+### Bug fixes
+- **`Frontend/src/components/T_Students.tsx:305`**: `href={s.coopApplicationForm.gradeSheetUrl}`
+  rendered a bare anchor with no protocol check. `gradeSheetUrl` is student-submitted via the coop
+  application form and stored in DB without protocol validation. Added `safeHref()` helper and
+  applied it to the anchor. Same class as batches 83 and 87.
+
+---
+
 ## [2026-08-12] — Fix: batch 89 — safeHref for admin-configured URL window.open in S_DocT007, S_DocT008, S_DocT005_006
 
 ### Bug fixes
