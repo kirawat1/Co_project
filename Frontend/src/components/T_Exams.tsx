@@ -2,6 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import type { StudentProfile } from "./store";
 import AutoTextarea from "./AutoTextarea";
 
+function safeHref(url: string | undefined): string | undefined {
+  if (!url) return undefined;
+  try { const u = new URL(url); return ['http:', 'https:'].includes(u.protocol) ? url : undefined; }
+  catch { return undefined; }
+}
+
 const K_EXAMS = "coop.teacher.exams.v1";
 const K_STUDENTS_NEW = "coop.students";
 const K_STUDENTS_OLD = "coop.student.profile.v1";
@@ -239,7 +245,7 @@ export default function T_Exams() {
                 <td>{x.round || "-"}</td>
                 <td className="cell-ellipsis">
                   {x.mode === "online" ? (
-                    <a href={x.onlineUrl} target="_blank" rel="noreferrer">
+                    <a href={safeHref(x.onlineUrl)} target="_blank" rel="noreferrer">
                       ออนไลน์
                     </a>
                   ) : (

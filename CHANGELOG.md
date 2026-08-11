@@ -1,5 +1,15 @@
 # CHANGELOG — Co_project
 
+## [2026-08-11] — Fix: batch 85 — safeHref for onlineUrl anchor in T_Exams
+
+### Bug fixes
+- **`Frontend/src/components/T_Exams.tsx:248`**: `onlineUrl` was rendered as a bare
+  `<a href={x.onlineUrl}>` with no protocol check. Data is stored in localStorage
+  by the same teacher, but a `javascript:` URL could be saved accidentally or via
+  a compromised localStorage. Added `safeHref()` for defense-in-depth consistency.
+
+---
+
 ## [2026-08-11] — Fix: batch 84 — remove undeclared token from useEffect deps in S_Gateway
 
 ### Bug fixes
