@@ -143,7 +143,7 @@ export default function CoopRequestPage() {
 
   useEffect(() => {
     fetchData();
-  }, [token]);
+  }, []);
 
   useEffect(() => {
     apiFetch("/api/coop/config/gateway")

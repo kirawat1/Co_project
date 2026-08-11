@@ -1,5 +1,15 @@
 # CHANGELOG — Co_project
 
+## [2026-08-11] — Fix: batch 84 — remove undeclared token from useEffect deps in S_Gateway
+
+### Bug fixes
+- **`Frontend/src/components/S_Gateway.tsx:146`**: `useEffect(() => fetchData(), [token])` referenced
+  `token` which was never declared in the component, causing a potential ReferenceError and incorrect
+  effect semantics. `apiFetch` handles auth internally — the dependency was spurious. Changed to `[]`
+  (run once on mount).
+
+---
+
 ## [2026-08-11] — Fix: batch 83 — safeHref for gradeSheetUrl anchor in A_CoopApplications
 
 ### Bug fixes
