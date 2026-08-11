@@ -33,6 +33,12 @@ interface SupervisionAppt {
     };
 }
 
+function safeHref(url: string | null | undefined): string | undefined {
+    if (!url) return undefined;
+    try { const u = new URL(url); return ['http:', 'https:'].includes(u.protocol) ? url : undefined; }
+    catch { return undefined; }
+}
+
 type SortKey = 'studentId' | 'company' | 'type' | 'status' | 'confirmedDate';
 type SortDirection = 'asc' | 'desc';
 
@@ -394,7 +400,7 @@ export default function T_SupervisionReview() {
                                 <div style={{ background: "#fff", padding: 16, borderRadius: 12, border: "1px solid #e2e8f0", marginBottom: 20 }}>
                                     <InfoRow label="รูปแบบ" value={<span style={{ color: selectedAppt.supervisionType === "ONLINE" ? "#2563eb" : "#ea580c" }}>{selectedAppt.supervisionType === "ONLINE" ? "🌐 ออนไลน์" : "🏢 ออนไซต์"}</span>} />
                                     {selectedAppt.supervisionType === "ONLINE" && (
-                                        <InfoRow label="Link" value={selectedAppt.onlineLink ? <a href={selectedAppt.onlineLink} target="_blank" rel="noreferrer" style={{ color: "#2563eb" }}>{selectedAppt.onlineLink}</a> : "-"} />
+                                        <InfoRow label="Link" value={selectedAppt.onlineLink ? <a href={safeHref(selectedAppt.onlineLink)} target="_blank" rel="noreferrer" style={{ color: "#2563eb" }}>{selectedAppt.onlineLink}</a> : "-"} />
                                     )}
                                     {selectedAppt.confirmedDate && (
                                         <InfoRow label="วันนิเทศ" value={<span style={{ color: "#16a34a", fontWeight: 700 }}>{formatDMYTime(selectedAppt.confirmedDate)}</span>} />

@@ -23,6 +23,12 @@ const DAYS_TH = ["อา", "จ", "อ", "พ", "พฤ", "ศ", "ส"];
 const MONTHS_TH = ["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน",
                    "กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
 
+function safeHref(url: string | null | undefined): string | undefined {
+    if (!url) return undefined;
+    try { const u = new URL(url); return ['http:', 'https:'].includes(u.protocol) ? url : undefined; }
+    catch { return undefined; }
+}
+
 function fmtTime(iso: string) {
     const d = new Date(iso);
     return `${d.getHours().toString().padStart(2,"0")}:${d.getMinutes().toString().padStart(2,"0")} น.`;
@@ -52,7 +58,7 @@ function AgendaItem({ ev }: { ev: CalendarEvent }) {
                 <div style={agendaCompanyStyle}>{ev.companyName || "-"}</div>
                 {isOnline && (
                     ev.onlineLink ? (
-                        <a href={ev.onlineLink} target="_blank" rel="noopener noreferrer" style={agendaLinkStyle}>
+                        <a href={safeHref(ev.onlineLink)} target="_blank" rel="noopener noreferrer" style={agendaLinkStyle}>
                             🔗 {ev.onlineLink}
                         </a>
                     ) : (
