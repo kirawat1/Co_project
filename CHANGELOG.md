@@ -1,5 +1,16 @@
 # CHANGELOG — Co_project
 
+## [2026-08-11] — Fix: batch 83 — safeHref for gradeSheetUrl anchor in A_CoopApplications
+
+### Bug fixes
+- **`Frontend/src/components/A_CoopApplications.tsx:346`**: `gradeSheetUrl` from `coopApplicationForm`
+  was rendered as a bare `<a href={...}>` with no protocol check. Backend (`coopController.js`)
+  validates this field before storing (http/https only), but legacy pre-validation data could hold
+  unsafe URLs. Added `safeHref()` helper and applied it to the anchor for defense-in-depth,
+  consistent with all other user-controlled URL fields in the codebase.
+
+---
+
 ## [2026-08-11] — Fix: batch 82 — safeHref for announcement link attachments in S_Dashboard
 
 ### Bug fixes
