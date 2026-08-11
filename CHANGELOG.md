@@ -1,5 +1,18 @@
 # CHANGELOG — Co_project
 
+## [2026-08-11] — Fix: batch 79 — stored XSS via onlineLink, JSON.parse crash in S_Supervision
+
+### Bug fixes
+- **`supervisionController.js:proposeSupervisionDate`**: `onlineLink` was stored to DB without
+  protocol validation. A student could submit `javascript:alert(document.cookie)` as the online
+  meeting link; teachers and staff who clicked it would execute arbitrary JS in their session.
+  Fixed: reject 400 if `onlineLink` is not a valid http/https URL (same pattern as `gradeSheetUrl`
+  in `coopController.js`).
+- **`S_Supervision.tsx:449–455`**: `JSON.parse(appointment.proposedDates)` was called directly
+  in JSX without try/catch. Corrupted `proposedDates` in the database would throw an uncaught
+  exception and crash the entire supervision page. Fixed: wrapped in IIFE with try/catch + Array
+  guard.
+
 ## [2026-08-11] — Feat: soft-delete only for students (no permanent delete)
 
 ### Changes

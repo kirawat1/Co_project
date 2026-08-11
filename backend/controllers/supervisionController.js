@@ -153,6 +153,14 @@ exports.proposeSupervisionDate = async (req, res) => {
         if (supervisionType !== undefined && supervisionType !== 'ONLINE' && supervisionType !== 'ONSITE') {
             return res.status(400).json({ ok: false, message: 'supervisionType ต้องเป็น ONLINE หรือ ONSITE เท่านั้น' });
         }
+        if (onlineLink) {
+            try {
+                const u = new URL(String(onlineLink).trim());
+                if (!['https:', 'http:'].includes(u.protocol)) throw new Error('bad protocol');
+            } catch {
+                return res.status(400).json({ ok: false, message: 'onlineLink ต้องเป็น URL แบบ http/https เท่านั้น' });
+            }
+        }
         const student = await prisma.student.findUnique({ where: { userId: req.user.id } });
 
         if (!student || student.deletedAt) return res.status(404).json({ ok: false, message: 'Student not found' });
