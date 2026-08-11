@@ -94,11 +94,10 @@ router.get('/students/majors', verifyToken, verifyRole(...ADMIN_ROLES), async (r
 // Students: Edit basic info — staff only (ไม่ใช่ teacher แม้ ADMIN_ROLES ปกติจะรวม teacher ด้วย)
 router.put('/students/:id', verifyToken, verifyRole(...STAFF_ONLY), studentController.updateStudentBasicInfo);
 
-// Students: Trash (soft delete / restore / permanent delete) — staff only
+// Students: Trash (soft delete / restore) — permanent delete removed; data preserved for history
 router.delete('/students/:id', verifyToken, verifyRole(...STAFF_ONLY), studentController.softDeleteStudent);
 router.get('/students/trash', verifyToken, verifyRole(...STAFF_ONLY), studentController.getTrashedStudents);
 router.post('/students/:id/restore', verifyToken, verifyRole(...STAFF_ONLY), studentController.restoreStudent);
-router.delete('/students/:id/permanent', verifyToken, verifyRole(...STAFF_ONLY), studentController.permanentlyDeleteStudent);
 
 // Coop Applications
 router.get('/coop-applications', verifyToken, verifyRole(...ADMIN_ROLES), adminDocController.getCoopApplications);

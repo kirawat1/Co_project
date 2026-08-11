@@ -5,8 +5,6 @@ import type { StudentProfile } from "./A_Students";
 export default function A_StudentTrash() {
   const [items, setItems] = useState<StudentProfile[]>([]);
   const [loading, setLoading] = useState(true);
-  const [confirmId, setConfirmId] = useState<number | null>(null);
-  const [confirmText, setConfirmText] = useState("");
 
   const fetchTrash = async () => {
     setLoading(true);
@@ -42,28 +40,6 @@ export default function A_StudentTrash() {
     }
   };
 
-  const handlePermanentDelete = async (s: StudentProfile) => {
-    if (confirmText.trim() !== s.studentId) {
-      alert("กรุณาพิมพ์รหัสนักศึกษาให้ตรงกันก่อนยืนยัน");
-      return;
-    }
-    try {
-      const res = await apiFetch(`/api/admin/students/${s.id}/permanent`, {
-        method: "DELETE",
-      });
-      const data = await res.json();
-      if (!data.ok) {
-        alert(data.message || "ลบถาวรไม่สำเร็จ");
-        return;
-      }
-      setConfirmId(null);
-      setConfirmText("");
-      fetchTrash();
-    } catch (err: any) {
-      alert(err.message || "เกิดข้อผิดพลาด");
-    }
-  };
-
   if (loading) return <div style={{ padding: 20 }}>กำลังโหลด...</div>;
 
   return (
@@ -89,20 +65,6 @@ export default function A_StudentTrash() {
                 <td style={td}>
                   <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
                     <button style={ghostBtn} onClick={() => handleRestore(s)}>กู้คืน</button>
-                    {confirmId === s.id ? (
-                      <>
-                        <input
-                          style={{ padding: "6px 8px", borderRadius: 6, border: "1px solid #fecaca", fontSize: 12, width: 120 }}
-                          placeholder={`พิมพ์ "${s.studentId}"`}
-                          value={confirmText}
-                          onChange={e => setConfirmText(e.target.value)}
-                        />
-                        <button style={dangerBtn} onClick={() => handlePermanentDelete(s)}>ยืนยันลบถาวร</button>
-                        <button style={ghostBtn} onClick={() => { setConfirmId(null); setConfirmText(""); }}>ยกเลิก</button>
-                      </>
-                    ) : (
-                      <button style={dangerBtn} onClick={() => setConfirmId(s.id)}>ลบถาวร</button>
-                    )}
                   </div>
                 </td>
               </tr>
@@ -118,4 +80,3 @@ const card: React.CSSProperties = { background: "#fff", borderRadius: 14, paddin
 const th: React.CSSProperties = { textAlign: "left", paddingBottom: 8, fontSize: 14, padding: "12px 10px", color: "#475569" };
 const td: React.CSSProperties = { padding: "12px 10px", fontSize: 14, color: "#1e293b" };
 const ghostBtn: React.CSSProperties = { background: "#fff", color: "#0074B7", border: "1px solid rgba(10,132,255,.25)", height: 32, borderRadius: 8, padding: "0 12px", cursor: "pointer", fontSize: 13 };
-const dangerBtn: React.CSSProperties = { background: "#fff", color: "#dc2626", border: "1px solid #fecaca", height: 32, borderRadius: 8, padding: "0 12px", cursor: "pointer", fontSize: 13, fontWeight: 700 };
