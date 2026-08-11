@@ -1,5 +1,17 @@
 # CHANGELOG — Co_project
 
+## [2026-08-12] — Fix: batch 88 — safeHref for onlineLink anchors in S_Supervision
+
+### Bug fixes
+- **`Frontend/src/components/S_Supervision.tsx:453`** (PENDING_TEACHER view): `appointment.onlineLink`
+  was rendered as a bare `<a href={...}>` with no protocol check. The link is submitted by the
+  student via form and stored in DB without protocol validation on write. Added `safeHref()` helper
+  after imports and applied it to the anchor.
+- **`Frontend/src/components/S_Supervision.tsx:498`** (DATE_CONFIRMED/LETTER_UPLOADED/COMPLETED view):
+  Same `appointment.onlineLink` field in a second anchor. Applied `safeHref()` to this anchor as well.
+
+---
+
 ## [2026-08-12] — Fix: batch 87 — safeHref for gradeSheetUrl anchor in A_Students
 
 ### Bug fixes

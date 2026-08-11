@@ -4,6 +4,12 @@ import StatusBadge from "./StatusBadge";
 import SupervisionCalendar from "./SupervisionCalendar";
 import type { CalendarEvent } from "./SupervisionCalendar";
 
+function safeHref(url: string | null | undefined): string | undefined {
+  if (!url) return undefined;
+  try { const u = new URL(url); return ['http:', 'https:'].includes(u.protocol) ? url : undefined; }
+  catch { return undefined; }
+}
+
 // --- Status UI Map ---
 const SUPERVISION_STATUS_UI: Record<string, { icon: string; label: string; color: string; bg: string }> = {
     PENDING_TEACHER:  { icon: '⏳', label: 'รออาจารย์ตรวจสอบ',           color: '#d97706', bg: '#fef3c7' },
@@ -444,7 +450,7 @@ export default function S_Supervision() {
                                     <InfoRow label="อาจารย์ร่วมนิเทศ" value={appointment.coTeacherName || <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>รอเจ้าหน้าที่กำหนดภายหลัง</span>} />
                                     <InfoRow label="รูปแบบ" value={appointment.supervisionType === 'ONLINE' ? '🌐 ออนไลน์' : '🏢 ออนไซต์'} />
                                     {appointment.supervisionType === 'ONLINE' && (
-                                        <InfoRow label="Link นิเทศ" value={appointment.onlineLink ? <a href={appointment.onlineLink} target="_blank" rel="noreferrer">{appointment.onlineLink}</a> : "-"} />
+                                        <InfoRow label="Link นิเทศ" value={appointment.onlineLink ? <a href={safeHref(appointment.onlineLink)} target="_blank" rel="noreferrer">{appointment.onlineLink}</a> : "-"} />
                                     )}
                                     <div style={{ marginTop: 15 }}>
                                         <div style={lblStyle}>ช่วงเวลาที่เสนอไป:</div>
@@ -489,7 +495,7 @@ export default function S_Supervision() {
                                         {appointment.supervisionType === 'ONLINE' && appointment.onlineLink && (
                                             <div style={{ marginTop: 10, padding: 10, background: 'white', borderRadius: 8, border: '1px solid #bbf7d0' }}>
                                                 <div style={{ fontSize: 12, color: '#64748b', fontWeight: 700 }}>🔗 ลิงก์สำหรับเข้าร่วมนิเทศ (Online Session):</div>
-                                                <a href={appointment.onlineLink} target="_blank" rel="noreferrer" style={{ wordBreak: 'break-all', fontSize: 14, color: '#2563eb', fontWeight: 600 }}>{appointment.onlineLink}</a>
+                                                <a href={safeHref(appointment.onlineLink)} target="_blank" rel="noreferrer" style={{ wordBreak: 'break-all', fontSize: 14, color: '#2563eb', fontWeight: 600 }}>{appointment.onlineLink}</a>
                                             </div>
                                         )}
                                     </div>
