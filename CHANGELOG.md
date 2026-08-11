@@ -1,5 +1,18 @@
 # CHANGELOG — Co_project
 
+## [2026-08-12] — Fix: batch 91 — QUALIFICATION_FAILED status in A_CoopApplications rejection button
+
+### Bug fixes
+- **`Frontend/src/components/A_CoopApplications.tsx:384`**: The "ไม่ผ่าน" (reject) button called
+  `updateStatus("REJECTED")`, but `PATCH /api/admin/coop-applications/:id/status` (handled by
+  `adminDocController.updateCoopApplicationStatus`) only accepts statuses in `REVIEW_STATUS_ALLOWED`
+  which includes `"QUALIFICATION_FAILED"` and not `"REJECTED"`. The backend returned 400 for every
+  rejection click, silently showing "เกิดข้อผิดพลาดในการอัปเดตสถานะ" — staff could never reject a
+  coop application from this screen. Changed button argument to `"QUALIFICATION_FAILED"` to match
+  the backend allowlist. The `statusLabel` mapping already had the correct Thai label for this value.
+
+---
+
 ## [2026-08-12] — Fix: batch 90 — safeHref for gradeSheetUrl anchor in T_Students
 
 ### Bug fixes
