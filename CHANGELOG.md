@@ -1,5 +1,16 @@
 # CHANGELOG — Co_project
 
+## [2026-08-12] — Fix: batch 92 — wrong URL in PlacementLetterCard acknowledge endpoint
+
+### Bug fixes
+- **`Frontend/src/components/PlacementLetterCard.tsx:40`**: `handleDownloadAndAck` called
+  `POST /api/students/acknowledge-placement-letter` which does not exist (404). The correct
+  route is `POST /api/students/download-placement-letter`. The 404 prevented the student's
+  coop status from advancing to `INTERNSHIP_STARTED`, blocking T002 submission for the rest
+  of the internship workflow.
+
+---
+
 ## [2026-08-12] — Fix: batch 91 — QUALIFICATION_FAILED status in A_CoopApplications rejection button
 
 ### Bug fixes

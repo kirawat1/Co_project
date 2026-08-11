@@ -37,7 +37,7 @@ export default function PlacementLetterCard({
 
         try {
             const res = await apiFetch(
-                "/api/students/acknowledge-placement-letter",
+                "/api/students/download-placement-letter",
                 {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
