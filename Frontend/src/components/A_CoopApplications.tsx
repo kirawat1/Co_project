@@ -381,7 +381,7 @@ export default function A_CoopApplications() {
                                     <button className="btn-success" style={{ width: '100%', padding: 14, marginBottom: 10, fontSize: 15 }} onClick={() => updateStatus("QUALIFIED")}>✅ คำร้องผ่านเกณฑ์</button>
                                     <div style={{ display: 'flex', gap: 10 }}>
                                         <button className="btn-warning" style={{ flex: 1 }} onClick={() => updateStatus("APPLICATION_EDITS_REQUIRED")}>⚠️ ส่งกลับให้แก้ไข</button>
-                                        <button className="btn-danger" style={{ flex: 1 }} onClick={() => updateStatus("REJECTED")}>❌ ไม่ผ่าน</button>
+                                        <button className="btn-danger" style={{ flex: 1 }} onClick={() => updateStatus("QUALIFICATION_FAILED")}>❌ ไม่ผ่าน</button>
                                     </div>
                                 </div>
                             </div>
