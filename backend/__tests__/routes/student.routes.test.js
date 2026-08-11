@@ -93,9 +93,10 @@ describe('GET /api/students', () => {
     expect(Array.isArray(students)).toBe(true);
   });
 
-  test('200 — valid teacher token → route is accessible', async () => {
+  test('200 — valid teacher token → route is accessible (scoped to advisees)', async () => {
     const token = makeToken({ id: 5, role: 'teacher' });
 
+    prisma.teacher.findUnique.mockResolvedValue({ id: 3, isCoopTeacher: false });
     prisma.student.findMany.mockResolvedValue([]);
     prisma.student.count.mockResolvedValue(0);
 

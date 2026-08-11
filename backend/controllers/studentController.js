@@ -243,6 +243,19 @@ exports.getStudents = async (req, res) => {
         ],
       });
     }
+
+    // Scope to advisees when caller is a teacher (non-coop-teacher sees only own students)
+    if (req.user?.role === 'teacher') {
+      const teacher = await prisma.teacher.findUnique({
+        where: { userId: req.userId },
+        select: { id: true, isCoopTeacher: true },
+      });
+      if (!teacher) return res.status(404).json({ ok: false, message: 'ไม่พบข้อมูลอาจารย์' });
+      if (!teacher.isCoopTeacher) {
+        conditions.push({ OR: [{ generalAdvisorId: teacher.id }, { coopAdvisorId: teacher.id }] });
+      }
+    }
+
     const where = { AND: conditions };
 
     const [students, total] = await Promise.all([

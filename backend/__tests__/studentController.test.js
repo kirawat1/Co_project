@@ -125,6 +125,54 @@ describe('getStudents', () => {
       expect.objectContaining({ where: { AND: [{ deletedAt: null }] } })
     );
   });
+
+  test('200 — teacher role (non-coop) เพิ่ม advisor filter', async () => {
+    prisma.teacher.findUnique.mockResolvedValue({ id: 7, isCoopTeacher: false });
+    prisma.student.findMany.mockResolvedValue([]);
+    prisma.student.count.mockResolvedValue(0);
+
+    const req = { query: {}, user: { role: 'teacher' }, userId: 99 };
+    const res = makeRes();
+
+    await getStudents(req, res);
+
+    expect(prisma.student.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          AND: [
+            { deletedAt: null },
+            { OR: [{ generalAdvisorId: 7 }, { coopAdvisorId: 7 }] },
+          ],
+        },
+      })
+    );
+  });
+
+  test('200 — teacher role (isCoopTeacher) ไม่เพิ่ม advisor filter', async () => {
+    prisma.teacher.findUnique.mockResolvedValue({ id: 7, isCoopTeacher: true });
+    prisma.student.findMany.mockResolvedValue([]);
+    prisma.student.count.mockResolvedValue(0);
+
+    const req = { query: {}, user: { role: 'teacher' }, userId: 99 };
+    const res = makeRes();
+
+    await getStudents(req, res);
+
+    expect(prisma.student.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { AND: [{ deletedAt: null }] } })
+    );
+  });
+
+  test('404 — teacher role แต่ไม่พบ teacher record', async () => {
+    prisma.teacher.findUnique.mockResolvedValue(null);
+
+    const req = { query: {}, user: { role: 'teacher' }, userId: 99 };
+    const res = makeRes();
+
+    await getStudents(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(404);
+  });
 });
 
 const {
