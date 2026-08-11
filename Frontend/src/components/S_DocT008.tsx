@@ -1,6 +1,12 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 
+function safeHref(url: string | null | undefined): string | undefined {
+  if (!url) return undefined;
+  try { const u = new URL(url); return ['http:', 'https:'].includes(u.protocol) ? url : undefined; }
+  catch { return undefined; }
+}
+
 interface T008Config {
     instructionText: string;
     driveLink: string;
@@ -108,7 +114,7 @@ export default function S_DocT008() {
                         </div>
 
                         {config.driveLink && (
-                            <button className="btn btn-primary" style={{ background: '#ca8a04', width: '100%', maxWidth: '300px' }} onClick={() => window.open(config.driveLink, "_blank")}>
+                            <button className="btn btn-primary" style={{ background: '#ca8a04', width: '100%', maxWidth: '300px' }} onClick={() => { const s = safeHref(config.driveLink); if (s) window.open(s, "_blank"); }}>
                                 🔗 ไปยัง Google Drive
                             </button>
                         )}

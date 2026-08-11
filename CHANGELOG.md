@@ -1,5 +1,18 @@
 # CHANGELOG — Co_project
 
+## [2026-08-12] — Fix: batch 89 — safeHref for admin-configured URL window.open in S_DocT007, S_DocT008, S_DocT005_006
+
+### Bug fixes
+- **`Frontend/src/components/S_DocT007.tsx:98`**: `window.open(config.t007Link, "_blank")` — `t007Link`
+  is an admin-configurable URL from the DB. Added `safeHref()` and guarded the call.
+- **`Frontend/src/components/S_DocT008.tsx:117`**: `window.open(config.driveLink, "_blank")` — same
+  pattern with `driveLink`. Added `safeHref()` and guarded the call.
+- **`Frontend/src/components/S_DocT005_006.tsx:138,164,190`**: three `window.open()` calls with
+  admin-configured `t005Link`, `t006Link`, and `templateLink` from the DB. Added `safeHref()` helper
+  and guarded all three calls.
+
+---
+
 ## [2026-08-12] — Fix: batch 88 — safeHref for onlineLink anchors in S_Supervision
 
 ### Bug fixes
