@@ -1,5 +1,38 @@
 # CHANGELOG — Co_project
 
+## [2026-08-11] — Fix: batch 78 — hardcoded default password, P2003 gaps, keepFileIds array guard, multer size limit
+
+### Bug fixes
+- **`authController.js:loginWithKKU`**: auto-created student accounts received the hardcoded password
+  `"1111111111111"` — anyone who read the source code could log in as any KKU-auto-created student
+  via the manual sign-in form. Fixed: now uses `crypto.randomBytes(32).toString('hex')` so the
+  auto-created password is unguessable (students must use KKU REG / Google OAuth).
+- **`companyController.js:deleteCompany`**: P2003 FK constraint violation (StudentCoop → Company,
+  default RESTRICT) was unhandled, returning unmasked 500. Fixed: caught P2003, returns 409 with
+  descriptive message.
+- **`companyController.js:deleteMentor`**: same P2003 gap — Mentor.delete cascades its sub-rows
+  but StudentCoop.mentorId still blocks. Fixed: 409 on P2003.
+- **`coopPeriodController.js:deletePeriod`**: P2003 gap (StudentCoop → CoopPeriod, RESTRICT).
+  Fixed: 409 on P2003.
+- **`announcementController.js:addOrUpdateAnnouncement`**: `keepFileIds` was JSON.parsed and used
+  with `.includes()` without checking `Array.isArray()`. `JSON.parse("null")` → `null.includes`
+  TypeError → 500; `JSON.parse('"all"')` → substring check silently deleted all files. Fixed:
+  added `Array.isArray` guard before `.includes()`.
+- **`adminRoutes.js`**: `multerMemory` (used for Excel student-import) had no file size limit,
+  allowing arbitrarily large uploads to exhaust server RAM. Fixed: `limits: { fileSize: 10 * 1024 * 1024 }`.
+
+## [2026-08-11] — Test: add docController test coverage (uploadDocument, deleteDocument, deleteDocumentByType, acknowledgeDispatchDownload)
+
+### Tests added
+- **`backend/__tests__/docController.test.js`** (new, 20 tests): covers ownership check in
+  `deleteDocument` (403 if wrong user), lock guard (409 for T002/T003 while submitted),
+  allowlist enforcement in `deleteDocumentByType` (400 for INVALID_TYPE / path traversal),
+  status guard in `acknowledgeDispatchDownload` (400 unless REQ_LETTER_ISSUED), and
+  upload guards in `uploadDocument` (400 no file, 404 student not found, 403 system closed,
+  400 invalid coop status for T002/T003/CP-ACCEPTANCE)
+- Fixed mock: `req.file.originalname` was missing from `makeUploadReq`, causing
+  `Buffer.from(undefined)` TypeError that masked the real status-guard returns
+
 ## [2026-08-08] — Fix: notify.ts JSON.parse throws on corrupted localStorage
 
 ### Bug fix

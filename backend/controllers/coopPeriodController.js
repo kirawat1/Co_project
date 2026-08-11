@@ -134,6 +134,7 @@ exports.deletePeriod = async (req, res) => {
     res.json({ ok: true, message: "Deleted successfully" });
   } catch (error) {
     if (error.code === 'P2025') return res.status(404).json({ ok: false, error: 'ไม่พบรอบสหกิจ' });
+    if (error.code === 'P2003') return res.status(409).json({ ok: false, error: 'ไม่สามารถลบรอบสหกิจได้เพราะมีนักศึกษาอ้างอิงอยู่' });
     console.error("Delete period error:", error);
     res.status(500).json({ ok: false, error: "Server error" });
   }
