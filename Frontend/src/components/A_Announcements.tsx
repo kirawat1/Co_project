@@ -3,6 +3,12 @@ import { apiFetch } from "../utils/apiFetch";
 import type { CSSProperties } from "react";
 import AutoTextarea from "./AutoTextarea";
 
+function safeHref(url: string | null | undefined): string | undefined {
+  if (!url) return undefined;
+  try { const u = new URL(url); return ['http:', 'https:'].includes(u.protocol) ? url : undefined; }
+  catch { return undefined; }
+}
+
 // --- Types ---
 interface CoopPeriod {
   id: number;
@@ -288,7 +294,7 @@ export default function A_Announcements() {
                 {a.attachments.length > 0 && (
                   <div style={chipContainer}>
                     {a.attachments.map((at, i) => (
-                      <div key={i} style={chip} onClick={() => at.type === 'image' ? setPreviewUrl(at.url) : window.open(at.url, '_blank')}>
+                      <div key={i} style={chip} onClick={() => { if (at.type === 'image') { setPreviewUrl(at.url); } else { const s = safeHref(at.url); if (s) window.open(s, '_blank'); } }}>
                         {at.type === "link" ? "🔗" : at.type === "image" ? "🖼️" : "📄"}
                         <span style={chipText}>{at.name}</span>
                       </div>

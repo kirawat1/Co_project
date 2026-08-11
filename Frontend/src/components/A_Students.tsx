@@ -6,6 +6,12 @@ import { useDebounce } from "../hooks/useDebounce";
 import A_StudentEditModal from "./A_StudentEditModal";
 import A_StudentTrash from "./A_StudentTrash";
 
+function safeHref(url: string | null | undefined): string | undefined {
+  if (!url) return undefined;
+  try { const u = new URL(url); return ['http:', 'https:'].includes(u.protocol) ? url : undefined; }
+  catch { return undefined; }
+}
+
 /* =========================
    Types
 ========================= */
@@ -436,7 +442,7 @@ export default function A_Students() {
                       </button>
                       {s.coopApplicationForm?.gradeSheetUrl ? (
                         <a
-                          href={s.coopApplicationForm.gradeSheetUrl}
+                          href={safeHref(s.coopApplicationForm.gradeSheetUrl)}
                           target="_blank"
                           rel="noreferrer"
                           style={{ ...ghostBtn, padding: "5px 10px", borderRadius: 7, fontSize: 12, background: "#eff6ff", color: "#2563eb", border: "1px solid #bfdbfe", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4, fontWeight: 700 }}
