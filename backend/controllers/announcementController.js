@@ -125,7 +125,10 @@ const addOrUpdateAnnouncement = async (req, res) => {
 
       let parsedKeepFileIds = [];
       if (keepFileIds) {
-        try { parsedKeepFileIds = JSON.parse(keepFileIds); } catch { parsedKeepFileIds = []; }
+        try {
+          const parsed = JSON.parse(keepFileIds);
+          parsedKeepFileIds = Array.isArray(parsed) ? parsed : [];
+        } catch { parsedKeepFileIds = []; }
       }
       const toDelete = ann.files.filter(f => !parsedKeepFileIds.includes(f.id));
 

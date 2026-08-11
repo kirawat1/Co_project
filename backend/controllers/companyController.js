@@ -118,6 +118,7 @@ exports.deleteCompany = async (req, res) => {
     if (err.is404) return res.status(404).json({ ok: false, message: err.message });
     if (err.is403) return res.status(403).json({ ok: false, message: err.message });
     if (err.code === 'P2025') return res.status(404).json({ ok: false, message: 'ไม่พบบริษัท' });
+    if (err.code === 'P2003') return res.status(409).json({ ok: false, message: "ไม่สามารถลบบริษัทได้เพราะมีข้อมูลนักศึกษาอ้างอิงอยู่" });
     console.error("Delete Company Error:", err);
     res.status(500).json({ ok: false, message: "ลบไม่สำเร็จ" });
   }
@@ -215,6 +216,7 @@ exports.deleteMentor = async (req, res) => {
     if (err.is404) return res.status(404).json({ ok: false, message: err.message });
     if (err.is403) return res.status(403).json({ ok: false, message: err.message });
     if (err.code === 'P2025') return res.status(404).json({ ok: false, message: 'ไม่พบพี่เลี้ยง' });
+    if (err.code === 'P2003') return res.status(409).json({ ok: false, message: "ไม่สามารถลบพี่เลี้ยงได้เพราะมีข้อมูลนักศึกษาอ้างอิงอยู่" });
     console.error("Delete Mentor Error:", err);
     res.status(500).json({ ok: false, message: "ลบพี่เลี้ยงไม่สำเร็จ" });
   }

@@ -428,7 +428,7 @@ exports.loginWithKKU = async (req, res) => {
         });
       }
 
-      const defaultHash = await bcrypt.hash("1111111111111", 10);
+      const defaultHash = await bcrypt.hash(require('crypto').randomBytes(32).toString('hex'), 10);
       const advName = advisorInfo
         ? [advisorInfo.prefix_th, advisorInfo.first_name_th, advisorInfo.last_name_th].filter(Boolean).join(" ")
         : null;

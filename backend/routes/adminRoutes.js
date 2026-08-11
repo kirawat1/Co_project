@@ -18,7 +18,7 @@ const supervisionController = require('../controllers/supervisionController');
 const teacherController = require('../controllers/teacherController');
 const studentImportController = require('../controllers/studentImportController');
 const studentController = require('../controllers/studentController');
-const multerMemory = require('multer')({ storage: require('multer').memoryStorage() });
+const multerMemory = require('multer')({ storage: require('multer').memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 // สิทธิ์ที่อนุญาตจัดการระบบ (ต้องตรงกับ Prisma enum — lowercase)
 const ADMIN_ROLES = ['teacher', 'staff'];
