@@ -1,5 +1,14 @@
 # CHANGELOG — Co_project
 
+## [2026-08-11] — Fix: batch 80 — defense-in-depth safeHref for onlineLink in calendar and review modal
+
+### Bug fixes
+- **`SupervisionCalendar.tsx:55`** and **`T_SupervisionReview.tsx:404`**: `onlineLink` was
+  rendered as a bare `href` attribute with no protocol check. Although the backend now rejects
+  non-http/https URLs on write (batch 79), legacy data already in the DB could still contain
+  `javascript:` URLs. Added a `safeHref()` helper in both files — strips `href` to undefined
+  for any URL that is not http or https.
+
 ## [2026-08-11] — Fix: batch 79 — stored XSS via onlineLink, JSON.parse crash in S_Supervision
 
 ### Bug fixes
