@@ -8,6 +8,12 @@ import ConfirmDialog from "./ConfirmDialog";
 import Spinner from "./Spinner";
 import { useDebounce } from "../hooks/useDebounce";
 
+function safeHref(url: string | null | undefined): string | undefined {
+  if (!url) return undefined;
+  try { const u = new URL(url); return ['http:', 'https:'].includes(u.protocol) ? url : undefined; }
+  catch { return undefined; }
+}
+
 // ================= TYPES =================
 type Document = { id: number; name: string; path: string; type: string };
 type Mentor = { id: string; firstName: string; lastName: string; email: string; phone?: string; position?: string; };
@@ -343,7 +349,7 @@ export default function A_CoopApplications() {
                                         {/* แบบฟอร์มตรวจสอบการสำเร็จการศึกษา */}
                                         {selectedApp.student.coopApplicationForm?.gradeSheetUrl ? (
                                             <a
-                                                href={selectedApp.student.coopApplicationForm.gradeSheetUrl}
+                                                href={safeHref(selectedApp.student.coopApplicationForm.gradeSheetUrl)}
                                                 target="_blank"
                                                 rel="noreferrer"
                                                 style={{ display: "flex", alignItems: "center", gap: 8, padding: 12, background: "#eff6ff", border: "1px solid #bfdbfe", borderLeft: "4px solid #2563eb", borderRadius: 8, fontSize: 13, fontWeight: 700, color: "#2563eb", textDecoration: "none" }}
