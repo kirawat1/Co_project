@@ -1,5 +1,19 @@
 # CHANGELOG — Co_project
 
+## [2026-08-12] — Fix: batch 93 — teacher data exposure via GET /api/students
+
+### Bug fixes
+- **`backend/controllers/studentController.js`**: `getStudents` returned ALL students to any
+  caller with the `teacher` role — no advisor scoping. A teacher could see every student's
+  coop application and documents, not just their own advisees. Fixed by looking up the caller's
+  `Teacher` record when `req.user.role === 'teacher'` and appending
+  `OR [generalAdvisorId, coopAdvisorId]` to the Prisma `where` clause (mirrors the existing
+  pattern in `getMyStudents`). `isCoopTeacher` teachers are exempt and still see all students.
+- **`backend/__tests__/studentController.test.js`**: added 3 tests covering the new scoping
+  path (non-coop teacher gets advisor filter, coop teacher doesn't, 404 when teacher record missing).
+- **`backend/__tests__/routes/student.routes.test.js`**: updated existing teacher-route test
+  to mock `prisma.teacher.findUnique` so the route integration test reflects the new scoping.
+
 ## [2026-08-12] — Fix: batch 92 — wrong URL in PlacementLetterCard acknowledge endpoint
 
 ### Bug fixes
