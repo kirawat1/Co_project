@@ -1,6 +1,12 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 
+function safeHref(url: string | null | undefined): string | undefined {
+  if (!url) return undefined;
+  try { const u = new URL(url); return ['http:', 'https:'].includes(u.protocol) ? url : undefined; }
+  catch { return undefined; }
+}
+
 interface T007Config {
     instructionText: string;
     t007Link: string;
@@ -89,7 +95,7 @@ export default function S_DocT007() {
                             </button>
                         </div>
 
-                        <button className="btn btn-primary" style={{ width: '100%' }} onClick={() => window.open(config.t007Link, "_blank")}>
+                        <button className="btn btn-primary" style={{ width: '100%' }} onClick={() => { const s = safeHref(config.t007Link); if (s) window.open(s, "_blank"); }}>
                             🔗 เปิดฟอร์มประเมิน T007
                         </button>
                     </div>

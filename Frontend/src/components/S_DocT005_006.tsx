@@ -1,6 +1,12 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 
+function safeHref(url: string | null | undefined): string | undefined {
+  if (!url) return undefined;
+  try { const u = new URL(url); return ['http:', 'https:'].includes(u.protocol) ? url : undefined; }
+  catch { return undefined; }
+}
+
 interface EvalConfig {
     instructionText: string;
     ccEmails: string;
@@ -129,7 +135,7 @@ export default function S_DocT005_006() {
                             </button>
                         </div>
 
-                        <button className="btn btn-primary" style={{ width: '100%' }} onClick={() => window.open(config.t005Link, "_blank")}>
+                        <button className="btn btn-primary" style={{ width: '100%' }} onClick={() => { const s = safeHref(config.t005Link); if (s) window.open(s, "_blank"); }}>
                             🔗 เปิดหน้าฟอร์ม T005
                         </button>
                     </div>
@@ -155,7 +161,7 @@ export default function S_DocT005_006() {
                             </button>
                         </div>
 
-                        <button className="btn btn-primary" style={{ width: '100%' }} onClick={() => window.open(config.t006Link, "_blank")}>
+                        <button className="btn btn-primary" style={{ width: '100%' }} onClick={() => { const s = safeHref(config.t006Link); if (s) window.open(s, "_blank"); }}>
                             🔗 เปิดหน้าฟอร์ม T006
                         </button>
                     </div>
@@ -181,7 +187,7 @@ export default function S_DocT005_006() {
                             </button>
                         </div>
 
-                        <button className="btn-warning" style={{ width: '100%' }} onClick={() => window.open(config.templateLink, "_blank")}>
+                        <button className="btn-warning" style={{ width: '100%' }} onClick={() => { const s = safeHref(config.templateLink); if (s) window.open(s, "_blank"); }}>
                             🔗 เปิดหน้า Template Email
                         </button>
                     </div>
