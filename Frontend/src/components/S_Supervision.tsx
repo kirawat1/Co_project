@@ -449,9 +449,7 @@ export default function S_Supervision() {
                                     <div style={{ marginTop: 15 }}>
                                         <div style={lblStyle}>ช่วงเวลาที่เสนอไป:</div>
                                         <ul style={{ margin: '8px 0 0 0', paddingLeft: 20, color: '#334155' }}>
-                                            {JSON.parse(appointment.proposedDates).map((d: string, i: number) => (
-                                                <li key={i} style={{ marginBottom: 6 }}>{formatProposedDate(d)}</li>
-                                            ))}
+                                            {(() => { try { const arr = JSON.parse(appointment.proposedDates); return Array.isArray(arr) ? arr.map((d: string, i: number) => <li key={i} style={{ marginBottom: 6 }}>{formatProposedDate(d)}</li>) : null; } catch { return null; } })()}
                                         </ul>
                                     </div>
                                 </div>
