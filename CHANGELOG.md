@@ -1,5 +1,15 @@
 # CHANGELOG — Co_project
 
+## [2026-08-13] — Fix: batch 98 — same period-filter loss in T_T002Review / T_T003Review (teacher side)
+
+### Bug fixes
+- **`Frontend/src/components/T_T002Review.tsx`** and **`T_T003Review.tsx`**:
+  Same bug as batch 97: after submitting a review the teacher components called `fetchStudents()`
+  (which ignores the active period filter) instead of `reloadStudents(selectedPeriod)`.
+  Fixed to keep the table scoped to the selected period after approve/reject.
+
+---
+
 ## [2026-08-13] — Fix: batch 97 — period filter lost after T002/T003 review submit
 
 ### Bug fixes
