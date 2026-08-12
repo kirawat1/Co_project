@@ -39,6 +39,10 @@ exports.createVisit = async (req, res) => {
     const { studentId, date, time, location, note } = req.body;
     const teacherId = req.user.id; // มาจาก Token (authMiddleware)
 
+    if (!studentId || !date || isNaN(new Date(date).getTime())) {
+      return res.status(400).json({ ok: false, message: "studentId และ date เป็นข้อมูลที่จำเป็น" });
+    }
+
     // หา Student ID (Int) จาก รหัส (String)
     const student = await prisma.student.findUnique({
       where: { studentId: studentId }
