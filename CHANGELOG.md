@@ -1,5 +1,17 @@
 # CHANGELOG — Co_project
 
+## [2026-08-13] — Fix: batch 100 — bookedDayMap name-collision bug in T_SupervisionReview
+
+### Bug fixes
+- **`Frontend/src/components/T_SupervisionReview.tsx`**:
+  `bookedDayMap` stored student full name and compared by name to determine if a slot was
+  "booked by a different student." Two students with identical firstName+lastName would cause
+  the check to wrongly pass, allowing a teacher to double-book a day. Fixed by storing
+  `studentId` in the map and comparing by ID instead. Removed a redundant second `get` call
+  as a side effect.
+
+---
+
 ## [2026-08-13] — Fix: batch 99 — missing presence checks in companyController
 
 ### Bug fixes
