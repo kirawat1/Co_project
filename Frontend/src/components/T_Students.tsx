@@ -78,12 +78,6 @@ interface CoopPeriod {
 }
 
 // --- Constants ---
-function safeHref(url: string | null | undefined): string | undefined {
-  if (!url) return undefined;
-  try { const u = new URL(url); return ['http:', 'https:'].includes(u.protocol) ? url : undefined; }
-  catch { return undefined; }
-}
-
 const CURRICULUM_TH: Record<string, string> = {
   normal: "ภาคปกติ",
   special: "ภาคพิเศษ",
