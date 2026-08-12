@@ -1,5 +1,14 @@
 # CHANGELOG — Co_project
 
+## [2026-08-13] — Fix: batch 103 — remove duplicate safeHref in T_Students
+
+### Bug fixes
+- **`Frontend/src/components/T_Students.tsx`**:
+  `safeHref` was defined twice in the same module scope (line 7 and line 81),
+  making the first declaration dead code. Removed the second (duplicate) definition.
+
+---
+
 ## [2026-08-13] — Fix: batch 102 — getLatestRequests missing isCoopTeacher scope
 
 ### Bug fixes
