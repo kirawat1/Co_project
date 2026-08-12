@@ -1,5 +1,20 @@
 # CHANGELOG — Co_project
 
+## [2026-08-12] — Fix: batch 94 — unvalidated docType in uploadDocument
+
+### Bug fixes
+- **`backend/controllers/docController.js`**: `uploadDocument` accepted any arbitrary string as
+  `docType` from `req.body` and stored it directly in `Document.type` without validation. A student
+  could craft a request with `docType: "PLACEMENT_LETTER"` (or any other string) to inject
+  unexpected type values into their document record, potentially confusing admin workflows that
+  filter documents by type. Fixed by validating `docType` against a hardcoded allowlist of special
+  types (`CP-ACCEPTANCE`, `T002_FORM`, `T003_FORM`) and the active `DocumentRequirement.docKey`
+  values from the DB. Invalid types are rejected with 400 and the uploaded file is deleted.
+- **`backend/__tests__/__mocks__/prismaClient.js`**: added `findFirst` to `documentRequirement`
+  mock (was missing).
+- **`backend/__tests__/docController.test.js`**: added 1 new test for invalid-docType rejection;
+  updated 2 existing tests (`CP-CV` paths) to mock `documentRequirement.findFirst`.
+
 ## [2026-08-12] — Fix: batch 93 — teacher data exposure via GET /api/students
 
 ### Bug fixes
