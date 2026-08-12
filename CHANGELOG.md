@@ -1,5 +1,16 @@
 # CHANGELOG — Co_project
 
+## [2026-08-13] — Fix: batch 97 — period filter lost after T002/T003 review submit
+
+### Bug fixes
+- **`Frontend/src/components/A_DocT002Review.tsx`** and **`A_DocT003Review.tsx`**:
+  After submitting an approve/reject review, the components called `fetchAllData()` which
+  re-fetches all students with no period filter. The period dropdown still visually showed
+  the selected period, creating a silent state inconsistency. Changed to
+  `reloadStudents(selectedPeriod)` so the displayed list stays scoped to the active period.
+
+---
+
 ## [2026-08-13] — Fix: batch 96 — password hash in API response + validation gaps in studentController
 
 ### Bug fixes

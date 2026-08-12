@@ -239,7 +239,7 @@ export default function A_DocT003Review() {
                     });
                     toast.success(`บันทึกผลเรียบร้อย (${action === 'APPROVE' ? 'อนุมัติ' : 'ตีกลับ'})`);
                     setModalOpen(false);
-                    fetchAllData();
+                    reloadStudents(selectedPeriod);
                 } catch {
                     toast.error("เกิดข้อผิดพลาดในการบันทึกข้อมูล");
                 } finally {

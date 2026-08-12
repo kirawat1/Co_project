@@ -234,7 +234,7 @@ export default function A_T002Review() {
 
             alert(`บันทึกผลเรียบร้อย (${action === 'APPROVE' ? 'อนุมัติ' : 'ตีกลับ'})`);
             setModalOpen(false);
-            fetchAllData();
+            reloadStudents(selectedPeriod);
         } catch (err) {
             console.error(err);
             alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล");
