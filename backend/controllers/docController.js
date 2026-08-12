@@ -156,6 +156,23 @@ exports.uploadDocument = async (req, res) => {
     
     const { docType } = req.body;
 
+    // Validate docType against allowlist (special types + active DocumentRequirement.docKey)
+    const SPECIAL_DOC_TYPES = new Set(['CP-ACCEPTANCE', 'T002_FORM', 'T003_FORM']);
+    if (!docType || typeof docType !== 'string') {
+      if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+      return res.status(400).json({ ok: false, message: "ประเภทเอกสารไม่ถูกต้อง" });
+    }
+    if (!SPECIAL_DOC_TYPES.has(docType)) {
+      const validReq = await prisma.documentRequirement.findFirst({
+        where: { docKey: docType, isActive: true },
+        select: { id: true }
+      });
+      if (!validReq) {
+        if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+        return res.status(400).json({ ok: false, message: "ประเภทเอกสารไม่ถูกต้อง" });
+      }
+    }
+
     // เช็คระบบเปิดรับ (ยกเว้นใบตอบรับ ให้ส่งได้ตลอด)
     const isOpen = await checkSystemOpen(docType);
     if (docType !== 'CP-ACCEPTANCE' && !isOpen) {

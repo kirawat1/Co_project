@@ -215,7 +215,17 @@ describe('docController', () => {
       expect(res.status).toHaveBeenCalledWith(400);
     });
 
+    test('400 — docType ที่ไม่อยู่ใน allowlist ถูก reject', async () => {
+      prisma.documentRequirement.findFirst.mockResolvedValue(null); // ไม่มีใน DocumentRequirement
+      const req = makeUploadReq('FAKE_PLACEMENT_LETTER');
+      const res = makeRes();
+      await docController.uploadDocument(req, res);
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(prisma.student.findUnique).not.toHaveBeenCalled();
+    });
+
     test('404 — ไม่พบนักศึกษา', async () => {
+      prisma.documentRequirement.findFirst.mockResolvedValue({ id: 1 }); // valid docKey
       prisma.systemConfig.findUnique.mockResolvedValue(null); // ระบบเปิด (no config)
       prisma.student.findUnique.mockResolvedValue(null);
 
@@ -262,6 +272,7 @@ describe('docController', () => {
     });
 
     test('403 — ระบบปิดรับเอกสาร T000 (isOpen = false)', async () => {
+      prisma.documentRequirement.findFirst.mockResolvedValue({ id: 1 }); // valid docKey
       prisma.systemConfig.findUnique.mockResolvedValue({
         key: 'T000_CONFIG',
         value: JSON.stringify({ isOpen: false, startDate: null, endDate: null }),
