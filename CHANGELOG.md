@@ -1,5 +1,17 @@
 # CHANGELOG — Co_project
 
+## [2026-08-13] — Fix: batch 101 — role escalation in loginWithKKU
+
+### Bug fixes
+- **`backend/controllers/authController.js`** (`loginWithKKU`):
+  User lookup at line 366 used `findFirst` without a `role` filter. If a teacher account
+  shared the same email as a KKU student, the student's KKU login would retrieve the teacher
+  User row and issue a teacher JWT — privilege escalation. Added `role: "student"` to the
+  `WHERE` clause so only a student-role record is matched; a teacher email collision now
+  falls through to the new-account path and fails with P2002, returning a 409.
+
+---
+
 ## [2026-08-13] — Fix: batch 100 — bookedDayMap name-collision bug in T_SupervisionReview
 
 ### Bug fixes

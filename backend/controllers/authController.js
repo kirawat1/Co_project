@@ -364,7 +364,7 @@ exports.loginWithKKU = async (req, res) => {
     // 3. ค้นหา email ในระบบ (email ที่ login = KKU email)
     const email = (studentInfo.mail || studentInfo.email || username).toLowerCase();
     let user = await prisma.user.findFirst({
-      where: { OR: [{ email }, { username: email }] },
+      where: { OR: [{ email }, { username: email }], role: "student" },
       include: { student: true, teacher: true },
     });
 
