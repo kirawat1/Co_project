@@ -1,5 +1,23 @@
 # CHANGELOG — Co_project
 
+## [2026-08-13] — Fix: batch 96 — password hash in API response + validation gaps in studentController
+
+### Bug fixes
+- **`backend/controllers/studentController.js`**:
+  - `getMyProfile`: `include: { user: true }` fetched the full User row (including bcrypt password
+    hash) and spread it into the JSON response via `...student`. Changed to
+    `user: { select: { email: true } }` so the hash is never serialised.
+  - `updateStudentBasicInfo`: same `user: true` change for the pre-fetch (hash was not in the
+    response here, but the unnecessary exposure is removed). Added a TOCTOU re-check of `deletedAt`
+    inside the `$transaction` before the student update, closing a race window with concurrent
+    `softDeleteStudent` calls.
+  - `updateMyProfile` (secondary email list): replaced the empty-string filter with a proper
+    format regex (`/^[^\s@]+@[^\s@]+\.[^\s@]+$/`) to reject garbage strings before they land in
+    the `StudentEmail` table.
+  - `syncFromReg`: added `typeof kkuUsername !== 'string' || typeof kkuPassword !== 'string'`
+    type checks alongside the truthiness guard, preventing arrays/objects being forwarded to the
+    KKU API client.
+
 ## [2026-08-13] — Fix: batch 95 — missing input validation in visitController and docRequirementController
 
 ### Bug fixes
