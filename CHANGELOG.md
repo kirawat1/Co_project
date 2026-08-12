@@ -1,5 +1,21 @@
 # CHANGELOG — Co_project
 
+## [2026-08-13] — Fix: batch 95 — missing input validation in visitController and docRequirementController
+
+### Bug fixes
+- **`backend/controllers/visitController.js`**: `createVisit` did not validate that `studentId` and
+  `date` were present and well-formed before use. A missing `studentId` caused `findUnique({ where:
+  {} })` to throw P2012; a missing or non-date `date` produced `Invalid Date` which Prisma rejected
+  with an unhandled 500. Fixed by adding a guard that returns 400 when either field is absent or
+  `date` is not a valid date string.
+- **`backend/controllers/docRequirementController.js`**: `createRequirement` passed `docKey` and
+  `title` from `req.body` directly to Prisma without checking for presence; missing values caused
+  P2012 (unhandled 500 instead of 400). Fixed with an explicit presence+type check returning 400.
+  `updateRequirement` spread the entire destructured body into the Prisma `data` object, so an
+  explicit `null` for a required field (`docKey`, `title`) bypassed the `undefined`-stripping that
+  Prisma normally does, causing a validation 500. Fixed by building the `data` object only from
+  defined keys and rejecting explicit `null` for required string fields with 400.
+
 ## [2026-08-12] — Fix: batch 94 — unvalidated docType in uploadDocument
 
 ### Bug fixes
