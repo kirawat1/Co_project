@@ -184,7 +184,7 @@ export default function T_T003Review() {
                     }, { headers: { Authorization: `Bearer ${token}` } });
                     toast.success(`บันทึกผลเรียบร้อย (${action === 'APPROVE' ? 'อนุมัติ' : 'ตีกลับ'})`);
                     setModalOpen(false);
-                    fetchStudents();
+                    reloadStudents(selectedPeriod);
                 } catch { toast.error("เกิดข้อผิดพลาดในการบันทึกข้อมูล"); }
                 finally { setLoading(false); }
             },

@@ -168,7 +168,7 @@ export default function T_T002Review() {
 
             alert(`บันทึกผลเรียบร้อย`);
             setModalOpen(false);
-            fetchStudents();
+            reloadStudents(selectedPeriod);
         } catch (err) { alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล"); }
         finally { setLoading(false); }
     };
