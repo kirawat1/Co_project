@@ -1,5 +1,16 @@
 # CHANGELOG — Co_project
 
+## [2026-08-13] — Fix: batch 104 — filterCompany missing from useMemo deps in A_SupervisionManage
+
+### Bug fixes
+- **`Frontend/src/components/A_SupervisionManage.tsx`** (`processedSupervisions` useMemo):
+  `filterCompany` was used inside the memoized filter callback but was absent
+  from the dependency array `[supervisions, q, filterPeriodId, sortKey, sortDirection]`.
+  Changing the company dropdown had no effect because React never re-ran the memo.
+  Added `filterCompany` to the dependency array.
+
+---
+
 ## [2026-08-13] — Fix: batch 103 — remove duplicate safeHref in T_Students
 
 ### Bug fixes
