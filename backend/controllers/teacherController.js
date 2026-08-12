@@ -466,10 +466,14 @@ exports.getLatestRequests = async (req, res) => {
             return res.status(400).json({ ok: false, message: 'semester ไม่ถูกต้อง' });
         const yearStr = year ? String(year) : undefined;
 
+        const studentScope = teacher.isCoopTeacher
+            ? { deletedAt: null }
+            : { deletedAt: null, OR: [{ generalAdvisorId: teacher.id }, { coopAdvisorId: teacher.id }] };
+
         // ดึงจากตาราง StudentCoop ตรงๆ จะได้ไม่ติด Error เรื่อง Relation
         const studentCoops = await prisma.studentCoop.findMany({
             where: {
-                student: { deletedAt: null, OR: [{ generalAdvisorId: teacher.id }, { coopAdvisorId: teacher.id }] },
+                student: studentScope,
                 status: { not: 'NOT_SUBMITTED' }, // เอาคนที่ยื่นแล้ว
                 ...(semesterInt && yearStr ? {
                     coopPeriod: { semester: semesterInt, academicYear: yearStr }
