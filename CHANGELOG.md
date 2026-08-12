@@ -1,5 +1,19 @@
 # CHANGELOG — Co_project
 
+## [2026-08-13] — Fix: batch 102 — getLatestRequests missing isCoopTeacher scope
+
+### Bug fixes
+- **`backend/controllers/teacherController.js`** (`getLatestRequests`):
+  The "latest requests" query always filtered students by direct advisor FK
+  (`generalAdvisorId` / `coopAdvisorId`) regardless of `teacher.isCoopTeacher`.
+  `getDashboardStats` and `getMyStudents` both apply a wider scope (all students)
+  when `isCoopTeacher = true`. The mismatch meant coop teachers saw correct totals
+  in the dashboard stats widget but an incomplete list in the "latest requests"
+  widget. Fixed by computing `studentScope` from `isCoopTeacher` before the query,
+  matching the pattern used by the other two endpoints.
+
+---
+
 ## [2026-08-13] — Fix: batch 101 — role escalation in loginWithKKU
 
 ### Bug fixes
