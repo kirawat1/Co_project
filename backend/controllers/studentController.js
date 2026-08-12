@@ -18,7 +18,7 @@ exports.getMyProfile = async (req, res) => {
         },
         coopApplicationForm: true,
         documents: true,
-        user: true,
+        user: { select: { email: true } },
         t002Form: true, // เพิ่มการดึงข้อมูลฟอร์ม T002
         t003Form: true, // เพิ่มการดึงข้อมูลฟอร์ม T003
         generalAdvisor: { select: { prefix: true, firstName: true, lastName: true, email: true } },
@@ -150,7 +150,8 @@ exports.updateMyProfile = async (req, res) => {
       });
 
       if (data.emails && Array.isArray(data.emails)) {
-        const validEmails = data.emails.filter(e => e.email && e.email.trim() !== "");
+        const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        const validEmails = data.emails.filter(e => e.email && EMAIL_RE.test(e.email.trim()));
         await tx.studentEmail.deleteMany({ where: { studentId: student.id } });
         if (validEmails.length > 0) {
           await tx.studentEmail.createMany({
@@ -349,7 +350,8 @@ exports.downloadPlacementLetter = async (req, res) => {
 exports.syncFromReg = async (req, res) => {
   const { kkuUsername, kkuPassword } = req.body;
 
-  if (!kkuUsername || !kkuPassword) {
+  if (!kkuUsername || !kkuPassword ||
+      typeof kkuUsername !== 'string' || typeof kkuPassword !== 'string') {
     return res.status(400).json({ ok: false, message: "กรุณาระบุ KKU Username และ Password" });
   }
 
@@ -508,7 +510,7 @@ exports.updateStudentBasicInfo = async (req, res) => {
       jobPosition, generalAdvisorId, coopAdvisorId,
     } = req.body;
 
-    const student = await prisma.student.findUnique({ where: { id }, include: { user: true } });
+    const student = await prisma.student.findUnique({ where: { id }, include: { user: { select: { email: true } } } });
     if (!student) return res.status(404).json({ ok: false, message: "ไม่พบนักศึกษา" });
     if (student.deletedAt) return res.status(400).json({ ok: false, message: "ไม่สามารถแก้ไขนักศึกษาที่อยู่ในถังขยะได้" });
 
@@ -554,6 +556,12 @@ exports.updateStudentBasicInfo = async (req, res) => {
           if (!advisor) throw Object.assign(new Error("ไม่พบอาจารย์ที่ปรึกษาโครงการที่เลือก"), { is400: true });
           advisorData.coopAdvisorId = advisor.id;
         }
+      }
+
+      // Re-check inside transaction to prevent TOCTOU with concurrent softDelete
+      const freshCheck = await tx.student.findUnique({ where: { id }, select: { deletedAt: true } });
+      if (!freshCheck || freshCheck.deletedAt) {
+        throw Object.assign(new Error("ไม่สามารถแก้ไขนักศึกษาที่อยู่ในถังขยะได้"), { is400: true });
       }
 
       const updatedStudent = await tx.student.update({
