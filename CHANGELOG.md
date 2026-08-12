@@ -1,5 +1,22 @@
 # CHANGELOG — Co_project
 
+## [2026-08-13] — Fix: batch 105 — stored XSS via unsandboxed letter-preview iframes
+
+### Security fix
+- **`Frontend/src/components/IssueLetterModal.tsx`**
+- **`Frontend/src/components/IssueSupervisionLetterModal.tsx`**
+- **`Frontend/src/components/IssuePlacementLetterModal.tsx`**
+
+  Letter preview iframes rendered a blob URL built from unescaped DB values
+  (company name, student name, supervisor names) as raw HTML. Because blob URLs
+  share the creating document's origin (`http://localhost:5173`), any `<script>`
+  injected through those fields could read `localStorage.getItem("coop.token")`
+  and exfiltrate the auth token.
+
+  Added `sandbox=""` attribute to all three iframes — blocks script execution
+  (and forms, popups, navigation) while leaving HTML/CSS rendering intact,
+  since the preview only needs to display text with inline styles.
+
 ## [2026-08-13] — Fix: batch 104 — filterCompany missing from useMemo deps in A_SupervisionManage
 
 ### Bug fixes
