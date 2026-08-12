@@ -237,7 +237,7 @@ export default function A_SupervisionManage() {
         });
 
         return filtered;
-    }, [supervisions, q, filterPeriodId, sortKey, sortDirection]);
+    }, [supervisions, q, filterPeriodId, filterCompany, sortKey, sortDirection]);
 
     // ─── handleEditDate ─────────────────────────────────────────
     const openEditDateModal = (sup: Supervision) => {
