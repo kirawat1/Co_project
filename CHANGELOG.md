@@ -1,5 +1,17 @@
 # CHANGELOG — Co_project
 
+## [2026-08-13] — Fix: batch 99 — missing presence checks in companyController
+
+### Bug fixes
+- **`backend/controllers/companyController.js`**:
+  - `addCompany`: `name` (NOT NULL, no default) was never checked — absent or `undefined`
+    caused Prisma P2012 → unhandled 500. Added `!name || typeof name !== 'string'` guard.
+  - `addMentor`: same for `firstName` and `lastName`. Both are NOT NULL in the Mentor schema.
+    Both endpoints are accessible by students (verifyRole includes 'student'), so missing
+    validation was student-reachable.
+
+---
+
 ## [2026-08-13] — Fix: batch 98 — same period-filter loss in T_T002Review / T_T003Review (teacher side)
 
 ### Bug fixes

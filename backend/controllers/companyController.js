@@ -37,6 +37,10 @@ exports.addCompany = async (req, res) => {
         contactPerson, contactPosition 
     } = req.body;
 
+    if (!name || typeof name !== 'string') {
+      return res.status(400).json({ ok: false, message: "ชื่อบริษัทเป็นข้อมูลที่จำเป็น" });
+    }
+
     if (website && !safeUrl(website)) {
       return res.status(400).json({ ok: false, message: 'website ต้องเป็น URL แบบ http/https เท่านั้น' });
     }
@@ -148,6 +152,10 @@ exports.addMentor = async (req, res) => {
     const { firstName, lastName, department, position, email, phone } = req.body;
     const userId = req.user.id;
     const companyId = req.params.companyId;
+
+    if (!firstName || typeof firstName !== 'string' || !lastName || typeof lastName !== 'string') {
+      return res.status(400).json({ ok: false, message: "ชื่อและนามสกุลพี่เลี้ยงเป็นข้อมูลที่จำเป็น" });
+    }
 
     let mentor;
     await prisma.$transaction(async (tx) => {
