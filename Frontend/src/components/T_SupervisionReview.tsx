@@ -113,7 +113,7 @@ export default function T_SupervisionReview() {
     // (เฉพาะ DATE_CONFIRMED ที่ไม่ใช่รายการปัจจุบัน)
     // ============================================================
     const bookedDayMap = useMemo(() => {
-        const map = new Map<string, { name: string; time: string }>();
+        const map = new Map<string, { name: string; time: string; studentId: string }>();
         supervisions.forEach((sup) => {
             if (sup.status === "DATE_CONFIRMED" && sup.confirmedDate) {
                 const d = new Date(sup.confirmedDate);
@@ -122,6 +122,7 @@ export default function T_SupervisionReview() {
                     map.set(key, {
                         name: `${sup.student.firstName} ${sup.student.lastName}`,
                         time: formatDMYTime(sup.confirmedDate),
+                        studentId: sup.student.studentId,
                     });
                 }
             }
@@ -443,9 +444,9 @@ export default function T_SupervisionReview() {
                                                 try { dates = JSON.parse(selectedAppt.proposedDates || "[]"); } catch { dates = []; }
                                                 return dates.map((dateStr, idx) => {
                                                     const parsed = parseProposed(dateStr);
-                                                    const isBooked = bookedDayMap.has(parsed.dayKey) &&
-                                                        bookedDayMap.get(parsed.dayKey)?.name !== `${selectedAppt.student.firstName} ${selectedAppt.student.lastName}`;
-                                                    const bookedBy = isBooked ? bookedDayMap.get(parsed.dayKey) : null;
+                                                    const bookedEntry = bookedDayMap.get(parsed.dayKey);
+                                                    const isBooked = !!bookedEntry && bookedEntry.studentId !== selectedAppt.student.studentId;
+                                                    const bookedBy = isBooked ? bookedEntry : null;
 
                                                     return (
                                                         <div key={idx} style={{
