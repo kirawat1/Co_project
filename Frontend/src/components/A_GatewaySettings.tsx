@@ -98,23 +98,25 @@ export default function A_GatewaySettings() {
   return (
     <div className="card" style={{ maxWidth: 720, margin: "0 auto" }}>
       <div className="card-head">
-        <h2 className="profile-title">⚙️ ตั้งค่าหน้าฟอร์มยื่นคำร้อง (S_Gateway)</h2>
+        <h2 className="profile-title">⚙️ ตั้งค่าหน้าฟอร์มยื่นคำร้อง</h2>
       </div>
       <div className="divider" />
 
-      <p style={{ fontSize: 13, color: '#64748b', marginBottom: 24 }}>
+      <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 24 }}>
         ข้อความและลิงก์ที่ตั้งค่าที่นี่จะแสดงในหน้า "ฟอร์มยื่นคำร้องและอัปโหลดเอกสาร" ของนักศึกษา
       </p>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
         {/* Grade Sheet Section */}
-        <div style={{ padding: '16px 20px', background: '#eff6ff', borderRadius: 12, border: '1px solid #bfdbfe' }}>
-          <div style={{ fontWeight: 700, fontSize: 14, color: '#1e40af', marginBottom: 14 }}>
-            📊 ส่วน: แบบฟอร์มตรวจสอบการสำเร็จการศึกษา
+        <div className="gw-section">
+          <div className="gw-section-head">
+            <span className="gw-badge gw-badge-blue">📊</span>
+            <span>ส่วน: แบบฟอร์มตรวจสอบการสำเร็จการศึกษา</span>
           </div>
 
           <div style={{ marginBottom: 14 }}>
-            <label className="label">คำอธิบายของส่วนนี้</label>
+            <label className="label" style={{ marginBottom: 6, display: 'block' }}>คำอธิบายของส่วนนี้</label>
             <textarea
               className="input"
               rows={2}
@@ -122,14 +124,13 @@ export default function A_GatewaySettings() {
               value={settings.gradeSheetDescription}
               onChange={e => setSettings(s => ({ ...s, gradeSheetDescription: e.target.value }))}
               placeholder="คำอธิบายที่จะแสดงใต้หัวข้อ"
+              style={{ height: 'auto', paddingTop: 10, paddingBottom: 10, resize: 'vertical' }}
             />
-            <p style={{ fontSize: 11, color: '#94a3b8', margin: '2px 0 0', textAlign: 'right' }}>
-              {settings.gradeSheetDescription.length}/500
-            </p>
+            <p className="gw-hint" style={{ textAlign: 'right' }}>{settings.gradeSheetDescription.length}/500</p>
           </div>
 
           <div style={{ marginBottom: 14 }}>
-            <label className="label">URL ของแบบฟอร์ม (Google Sheets)</label>
+            <label className="label" style={{ marginBottom: 6, display: 'block' }}>URL ของแบบฟอร์ม (Google Sheets)</label>
             <input
               className="input"
               value={settings.gradeSheetUrl}
@@ -137,13 +138,13 @@ export default function A_GatewaySettings() {
               placeholder="https://docs.google.com/spreadsheets/d/..."
               maxLength={500}
             />
-            <p style={{ fontSize: 12, color: '#64748b', margin: '4px 0 0' }}>
-              ต้องขึ้นต้นด้วย https:// เท่านั้น — ลิงก์ที่นักศึกษาจะกดเพื่อ Make a Copy
-            </p>
+            <p className="gw-hint">ต้องขึ้นต้นด้วย https:// เท่านั้น — ลิงก์ที่นักศึกษาจะกดเพื่อ Make a Copy</p>
           </div>
 
           <div>
-            <label className="label">ข้อความบนปุ่ม/ลิงก์ <span style={{ color: 'red' }}>*</span></label>
+            <label className="label" style={{ marginBottom: 6, display: 'block' }}>
+              ข้อความบนปุ่ม/ลิงก์ <span style={{ color: '#ef4444' }}>*</span>
+            </label>
             <input
               className="input"
               value={settings.gradeSheetLinkText}
@@ -155,13 +156,14 @@ export default function A_GatewaySettings() {
         </div>
 
         {/* Upload Section */}
-        <div style={{ padding: '16px 20px', background: '#f0fdf4', borderRadius: 12, border: '1px solid #bbf7d0' }}>
-          <div style={{ fontWeight: 700, fontSize: 14, color: '#166534', marginBottom: 14 }}>
-            📎 ส่วน: อัปโหลดเอกสารประกอบ
+        <div className="gw-section">
+          <div className="gw-section-head">
+            <span className="gw-badge gw-badge-green">📎</span>
+            <span>ส่วน: อัปโหลดเอกสารประกอบ</span>
           </div>
 
           <div>
-            <label className="label">คำอธิบายใต้หัวข้ออัปโหลด</label>
+            <label className="label" style={{ marginBottom: 6, display: 'block' }}>คำอธิบายใต้หัวข้ออัปโหลด</label>
             <input
               className="input"
               value={settings.uploadDescription}
@@ -173,40 +175,67 @@ export default function A_GatewaySettings() {
         </div>
 
         {/* Preview */}
-        <div style={{ padding: '16px 20px', background: '#fafafa', borderRadius: 12, border: '1px solid #e2e8f0' }}>
-          <div style={{ fontWeight: 700, fontSize: 14, color: '#334155', marginBottom: 10 }}>
-            👁️ ตัวอย่างที่นักศึกษาจะเห็น
+        <div className="gw-section gw-preview">
+          <div className="gw-section-head">
+            <span className="gw-badge gw-badge-gray">👁️</span>
+            <span>ตัวอย่างที่นักศึกษาจะเห็น</span>
           </div>
-          <div style={{ padding: '12px 16px', background: '#eff6ff', borderRadius: 10, border: '1px solid #bfdbfe', marginBottom: 10 }}>
-            <div style={{ fontWeight: 700, fontSize: 14, color: '#1e40af', marginBottom: 4 }}>
+          <div className="gw-preview-card">
+            <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 6, color: 'var(--text)' }}>
               📊 แบบฟอร์มตรวจสอบการสำเร็จการศึกษา
             </div>
-            <p style={{ fontSize: 12, color: '#3b82f6', margin: '0 0 8px' }}>
-              {settings.gradeSheetDescription || <em style={{ color: '#94a3b8' }}>(ยังไม่มีคำอธิบาย)</em>}
+            <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '0 0 12px', lineHeight: 1.5 }}>
+              {settings.gradeSheetDescription || <em style={{ color: 'var(--text-sub)' }}>(ยังไม่มีคำอธิบาย)</em>}
             </p>
-            <span style={{ display: 'inline-block', padding: '6px 14px', background: '#2563eb', color: '#fff', borderRadius: 6, fontWeight: 700, fontSize: 12 }}>
-              {settings.gradeSheetLinkText.trim() || <em style={{ color: '#bfdbfe' }}>(ข้อความว่าง — ปุ่มจะมองไม่เห็น)</em>}
+            <span className="btn btn-primary" style={{ fontSize: 13, height: 36, padding: '0 16px', pointerEvents: 'none' }}>
+              {settings.gradeSheetLinkText.trim() || <em style={{ opacity: .6 }}>(ข้อความว่าง)</em>}
             </span>
           </div>
-          <div style={{ fontSize: 12, color: '#64748b' }}>
-            อัปโหลดเอกสารประกอบ — <em>{settings.uploadDescription || '(ยังไม่มีคำอธิบาย)'}</em>
+          <div style={{ marginTop: 12, fontSize: 13, color: 'var(--text-muted)' }}>
+            📎 อัปโหลดเอกสารประกอบ — <em style={{ color: 'var(--text-sub)' }}>{settings.uploadDescription || '(ยังไม่มีคำอธิบาย)'}</em>
           </div>
         </div>
       </div>
 
-      <div className="action-row" style={{ marginTop: 24, borderTop: '1px solid #e2e8f0', paddingTop: 20 }}>
+      <div className="action-row" style={{ marginTop: 24, borderTop: '1px solid var(--border)', paddingTop: 20 }}>
         <button className="btn btn-secondary" onClick={handleReset} disabled={saving} type="button">
-          รีเซ็ตและบันทึกค่าเริ่มต้น
+          รีเซ็ตค่าเริ่มต้น
         </button>
-        <button
-          className="btn btn-success"
-          onClick={() => handleSave()}
-          disabled={saving}
-          type="button"
-        >
+        <button className="btn btn-success" onClick={() => handleSave()} disabled={saving} type="button">
           {saving ? 'กำลังบันทึก...' : '💾 บันทึก'}
         </button>
       </div>
+
+      <style>{`
+        .gw-section {
+          padding: 18px 20px;
+          background: var(--surface2);
+          border-radius: 12px;
+          border: 1px solid var(--border);
+        }
+        .gw-section-head {
+          display: flex; align-items: center; gap: 10px;
+          font-weight: 700; font-size: 14px; color: var(--text);
+          margin-bottom: 16px;
+        }
+        .gw-badge {
+          display: inline-flex; align-items: center; justify-content: center;
+          width: 28px; height: 28px; border-radius: 8px; font-size: 15px; flex-shrink: 0;
+        }
+        .gw-badge-blue  { background: rgba(59,130,246,.12); }
+        .gw-badge-green { background: rgba(16,185,129,.12); }
+        .gw-badge-gray  { background: var(--border); }
+        .gw-hint {
+          font-size: 12px; color: var(--text-sub);
+          margin: 4px 0 0;
+        }
+        .gw-preview-card {
+          padding: 14px 16px;
+          background: var(--card-bg);
+          border: 1px solid var(--border);
+          border-radius: 10px;
+        }
+      `}</style>
     </div>
   );
 }
