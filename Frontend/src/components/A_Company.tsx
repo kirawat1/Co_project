@@ -172,13 +172,14 @@ export default function A_Companies() {
   async function remove(id: string) {
     if (!confirm("ลบบริษัทนี้พร้อมพี่เลี้ยงทั้งหมดหรือไม่?")) return;
 
-    const res = await apiFetch(`/api/companies/${id}`, { method: "DELETE" });
+    try {
+      const res = await apiFetch(`/api/companies/${id}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!data.ok) return alert(data.message);
 
-    const data = await res.json();
-    if (!data.ok) return alert(data.message);
-
-    setItems(prev => prev.filter(c => c.id !== id));
-    if (viewCompany?.id === id) setViewCompany(null);
+      setItems(prev => prev.filter(c => c.id !== id));
+      if (viewCompany?.id === id) setViewCompany(null);
+    } catch (err) { alert("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้"); }
   }
 
   /* ---------------- Mentor ---------------- */
