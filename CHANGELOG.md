@@ -1,5 +1,12 @@
 # CHANGELOG — Co_project
 
+## [2026-08-13] fix: batch 108 — A_CoopApplications.tsx bulk-approve rewind + iframe sandbox
+
+### Bug fixes
+- **qualifiedPendingList included WAITING_FOR_STAFF_CHECK** — bulk approve sent `status: "QUALIFIED"` to these students, rewinding them from T000-submitted state back to just-qualified; `isPending` now only includes `APPLYING`
+- **PDF preview iframe not sandboxed** — `sandbox="allow-same-origin"` added (mirrors batch 105/107)
+- **Modal student info box showed deprecated `major` field** — replaced with GPA
+
 ## [2026-08-13] fix: batch 107 — T_Requests.tsx 4 bugs (filter/pendingList/iframe/imports)
 
 ### Bug fixes
