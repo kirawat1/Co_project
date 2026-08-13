@@ -1,5 +1,18 @@
 # CHANGELOG — Co_project
 
+## [2026-08-13] Rename: เปลี่ยน "สาขาวิชา" → "หลักสูตร" ทั้งระบบ + ลบ major field จาก Excel import (Plan 2)
+
+### Changed
+- **`A_Students.tsx`**: ลบคอลัมน์ major, ใช้ `CURRICULUM_TH[s.studyProgram]` แสดงผล (ภาคปกติ/ภาคพิเศษ)
+- **`A_StudentEditModal.tsx`**: ลบ `majors` prop, ใช้ hardcoded ภาคปกติ/ภาคพิเศษ
+- **`T_Students.tsx`**: `filterCurriculum` state + CURRICULUM_TH แทน MAJOR_TH
+- **`T_StudentDetail.tsx`**: label "หลักสูตร" แทน "สาขาวิชา"
+- **`A_Teacher.tsx`**: ลบ majorOptions state, CURRICULUM_TH, hardcoded select
+- **`T_Profile.tsx`**: hardcoded ภาคปกติ/ภาคพิเศษ แทน dynamic options
+- **`A_CriteriaPage.tsx`**: เพิ่ม deprecation notice + 2 curriculum cards แทน major cards
+- **`S_ProfilePage.tsx`**: label "หลักสูตร", ใช้ studyProgramMapToUI
+- **`studentImportController.js`**: ลบ `major` field ออกจาก upsert (update + create) ไม่เขียน major ลง DB จาก Excel อีกต่อไป
+
 ## [2026-08-13] UI: รวม status display ของนักศึกษา ลด UI ซ้ำซ้อน (Plan 3)
 
 ### Changed
