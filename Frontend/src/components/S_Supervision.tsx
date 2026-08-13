@@ -56,7 +56,7 @@ export default function S_Supervision() {
     const [loading, setLoading] = useState(true);
     const [coopStatus, setCoopStatus] = useState<string>("NOT_SUBMITTED");
     const [appointment, setAppointment] = useState<SupervisionAppt | null>(null);
-    const [advisorName, setAdvisorName] = useState<string>("-");
+    const [coopAdvisor, setCoopAdvisor] = useState<{ prefix?: string; firstName: string; lastName: string } | null>(null);
 
     const [activePeriod, setActivePeriod] = useState<CoopPeriod | null>(null);
 
@@ -100,7 +100,7 @@ export default function S_Supervision() {
             });
             if (profileRes.data) {
                 setCoopStatus(profileRes.data.coop?.status || "NOT_SUBMITTED");
-                setAdvisorName(profileRes.data.advisorName || "-");
+                setCoopAdvisor(profileRes.data.coopAdvisor || null);
             }
 
             // 2. Active Period
@@ -232,7 +232,12 @@ export default function S_Supervision() {
 
     if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#0074B7' }}>กำลังโหลดข้อมูล...</div>;
 
-    const teacherFullName = appointment?.teacher ? `${appointment.teacher.prefix || ''}${appointment.teacher.firstName} ${appointment.teacher.lastName}` : advisorName;
+    const coopAdvisorFullName = coopAdvisor
+        ? `${coopAdvisor.prefix || ''}${coopAdvisor.firstName} ${coopAdvisor.lastName}`.trim()
+        : "-";
+    const teacherFullName = appointment?.teacher
+        ? `${appointment.teacher.prefix || ''}${appointment.teacher.firstName} ${appointment.teacher.lastName}`
+        : coopAdvisorFullName;
 
     return (
         <div className="page" style={{ padding: 4, margin: 28 }}>
@@ -337,6 +342,12 @@ export default function S_Supervision() {
 
                                     {/* ฝั่งซ้าย: รูปแบบและอาจารย์ */}
                                     <div>
+                                                        {!coopAdvisor && (
+                                            <div style={{ padding: '10px 14px', background: '#fee2e2', borderRadius: 8, border: '1px solid #fca5a5', fontSize: 13, color: '#991b1b', fontWeight: 600, marginBottom: 12 }}>
+                                                ⚠️ ยังไม่ได้ระบุอาจารย์ที่ปรึกษาโครงการ —{' '}
+                                                <a href="/student/profile" style={{ color: '#dc2626' }}>กรอกที่หน้าข้อมูลส่วนตัว →</a>
+                                            </div>
+                                        )}
                                         <div style={{ background: '#f8fafc', padding: 16, borderRadius: 12, border: '1px solid #e2e8f0', marginBottom: 16 }}>
                                             <label style={lblStyle}>1. อาจารย์ที่ปรึกษา (ผู้นิเทศหลัก)</label>
                                             <input className="input" value={teacherFullName} disabled style={{ marginBottom: 12, background: '#f1f5f9', color: '#334155', fontWeight: 600 }} />
@@ -432,7 +443,7 @@ export default function S_Supervision() {
                                 </div>
 
                                 <div style={{ borderTop: '1px solid #e2e8f0', marginTop: 24, paddingTop: 20, textAlign: 'right' }}>
-                                    <button className="btn btn-primary" onClick={handleSubmit} disabled={!activePeriod?.isSupervisionOpen}>
+                                    <button className="btn btn-primary" onClick={handleSubmit} disabled={!activePeriod?.isSupervisionOpen || !coopAdvisor}>
                                         🚀 ส่งข้อมูลให้อาจารย์พิจารณา
                                     </button>
                                 </div>

@@ -165,14 +165,14 @@ exports.proposeSupervisionDate = async (req, res) => {
 
         if (!student || student.deletedAt) return res.status(404).json({ ok: false, message: 'Student not found' });
 
-        // หา Teacher จาก generalAdvisorId (FK) โดยตรง ป้องกัน data leak จากการ substring match
-        if (!student.generalAdvisorId) {
-            return res.status(400).json({ ok: false, message: 'ไม่พบอาจารย์ที่ปรึกษา กรุณาอัปเดตในหน้า Profile' });
+        // หา Teacher จาก coopAdvisorId (อาจารย์ที่ปรึกษาโครงการสหกิจ) เป็นผู้นิเทศหลัก
+        if (!student.coopAdvisorId) {
+            return res.status(400).json({ ok: false, message: 'ไม่พบอาจารย์ที่ปรึกษาโครงการ กรุณาเลือกในหน้าข้อมูลส่วนตัวก่อน' });
         }
 
-        const teacher = await prisma.teacher.findUnique({ where: { id: student.generalAdvisorId } });
+        const teacher = await prisma.teacher.findUnique({ where: { id: student.coopAdvisorId } });
         if (!teacher) {
-            return res.status(400).json({ ok: false, message: 'ไม่พบข้อมูลอาจารย์ที่ปรึกษาในระบบ กรุณาติดต่อเจ้าหน้าที่' });
+            return res.status(400).json({ ok: false, message: 'ไม่พบข้อมูลอาจารย์ที่ปรึกษาโครงการในระบบ กรุณาติดต่อเจ้าหน้าที่' });
         }
 
         const LOCKED_STATUSES = ['DATE_CONFIRMED', 'LETTER_UPLOADED', 'COMPLETED'];
