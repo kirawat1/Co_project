@@ -26,8 +26,8 @@ function getDocWindow(p?: {
 }) {
   if (!p?.startDate || !p?.endDate) return "not-open";
   const now = new Date();
-  const start = new Date(`${p.startDate} ${p.startTime || "00:00"}`);
-  const end = new Date(`${p.endDate} ${p.endTime || "23:59"}`);
+  const start = new Date(`${p.startDate}T${p.startTime || "00:00"}`);
+  const end = new Date(`${p.endDate}T${p.endTime || "23:59:59"}`);
   return now >= start && now <= end ? "open" : "not-open";
 }
 
