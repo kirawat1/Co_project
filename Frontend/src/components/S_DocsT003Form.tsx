@@ -466,7 +466,7 @@ export default function S_DocsT003Form({ profile, onRefresh }: Props) {
                             <button onClick={handleCloseModal} style={{ background: 'none', border: 'none', fontSize: 24, cursor: 'pointer', color: '#64748b' }}>&times;</button>
                         </div>
                         <div style={{ flex: 1, background: '#525659', padding: '10px' }}>
-                            <iframe src={previewUrl} style={{ width: '100%', height: '100%', border: 'none', borderRadius: 4 }} title="PDF Preview" sandbox="allow-same-origin" />
+                            <iframe src={previewUrl} style={{ width: '100%', height: '100%', border: 'none', borderRadius: 4 }} title="PDF Preview" />
                         </div>
                         <div style={{ padding: '16px 24px', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', gap: 12, background: '#f8fafc' }}>
                             <button onClick={handleCloseModal} style={btnOutline}>ปิด</button>

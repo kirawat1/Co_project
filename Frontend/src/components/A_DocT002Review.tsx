@@ -385,7 +385,7 @@ export default function A_T002Review() {
                         <div className="review-split" style={{ display: 'flex', gap: 24, height: '70vh' }}>
                             <div className="review-preview" style={{ flex: 1, background: '#525659', borderRadius: 8, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
                                 {getT002FileUrl(selectedStudent.documents || []) ? (
-                                    <iframe src={getT002FileUrl(selectedStudent.documents || []) as string} width="100%" height="100%" style={{ border: 'none' }} title="PDF Preview" sandbox="allow-same-origin" />
+                                    <iframe src={getT002FileUrl(selectedStudent.documents || []) as string} width="100%" height="100%" style={{ border: 'none' }} title="PDF Preview" />
                                 ) : (
                                     <div style={{ color: 'white', margin: 'auto' }}>⚠️ ไม่พบไฟล์ T002 ในระบบ</div>
                                 )}

@@ -617,7 +617,7 @@ export default function A_DocT000() {
                             {/* LEFT: PDF PREVIEW */}
                             <div className="preview-pane" style={{ flex: '0 0 65%', background: '#334155', position: 'relative', overflow: 'hidden' }}>
                                 {previewType === 'pdf' ? (
-                                    <iframe src={previewUrl} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }} title="preview" sandbox="allow-same-origin" />
+                                    <iframe src={previewUrl} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }} title="preview" />
                                 ) : previewType === 'image' ? (
                                     <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                         <img src={previewUrl} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} alt="preview" />
