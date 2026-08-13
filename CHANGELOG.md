@@ -1,5 +1,15 @@
 # CHANGELOG — Co_project
 
+## [2026-08-13] fix: batch 121 — T_Profile: handleSave silent failure on server error
+
+### Bug fixes
+- **`handleSave` no else branch** — `apiFetch` doesn't throw on 4xx/5xx; a server error (e.g. 422 validation) returned silently with no feedback. Added `else` branch that surfaces `result.message` to the user.
+
+## [2026-08-13] fix: batch 120 — T_SupervisionReview: confirmedDate timezone-unsafe construction
+
+### Bug fixes
+- **`finalConfirmedDate` built without `.toISOString()`** — constructed as `"YYYY-MM-DDTHH:MM:SS"` (no Z), so a UTC server stored it as UTC, 7 h ahead of Thai local time. Fixed by wrapping in `new Date(...).toISOString()`, matching the pattern in A_SupervisionManage.
+
 ## [2026-08-13] fix: batch 119 — A_Company: remove() missing try/catch
 
 ### Bug fixes
