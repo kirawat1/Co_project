@@ -217,7 +217,7 @@ export default function A_CriteriaPage() {
           </div>
         )}
 
-        {/* Department List */}
+        {/* Department Cards */}
         {loading ? (
           <div style={{ textAlign: "center", padding: 40, color: "#94a3b8" }}>กำลังโหลด...</div>
         ) : departments.length === 0 ? (
@@ -225,59 +225,57 @@ export default function A_CriteriaPage() {
             ยังไม่มีสาขาวิชา — กดปุ่ม "+ เพิ่มสาขาวิชา" เพื่อเพิ่ม
           </div>
         ) : (
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
-              <thead>
-                <tr style={{ borderBottom: "2px solid #e2e8f0" }}>
-                  <th style={{ padding: "10px 12px", textAlign: "left", color: "#64748b", fontWeight: 700, width: 48 }}>#</th>
-                  <th style={{ padding: "10px 12px", textAlign: "left", color: "#64748b", fontWeight: 700 }}>สาขาวิชา</th>
-                  <th style={{ padding: "10px 12px", textAlign: "left", color: "#64748b", fontWeight: 700, whiteSpace: "nowrap" }}>อัปเดตล่าสุด</th>
-                  <th style={{ padding: "10px 12px", textAlign: "center", color: "#64748b", fontWeight: 700, width: 160 }}>จัดการ</th>
-                </tr>
-              </thead>
-              <tbody>
-                {departments.map((dept, i) => (
-                  <tr key={dept.id} style={{ borderBottom: "1px solid #f1f5f9", transition: "background .1s" }}
-                    onMouseEnter={e => (e.currentTarget.style.background = "#f8fafc")}
-                    onMouseLeave={e => (e.currentTarget.style.background = "")}>
-                    <td style={{ padding: "12px 12px", color: "#94a3b8", fontVariantNumeric: "tabular-nums" }}>{i + 1}</td>
-                    <td style={{ padding: "12px 12px" }}>
-                      {editId === dept.id ? (
-                        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                          <input
-                            style={{ ...input, width: "auto", flex: 1, maxWidth: 240 }}
-                            value={editName}
-                            onChange={e => setEditName(e.target.value)}
-                            onKeyDown={e => { if (e.key === "Enter") handleEdit(); if (e.key === "Escape") { setEditId(null); setError(""); } }}
-                            autoFocus
-                            disabled={editSaving}
-                          />
-                          <button style={btn("#fff", editSaving ? "#94a3b8" : "#22c55e")} onClick={handleEdit} disabled={editSaving || !editName.trim()}>
-                            {editSaving ? "..." : "บันทึก"}
-                          </button>
-                          <button style={btn("#64748b", "#f1f5f9", "#e2e8f0")} onClick={() => { setEditId(null); setError(""); }} disabled={editSaving}>
-                            ยกเลิก
-                          </button>
-                        </div>
-                      ) : (
-                        <span style={{ fontWeight: 600, color: "#1e293b", fontSize: 15 }}>{dept.major}</span>
-                      )}
-                    </td>
-                    <td style={{ padding: "12px 12px", color: "#94a3b8", fontSize: 12, whiteSpace: "nowrap" }}>
-                      {new Date(dept.updatedAt).toLocaleDateString("th-TH", { year: "numeric", month: "short", day: "numeric" })}
-                    </td>
-                    <td style={{ padding: "12px 12px", textAlign: "center" }}>
-                      {editId !== dept.id && (
-                        <div style={{ display: "flex", gap: 6, justifyContent: "center" }}>
-                          <button style={btn("#0369a1", "#e0f2fe")} onClick={() => startEdit(dept)}>แก้ไข</button>
-                          <button style={btn("#dc2626", "#fef2f2")} onClick={() => confirmDelete(dept)}>ลบ</button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 16 }}>
+            {departments.map(dept => (
+              <div key={dept.id} style={{
+                background: editId === dept.id ? "#f0f9ff" : "#f8fafc",
+                border: `1px solid ${editId === dept.id ? "#bae6fd" : "#e2e8f0"}`,
+                borderRadius: 14,
+                padding: "20px 22px",
+                minWidth: 180,
+                flex: "1 1 180px",
+                maxWidth: 260,
+                display: "flex",
+                flexDirection: "column",
+                gap: 12,
+                transition: "box-shadow .15s",
+              }}>
+                {editId === dept.id ? (
+                  <>
+                    <input
+                      style={{ ...input, fontSize: 18, fontWeight: 700 }}
+                      value={editName}
+                      onChange={e => setEditName(e.target.value)}
+                      onKeyDown={e => { if (e.key === "Enter") handleEdit(); if (e.key === "Escape") { setEditId(null); setError(""); } }}
+                      autoFocus
+                      disabled={editSaving}
+                    />
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button style={{ ...btn("#fff", editSaving ? "#94a3b8" : "#22c55e"), flex: 1 }} onClick={handleEdit} disabled={editSaving || !editName.trim()}>
+                        {editSaving ? "..." : "บันทึก"}
+                      </button>
+                      <button style={btn("#64748b", "#f1f5f9", "#e2e8f0")} onClick={() => { setEditId(null); setError(""); }} disabled={editSaving}>
+                        ยกเลิก
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: "#0ea5e9", textTransform: "uppercase", letterSpacing: 1, marginBottom: 4 }}>สาขาวิชา</div>
+                      <div style={{ fontSize: 26, fontWeight: 900, color: "#1e293b" }}>{dept.major}</div>
+                      <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 4 }}>
+                        อัปเดต {new Date(dept.updatedAt).toLocaleDateString("th-TH", { year: "numeric", month: "short", day: "numeric" })}
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button style={{ ...btn("#0369a1", "#e0f2fe"), flex: 1 }} onClick={() => startEdit(dept)}>แก้ไข</button>
+                      <button style={{ ...btn("#dc2626", "#fef2f2"), flex: 1 }} onClick={() => confirmDelete(dept)}>ลบ</button>
+                    </div>
+                  </>
+                )}
+              </div>
+            ))}
           </div>
         )}
 
