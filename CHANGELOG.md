@@ -1,5 +1,10 @@
 # CHANGELOG — Co_project
 
+## [2026-08-13] fix: batch 122 — S_ProfilePage: saveStudentCompany silent failure on server error
+
+### Bug fixes
+- **`saveStudentCompany` no else branch** — `apiFetch` does not throw on 4xx/5xx; a server error (e.g. company not found) was swallowed silently. Added `else` branch that surfaces `err.message` to the user.
+
 ## [2026-08-13] fix: batch 121 — T_Profile: handleSave silent failure on server error
 
 ### Bug fixes

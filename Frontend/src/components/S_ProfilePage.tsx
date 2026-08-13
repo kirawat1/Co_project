@@ -262,6 +262,9 @@ export default function S_ProfilePage() {
           company: profile.company // คงค่าไว้ไม่ให้ UI กระพริบ
         }));
         alert("บันทึกข้อมูลสถานที่ฝึกเรียบร้อย");
+      } else {
+        const err = await res.json().catch(() => ({}));
+        alert(err.message || "บันทึกไม่สำเร็จ กรุณาลองใหม่");
       }
     } catch (err) { alert("เกิดข้อผิดพลาดในการบันทึกบริษัท"); }
   }
