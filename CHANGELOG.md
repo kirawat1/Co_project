@@ -1,5 +1,17 @@
 # CHANGELOG — Co_project
 
+## [2026-08-13] feat: batch 123 — studentImportController รองรับ KKU Excel export format
+
+### New
+- **KKU system export format** — รองรับไฟล์ Excel ที่ export จากระบบ KKU โดยตรง (header ภาษาอังกฤษ: `STUDENTCODE`, `PREFIXNAME`, `STUDENTNAME`, `STUDENTSURNAME`, `STUDENTNAMEENG`, `STUDENTSURNAMEENG`, `PROGRAMNAME`, `KKUMAIL`, `OFFICERNAME`, `OFFICERSURNAME`)
+- **Auto-detect format** — controller ตรวจ header row อัตโนมัติ: พบ `STUDENTCODE` → KKU format; พบ `รหัสนักศึกษา` → old Thai template; ทั้งสอง format ทำงานได้ใน endpoint เดียวกัน
+- **Advisor lookup ด้วย OFFICERNAME + OFFICERSURNAME แยกกัน** — ค้นหา teacher.firstName + teacher.lastName ได้ exact โดยไม่ต้อง split string รวม
+- **studyProgram จาก PROGRAMNAME** — extract อัตโนมัติจากข้อความ เช่น "วิทยาการคอมพิวเตอร์ ปริญญาตรี ภาคปกติ" → `normal`
+- **year/phone/gpa = null** — KKU format ไม่มี column เหล่านี้ → บันทึก null แทน
+
+### Tests
+- เพิ่ม 4 test cases สำหรับ KKU format: basic import, studyProgram extraction, advisor not found, empty OFFICERNAME
+
 ## [2026-08-13] fix: batch 122 — S_ProfilePage: saveStudentCompany silent failure on server error
 
 ### Bug fixes
