@@ -43,7 +43,8 @@ export default function A_Mentors() {
       const res = await apiFetch("/api/companies");
 
       if (res.ok) {
-        const companies: Company[] = await res.json();
+        const json = await res.json();
+        const companies: Company[] = json.data ?? [];
 
         // Flatten Data: ดึง Mentors ออกมาจากบริษัท
         const allMentors: Mentor[] = companies.flatMap((c) =>
