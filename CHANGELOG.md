@@ -1,5 +1,10 @@
 # CHANGELOG — Co_project
 
+## [2026-08-13] fix: batch 119 — A_Company: remove() missing try/catch
+
+### Bug fixes
+- **`remove()` no try/catch in A_Company.tsx** — `async function remove()` called `apiFetch` without a try/catch, so any network error produced an unhandled promise rejection with no user feedback. Added try/catch with error alert.
+
 ## [2026-08-13] fix: batch 118 — A_DocT000: UTC date parsing, handleDocStatus no rollback, silent save failure
 
 ### Bug fixes
