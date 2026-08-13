@@ -145,6 +145,7 @@ export default function PlacementLetterCard({
                             src={previewUrl}
                             title="placement-letter-preview"
                             style={iframeStyle}
+                            sandbox="allow-same-origin"
                         />
                     </div>
                 </div>

@@ -286,7 +286,7 @@ export default function T_T003Review() {
                         <div className="review-split" style={{ display: 'flex', gap: 24, height: '70vh' }}>
                             <div className="review-preview" style={{ flex: 1, background: '#525659', borderRadius: 8, overflow: 'hidden' }}>
                                 {getT003FileUrl(selectedStudent.documents || []) ? (
-                                    <iframe src={getT003FileUrl(selectedStudent.documents || []) as string} width="100%" height="100%" style={{ border: 'none' }} title="PDF Preview" />
+                                    <iframe src={getT003FileUrl(selectedStudent.documents || []) as string} width="100%" height="100%" style={{ border: 'none' }} title="PDF Preview" sandbox="allow-same-origin" />
                                 ) : <div style={{ color: 'white', padding: 20, textAlign: 'center', marginTop: 50 }}>⚠️ ไม่พบไฟล์ T003</div>}
                             </div>
                             <div className="review-sidebar" style={{ width: 350, display: 'flex', flexDirection: 'column', gap: 16 }}>

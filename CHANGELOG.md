@@ -1,5 +1,10 @@
 # CHANGELOG — Co_project
 
+## [2026-08-13] fix: batch 111 — iframe sandbox sweep (10 remaining unsandboxed PDF preview iframes)
+
+### Bug fixes
+- **10 PDF preview iframes missing `sandbox="allow-same-origin"`** — same stored-XSS vector fixed in batches 105/107/108. Added `sandbox="allow-same-origin"` to all remaining iframes that display user-uploaded documents or generated PDFs: `A_DocT000.tsx`, `A_DocT002Review.tsx`, `A_DocT003Review.tsx`, `T_T002Review.tsx`, `T_T003Review.tsx`, `S_DocsT002Form.tsx`, `S_DocsT003Form.tsx`, `S_Docs.tsx` (×2), `S_Gateway.tsx`, `PlacementLetterCard.tsx`, `T_StudentDetail.tsx`
+
 ## [2026-08-13] fix: batch 110 — loginpage.tsx: remember=false skipped token storage, breaking all API calls
 
 ### Bug fixes
