@@ -685,7 +685,10 @@ export default function T_SupervisionReview() {
                                                 <td style={td}><div style={{ fontWeight: 600 }}>{sup.student.coop?.company?.name || "-"}</div></td>
                                                 <td style={td}>
                                                     <div style={{ fontSize: 13, fontWeight: 'bold' }}>{sup.teacher ? `${sup.teacher.prefix || ''}${sup.teacher.firstName} ${sup.teacher.lastName}` : '-'}</div>
-                                                    {sup.coTeacherName && <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>ร่วม: {sup.coTeacherName}</div>}
+                                                    {sup.coTeacherName
+                                                        ? <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>ร่วม: {sup.coTeacherName}</div>
+                                                        : <div style={{ fontSize: 11, marginTop: 4, display: 'inline-block', background: 'rgba(234,179,8,.15)', border: '1px solid rgba(234,179,8,.4)', color: '#b45309', borderRadius: 4, padding: '1px 6px' }}>⚠️ ยังไม่มีอาจารย์ร่วม</div>
+                                                    }
                                                 </td>
                                                 <td style={td}>
                                                     {sup.confirmedDate ? (
@@ -702,7 +705,7 @@ export default function T_SupervisionReview() {
                                                 <td style={td}><StatusBadge status={sup.status} /></td>
                                                 <td style={{ ...td, textAlign: 'center' }}>
                                                     <div style={{ display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap' }}>
-                                                        <button className="btn-ghost" style={{ fontSize: 12, padding: '6px 10px' }} onClick={() => openAssignModal(sup)}>👥 อาจารย์ร่วม</button>
+                                                        <button className="btn-ghost" style={{ fontSize: 12, padding: '6px 10px', ...(sup.coTeacherName ? {} : { background: 'rgba(234,179,8,.15)', borderColor: '#d97706', color: '#b45309', fontWeight: 700 }) }} onClick={() => openAssignModal(sup)}>👥 {sup.coTeacherName ? 'อาจารย์ร่วม' : 'มอบหมายอาจารย์ร่วม'}</button>
                                                         {sup.status === "DATE_CONFIRMED" && !sup.officialLetterPath && (
                                                             <button className="btn-ghost" style={{ fontSize: 12, padding: '6px 10px', color: '#d97706', borderColor: '#d97706' }} onClick={() => openEditDateModal(sup)}>✏️ แก้ไขวัน</button>
                                                         )}
