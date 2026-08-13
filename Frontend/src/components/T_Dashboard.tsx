@@ -179,6 +179,7 @@ export default function T_Dashboard() {
       }
 
       const res = await apiFetch(`/api/teacher/students/export?coopPeriodId=${coopPeriodId}`);
+      if (!res.ok) throw new Error("Export failed");
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -276,7 +277,7 @@ export default function T_Dashboard() {
           <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: 16 }}>
             <CardStat title="นักศึกษาในดูแล" value={stats.myStudentsCount} hint="นักศึกษาที่คุณเป็นที่ปรึกษา" color="#0ea5e9" />
             <CardStat title="คำร้องรอพิจารณา" value={stats.pendingRequests} hint="นักศึกษาที่ยื่นคำร้องเข้ามาใหม่" color="#f59e0b" />
-            <CardStat title="ผ่านคุณสมบัติ" value={stats.approvedStudents || approvedStudents.length} hint="นักศึกษาที่ได้ออกฝึกสหกิจ" color="#10b981" />
+            <CardStat title="ผ่านคุณสมบัติ" value={stats.approvedStudents ?? approvedStudents.length} hint="นักศึกษาที่ได้ออกฝึกสหกิจ" color="#10b981" />
           </section>
 
           {/* ================= นัดนิเทศ ================= */}

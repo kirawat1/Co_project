@@ -77,7 +77,7 @@ export default function PlacementLetterCard({
                         <span>📅 วันที่ออก</span>
                         <strong>
                             {placeDocDate
-                                ? new Date(placeDocDate).toLocaleDateString("th-TH", {
+                                ? new Date(/^\d{4}-\d{2}-\d{2}$/.test(placeDocDate) ? placeDocDate + "T00:00:00" : placeDocDate).toLocaleDateString("th-TH", {
                                     day: "numeric",
                                     month: "long",
                                     year: "numeric"

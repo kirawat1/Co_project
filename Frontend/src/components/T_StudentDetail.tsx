@@ -361,7 +361,7 @@ export default function T_StudentDetail() {
                 {visits.map((v) => (
                   <tr key={v.id} className="student-row">
                     <td style={{ fontWeight: 700, color: '#1e293b' }} data-label="วันเวลา">
-                      {new Date(v.date).toLocaleDateString('th-TH', { dateStyle: 'medium' })} <br />
+                      {new Date(v.date + "T00:00:00").toLocaleDateString('th-TH', { dateStyle: 'medium' })} <br />
                       <span style={{ fontSize: 12, color: '#64748b', fontWeight: 500 }}>เวลา: {v.time || "-"} น.</span>
                     </td>
                     <td data-label="บันทึกรายละเอียด">{v.note || "-"}</td>
