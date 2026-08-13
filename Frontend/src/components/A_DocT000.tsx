@@ -188,7 +188,8 @@ export default function A_DocT000() {
                 body: JSON.stringify(config)
             });
             if (res.ok) alert("✅ บันทึกการตั้งค่าวันเวลาเรียบร้อยแล้ว");
-        } catch (err) { alert("Save Error"); }
+            else alert("❌ บันทึกการตั้งค่าไม่สำเร็จ กรุณาลองใหม่");
+        } catch (err) { alert("บันทึกไม่สำเร็จ กรุณาตรวจสอบการเชื่อมต่อ"); }
     };
 
     const updateStudentState = (studentId: number, newData: Partial<StudentProfile>) => {
@@ -201,17 +202,22 @@ export default function A_DocT000() {
     const handleDocStatus = async (docId: number, status: "APPROVED" | "REJECTED" | "EDITS_REQUIRED") => {
         if (!selectedStudent) return;
 
+        const previousDocs = selectedStudent.documents;
         const updatedDocs = selectedStudent.documents?.map(d =>
             d.id === docId ? { ...d, status: status } : d
         ) || [];
         updateStudentState(selectedStudent.id, { documents: updatedDocs });
 
         try {
-            await apiFetch(`/api/admin/doc/${docId}/status`, {
+            const res = await apiFetch(`/api/admin/doc/${docId}/status`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ status })
             });
+            if (!res.ok) {
+                updateStudentState(selectedStudent.id, { documents: previousDocs });
+                return;
+            }
 
             if (checkPhase === 1) {
                 const reqKeys = phase1Docs.filter(d => d.isRequired).map(r => r.key);
@@ -238,7 +244,10 @@ export default function A_DocT000() {
             if (status === 'REJECTED' || status === 'EDITS_REQUIRED') {
                 handleSubmitReview("EDITS_REQUIRED", "");
             }
-        } catch (err) { console.error("Update doc error", err); }
+        } catch (err) {
+            updateStudentState(selectedStudent.id, { documents: previousDocs });
+            console.error("Update doc error", err);
+        }
     };
 
     const handleApproveAll = async () => {
@@ -373,8 +382,8 @@ export default function A_DocT000() {
 
     const isSystemOpen = useMemo(() => {
         const now = new Date().getTime();
-        const start = config.startDate ? new Date(config.startDate).getTime() : 0;
-        const end = config.endDate ? new Date(config.endDate).getTime() : 0;
+        const start = config.startDate ? new Date(config.startDate + "T00:00:00").getTime() : 0;
+        const end = config.endDate ? new Date(config.endDate + "T23:59:59").getTime() : 0;
         return config.isOpen && ((!start && !end) || (now >= start && now <= end));
     }, [config]);
 

@@ -1,5 +1,12 @@
 # CHANGELOG — Co_project
 
+## [2026-08-13] fix: batch 118 — A_DocT000: UTC date parsing, handleDocStatus no rollback, silent save failure
+
+### Bug fixes
+- **`isSystemOpen` UTC-midnight date parsing** — `config.startDate`/`config.endDate` come from `<input type="date">` as `"YYYY-MM-DD"` strings. `new Date("YYYY-MM-DD")` parses as UTC midnight; in UTC+7 the system opened/closed at 07:00 local instead of 00:00/23:59. Fixed by appending `"T00:00:00"` for start and `"T23:59:59"` for end.
+- **`handleDocStatus` ignores API response, no rollback** — the `PUT /api/admin/doc/:id/status` response was not checked; if the server returned 4xx/5xx, the optimistic UI update was not rolled back and the auto-approve logic still ran against the stale state, potentially advancing the student's overall status incorrectly. Fixed by capturing previous docs, checking `res.ok`, and rolling back on failure.
+- **`handleSaveConfig` silent failure** — if the save API returned a non-ok response, no feedback was shown (only network errors reached the catch). Added an `else` branch with an error alert.
+
 ## [2026-08-13] fix: batch 114-117 — T_Dashboard, S_Docs, T_StudentDetail, PlacementLetterCard
 
 ### Bug fixes
