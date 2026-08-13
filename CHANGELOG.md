@@ -1,5 +1,13 @@
 # CHANGELOG — Co_project
 
+## [2026-08-14] fix: batch 128 — ผู้นิเทศหลักใช้ coopAdvisor แทน generalAdvisor
+
+### Changed
+- **supervisionController.js** — `proposeSupervisionDate` เปลี่ยนจาก `generalAdvisorId` → `coopAdvisorId` เป็น teacherId ในการ upsert appointment
+- **S_Supervision.tsx** — แสดง `coopAdvisor` (อาจารย์ที่ปรึกษาโครงการ) แทน `advisorName`; เพิ่ม warning + disable submit ถ้ายังไม่ได้กรอก coopAdvisor ในหน้าข้อมูลส่วนตัว
+
+---
+
 ## [2026-08-14] fix: batch 127 — ลบ sandbox="allow-same-origin" จาก iframe ทั้งหมด
 
 ### Fixed
