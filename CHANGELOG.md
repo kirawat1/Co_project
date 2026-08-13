@@ -1,5 +1,11 @@
 # CHANGELOG — Co_project
 
+## [2026-08-13] fix: batch 110 — loginpage.tsx: remember=false skipped token storage, breaking all API calls
+
+### Bug fixes
+- **`if (remember)` guard on localStorage.setItem("coop.token")** — when the user unchecked "จดจำฉันไว้", the JWT was not stored in localStorage, but `coop.claims` was always stored and navigation still happened. Every subsequent API call (all 20+ components read `localStorage.getItem("coop.token")`) got `null` → 401 → auto-logout, making the session immediately unusable. Fixed by always persisting to localStorage; a proper sessionStorage path for the non-remember case can be added later.
+- `coop.userId` had the same guard → removed so it is always stored
+
 ## [2026-08-13] fix: batch 109 — A_Docs.tsx date parsing (space → T separator, end default 23:59:59)
 
 ### Bug fixes
