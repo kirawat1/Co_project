@@ -1,4 +1,3 @@
-// backend/utils/validatePassword.js
 function validatePassword(password) {
   if (!password || password.length < 8)
     return 'รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร';
