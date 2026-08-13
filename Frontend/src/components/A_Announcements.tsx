@@ -294,7 +294,11 @@ export default function A_Announcements() {
                 {a.attachments.length > 0 && (
                   <div style={chipContainer}>
                     {a.attachments.map((at, i) => (
-                      <div key={i} style={chip} onClick={() => { if (at.type === 'image') { setPreviewUrl(at.url); } else { const s = safeHref(at.url); if (s) window.open(s, '_blank'); } }}>
+                      <div key={i} style={chip} onClick={() => {
+                            if (at.type === 'image') { setPreviewUrl(at.url); }
+                            else if (at.url.startsWith('/uploads/')) { window.open(at.url, '_blank'); }
+                            else { const s = safeHref(at.url); if (s) window.open(s, '_blank'); }
+                          }}>
                         {at.type === "link" ? "🔗" : at.type === "image" ? "🖼️" : "📄"}
                         <span style={chipText}>{at.name}</span>
                       </div>

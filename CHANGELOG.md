@@ -1,5 +1,11 @@
 # CHANGELOG — Co_project
 
+## [2026-08-13] fix: batch 113 — A_Announcements + S_Announcements: file attachment chips unclickable
+
+### Bug fixes
+- **`safeHref('/uploads/...')` returns undefined** — `A_Announcements.tsx` used `safeHref()` which calls `new URL()` on relative `/uploads/` paths; since there is no base URL, `new URL()` throws → catch returns `undefined` → `window.open` is never called. Fixed by adding a `/uploads/` prefix check that bypasses `safeHref` for server-side file storage paths.
+- **Same issue in `S_Announcements.tsx`** — `safeUrl()` returned `"#"` for non-https URLs (including `/uploads/`), making file attachment links open `#` instead of the file. Fixed by allowing `/uploads/` as a trusted prefix.
+
 ## [2026-08-13] fix: batch 112 — A_Mentors.tsx: companies response not unwrapped (TypeError at runtime)
 
 ### Bug fixes

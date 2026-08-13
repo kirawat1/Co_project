@@ -13,7 +13,9 @@ interface Announcement {
 }
 
 function safeUrl(url: string): string {
-  return /^https?:\/\//i.test(url) ? url : "#";
+  if (/^https?:\/\//i.test(url)) return url;
+  if (url.startsWith('/uploads/')) return url;
+  return "#";
 }
 
 export default function S_Announcements() {
