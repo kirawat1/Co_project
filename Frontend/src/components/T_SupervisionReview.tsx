@@ -189,7 +189,7 @@ export default function T_SupervisionReview() {
             if (action === "APPROVE" && confirmedDateStr) {
                 const [dPart, tPart] = confirmedDateStr.split("|");
                 const startTime = (tPart || "00:00").split("-")[0];
-                finalConfirmedDate = `${dPart}T${startTime}:00`;
+                finalConfirmedDate = new Date(`${dPart}T${startTime}:00`).toISOString();
             }
 
             const supervisionType = (action === "APPROVE" && confirmedDateStr)

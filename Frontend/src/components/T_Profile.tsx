@@ -110,6 +110,9 @@ export default function T_Profile() {
         if (timerRef.current) window.clearTimeout(timerRef.current);
         timerRef.current = window.setTimeout(() => setSavedMsg(""), 3000);
         setIsModalOpen(false);
+      } else {
+        const result = await res.json().catch(() => ({}));
+        alert(result.message || "บันทึกไม่สำเร็จ กรุณาลองใหม่");
       }
     } catch (err) {
       alert("ไม่สามารถบันทึกข้อมูลได้");
