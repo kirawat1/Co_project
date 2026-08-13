@@ -5,6 +5,10 @@ const { verifyToken, verifyRole } = require("../middlewares/authMiddleware");
 const coopController = require("../controllers/coopController");
 const supervisionController = require("../controllers/supervisionController");
 const configController = require("../controllers/configController");
+const criteriaController = require("../controllers/criteriaController");
+
+// GET /api/coop/departments — สาขาวิชาพร้อมชื่อไทย (accessible ทุก role)
+router.get("/departments", verifyToken, criteriaController.getDepartmentsWithNames);
 
 // POST /api/coop/apply
 router.post(

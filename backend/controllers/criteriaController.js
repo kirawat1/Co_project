@@ -93,3 +93,19 @@ exports.getMajorList = async (req, res) => {
     res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดที่ Server" });
   }
 };
+
+// ==================================================
+// 5. ดึงสาขาพร้อมชื่อไทย (สำหรับ student/teacher — any role)
+// ==================================================
+exports.getDepartmentsWithNames = async (req, res) => {
+  try {
+    const criteria = await prisma.coopCriteria.findMany({
+      select: { major: true, nameTh: true },
+      orderBy: { major: 'asc' }
+    });
+    res.json({ ok: true, departments: criteria });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดที่ Server" });
+  }
+};

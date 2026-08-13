@@ -119,6 +119,7 @@ export default function S_ProfilePage() {
   const [profile, setProfile] = useState<StudentProfile | null>(null);
   const [companies, setCompanies] = useState<StudentCompany[]>([]);
   const [teachers, setTeachers] = useState<any[]>([]);
+  const [deptMap, setDeptMap] = useState<Record<string, string>>({});
   const [openStudentModal, setOpenStudentModal] = useState(false);
   const [loading, setLoading] = useState(true);
   // ── KKU REG Sync ──────────────────────────────
@@ -179,8 +180,9 @@ export default function S_ProfilePage() {
       apiFetch("/api/students/me").then(r => { if (!r.ok) throw new Error(String(r.status)); return r.json(); }),
       apiFetch("/api/companies").then(r => { if (!r.ok) throw new Error(String(r.status)); return r.json(); }),
       apiFetch("/api/teachers").then(r => { if (!r.ok) throw new Error(String(r.status)); return r.json(); }),
+      apiFetch("/api/coop/departments").then(r => r.json()).catch(() => ({ ok: false })),
     ])
-      .then(([profileResult, companyResult, teacherResult]) => {
+      .then(([profileResult, companyResult, teacherResult, deptResult]) => {
         if (profileResult.status === "fulfilled") {
           const profileData = profileResult.value;
           const emails = profileData.emails?.length > 0 ? profileData.emails : [{ email: "", primary: false }];
@@ -197,6 +199,13 @@ export default function S_ProfilePage() {
           const teacherData = teacherResult.value;
           if (teacherData.ok && teacherData.teachers) setTeachers(teacherData.teachers);
           else if (Array.isArray(teacherData)) setTeachers(teacherData);
+        }
+        if (deptResult.status === "fulfilled" && deptResult.value?.ok) {
+          const map: Record<string, string> = {};
+          deptResult.value.departments.forEach((d: { major: string; nameTh: string | null }) => {
+            if (d.nameTh) map[d.major] = d.nameTh;
+          });
+          setDeptMap(map);
         }
       })
       .finally(() => setLoading(false));
@@ -394,8 +403,8 @@ export default function S_ProfilePage() {
           <Info label="ชื่อ–นามสกุล (TH)" value={`${prefixMapToUI[profile.prefix as keyof typeof prefixMapToUI] || ""} ${profile.firstName ?? ""} ${profile.lastName ?? ""}`} />
           <Info label="ชื่อ–นามสกุล (EN)" value={`${profile.firstNameEn ?? "-"} ${profile.lastNameEn ?? "-"}`} />
           <Info label="ชั้นปี" value={profile.year || "-"} />
-          <Info label="สาขาวิชา" value={profile.major || "-"} />
-          <Info label="หลักสูตร" value={studyProgramMapToUI[profile.studyProgram as string] || profile.studyProgram || "-"} />
+          <Info label="สาขาวิชา" value={profile.major ? (deptMap[profile.major] ? `${deptMap[profile.major]} (${profile.major})` : profile.major) : "-"} />
+          <Info label="หลักสูตรการศึกษา" value={studyProgramMapToUI[profile.studyProgram as string] || profile.studyProgram || "-"} />
           {/* อาจารย์ที่ปรึกษา */}
           <div style={{ marginTop: 16 }}>
             <div style={{ fontWeight: 700, fontSize: 14, color: '#334155', marginBottom: 10 }}>
