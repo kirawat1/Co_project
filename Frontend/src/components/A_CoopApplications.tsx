@@ -101,7 +101,10 @@ export default function A_CoopApplications() {
     // รายการรอตรวจที่ตรงกับปีการศึกษา
     const qualifiedPendingList = useMemo(() => {
         return apps.filter(app => {
-            const isPending = ["APPLYING", "WAITING_FOR_STAFF_CHECK"].includes(app.status);
+            // Only APPLYING needs bulk-qualify. WAITING_FOR_STAFF_CHECK students have
+            // already been qualified AND submitted T000 — bulk-sending QUALIFIED would
+            // rewind them, losing their T000 submission context.
+            const isPending = app.status === "APPLYING";
             const appPeriodId = String(app.student.coopPeriodId || app.coopPeriodId || "");
             const matchPeriod = filterPeriodId === "all" || appPeriodId === filterPeriodId;
 
@@ -326,7 +329,7 @@ export default function A_CoopApplications() {
                             {/* LEFT: PREVIEW */}
                             <div className="preview-pane" style={{ flex: '0 0 60%', background: '#334155' }}>
                                 {previewUrl ? (
-                                    previewType === 'pdf' ? <iframe src={previewUrl} style={{ width: '100%', height: '100%', border: 'none' }} title="p" />
+                                    previewType === 'pdf' ? <iframe src={previewUrl} style={{ width: '100%', height: '100%', border: 'none' }} title="p" sandbox="allow-same-origin" />
                                         : <img src={previewUrl} style={{ width: '100%', height: '100%', objectFit: 'contain' }} alt="p" />
                                 ) : <div style={{ color: 'white', textAlign: 'center', marginTop: '20%' }}>เลือกไฟล์ด้านขวาเพื่อดู</div>}
                             </div>
@@ -369,7 +372,7 @@ export default function A_CoopApplications() {
                                     <div style={{ fontWeight: 800, marginBottom: 10, borderBottom: '1px solid #eee', paddingBottom: 8, color: '#334155' }}>👤 ข้อมูลผู้สมัคร</div>
                                     <div style={{ fontSize: 13, lineHeight: 2, color: '#475569' }}>
                                         <b>ชื่อ:</b> {selectedApp.student.firstName} {selectedApp.student.lastName}<br />
-                                        <b>สาขา:</b> {selectedApp.student.major}
+                                        <b>GPA:</b> {selectedApp.student.gpa?.toFixed(2) ?? "-"}
                                     </div>
                                 </div>
 
