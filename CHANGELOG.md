@@ -1,5 +1,10 @@
 # CHANGELOG — Co_project
 
+## [2026-08-13] — Fix: batch 106 — uncapped pagination limit in getMyStudents
+
+### Bug fix
+- **`backend/controllers/teacherController.js:686`** — `getMyStudents` accepted any `?limit` value with no upper bound. A teacher could request `?limit=999999` and exhaust DB resources. Fixed: `Math.min(..., 200)` cap, consistent with other paginated endpoints. 279/279 tests pass.
+
 ## [2026-08-13] — Fix: batch 105 — stored XSS via unsandboxed letter-preview iframes
 
 ### Security fix
