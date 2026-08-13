@@ -110,13 +110,11 @@ export default function LoginPage() {
         throw new Error(res.message || "เข้าสู่ระบบไม่สำเร็จ");
       }
 
-      if (remember) {
-        localStorage.setItem("coop.token", res.token);
-
-        // ✅ เพิ่มบรรทัดนี้: บันทึก ID เพื่อให้หน้าอื่นเอาไปใช้เช็คสิทธิ์ (Delete/Edit) ได้ทันที
-        if (res.user && res.user.id) {
-          localStorage.setItem("coop.userId", String(res.user.id));
-        }
+      // remember=false has no sessionStorage implementation yet — always persist
+      // so every component that reads localStorage.getItem("coop.token") works.
+      localStorage.setItem("coop.token", res.token);
+      if (res.user?.id) {
+        localStorage.setItem("coop.userId", String(res.user.id));
       }
 
       // ----------------------------------------------------
