@@ -329,7 +329,7 @@ export default function A_CoopApplications() {
                             {/* LEFT: PREVIEW */}
                             <div className="preview-pane" style={{ flex: '0 0 60%', background: '#334155' }}>
                                 {previewUrl ? (
-                                    previewType === 'pdf' ? <iframe src={previewUrl} style={{ width: '100%', height: '100%', border: 'none' }} title="p" sandbox="allow-same-origin" />
+                                    previewType === 'pdf' ? <iframe src={previewUrl} style={{ width: '100%', height: '100%', border: 'none' }} title="p" />
                                         : <img src={previewUrl} style={{ width: '100%', height: '100%', objectFit: 'contain' }} alt="p" />
                                 ) : <div style={{ color: 'white', textAlign: 'center', marginTop: '20%' }}>เลือกไฟล์ด้านขวาเพื่อดู</div>}
                             </div>

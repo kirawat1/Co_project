@@ -291,7 +291,7 @@ export default function T_Requests() {
               {/* LEFT: PREVIEW (60%) */}
               <div className="preview-pane" style={{ flex: '0 0 60%', background: '#334155' }}>
                 {previewUrl ? (
-                  previewType === 'pdf' ? <iframe src={previewUrl} style={{ width: '100%', height: '100%', border: 'none' }} title="p" sandbox="allow-same-origin" />
+                  previewType === 'pdf' ? <iframe src={previewUrl} style={{ width: '100%', height: '100%', border: 'none' }} title="p" />
                     : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}><img src={previewUrl} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} alt="p" /></div>
                 ) : <div style={{ color: 'white', textAlign: 'center', marginTop: '20%' }}>เลือกไฟล์ด้านขวาเพื่อดู</div>}
               </div>

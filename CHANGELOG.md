@@ -1,5 +1,13 @@
 # CHANGELOG — Co_project
 
+## [2026-08-14] fix: batch 127 — ลบ sandbox="allow-same-origin" จาก iframe ทั้งหมด
+
+### Fixed
+- **12 components** (A_DocT002Review, A_DocT003Review, A_CoopApplications, A_DocT000, PlacementLetterCard, S_DocsT003Form, S_DocsT002Form, S_Gateway, T_Requests, T_T003Review, T_StudentDetail, T_T002Review) — ลบ `sandbox="allow-same-origin"` ออกจาก iframe ทุกที่
+- Chrome PDF viewer ต้องการ JavaScript เพื่อ render PDF; sandbox block สคริปต์ทำให้ iframe แสดงผลดำ — ปัญหาเดียวกับที่แก้ใน S_Docs.tsx และ IssueLetterModal.tsx รอบก่อน
+
+---
+
 ## [2026-08-13] feat: batch 126 — สาขาวิชา CRUD management page
 
 ### Added
