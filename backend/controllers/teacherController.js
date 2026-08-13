@@ -683,7 +683,7 @@ exports.getMyStudents = async (req, res) => {
     }
 
     const page = Math.max(1, parseInt(req.query.page, 10) || 1);
-    const limit = Math.max(1, parseInt(req.query.limit, 10) || 50);
+    const limit = Math.min(Math.max(1, parseInt(req.query.limit, 10) || 50), 200);
     const skip = (page - 1) * limit;
     const search = (req.query.search || "").trim();
     const coopPeriodId = req.query.coopPeriodId ? parseInt(req.query.coopPeriodId) : undefined;
