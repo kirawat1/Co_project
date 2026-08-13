@@ -1,5 +1,13 @@
 # CHANGELOG — Co_project
 
+## [2026-08-13] feat: batch 124 — import preview ก่อนยืนยันนำเข้านักศึกษา
+
+### New
+- **`POST /api/admin/students/import-preview`** — endpoint ใหม่: parse Excel + pre-fetch DB แล้วคืน preview rows พร้อม action/advisorStatus ต่อแถว โดยไม่เขียน DB
+- **ตาราง preview** ใน A_Students.tsx: flow เปลี่ยนจาก "เลือกไฟล์ → ยืนยัน" เป็น "เลือกไฟล์ → ดูตัวอย่าง → ยืนยัน"
+- color coding ต่อแถว: เขียว = สร้างใหม่, น้ำเงิน = อัปเดต, แดง = ข้าม + เหลือง = เตือนอาจารย์ไม่พบ
+- summary bar แสดงยอด willCreate/willUpdate/willSkip/advisorWarnings + ปุ่ม "ยืนยันนำเข้า" และ "ยกเลิก"
+
 ## [2026-08-13] feat: batch 123 — studentImportController รองรับ KKU Excel export format
 
 ### New

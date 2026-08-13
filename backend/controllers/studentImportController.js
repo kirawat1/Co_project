@@ -88,6 +88,101 @@ function normalizeRow(row, isKkuFormat) {
   };
 }
 
+exports.previewStudents = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ ok: false, message: "กรุณาอัปโหลดไฟล์ Excel" });
+    }
+
+    const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const rawRows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+
+    let headerRowIndex = rawRows.findIndex(r => r.some(cell => String(cell).trim() === 'STUDENTCODE'));
+    const isKkuFormat = headerRowIndex !== -1;
+    if (!isKkuFormat) {
+      headerRowIndex = rawRows.findIndex(r => r.some(cell => String(cell).trim() === 'รหัสนักศึกษา'));
+    }
+    if (headerRowIndex === -1) {
+      return res.status(400).json({ ok: false, message: 'ไม่พบหัวคอลัมน์ "STUDENTCODE" หรือ "รหัสนักศึกษา" ในไฟล์ Excel' });
+    }
+
+    const rows = XLSX.utils.sheet_to_json(sheet, { range: headerRowIndex, defval: '' });
+    const normalizedRows = rows.map(r => normalizeRow(r, isKkuFormat));
+
+    const allEmails     = [...new Set(normalizedRows.map(r => r.email).filter(Boolean))];
+    const allStudentIds = [...new Set(normalizedRows.map(r => r.studentId).filter(Boolean))];
+    const [prefetchedUsers, prefetchedStudents] = await Promise.all([
+      prisma.user.findMany({ where: { email: { in: allEmails } } }),
+      prisma.student.findMany({ where: { studentId: { in: allStudentIds } }, select: { studentId: true, deletedAt: true } }),
+    ]);
+    const userByEmail        = new Map(prefetchedUsers.map(u => [u.email, u]));
+    const studentByStudentId = new Map(prefetchedStudents.map(s => [s.studentId, s]));
+
+    const uniqueAdvisorPairs = [...new Map(
+      normalizedRows
+        .filter(r => r.advisorFirstName)
+        .map(r => [`${r.advisorFirstName}|${r.advisorLastName}`, { firstName: r.advisorFirstName, lastName: r.advisorLastName }])
+    ).values()];
+
+    const advisorTeachers = uniqueAdvisorPairs.length > 0
+      ? await prisma.teacher.findMany({
+          where: { OR: uniqueAdvisorPairs.map(p => ({ firstName: p.firstName, lastName: p.lastName })) },
+          select: { id: true, firstName: true, lastName: true },
+        })
+      : [];
+
+    const advisorMap       = new Map();
+    const advisorAmbiguous = new Set();
+    for (const t of advisorTeachers) {
+      const key = `${t.firstName}|${t.lastName}`;
+      if (advisorMap.has(key)) advisorAmbiguous.add(key);
+      else advisorMap.set(key, t.id);
+    }
+
+    let willCreate = 0, willUpdate = 0, willSkip = 0, advisorWarnings = 0;
+
+    const previewRows = normalizedRows.map((norm, i) => {
+      const { email, studentId, firstName, lastName, studyProgram, advisorName } = norm;
+      const rowNum = i + 2;
+      const name = [firstName, lastName].filter(Boolean).join(' ') || '-';
+
+      if (!email || !studentId) {
+        willSkip++;
+        return { rowNum, studentId: studentId || '-', name, email: email || '-', studyProgram, advisorName, action: 'skip', advisorStatus: 'empty', error: 'email หรือรหัสนักศึกษาว่างเปล่า' };
+      }
+
+      const existingStudent = studentByStudentId.get(studentId);
+      if (existingStudent?.deletedAt) {
+        willSkip++;
+        return { rowNum, studentId, name, email, studyProgram, advisorName, action: 'skip', advisorStatus: 'empty', error: `รหัส ${studentId} อยู่ในถังขยะ — กรุณากู้คืนก่อน` };
+      }
+
+      const action = userByEmail.has(email) ? 'update' : 'create';
+      if (action === 'create') willCreate++; else willUpdate++;
+
+      let advisorStatus = 'empty';
+      if (norm.advisorFirstName) {
+        const key = `${norm.advisorFirstName}|${norm.advisorLastName}`;
+        if (advisorAmbiguous.has(key))  { advisorStatus = 'ambiguous'; advisorWarnings++; }
+        else if (advisorMap.has(key))   { advisorStatus = 'found'; }
+        else                            { advisorStatus = 'notFound'; advisorWarnings++; }
+      }
+
+      return { rowNum, studentId, name, email, studyProgram, advisorName, action, advisorStatus };
+    });
+
+    res.json({
+      ok: true,
+      rows: previewRows,
+      summary: { total: rows.length, willCreate, willUpdate, willSkip, advisorWarnings },
+    });
+  } catch (err) {
+    console.error('[previewStudents]', err);
+    res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดในการอ่านไฟล์" });
+  }
+};
+
 exports.importStudents = async (req, res) => {
   try {
     if (!req.file) {

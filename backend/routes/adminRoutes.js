@@ -58,6 +58,15 @@ router.post('/criteria', verifyToken, verifyRole(...ADMIN_ROLES), criteriaContro
 router.put('/criteria/:id', verifyToken, verifyRole(...ADMIN_ROLES), criteriaController.saveCriteria);
 router.delete('/criteria/:id', verifyToken, verifyRole(...ADMIN_ROLES), criteriaController.deleteCriteria);
 
+// POST /api/admin/students/import-preview — parse Excel และคืน preview โดยไม่เขียน DB
+router.post(
+  '/students/import-preview',
+  verifyToken,
+  verifyRole(...STAFF_ONLY),
+  multerMemory.single('file'),
+  studentImportController.previewStudents
+);
+
 // POST /api/admin/students/import-excel — นำเข้าข้อมูลนักศึกษาจาก Excel
 router.post(
   '/students/import-excel',

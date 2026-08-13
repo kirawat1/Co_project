@@ -21,6 +21,26 @@ interface CoopPeriod {
   academicYear: string;
 }
 
+interface PreviewRow {
+  rowNum: number;
+  studentId: string;
+  name: string;
+  email: string;
+  studyProgram: string | null;
+  advisorName: string | null;
+  action: "create" | "update" | "skip";
+  advisorStatus: "found" | "notFound" | "ambiguous" | "empty";
+  error?: string;
+}
+
+interface PreviewSummary {
+  total: number;
+  willCreate: number;
+  willUpdate: number;
+  willSkip: number;
+  advisorWarnings: number;
+}
+
 interface StudentDocument {
   id: number;
   name: string;
@@ -157,6 +177,9 @@ export default function A_Students() {
   const [importLoading, setImportLoading] = useState(false);
   const [importResult, setImportResult] = useState<{ total: number; created: number; updated: number; errors: number } | null>(null);
   const [importWarnings, setImportWarnings] = useState<{ row: number; email: string; reason: string }[]>([]);
+  const [importPreview, setImportPreview] = useState<PreviewRow[] | null>(null);
+  const [importPreviewSummary, setImportPreviewSummary] = useState<PreviewSummary | null>(null);
+  const [importPreviewLoading, setImportPreviewLoading] = useState(false);
 
   // --- Fetch Data ---
   const fetchStudents = async (periodId: string, page = 1, search = "") => {
@@ -243,6 +266,40 @@ export default function A_Students() {
     }
   };
 
+  const clearImportState = () => {
+    setImportFile(null);
+    setImportPreview(null);
+    setImportPreviewSummary(null);
+    setImportResult(null);
+    setImportWarnings([]);
+  };
+
+  const handlePreview = async () => {
+    if (!importFile) return;
+    setImportPreviewLoading(true);
+    setImportPreview(null);
+    setImportPreviewSummary(null);
+    try {
+      const form = new FormData();
+      form.append("file", importFile);
+      const res = await apiFetch("/api/admin/students/import-preview", {
+        method: "POST",
+        body: form,
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setImportPreview(data.rows);
+        setImportPreviewSummary(data.summary);
+      } else {
+        alert(data.message || "ไม่สามารถอ่านไฟล์ได้");
+      }
+    } catch (err: any) {
+      alert(err.message || "เกิดข้อผิดพลาด");
+    } finally {
+      setImportPreviewLoading(false);
+    }
+  };
+
   const handleImport = async () => {
     if (!importFile) return;
     setImportLoading(true);
@@ -259,6 +316,8 @@ export default function A_Students() {
         setImportResult(data.summary);
         setImportWarnings(data.errorRows || []);
         setImportFile(null);
+        setImportPreview(null);
+        setImportPreviewSummary(null);
         fetchStudents(selectedPeriodId, currentPage, debouncedQ);
       } else {
         alert(data.message || "นำเข้าไม่สำเร็จ");
@@ -293,7 +352,8 @@ export default function A_Students() {
         onFilterChange={handleStatusGroupChange}
       />
 
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16, padding: "12px 16px", background: "#f8fafc", borderRadius: 12, border: "1px solid #e2e8f0", flexWrap: "wrap" }}>
+      {/* ── Import toolbar ── */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12, padding: "12px 16px", background: "#f8fafc", borderRadius: 12, border: "1px solid #e2e8f0", flexWrap: "wrap" }}>
         <span style={{ fontSize: 13, fontWeight: 700, color: "#334155" }}>📥 นำเข้าข้อมูลนักศึกษา</span>
         <label style={{ cursor: "pointer", fontSize: 12, padding: "6px 14px", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, fontWeight: 600, color: "#475569" }}>
           เลือกไฟล์ Excel
@@ -301,18 +361,24 @@ export default function A_Students() {
             type="file"
             accept=".xlsx,.xls"
             hidden
-            onChange={e => setImportFile(e.target.files?.[0] || null)}
+            onChange={e => {
+              setImportFile(e.target.files?.[0] || null);
+              setImportPreview(null);
+              setImportPreviewSummary(null);
+              setImportResult(null);
+              setImportWarnings([]);
+            }}
           />
         </label>
-        {importFile && (
+        {importFile && !importPreview && (
           <>
             <span style={{ fontSize: 12, color: "#64748b" }}>📄 {importFile.name}</span>
             <button
-              style={{ padding: "6px 16px", background: "#2563eb", color: "#fff", border: "none", borderRadius: 8, fontWeight: 700, cursor: "pointer", fontSize: 13 }}
-              onClick={handleImport}
-              disabled={importLoading}
+              style={{ padding: "6px 16px", background: "#0f766e", color: "#fff", border: "none", borderRadius: 8, fontWeight: 700, cursor: "pointer", fontSize: 13 }}
+              onClick={handlePreview}
+              disabled={importPreviewLoading}
             >
-              {importLoading ? "กำลังนำเข้า..." : "ยืนยันนำเข้า"}
+              {importPreviewLoading ? "กำลังโหลด..." : "ดูตัวอย่าง"}
             </button>
           </>
         )}
@@ -322,6 +388,90 @@ export default function A_Students() {
           </span>
         )}
       </div>
+
+      {/* ── Preview table ── */}
+      {importPreview && importPreviewSummary && (
+        <div style={{ marginBottom: 16 }}>
+          {/* Summary bar */}
+          <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap", marginBottom: 10, padding: "10px 14px", background: "#f1f5f9", borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 13 }}>
+            <span style={{ fontWeight: 700, color: "#334155" }}>📄 {importFile?.name}</span>
+            <span style={{ color: "#15803d", fontWeight: 600 }}>🟢 สร้างใหม่ {importPreviewSummary.willCreate}</span>
+            <span style={{ color: "#1d4ed8", fontWeight: 600 }}>🔵 อัปเดต {importPreviewSummary.willUpdate}</span>
+            {importPreviewSummary.willSkip > 0 && (
+              <span style={{ color: "#dc2626", fontWeight: 600 }}>🔴 ข้าม {importPreviewSummary.willSkip}</span>
+            )}
+            {importPreviewSummary.advisorWarnings > 0 && (
+              <span style={{ color: "#b45309", fontWeight: 600 }}>⚠️ เตือนอาจารย์ {importPreviewSummary.advisorWarnings} แถว</span>
+            )}
+            <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+              <button
+                style={{ padding: "6px 18px", background: "#2563eb", color: "#fff", border: "none", borderRadius: 8, fontWeight: 700, cursor: importLoading ? "not-allowed" : "pointer", fontSize: 13, opacity: importLoading ? 0.7 : 1 }}
+                onClick={handleImport}
+                disabled={importLoading}
+              >
+                {importLoading ? "กำลังนำเข้า..." : "ยืนยันนำเข้า"}
+              </button>
+              <button
+                style={{ padding: "6px 14px", background: "#fff", color: "#475569", border: "1px solid #e2e8f0", borderRadius: 8, fontWeight: 600, cursor: "pointer", fontSize: 13 }}
+                onClick={clearImportState}
+                disabled={importLoading}
+              >
+                ยกเลิก
+              </button>
+            </div>
+          </div>
+
+          {/* Table */}
+          <div style={{ overflowX: "auto", borderRadius: 10, border: "1px solid #e2e8f0" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+              <thead>
+                <tr style={{ background: "#f8fafc", borderBottom: "2px solid #e2e8f0" }}>
+                  {["แถว", "รหัส", "ชื่อ-นามสกุล", "อีเมล", "ภาค", "อาจารย์ที่ปรึกษา", "สถานะ"].map(h => (
+                    <th key={h} style={{ padding: "8px 12px", textAlign: "left", fontWeight: 700, color: "#475569", whiteSpace: "nowrap" }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {importPreview.map(row => {
+                  const rowBg = row.action === "skip" ? "#fef2f2"
+                              : row.action === "update" ? "#eff6ff"
+                              : "#f0fdf4";
+                  const rowBorder = row.action === "skip" ? "#ef4444"
+                                  : row.action === "update" ? "#3b82f6"
+                                  : "#22c55e";
+                  const advisorCellStyle: React.CSSProperties =
+                    row.advisorStatus === "notFound" || row.advisorStatus === "ambiguous"
+                      ? { background: "#fef9c3", color: "#92400e" }
+                      : {};
+                  return (
+                    <tr key={row.rowNum} style={{ background: rowBg, borderLeft: `3px solid ${rowBorder}`, borderBottom: "1px solid #e2e8f0" }}>
+                      <td style={{ padding: "7px 12px", color: "#94a3b8" }}>{row.rowNum}</td>
+                      <td style={{ padding: "7px 12px", fontWeight: 600 }}>{row.studentId}</td>
+                      <td style={{ padding: "7px 12px" }}>{row.name}</td>
+                      <td style={{ padding: "7px 12px", color: "#64748b" }}>{row.email}</td>
+                      <td style={{ padding: "7px 12px", color: "#64748b" }}>
+                        {row.studyProgram === "normal" ? "ปกติ" : row.studyProgram === "special" ? "พิเศษ" : "-"}
+                      </td>
+                      <td style={{ padding: "7px 12px", ...advisorCellStyle }}>
+                        {row.advisorStatus === "found"     && <span>{row.advisorName}</span>}
+                        {row.advisorStatus === "notFound"  && <span>⚠️ ไม่พบ "{row.advisorName}"</span>}
+                        {row.advisorStatus === "ambiguous" && <span>⚠️ ซ้ำกัน "{row.advisorName}"</span>}
+                        {row.advisorStatus === "empty"     && <span style={{ color: "#cbd5e1" }}>-</span>}
+                      </td>
+                      <td style={{ padding: "7px 12px", whiteSpace: "nowrap" }}>
+                        {row.action === "create" && <span style={{ color: "#15803d", fontWeight: 700 }}>🟢 สร้างใหม่</span>}
+                        {row.action === "update" && <span style={{ color: "#1d4ed8", fontWeight: 700 }}>🔵 อัปเดต</span>}
+                        {row.action === "skip"   && <span style={{ color: "#dc2626", fontWeight: 700 }} title={row.error}>🔴 ข้าม</span>}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       {importWarnings.length > 0 && (
         <div style={{ marginTop: 8, padding: 12, background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 8, maxHeight: 160, overflowY: "auto" }}>
           <div style={{ fontSize: 12, fontWeight: 700, color: "#92400e", marginBottom: 6 }}>⚠️ คำเตือนระหว่างนำเข้า ({importWarnings.length} แถว) — ข้อมูลแถวเหล่านี้ยังถูกนำเข้า แต่ควรตรวจสอบ:</div>
