@@ -86,7 +86,7 @@ exports.signIn = async (req, res) => {
       };
     }
 
-    const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '24h' });
+    const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '7d' });
     return res.json({ ok: true, message: "เข้าสู่ระบบสำเร็จ", token, user: profile });
   } catch (err) {
     console.error(err);
@@ -248,7 +248,7 @@ exports.loginWithSSO = async (req, res) => {
     const token = jwt.sign(
       { id: user.id, role: user.role, username: user.username },
       process.env.JWT_SECRET,
-      { expiresIn: "1d" }
+      { expiresIn: "7d" }
     );
 
     // Prepare Response
@@ -492,7 +492,7 @@ exports.loginWithKKU = async (req, res) => {
     const token = jwt.sign(
       { id: user.id, role: user.role },
       process.env.JWT_SECRET,
-      { expiresIn: "24h" }
+      { expiresIn: "7d" }
     );
 
     let profile = { id: user.id, email: user.email, role: user.role };
@@ -567,7 +567,7 @@ exports.registerStudent = async (req, res) => {
       });
     });
 
-    const token = jwt.sign({ id: user.id, role: "student" }, process.env.JWT_SECRET, { expiresIn: "24h" });
+    const token = jwt.sign({ id: user.id, role: "student" }, process.env.JWT_SECRET, { expiresIn: "7d" });
     res.json({
       ok: true,
       message: "สมัครสมาชิกสำเร็จ",
@@ -632,7 +632,7 @@ exports.loginWithGoogle = async (req, res) => {
       return res.status(401).json({ ok: false, message: "ไม่พบรายชื่อในระบบ กรุณาติดต่อเจ้าหน้าที่" });
     }
 
-    const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '24h' });
+    const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '7d' });
     return res.json({ ok: true, token, user: { id: user.id, email: user.email, role: user.role } });
   } catch (err) {
     console.error('[loginWithGoogle]', err);
