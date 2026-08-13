@@ -1,5 +1,6 @@
 // Frontend/src/components/LetterModalShared.tsx
 // Shared components and styles for Issue*Letter modals
+import React from "react";
 
 function buildAddressLine(c: any): string {
     const parts = [
@@ -16,20 +17,25 @@ function buildAddressLine(c: any): string {
 }
 
 export function CompanyAddressBox({ company }: { company: any }) {
+    const base: React.CSSProperties = {
+        marginTop: 8, padding: '12px 14px', borderRadius: 8, fontSize: 12,
+        background: 'rgba(14,165,233,0.12)', border: '1px solid rgba(14,165,233,0.35)',
+        color: 'inherit',
+    };
     if (!company) return (
-        <div style={{ marginTop: 8, padding: '10px 12px', background: '#fef9c3', borderRadius: 8, border: '1px solid #fde047', fontSize: 12, color: '#854d0e' }}>
+        <div style={{ ...base, background: 'rgba(234,179,8,0.12)', border: '1px solid rgba(234,179,8,0.35)' }}>
             ⚠️ ไม่พบข้อมูลบริษัทของนักศึกษา
         </div>
     );
     const addrLine = buildAddressLine(company);
     return (
-        <div style={{ marginTop: 8, padding: '12px 14px', background: '#f0f9ff', borderRadius: 8, border: '1px solid #bae6fd', fontSize: 12 }}>
-            <div style={{ fontWeight: 700, color: '#0369a1', marginBottom: 6 }}>📦 ที่อยู่จัดส่ง</div>
-            <div style={{ fontWeight: 700, color: '#1e293b', marginBottom: 4 }}>{company.name}</div>
-            {addrLine && <div style={{ color: '#374151', marginBottom: 2, lineHeight: 1.5 }}>{addrLine}</div>}
-            {company.contactPerson && <div style={{ color: '#374151', marginBottom: 2 }}>เรียน: {company.contactPerson}</div>}
-            {company.phone && <div style={{ color: '#374151', marginBottom: 2 }}>โทร: {company.phone}</div>}
-            {company.fax && <div style={{ color: '#374151' }}>แฟกซ์: {company.fax}</div>}
+        <div style={base}>
+            <div style={{ fontWeight: 700, marginBottom: 6, color: '#38bdf8' }}>📦 ที่อยู่จัดส่ง</div>
+            <div style={{ fontWeight: 700, marginBottom: 4 }}>{company.name}</div>
+            {addrLine && <div style={{ opacity: 0.85, marginBottom: 2, lineHeight: 1.5 }}>{addrLine}</div>}
+            {company.contactPerson && <div style={{ opacity: 0.85, marginBottom: 2 }}>เรียน: {company.contactPerson}</div>}
+            {company.phone && <div style={{ opacity: 0.85, marginBottom: 2 }}>โทร: {company.phone}</div>}
+            {company.fax && <div style={{ opacity: 0.85 }}>แฟกซ์: {company.fax}</div>}
         </div>
     );
 }
