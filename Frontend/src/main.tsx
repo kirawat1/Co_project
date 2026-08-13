@@ -9,15 +9,23 @@ import '@fontsource-variable/inter/index.css';
 import '@fontsource-variable/noto-sans-thai/index.css';
 import App from "./App";
 
-// ── Global axios interceptor ─────────────────────────────────
-// เมื่อ backend คืน 401 (token หมดอายุ / secret เปลี่ยน)
-// ให้ลบ token ออกจาก localStorage แล้ว redirect กลับ login
+// ── Global axios interceptors ────────────────────────────────
+// Request: inject Authorization header จาก localStorage โดยอัตโนมัติ
+// (ครอบคลุม axios ทุกที่ในแอป — ไม่ต้องใส่ header ทีละ call)
+axios.interceptors.request.use((config) => {
+  const token = localStorage.getItem("coop.token");
+  if (token && !config.headers["Authorization"]) {
+    config.headers["Authorization"] = `Bearer ${token}`;
+  }
+  return config;
+});
+
+// Response: เมื่อ backend คืน 401 → ลบ token และ redirect กลับ login
 axios.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error?.response?.status === 401) {
       localStorage.removeItem("coop.token");
-      // ถ้าไม่ได้อยู่หน้า login อยู่แล้ว ให้ redirect
       if (window.location.pathname !== "/") {
         alert("Session หมดอายุ กรุณาเข้าสู่ระบบใหม่");
         window.location.href = "/";
