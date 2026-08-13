@@ -19,7 +19,7 @@ describe('validatePassword', () => {
   test('accepts valid password', () => {
     expect(validatePassword('Secure1!')).toBeNull();
   });
-  test('accepts valid password with @ symbol', () => {
+  test('accepts valid password with Thai-adjacent special chars', () => {
     expect(validatePassword('Hello1@world')).toBeNull();
   });
 });
