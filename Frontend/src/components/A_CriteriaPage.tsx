@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from "react";
 interface Department {
   id: string;
   major: string;
+  nameTh: string | null;
   updatedAt: string;
 }
 
@@ -44,11 +45,13 @@ export default function A_CriteriaPage() {
 
   const [showAddForm, setShowAddForm] = useState(false);
   const [newName, setNewName] = useState("");
+  const [newNameTh, setNewNameTh] = useState("");
   const [addSaving, setAddSaving] = useState(false);
   const addInputRef = useRef<HTMLInputElement>(null);
 
   const [editId, setEditId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
+  const [editNameTh, setEditNameTh] = useState("");
   const [editSaving, setEditSaving] = useState(false);
 
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -85,11 +88,12 @@ export default function A_CriteriaPage() {
       const res = await fetch("/api/admin/criteria", {
         method: "POST",
         headers,
-        body: JSON.stringify({ major: newName.trim() }),
+        body: JSON.stringify({ major: newName.trim(), nameTh: newNameTh.trim() }),
       });
       const data = await res.json();
       if (data.ok) {
         setNewName("");
+        setNewNameTh("");
         setShowAddForm(false);
         fetchDepartments();
       } else {
@@ -105,6 +109,7 @@ export default function A_CriteriaPage() {
   const startEdit = (dept: Department) => {
     setEditId(dept.id);
     setEditName(dept.major);
+    setEditNameTh(dept.nameTh ?? "");
     setError("");
   };
 
@@ -116,12 +121,13 @@ export default function A_CriteriaPage() {
       const res = await fetch(`/api/admin/criteria/${editId}`, {
         method: "PUT",
         headers,
-        body: JSON.stringify({ major: editName.trim() }),
+        body: JSON.stringify({ major: editName.trim(), nameTh: editNameTh.trim() }),
       });
       const data = await res.json();
       if (data.ok) {
         setEditId(null);
         setEditName("");
+        setEditNameTh("");
         fetchDepartments();
       } else {
         setError(data.message || "แก้ไขล้มเหลว");
@@ -188,32 +194,46 @@ export default function A_CriteriaPage() {
 
         {/* Add Form */}
         {showAddForm && (
-          <div style={{ marginBottom: 20, padding: 16, background: "#f0f9ff", borderRadius: 12, border: "1px solid #bae6fd", display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-            <div style={{ flex: 1, minWidth: 200 }}>
-              <input
-                ref={addInputRef}
-                style={input}
-                placeholder="ชื่อสาขาวิชา เช่น CS, IT, AI, Cyber"
-                value={newName}
-                onChange={e => setNewName(e.target.value)}
-                onKeyDown={e => { if (e.key === "Enter") handleAdd(); if (e.key === "Escape") { setShowAddForm(false); setNewName(""); } }}
+          <div style={{ marginBottom: 20, padding: 18, background: "#f0f9ff", borderRadius: 12, border: "1px solid #bae6fd" }}>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
+              <div style={{ minWidth: 140 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#0369a1", marginBottom: 4 }}>รหัสสาขา</div>
+                <input
+                  ref={addInputRef}
+                  style={input}
+                  placeholder="เช่น CS, IT, AI"
+                  value={newName}
+                  onChange={e => setNewName(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Escape") { setShowAddForm(false); setNewName(""); setNewNameTh(""); } }}
+                  disabled={addSaving}
+                />
+              </div>
+              <div style={{ flex: 1, minWidth: 220 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#0369a1", marginBottom: 4 }}>ชื่อภาษาไทย</div>
+                <input
+                  style={input}
+                  placeholder="เช่น วิทยาการคอมพิวเตอร์"
+                  value={newNameTh}
+                  onChange={e => setNewNameTh(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter") handleAdd(); if (e.key === "Escape") { setShowAddForm(false); setNewName(""); setNewNameTh(""); } }}
+                  disabled={addSaving}
+                />
+              </div>
+              <button
+                style={btn("#fff", addSaving ? "#94a3b8" : "#22c55e")}
+                onClick={handleAdd}
+                disabled={addSaving || !newName.trim()}
+              >
+                {addSaving ? "กำลังบันทึก..." : "บันทึก"}
+              </button>
+              <button
+                style={btn("#64748b", "#f1f5f9", "#e2e8f0")}
+                onClick={() => { setShowAddForm(false); setNewName(""); setNewNameTh(""); setError(""); }}
                 disabled={addSaving}
-              />
+              >
+                ยกเลิก
+              </button>
             </div>
-            <button
-              style={btn("#fff", addSaving ? "#94a3b8" : "#22c55e")}
-              onClick={handleAdd}
-              disabled={addSaving || !newName.trim()}
-            >
-              {addSaving ? "กำลังบันทึก..." : "บันทึก"}
-            </button>
-            <button
-              style={btn("#64748b", "#f1f5f9", "#e2e8f0")}
-              onClick={() => { setShowAddForm(false); setNewName(""); setError(""); }}
-              disabled={addSaving}
-            >
-              ยกเลิก
-            </button>
           </div>
         )}
 
@@ -242,19 +262,35 @@ export default function A_CriteriaPage() {
               }}>
                 {editId === dept.id ? (
                   <>
-                    <input
-                      style={{ ...input, fontSize: 18, fontWeight: 700 }}
-                      value={editName}
-                      onChange={e => setEditName(e.target.value)}
-                      onKeyDown={e => { if (e.key === "Enter") handleEdit(); if (e.key === "Escape") { setEditId(null); setError(""); } }}
-                      autoFocus
-                      disabled={editSaving}
-                    />
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      <div>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: "#0369a1", marginBottom: 3 }}>รหัสสาขา</div>
+                        <input
+                          style={{ ...input, fontWeight: 700 }}
+                          value={editName}
+                          onChange={e => setEditName(e.target.value)}
+                          onKeyDown={e => { if (e.key === "Escape") { setEditId(null); setError(""); } }}
+                          autoFocus
+                          disabled={editSaving}
+                        />
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: "#0369a1", marginBottom: 3 }}>ชื่อภาษาไทย</div>
+                        <input
+                          style={input}
+                          value={editNameTh}
+                          onChange={e => setEditNameTh(e.target.value)}
+                          onKeyDown={e => { if (e.key === "Enter") handleEdit(); if (e.key === "Escape") { setEditId(null); setError(""); } }}
+                          disabled={editSaving}
+                          placeholder="ชื่อภาษาไทย"
+                        />
+                      </div>
+                    </div>
                     <div style={{ display: "flex", gap: 8 }}>
                       <button style={{ ...btn("#fff", editSaving ? "#94a3b8" : "#22c55e"), flex: 1 }} onClick={handleEdit} disabled={editSaving || !editName.trim()}>
                         {editSaving ? "..." : "บันทึก"}
                       </button>
-                      <button style={btn("#64748b", "#f1f5f9", "#e2e8f0")} onClick={() => { setEditId(null); setError(""); }} disabled={editSaving}>
+                      <button style={btn("#64748b", "#f1f5f9", "#e2e8f0")} onClick={() => { setEditId(null); setEditNameTh(""); setError(""); }} disabled={editSaving}>
                         ยกเลิก
                       </button>
                     </div>
@@ -264,7 +300,10 @@ export default function A_CriteriaPage() {
                     <div>
                       <div style={{ fontSize: 10, fontWeight: 700, color: "#0ea5e9", textTransform: "uppercase", letterSpacing: 1, marginBottom: 4 }}>สาขาวิชา</div>
                       <div style={{ fontSize: 26, fontWeight: 900, color: "#1e293b" }}>{dept.major}</div>
-                      <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 4 }}>
+                      {dept.nameTh && (
+                        <div style={{ fontSize: 13, color: "#475569", fontWeight: 500, marginTop: 3 }}>{dept.nameTh}</div>
+                      )}
+                      <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 6 }}>
                         อัปเดต {new Date(dept.updatedAt).toLocaleDateString("th-TH", { year: "numeric", month: "short", day: "numeric" })}
                       </div>
                     </div>

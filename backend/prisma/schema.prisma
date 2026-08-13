@@ -195,6 +195,7 @@ model CoopApplicationForm {
 model CoopCriteria {
   id        String   @id @default(uuid())
   major     String   @unique
+  nameTh    String?
   updatedAt DateTime @updatedAt
 }
 

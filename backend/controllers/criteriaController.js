@@ -20,13 +20,13 @@ exports.getAllCriteria = async (req, res) => {
 // ==================================================
 exports.createCriteria = async (req, res) => {
   try {
-    const { major } = req.body;
+    const { major, nameTh } = req.body;
     if (!major || !major.trim()) return res.status(400).json({ ok: false, message: "กรุณาระบุชื่อสาขา" });
 
     const criteria = await prisma.coopCriteria.upsert({
       where: { major: major.trim() },
-      update: {},
-      create: { major: major.trim() },
+      update: { nameTh: nameTh?.trim() || null },
+      create: { major: major.trim(), nameTh: nameTh?.trim() || null },
     });
 
     res.json({ ok: true, criteria });
@@ -42,12 +42,12 @@ exports.createCriteria = async (req, res) => {
 exports.updateCriteria = async (req, res) => {
   try {
     const { id } = req.params;
-    const { major } = req.body;
+    const { major, nameTh } = req.body;
     if (!major || !major.trim()) return res.status(400).json({ ok: false, message: "กรุณาระบุชื่อสาขา" });
 
     const criteria = await prisma.coopCriteria.update({
       where: { id },
-      data: { major: major.trim() },
+      data: { major: major.trim(), nameTh: nameTh?.trim() || null },
     });
 
     res.json({ ok: true, criteria });
