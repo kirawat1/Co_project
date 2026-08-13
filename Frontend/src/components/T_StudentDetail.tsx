@@ -402,7 +402,7 @@ export default function T_StudentDetail() {
               {previewType === 'image' ? (
                 <img src={previewUrl} alt="Preview" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
               ) : (
-                <iframe src={previewUrl} style={{ width: '100%', height: '100%', border: 'none' }} title="Full Preview" />
+                <iframe src={previewUrl} style={{ width: '100%', height: '100%', border: 'none' }} title="Full Preview" sandbox="allow-same-origin" />
               )}
             </div>
           </div>

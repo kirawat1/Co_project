@@ -242,7 +242,7 @@ const DispatchManagementCard = ({ profile, onUpload, onRefresh }: { profile: any
               <button onClick={() => setPreviewUrl(null)} className="btn-close">&times;</button>
             </div>
             <div className="pdf-modal-body">
-              <iframe src={previewUrl} style={{ width: '100%', height: '100%', border: 'none' }} title="Preview" />
+              <iframe src={previewUrl} style={{ width: '100%', height: '100%', border: 'none' }} title="Preview" sandbox="allow-same-origin" />
             </div>
             <div className="pdf-modal-footer">
               <button className="btn btn-secondary" onClick={() => setPreviewUrl(null)}>ปิดหน้าต่าง</button>
@@ -628,7 +628,7 @@ export default function S_Docs({ profile, setProfile }: { profile: LocalStudentP
               <button onClick={() => setShowPDFPopup(false)} className="btn-close" title="ปิดหน้าต่าง">&times;</button>
             </div>
             <div className="pdf-modal-body">
-              <iframe src={pdfDataUrl} title="PDF Preview" className="pdf-iframe" />
+              <iframe src={pdfDataUrl} title="PDF Preview" className="pdf-iframe" sandbox="allow-same-origin" />
             </div>
             <div className="pdf-modal-footer">
               <button className="btn-secondary" style={{ padding: '10px 20px', borderRadius: 8, fontWeight: 700 }} onClick={() => setShowPDFPopup(false)}>ปิด</button>
