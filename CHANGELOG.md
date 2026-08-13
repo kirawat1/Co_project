@@ -1,5 +1,13 @@
 # CHANGELOG — Co_project
 
+## [2026-08-13] UI: รวม status display ของนักศึกษา ลด UI ซ้ำซ้อน (Plan 3)
+
+### Changed
+- **`S_Gateway.tsx`**: ลบ status display ที่ซ้ำซ้อน (custom step indicator + embedded S_StatusTracker) เหลือไว้แค่การ์ด "สถานะคำร้อง" จุดเดียว
+- **`S_Dashboard.tsx`**: การ์ดสถานะกดปุ่ม "ดูรายละเอียด →" แล้วขยายแสดง S_StatusTracker เต็มรูปแบบในหน้าเดียวกัน
+- **`S_App.tsx`**: ลบหน้า `/student/status-tracker` ออกจาก routing
+- **`S_Sidebar.tsx`**: ลบ "สถานะสหกิจ" sidebar item, ย้าย badge แจ้งเตือน (STATUS_UPDATED + REQ_LETTER_ISSUED + PLACEMENT_LETTER_ISSUED) ไปที่ปุ่ม Dashboard
+
 ## [2026-08-13] — Fix: batch 106 — uncapped pagination limit in getMyStudents
 
 ### Bug fix

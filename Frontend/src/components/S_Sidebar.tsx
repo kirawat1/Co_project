@@ -76,7 +76,7 @@ export default function S_Sidebar({ profile, isOpen = false, onClose = () => {} 
       <nav className="nav" aria-label="Student Navigation">
 
         <NavItem to="/student/dashboard" label="Dashboard" icon={<IcDashboard />} end onClick={navAndRead}
-          count={counts.STATUS_UPDATED ?? 0} />
+          count={(counts.STATUS_UPDATED ?? 0) + (counts.REQ_LETTER_ISSUED ?? 0) + (counts.PLACEMENT_LETTER_ISSUED ?? 0)} />
 
         <NavItem to="/student/profile" label="ข้อมูลนักศึกษา" icon={<IcUser />} onClick={handleNav} />
         <NavItem to="/student/company" label="ข้อมูลบริษัท" icon={<IcUser />} onClick={handleNav} />
