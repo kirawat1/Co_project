@@ -421,6 +421,7 @@ export default function S_Docs({ profile, setProfile }: { profile: LocalStudentP
     try {
       const res = await apiFetch(`/api/docs/delete/${documentId}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
       if (res.ok) { alert("🗑️ ลบไฟล์เรียบร้อยแล้ว"); await refreshProfile(); }
+      else { const d = await res.json().catch(() => ({})); alert(d.message || "❌ ลบไฟล์ไม่สำเร็จ"); }
     } finally { setLoading(false); }
   };
 
