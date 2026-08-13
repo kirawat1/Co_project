@@ -9,6 +9,8 @@ function makeRes() {
   return { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() };
 }
 
+// ── Old Thai-header template ──────────────────────────────────────────────────
+
 const HEADER_KEYS = [
   'รหัสนักศึกษา', 'คำนำหน้าชื่อ', 'ชื่อ-นามสกุล (ภาษาไทย)', 'ชื่อ-นามสกุล (ภาษาอังกฤษ)',
   'สาขาวิชา / แผนกการศึกษา', 'ชั้นปี', 'เบอร์โทรศัพท์', 'อีเมล',
@@ -32,13 +34,36 @@ function mockSheet(dataRows) {
   };
 }
 
+// ── KKU system export (English headers, pre-split names) ─────────────────────
+
+const KKU_HEADER_KEYS = [
+  'STUDENTCODE', 'PREFIXNAME', 'STUDENTNAME', 'STUDENTSURNAME',
+  'STUDENTNAMEENG', 'STUDENTSURNAMEENG', 'PROGRAMNAME', 'LEVELNAME',
+  'ADMITACADYEAR', 'KKUMAIL', 'OFFICERNAME', 'OFFICERSURNAME',
+];
+
+function mockKkuSheet(dataRows) {
+  XLSX.read = jest.fn().mockReturnValue({ SheetNames: ['Sheet1'], Sheets: { Sheet1: {} } });
+  XLSX.utils = {
+    sheet_to_json: jest.fn((sheet, opts) => {
+      if (opts && opts.header === 1) {
+        return [KKU_HEADER_KEYS];
+      }
+      return dataRows;
+    }),
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 describe('importStudents', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    // controller pre-fetches: user.findMany × 2 (by email, by username), student.findMany × 1
     prisma.user.findMany.mockResolvedValue([]);
     prisma.student.findMany.mockResolvedValue([]);
   });
+
+  // ── shared / format-agnostic ────────────────────────────────────────────────
 
   test('400 – no file uploaded', async () => {
     const req = { file: null };
@@ -47,7 +72,7 @@ describe('importStudents', () => {
     expect(res.status).toHaveBeenCalledWith(400);
   });
 
-  test('400 – ไม่พบหัวคอลัมน์ "รหัสนักศึกษา" ในไฟล์', async () => {
+  test('400 – ไม่พบหัวคอลัมน์ STUDENTCODE หรือ รหัสนักศึกษา ในไฟล์', async () => {
     XLSX.read = jest.fn().mockReturnValue({ SheetNames: ['Sheet1'], Sheets: { Sheet1: {} } });
     XLSX.utils = { sheet_to_json: jest.fn().mockReturnValue([['อะไรก็ไม่รู้'], ['อะไรก็ไม่รู้']]) };
 
@@ -58,7 +83,9 @@ describe('importStudents', () => {
     expect(res.status).toHaveBeenCalledWith(400);
   });
 
-  test('200 – ไฟล์มีแถวหัวข้อฟอร์ม + แถวว่างเหนือแถวหัวคอลัมน์ → ยังอ่านข้อมูลได้ถูกต้อง', async () => {
+  // ── old Thai-header template ────────────────────────────────────────────────
+
+  test('[old] ไฟล์มีแถวหัวข้อฟอร์ม + แถวว่างเหนือแถวหัวคอลัมน์ → ยังอ่านข้อมูลได้ถูกต้อง', async () => {
     mockSheet([{
       'รหัสนักศึกษา': '645040001-1',
       'คำนำหน้าชื่อ': 'นาย',
@@ -108,7 +135,7 @@ describe('importStudents', () => {
     }));
   });
 
-  test('200 – skips row with missing email, counts as error', async () => {
+  test('[old] skips row with missing email, counts as error', async () => {
     mockSheet([{
       'อีเมล': '',
       'รหัสนักศึกษา': '',
@@ -125,7 +152,7 @@ describe('importStudents', () => {
     expect(body.summary.created).toBe(0);
   });
 
-  test('200 – ไม่พบอาจารย์ที่ปรึกษาตามชื่อ (นักศึกษาใหม่) → generalAdvisorId เป็น null และมี errorRows แจ้งเตือน', async () => {
+  test('[old] ไม่พบอาจารย์ที่ปรึกษาตามชื่อ (นักศึกษาใหม่) → generalAdvisorId เป็น null และมี errorRows แจ้งเตือน', async () => {
     mockSheet([{
       'รหัสนักศึกษา': '645040002-1',
       'ชื่อ-นามสกุล (ภาษาไทย)': 'สมศรี มีสุข',
@@ -147,11 +174,11 @@ describe('importStudents', () => {
     }));
 
     const body = res.json.mock.calls[0][0];
-    expect(body.summary.errors).toBe(0); // ไม่ใช่ hard error — แค่ไม่ได้ผูกอาจารย์
+    expect(body.summary.errors).toBe(0);
     expect(body.errorRows[0].reason).toMatch(/ไม่พบอาจารย์ที่ปรึกษา/);
   });
 
-  test('200 – นักศึกษาเดิม + ไม่พบอาจารย์ที่ปรึกษาตามชื่อ → ไม่แก้ไขอาจารย์ที่ปรึกษาเดิม (generalAdvisorId ไม่ถูกส่งไปอัปเดต)', async () => {
+  test('[old] นักศึกษาเดิม + ไม่พบอาจารย์ที่ปรึกษาตามชื่อ → ไม่แก้ไขอาจารย์ที่ปรึกษาเดิม', async () => {
     mockSheet([{
       'รหัสนักศึกษา': '645040002-1',
       'ชื่อ-นามสกุล (ภาษาไทย)': 'สมศรี มีสุข',
@@ -159,11 +186,9 @@ describe('importStudents', () => {
       'ชื่ออาจารย์ที่ปรึกษา': 'พิมพ์ชื่อผิด ไปนิดนึง',
     }]);
 
-    // นักศึกษาเดิม: user.findMany (by email) ต้องคืน user นั้น เพื่อให้ controller เข้า update path
-    // username must match studentId (as in DB — User.username = student ID)
     prisma.user.findMany
-      .mockResolvedValueOnce([{ id: 2, email: 'stu2@kkumail.com', username: '645040002-1' }]) // by email
-      .mockResolvedValueOnce([]); // by username
+      .mockResolvedValueOnce([{ id: 2, email: 'stu2@kkumail.com', username: '645040002-1' }])
+      .mockResolvedValueOnce([]);
     prisma.student.upsert.mockResolvedValue({ id: 2 });
     prisma.teacher.findMany.mockResolvedValue([]);
 
@@ -175,7 +200,7 @@ describe('importStudents', () => {
     expect(call.update.generalAdvisorId).toBeUndefined();
   });
 
-  test('200 – อาจารย์ชื่อซ้ำกันหลายคนในระบบ → ไม่เดาว่าเป็นคนไหน', async () => {
+  test('[old] อาจารย์ชื่อซ้ำกันหลายคนในระบบ → ไม่เดาว่าเป็นคนไหน', async () => {
     mockSheet([{
       'รหัสนักศึกษา': '645040004-1',
       'ชื่อ-นามสกุล (ภาษาไทย)': 'สมปอง ดีใจ',
@@ -202,7 +227,7 @@ describe('importStudents', () => {
     expect(body.errorRows[0].reason).toMatch(/ซ้ำกันหลายคน/);
   });
 
-  test('200 – ชื่อ-นามสกุลแบบคำเดียว (ไม่มีเว้นวรรค) → lastName เป็นค่าว่าง', async () => {
+  test('[old] ชื่อ-นามสกุลแบบคำเดียว (ไม่มีเว้นวรรค) → lastName เป็นค่าว่าง', async () => {
     mockSheet([{
       'รหัสนักศึกษา': '645040003-1',
       'ชื่อ-นามสกุล (ภาษาไทย)': 'เดี่ยว',
@@ -223,14 +248,13 @@ describe('importStudents', () => {
     }));
   });
 
-  test('200 – studentId อยู่ในถังขยะ (soft-deleted) → ไม่อัปเดตทับ ขึ้น error แทน', async () => {
+  test('[old] studentId อยู่ในถังขยะ (soft-deleted) → ไม่อัปเดตทับ ขึ้น error แทน', async () => {
     mockSheet([{
       'รหัสนักศึกษา': '645040005-1',
       'ชื่อ-นามสกุล (ภาษาไทย)': 'ถูกลบ ไปแล้ว',
       'อีเมล': 'stu5@kkumail.com',
     }]);
 
-    // soft-deleted: student.findMany คืน student ที่มี deletedAt เพื่อให้ Map พบแล้ว block
     prisma.student.findMany.mockResolvedValue([{ studentId: '645040005-1', deletedAt: new Date('2026-01-01') }]);
 
     const req = { file: { buffer: Buffer.from('fake') } };
@@ -242,5 +266,132 @@ describe('importStudents', () => {
     expect(body.summary.errors).toBe(1);
     expect(body.summary.created).toBe(0);
     expect(body.errorRows[0].reason).toMatch(/ถังขยะ/);
+  });
+
+  // ── KKU system export format ────────────────────────────────────────────────
+
+  test('[kku] นำเข้าสำเร็จ — อ่านชื่อ/นามสกุล TH+EN จาก column แยก และค้นหาอาจารย์จาก OFFICERNAME+OFFICERSURNAME', async () => {
+    mockKkuSheet([{
+      STUDENTCODE:       '663380007-9',
+      PREFIXNAME:        'นาย',
+      STUDENTNAME:       'กฤตยชญ์',
+      STUDENTSURNAME:    'มัตกิจ',
+      STUDENTNAMEENG:    'KITTAYOT',
+      STUDENTSURNAMEENG: 'MUTTAKIT',
+      PROGRAMNAME:       'วิทยาการคอมพิวเตอร์ ปริญญาตรี ภาคปกติ',
+      LEVELNAME:         'ปริญญาตรี ภาคปกติ',
+      ADMITACADYEAR:     2566,
+      KKUMAIL:           'kittayot.m@kkumail.com',
+      OFFICERNAME:       'วิชาญ',
+      OFFICERSURNAME:    'ธรรมวิเศษ',
+    }]);
+
+    prisma.user.upsert.mockResolvedValue({ id: 1 });
+    prisma.student.upsert.mockResolvedValue({ id: 1 });
+    prisma.teacher.findMany.mockResolvedValue([{ id: 42, firstName: 'วิชาญ', lastName: 'ธรรมวิเศษ' }]);
+
+    const req = { file: { buffer: Buffer.from('fake') } };
+    const res = makeRes();
+    await importStudents(req, res);
+
+    const body = res.json.mock.calls[0][0];
+    expect(body.ok).toBe(true);
+    expect(body.summary.created).toBe(1);
+    expect(body.summary.errors).toBe(0);
+
+    expect(prisma.student.upsert).toHaveBeenCalledWith(expect.objectContaining({
+      where: { studentId: '663380007-9' },
+      create: expect.objectContaining({
+        prefix:      'MR',
+        firstName:   'กฤตยชญ์',
+        lastName:    'มัตกิจ',
+        firstNameEn: 'KITTAYOT',
+        lastNameEn:  'MUTTAKIT',
+        email:       'kittayot.m@kkumail.com',
+        phone:       null,
+        year:        null,
+        gpa:         null,
+        studyProgram:    'normal',
+        advisorName:     'วิชาญ ธรรมวิเศษ',
+        generalAdvisorId: 42,
+        userId: 1,
+      }),
+    }));
+  });
+
+  test('[kku] PROGRAMNAME ที่มี "พิเศษ" → studyProgram = special', async () => {
+    mockKkuSheet([{
+      STUDENTCODE:    '663380025-1',
+      PREFIXNAME:     'นาย',
+      STUDENTNAME:    'สมปอง',
+      STUDENTSURNAME: 'ดีใจ',
+      PROGRAMNAME:    'วิทยาการคอมพิวเตอร์ โครงการพิเศษ',
+      KKUMAIL:        'sompong@kkumail.com',
+      OFFICERNAME:    '',
+      OFFICERSURNAME: '',
+    }]);
+
+    prisma.user.upsert.mockResolvedValue({ id: 5 });
+    prisma.student.upsert.mockResolvedValue({ id: 5 });
+
+    const req = { file: { buffer: Buffer.from('fake') } };
+    const res = makeRes();
+    await importStudents(req, res);
+
+    expect(prisma.student.upsert).toHaveBeenCalledWith(expect.objectContaining({
+      create: expect.objectContaining({ studyProgram: 'special' }),
+    }));
+  });
+
+  test('[kku] ไม่พบอาจารย์ใน DB → generalAdvisorId = null (นักศึกษาใหม่) และมี errorRows แจ้งเตือน', async () => {
+    mockKkuSheet([{
+      STUDENTCODE:    '663380099-1',
+      PREFIXNAME:     'นางสาว',
+      STUDENTNAME:    'สมใจ',
+      STUDENTSURNAME: 'รักดี',
+      KKUMAIL:        'somjai@kkumail.com',
+      OFFICERNAME:    'ไม่มีในระบบ',
+      OFFICERSURNAME: 'เลย',
+    }]);
+
+    prisma.user.upsert.mockResolvedValue({ id: 6 });
+    prisma.student.upsert.mockResolvedValue({ id: 6 });
+    prisma.teacher.findMany.mockResolvedValue([]);
+
+    const req = { file: { buffer: Buffer.from('fake') } };
+    const res = makeRes();
+    await importStudents(req, res);
+
+    expect(prisma.student.upsert).toHaveBeenCalledWith(expect.objectContaining({
+      create: expect.objectContaining({ generalAdvisorId: null }),
+    }));
+    const body = res.json.mock.calls[0][0];
+    expect(body.summary.errors).toBe(0);
+    expect(body.errorRows[0].reason).toMatch(/ไม่พบอาจารย์ที่ปรึกษา/);
+  });
+
+  test('[kku] ไม่มี OFFICERNAME → advisorName = null, generalAdvisorId = null (ล้างค่า)', async () => {
+    mockKkuSheet([{
+      STUDENTCODE:    '663380088-1',
+      PREFIXNAME:     'นาย',
+      STUDENTNAME:    'ทดสอบ',
+      STUDENTSURNAME: 'ว่างเปล่า',
+      KKUMAIL:        'test@kkumail.com',
+      OFFICERNAME:    '',
+      OFFICERSURNAME: '',
+    }]);
+
+    prisma.user.upsert.mockResolvedValue({ id: 7 });
+    prisma.student.upsert.mockResolvedValue({ id: 7 });
+
+    const req = { file: { buffer: Buffer.from('fake') } };
+    const res = makeRes();
+    await importStudents(req, res);
+
+    const call = prisma.student.upsert.mock.calls[0][0];
+    expect(call.create.advisorName).toBeNull();
+    expect(call.create.generalAdvisorId).toBeNull();
+    const body = res.json.mock.calls[0][0];
+    expect(body.errorRows).toHaveLength(0);
   });
 });
