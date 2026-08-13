@@ -1,5 +1,14 @@
 # CHANGELOG — Co_project
 
+## [2026-08-13] fix: batch 107 — T_Requests.tsx 4 bugs (filter/pendingList/iframe/imports)
+
+### Bug fixes
+- **filterStatus "APPROVED" never matched** — backend maps `APPROVED→QUALIFIED`; filter option value changed to `"QUALIFIED"` so "ผ่านเกณฑ์แล้ว" dropdown now shows real results
+- **pendingList wrongly included `WAITING_FOR_STAFF_CHECK`** — those students already passed teacher approval (are waiting for staff); bulk-approve would have rewound them back to `QUALIFIED`; pendingList now only includes `APPLYING`
+- **PENDING filter also included `WAITING_FOR_STAFF_CHECK` and nonexistent `SUBMITTED`** — both removed; filter now only matches `APPLYING`
+- **PDF iframe missing `sandbox` attribute** — consistent with batch 105 fix; added `sandbox="allow-same-origin"` to block embedded scripts
+- **Unused imports** — removed `loadAcademicYear`, `React` (default), `Spinner`
+
 ## [2026-08-13] fix/feat: Batch 1 — 12 รายการปรับปรุงระบบ (Plan 1)
 
 ### ความปลอดภัย
