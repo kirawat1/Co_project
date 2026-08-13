@@ -1,5 +1,36 @@
 # CHANGELOG — Co_project
 
+## [2026-08-13] fix/feat: Batch 1 — 12 รายการปรับปรุงระบบ (Plan 1)
+
+### ความปลอดภัย
+- **รหัสผ่าน:** นโยบายใหม่ — อย่างน้อย 8 ตัว, ต้องมีพิมพ์ใหญ่+เล็ก+เลข+อักขระพิเศษ — บังคับใช้ที่ทุก endpoint และ script (`validatePassword.js`)
+
+### ฐานข้อมูล
+- **Teacher.prefix:** เพิ่ม field คำนำหน้าอาจารย์ (อ., ผศ., รศ., ศ., ดร. ฯลฯ)
+- **onDelete: SetNull:** ระบุ FK constraint อย่างชัดเจนบน Student→Teacher (generalAdvisor, coopAdvisor)
+
+### ระบบนิเทศ
+- **เลือก ONLINE/ONSITE แต่ละวัน:** นักศึกษาเลือกรูปแบบแยกต่างหากสำหรับแต่ละวันที่เสนอ (S_Supervision.tsx)
+- **ล็อกหลังยืนยัน:** ไม่สามารถแก้ไขวันนิเทศได้หลังอาจารย์ยืนยัน — ทั้ง backend (supervisionController) และ frontend
+- **ข้อความสถานะ:** แสดงข้อความ+ไอคอนแทนสีเพียงอย่างเดียว (S_Supervision.tsx)
+- **Badge รูปแบบต่อวัน:** T_SupervisionReview.tsx แสดง ONLINE/ONSITE badge สำหรับแต่ละวันที่เสนอ
+
+### อาจารย์
+- **คำนำหน้า:** ฟอร์มสร้าง/แก้ไขอาจารย์มี dropdown คำนำหน้า (A_Teacher.tsx)
+- **รหัสผ่านสร้างใหม่:** ต้องกำหนดรหัสผ่านตอนสร้าง — ลบ hardcoded "1111111111111" ออก (teacherController.js)
+- **ซ่อนคณะ:** ฟิลด์คณะถูกซ่อนจากฟอร์ม — hardcoded เป็น "วิทยาลัยการคอมพิวเตอร์"
+
+### เอกสาร
+- **วันที่เริ่มฝึก:** IssueLetterModal มีช่องกรอกวันที่เมื่อไม่พบในระบบ
+- **Dark mode:** LetterModalShared บังคับ light mode — ไม่ขึ้นหน้าดำอีกต่อไป
+
+### ผู้ดูแลระบบ
+- **ตรวจชื่ออาจารย์ที่ปรึกษา:** A_DocT000.tsx แสดงคำเตือนเมื่อชื่อที่นักศึกษากรอกไม่ตรงกับ Teacher record ในระบบ
+
+### นักศึกษา
+- **คำแนะนำเอกสาร:** S_Docs.tsx แสดงข้อความแนะนำสำหรับแต่ละประเภทเอกสาร (ผ่าน /api/students/doc-requirements)
+- **หลักสูตรในเอกสาร:** studyProgramLabel ใน docGeneratorUtils.ts แสดง "ภาคปกติ/ภาคพิเศษ" ในหนังสือส่งตัว
+
 ## [2026-08-13] Rename: เปลี่ยน "สาขาวิชา" → "หลักสูตร" ทั้งระบบ + ลบ major field จาก Excel import (Plan 2)
 
 ### Changed
