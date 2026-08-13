@@ -1,12 +1,10 @@
-import React, { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect } from "react";
 import type { CSSProperties } from "react";
-import { loadAcademicYear } from "./store";
 import StatusBadge from "../components/StatusBadge";
 import axios from "axios";
 import { useToast } from "./Toast";
 import AutoTextarea from "./AutoTextarea";
 import ConfirmDialog from "./ConfirmDialog";
-import Spinner from "./Spinner";
 
 // ================= TYPES =================
 interface StudentDocument { id: number; name: string; path: string; type?: string; }
@@ -33,7 +31,6 @@ interface CoopPeriod {
 
 export default function T_Requests() {
   const toast = useToast();
-  const year = loadAcademicYear();
   const [students, setStudents] = useState<StudentProfile[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -89,7 +86,7 @@ export default function T_Requests() {
   // ✅ Logic: หาคนที่สถานะรอตรวจ, ผ่านคุณสมบัติ (Bulk Approve) และกรองปีการศึกษา
   const pendingList = useMemo(() => {
     return students.filter(s => {
-      const isPending = ["APPLYING", "WAITING_FOR_STAFF_CHECK", "SUBMITTED"].includes(s.coop?.status?.toUpperCase() || "");
+      const isPending = s.coop?.status === "APPLYING";
 
       // 🟢 เช็ค Period ID ให้ครอบคลุมทุกจุดที่ Backend อาจจะส่งมา
       const appPeriodId = String(s.coopPeriodId || s.coop?.coopPeriodId || "");
@@ -188,7 +185,7 @@ export default function T_Requests() {
     const appPeriodId = String(s.coopPeriodId || s.coop?.coopPeriodId || "");
     const matchPeriod = filterPeriodId === "all" || appPeriodId === filterPeriodId;
 
-    if (filterStatus === "PENDING") return matchSearch && matchPeriod && ["APPLYING", "WAITING_FOR_STAFF_CHECK", "SUBMITTED"].includes(status.toUpperCase());
+    if (filterStatus === "PENDING") return matchSearch && matchPeriod && status === "APPLYING";
 
     return matchSearch && matchStatus && matchPeriod;
   });
@@ -238,7 +235,7 @@ export default function T_Requests() {
           <select className="input" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} style={{ width: 'auto' }}>
             <option value="ALL">📋 ทุกสถานะ</option>
             <option value="PENDING">⏳ รอดำเนินการ</option>
-            <option value="APPROVED">✅ ผ่านเกณฑ์แล้ว</option>
+            <option value="QUALIFIED">✅ ผ่านเกณฑ์แล้ว</option>
             <option value="APPLICATION_EDITS_REQUIRED">⚠️ ส่งกลับแก้ไข</option>
           </select>
         </div>
@@ -294,7 +291,7 @@ export default function T_Requests() {
               {/* LEFT: PREVIEW (60%) */}
               <div className="preview-pane" style={{ flex: '0 0 60%', background: '#334155' }}>
                 {previewUrl ? (
-                  previewType === 'pdf' ? <iframe src={previewUrl} style={{ width: '100%', height: '100%', border: 'none' }} title="p" />
+                  previewType === 'pdf' ? <iframe src={previewUrl} style={{ width: '100%', height: '100%', border: 'none' }} title="p" sandbox="allow-same-origin" />
                     : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}><img src={previewUrl} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} alt="p" /></div>
                 ) : <div style={{ color: 'white', textAlign: 'center', marginTop: '20%' }}>เลือกไฟล์ด้านขวาเพื่อดู</div>}
               </div>
