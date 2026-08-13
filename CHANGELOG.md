@@ -1,5 +1,10 @@
 # CHANGELOG — Co_project
 
+## [2026-08-13] fix: batch 112 — A_Mentors.tsx: companies response not unwrapped (TypeError at runtime)
+
+### Bug fixes
+- **`await res.json()` not unwrapped** — `GET /api/companies` returns `{ ok: true, data: [...] }` but the component cast it directly to `Company[]` and called `.flatMap()` on the wrapper object → `TypeError: companies.flatMap is not a function` at runtime; mentor list never rendered. Fixed by extracting `json.data ?? []`.
+
 ## [2026-08-13] fix: batch 111 — iframe sandbox sweep (10 remaining unsandboxed PDF preview iframes)
 
 ### Bug fixes
