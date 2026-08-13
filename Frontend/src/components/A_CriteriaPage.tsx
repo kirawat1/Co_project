@@ -284,7 +284,7 @@ export default function A_CriteriaPage() {
         {/* Curriculum note */}
         <div style={{ marginTop: 28, padding: 16, background: "#f8fafc", borderRadius: 12, border: "1px solid #e2e8f0" }}>
           <div style={{ fontSize: 12, fontWeight: 700, color: "#64748b", marginBottom: 10, textTransform: "uppercase", letterSpacing: 0.5 }}>
-            📋 หลักสูตรการศึกษา (คงที่ — ไม่สามารถเพิ่ม/ลบได้)
+            📋 หลักสูตรการศึกษา
           </div>
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
             {[{ code: "normal", label: "ภาคปกติ" }, { code: "special", label: "ภาคพิเศษ" }].map(({ code, label }) => (
