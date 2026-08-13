@@ -1,5 +1,14 @@
 # CHANGELOG — Co_project
 
+## [2026-08-13] fix: batch 114-117 — T_Dashboard, S_Docs, T_StudentDetail, PlacementLetterCard
+
+### Bug fixes
+- **T_Dashboard `handleExport` missing `res.ok` check** — if the export API returned an error JSON, `res.blob()` succeeded, producing a corrupt `.xlsx` download with no error message to the user. Fixed by adding `if (!res.ok) throw new Error(...)` before `blob()`.
+- **T_Dashboard `approvedStudents || approvedStudents.length` falsy-zero bug** — when `stats.approvedStudents === 0`, the `||` operator fell through to the local list's `.length`, showing the wrong count. Changed to `??` (nullish coalescing).
+- **S_Docs `handleDeleteFile` silent failure** — when deletion returned non-ok HTTP status, no feedback was shown to the user. Added `else { alert(d.message || "❌ ลบไฟล์ไม่สำเร็จ") }` branch.
+- **T_StudentDetail visit date off by one day** — `v.date` is a `"YYYY-MM-DD"` string (after `.split('T')[0]`). `new Date("YYYY-MM-DD")` parses as UTC midnight; in UTC+7 this shows the previous calendar day. Fixed by appending `"T00:00:00"` to force local-time parsing.
+- **PlacementLetterCard `placeDocDate` off by one day** — same UTC-midnight issue for date-only strings. Fixed by detecting date-only format and appending `"T00:00:00"`.
+
 ## [2026-08-13] fix: batch 113 — A_Announcements + S_Announcements: file attachment chips unclickable
 
 ### Bug fixes
