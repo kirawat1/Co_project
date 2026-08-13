@@ -26,6 +26,7 @@ interface PreviewRow {
   studentId: string;
   name: string;
   email: string;
+  major: string | null;
   studyProgram: string | null;
   advisorName: string | null;
   action: "create" | "update" | "skip";
@@ -45,6 +46,7 @@ interface StudentDocument {
   id: number;
   name: string;
   path: string;
+  type?: string;
 }
 
 interface Mentor {
@@ -436,7 +438,7 @@ export default function A_Students() {
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
               <thead>
                 <tr style={{ background: "#f8fafc", borderBottom: "2px solid #e2e8f0" }}>
-                  {["แถว", "รหัส", "ชื่อ-นามสกุล", "อีเมล", "หลักสูตร", "อาจารย์ที่ปรึกษา", "สถานะ"].map(h => (
+                  {["แถว", "รหัส", "ชื่อ-นามสกุล", "อีเมล", "สาขาวิชา", "หลักสูตร", "อาจารย์ที่ปรึกษา", "สถานะ"].map(h => (
                     <th key={h} style={{ padding: "8px 12px", textAlign: "left", fontWeight: 700, color: "#475569", whiteSpace: "nowrap" }}>{h}</th>
                   ))}
                 </tr>
@@ -459,7 +461,10 @@ export default function A_Students() {
                       <td style={{ padding: "7px 12px", fontWeight: 600 }}>{row.studentId}</td>
                       <td style={{ padding: "7px 12px" }}>{row.name}</td>
                       <td style={{ padding: "7px 12px", color: "#64748b" }}>{row.email}</td>
-                      <td style={{ padding: "7px 12px", color: "#64748b" }}>
+                      <td style={{ padding: "7px 12px", maxWidth: 200, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={row.major ?? undefined}>
+                        {row.major || <span style={{ color: "#cbd5e1" }}>-</span>}
+                      </td>
+                      <td style={{ padding: "7px 12px", color: "#64748b", whiteSpace: "nowrap" }}>
                         {row.studyProgram === "normal" ? "ภาคปกติ" : row.studyProgram === "special" ? "ภาคพิเศษ" : "-"}
                       </td>
                       <td style={{ padding: "7px 12px", ...advisorCellStyle }}>
@@ -591,14 +596,14 @@ export default function A_Students() {
                         style={ghostBtn}
                         onClick={() => setEditStudent(s)}
                       >
-                        แก้ไข
+                        ✏️ แก้ไข
                       </button>
                       <button
                         className="btn"
-                        style={{ ...ghostBtn, color: "#dc2626", borderColor: "#fecaca" }}
+                        style={{ ...ghostBtn, color: "#ef4444", borderColor: "#ef4444" }}
                         onClick={() => handleDeleteStudent(s)}
                       >
-                        ลบ
+                        🗑️ ลบ
                       </button>
                       {s.coopApplicationForm?.gradeSheetUrl ? (
                         <a
@@ -706,6 +711,19 @@ function StudentModal({
   onClose: () => void;
 }) {
   const [tab, setTab] = useState<"profile" | "company" | "docs">("profile");
+  const [deptMap, setDeptMap] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    apiFetch("/api/coop/departments").then(r => r.json()).then(d => {
+      if (d.ok && Array.isArray(d.departments)) {
+        const map: Record<string, string> = {};
+        d.departments.forEach((dep: { major: string; nameTh: string | null }) => {
+          if (dep.nameTh) map[dep.major] = dep.nameTh;
+        });
+        setDeptMap(map);
+      }
+    }).catch(() => {});
+  }, []);
 
   const companyData = student.coop?.company || student.company;
   const mentorData = student.coop?.mentor;
@@ -735,7 +753,7 @@ function StudentModal({
               <InfoRow label="รหัสนักศึกษา" value={student.studentId} />
               <InfoRow label="ชื่อ-สกุล" value={fullName} />
               <InfoRow label="ชั้นปี" value={student.year} />
-              <InfoRow label="คณะ" value={student.faculty || "วิทยาลัยการคอมพิวเตอร์"} />
+              <InfoRow label="สาขาวิชา" value={student.major ? (deptMap[student.major] ? `${deptMap[student.major]} (${student.major})` : student.major) : "-"} />
               <InfoRow label="หลักสูตร" value={CURRICULUM_TH[student.studyProgram || ""] || student.studyProgram} />
               <InfoRow label="เบอร์โทร" value={student.phone} />
               <InfoRow label="อีเมล" value={student.user?.email} />
@@ -772,19 +790,7 @@ function StudentModal({
           {tab === "docs" && (
             <Section title="เอกสารที่อัปโหลด">
               {student.documents && student.documents.length > 0 ? (
-                <ul style={{ listStyle: 'none', padding: 0, display: 'grid', gap: 8 }}>
-                  {student.documents.map(doc => (
-                    <li key={doc.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f1f5f9' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span>📄</span>
-                        <span style={{ fontSize: 14 }}>{doc.name}</span>
-                      </div>
-                      <a href={`/uploads/${encodeURIComponent(doc.path)}`} target="_blank" rel="noreferrer" style={{ fontSize: 13, color: '#0074B7', textDecoration: 'none', fontWeight: 600 }}>
-                        เปิดดู
-                      </a>
-                    </li>
-                  ))}
-                </ul>
+                <DocsByGroup docs={student.documents} />
               ) : <div style={{ color: '#94a3b8' }}>ไม่มีเอกสาร</div>}
             </Section>
           )}
@@ -801,7 +807,7 @@ function StudentModal({
 }
 
 // UI Helpers & Styles
-const ghostBtn: React.CSSProperties = { background: "#fff", color: "#0074B7", boxShadow: "none", border: "1px solid rgba(10,132,255,.25)", height: 36, borderRadius: 8, padding: '0 16px', cursor: 'pointer' };
+const ghostBtn: React.CSSProperties = { background: "#fff", color: "#0074B7", boxShadow: "none", border: "1px solid rgba(10,132,255,.25)", height: 34, borderRadius: 8, padding: '0 12px', cursor: 'pointer', fontWeight: 600, fontSize: 13 };
 const saveBtn: React.CSSProperties = { background: "#0074B7", color: "#fff", boxShadow: "none", border: "1px solid rgba(10,132,255,.25)", height: 36, borderRadius: 8, padding: '0 16px', cursor: 'pointer' };
 const card: React.CSSProperties = { background: "#fff", borderRadius: 14, padding: 20, border: "1px solid #e5e7eb" };
 const filterRow: React.CSSProperties = { display: "flex", gap: 24, flexWrap: "wrap", alignItems: "flex-end" };
@@ -816,6 +822,49 @@ const sectionCard: React.CSSProperties = { background: "#f8fafc", borderRadius: 
 const sectionTitle: React.CSSProperties = { fontWeight: 700, marginBottom: 10, fontSize: 14 };
 
 function InfoRow({ label, value }: { label: string; value?: React.ReactNode }) { return (<div style={{ display: "grid", gridTemplateColumns: "120px 1fr", marginBottom: 4 }}><div style={{ color: "#64748b", fontWeight: 600 }}>{label}</div><div style={{ fontWeight: 600 }}>{value || "-"}</div></div>); }
+
+const DOC_GROUPS: Record<string, { groupKey: string; groupLabel: string }> = {
+  CV:               { groupKey: 't000', groupLabel: 'T000 — คำร้องสหกิจ' },
+  T000_SIGNED:      { groupKey: 't000', groupLabel: 'T000 — คำร้องสหกิจ' },
+  TRANSCRIPT:       { groupKey: 't000', groupLabel: 'T000 — คำร้องสหกิจ' },
+  STUDENT_CARD:     { groupKey: 't000', groupLabel: 'T000 — คำร้องสหกิจ' },
+  CITIZEN_CARD:     { groupKey: 't000', groupLabel: 'T000 — คำร้องสหกิจ' },
+  PARENTAL_CONSENT: { groupKey: 't000', groupLabel: 'T000 — คำร้องสหกิจ' },
+  T002_FORM:        { groupKey: 't002', groupLabel: 'T002 — แบบแจ้งรายละเอียดงาน' },
+  T003_FORM:        { groupKey: 't003', groupLabel: 'T003 — โครงร่างรายงาน' },
+  'CP-ACCEPTANCE':  { groupKey: 'accept', groupLabel: 'ใบตอบรับจากบริษัท' },
+};
+
+function DocsByGroup({ docs }: { docs: StudentDocument[] }) {
+  const groups: Record<string, { label: string; docs: StudentDocument[] }> = {};
+  docs.forEach(doc => {
+    const info = DOC_GROUPS[doc.type || ''] ?? { groupKey: doc.type || 'other', groupLabel: doc.type || 'อื่นๆ' };
+    if (!groups[info.groupKey]) groups[info.groupKey] = { label: info.groupLabel, docs: [] };
+    groups[info.groupKey].docs.push(doc);
+  });
+  return (
+    <div style={{ display: 'grid', gap: 12 }}>
+      {Object.values(groups).map(g => (
+        <div key={g.label}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: '#0074B7', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>{g.label}</div>
+          <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: 4 }}>
+            {g.docs.map(doc => (
+              <li key={doc.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 10px', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span>📄</span>
+                  <span style={{ fontSize: 13 }}>{doc.name}</span>
+                </div>
+                <a href={`/uploads/${encodeURIComponent(doc.path)}`} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: '#0074B7', textDecoration: 'none', fontWeight: 600 }}>
+                  เปิดดู
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 function FilterBox({ title, items, values, onChange }: { title: string; items: Record<string, string>; values: string[]; onChange: (v: string[]) => void; }) {
   return (
