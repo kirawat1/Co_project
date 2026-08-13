@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import { apiFetch } from "../utils/apiFetch";
 import { createPlacementPDF } from "../utils/pdfGeneratorPlacement";
 import { createWordBlob, createPreviewBlob, buildPlacementLetterHtml, thaiPrefix } from "../utils/docGeneratorUtils";
-import { FileReady, DeliveryPicker, MODAL_CSS } from "./LetterModalShared";
+import { FileReady, DeliveryPicker, CompanyAddressBox, MODAL_CSS } from "./LetterModalShared";
 
 interface Props { student: any; onClose: () => void; onSuccess: () => void; }
 
@@ -153,6 +153,7 @@ export default function IssuePlacementLetterModal({ student, onClose, onSuccess 
                         <div>
                             <div style={{ ...sec, borderColor: '#10b981' }}>4. การจัดส่งเอกสาร</div>
                             <DeliveryPicker value={deliveryMethod} onChange={setDeliveryMethod} name="delivery-placement" />
+                            {deliveryMethod === "STAFF" && <CompanyAddressBox company={student.coop?.company} />}
                         </div>
                         <div style={{ marginTop: 'auto', paddingTop: 8 }}>
                             <button className="btn btn-success" onClick={handleConfirm} disabled={!signedFile} style={{ width: '100%', padding: 14 }}>🚀 บันทึกเข้าระบบ & แจ้งนักศึกษา</button>
