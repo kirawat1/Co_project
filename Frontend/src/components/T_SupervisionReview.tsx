@@ -181,7 +181,7 @@ export default function T_SupervisionReview() {
 
     // ── Badges
     const myPendingCount = mySupervisions.filter(s => s.status === 'PENDING_TEACHER' && s.isPrimaryAdvisor !== false).length;
-    const allPendingCount = allSupervisions.filter(s => s.status === 'PENDING_TEACHER').length;
+    const allPendingCount = allSupervisions.filter(s => !s.coTeacherName).length;
 
     // ── Fetch profile
     useEffect(() => {
