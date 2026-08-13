@@ -44,6 +44,12 @@ function normalizeRow(row, isKkuFormat) {
     const officerName    = String(row['OFFICERNAME']    || '').trim();
     const officerSurname = String(row['OFFICERSURNAME'] || '').trim();
     const advisorName    = [officerName, officerSurname].filter(Boolean).join(' ') || null;
+    const levelName      = String(row['LEVELNAME'] || '').trim();
+    const programName    = String(row['PROGRAMNAME'] || '').trim();
+    // LEVELNAME (e.g. "ภาคปกติ") takes priority; fall back to parsing PROGRAMNAME
+    const studyProgram   = (levelName
+      ? (STUDY_PROGRAM_MAP[levelName] ?? extractStudyProgram(levelName))
+      : extractStudyProgram(programName)) ?? null;
     return {
       studentId:        String(row['STUDENTCODE']       || '').trim(),
       prefix:           mapPrefix(row['PREFIXNAME']),
@@ -55,7 +61,8 @@ function normalizeRow(row, isKkuFormat) {
       phone:            null,
       year:             null,
       gpa:              null,
-      studyProgram:     extractStudyProgram(row['PROGRAMNAME']),
+      major:            programName || null,
+      studyProgram,
       advisorName,
       advisorFirstName: officerName    || null,
       advisorLastName:  officerName ? (officerSurname || '') : '',
@@ -81,6 +88,7 @@ function normalizeRow(row, isKkuFormat) {
     phone:            String(row['เบอร์โทรศัพท์'] || '').trim() || null,
     year:             String(row['ชั้นปี'] || '').trim(),
     gpa:              rawGpa && !Number.isNaN(parseFloat(rawGpa)) ? parseFloat(rawGpa) : null,
+    major:            String(row['สาขาวิชา/แผนกการศึกษา'] || row['สาขาวิชา'] || '').trim() || null,
     studyProgram:     STUDY_PROGRAM_MAP[rawProgram] ?? null,
     advisorName,
     advisorFirstName: advisorFirstName || null,
@@ -149,13 +157,13 @@ exports.previewStudents = async (req, res) => {
 
       if (!email || !studentId) {
         willSkip++;
-        return { rowNum, studentId: studentId || '-', name, email: email || '-', studyProgram, advisorName, action: 'skip', advisorStatus: 'empty', error: 'email หรือรหัสนักศึกษาว่างเปล่า' };
+        return { rowNum, studentId: studentId || '-', name, email: email || '-', major: norm.major, studyProgram, advisorName, action: 'skip', advisorStatus: 'empty', error: 'email หรือรหัสนักศึกษาว่างเปล่า' };
       }
 
       const existingStudent = studentByStudentId.get(studentId);
       if (existingStudent?.deletedAt) {
         willSkip++;
-        return { rowNum, studentId, name, email, studyProgram, advisorName, action: 'skip', advisorStatus: 'empty', error: `รหัส ${studentId} อยู่ในถังขยะ — กรุณากู้คืนก่อน` };
+        return { rowNum, studentId, name, email, major: norm.major, studyProgram, advisorName, action: 'skip', advisorStatus: 'empty', error: `รหัส ${studentId} อยู่ในถังขยะ — กรุณากู้คืนก่อน` };
       }
 
       const action = userByEmail.has(email) ? 'update' : 'create';
@@ -169,7 +177,7 @@ exports.previewStudents = async (req, res) => {
         else                            { advisorStatus = 'notFound'; advisorWarnings++; }
       }
 
-      return { rowNum, studentId, name, email, studyProgram, advisorName, action, advisorStatus };
+      return { rowNum, studentId, name, email, major: norm.major, studyProgram, advisorName, action, advisorStatus };
     });
 
     res.json({
@@ -299,7 +307,7 @@ exports.importStudents = async (req, res) => {
         }
 
         const { prefix, firstName, lastName, firstNameEn, lastNameEn,
-                year, phone, gpa, studyProgram, advisorName } = norm;
+                year, phone, gpa, major, studyProgram, advisorName } = norm;
 
         await prisma.$transaction(async (tx) => {
           if (!existingUser) {
@@ -313,13 +321,13 @@ exports.importStudents = async (req, res) => {
             where: { studentId },
             update: {
               prefix, firstName, lastName, firstNameEn, lastNameEn,
-              year, phone, email, gpa, studyProgram,
+              year, phone, email, gpa, major: major ?? undefined, studyProgram,
               advisorName:     generalAdvisorId !== undefined ? advisorName : undefined,
               generalAdvisorId,
             },
             create: {
               studentId, prefix, firstName, lastName, firstNameEn, lastNameEn,
-              year, phone, email, gpa,
+              year, phone, email, gpa, major: major ?? null,
               advisorName, generalAdvisorId: generalAdvisorId ?? null, studyProgram,
               userId: user.id,
             },
