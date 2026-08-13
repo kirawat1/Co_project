@@ -47,6 +47,7 @@ interface StudentProfile {
   emails: { id?: number; email: string; primary: boolean }[];
   company?: StudentCompany;
   docs: any[];
+  generalAdvisorId?: number | null;
   coopAdvisorId?: number | null;
   coop?: {
     company: StudentCompany;
@@ -393,6 +394,7 @@ export default function S_ProfilePage() {
           <Info label="ชื่อ–นามสกุล (TH)" value={`${prefixMapToUI[profile.prefix as keyof typeof prefixMapToUI] || ""} ${profile.firstName ?? ""} ${profile.lastName ?? ""}`} />
           <Info label="ชื่อ–นามสกุล (EN)" value={`${profile.firstNameEn ?? "-"} ${profile.lastNameEn ?? "-"}`} />
           <Info label="ชั้นปี" value={profile.year || "-"} />
+          <Info label="สาขาวิชา" value={profile.major || "-"} />
           <Info label="หลักสูตร" value={studyProgramMapToUI[profile.studyProgram as string] || profile.studyProgram || "-"} />
           {/* อาจารย์ที่ปรึกษา */}
           <div style={{ marginTop: 16 }}>
@@ -515,10 +517,10 @@ function StudentModal({ profile, teachers, saveStudentInfo, closeModal }: any) {
   // ✅ แปลงค่าก่อนนำไปตั้งเป็น State และกำหนดค่าเริ่มต้นคณะ
   const [form, setForm] = useState<StudentProfile>(() => ({
     ...profile,
-    // normalize studentId: เก็บเฉพาะตัวเลข ≤ 10 หลัก ตั้งแต่โหลดครั้งแรก
     studentId: (profile.studentId ?? "").replace(/\D/g, "").slice(0, 10),
     prefix: prefixMapToUI[profile.prefix] || profile.prefix || "",
     studyProgram: studyProgramMapToUI[profile.studyProgram] || profile.studyProgram || "",
+    generalAdvisorId: profile.generalAdvisorId ?? null,
   }));
 
   return (
@@ -556,20 +558,19 @@ function StudentModal({ profile, teachers, saveStudentInfo, closeModal }: any) {
           <div><label className="label">Last Name (EN)</label><input className="input" value={form.lastNameEn ?? ""} onChange={(e) => setForm({ ...form, lastNameEn: e.target.value })} /></div>
 
           <div>
-            <label className="label">หลักสูตร</label>
-            <select className="input" value={form.studyProgram || ""} onChange={(e) => setForm({ ...form, studyProgram: e.target.value as any })}>
-              <option value="">เลือกภาคการศึกษา</option><option value="ภาคปกติ">ภาคปกติ</option><option value="ภาคพิเศษ">ภาคพิเศษ</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="label">ที่ปรึกษา</label>
-            <select className="input" value={form.advisorName ?? ""} onChange={(e) => setForm({ ...form, advisorName: e.target.value })}>
+            <label className="label">ที่ปรึกษาทั่วไป</label>
+            <select className="input" value={form.generalAdvisorId ?? ""} onChange={(e) => {
+              const teacher = teachers.find((t: any) => t.id === Number(e.target.value));
+              setForm({
+                ...form,
+                generalAdvisorId: e.target.value ? Number(e.target.value) : null,
+                advisorName: teacher ? `${teacher.prefix || ""}${teacher.firstName} ${teacher.lastName}` : "",
+              });
+            }}>
               <option value="">-- เลือกที่ปรึกษา --</option>
-              {teachers.map((t: any) => {
-                const fullName = `${t.prefix || ""}${t.firstName} ${t.lastName}`;
-                return <option key={t.id} value={fullName}>{fullName}</option>;
-              })}
+              {teachers.map((t: any) => (
+                <option key={t.id} value={t.id}>{t.prefix || ""}{t.firstName} {t.lastName}{t.email ? ` (${t.email})` : ""}</option>
+              ))}
             </select>
           </div>
 
