@@ -180,6 +180,8 @@ export default function A_Students() {
   const [importPreview, setImportPreview] = useState<PreviewRow[] | null>(null);
   const [importPreviewSummary, setImportPreviewSummary] = useState<PreviewSummary | null>(null);
   const [importPreviewLoading, setImportPreviewLoading] = useState(false);
+  const [fileInputKey, setFileInputKey] = useState(0);
+  const previewRef = useRef<HTMLDivElement>(null);
 
   // --- Fetch Data ---
   const fetchStudents = async (periodId: string, page = 1, search = "") => {
@@ -242,6 +244,12 @@ export default function A_Students() {
     fetchStudents(selectedPeriodId, 1, debouncedQ);
   }, [debouncedQ]);
 
+  useEffect(() => {
+    if (importPreview && previewRef.current) {
+      previewRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [importPreview]);
+
   function resetFilters() {
     setQ("");
     setFilterCurriculums([]);
@@ -272,6 +280,7 @@ export default function A_Students() {
     setImportPreviewSummary(null);
     setImportResult(null);
     setImportWarnings([]);
+    setFileInputKey(k => k + 1);
   };
 
   const handlePreview = async () => {
@@ -358,6 +367,7 @@ export default function A_Students() {
         <label style={{ cursor: "pointer", fontSize: 12, padding: "6px 14px", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, fontWeight: 600, color: "#475569" }}>
           เลือกไฟล์ Excel
           <input
+            key={fileInputKey}
             type="file"
             accept=".xlsx,.xls"
             hidden
@@ -391,7 +401,7 @@ export default function A_Students() {
 
       {/* ── Preview table ── */}
       {importPreview && importPreviewSummary && (
-        <div style={{ marginBottom: 16 }}>
+        <div ref={previewRef} style={{ marginBottom: 16 }}>
           {/* Summary bar */}
           <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap", marginBottom: 10, padding: "10px 14px", background: "#f1f5f9", borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 13 }}>
             <span style={{ fontWeight: 700, color: "#334155" }}>📄 {importFile?.name}</span>
@@ -426,7 +436,7 @@ export default function A_Students() {
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
               <thead>
                 <tr style={{ background: "#f8fafc", borderBottom: "2px solid #e2e8f0" }}>
-                  {["แถว", "รหัส", "ชื่อ-นามสกุล", "อีเมล", "ภาค", "อาจารย์ที่ปรึกษา", "สถานะ"].map(h => (
+                  {["แถว", "รหัส", "ชื่อ-นามสกุล", "อีเมล", "หลักสูตร", "อาจารย์ที่ปรึกษา", "สถานะ"].map(h => (
                     <th key={h} style={{ padding: "8px 12px", textAlign: "left", fontWeight: 700, color: "#475569", whiteSpace: "nowrap" }}>{h}</th>
                   ))}
                 </tr>
@@ -450,7 +460,7 @@ export default function A_Students() {
                       <td style={{ padding: "7px 12px" }}>{row.name}</td>
                       <td style={{ padding: "7px 12px", color: "#64748b" }}>{row.email}</td>
                       <td style={{ padding: "7px 12px", color: "#64748b" }}>
-                        {row.studyProgram === "normal" ? "ปกติ" : row.studyProgram === "special" ? "พิเศษ" : "-"}
+                        {row.studyProgram === "normal" ? "ภาคปกติ" : row.studyProgram === "special" ? "ภาคพิเศษ" : "-"}
                       </td>
                       <td style={{ padding: "7px 12px", ...advisorCellStyle }}>
                         {row.advisorStatus === "found"     && <span>{row.advisorName}</span>}

@@ -1,5 +1,11 @@
 # CHANGELOG — Co_project
 
+## [2026-08-13] fix: batch 125 — auto-scroll to preview + reset file input on cancel
+
+### Fixed
+- **Auto-scroll to preview** — เมื่อ preview โหลดเสร็จจะ `scrollIntoView()` อัตโนมัติ แก้ปัญหาผู้ใช้ scroll ลงดู student list แล้วมองไม่เห็น preview ที่ปรากฏด้านบน
+- **File input reset** — กด "ยกเลิก" แล้ว file input เคลียร์ด้วย (`key` prop + `setFileInputKey`) ทำให้เลือกไฟล์เดิมซ้ำได้โดยไม่ต้องรีเฟรชหน้า
+
 ## [2026-08-13] feat: batch 124 — import preview ก่อนยืนยันนำเข้านักศึกษา
 
 ### New
