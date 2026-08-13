@@ -1,36 +1,321 @@
+import { useState, useEffect, useRef } from "react";
+
+interface Department {
+  id: string;
+  major: string;
+  updatedAt: string;
+}
+
+const card: React.CSSProperties = {
+  background: "#fff",
+  borderRadius: 16,
+  padding: 32,
+  border: "1px solid #e2e8f0",
+  boxShadow: "0 4px 6px -1px rgba(0,0,0,0.05)",
+};
+
+const btn = (color: string, bg: string, border = "transparent"): React.CSSProperties => ({
+  padding: "6px 14px",
+  borderRadius: 8,
+  border: `1px solid ${border}`,
+  background: bg,
+  color,
+  fontWeight: 600,
+  fontSize: 13,
+  cursor: "pointer",
+  transition: "opacity .15s",
+});
+
+const input: React.CSSProperties = {
+  border: "1px solid #cbd5e1",
+  borderRadius: 8,
+  padding: "8px 12px",
+  fontSize: 14,
+  width: "100%",
+  boxSizing: "border-box",
+  outline: "none",
+};
+
 export default function A_CriteriaPage() {
+  const token = localStorage.getItem("coop.token");
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [addSaving, setAddSaving] = useState(false);
+  const addInputRef = useRef<HTMLInputElement>(null);
+
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editSaving, setEditSaving] = useState(false);
+
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleteConfirmName, setDeleteConfirmName] = useState("");
+
+  const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
+
+  const fetchDepartments = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch("/api/admin/criteria", { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      if (data.ok) setDepartments(data.criteria);
+      else setError(data.message || "โหลดข้อมูลล้มเหลว");
+    } catch {
+      setError("เชื่อมต่อ server ไม่ได้");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchDepartments(); }, []);
+
+  useEffect(() => {
+    if (showAddForm) setTimeout(() => addInputRef.current?.focus(), 50);
+  }, [showAddForm]);
+
+  const handleAdd = async () => {
+    if (!newName.trim()) return;
+    setAddSaving(true);
+    setError("");
+    try {
+      const res = await fetch("/api/admin/criteria", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ major: newName.trim() }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setNewName("");
+        setShowAddForm(false);
+        fetchDepartments();
+      } else {
+        setError(data.message || "เพิ่มสาขาวิชาล้มเหลว");
+      }
+    } catch {
+      setError("เกิดข้อผิดพลาด");
+    } finally {
+      setAddSaving(false);
+    }
+  };
+
+  const startEdit = (dept: Department) => {
+    setEditId(dept.id);
+    setEditName(dept.major);
+    setError("");
+  };
+
+  const handleEdit = async () => {
+    if (!editId || !editName.trim()) return;
+    setEditSaving(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/admin/criteria/${editId}`, {
+        method: "PUT",
+        headers,
+        body: JSON.stringify({ major: editName.trim() }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setEditId(null);
+        setEditName("");
+        fetchDepartments();
+      } else {
+        setError(data.message || "แก้ไขล้มเหลว");
+      }
+    } catch {
+      setError("เกิดข้อผิดพลาด");
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
+  const confirmDelete = (dept: Department) => {
+    setDeleteId(dept.id);
+    setDeleteConfirmName(dept.major);
+    setError("");
+  };
+
+  const handleDelete = async () => {
+    if (!deleteId) return;
+    try {
+      const res = await fetch(`/api/admin/criteria/${deleteId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setDeleteId(null);
+        setDeleteConfirmName("");
+        fetchDepartments();
+      } else {
+        setError(data.message || "ลบล้มเหลว");
+      }
+    } catch {
+      setError("เกิดข้อผิดพลาด");
+    }
+  };
+
   return (
     <div className="page" style={{ padding: 4, margin: 28, marginLeft: 65 }}>
-      <div style={{ background: "#fff", borderRadius: 16, padding: 32, border: "1px solid #e2e8f0", boxShadow: "0 4px 6px -1px rgba(0,0,0,0.05)" }}>
-        <h2 style={{ margin: "0 0 8px 0", fontSize: 22, fontWeight: 800, color: "#1e293b" }}>
-          ⚙️ จัดการหลักสูตรสหกิจศึกษา
-        </h2>
-        <div style={{ color: "#64748b", fontSize: 14, marginTop: 4, marginBottom: 24 }}>
-          ระบบได้เปลี่ยนมาใช้ "หลักสูตร" แทน "สาขาวิชา" แล้ว
-        </div>
-        <div style={{ padding: 20, background: "#fffbeb", borderRadius: 12, border: "1px solid #fde68a" }}>
-          <div style={{ fontWeight: 700, color: "#92400e", marginBottom: 8 }}>
-            📋 หลักสูตรที่ใช้งานในระบบ (คงที่)
+      <div style={card}>
+        {/* Header */}
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 12, marginBottom: 24 }}>
+          <div>
+            <h2 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "#1e293b" }}>
+              🏛️ จัดการสาขาวิชา
+            </h2>
+            <p style={{ margin: "6px 0 0", fontSize: 13, color: "#64748b" }}>
+              เพิ่ม แก้ไข หรือลบสาขาวิชาที่นักศึกษาและอาจารย์ใช้ในระบบ
+            </p>
           </div>
-          <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
-            {[
-              { code: "normal", label: "ภาคปกติ" },
-              { code: "special", label: "ภาคพิเศษ" },
-            ].map(({ code, label }) => (
-              <div
-                key={code}
-                style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: "16px 24px", minWidth: 160 }}
-              >
-                <div style={{ fontSize: 11, fontWeight: 800, color: "#0ea5e9", textTransform: "uppercase", letterSpacing: 1 }}>
-                  หลักสูตร
-                </div>
-                <div style={{ fontSize: 24, fontWeight: 900, color: "#0f172a", marginTop: 4 }}>{label}</div>
-                <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>รหัส: {code}</div>
+          {!showAddForm && (
+            <button style={btn("#fff", "#0ea5e9")} onClick={() => setShowAddForm(true)}>
+              + เพิ่มสาขาวิชา
+            </button>
+          )}
+        </div>
+
+        {/* Error */}
+        {error && (
+          <div style={{ marginBottom: 16, padding: "10px 14px", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, color: "#dc2626", fontSize: 13 }}>
+            {error}
+          </div>
+        )}
+
+        {/* Add Form */}
+        {showAddForm && (
+          <div style={{ marginBottom: 20, padding: 16, background: "#f0f9ff", borderRadius: 12, border: "1px solid #bae6fd", display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+            <div style={{ flex: 1, minWidth: 200 }}>
+              <input
+                ref={addInputRef}
+                style={input}
+                placeholder="ชื่อสาขาวิชา เช่น CS, IT, AI, Cyber"
+                value={newName}
+                onChange={e => setNewName(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter") handleAdd(); if (e.key === "Escape") { setShowAddForm(false); setNewName(""); } }}
+                disabled={addSaving}
+              />
+            </div>
+            <button
+              style={btn("#fff", addSaving ? "#94a3b8" : "#22c55e")}
+              onClick={handleAdd}
+              disabled={addSaving || !newName.trim()}
+            >
+              {addSaving ? "กำลังบันทึก..." : "บันทึก"}
+            </button>
+            <button
+              style={btn("#64748b", "#f1f5f9", "#e2e8f0")}
+              onClick={() => { setShowAddForm(false); setNewName(""); setError(""); }}
+              disabled={addSaving}
+            >
+              ยกเลิก
+            </button>
+          </div>
+        )}
+
+        {/* Department List */}
+        {loading ? (
+          <div style={{ textAlign: "center", padding: 40, color: "#94a3b8" }}>กำลังโหลด...</div>
+        ) : departments.length === 0 ? (
+          <div style={{ textAlign: "center", padding: 40, color: "#94a3b8" }}>
+            ยังไม่มีสาขาวิชา — กดปุ่ม "+ เพิ่มสาขาวิชา" เพื่อเพิ่ม
+          </div>
+        ) : (
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+              <thead>
+                <tr style={{ borderBottom: "2px solid #e2e8f0" }}>
+                  <th style={{ padding: "10px 12px", textAlign: "left", color: "#64748b", fontWeight: 700, width: 48 }}>#</th>
+                  <th style={{ padding: "10px 12px", textAlign: "left", color: "#64748b", fontWeight: 700 }}>สาขาวิชา</th>
+                  <th style={{ padding: "10px 12px", textAlign: "left", color: "#64748b", fontWeight: 700, whiteSpace: "nowrap" }}>อัปเดตล่าสุด</th>
+                  <th style={{ padding: "10px 12px", textAlign: "center", color: "#64748b", fontWeight: 700, width: 160 }}>จัดการ</th>
+                </tr>
+              </thead>
+              <tbody>
+                {departments.map((dept, i) => (
+                  <tr key={dept.id} style={{ borderBottom: "1px solid #f1f5f9", transition: "background .1s" }}
+                    onMouseEnter={e => (e.currentTarget.style.background = "#f8fafc")}
+                    onMouseLeave={e => (e.currentTarget.style.background = "")}>
+                    <td style={{ padding: "12px 12px", color: "#94a3b8", fontVariantNumeric: "tabular-nums" }}>{i + 1}</td>
+                    <td style={{ padding: "12px 12px" }}>
+                      {editId === dept.id ? (
+                        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                          <input
+                            style={{ ...input, width: "auto", flex: 1, maxWidth: 240 }}
+                            value={editName}
+                            onChange={e => setEditName(e.target.value)}
+                            onKeyDown={e => { if (e.key === "Enter") handleEdit(); if (e.key === "Escape") { setEditId(null); setError(""); } }}
+                            autoFocus
+                            disabled={editSaving}
+                          />
+                          <button style={btn("#fff", editSaving ? "#94a3b8" : "#22c55e")} onClick={handleEdit} disabled={editSaving || !editName.trim()}>
+                            {editSaving ? "..." : "บันทึก"}
+                          </button>
+                          <button style={btn("#64748b", "#f1f5f9", "#e2e8f0")} onClick={() => { setEditId(null); setError(""); }} disabled={editSaving}>
+                            ยกเลิก
+                          </button>
+                        </div>
+                      ) : (
+                        <span style={{ fontWeight: 600, color: "#1e293b", fontSize: 15 }}>{dept.major}</span>
+                      )}
+                    </td>
+                    <td style={{ padding: "12px 12px", color: "#94a3b8", fontSize: 12, whiteSpace: "nowrap" }}>
+                      {new Date(dept.updatedAt).toLocaleDateString("th-TH", { year: "numeric", month: "short", day: "numeric" })}
+                    </td>
+                    <td style={{ padding: "12px 12px", textAlign: "center" }}>
+                      {editId !== dept.id && (
+                        <div style={{ display: "flex", gap: 6, justifyContent: "center" }}>
+                          <button style={btn("#0369a1", "#e0f2fe")} onClick={() => startEdit(dept)}>แก้ไข</button>
+                          <button style={btn("#dc2626", "#fef2f2")} onClick={() => confirmDelete(dept)}>ลบ</button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Curriculum note */}
+        <div style={{ marginTop: 28, padding: 16, background: "#f8fafc", borderRadius: 12, border: "1px solid #e2e8f0" }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "#64748b", marginBottom: 10, textTransform: "uppercase", letterSpacing: 0.5 }}>
+            📋 หลักสูตรการศึกษา (คงที่ — ไม่สามารถเพิ่ม/ลบได้)
+          </div>
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+            {[{ code: "normal", label: "ภาคปกติ" }, { code: "special", label: "ภาคพิเศษ" }].map(({ code, label }) => (
+              <div key={code} style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 20px", minWidth: 140 }}>
+                <div style={{ fontSize: 10, fontWeight: 800, color: "#0ea5e9", textTransform: "uppercase", letterSpacing: 1 }}>หลักสูตร</div>
+                <div style={{ fontSize: 18, fontWeight: 900, color: "#0f172a", marginTop: 2 }}>{label}</div>
+                <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 1 }}>รหัส: {code}</div>
               </div>
             ))}
           </div>
         </div>
       </div>
+
+      {/* Delete Confirm Modal */}
+      {deleteId && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999 }}
+          onClick={e => { if (e.target === e.currentTarget) { setDeleteId(null); setError(""); } }}>
+          <div style={{ background: "#fff", borderRadius: 16, padding: 28, maxWidth: 380, width: "90%", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
+            <div style={{ fontSize: 20, marginBottom: 12 }}>🗑️</div>
+            <h3 style={{ margin: "0 0 8px", fontSize: 16, fontWeight: 800, color: "#1e293b" }}>ยืนยันการลบสาขาวิชา</h3>
+            <p style={{ margin: "0 0 20px", fontSize: 14, color: "#64748b" }}>
+              ต้องการลบสาขาวิชา <strong style={{ color: "#dc2626" }}>"{deleteConfirmName}"</strong> ออกจากระบบ?
+              <br />นักศึกษาที่เลือกสาขานี้ไว้จะยังคงข้อมูลเดิม แต่จะไม่สามารถเลือกสาขานี้ใหม่ได้
+            </p>
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+              <button style={btn("#64748b", "#f1f5f9", "#e2e8f0")} onClick={() => { setDeleteId(null); setError(""); }}>ยกเลิก</button>
+              <button style={btn("#fff", "#dc2626")} onClick={handleDelete}>ยืนยันลบ</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

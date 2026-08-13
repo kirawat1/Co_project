@@ -16,22 +16,45 @@ exports.getAllCriteria = async (req, res) => {
 };
 
 // ==================================================
-// 2. สร้างสาขาใหม่ (major เป็น key — upsert กันสร้างซ้ำ)
+// 2a. สร้างสาขาใหม่ (POST)
 // ==================================================
-exports.saveCriteria = async (req, res) => {
+exports.createCriteria = async (req, res) => {
   try {
     const { major } = req.body;
-    if (!major) return res.status(400).json({ ok: false, message: "กรุณาระบุชื่อสาขา" });
+    if (!major || !major.trim()) return res.status(400).json({ ok: false, message: "กรุณาระบุชื่อสาขา" });
 
     const criteria = await prisma.coopCriteria.upsert({
-      where: { major },
+      where: { major: major.trim() },
       update: {},
-      create: { major },
+      create: { major: major.trim() },
     });
 
     res.json({ ok: true, criteria });
   } catch (err) {
     console.error(err);
+    res.status(500).json({ ok: false, message: "Save failed" });
+  }
+};
+
+// ==================================================
+// 2b. แก้ไขชื่อสาขา (PUT by id)
+// ==================================================
+exports.updateCriteria = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { major } = req.body;
+    if (!major || !major.trim()) return res.status(400).json({ ok: false, message: "กรุณาระบุชื่อสาขา" });
+
+    const criteria = await prisma.coopCriteria.update({
+      where: { id },
+      data: { major: major.trim() },
+    });
+
+    res.json({ ok: true, criteria });
+  } catch (err) {
+    console.error(err);
+    if (err.code === 'P2025') return res.status(404).json({ ok: false, message: "ไม่พบสาขาวิชาที่ต้องการแก้ไข" });
+    if (err.code === 'P2002') return res.status(409).json({ ok: false, message: "ชื่อสาขาวิชานี้มีอยู่แล้ว" });
     res.status(500).json({ ok: false, message: "Save failed" });
   }
 };

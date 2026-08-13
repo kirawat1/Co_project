@@ -1,5 +1,14 @@
 # CHANGELOG — Co_project
 
+## [2026-08-13] feat: batch 126 — สาขาวิชา CRUD management page
+
+### Added
+- **A_CriteriaPage.tsx** — สร้างใหม่เป็นหน้าจัดการสาขาวิชา (Department) แบบ CRUD เต็มรูปแบบ: แสดงรายการ, เพิ่ม (inline form), แก้ไข (inline rename), ลบ (confirm modal)
+- **criteriaController.js** — แยก `saveCriteria` เป็น `createCriteria` (POST, upsert-by-major) และ `updateCriteria` (PUT-by-id, rename) เพื่อรองรับการเปลี่ยนชื่อสาขา
+- หน้า criteria แสดงส่วน "หลักสูตรการศึกษา" (ภาคปกติ/ภาคพิเศษ) เป็น read-only ด้านล่างแยกจาก สาขาวิชา
+
+---
+
 ## [2026-08-13] fix: batch 125 — auto-scroll to preview + reset file input on cancel
 
 ### Fixed
