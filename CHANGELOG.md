@@ -1,5 +1,11 @@
 # CHANGELOG — Co_project
 
+## [2026-08-13] fix: batch 109 — A_Docs.tsx date parsing (space → T separator, end default 23:59:59)
+
+### Bug fixes
+- **`getDocWindow` used space-separated datetime strings** — `"YYYY-MM-DD HH:MM"` format is not specified by ECMA-262; Safari/Firefox may parse as UTC while Chrome treats it as local time, causing the open/closed status to be wrong by the timezone offset. Fixed by using ISO 8601 `T` separator: `"YYYY-MM-DDTHH:MM"`
+- **End-time default was "23:59"** — submissions between 23:59:00–23:59:59 were incorrectly rejected; default changed to "23:59:59"
+
 ## [2026-08-13] fix: batch 108 — A_CoopApplications.tsx bulk-approve rewind + iframe sandbox
 
 ### Bug fixes
