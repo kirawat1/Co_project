@@ -257,6 +257,25 @@ exports.importStudents = async (req, res) => {
       }
     }
 
+    // Auto-create missing majors in CoopCriteria
+    const uniqueMajors = [...new Set(normalizedRows.map(r => r.major).filter(Boolean))];
+    let autoCreatedMajors = 0;
+    if (uniqueMajors.length > 0) {
+      const existing = await prisma.coopCriteria.findMany({
+        where: { major: { in: uniqueMajors } },
+        select: { major: true },
+      });
+      const existingSet = new Set(existing.map(c => c.major));
+      const toCreate = uniqueMajors.filter(m => !existingSet.has(m));
+      if (toCreate.length > 0) {
+        await prisma.coopCriteria.createMany({
+          data: toCreate.map(m => ({ major: m })),
+          skipDuplicates: true,
+        });
+        autoCreatedMajors = toCreate.length;
+      }
+    }
+
     for (let i = 0; i < normalizedRows.length; i++) {
       const norm = normalizedRows[i];
       const { email, studentId } = norm;
@@ -357,7 +376,7 @@ exports.importStudents = async (req, res) => {
 
     res.json({
       ok: true,
-      summary: { total: rows.length, created, updated, errors },
+      summary: { total: rows.length, created, updated, errors, autoCreatedMajors },
       errorRows,
     });
   } catch (err) {
