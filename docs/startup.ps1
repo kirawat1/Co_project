@@ -29,7 +29,7 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Log "==> Starting services..."
-$deployOutput = PowerShell -ExecutionPolicy Bypass -File "$PROJECT_DIR\docs\deploy.ps1" -ServicesOnly 2>&1 | Out-String
+$deployOutput = PowerShell -ExecutionPolicy Bypass -File "$PROJECT_DIR\docs\deploy.ps1" -ServicesOnly 2>$null | Out-String
 Write-Log $deployOutput.Trim()
 
 Write-Log "===== startup.ps1 run finished ====="
