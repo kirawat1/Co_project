@@ -96,14 +96,9 @@ export default function A_DocT008() {
     return (
         <div className="page" style={{ padding: 4, margin: "28px 28px 28px 65px" }}>
 
-            <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                    <h2 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: '#1e293b' }}>⚙️ จัดการส่งเล่มรายงาน (T008)</h2>
-                    <div style={{ color: "#64748b", fontSize: 14, marginTop: 4 }}>แก้ไขรายละเอียด ลิงก์ Drive และรูปภาพประกอบ</div>
-                </div>
-                <button className="btn btn-primary" onClick={handleSave} disabled={isSaving} style={{ padding: '12px 24px' }}>
-                    {isSaving ? '⏳ กำลังบันทึก...' : '💾 บันทึกการเปลี่ยนแปลง'}
-                </button>
+            <div style={{ marginBottom: 24 }}>
+                <h2 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: '#1e293b' }}>⚙️ จัดการส่งเล่มรายงาน (T008)</h2>
+                <div style={{ color: "#64748b", fontSize: 14, marginTop: 4 }}>แก้ไขรายละเอียด ลิงก์ Drive และรูปภาพประกอบ</div>
             </div>
 
             <div className="card" style={{ padding: 30, display: 'flex', flexDirection: 'column', gap: 24 }}>
@@ -150,6 +145,12 @@ export default function A_DocT008() {
                     )}
                 </div>
 
+            </div>
+
+            <div className="action-row" style={{ marginTop: 24, display: 'flex', justifyContent: 'flex-end' }}>
+                <button className="btn btn-primary" onClick={handleSave} disabled={isSaving} style={{ padding: '12px 28px', fontSize: 15 }}>
+                    {isSaving ? '⏳ กำลังบันทึก...' : '💾 บันทึกการเปลี่ยนแปลง'}
+                </button>
             </div>
 
             <style>{`
