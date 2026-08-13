@@ -1,6 +1,39 @@
 // Frontend/src/components/LetterModalShared.tsx
 // Shared components and styles for Issue*Letter modals
 
+function buildAddressLine(c: any): string {
+    const parts = [
+        c.addressNo && `${c.addressNo}`,
+        c.moo && `หมู่ ${c.moo}`,
+        c.soi && `ซอย${c.soi}`,
+        c.road && `ถนน${c.road}`,
+        c.subDistrict && `ต.${c.subDistrict}`,
+        c.district && `อ.${c.district}`,
+        c.province && `จ.${c.province}`,
+        c.zipcode && c.zipcode,
+    ].filter(Boolean);
+    return parts.length > 0 ? parts.join(' ') : (c.address || '');
+}
+
+export function CompanyAddressBox({ company }: { company: any }) {
+    if (!company) return (
+        <div style={{ marginTop: 8, padding: '10px 12px', background: '#fef9c3', borderRadius: 8, border: '1px solid #fde047', fontSize: 12, color: '#854d0e' }}>
+            ⚠️ ไม่พบข้อมูลบริษัทของนักศึกษา
+        </div>
+    );
+    const addrLine = buildAddressLine(company);
+    return (
+        <div style={{ marginTop: 8, padding: '12px 14px', background: '#f0f9ff', borderRadius: 8, border: '1px solid #bae6fd', fontSize: 12 }}>
+            <div style={{ fontWeight: 700, color: '#0369a1', marginBottom: 6 }}>📦 ที่อยู่จัดส่ง</div>
+            <div style={{ fontWeight: 700, color: '#1e293b', marginBottom: 4 }}>{company.name}</div>
+            {addrLine && <div style={{ color: '#374151', marginBottom: 2, lineHeight: 1.5 }}>{addrLine}</div>}
+            {company.contactPerson && <div style={{ color: '#374151', marginBottom: 2 }}>เรียน: {company.contactPerson}</div>}
+            {company.phone && <div style={{ color: '#374151', marginBottom: 2 }}>โทร: {company.phone}</div>}
+            {company.fax && <div style={{ color: '#374151' }}>แฟกซ์: {company.fax}</div>}
+        </div>
+    );
+}
+
 export function FileReady({ label, onDownload }: { label: string; onDownload: () => void }) {
     return (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', background: '#f0fdf4', borderRadius: 8, border: '1px solid #bbf7d0' }}>
