@@ -54,8 +54,8 @@ router.get('/dashboard-stats', verifyToken, verifyRole(...ADMIN_ROLES), adminDas
 // Criteria
 router.get('/majors', verifyToken, verifyRole(...ADMIN_ROLES), criteriaController.getMajorList);
 router.get('/criteria', verifyToken, verifyRole(...ADMIN_ROLES), criteriaController.getAllCriteria);
-router.post('/criteria', verifyToken, verifyRole(...ADMIN_ROLES), criteriaController.saveCriteria);
-router.put('/criteria/:id', verifyToken, verifyRole(...ADMIN_ROLES), criteriaController.saveCriteria);
+router.post('/criteria', verifyToken, verifyRole(...ADMIN_ROLES), criteriaController.createCriteria);
+router.put('/criteria/:id', verifyToken, verifyRole(...ADMIN_ROLES), criteriaController.updateCriteria);
 router.delete('/criteria/:id', verifyToken, verifyRole(...ADMIN_ROLES), criteriaController.deleteCriteria);
 
 // POST /api/admin/students/import-preview — parse Excel และคืน preview โดยไม่เขียน DB
