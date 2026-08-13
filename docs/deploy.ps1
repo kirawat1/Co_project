@@ -27,7 +27,7 @@ function Get-PM2Online($name) {
 
 Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force 2>$null
 
-# ─── START SERVICES ────────────────────────────────
+# --- START SERVICES ------------------------------------------------
 if (-not $UpdateOnly) {
     Write-Step "Starting MySQL..."
     $mysqlSvc = Get-Service | Where-Object { $_.Name -like "*mysql*" } | Select-Object -First 1
@@ -87,7 +87,7 @@ if ($ServicesOnly) {
     exit 0
 }
 
-# ─── UPDATE CODE ───────────────────────────────────
+# --- UPDATE CODE ---------------------------------------------------
 Write-Step "Pulling latest code from GitHub..."
 Set-Location $PROJECT_DIR
 $gitResult = git pull origin main 2>&1
@@ -159,7 +159,7 @@ if (Get-PM2Online "coop-backend") {
     Write-ERR "Backend may have crashed - run: pm2 logs coop-backend"
 }
 
-# ─── SUMMARY ───────────────────────────────────────
+# --- SUMMARY -------------------------------------------------------
 Write-Host ""
 Write-Host "=============================================" -ForegroundColor Cyan
 Write-Host "  Deploy Complete!" -ForegroundColor Green
