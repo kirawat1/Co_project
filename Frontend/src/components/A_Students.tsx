@@ -177,7 +177,7 @@ export default function A_Students() {
 
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importLoading, setImportLoading] = useState(false);
-  const [importResult, setImportResult] = useState<{ total: number; created: number; updated: number; errors: number } | null>(null);
+  const [importResult, setImportResult] = useState<{ total: number; created: number; updated: number; errors: number; autoCreatedMajors?: number } | null>(null);
   const [importWarnings, setImportWarnings] = useState<{ row: number; email: string; reason: string }[]>([]);
   const [importPreview, setImportPreview] = useState<PreviewRow[] | null>(null);
   const [importPreviewSummary, setImportPreviewSummary] = useState<PreviewSummary | null>(null);
@@ -396,7 +396,7 @@ export default function A_Students() {
         )}
         {importResult && (
           <span style={{ fontSize: 12, color: "#16a34a", fontWeight: 700 }}>
-            ✅ สร้างใหม่ {importResult.created} | อัปเดต {importResult.updated} | error {importResult.errors} จาก {importResult.total} รายการ
+            ✅ สร้างใหม่ {importResult.created} | อัปเดต {importResult.updated} | error {importResult.errors} จาก {importResult.total} รายการ{importResult.autoCreatedMajors ? ` · เพิ่มสาขาใหม่ ${importResult.autoCreatedMajors} สาขา` : ""}
           </span>
         )}
       </div>
