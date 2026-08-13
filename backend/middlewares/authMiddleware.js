@@ -1,5 +1,6 @@
 // backend/middlewares/authMiddleware.js
 const jwt = require('jsonwebtoken');
+const prisma = require('../config/prismaClient');
 
 if (!process.env.JWT_SECRET) {
   throw new Error('FATAL: JWT_SECRET environment variable is not set');
@@ -42,4 +43,22 @@ exports.verifyRole = (...allowedRoles) => {
     }
     next();
   };
+};
+
+// ผ่านถ้า: role = staff  หรือ  role = teacher ที่มี isCoopTeacher = true
+exports.verifyCoopTeacherOrStaff = async (req, res, next) => {
+  const role = (req.user?.role ?? '').toLowerCase();
+  if (role === 'staff') return next();
+  if (role === 'teacher') {
+    try {
+      const teacher = await prisma.teacher.findUnique({
+        where: { userId: req.user.id },
+        select: { isCoopTeacher: true }
+      });
+      if (teacher?.isCoopTeacher) return next();
+    } catch (err) {
+      return res.status(500).json({ ok: false, message: 'Server error' });
+    }
+  }
+  return res.status(403).json({ ok: false, message: 'Access denied: เฉพาะเจ้าหน้าที่หรืออาจารย์ประจำวิชาสหกิจเท่านั้น' });
 };

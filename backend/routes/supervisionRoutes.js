@@ -4,10 +4,8 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const supervisionController = require('../controllers/supervisionController');
-const { verifyToken, verifyRole } = require('../middlewares/authMiddleware');
+const { verifyToken, verifyRole, verifyCoopTeacherOrStaff } = require('../middlewares/authMiddleware');
 const { pdfOrImageFileFilter } = require('../utils/fileFilters');
-
-const ADMIN_ROLES = ['staff'];
 
 // --- ตั้งค่าโฟลเดอร์อัปโหลดสำหรับหนังสือนิเทศ ---
 const SUPERVISION_UPLOAD_DIR = path.join(__dirname, '../uploads/supervision');
@@ -25,13 +23,13 @@ const storage = multer.diskStorage({
 const upload = multer({ storage, fileFilter: pdfOrImageFileFilter, limits: { fileSize: 50 * 1024 * 1024 } });
 
 
-// ================= ROUTE สำหรับ ADMIN =================
-router.get('/admin/supervision-periods', verifyToken, verifyRole(...ADMIN_ROLES), supervisionController.getSupervisionPeriods);
-router.post('/admin/supervision-periods', verifyToken, verifyRole(...ADMIN_ROLES), supervisionController.saveSupervisionPeriod);
-router.get('/admin/supervisions', verifyToken, verifyRole(...ADMIN_ROLES), supervisionController.getAllSupervisions);
-router.put('/admin/supervisions/:id/confirmed-date', verifyToken, verifyRole(...ADMIN_ROLES), supervisionController.updateConfirmedDate);
-router.post('/admin/supervisions/:id/upload-letter', verifyToken, verifyRole(...ADMIN_ROLES), upload.single('file'), supervisionController.uploadOfficialLetter);
-router.put('/admin/supervisions/:id/complete', verifyToken, verifyRole(...ADMIN_ROLES), supervisionController.completeSupervision);
+// ================= ROUTE สำหรับ ADMIN + อาจารย์ประจำวิชา =================
+router.get('/admin/supervision-periods', verifyToken, verifyCoopTeacherOrStaff, supervisionController.getSupervisionPeriods);
+router.post('/admin/supervision-periods', verifyToken, verifyCoopTeacherOrStaff, supervisionController.saveSupervisionPeriod);
+router.get('/admin/supervisions', verifyToken, verifyCoopTeacherOrStaff, supervisionController.getAllSupervisions);
+router.put('/admin/supervisions/:id/confirmed-date', verifyToken, verifyCoopTeacherOrStaff, supervisionController.updateConfirmedDate);
+router.post('/admin/supervisions/:id/upload-letter', verifyToken, verifyCoopTeacherOrStaff, upload.single('file'), supervisionController.uploadOfficialLetter);
+router.put('/admin/supervisions/:id/complete', verifyToken, verifyCoopTeacherOrStaff, supervisionController.completeSupervision);
 
 
 // NOTE: Student supervision routes (/coop/supervision/me, /coop/supervision/propose)

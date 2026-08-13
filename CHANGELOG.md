@@ -1,5 +1,17 @@
 # CHANGELOG — Co_project
 
+## [2026-08-14] feat: batch 129 — อาจารย์ประจำวิชา (isCoopTeacher) จัดการนิเทศได้แบบเจ้าหน้าที่
+
+### Added
+- **authMiddleware.js** — เพิ่ม `verifyCoopTeacherOrStaff` middleware (async): ผ่านถ้า role=staff หรือ role=teacher ที่มี isCoopTeacher=true ใน DB
+- **supervisionRoutes.js** — 6 admin supervision routes เปลี่ยนจาก `verifyRole('staff')` → `verifyCoopTeacherOrStaff` (supervision-periods CRUD, getAllSupervisions, update confirmed-date, upload-letter, complete)
+- **adminRoutes.js** — route `PUT /supervisions/:id/co-teachers` เปลี่ยนเป็น `verifyCoopTeacherOrStaff`
+- **T_SupervisionReview.tsx** — dual-mode UI: tab "📋 ของฉัน" (พฤติกรรมเดิม) + tab "🗂️ ทั้งหมด" (สำหรับ isCoopTeacher เท่านั้น)
+  - Badge แสดงจำนวน pending บนแต่ละ tab
+  - Tab ทั้งหมด: ตั้งค่าช่วงเวลานิเทศ, ตารางรายการทั้งหมด, modal assign อาจารย์ร่วม, modal แก้ไขวัน, modal ออกหนังสือ (IssueSupervisionLetterModal)
+
+---
+
 ## [2026-08-14] fix: batch 128 — ผู้นิเทศหลักใช้ coopAdvisor แทน generalAdvisor
 
 ### Changed
