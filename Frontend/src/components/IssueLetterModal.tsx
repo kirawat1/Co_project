@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { apiFetch } from "../utils/apiFetch";
 import { createDispatchPDF } from "../utils/pdfDispatchGenerator";
 import { createWordBlob, createPreviewBlob, buildDispatchLetterHtml, thaiPrefix } from "../utils/docGeneratorUtils";
-import { FileReady, DeliveryPicker, MODAL_CSS } from "./LetterModalShared";
+import { FileReady, DeliveryPicker, CompanyAddressBox, MODAL_CSS } from "./LetterModalShared";
 
 interface Props {
     student: any;
@@ -23,8 +23,6 @@ export default function IssueLetterModal({ student, onClose, onSuccess }: Props)
 
     const startDate = student.coop?.actualStartDate || student.coopApplicationForm?.startDate || "";
     const endDate = student.coop?.actualEndDate || student.coopApplicationForm?.endDate || "";
-    const [manualStartDate, setManualStartDate] = useState("");
-    const effectiveStartDate = startDate || manualStartDate;
 
     const loadCommonData = async () => {
         const [resAssets, resDean] = await Promise.all([
@@ -47,7 +45,7 @@ export default function IssueLetterModal({ student, onClose, onSuccess }: Props)
     };
 
     const handleCreatePdf = async () => {
-        if (!effectiveStartDate) return alert("กรุณากรอกวันที่เริ่มฝึกสหกิจก่อนออกเอกสาร");
+        if (!startDate) return alert("ไม่พบวันที่เริ่มฝึกในระบบ — นักศึกษาต้องกรอกที่หน้าเอกสารก่อน");
         setLoadingPdf(true);
         try {
             const { getAsset, deanName, deanPosition } = await loadCommonData();
@@ -56,11 +54,27 @@ export default function IssueLetterModal({ student, onClose, onSuccess }: Props)
             const acceptUrl = getAsset("ACCEPTANCE_FORM");
             if (!krutUrl) return alert("⚠️ ไม่พบไฟล์ตราครุฑ (KRUT) กรุณาอัปโหลดในหน้าตั้งค่า");
 
-            const profile = { ...student, coop: { ...student.coop, actualStartDate: effectiveStartDate, actualEndDate: endDate } };
-            // ส่ง studentFiles เฉพาะที่มีไฟล์จริง — ป้องกัน 404
-            const studentFiles = (student.documents || [])
-                .filter((d: any) => d.path)
-                .map((d: any) => ({ type: d.type, url: `/uploads/${d.path}` }));
+            const profile = { ...student, coop: { ...student.coop, actualStartDate: startDate, actualEndDate: endDate } };
+            const allDocs = (student.documents || []).filter((d: any) => d.path);
+            // ตรวจสอบว่าไฟล์ยังอยู่บน server ก่อนส่ง
+            const fileChecks = await Promise.all(
+                allDocs.map(async (d: any) => {
+                    const url = `/uploads/${d.path}`;
+                    try {
+                        const r = await fetch(url, { method: "HEAD" });
+                        return { doc: d, url, exists: r.ok };
+                    } catch {
+                        return { doc: d, url, exists: false };
+                    }
+                })
+            );
+            const missing = fileChecks.filter(f => !f.exists);
+            if (missing.length > 0) {
+                const names = missing.map(f => f.doc.name || f.doc.path).join("\n• ");
+                const proceed = window.confirm(`⚠️ พบเอกสาร ${missing.length} ไฟล์ที่ไม่พบบนเซิร์ฟเวอร์ (อาจเป็นไฟล์เก่าที่ถูกลบ):\n• ${names}\n\nสร้าง PDF ต่อโดยข้ามไฟล์ที่หายไป?`);
+                if (!proceed) return;
+            }
+            const studentFiles = fileChecks.filter(f => f.exists).map(f => ({ type: f.doc.type, url: f.url }));
             const blob = await createDispatchPDF(
                 profile, docNumber, docDate, krutUrl, "",
                 projectUrl || "", acceptUrl || "",
@@ -74,7 +88,7 @@ export default function IssueLetterModal({ student, onClose, onSuccess }: Props)
     };
 
     const handleCreateDoc = async () => {
-        if (!effectiveStartDate) return alert("กรุณากรอกวันที่เริ่มฝึกสหกิจก่อนออกเอกสาร");
+        if (!startDate) return alert("ไม่พบวันที่เริ่มฝึกในระบบ — นักศึกษาต้องกรอกที่หน้าเอกสารก่อน");
         setLoadingDoc(true);
         try {
             const { deanName, deanPosition } = await loadCommonData();
@@ -85,7 +99,7 @@ export default function IssueLetterModal({ student, onClose, onSuccess }: Props)
                 studyProgram: student.studyProgram,
                 companyName: student.coop?.company?.name || "....",
                 companyContact: student.coop?.company?.contactPerson || undefined,
-                startDate: effectiveStartDate, endDate, deanName, deanPosition,
+                startDate, endDate, deanName, deanPosition,
             });
             const blob = createWordBlob(html);
             setDocBlob(blob);
@@ -136,7 +150,7 @@ export default function IssueLetterModal({ student, onClose, onSuccess }: Props)
                     {/* LEFT: Preview */}
                     <div className="letter-preview" style={{ flex: 1, background: previewUrl ? '#f8fafc' : '#525659', borderRadius: 8, overflow: 'hidden', display: 'flex', flexDirection: 'column', border: previewUrl ? '1px solid #e2e8f0' : 'none' }}>
                         {previewUrl ? (
-                            <iframe src={previewUrl} width="100%" height="100%" style={{ border: 'none', flex: 1, background: '#ffffff', colorScheme: 'light' }} title="Preview" sandbox="" />
+                            <iframe src={previewUrl} width="100%" height="100%" style={{ border: 'none', flex: 1, background: '#ffffff', colorScheme: 'light' }} title="Preview" />
                         ) : (
                             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#ccc', gap: 10 }}>
                                 <div style={{ fontSize: 48 }}>📄</div>
@@ -148,12 +162,8 @@ export default function IssueLetterModal({ student, onClose, onSuccess }: Props)
                     {/* RIGHT: Controls */}
                     <div className="letter-sidebar" style={{ width: 300, display: 'flex', flexDirection: 'column', gap: 14, flexShrink: 0, overflowY: 'auto' }}>
                         {!startDate && (
-                            <div style={{ padding: '10px 14px', background: '#fef9c3', borderRadius: 8, border: '1px solid #fde047' }}>
-                                <label style={{ ...lbl, color: '#854d0e' }}>
-                                    วันที่เริ่มฝึกสหกิจ <span style={{ color: 'red' }}>*</span>
-                                    <span style={{ fontSize: 11, color: '#a16207', marginLeft: 6 }}>(ไม่พบในระบบ กรุณากรอกเพื่อออกเอกสาร)</span>
-                                </label>
-                                <input className="input" type="date" value={manualStartDate} onChange={e => setManualStartDate(e.target.value)} />
+                            <div style={{ padding: '10px 14px', background: '#fee2e2', borderRadius: 8, border: '1px solid #fca5a5', fontSize: 13, color: '#991b1b', fontWeight: 600 }}>
+                                ⚠️ ไม่พบวันที่ฝึกงานในระบบ — นักศึกษาต้องกรอกที่หน้าเอกสารก่อนออกหนังสือได้
                             </div>
                         )}
 
@@ -202,6 +212,7 @@ export default function IssueLetterModal({ student, onClose, onSuccess }: Props)
                         <div>
                             <div style={{ ...sec, borderColor: '#10b981' }}>4. การจัดส่งเอกสาร</div>
                             <DeliveryPicker value={deliveryMethod} onChange={setDeliveryMethod} name="delivery-dispatch" />
+                            {deliveryMethod === "STAFF" && <CompanyAddressBox company={student.coop?.company} />}
                         </div>
 
                         <div style={{ marginTop: 'auto', paddingTop: 8 }}>
