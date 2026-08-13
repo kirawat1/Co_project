@@ -56,7 +56,7 @@ export default function A_Announcements() {
   /* ================= 0. LOAD MAJORS ================= */
   const fetchMajors = async () => {
     try {
-      const res = await apiFetch("/api/admin/students/majors");
+      const res = await apiFetch("/api/admin/majors");
       if (res.ok) { const data = await res.json(); if (data.ok) setAvailableMajors(data.majors); }
     } catch { /* silent */ }
   };
