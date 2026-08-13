@@ -8,10 +8,10 @@ interface Department {
 }
 
 const card: React.CSSProperties = {
-  background: "#fff",
+  background: "var(--card-bg)",
   borderRadius: 16,
   padding: 32,
-  border: "1px solid #e2e8f0",
+  border: "1px solid var(--border)",
   boxShadow: "0 4px 6px -1px rgba(0,0,0,0.05)",
 };
 
@@ -28,13 +28,15 @@ const btn = (color: string, bg: string, border = "transparent"): React.CSSProper
 });
 
 const input: React.CSSProperties = {
-  border: "1px solid #cbd5e1",
+  border: "1px solid var(--border)",
   borderRadius: 8,
   padding: "8px 12px",
   fontSize: 14,
   width: "100%",
   boxSizing: "border-box",
   outline: "none",
+  background: "var(--card-bg)",
+  color: "var(--text)",
 };
 
 export default function A_CriteriaPage() {
@@ -171,11 +173,11 @@ export default function A_CriteriaPage() {
         {/* Header */}
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 12, marginBottom: 24 }}>
           <div>
-            <h2 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "#1e293b" }}>
+            <h2 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "var(--text)" }}>
               🏛️ จัดการสาขาวิชา
             </h2>
-            <p style={{ margin: "6px 0 0", fontSize: 13, color: "#64748b" }}>
-              เพิ่ม แก้ไข หรือลบสาขาวิชาที่นักศึกษาและอาจารย์ใช้ในระบบ
+            <p style={{ margin: "6px 0 0", fontSize: 13, color: "var(--text-muted)" }}>
+              เพิ่ม แก้ไข หรือลบสาขาวิชา · <strong>รหัสสาขา</strong> = ตัวย่อในระบบ (cs, ai) · <strong>ชื่อภาษาไทย</strong> = ชื่อเต็ม
             </p>
           </div>
           {!showAddForm && (
@@ -187,14 +189,14 @@ export default function A_CriteriaPage() {
 
         {/* Error */}
         {error && (
-          <div style={{ marginBottom: 16, padding: "10px 14px", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, color: "#dc2626", fontSize: 13 }}>
+          <div style={{ marginBottom: 16, padding: "10px 14px", background: "rgba(220,38,38,.08)", border: "1px solid rgba(220,38,38,.25)", borderRadius: 8, color: "#dc2626", fontSize: 13 }}>
             {error}
           </div>
         )}
 
         {/* Add Form */}
         {showAddForm && (
-          <div style={{ marginBottom: 20, padding: 18, background: "#f0f9ff", borderRadius: 12, border: "1px solid #bae6fd" }}>
+          <div style={{ marginBottom: 20, padding: 18, background: "var(--surface2)", borderRadius: 12, border: "1px solid var(--border)" }}>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
               <div style={{ minWidth: 140 }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: "#0369a1", marginBottom: 4 }}>รหัสสาขา</div>
@@ -246,10 +248,12 @@ export default function A_CriteriaPage() {
           </div>
         ) : (
           <div style={{ display: "flex", flexWrap: "wrap", gap: 16 }}>
-            {departments.map(dept => (
+            {departments.map(dept => {
+              const noCode = dept.major === dept.nameTh || !dept.nameTh;
+              return (
               <div key={dept.id} style={{
-                background: editId === dept.id ? "#f0f9ff" : "#f8fafc",
-                border: `1px solid ${editId === dept.id ? "#bae6fd" : "#e2e8f0"}`,
+                background: editId === dept.id ? "var(--surface2)" : "var(--surface2)",
+                border: `1px solid ${editId === dept.id ? "rgba(14,165,233,.4)" : "var(--border)"}`,
                 borderRadius: 14,
                 padding: "20px 22px",
                 minWidth: 180,
@@ -264,25 +268,26 @@ export default function A_CriteriaPage() {
                   <>
                     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                       <div>
-                        <div style={{ fontSize: 10, fontWeight: 700, color: "#0369a1", marginBottom: 3 }}>รหัสสาขา</div>
-                        <input
-                          style={{ ...input, fontWeight: 700 }}
-                          value={editName}
-                          onChange={e => setEditName(e.target.value)}
-                          onKeyDown={e => { if (e.key === "Escape") { setEditId(null); setError(""); } }}
-                          autoFocus
-                          disabled={editSaving}
-                        />
-                      </div>
-                      <div>
-                        <div style={{ fontSize: 10, fontWeight: 700, color: "#0369a1", marginBottom: 3 }}>ชื่อภาษาไทย</div>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: "var(--text-muted)", marginBottom: 3 }}>ชื่อภาษาไทย (เต็ม)</div>
                         <input
                           style={input}
                           value={editNameTh}
                           onChange={e => setEditNameTh(e.target.value)}
+                          onKeyDown={e => { if (e.key === "Escape") { setEditId(null); setError(""); } }}
+                          autoFocus
+                          disabled={editSaving}
+                          placeholder="วิทยาการคอมพิวเตอร์"
+                        />
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: "var(--text-muted)", marginBottom: 3 }}>รหัสสาขา (ตัวย่อ)</div>
+                        <input
+                          style={{ ...input, fontWeight: 700 }}
+                          value={editName}
+                          onChange={e => setEditName(e.target.value)}
                           onKeyDown={e => { if (e.key === "Enter") handleEdit(); if (e.key === "Escape") { setEditId(null); setError(""); } }}
                           disabled={editSaving}
-                          placeholder="ชื่อภาษาไทย"
+                          placeholder="cs"
                         />
                       </div>
                     </div>
@@ -290,7 +295,7 @@ export default function A_CriteriaPage() {
                       <button style={{ ...btn("#fff", editSaving ? "#94a3b8" : "#22c55e"), flex: 1 }} onClick={handleEdit} disabled={editSaving || !editName.trim()}>
                         {editSaving ? "..." : "บันทึก"}
                       </button>
-                      <button style={btn("#64748b", "#f1f5f9", "#e2e8f0")} onClick={() => { setEditId(null); setEditNameTh(""); setError(""); }} disabled={editSaving}>
+                      <button style={btn("var(--text-muted)", "var(--border)", "var(--border)")} onClick={() => { setEditId(null); setEditNameTh(""); setError(""); }} disabled={editSaving}>
                         ยกเลิก
                       </button>
                     </div>
@@ -298,37 +303,51 @@ export default function A_CriteriaPage() {
                 ) : (
                   <>
                     <div>
-                      <div style={{ fontSize: 10, fontWeight: 700, color: "#0ea5e9", textTransform: "uppercase", letterSpacing: 1, marginBottom: 4 }}>สาขาวิชา</div>
-                      <div style={{ fontSize: 26, fontWeight: 900, color: "#1e293b" }}>{dept.major}</div>
-                      {dept.nameTh && (
-                        <div style={{ fontSize: 13, color: "#475569", fontWeight: 500, marginTop: 3 }}>{dept.nameTh}</div>
+                      {noCode && (
+                        <div style={{ fontSize: 11, color: "#b45309", background: "rgba(234,179,8,.12)", border: "1px solid rgba(234,179,8,.3)", borderRadius: 6, padding: "3px 8px", marginBottom: 8, display: "inline-block" }}>
+                          ⚠️ ยังไม่มีรหัส — แก้ไขเพื่อตั้งรหัสสาขา
+                        </div>
                       )}
-                      <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 6 }}>
+                      <div style={{ fontSize: dept.nameTh ? 15 : 22, fontWeight: 800, color: "var(--text)", lineHeight: 1.3 }}>
+                        {dept.nameTh || dept.major}
+                      </div>
+                      <div style={{ marginTop: 6 }}>
+                        <span style={{
+                          display: "inline-block", fontSize: 11, fontWeight: 700,
+                          background: noCode ? "rgba(234,179,8,.12)" : "rgba(14,165,233,.12)",
+                          color: noCode ? "#b45309" : "#0369a1",
+                          border: `1px solid ${noCode ? "rgba(234,179,8,.3)" : "rgba(14,165,233,.3)"}`,
+                          borderRadius: 6, padding: "2px 8px", letterSpacing: 0.5,
+                        }}>
+                          {dept.major}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: 11, color: "var(--text-sub)", marginTop: 6 }}>
                         อัปเดต {new Date(dept.updatedAt).toLocaleDateString("th-TH", { year: "numeric", month: "short", day: "numeric" })}
                       </div>
                     </div>
                     <div style={{ display: "flex", gap: 8 }}>
-                      <button style={{ ...btn("#0369a1", "#e0f2fe"), flex: 1 }} onClick={() => startEdit(dept)}>แก้ไข</button>
-                      <button style={{ ...btn("#dc2626", "#fef2f2"), flex: 1 }} onClick={() => confirmDelete(dept)}>ลบ</button>
+                      <button style={{ ...btn("#0369a1", "rgba(14,165,233,.1)"), flex: 1 }} onClick={() => startEdit(dept)}>แก้ไข</button>
+                      <button style={{ ...btn("#dc2626", "rgba(220,38,38,.08)"), flex: 1 }} onClick={() => confirmDelete(dept)}>ลบ</button>
                     </div>
                   </>
                 )}
               </div>
-            ))}
+            );})}
           </div>
         )}
 
         {/* Curriculum note */}
-        <div style={{ marginTop: 28, padding: 16, background: "#f8fafc", borderRadius: 12, border: "1px solid #e2e8f0" }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: "#64748b", marginBottom: 10, textTransform: "uppercase", letterSpacing: 0.5 }}>
+        <div style={{ marginTop: 28, padding: 16, background: "var(--surface2)", borderRadius: 12, border: "1px solid var(--border)" }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-muted)", marginBottom: 10, textTransform: "uppercase", letterSpacing: 0.5 }}>
             📋 หลักสูตรการศึกษา
           </div>
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
             {[{ code: "normal", label: "ภาคปกติ" }, { code: "special", label: "ภาคพิเศษ" }].map(({ code, label }) => (
-              <div key={code} style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 20px", minWidth: 140 }}>
+              <div key={code} style={{ background: "var(--card-bg)", border: "1px solid var(--border)", borderRadius: 10, padding: "10px 20px", minWidth: 140 }}>
                 <div style={{ fontSize: 10, fontWeight: 800, color: "#0ea5e9", textTransform: "uppercase", letterSpacing: 1 }}>หลักสูตร</div>
-                <div style={{ fontSize: 18, fontWeight: 900, color: "#0f172a", marginTop: 2 }}>{label}</div>
-                <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 1 }}>รหัส: {code}</div>
+                <div style={{ fontSize: 18, fontWeight: 900, color: "var(--text)", marginTop: 2 }}>{label}</div>
+                <div style={{ fontSize: 11, color: "var(--text-sub)", marginTop: 1 }}>รหัส: {code}</div>
               </div>
             ))}
           </div>
@@ -339,10 +358,10 @@ export default function A_CriteriaPage() {
       {deleteId && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999 }}
           onClick={e => { if (e.target === e.currentTarget) { setDeleteId(null); setError(""); } }}>
-          <div style={{ background: "#fff", borderRadius: 16, padding: 28, maxWidth: 380, width: "90%", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
+          <div style={{ background: "var(--card-bg)", borderRadius: 16, padding: 28, maxWidth: 380, width: "90%", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
             <div style={{ fontSize: 20, marginBottom: 12 }}>🗑️</div>
-            <h3 style={{ margin: "0 0 8px", fontSize: 16, fontWeight: 800, color: "#1e293b" }}>ยืนยันการลบสาขาวิชา</h3>
-            <p style={{ margin: "0 0 20px", fontSize: 14, color: "#64748b" }}>
+            <h3 style={{ margin: "0 0 8px", fontSize: 16, fontWeight: 800, color: "var(--text)" }}>ยืนยันการลบสาขาวิชา</h3>
+            <p style={{ margin: "0 0 20px", fontSize: 14, color: "var(--text-muted)" }}>
               ต้องการลบสาขาวิชา <strong style={{ color: "#dc2626" }}>"{deleteConfirmName}"</strong> ออกจากระบบ?
               <br />นักศึกษาที่เลือกสาขานี้ไว้จะยังคงข้อมูลเดิม แต่จะไม่สามารถเลือกสาขานี้ใหม่ได้
             </p>

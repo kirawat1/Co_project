@@ -257,21 +257,29 @@ exports.importStudents = async (req, res) => {
       }
     }
 
-    // Auto-create missing majors in CoopCriteria
-    const uniqueMajors = [...new Set(normalizedRows.map(r => r.major).filter(Boolean))];
+    // Resolve Thai major names → codes via CoopCriteria.nameTh lookup
+    const uniqueThaiMajors = [...new Set(normalizedRows.map(r => r.major).filter(Boolean))];
     let autoCreatedMajors = 0;
-    if (uniqueMajors.length > 0) {
+    // nameThToCode: thaiName → major code (for lookup during student upsert)
+    const nameThToCode = new Map();
+    if (uniqueThaiMajors.length > 0) {
       const existing = await prisma.coopCriteria.findMany({
-        where: { major: { in: uniqueMajors } },
-        select: { major: true },
+        where: { OR: [{ major: { in: uniqueThaiMajors } }, { nameTh: { in: uniqueThaiMajors } }] },
+        select: { major: true, nameTh: true },
       });
-      const existingSet = new Set(existing.map(c => c.major));
-      const toCreate = uniqueMajors.filter(m => !existingSet.has(m));
+      for (const c of existing) {
+        // map code → code (identity, for rows where major already is a code)
+        nameThToCode.set(c.major, c.major);
+        // map Thai name → code
+        if (c.nameTh) nameThToCode.set(c.nameTh, c.major);
+      }
+      const toCreate = uniqueThaiMajors.filter(m => !nameThToCode.has(m));
       if (toCreate.length > 0) {
         await prisma.coopCriteria.createMany({
-          data: toCreate.map(m => ({ major: m })),
+          data: toCreate.map(m => ({ major: m, nameTh: m })),
           skipDuplicates: true,
         });
+        for (const m of toCreate) nameThToCode.set(m, m);
         autoCreatedMajors = toCreate.length;
       }
     }
@@ -328,6 +336,9 @@ exports.importStudents = async (req, res) => {
         const { prefix, firstName, lastName, firstNameEn, lastNameEn,
                 year, phone, gpa, major, studyProgram, advisorName } = norm;
 
+        // Resolve Thai major name → code (e.g. "วิทยาการคอมพิวเตอร์" → "cs")
+        const resolvedMajor = major ? (nameThToCode.get(major) ?? major) : null;
+
         await prisma.$transaction(async (tx) => {
           if (!existingUser) {
             user = await tx.user.upsert({
@@ -340,13 +351,13 @@ exports.importStudents = async (req, res) => {
             where: { studentId },
             update: {
               prefix, firstName, lastName, firstNameEn, lastNameEn,
-              year, phone, email, gpa, major: major ?? undefined, studyProgram,
+              year, phone, email, gpa, major: resolvedMajor ?? undefined, studyProgram,
               advisorName:     generalAdvisorId !== undefined ? advisorName : undefined,
               generalAdvisorId,
             },
             create: {
               studentId, prefix, firstName, lastName, firstNameEn, lastNameEn,
-              year, phone, email, gpa, major: major ?? null,
+              year, phone, email, gpa, major: resolvedMajor ?? null,
               advisorName, generalAdvisorId: generalAdvisorId ?? null, studyProgram,
               userId: user.id,
             },
