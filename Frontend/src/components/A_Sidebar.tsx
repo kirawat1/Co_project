@@ -130,6 +130,15 @@ export default function A_Sidebar({ isOpen = false, onClose = () => {} }: Sideba
           <span className="text"> เอกสารใบสมัครงาน (T000)</span>
         </NavLink>
 
+        <NavLink
+          to="/admin/gateway-settings"
+          className={({ isActive }) => "item" + (isActive ? " active" : "")}
+          onClick={nav}
+        >
+          <span className="ico"><IcSettings /></span>
+          <span className="text">ตั้งค่าฟอร์มคำร้อง</span>
+        </NavLink>
+
         <div className="sec-label">ระบบ</div>
 
         <NavLink
@@ -162,14 +171,6 @@ export default function A_Sidebar({ isOpen = false, onClose = () => {} }: Sideba
           <span className="text">ตั้งค่า</span>
         </NavLink>
 
-        <NavLink
-          to="/admin/gateway-settings"
-          className={({ isActive }) => "item" + (isActive ? " active" : "")}
-          onClick={nav}
-        >
-          <span className="ico"><IcSettings /></span>
-          <span className="text">ตั้งค่าฟอร์มคำร้อง</span>
-        </NavLink>
 
 
 

@@ -242,7 +242,7 @@ const DispatchManagementCard = ({ profile, onUpload, onRefresh }: { profile: any
               <button onClick={() => setPreviewUrl(null)} className="btn-close">&times;</button>
             </div>
             <div className="pdf-modal-body">
-              <iframe src={previewUrl} style={{ width: '100%', height: '100%', border: 'none' }} title="Preview" sandbox="allow-same-origin" />
+              <iframe src={previewUrl} style={{ width: '100%', height: '100%', border: 'none' }} title="Preview" />
             </div>
             <div className="pdf-modal-footer">
               <button className="btn btn-secondary" onClick={() => setPreviewUrl(null)}>ปิดหน้าต่าง</button>
@@ -358,6 +358,10 @@ export default function S_Docs({ profile, setProfile }: { profile: LocalStudentP
   }, [formData]);
 
   const handleGeneratePDF = async (mode: "preview" | "download") => {
+    if (!formData.startDate || !formData.endDate) {
+      alert("กรุณากรอกวันที่เริ่มฝึกงาน และวันที่สิ้นสุดในส่วน \"ระยะเวลาและจุดมุ่งหมาย\" ก่อนสร้างเอกสาร");
+      return;
+    }
     try {
       await handleSaveForm(true);
       const doc = await createT000PDF(profile as any, formData);
@@ -375,6 +379,10 @@ export default function S_Docs({ profile, setProfile }: { profile: LocalStudentP
   };
 
   const handleGenerateConsentPDF = async (mode: "preview" | "download") => {
+    if (!formData.startDate || !formData.endDate) {
+      alert("กรุณากรอกวันที่เริ่มฝึกงาน และวันที่สิ้นสุดในส่วน \"ระยะเวลาและจุดมุ่งหมาย\" ก่อนสร้างเอกสาร");
+      return;
+    }
     try {
       await handleSaveForm(true);
       const doc = await createParentalConsentPDF(profile, formData);
@@ -511,11 +519,14 @@ export default function S_Docs({ profile, setProfile }: { profile: LocalStudentP
           </div>
 
           {/* เป้าหมาย */}
-          <div style={{ background: '#f8fafc', padding: 20, borderRadius: 12, border: '1px solid #e2e8f0' }}>
-            <h4 style={{ margin: '0 0 16px 0', color: '#334155' }}>🎯 ระยะเวลาและจุดมุ่งหมาย</h4>
+          <div style={{ background: '#f8fafc', padding: 20, borderRadius: 12, border: `1px solid ${(!formData.startDate || !formData.endDate) ? '#fca5a5' : '#e2e8f0'}` }}>
+            <h4 style={{ margin: '0 0 4px 0', color: '#334155' }}>🎯 ระยะเวลาและจุดมุ่งหมาย</h4>
+            {(!formData.startDate || !formData.endDate) && (
+              <div style={{ fontSize: 12, color: '#dc2626', marginBottom: 12, fontWeight: 600 }}>⚠️ กรุณากรอกวันที่ก่อนสร้าง PDF</div>
+            )}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 20, marginBottom: 16 }}>
-              <div><label style={lbl}>วันที่เริ่มฝึก:</label><input type="date" className="input" value={formData.startDate || ""} onChange={e => setFormData({ ...formData, startDate: e.target.value })} /></div>
-              <div><label style={lbl}>ถึงวันที่:</label><input type="date" className="input" value={formData.endDate || ""} onChange={e => setFormData({ ...formData, endDate: e.target.value })} /></div>
+              <div><label style={{ ...lbl, color: !formData.startDate ? '#dc2626' : undefined }}>วันที่เริ่มฝึก: <span style={{ color: '#dc2626' }}>*</span></label><input type="date" className="input" style={!formData.startDate ? { borderColor: '#fca5a5' } : undefined} value={formData.startDate || ""} onChange={e => setFormData({ ...formData, startDate: e.target.value })} /></div>
+              <div><label style={{ ...lbl, color: !formData.endDate ? '#dc2626' : undefined }}>ถึงวันที่: <span style={{ color: '#dc2626' }}>*</span></label><input type="date" className="input" style={!formData.endDate ? { borderColor: '#fca5a5' } : undefined} value={formData.endDate || ""} onChange={e => setFormData({ ...formData, endDate: e.target.value })} /></div>
             </div>
             <p style={{ fontSize: 13, color: '#64748b', marginBottom: 8, fontWeight: 600 }}>ระบุสายงานและลักษณะงานอาชีพที่นักศึกษาสนใจ (สูงสุด 3 ข้อ)</p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -629,7 +640,7 @@ export default function S_Docs({ profile, setProfile }: { profile: LocalStudentP
               <button onClick={() => setShowPDFPopup(false)} className="btn-close" title="ปิดหน้าต่าง">&times;</button>
             </div>
             <div className="pdf-modal-body">
-              <iframe src={pdfDataUrl} title="PDF Preview" className="pdf-iframe" sandbox="allow-same-origin" />
+              <iframe src={pdfDataUrl} title="PDF Preview" className="pdf-iframe" />
             </div>
             <div className="pdf-modal-footer">
               <button className="btn-secondary" style={{ padding: '10px 20px', borderRadius: 8, fontWeight: 700 }} onClick={() => setShowPDFPopup(false)}>ปิด</button>

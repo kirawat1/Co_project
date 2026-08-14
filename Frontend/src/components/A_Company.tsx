@@ -312,11 +312,11 @@ export default function A_Companies() {
                     <button className="btn" style={ghostBtn} onClick={() => setViewCompany(c)}>
                       รายละเอียด
                     </button>
-                    <button className="btn" style={{ ...ghostBtn, color: '#c2410c', borderColor: '#c2410c', background: '#fff7ed' }} onClick={() => { setForm(c); setShowEdit(true); }}>
-                      แก้ไข
+                    <button className="btn" style={ghostBtn} onClick={() => { setForm(c); setShowEdit(true); }}>
+                      ✏️ แก้ไข
                     </button>
-                    <button className="btn" style={{ ...ghostBtn, color: '#ef4444', borderColor: '#fecaca', background: '#fef2f2' }} onClick={() => remove(c.id)}>
-                      ลบ
+                    <button className="btn" style={{ ...ghostBtn, color: '#ef4444', borderColor: '#ef4444' }} onClick={() => remove(c.id)}>
+                      🗑️ ลบ
                     </button>
                   </div>
                 </td>
@@ -573,6 +573,6 @@ function MentorForm({ form, setForm, onSubmit }: any) {
   );
 }
 
-const ghostBtn: React.CSSProperties = { background: "#fff", color: "#0074B7", boxShadow: "none", border: "1px solid rgba(10,132,255,.25)", height: 36, borderRadius: 8, padding: '0 16px', cursor: 'pointer' };
+const ghostBtn: React.CSSProperties = { background: "#fff", color: "#0074B7", border: "1px solid rgba(10,132,255,.25)", height: 34, borderRadius: 8, padding: '0 12px', cursor: 'pointer', fontWeight: 600, fontSize: 13 };
 const td: React.CSSProperties = { padding: "14px 16px", fontSize: 14, color: '#334155', verticalAlign: 'middle' };
 const lbl = { display: 'block', fontSize: 12, fontWeight: 600, color: '#64748b', margin: "0 0 4px 0" };

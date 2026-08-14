@@ -267,16 +267,6 @@ export default function T_Profile() {
               </div>
 
               <div style={{ gridColumn: 'span 2' }}>
-                <label className="label">คณะ / สำนักวิชา</label>
-                <input
-                  className="input"
-                  value={form.faculty}
-                  onChange={(e) => setForm({ ...form, faculty: e.target.value })}
-                  placeholder="เช่น วิทยาลัยการคอมพิวเตอร์"
-                />
-              </div>
-
-              <div style={{ gridColumn: 'span 2' }}>
                 <label className="label">สาขาวิชา</label>
                 <select
                   className="input"
