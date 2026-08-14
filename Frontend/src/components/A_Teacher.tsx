@@ -20,10 +20,6 @@ interface Teacher {
   isCoopTeacher: boolean;
 }
 
-const CURRICULUM_TH: Record<string, string> = {
-  normal: "ภาคปกติ",
-  special: "ภาคพิเศษ",
-};
 const TEACHER_PREFIXES_DEFAULT = ['ผศ.', 'ผศ. ดร.', 'รศ.', 'รศ. ดร.', 'ศ.', 'ศ. ดร.', 'อ.', 'อ. ดร.', 'ดร.'];
 
 const EMPTY_TEACHER: Omit<Teacher, "id"> = {
@@ -40,6 +36,7 @@ export default function A_Teacher() {
   const [items, setItems] = useState<Teacher[]>([]);
   const [loading, setLoading] = useState(true);
   const [prefixOptions, setPrefixOptions] = useState<string[]>(TEACHER_PREFIXES_DEFAULT);
+  const [departments, setDepartments] = useState<string[]>([]);
 
   // Filters
   const [q, setQ] = useState("");
@@ -82,7 +79,19 @@ export default function A_Teacher() {
     } catch {}
   };
 
-  useEffect(() => { fetchData(); fetchPrefixes(); }, []);
+  const fetchDepartments = async () => {
+    try {
+      const res = await apiFetch("/api/coop/departments");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.ok && Array.isArray(data.departments)) {
+          setDepartments(data.departments.map((d: any) => d.major));
+        }
+      }
+    } catch {}
+  };
+
+  useEffect(() => { fetchData(); fetchPrefixes(); fetchDepartments(); }, []);
 
   // ─── CRUD handlers ────────────────────────────────────────
 
@@ -210,7 +219,7 @@ export default function A_Teacher() {
             value={q} onChange={(e) => setQ(e.target.value)}
             style={{ width: 280, padding: "8px", borderRadius: 8, border: "1px solid #e5e7eb" }}
           />
-          <FilterBox title="หลักสูตร" items={CURRICULUM_TH} values={filterMajor} onChange={setFilterMajor} />
+          <FilterBox title="สาขาวิชา" items={Object.fromEntries(departments.map(d => [d, d]))} values={filterMajor} onChange={setFilterMajor} />
           <button className="btn" style={{ ...saveBtn, marginLeft: "auto" }} onClick={() => { setQ(""); setFilterMajor([]); }}>
             ล้างตัวกรอง
           </button>
@@ -225,7 +234,7 @@ export default function A_Teacher() {
         <table width="100%" className="responsive-table" style={{ borderCollapse: "collapse" }}>
           <thead>
             <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
-              {["ชื่อ-นามสกุล", "อีเมล (Username)", "เบอร์โทร", "หลักสูตร", "จัดการ"].map((h) => (
+              {["ชื่อ-นามสกุล", "อีเมล (Username)", "เบอร์โทร", "สาขาวิชา", "จัดการ"].map((h) => (
                 <th key={h} style={th}>{h}</th>
               ))}
             </tr>
@@ -250,9 +259,9 @@ export default function A_Teacher() {
                 </td>
                 <td style={{ ...td, color: "#0369a1" }} data-label="อีเมล (Username)">{t.email}</td>
                 <td style={td} data-label="เบอร์โทร">{t.phone || "-"}</td>
-                <td style={td} data-label="หลักสูตร">
+                <td style={td} data-label="สาขาวิชา">
                   <span style={{ padding: "4px 10px", borderRadius: 99, fontSize: 12, fontWeight: 600, background: t.major ? "#f0f9ff" : "#f1f5f9", color: t.major ? "#0369a1" : "#64748b" }}>
-                    {CURRICULUM_TH[t.major as string] || t.major || "-"}
+                    {t.major || "-"}
                   </span>
                 </td>
                 <td style={{ ...td, whiteSpace: "nowrap" }}>
@@ -280,6 +289,7 @@ export default function A_Teacher() {
           title="แก้ไขข้อมูลอาจารย์"
           data={editModal}
           prefixOptions={prefixOptions}
+          departments={departments}
           saving={saving}
           onClose={() => setEditModal(null)}
           onSave={handleUpdate}
@@ -295,7 +305,7 @@ export default function A_Teacher() {
               <h2 style={{ margin: 0, fontSize: 20 }}>➕ เพิ่มอาจารย์ใหม่</h2>
               <button onClick={() => { setCreateModal(false); setCreatePassword(""); }} style={closeBtn}>✕</button>
             </div>
-            <TeacherFields form={createForm} setForm={setCreateForm} prefixOptions={prefixOptions} allowEmailEdit />
+            <TeacherFields form={createForm} setForm={setCreateForm} prefixOptions={prefixOptions} departments={departments} allowEmailEdit />
             <div style={{ marginTop: 16 }}>
               <label style={labelStyle}>รหัสผ่าน <span style={{ color: "red" }}>*</span></label>
               <input
@@ -357,10 +367,11 @@ export default function A_Teacher() {
 /* =========================
    TeacherFormModal
 ========================= */
-function TeacherFormModal({ title, data, prefixOptions, saving, onClose, onSave, allowEmailEdit }: {
+function TeacherFormModal({ title, data, prefixOptions, departments, saving, onClose, onSave, allowEmailEdit }: {
   title: string;
   data: Teacher;
   prefixOptions: string[];
+  departments: string[];
   saving: boolean;
   onClose: () => void;
   onSave: (d: Teacher) => void;
@@ -374,7 +385,7 @@ function TeacherFormModal({ title, data, prefixOptions, saving, onClose, onSave,
           <h2 style={{ margin: 0, fontSize: 20 }}>{title}</h2>
           <button onClick={onClose} style={closeBtn}>✕</button>
         </div>
-        <TeacherFields form={form} setForm={setForm} prefixOptions={prefixOptions} allowEmailEdit={allowEmailEdit} />
+        <TeacherFields form={form} setForm={setForm} prefixOptions={prefixOptions} departments={departments} allowEmailEdit={allowEmailEdit} />
         <div style={modalFooter}>
           <button style={ghostBtn} onClick={onClose}>ยกเลิก</button>
           <button style={{ ...saveBtn, display: "flex", alignItems: "center", gap: 8 }} onClick={() => onSave(form)} disabled={saving}>
@@ -389,10 +400,11 @@ function TeacherFormModal({ title, data, prefixOptions, saving, onClose, onSave,
 /* =========================
    TeacherFields — form fields (shared)
 ========================= */
-function TeacherFields({ form, setForm, prefixOptions, allowEmailEdit }: {
+function TeacherFields({ form, setForm, prefixOptions, departments, allowEmailEdit }: {
   form: any;
   setForm: (f: any) => void;
   prefixOptions: string[];
+  departments: string[];
   allowEmailEdit?: boolean;
 }) {
   return (
@@ -428,11 +440,10 @@ function TeacherFields({ form, setForm, prefixOptions, allowEmailEdit }: {
         <input style={inputStyle} value={form.phone || ""} onChange={e => setForm({ ...form, phone: e.target.value })} placeholder="0XX-XXXXXXX" />
       </div>
       <div style={{ gridColumn: "span 2" }}>
-        <label style={labelStyle}>หลักสูตร</label>
+        <label style={labelStyle}>สาขาวิชา</label>
         <select style={{ ...inputStyle, cursor: "pointer" }} value={form.major || ""} onChange={e => setForm({ ...form, major: e.target.value })}>
-          <option value="">-- เลือกหลักสูตร --</option>
-          <option value="normal">ภาคปกติ</option>
-          <option value="special">ภาคพิเศษ</option>
+          <option value="">-- เลือกสาขาวิชา --</option>
+          {departments.map(d => <option key={d} value={d}>{d}</option>)}
         </select>
       </div>
       {/* อาจารย์ประจำวิชาสหกิจ */}

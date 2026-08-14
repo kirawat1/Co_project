@@ -182,10 +182,10 @@ export default function A_Mentors() {
                 <td style={td}>
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button className="btn" style={ghostBtn} onClick={() => setModalData(m)}>
-                      แก้ไข
+                      ✏️ แก้ไข
                     </button>
-                    <button className="btn-danger" style={{ height: ghostBtn.height, padding: ghostBtn.padding }} onClick={() => handleDelete(m.id)}>
-                      ลบ
+                    <button className="btn" style={{ ...ghostBtn, color: "#ef4444", borderColor: "#ef4444" }} onClick={() => handleDelete(m.id)}>
+                      🗑️ ลบ
                     </button>
                   </div>
                 </td>
@@ -305,7 +305,7 @@ const filterRow: React.CSSProperties = { display: "flex", gap: 12, alignItems: "
 const th: React.CSSProperties = { textAlign: "left", fontSize: 14, fontWeight: 700, padding: "12px 16px", color: '#475569' };
 const td: React.CSSProperties = { padding: "14px 16px", fontSize: 14, color: '#334155', verticalAlign: 'middle' };
 
-const ghostBtn: React.CSSProperties = { background: "#fff", color: "#0074B7", boxShadow: "none", border: "1px solid rgba(10,132,255,.25)", height: 36, borderRadius: 8, padding: '0 16px', cursor: 'pointer' };
+const ghostBtn: React.CSSProperties = { background: "#fff", color: "#0074B7", border: "1px solid rgba(10,132,255,.25)", height: 34, borderRadius: 8, padding: '0 12px', cursor: 'pointer', fontWeight: 600, fontSize: 13 };
 const saveBtn: React.CSSProperties = { background: "#0074B7", color: "#fff", border: "none", height: 38, borderRadius: 8, padding: '0 16px', cursor: 'pointer', fontWeight: 600, fontSize: 14 };
 
 const overlay: React.CSSProperties = { position: "fixed", inset: 0, background: "rgba(15,23,42,.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, backdropFilter: 'blur(4px)' };

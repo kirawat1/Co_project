@@ -312,11 +312,15 @@ export const createDispatchPDF = async (
   });
 
   for (const doc of sortedDocs) {
-    if (doc.url.toLowerCase().endsWith(".pdf")) {
-      const buff = await getImageArrayBuffer(doc.url);
-      await addPdfToMerge(buff);
-    } else {
-      await addImageToMerge(doc.url);
+    try {
+      if (doc.url.toLowerCase().endsWith(".pdf")) {
+        const buff = await getImageArrayBuffer(doc.url);
+        await addPdfToMerge(buff);
+      } else {
+        await addImageToMerge(doc.url);
+      }
+    } catch (e) {
+      console.warn(`⚠️ ข้ามเอกสาร [${doc.type}] ${doc.url} — ไม่พบไฟล์:`, e);
     }
   }
 
