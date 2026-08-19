@@ -231,9 +231,13 @@ exports.getStudents = async (req, res) => {
     if (coopPeriodId !== undefined && isNaN(coopPeriodId))
       return res.status(400).json({ ok: false, message: 'coopPeriodId ไม่ถูกต้อง' });
     const search = (req.query.search || "").trim();
+    const statuses = req.query.statuses ? req.query.statuses.split(',').filter(Boolean) : [];
+    const studyPrograms = req.query.studyProgram ? req.query.studyProgram.split(',').filter(Boolean) : [];
 
     const conditions = [{ deletedAt: null }];
     if (coopPeriodId) conditions.push({ coop: { coopPeriodId } });
+    if (statuses.length > 0) conditions.push({ coop: { status: { in: statuses } } });
+    if (studyPrograms.length > 0) conditions.push({ studyProgram: { in: studyPrograms } });
     if (search) {
       conditions.push({
         OR: [
