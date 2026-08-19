@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { apiFetch } from "../utils/apiFetch";
 import StatusBadge from "../components/StatusBadge";
 import StatusFilterChips, { STATUS_GROUPS } from "./StatusFilterChips";
@@ -15,6 +15,7 @@ interface StudentDocument {
   id: number;
   name: string;
   path: string;
+  type?: string;
 }
 
 interface Mentor {
@@ -83,6 +84,18 @@ const CURRICULUM_TH: Record<string, string> = {
   special: "ภาคพิเศษ",
 };
 
+const DOC_GROUPS: Record<string, { groupKey: string; groupLabel: string }> = {
+  CV:               { groupKey: 't000', groupLabel: 'T000 — คำร้องสหกิจ' },
+  T000_SIGNED:      { groupKey: 't000', groupLabel: 'T000 — คำร้องสหกิจ' },
+  TRANSCRIPT:       { groupKey: 't000', groupLabel: 'T000 — คำร้องสหกิจ' },
+  STUDENT_CARD:     { groupKey: 't000', groupLabel: 'T000 — คำร้องสหกิจ' },
+  CITIZEN_CARD:     { groupKey: 't000', groupLabel: 'T000 — คำร้องสหกิจ' },
+  PARENTAL_CONSENT: { groupKey: 't000', groupLabel: 'T000 — คำร้องสหกิจ' },
+  T002_FORM:        { groupKey: 't002', groupLabel: 'T002 — แบบแจ้งรายละเอียดงาน' },
+  T003_FORM:        { groupKey: 't003', groupLabel: 'T003 — โครงร่างรายงาน' },
+  'CP-ACCEPTANCE':  { groupKey: 'accept', groupLabel: 'ใบตอบรับจากบริษัท' },
+};
+
 // --- Helpers ---
 function getThaiPrefix(prefix?: string) {
   const p = (prefix || "").trim().toLowerCase();
@@ -124,14 +137,21 @@ export default function T_Students({ isCoopTeacher = false }: Props) {
 
   const [filterCurriculum, setFilterCurriculum] = useState<string>("all");
 
+  // ✅ Pagination
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+
   // ✅ State สำหรับควบคุม Modal แบบ Admin
   const [modalStudent, setModalStudent] = useState<StudentProfile | null>(null);
 
   // --- 1. Fetch Data ---
-  const fetchStudents = async (periodId: string, search = "") => {
-    const params = new URLSearchParams({ limit: "50" });
+  const fetchStudents = async (periodId: string, search = "", pageNum = 1, statuses: string[] = [], curriculum = "") => {
+    const params = new URLSearchParams({ limit: "50", page: String(pageNum) });
     if (periodId !== "all") params.set("coopPeriodId", periodId);
     if (search.trim()) params.set("search", search.trim());
+    if (statuses.length > 0) params.set("statuses", statuses.join(','));
+    if (curriculum && curriculum !== "all") params.set("studyProgram", curriculum);
 
     // isCoopTeacher=true → all students; false → advisees only
     const endpoint = isCoopTeacher
@@ -143,6 +163,10 @@ export default function T_Students({ isCoopTeacher = false }: Props) {
       if (resStd.ok) {
         const data = await resStd.json();
         setAllStudents(data?.data ?? []);
+        if (data?.meta) {
+          setTotalPages(data.meta.totalPages ?? 1);
+          setTotalCount(data.meta.total ?? 0);
+        }
       }
     } catch (err) {
       console.error("Error fetching students:", err);
@@ -158,7 +182,7 @@ export default function T_Students({ isCoopTeacher = false }: Props) {
         if (dataPeriods?.periods) setCoopPeriods(dataPeriods.periods);
       }
 
-      await fetchStudents(selectedPeriod, "");
+      await fetchStudents(selectedPeriod, "", 1);
     } catch (err) {
       console.error("Error fetching data:", err);
     } finally {
@@ -176,7 +200,8 @@ export default function T_Students({ isCoopTeacher = false }: Props) {
       initialMount.current = false;
       return;
     }
-    fetchStudents(selectedPeriod, debouncedQ);
+    setPage(1);
+    fetchStudents(selectedPeriod, debouncedQ, 1, statusGroupFilter, filterCurriculum);
   }, [selectedPeriod]);
 
   const initialSearchMount = useRef(true);
@@ -185,7 +210,8 @@ export default function T_Students({ isCoopTeacher = false }: Props) {
       initialSearchMount.current = false;
       return;
     }
-    fetchStudents(selectedPeriod, debouncedQ);
+    setPage(1);
+    fetchStudents(selectedPeriod, debouncedQ, 1, statusGroupFilter, filterCurriculum);
   }, [debouncedQ]);
 
   const [activeStatusGroup, setActiveStatusGroup] = useState<string>("ALL");
@@ -193,17 +219,15 @@ export default function T_Students({ isCoopTeacher = false }: Props) {
 
   const handleStatusGroupChange = (group: string) => {
     setActiveStatusGroup(group);
-    setStatusGroupFilter(group === "ALL" ? [] : STATUS_GROUPS[group]?.statuses ?? []);
+    const statuses = group === "ALL" ? [] : STATUS_GROUPS[group]?.statuses ?? [];
+    setStatusGroupFilter(statuses);
+    setPage(1);
+    fetchStudents(selectedPeriod, debouncedQ, 1, statuses, filterCurriculum);
   };
 
   // --- 2. Filter Logic ---
-  const filteredStudents = useMemo(() => {
-    return allStudents.filter((s) => {
-      const matchCurriculum = filterCurriculum === "all" || s.studyProgram === filterCurriculum;
-      const matchGroup = statusGroupFilter.length === 0 || statusGroupFilter.includes(s.coop?.status ?? "");
-      return matchCurriculum && matchGroup;
-    });
-  }, [allStudents, filterCurriculum, statusGroupFilter]);
+  // All filtering (status, curriculum, search) is now server-side; allStudents = already filtered page
+  const filteredStudents = allStudents;
 
   if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>กำลังโหลดข้อมูล...</div>;
 
@@ -221,7 +245,7 @@ export default function T_Students({ isCoopTeacher = false }: Props) {
           <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
             <button className="btn-ghost" onClick={fetchData}>🔄 รีเฟรช</button>
             <div style={{ background: '#f0f9ff', color: '#0284c7', padding: '8px 16px', borderRadius: 8, fontWeight: 700, border: '1px solid #bae6fd' }}>
-              ทั้งหมด {filteredStudents.length} คน
+              ทั้งหมด {totalCount} คน
             </div>
           </div>
         </div>
@@ -250,7 +274,7 @@ export default function T_Students({ isCoopTeacher = false }: Props) {
             ))}
           </select>
 
-          <select className="input soft" style={{ width: 'auto' }} value={filterCurriculum} onChange={e => setFilterCurriculum(e.target.value)}>
+          <select className="input soft" style={{ width: 'auto' }} value={filterCurriculum} onChange={e => { const v = e.target.value; setFilterCurriculum(v); setPage(1); fetchStudents(selectedPeriod, debouncedQ, 1, statusGroupFilter, v); }}>
             <option value="all">📚 ทุกหลักสูตร</option>
             <option value="normal">ภาคปกติ</option>
             <option value="special">ภาคพิเศษ</option>
@@ -315,6 +339,29 @@ export default function T_Students({ isCoopTeacher = false }: Props) {
         </table>
       </section>
 
+      {/* ================= Pagination ================= */}
+      {totalPages > 1 && (
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8, marginTop: 24 }}>
+          <button
+            onClick={() => { const p = page - 1; setPage(p); fetchStudents(selectedPeriod, debouncedQ, p, statusGroupFilter, filterCurriculum); }}
+            disabled={page <= 1}
+            style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid #cbd5e1', background: page <= 1 ? '#f8fafc' : '#fff', color: page <= 1 ? '#94a3b8' : '#334155', cursor: page <= 1 ? 'default' : 'pointer', fontWeight: 600 }}
+          >
+            ← ก่อนหน้า
+          </button>
+          <span style={{ padding: '8px 16px', color: '#334155', fontWeight: 600, fontSize: 14 }}>
+            หน้า {page} / {totalPages}
+          </span>
+          <button
+            onClick={() => { const p = page + 1; setPage(p); fetchStudents(selectedPeriod, debouncedQ, p, statusGroupFilter, filterCurriculum); }}
+            disabled={page >= totalPages}
+            style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid #cbd5e1', background: page >= totalPages ? '#f8fafc' : '#fff', color: page >= totalPages ? '#94a3b8' : '#334155', cursor: page >= totalPages ? 'default' : 'pointer', fontWeight: 600 }}
+          >
+            ถัดไป →
+          </button>
+        </div>
+      )}
+
       {/* ================= Modal (Popup) ================= */}
       {modalStudent && (
         <StudentViewModal
@@ -351,6 +398,40 @@ export default function T_Students({ isCoopTeacher = false }: Props) {
         .tab-btn.active { background: #eff6ff; color: #0ea5e9; }
         .tab-btn:hover:not(.active) { background: #f8fafc; }
       `}</style>
+    </div>
+  );
+}
+
+/* =========================
+   Docs Grouped by Type
+========================= */
+function DocsByGroup({ docs }: { docs: StudentDocument[] }) {
+  const groups: Record<string, { label: string; docs: StudentDocument[] }> = {};
+  docs.forEach(doc => {
+    const info = DOC_GROUPS[doc.type || ''] ?? { groupKey: doc.type || 'other', groupLabel: doc.type || 'อื่นๆ' };
+    if (!groups[info.groupKey]) groups[info.groupKey] = { label: info.groupLabel, docs: [] };
+    groups[info.groupKey].docs.push(doc);
+  });
+  return (
+    <div style={{ display: 'grid', gap: 12 }}>
+      {Object.values(groups).map(g => (
+        <div key={g.label}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: '#0074B7', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>{g.label}</div>
+          <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: 4 }}>
+            {g.docs.map(doc => (
+              <li key={doc.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 10px', background: '#fff', borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span>📄</span>
+                  <span style={{ fontSize: 13 }}>{doc.name}</span>
+                </div>
+                <a href={`/uploads/${encodeURIComponent(doc.path)}`} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: '#0074B7', textDecoration: 'none', fontWeight: 600 }}>
+                  เปิดดู
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
     </div>
   );
 }
@@ -457,22 +538,10 @@ function StudentViewModal({
           {tab === "docs" && (
             <div style={{ background: '#f8fafc', padding: 20, borderRadius: 16, border: '1px solid #e2e8f0' }}>
               <h4 style={{ margin: '0 0 16px 0', color: '#334155' }}>📄 เอกสารแนบของนักศึกษา</h4>
-              {student.documents && student.documents.length > 0 ? (
-                <ul style={{ listStyle: 'none', padding: 0, display: 'grid', gap: 12, margin: 0 }}>
-                  {student.documents.map(doc => (
-                    <li key={doc.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                        <div style={{ width: 36, height: 36, background: '#eff6ff', color: '#0ea5e9', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, fontSize: 18 }}>📄</div>
-                        <span style={{ fontSize: 14, fontWeight: 600, color: '#334155' }}>{doc.name}</span>
-                      </div>
-                      {/* เปิดดูไฟล์แท็บใหม่เหมือนของ Admin */}
-                      <a href={`/uploads/${encodeURIComponent(doc.path)}`} target="_blank" rel="noreferrer" style={{ fontSize: 13, color: '#0ea5e9', textDecoration: 'none', fontWeight: 700, background: '#f0f9ff', padding: '8px 16px', borderRadius: 8, transition: '0.2s' }}>
-                        เปิดดูไฟล์ ↗
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              ) : <div style={{ color: '#94a3b8', textAlign: 'center', padding: 40 }}>นักศึกษายังไม่มีเอกสารในระบบ</div>}
+              {student.documents && student.documents.length > 0
+                ? <DocsByGroup docs={student.documents} />
+                : <div style={{ color: '#94a3b8', textAlign: 'center', padding: 40 }}>นักศึกษายังไม่มีเอกสารในระบบ</div>
+              }
             </div>
           )}
         </div>

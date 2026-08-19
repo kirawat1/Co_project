@@ -162,7 +162,10 @@ export default function A_Students() {
 
   const handleStatusGroupChange = (group: string) => {
     setActiveStatusGroup(group);
-    setFilterStatuses(group === "ALL" ? [] : STATUS_GROUPS[group]?.statuses ?? []);
+    const statuses = group === "ALL" ? [] : STATUS_GROUPS[group]?.statuses ?? [];
+    setFilterStatuses(statuses);
+    setCurrentPage(1);
+    fetchStudents(selectedPeriodId, 1, debouncedQ, statuses, filterCurriculums);
   };
 
   const [modalStudent, setModalStudent] = useState<StudentProfile | null>(null);
@@ -186,11 +189,13 @@ export default function A_Students() {
   const previewRef = useRef<HTMLDivElement>(null);
 
   // --- Fetch Data ---
-  const fetchStudents = async (periodId: string, page = 1, search = "") => {
+  const fetchStudents = async (periodId: string, page = 1, search = "", statuses: string[] = [], curriculums: string[] = []) => {
     try {
       const params = new URLSearchParams({ page: String(page), limit: String(PAGE_SIZE) });
       if (periodId !== "all") params.set("coopPeriodId", periodId);
       if (search.trim()) params.set("search", search.trim());
+      if (statuses.length > 0) params.set("statuses", statuses.join(','));
+      if (curriculums.length > 0) params.set("studyProgram", curriculums.join(','));
       const res = await apiFetch(`/api/students?${params}`);
       if (res.ok) {
         const data = await res.json();
@@ -233,7 +238,7 @@ export default function A_Students() {
       return;
     }
     setCurrentPage(1);
-    fetchStudents(selectedPeriodId, 1, debouncedQ);
+    fetchStudents(selectedPeriodId, 1, debouncedQ, filterStatuses, filterCurriculums);
   }, [selectedPeriodId]);
 
   const initialSearchMount = useRef(true);
@@ -243,8 +248,18 @@ export default function A_Students() {
       return;
     }
     setCurrentPage(1);
-    fetchStudents(selectedPeriodId, 1, debouncedQ);
+    fetchStudents(selectedPeriodId, 1, debouncedQ, filterStatuses, filterCurriculums);
   }, [debouncedQ]);
+
+  const initialCurriculumMount = useRef(true);
+  useEffect(() => {
+    if (initialCurriculumMount.current) {
+      initialCurriculumMount.current = false;
+      return;
+    }
+    setCurrentPage(1);
+    fetchStudents(selectedPeriodId, 1, debouncedQ, filterStatuses, filterCurriculums);
+  }, [filterCurriculums]);
 
   useEffect(() => {
     if (importPreview && previewRef.current) {
@@ -256,6 +271,9 @@ export default function A_Students() {
     setQ("");
     setFilterCurriculums([]);
     setFilterStatuses([]);
+    setActiveStatusGroup("ALL");
+    setCurrentPage(1);
+    fetchStudents(selectedPeriodId, 1, "", [], []);
   }
 
   const handleDeleteStudent = async (s: StudentProfile) => {
@@ -270,7 +288,7 @@ export default function A_Students() {
         alert(data.message || "ลบไม่สำเร็จ");
         return;
       }
-      fetchStudents(selectedPeriodId, currentPage, debouncedQ);
+      fetchStudents(selectedPeriodId, currentPage, debouncedQ, filterStatuses, filterCurriculums);
     } catch (err: any) {
       alert(err.message || "เกิดข้อผิดพลาด");
     }
@@ -329,7 +347,7 @@ export default function A_Students() {
         setImportFile(null);
         setImportPreview(null);
         setImportPreviewSummary(null);
-        fetchStudents(selectedPeriodId, currentPage, debouncedQ);
+        fetchStudents(selectedPeriodId, currentPage, debouncedQ, filterStatuses, filterCurriculums);
       } else {
         alert(data.message || "นำเข้าไม่สำเร็จ");
       }
@@ -340,16 +358,8 @@ export default function A_Students() {
     }
   };
 
-  // --- Filter Logic (major/curriculum/status client-side; text search is server-side) ---
-  const filtered = useMemo(() => {
-    return items.filter((s) => {
-      const rawStatus = s.coop?.status ?? "";   // ใช้ raw status (uppercase) สำหรับ StatusFilterChips
-      return (
-        (filterCurriculums.length === 0 || filterCurriculums.includes(s.studyProgram ?? "")) &&
-        (filterStatuses.length === 0 || filterStatuses.includes(rawStatus))
-      );
-    });
-  }, [items, filterCurriculums, filterStatuses]);
+  // All filtering (status, curriculum, search) is now server-side; items = already filtered page
+  const filtered = items;
 
   if (loading) return <div style={{ padding: 28, marginLeft: 35 }}>กำลังโหลดข้อมูล...</div>;
 
@@ -635,7 +645,7 @@ export default function A_Students() {
               className="btn"
               style={{ ...ghostBtn, padding: '6px 14px' }}
               disabled={currentPage <= 1}
-              onClick={() => { setCurrentPage(p => p - 1); fetchStudents(selectedPeriodId, currentPage - 1, debouncedQ); }}
+              onClick={() => { setCurrentPage(p => p - 1); fetchStudents(selectedPeriodId, currentPage - 1, debouncedQ, filterStatuses, filterCurriculums); }}
             >
               ← ก่อนหน้า
             </button>
@@ -661,7 +671,7 @@ export default function A_Students() {
                       color: currentPage === p ? '#0284c7' : '#475569',
                       borderColor: currentPage === p ? '#7dd3fc' : '#cbd5e1',
                     }}
-                    onClick={() => { setCurrentPage(p as number); fetchStudents(selectedPeriodId, p as number, debouncedQ); }}
+                    onClick={() => { setCurrentPage(p as number); fetchStudents(selectedPeriodId, p as number, debouncedQ, filterStatuses, filterCurriculums); }}
                   >
                     {p}
                   </button>
@@ -671,7 +681,7 @@ export default function A_Students() {
               className="btn"
               style={{ ...ghostBtn, padding: '6px 14px' }}
               disabled={currentPage >= totalPages}
-              onClick={() => { setCurrentPage(p => p + 1); fetchStudents(selectedPeriodId, currentPage + 1, debouncedQ); }}
+              onClick={() => { setCurrentPage(p => p + 1); fetchStudents(selectedPeriodId, currentPage + 1, debouncedQ, filterStatuses, filterCurriculums); }}
             >
               ถัดไป →
             </button>

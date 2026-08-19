@@ -11,17 +11,10 @@ async function checkHttp(url) {
   }
 }
 
-async function fetchJson(url) {
-  try {
-    const res = await axios.get(url, { timeout: 3000 });
-    return res.data;
-  } catch {
-    return null;
-  }
-}
-
 exports.getStatus = async (req, res) => {
-  const [dbResult, nginxResult, ngrokData] = await Promise.all([
+  const frontendUrl = process.env.FRONTEND_URL?.split(',')[0]?.trim() || null;
+
+  const [dbResult, nginxResult, siteResult] = await Promise.all([
     (async () => {
       try {
         const t = Date.now();
@@ -32,11 +25,8 @@ exports.getStatus = async (req, res) => {
       }
     })(),
     checkHttp('http://localhost:80'),
-    fetchJson('http://localhost:4040/api/tunnels'),
+    frontendUrl ? checkHttp(frontendUrl) : Promise.resolve({ ok: null, latency: null }),
   ]);
-
-  const tunnel = ngrokData?.tunnels?.find(t => t.proto === 'https');
-  const ngrokOk = !!(ngrokData && tunnel);
 
   res.json({
     ok: true,
@@ -56,10 +46,10 @@ exports.getStatus = async (req, res) => {
       status: nginxResult.ok ? 'ok' : 'error',
       latency: nginxResult.latency,
     },
-    ngrok: {
-      status: ngrokOk ? 'ok' : 'offline',
-      url: tunnel?.public_url ?? null,
-      tunnelCount: ngrokData?.tunnels?.length ?? 0,
+    site: {
+      url: frontendUrl,
+      status: siteResult.ok === null ? 'not_configured' : siteResult.ok ? 'ok' : 'error',
+      latency: siteResult.latency,
     },
   });
 };

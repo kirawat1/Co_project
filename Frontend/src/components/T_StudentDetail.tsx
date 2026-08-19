@@ -22,6 +22,7 @@ interface StudentDocument {
   id: number;
   name: string;
   path: string;
+  type?: string;
 }
 
 interface Mentor {
@@ -74,6 +75,49 @@ const CURRICULUM_TH: Record<string, string> = {
   normal: "ภาคปกติ",
   special: "ภาคพิเศษ",
 };
+
+const DOC_GROUPS: Record<string, { groupKey: string; groupLabel: string }> = {
+  CV:               { groupKey: 't000', groupLabel: 'T000 — คำร้องสหกิจ' },
+  T000_SIGNED:      { groupKey: 't000', groupLabel: 'T000 — คำร้องสหกิจ' },
+  TRANSCRIPT:       { groupKey: 't000', groupLabel: 'T000 — คำร้องสหกิจ' },
+  STUDENT_CARD:     { groupKey: 't000', groupLabel: 'T000 — คำร้องสหกิจ' },
+  CITIZEN_CARD:     { groupKey: 't000', groupLabel: 'T000 — คำร้องสหกิจ' },
+  PARENTAL_CONSENT: { groupKey: 't000', groupLabel: 'T000 — คำร้องสหกิจ' },
+  T002_FORM:        { groupKey: 't002', groupLabel: 'T002 — แบบแจ้งรายละเอียดงาน' },
+  T003_FORM:        { groupKey: 't003', groupLabel: 'T003 — โครงร่างรายงาน' },
+  'CP-ACCEPTANCE':  { groupKey: 'accept', groupLabel: 'ใบตอบรับจากบริษัท' },
+};
+
+function DocsByGroup({ docs, onView }: { docs: StudentDocument[]; onView: (doc: StudentDocument) => void }) {
+  const groups: Record<string, { label: string; docs: StudentDocument[] }> = {};
+  docs.forEach(doc => {
+    const info = DOC_GROUPS[doc.type || ''] ?? { groupKey: doc.type || 'other', groupLabel: doc.type || 'อื่นๆ' };
+    if (!groups[info.groupKey]) groups[info.groupKey] = { label: info.groupLabel, docs: [] };
+    groups[info.groupKey].docs.push(doc);
+  });
+  return (
+    <div style={{ display: 'grid', gap: 12 }}>
+      {Object.values(groups).map(g => (
+        <div key={g.label}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: '#0074B7', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>{g.label}</div>
+          <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: 4 }}>
+            {g.docs.map(doc => (
+              <li key={doc.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 10px', background: '#fff', borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span>📄</span>
+                  <span style={{ fontSize: 13 }}>{doc.name}</span>
+                </div>
+                <button className="btn-primary" onClick={() => onView(doc)} style={{ padding: '6px 14px', fontSize: 12 }}>
+                  เปิดดู
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 /* =========================
    Main Component
@@ -303,25 +347,10 @@ export default function T_StudentDetail() {
         {/* Tab 3: Documents */}
         {tab === "docs" && (
           <Section title="เอกสารแนบของนักศึกษา">
-            {student.documents && student.documents.length > 0 ? (
-              <ul style={{ padding: 0, listStyle: 'none', display: 'grid', gap: 12, margin: 0 }}>
-                {student.documents.map((doc) => (
-                  <li key={doc.id} style={{ padding: '12px 16px', border: '1px solid #e2e8f0', borderRadius: 12, background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                      <div style={{ width: 36, height: 36, background: '#eff6ff', color: '#0ea5e9', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, fontSize: 18 }}>📄</div>
-                      <div>
-                        <div style={{ fontWeight: 700, fontSize: 14, color: '#1e293b' }}>{doc.name}</div>
-                      </div>
-                    </div>
-                    <button className="btn-primary" onClick={() => handleViewFile(doc)} style={{ padding: '8px 16px', fontSize: 13 }}>
-                      เปิดดูไฟล์ ↗
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <div style={{ color: '#94a3b8', textAlign: 'center', padding: 40 }}>ไม่มีเอกสารแนบในระบบ</div>
-            )}
+            {student.documents && student.documents.length > 0
+              ? <DocsByGroup docs={student.documents} onView={handleViewFile} />
+              : <div style={{ color: '#94a3b8', textAlign: 'center', padding: 40 }}>ไม่มีเอกสารแนบในระบบ</div>
+            }
           </Section>
         )}
 

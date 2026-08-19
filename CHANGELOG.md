@@ -1,5 +1,37 @@
 # CHANGELOG — Co_project
 
+## [2026-08-19] docs: batch 145 — Let's Encrypt setup guide สำหรับ coop.computing.kku.ac.th
+
+### Added
+- **docs/lets-encrypt-setup.md** — คู่มือติดตั้ง win-acme/Let's Encrypt บน VM ทีละขั้นตอน (สร้าง folder, ขอ cert, เปลี่ยน nginx, auto-renewal, troubleshooting)
+
+## [2026-08-18] feat: batch 144 — เปลี่ยน production domain เป็น coop.computing.kku.ac.th
+
+### Added
+- **docs/nginx-http-only.conf** — config ชั่วคราวสำหรับ HTTP-only (ใช้ระหว่างรอ SSL cert)
+
+### Changed
+- **docs/nginx.conf** — เปลี่ยน `server_name _` → `server_name coop.computing.kku.ac.th` ทั้ง HTTP และ HTTPS block
+- **statusController.js** — ลบ ngrok health-check ออก (ไม่ใช้แล้ว); เพิ่มเช็ค `site` (FRONTEND_URL) แทน
+- **server.js** — อัปเดต comment ตัวอย่าง FRONTEND_URL ให้ชี้ domain ใหม่
+- **backend/.env.example** — เพิ่มตัวอย่าง production URL และ multi-origin
+
+## [2026-08-18] feat: batch 143 — server-side status/curriculum filters for admin + teacher student lists
+
+### Changed
+- **studentController.js `getStudents`** — รองรับ `statuses` (comma-separated) และ `studyProgram` (comma-separated) เป็น query params สำหรับ Prisma `{ in: [...] }` filter
+- **teacherController.js `getMyStudents`** — เพิ่ม `statuses` และ `studyProgram` query params เหมือนกัน
+- **A_Students.tsx** — StatusFilterChips + FilterBox (หลักสูตร) เปลี่ยนจาก client-side filter → server-side: ส่ง `statuses`/`studyProgram` ไป API และ re-fetch ทุกครั้งที่เปลี่ยน
+- **T_Students.tsx** — StatusFilterChips + curriculum dropdown เปลี่ยนเป็น server-side เหมือนกัน; `filteredStudents` useMemo ถูกลบออก (ไม่จำเป็นแล้ว)
+
+## [2026-08-18] feat: batch 142 — teacher doc grouped view + T_Students pagination
+
+### Changed
+- **teacherController.js `getMyStudents`** — เพิ่ม `documents` (id, name, path, type) ใน Prisma include เพื่อส่งเอกสารกลับมาพร้อม response
+- **T_Students.tsx** — modal tab "📄 เอกสารแนบ" เปลี่ยนจาก flat list → `DocsByGroup` (แบ่งตามประเภท T000/T002/T003/ใบตอบรับ)
+- **T_Students.tsx** — เพิ่ม server-side pagination (50 ต่อหน้า): page state, ปุ่มหน้าก่อนหน้า/ถัดไป, แสดง "หน้า X / Y"
+- **T_StudentDetail.tsx** — tab "📄 เอกสารนักศึกษา" เปลี่ยนเป็น `DocsByGroup` เหมือนกัน
+
 ## [2026-08-14] feat: batch 129 — อาจารย์ประจำวิชา (isCoopTeacher) จัดการนิเทศได้แบบเจ้าหน้าที่
 
 ### Added

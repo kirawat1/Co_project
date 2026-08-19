@@ -686,21 +686,21 @@ exports.getMyStudents = async (req, res) => {
     const limit = Math.min(Math.max(1, parseInt(req.query.limit, 10) || 50), 200);
     const skip = (page - 1) * limit;
     const search = (req.query.search || "").trim();
+    const statuses = req.query.statuses ? req.query.statuses.split(',').filter(Boolean) : [];
+    const studyPrograms = req.query.studyProgram ? req.query.studyProgram.split(',').filter(Boolean) : [];
     const coopPeriodId = req.query.coopPeriodId ? parseInt(req.query.coopPeriodId) : undefined;
     if (coopPeriodId !== undefined && isNaN(coopPeriodId))
       return res.status(400).json({ ok: false, message: 'coopPeriodId ไม่ถูกต้อง' });
 
-    const baseWhere = {
-      deletedAt: null,
-      ...(search && {
-        OR: [
-          { firstName: { contains: search } },
-          { lastName: { contains: search } },
-          { studentId: { contains: search } },
-        ],
-      }),
-      ...(coopPeriodId && { coop: { coopPeriodId } }),
-    };
+    const baseConditions = [
+      { deletedAt: null },
+      ...(search ? [{ OR: [{ firstName: { contains: search } }, { lastName: { contains: search } }, { studentId: { contains: search } }] }] : []),
+      ...(coopPeriodId ? [{ coop: { coopPeriodId } }] : []),
+      ...(statuses.length > 0 ? [{ coop: { status: { in: statuses } } }] : []),
+      ...(studyPrograms.length > 0 ? [{ studyProgram: { in: studyPrograms } }] : []),
+    ];
+
+    const baseWhere = { AND: baseConditions };
 
     // อาจารย์ปกติ — เฉพาะ advisees ของตัวเอง
     const where = teacher.isCoopTeacher
@@ -723,6 +723,7 @@ exports.getMyStudents = async (req, res) => {
       generalAdvisor: { select: { prefix: true, firstName: true, lastName: true, email: true } },
       coopAdvisor: { select: { prefix: true, firstName: true, lastName: true, email: true } },
       coopApplicationForm: { select: { gradeSheetUrl: true } },
+      documents: { select: { id: true, name: true, path: true, type: true }, orderBy: { uploadedAt: 'asc' } },
     };
 
     const [students, total] = await Promise.all([
