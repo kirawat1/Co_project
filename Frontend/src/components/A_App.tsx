@@ -26,6 +26,7 @@ import A_DocT005_006 from "./A_DocT005_006";
 import A_DocT007 from "./A_DocT007";
 import A_DocT008 from "./A_DocT008";
 import A_GatewaySettings from "./A_GatewaySettings";
+import A_StaffManage from "./A_StaffManage";
 
 
 const IOS_BLUE = "#0074B7";
@@ -118,6 +119,7 @@ export default function AdminApp() {
             <Route path="doct002" element={<DocT002 />} />
             <Route path="doct003" element={<DocT003 />} />
             <Route path="coop-period" element={<Coopperiod />} />
+            <Route path="staff" element={<A_StaffManage />} />
             <Route path="coop-applications" element={<CoopApplications />} />
             <Route path="supervision-manager" element={<A_SupervisionManager />} />
             <Route path="doc-t005-006" element={<A_DocT005_006 />} />

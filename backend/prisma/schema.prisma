@@ -21,6 +21,7 @@ model User {
 
   student       Student?
   teacher       Teacher?
+  staffProfile  StaffProfile?
   companies     Company[]
   mentors       Mentor[]
   notifications Notification[]
@@ -271,6 +272,17 @@ model Teacher {
   supervisionAppointments SupervisionAppointment[]
   generalAdvisees         Student[]                @relation("GeneralAdvisor")
   coopAdvisees            Student[]                @relation("CoopAdvisor")
+}
+
+model StaffProfile {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  firstName String
+  lastName  String
+  phone     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Visit {
