@@ -171,7 +171,6 @@ export const createDispatchPDF = async (
     profile.coop?.actualEndDate || profile.coop?.coopApplicationForm?.endDate,
   );
 
-  const indent = 25;
   const contentWidth = pageWidth - margin * 2;
 
   const p1 = `       ตามที่ ${companyName} ได้เข้าร่วมโครงการสหกิจศึกษากับ มหาวิทยาลัยขอนแก่น วิทยาลัยการคอมพิวเตอร์ และยินดีรับนักศึกษาหลักสูตรวิทยาการคอมพิวเตอร์ เข้าปฏิบัติงานสหกิจศึกษากับบริษัทของท่าน ซึ่งมีกำหนดช่วงเวลาปฏิบัติงาน ระหว่างวันที่ ${startDate} ถึงวันที่ ${endDate} นั้น ในการนี้ ทางวิทยาลัยการคอมพิวเตอร์ จึงใคร่ขอให้ท่านพิจารณานักศึกษาเข้าร่วมโครงการสหกิจศึกษากับทาง ${companyName} จำนวน 1 คน ดังมีรายชื่อต่อไปนี้`;
