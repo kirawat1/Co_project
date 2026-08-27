@@ -3,6 +3,7 @@ import { apiFetch } from "../utils/apiFetch";
 import { createSupervisionLetterPDF } from "../utils/pdfSupervisionLetterGenerator";
 import { createWordBlob, createPreviewBlob, buildSupervisionLetterHtml, thaiPrefix } from "../utils/docGeneratorUtils";
 import { FileReady, DeliveryPicker, CompanyAddressBox, MODAL_CSS } from "./LetterModalShared";
+import DateInput from './DateInput';
 
 interface Props { supervision: any; onClose: () => void; onSuccess: () => void; }
 
@@ -125,7 +126,7 @@ export default function IssueSupervisionLetterModal({ supervision, onClose, onSu
                             <div style={sec}>1. ข้อมูลหนังสือ</div>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
                                 <div><label style={lbl}>เลขที่หนังสือ</label><input className="input" value={docNumber} onChange={e => setDocNumber(e.target.value)} /></div>
-                                <div><label style={lbl}>วันที่ออกหนังสือ</label><input type="date" lang="th-TH" className="input" value={docDate} onChange={e => setDocDate(e.target.value)} /></div>
+                                <div><label style={lbl}>วันที่ออกหนังสือ</label><DateInput className="input" value={docDate} onChange={e => setDocDate(e.target.value)} /></div>
                             </div>
                         </div>
                         <div>

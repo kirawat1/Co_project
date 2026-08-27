@@ -1,4 +1,5 @@
 ﻿import { useState } from "react";
+import DateInput from './DateInput';
 import { loadDocPeriods, saveDocPeriods, loadAcademicYear } from "./store";
 
 /* =========================
@@ -141,8 +142,7 @@ export default function A_Docs() {
             <div style={formGrid}>
               <label style={field}>
                 วันที่เริ่ม
-                <input
-                  type="date" lang="th-TH"
+                <DateInput
                   value={form.startDate}
                   onChange={(e) =>
                     setForm({ ...form, startDate: e.target.value })
@@ -165,8 +165,7 @@ export default function A_Docs() {
 
               <label style={field}>
                 วันที่สิ้นสุด
-                <input
-                  type="date" lang="th-TH"
+                <DateInput
                   value={form.endDate}
                   onChange={(e) =>
                     setForm({ ...form, endDate: e.target.value })

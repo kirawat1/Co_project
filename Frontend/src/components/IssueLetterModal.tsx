@@ -3,6 +3,7 @@ import { apiFetch } from "../utils/apiFetch";
 import { createDispatchPDF } from "../utils/pdfDispatchGenerator";
 import { createWordBlob, createPreviewBlob, buildDispatchLetterHtml, thaiPrefix } from "../utils/docGeneratorUtils";
 import { FileReady, DeliveryPicker, CompanyAddressBox, MODAL_CSS } from "./LetterModalShared";
+import DateInput from './DateInput';
 
 interface Props {
     student: any;
@@ -171,7 +172,7 @@ export default function IssueLetterModal({ student, onClose, onSuccess }: Props)
                             <div style={sec}>1. ข้อมูลหนังสือ</div>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
                                 <div><label style={lbl}>เลขที่หนังสือ</label><input className="input" value={docNumber} onChange={e => setDocNumber(e.target.value)} /></div>
-                                <div><label style={lbl}>วันที่ออกหนังสือ</label><input type="date" lang="th-TH" className="input" value={docDate} onChange={e => setDocDate(e.target.value)} /></div>
+                                <div><label style={lbl}>วันที่ออกหนังสือ</label><DateInput className="input" value={docDate} onChange={e => setDocDate(e.target.value)} /></div>
                             </div>
                         </div>
 

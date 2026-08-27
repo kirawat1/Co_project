@@ -2,6 +2,7 @@
 import axios from "axios";
 import type { CSSProperties } from "react";
 import { fmtDate } from '../utils/dateFormat';
+import DateInput from './DateInput';
 
 // --- Type สำหรับ CoopPeriod ---
 type CoopPeriod = {
@@ -218,11 +219,11 @@ export default function A_CoopPeriod() {
                             <div style={{ display: 'flex', gap: 16 }}>
                                 <div style={field}>
                                     <label style={label}>วันที่เปิดรับสมัคร</label>
-                                    <input type="date" lang="th-TH" required className="input" value={startDate} onChange={e => setStartDate(e.target.value)} />
+                                    <DateInput required className="input" value={startDate} onChange={e => setStartDate(e.target.value)} />
                                 </div>
                                 <div style={field}>
                                     <label style={label}>วันที่ปิดรับสมัคร</label>
-                                    <input type="date" lang="th-TH" required className="input" value={endDate} onChange={e => setEndDate(e.target.value)} />
+                                    <DateInput required className="input" value={endDate} onChange={e => setEndDate(e.target.value)} />
                                 </div>
                             </div>
 
