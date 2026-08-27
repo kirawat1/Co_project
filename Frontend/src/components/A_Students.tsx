@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { apiFetch } from "../utils/apiFetch";
 import StatusBadge from "../components/StatusBadge";
-import StatusFilterChips, { STATUS_GROUPS } from "./StatusFilterChips";
+import { STATUS_GROUPS } from "./StatusFilterChips";
 import { useDebounce } from "../hooks/useDebounce";
 import A_StudentEditModal from "./A_StudentEditModal";
 import A_StudentTrash from "./A_StudentTrash";
@@ -158,15 +158,7 @@ export default function A_Students() {
   const debouncedQ = useDebounce(q, 300);
   const [filterCurriculums, setFilterCurriculums] = useState<string[]>([]);
   const [filterStatuses, setFilterStatuses] = useState<string[]>([]);
-  const [activeStatusGroup, setActiveStatusGroup] = useState<string>("ALL");
-
-  const handleStatusGroupChange = (group: string) => {
-    setActiveStatusGroup(group);
-    const statuses = group === "ALL" ? [] : STATUS_GROUPS[group]?.statuses ?? [];
-    setFilterStatuses(statuses);
-    setCurrentPage(1);
-    fetchStudents(selectedPeriodId, 1, debouncedQ, statuses, filterCurriculums);
-  };
+  const [filterStatusGroups, setFilterStatusGroups] = useState<string[]>([]);
 
   const [modalStudent, setModalStudent] = useState<StudentProfile | null>(null);
   const [editStudent, setEditStudent] = useState<StudentProfile | null>(null);
@@ -273,9 +265,17 @@ export default function A_Students() {
     setQ("");
     setFilterCurriculums([]);
     setFilterStatuses([]);
-    setActiveStatusGroup("ALL");
+    setFilterStatusGroups([]);
     setCurrentPage(1);
     fetchStudents(selectedPeriodId, 1, "", [], []);
+  }
+
+  function handleStatusGroupsChange(groups: string[]) {
+    setFilterStatusGroups(groups);
+    const expanded = groups.flatMap(g => STATUS_GROUPS[g]?.statuses ?? []);
+    setFilterStatuses(expanded);
+    setCurrentPage(1);
+    fetchStudents(selectedPeriodId, 1, debouncedQ, expanded, filterCurriculums);
   }
 
   const handleDeleteStudent = async (s: StudentProfile) => {
@@ -367,14 +367,6 @@ export default function A_Students() {
 
   return (
     <div style={{ padding: 28, marginLeft: 35 }}>
-      {/* Excel Import Section */}
-      {/* Status Filter Chips */}
-      <StatusFilterChips
-        students={items}
-        activeFilter={activeStatusGroup}
-        onFilterChange={handleStatusGroupChange}
-      />
-
       {/* ── Import toolbar ── */}
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12, padding: "12px 16px", background: "#f8fafc", borderRadius: 12, border: "1px solid #e2e8f0", flexWrap: "wrap" }}>
         <span style={{ fontSize: 13, fontWeight: 700, color: "#334155" }}>📥 นำเข้าข้อมูลนักศึกษา</span>
@@ -553,14 +545,21 @@ export default function A_Students() {
           />
 
           <FilterBox
+            title="สถานะ"
+            items={Object.fromEntries(Object.entries(STATUS_GROUPS).filter(([k]) => k !== 'ALL').map(([k, v]) => [k, `${v.icon} ${v.label}`]))}
+            values={filterStatusGroups}
+            onChange={handleStatusGroupsChange}
+          />
+
+          <FilterBox
             title="หลักสูตร"
             items={CURRICULUM_TH}
             values={filterCurriculums}
             onChange={setFilterCurriculums}
           />
 
-          <button className="btn" style={saveBtn} onClick={resetFilters}>
-            ล้างตัวกรอง
+          <button onClick={resetFilters} style={clearBtn}>
+            ✕ ล้าง
           </button>
         </div>
       </section>
@@ -838,7 +837,8 @@ function StudentModal({
 const ghostBtn: React.CSSProperties = { background: "#fff", color: "#0074B7", boxShadow: "none", border: "1px solid rgba(10,132,255,.25)", height: 34, borderRadius: 8, padding: '0 12px', cursor: 'pointer', fontWeight: 600, fontSize: 13 };
 const saveBtn: React.CSSProperties = { background: "#0074B7", color: "#fff", boxShadow: "none", border: "1px solid rgba(10,132,255,.25)", height: 36, borderRadius: 8, padding: '0 16px', cursor: 'pointer' };
 const card: React.CSSProperties = { background: "#fff", borderRadius: 14, padding: 20, border: "1px solid #e5e7eb" };
-const filterRow: React.CSSProperties = { display: "flex", gap: 24, flexWrap: "wrap", alignItems: "flex-end" };
+const filterRow: React.CSSProperties = { display: "flex", gap: 16, flexWrap: "wrap", alignItems: "flex-end" };
+const clearBtn: React.CSSProperties = { height: 28, padding: '0 10px', fontSize: 12, background: 'transparent', border: '1px solid #cbd5e1', borderRadius: 6, color: '#64748b', cursor: 'pointer', alignSelf: 'flex-end', marginBottom: 2 };
 const th: React.CSSProperties = { textAlign: "left", paddingBottom: 8, fontSize: 14, padding: "12px 10px", color: '#475569' };
 const td: React.CSSProperties = { padding: "12px 10px", fontSize: 14, color: '#1e293b' };
 const overlay: React.CSSProperties = { position: "fixed", inset: 0, background: "rgba(15,23,42,.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 };
