@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { apiFetch } from "../utils/apiFetch";
 import type { CSSProperties } from "react";
 import { fmtDate } from '../utils/dateFormat';
@@ -339,7 +339,7 @@ export default function A_Announcements() {
               <div style={rowGrid}>
                 <div style={inputGroup}>
                   <label style={labelStyle}>วันที่ประกาศ</label>
-                  <input type="date" className="custom-input" value={date} onChange={e => setDate(e.target.value)} />
+                  <input type="date" lang="th-TH" className="custom-input" value={date} onChange={e => setDate(e.target.value)} />
                 </div>
                 <div style={inputGroup}>
                   <label style={labelStyle}>สำหรับปีการศึกษา</label>

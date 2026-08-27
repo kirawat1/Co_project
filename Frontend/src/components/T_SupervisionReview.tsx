@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+﻿import React, { useState, useEffect, useMemo } from "react";
 import type { CSSProperties } from "react";
 import axios from "axios";
 import { apiFetch } from "../utils/apiFetch";
@@ -618,8 +618,8 @@ export default function T_SupervisionReview() {
                                     {allPeriods.map(p => <option key={p.id} value={p.id}>เทอม {p.semester}/{p.academicYear}{p.isActive ? " ⭐" : ""}</option>)}
                                 </select>
                             </div>
-                            <div><label style={labelStyle}>วันเริ่มนัดหมาย</label><input type="date" className="input" value={supStart} onChange={e => setSupStart(e.target.value)} disabled={!selPeriodId} /></div>
-                            <div><label style={labelStyle}>วันสิ้นสุด</label><input type="date" className="input" value={supEnd} onChange={e => setSupEnd(e.target.value)} disabled={!selPeriodId} /></div>
+                            <div><label style={labelStyle}>วันเริ่มนัดหมาย</label><input type="date" lang="th-TH" className="input" value={supStart} onChange={e => setSupStart(e.target.value)} disabled={!selPeriodId} /></div>
+                            <div><label style={labelStyle}>วันสิ้นสุด</label><input type="date" lang="th-TH" className="input" value={supEnd} onChange={e => setSupEnd(e.target.value)} disabled={!selPeriodId} /></div>
                             <div>
                                 <label style={labelStyle}>สถานะระบบ</label>
                                 <select className="input" value={periodOpen ? "OPEN" : "CLOSED"} onChange={e => setPeriodOpen(e.target.value === "OPEN")} disabled={!selPeriodId}>
@@ -781,7 +781,7 @@ export default function T_SupervisionReview() {
                             <div style={{ marginTop: 4 }}>บริษัท: <b>{editDateSup.student.coop?.company?.name || '-'}</b></div>
                         </div>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
-                            <div><label style={labelStyle}>วันที่นิเทศ *</label><input type="date" className="input" value={editDateVal} onChange={e => setEditDateVal(e.target.value)} /></div>
+                            <div><label style={labelStyle}>วันที่นิเทศ *</label><input type="date" lang="th-TH" className="input" value={editDateVal} onChange={e => setEditDateVal(e.target.value)} /></div>
                             <div><label style={labelStyle}>เวลา *</label><input type="time" className="input" value={editDateTime} onChange={e => setEditDateTime(e.target.value)} /></div>
                         </div>
                         <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
