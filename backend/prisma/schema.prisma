@@ -517,6 +517,7 @@ model SupervisionAppointment {
   // ไฟล์หนังสือขอความอนุเคราะห์นิเทศ (ที่คณบดีเซ็นแล้ว)
   officialLetterPath String?
   onlineLink         String?  @db.Text
+  groupId            String? // UUID เชื่อม appointment ที่นัดพร้อมกัน (null = นัดเดี่ยว)
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
