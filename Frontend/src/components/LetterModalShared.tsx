@@ -58,7 +58,7 @@ export function DeliveryPicker({ value, onChange, name }: {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13, background: '#f8fafc', padding: 12, borderRadius: 8, border: '1px solid #e2e8f0', marginTop: 8 }}>
             <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer' }}>
                 <input type="radio" name={name} value="STUDENT" checked={value === "STUDENT"} onChange={() => onChange("STUDENT")} style={{ marginTop: 2 }} />
-                <div><b>นักศึกษาดาวน์โหลด / รับเองที่คณะ</b></div>
+                <div><b>นักศึกษาดาวน์โหลด</b></div>
             </label>
             <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer' }}>
                 <input type="radio" name={name} value="STAFF" checked={value === "STAFF"} onChange={() => onChange("STAFF")} style={{ marginTop: 2 }} />
