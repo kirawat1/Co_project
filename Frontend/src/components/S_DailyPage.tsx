@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import type { StudentProfile, DailyLog } from "./store";
 import { loadDaily, saveDaily } from "./store";
 import AutoTextarea from "./AutoTextarea";
+import { fmtDate, fmtDateTime } from '../utils/dateFormat';
 
 /* =========================
    Constants
@@ -247,9 +248,7 @@ export default function S_DailyPage({ profile }: { profile: StudentProfile }) {
                       </span>
                     </td>
                     <td>
-                      {l.createdAt
-                        ? new Date(l.createdAt).toLocaleString("th-TH")
-                        : "-"}
+                      {l.createdAt ? fmtDateTime(l.createdAt) : "-"}
                     </td>
                   </tr>
                 ))}
@@ -328,24 +327,3 @@ export default function S_DailyPage({ profile }: { profile: StudentProfile }) {
   );
 }
 
-/* =========================
-   Date Format
-========================= */
-function fmtDate(iso: string) {
-  const [y, m, d] = iso.split("-").map(Number);
-  const MM = [
-    "ม.ค",
-    "ก.พ",
-    "มี.ค",
-    "เม.ย",
-    "พ.ค",
-    "มิ.ย",
-    "ก.ค",
-    "ส.ค",
-    "ก.ย",
-    "ต.ค",
-    "พ.ย",
-    "ธ.ค",
-  ];
-  return `${d} ${MM[m - 1]} ${y + 543}`;
-}

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { apiFetch } from "../utils/apiFetch";
+import { fmtDate } from '../utils/dateFormat';
 
 // --- Config สำหรับไฟล์แม่แบบ ---
 const ASSET_KEYS = [
@@ -183,7 +184,7 @@ export default function A_Settings() {
                       background: 'rgba(255,255,255,0.9)', padding: '2px 6px', borderRadius: 4,
                       color: '#64748b', border: '1px solid #e2e8f0'
                     }}>
-                      อัปเดต: {new Date(current.updatedAt).toLocaleDateString('th-TH')}
+                      อัปเดต: {fmtDate(current.updatedAt)}
                     </div>
                   )}
                 </div>

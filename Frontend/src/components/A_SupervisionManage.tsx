@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import type { CSSProperties } from "react";
 import axios from "axios";
+import { fmtDate, fmtDateTime } from '../utils/dateFormat';
 import IssueSupervisionLetterModal from "./IssueSupervisionLetterModal";
 import StatusBadge from "./StatusBadge";
 import SupervisionCalendar from "./SupervisionCalendar";
@@ -37,8 +38,7 @@ function parseProposedList(raw: string): { dmy: string; time: string }[] {
         const arr: string[] = JSON.parse(raw || "[]");
         return arr.map(entry => {
             const [dPart = "", tPart = ""] = entry.includes("|") ? entry.split("|") : [entry, ""];
-            const d = new Date(dPart);
-            const dmy = isNaN(d.getTime()) ? dPart : `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()+543}`;
+            const dmy = fmtDate(dPart);
             return { dmy, time: tPart || "" };
         });
     } catch { return []; }
@@ -384,7 +384,7 @@ export default function A_SupervisionManage() {
                         <div>
                             <div style={{ fontWeight: 'bold', fontSize: 14 }}>ช่วงเวลาเปิดสหกิจ</div>
                             <div style={{ fontSize: 13, marginTop: 2 }}>
-                                ตั้งแต่วันที่ <b>{new Date(selectedPeriodData.startDate).toLocaleDateString('th-TH', { dateStyle: 'long' })}</b> ถึง <b>{new Date(selectedPeriodData.endDate).toLocaleDateString('th-TH', { dateStyle: 'long' })}</b>
+                                ตั้งแต่วันที่ <b>{fmtDate(selectedPeriodData.startDate)}</b> ถึง <b>{fmtDate(selectedPeriodData.endDate)}</b>
                             </div>
                         </div>
                     </div>
@@ -506,7 +506,7 @@ export default function A_SupervisionManage() {
                                         {sup.confirmedDate ? (
                                             <>
                                                 <div style={{ fontWeight: 700, color: '#166534', fontSize: 13 }}>
-                                                    ✅ {new Date(sup.confirmedDate).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' })} น.
+                                                    ✅ {fmtDateTime(sup.confirmedDate)}
                                                 </div>
                                                 <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>
                                                     {sup.supervisionType === 'ONLINE' ? '🌐 ออนไลน์' : '🏢 ออนไซต์'}

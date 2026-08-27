@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import StatusBadge from "../components/StatusBadge";
 import { apiFetch } from "../utils/apiFetch";
+import { fmtDate } from '../utils/dateFormat';
 
 /* =========================
    Types
@@ -390,7 +391,7 @@ export default function T_StudentDetail() {
                 {visits.map((v) => (
                   <tr key={v.id} className="student-row">
                     <td style={{ fontWeight: 700, color: '#1e293b' }} data-label="วันเวลา">
-                      {new Date(v.date + "T00:00:00").toLocaleDateString('th-TH', { dateStyle: 'medium' })} <br />
+                      {fmtDate(v.date + "T00:00:00")} <br />
                       <span style={{ fontSize: 12, color: '#64748b', fontWeight: 500 }}>เวลา: {v.time || "-"} น.</span>
                     </td>
                     <td data-label="บันทึกรายละเอียด">{v.note || "-"}</td>

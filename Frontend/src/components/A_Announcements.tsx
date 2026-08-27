@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { apiFetch } from "../utils/apiFetch";
 import type { CSSProperties } from "react";
+import { fmtDate } from '../utils/dateFormat';
 import AutoTextarea from "./AutoTextarea";
 
 function safeHref(url: string | null | undefined): string | undefined {
@@ -278,7 +279,7 @@ export default function A_Announcements() {
               <div style={annContent}>
                 <div style={annMeta}>
                   <span style={badgeYear}>เทอม {a.year}</span>
-                  <span style={textMuted}>📅 {new Date(a.date).toLocaleDateString('th-TH', { dateStyle: 'medium' })}</span>
+                  <span style={textMuted}>📅 {fmtDate(a.date)}</span>
                   {/* Target badges */}
                   {(!a.targetMajors || a.targetMajors.length === 0) ? (
                     <span style={{ background: "#f1f5f9", color: "#475569", padding: "3px 8px", borderRadius: 6, fontSize: 11, fontWeight: 700 }}>ทุกสาขา</span>
