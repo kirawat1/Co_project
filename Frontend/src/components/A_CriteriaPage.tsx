@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { fmtDate } from '../utils/dateFormat';
 
 interface Department {
   id: string;
@@ -323,7 +324,7 @@ export default function A_CriteriaPage() {
                         </span>
                       </div>
                       <div style={{ fontSize: 11, color: "var(--text-sub)", marginTop: 6 }}>
-                        อัปเดต {new Date(dept.updatedAt).toLocaleDateString("th-TH", { year: "numeric", month: "short", day: "numeric" })}
+                        อัปเดต {fmtDate(dept.updatedAt)}
                       </div>
                     </div>
                     <div style={{ display: "flex", gap: 8 }}>

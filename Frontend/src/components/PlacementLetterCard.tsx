@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { apiFetch } from "../utils/apiFetch";
+import { fmtDate } from '../utils/dateFormat';
 
 interface Props {
     placeLetterUrl?: string;
@@ -76,13 +77,7 @@ export default function PlacementLetterCard({
                     <div style={infoStyle}>
                         <span>📅 วันที่ออก</span>
                         <strong>
-                            {placeDocDate
-                                ? new Date(/^\d{4}-\d{2}-\d{2}$/.test(placeDocDate) ? placeDocDate + "T00:00:00" : placeDocDate).toLocaleDateString("th-TH", {
-                                    day: "numeric",
-                                    month: "long",
-                                    year: "numeric"
-                                })
-                                : "-"}
+                            {fmtDate(placeDocDate)}
                         </strong>
                     </div>
                 )}

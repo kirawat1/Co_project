@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import type { CSSProperties } from "react";
 import axios from "axios";
+import { fmtDate } from '../utils/dateFormat';
 
 interface StaffProfile { firstName: string; lastName: string; phone: string | null; }
 interface StaffUser {
@@ -113,7 +114,7 @@ export default function A_StaffManage() {
                   <td style={td}>{s.username}</td>
                   <td style={td}>{s.email || "-"}</td>
                   <td style={td}>{s.staffProfile?.phone || "-"}</td>
-                  <td style={td}>{new Date(s.createdAt).toLocaleDateString("th-TH")}</td>
+                  <td style={td}>{fmtDate(s.createdAt)}</td>
                   <td style={{ ...td, whiteSpace: "nowrap" }}>
                     <button className="btn-ghost" style={{ marginRight: 8, fontSize: 13 }} onClick={() => { setResetTarget(s); setNewPw(""); setResetErr(""); }}>🔑 Reset รหัสผ่าน</button>
                     <button className="btn-ghost" style={{ color: "#ef4444", fontSize: 13 }} onClick={() => setDeleteTarget(s)}>ลบ</button>

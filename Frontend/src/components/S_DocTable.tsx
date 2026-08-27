@@ -1,5 +1,6 @@
 import React from "react";
 import { useEffect } from "react";
+import { fmtDate } from '../utils/dateFormat';
 
 // ================= TYPES DEFINITION =================
 export type DocStatus =
@@ -206,7 +207,7 @@ export default function DocTable({
 
                       {it.lastUpdated && (
                         <div className="meta">
-                          {new Date(it.lastUpdated).toLocaleDateString('th-TH')}
+                          {fmtDate(it.lastUpdated)}
                         </div>
                       )}
                     </>

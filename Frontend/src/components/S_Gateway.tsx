@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { apiFetch } from "../utils/apiFetch";
+import { fmtDate } from '../utils/dateFormat';
 import { useNavigate } from "react-router-dom";
 import { createCoopPDF } from "../utils/pdfGenerator";
 import StatusBadge from "../components/StatusBadge";
@@ -305,7 +306,7 @@ export default function CoopRequestPage() {
             <strong style={{ fontSize: '18px' }}>ระบบปิดรับสมัคร หรือ นอกช่วงเวลาการยื่นคำร้อง</strong>
             <div style={{ marginTop: 4, fontSize: 14 }}>
               {activePeriod
-                ? `รอบการรับสมัครที่ตั้งไว้: เทอม ${activePeriod.semester}/${activePeriod.academicYear} (เปิดรับ: ${new Date(activePeriod.startDate).toLocaleDateString('th-TH')} - ${new Date(activePeriod.endDate).toLocaleDateString('th-TH')}) แต่สถานะระบบปิดใช้งาน หรือหมดเขตแล้ว`
+                ? `รอบการรับสมัครที่ตั้งไว้: เทอม ${activePeriod.semester}/${activePeriod.academicYear} (เปิดรับ: ${fmtDate(activePeriod.startDate)} - ${fmtDate(activePeriod.endDate)}) แต่สถานะระบบปิดใช้งาน หรือหมดเขตแล้ว`
                 : "ขณะนี้ยังไม่มีการเปิดรอบรับสมัครสหกิจศึกษาในระบบ กรุณาติดต่อเจ้าหน้าที่"}
             </div>
           </div>
@@ -323,7 +324,7 @@ export default function CoopRequestPage() {
               รอบการรับสมัคร: เทอม {activePeriod.semester} / ปีการศึกษา {activePeriod.academicYear}
             </div>
             <div style={{ fontSize: 13, color: "#3b82f6" }}>
-              (เปิดรับตั้งแต่: {new Date(activePeriod.startDate).toLocaleDateString('th-TH')} ถึง {new Date(activePeriod.endDate).toLocaleDateString('th-TH')})
+              (เปิดรับตั้งแต่: {fmtDate(activePeriod.startDate)} ถึง {fmtDate(activePeriod.endDate)})
             </div>
           </div>
         </div>

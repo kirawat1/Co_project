@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import type { CSSProperties } from "react";
+import { fmtDate } from '../utils/dateFormat';
 
 // --- Type สำหรับ CoopPeriod ---
 type CoopPeriod = {
@@ -153,8 +154,8 @@ export default function A_CoopPeriod() {
                 ) : (
                     <div style={{ display: 'grid', gap: 16 }}>
                         {periods.map(p => {
-                            const start = new Date(p.startDate).toLocaleDateString('th-TH');
-                            const end = new Date(p.endDate).toLocaleDateString('th-TH');
+                            const start = fmtDate(p.startDate);
+                            const end = fmtDate(p.endDate);
 
                             return (
                                 <div key={p.id} style={listItem}>

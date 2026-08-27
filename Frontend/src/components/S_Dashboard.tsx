@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { apiFetch } from "../utils/apiFetch";
+import { fmtDate, fmtDateTime } from '../utils/dateFormat';
 import { IcAnnounce, IcDocs } from "./icons";
 import StatusBadge from "./StatusBadge";
 import S_StatusTracker from "./S_StatusTracker";
@@ -242,7 +243,7 @@ export default function S_Dashboard() {
                     {a.attachments && a.attachments.length > 0 && <span style={{ fontSize: 12, marginLeft: 8 }}>📎</span>}
                   </div>
                   <div className="dash-item-sub">
-                    {a.date ? new Date(a.date).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' }) : "-"}
+                    {a.date ? fmtDate(a.date) : "-"}
                   </div>
                 </div>
               ))
@@ -265,7 +266,7 @@ export default function S_Dashboard() {
                 <div key={d.id} className="dash-item dash-left-doc">
                   <div className="dash-item-title">{DOC_LABEL[d.id] || d.id}</div>
                   <div className="dash-item-sub">
-                    ปิดรับวันที่ {d.end.toLocaleDateString("th-TH")}
+                    ปิดรับวันที่ {fmtDate(d.end.toISOString())}
                   </div>
                 </div>
               ))
@@ -287,7 +288,7 @@ export default function S_Dashboard() {
                 </div>
                 <div className="dash-item-sub" style={{ fontSize: '15px', fontWeight: 'bold', color: '#0369a1' }}>
                   {supervisions.confirmedDate ?
-                    new Date(supervisions.confirmedDate).toLocaleString("th-TH", { dateStyle: 'long', timeStyle: 'short' }) + " น."
+                    fmtDateTime(supervisions.confirmedDate)
                     : "รอการยืนยันเวลา"}
                 </div>
                 <div style={{ marginTop: 8, fontSize: 13, color: '#475569' }}>
@@ -321,7 +322,7 @@ export default function S_Dashboard() {
 
             <div className="modal-body">
               <div style={{ color: '#64748b', fontSize: 13, marginBottom: 15 }}>
-                📅 ประกาศเมื่อ: {new Date(selectedAnn.date).toLocaleDateString('th-TH', { dateStyle: 'long' })}
+                📅 ประกาศเมื่อ: {fmtDate(selectedAnn.date)}
               </div>
 
               <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.6, color: '#334155', marginBottom: 24 }}>

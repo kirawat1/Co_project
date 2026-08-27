@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from "react";
 import type { CSSProperties } from "react";
+import { fmtDate, fmtTime } from '../utils/dateFormat';
 
 export interface CalendarEvent {
     id: number;
@@ -53,18 +54,6 @@ function safeHref(url: string | null | undefined): string | undefined {
     catch { return undefined; }
 }
 
-function fmtTime(iso: string) {
-    const d = new Date(iso);
-    return `${d.getHours().toString().padStart(2,"0")}:${d.getMinutes().toString().padStart(2,"0")} น.`;
-}
-function fmtDate(iso: string) {
-    const d = new Date(iso);
-    return `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()+543}`;
-}
-function fmtDateShort(iso: string) {
-    const d = new Date(iso);
-    return `${d.getDate()}/${d.getMonth()+1}`;
-}
 function dayKeyOf(iso: string) {
     const d = new Date(iso);
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
@@ -91,7 +80,7 @@ function AgendaItem({ ev }: { ev: CalendarEvent }) {
                 )}
             </div>
             <div style={{ textAlign: "right", flexShrink: 0 }}>
-                <div style={agendaDateStyle}>{fmtDateShort(ev.confirmedDate)}</div>
+                <div style={agendaDateStyle}>{fmtDate(ev.confirmedDate)}</div>
                 <div style={agendaTimeStyle}>{fmtTime(ev.confirmedDate)}</div>
             </div>
         </div>

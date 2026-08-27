@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import type { CSSProperties } from "react";
+import { fmtDate } from '../utils/dateFormat';
 
 interface Announcement {
   id: string;
@@ -65,7 +66,7 @@ export default function S_Announcements() {
               <div style={cardTop}>
                 <span style={cardTitle}>{a.title}</span>
                 <span style={cardDate}>
-                  {new Date(a.date).toLocaleDateString("th-TH", { dateStyle: "medium" })}
+                  {fmtDate(a.date)}
                 </span>
               </div>
               {a.body && (
@@ -101,7 +102,7 @@ export default function S_Announcements() {
             </div>
             <div style={modalBody}>
               <p style={{ color: "#64748b", fontSize: 13, marginBottom: 16 }}>
-                📅 {new Date(selected.date).toLocaleDateString("th-TH", { dateStyle: "long" })}
+                📅 {fmtDate(selected.date)}
               </p>
               {selected.body && (
                 <p style={{ color: "#334155", lineHeight: 1.7, whiteSpace: "pre-wrap", marginBottom: 20 }}>

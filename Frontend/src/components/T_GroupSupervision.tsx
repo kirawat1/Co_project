@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+import { fmtDate } from '../utils/dateFormat';
 import Spinner from "./Spinner";
 
 interface StudentAppointment {
@@ -20,11 +21,8 @@ interface CompanyGroup {
 
 function parseDateEntry(entry: string): { dateKey: string; displayDate: string; time: string } {
   const [dPart = "", tPart = ""] = entry.split("|");
-  const d = new Date(dPart);
   const dateKey = dPart.slice(0, 10);
-  const displayDate = isNaN(d.getTime())
-    ? dPart
-    : `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear() + 543}`;
+  const displayDate = fmtDate(dPart);
   return { dateKey, displayDate, time: tPart || "" };
 }
 

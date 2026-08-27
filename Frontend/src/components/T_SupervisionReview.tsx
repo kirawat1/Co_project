@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import type { CSSProperties } from "react";
 import axios from "axios";
 import { apiFetch } from "../utils/apiFetch";
+import { fmtDate, fmtDateTime } from '../utils/dateFormat';
 import StatusBadge from "./StatusBadge";
 import SupervisionCalendar from "./SupervisionCalendar";
 import type { CalendarEvent } from "./SupervisionCalendar";
@@ -72,27 +73,11 @@ function safeHref(url: string | null | undefined): string | undefined {
     catch { return undefined; }
 }
 
-const formatDMY = (dateStr: string | null | undefined): string => {
-    if (!dateStr) return "-";
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return "-";
-    return `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear() + 543}`;
-};
-
-const formatDMYTime = (dateStr: string | null | undefined): string => {
-    if (!dateStr) return "-";
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return "-";
-    const h = d.getHours().toString().padStart(2, "0");
-    const m = d.getMinutes().toString().padStart(2, "0");
-    return `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear() + 543} ${h}:${m} น.`;
-};
 
 const parseProposed = (dateStr: string) => {
     const parts = dateStr.includes("|") ? dateStr.split("|") : [dateStr, "", ""];
     const [dPart = "", tPart = "", typePart = ""] = parts;
-    const d = new Date(dPart);
-    const dmy = isNaN(d.getTime()) ? dPart : formatDMY(dPart);
+    const dmy = fmtDate(dPart);
     const dayKey = dPart.slice(0, 10);
     const type = typePart === "ONSITE" ? "ONSITE" : typePart === "ONLINE" ? "ONLINE" : undefined;
     return { dmy, time: tPart ? `${tPart} น.` : "", dayKey, raw: dateStr, type };
@@ -103,8 +88,7 @@ function parseProposedList(raw: string): { dmy: string; time: string }[] {
         const arr: string[] = JSON.parse(raw || "[]");
         return arr.map(entry => {
             const [dPart = "", tPart = ""] = entry.includes("|") ? entry.split("|") : [entry, ""];
-            const d = new Date(dPart);
-            const dmy = isNaN(d.getTime()) ? dPart : `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()+543}`;
+            const dmy = fmtDate(dPart);
             return { dmy, time: tPart || "" };
         });
     } catch { return []; }
@@ -251,7 +235,7 @@ export default function T_SupervisionReview() {
                 if (!isNaN(d.getTime())) {
                     map.set(d.toISOString().slice(0, 10), {
                         name: `${sup.student.firstName} ${sup.student.lastName}`,
-                        time: formatDMYTime(sup.confirmedDate),
+                        time: fmtDateTime(sup.confirmedDate),
                         studentId: sup.student.studentId,
                     });
                 }
@@ -458,7 +442,7 @@ export default function T_SupervisionReview() {
                             <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                                 {Array.from(bookedDayMap.entries()).map(([day, info]) => (
                                     <div key={day} style={{ background: "#fef3c7", border: "1px solid #f59e0b", borderRadius: 8, padding: "6px 12px", fontSize: 13 }}>
-                                        <span style={{ fontWeight: 700 }}>{formatDMY(day)}</span>
+                                        <span style={{ fontWeight: 700 }}>{fmtDate(day + 'T00:00:00')}</span>
                                         <span style={{ color: "#78350f", marginLeft: 6 }}>— {info.name} ({info.time})</span>
                                     </div>
                                 ))}
@@ -496,7 +480,7 @@ export default function T_SupervisionReview() {
                                                     <td style={td}><div style={{ fontWeight: 600 }}>{sup.student.coop?.company?.name || "-"}</div></td>
                                                     <td style={td}><span style={{ fontWeight: 700, color: sup.supervisionType === "ONLINE" ? "#2563eb" : "#ea580c" }}>{sup.supervisionType === "ONLINE" ? "🌐 ออนไลน์" : "🏢 ออนไซต์"}</span></td>
                                                     <td style={td}>
-                                                        {sup.confirmedDate ? <div style={{ fontWeight: 700, color: "#16a34a" }}>✅ {formatDMYTime(sup.confirmedDate)}</div> : sup.proposedDates ? (() => {
+                                                        {sup.confirmedDate ? <div style={{ fontWeight: 700, color: "#16a34a" }}>✅ {fmtDateTime(sup.confirmedDate)}</div> : sup.proposedDates ? (() => {
                                                             let dates: string[] = [];
                                                             try { dates = JSON.parse(sup.proposedDates); } catch { dates = []; }
                                                             return <>{<div style={{ fontSize: 11, color: "#92400e", fontWeight: 700, marginBottom: 4 }}>⏳ วันที่เสนอ</div>}{dates.map((d, i) => { const p = parseProposed(d); return <div key={i} style={{ fontSize: 12, color: "#78350f", background: "#fef3c7", padding: "2px 6px", borderRadius: 4, marginBottom: 2 }}>{p.dmy}{p.time ? ` · ${p.time}` : ""}</div>; })}</>;
@@ -537,7 +521,7 @@ export default function T_SupervisionReview() {
                                         <div style={{ background: "#fff", padding: 16, borderRadius: 12, border: "1px solid #e2e8f0", marginBottom: 20 }}>
                                             <InfoRow label="รูปแบบ" value={<span style={{ color: selectedAppt.supervisionType === "ONLINE" ? "#2563eb" : "#ea580c" }}>{selectedAppt.supervisionType === "ONLINE" ? "🌐 ออนไลน์" : "🏢 ออนไซต์"}</span>} />
                                             {selectedAppt.supervisionType === "ONLINE" && <InfoRow label="Link" value={selectedAppt.onlineLink ? <a href={safeHref(selectedAppt.onlineLink)} target="_blank" rel="noreferrer" style={{ color: "#2563eb" }}>{selectedAppt.onlineLink}</a> : "-"} />}
-                                            {selectedAppt.confirmedDate && <InfoRow label="วันนิเทศ" value={<span style={{ color: "#16a34a", fontWeight: 700 }}>{formatDMYTime(selectedAppt.confirmedDate)}</span>} />}
+                                            {selectedAppt.confirmedDate && <InfoRow label="วันนิเทศ" value={<span style={{ color: "#16a34a", fontWeight: 700 }}>{fmtDateTime(selectedAppt.confirmedDate)}</span>} />}
                                         </div>
                                         <div style={{ background: "#fff", padding: 16, borderRadius: 12, border: "1px solid #e2e8f0", marginBottom: 20 }}>
                                             <div style={{ fontWeight: 800, marginBottom: 12 }}>🏢 สถานที่ฝึกงาน</div>
@@ -550,7 +534,7 @@ export default function T_SupervisionReview() {
                                         {bookedDayMap.size > 0 && (
                                             <div style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 12, padding: 14 }}>
                                                 <div style={{ fontWeight: 700, color: "#92400e", marginBottom: 8, fontSize: 13 }}>⚠️ วันที่ยืนยันไปแล้ว</div>
-                                                {Array.from(bookedDayMap.entries()).map(([day, info]) => <div key={day} style={{ fontSize: 13, color: "#78350f", marginBottom: 4 }}>• <b>{formatDMY(day)}</b> — {info.name}</div>)}
+                                                {Array.from(bookedDayMap.entries()).map(([day, info]) => <div key={day} style={{ fontSize: 13, color: "#78350f", marginBottom: 4 }}>• <b>{fmtDate(day + 'T00:00:00')}</b> — {info.name}</div>)}
                                             </div>
                                         )}
                                     </div>
@@ -594,7 +578,7 @@ export default function T_SupervisionReview() {
                                             <div style={{ textAlign: "center", marginTop: "15%" }}>
                                                 {selectedAppt.status === "TEACHER_REJECTED"
                                                     ? <div style={{ color: "#dc2626", fontWeight: "bold" }}><div style={{ fontSize: 40, marginBottom: 10 }}>⏳</div>แจ้งให้นักศึกษาเลือกวันใหม่แล้ว<br /><span style={{ fontSize: 13, color: "#64748b", fontWeight: "normal", display: "block", marginTop: 8 }}>เหตุผล: {selectedAppt.rejectReason || "-"}</span></div>
-                                                    : <div style={{ color: "#16a34a", fontWeight: "bold" }}><div style={{ fontSize: 40, marginBottom: 10 }}>✅</div>ยืนยันวันนิเทศเรียบร้อย<br /><span style={{ fontSize: 14, color: "#475569", fontWeight: "normal", display: "block", marginTop: 10 }}>วันที่: {formatDMYTime(selectedAppt.confirmedDate)}</span></div>
+                                                    : <div style={{ color: "#16a34a", fontWeight: "bold" }}><div style={{ fontSize: 40, marginBottom: 10 }}>✅</div>ยืนยันวันนิเทศเรียบร้อย<br /><span style={{ fontSize: 14, color: "#475569", fontWeight: "normal", display: "block", marginTop: 10 }}>วันที่: {fmtDateTime(selectedAppt.confirmedDate)}</span></div>
                                                 }
                                             </div>
                                         )}
@@ -623,7 +607,7 @@ export default function T_SupervisionReview() {
                         {selPeriodData && (
                             <div style={{ background: '#fffbeb', border: '1px solid #fde68a', color: '#854d0e', padding: '12px 16px', borderRadius: 8, marginBottom: 16, display: 'flex', gap: 10, alignItems: 'center' }}>
                                 <span style={{ fontSize: 20 }}>📌</span>
-                                <div style={{ fontSize: 13 }}>ช่วงเวลาเปิดสหกิจ: <b>{new Date(selPeriodData.startDate).toLocaleDateString('th-TH', { dateStyle: 'long' })}</b> ถึง <b>{new Date(selPeriodData.endDate).toLocaleDateString('th-TH', { dateStyle: 'long' })}</b></div>
+                                <div style={{ fontSize: 13 }}>ช่วงเวลาเปิดสหกิจ: <b>{fmtDate(selPeriodData.startDate)}</b> ถึง <b>{fmtDate(selPeriodData.endDate)}</b></div>
                             </div>
                         )}
                         <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 1fr auto', gap: 15, alignItems: 'end' }}>
@@ -694,7 +678,7 @@ export default function T_SupervisionReview() {
                                                 </td>
                                                 <td style={td}>
                                                     {sup.confirmedDate ? (
-                                                        <div style={{ fontWeight: 700, color: '#166534', fontSize: 13 }}>✅ {new Date(sup.confirmedDate).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' })} น.</div>
+                                                        <div style={{ fontWeight: 700, color: '#166634', fontSize: 13 }}>✅ {fmtDateTime(sup.confirmedDate)}</div>
                                                     ) : sup.proposedDates ? (
                                                         <>
                                                             <div style={{ fontSize: 11, color: '#92400e', fontWeight: 700, marginBottom: 4 }}>⏳ รออาจารย์เลือก</div>

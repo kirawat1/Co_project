@@ -2,6 +2,7 @@
 // src/components/A_Daily.tsx
 import React, { useMemo, useState } from "react";
 import type { DailyLog } from "./store";
+import { fmtDate, fmtDateTime } from '../utils/dateFormat';
 
 const DAILY_KEY = "coop.student.daily.v1";
 const YEAR_KEY = "coop.admin.academicYear";
@@ -399,7 +400,7 @@ export default function A_Daily() {
                 rows.map((l: any) => (
                   <tr key={l.id}>
                     <td style={{ padding: 10, fontSize: 14 }}>
-                      {fmtDateThai(l.date)}
+                      {fmtDate(l.date)}
                     </td>
                     <td style={{ padding: 10, fontSize: 14 }}>{l.studentId}</td>
                     <td style={{ padding: 10, fontSize: 14 }}>
@@ -421,12 +422,7 @@ export default function A_Daily() {
                       {l.note || "-"}
                     </td>
                     <td style={{ padding: 10, fontSize: 14 }}>
-                      {l.createdAt
-                        ? new Date(l.createdAt).toLocaleString("th-TH", {
-                          dateStyle: "short",
-                          timeStyle: "short",
-                        })
-                        : "-"}
+                      {l.createdAt ? fmtDateTime(l.createdAt) : "-"}
                     </td>
                   </tr>
                 ))

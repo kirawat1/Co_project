@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { fmtDate } from '../utils/dateFormat';
 
 interface CountdownTimerProps {
     endDate?: string;
@@ -47,13 +48,7 @@ export default function CountdownTimer({ endDate, isOpen }: CountdownTimerProps)
     }, [endDate]);
 
     // แปลงวันที่ให้อ่านง่าย (เช่น 26 มีนาคม 2569)
-    const formattedDueDate = endDate
-        ? new Date(endDate).toLocaleDateString("th-TH", {
-            day: "numeric",
-            month: "long",
-            year: "numeric",
-        })
-        : "รอประกาศ";
+    const formattedDueDate = endDate ? fmtDate(endDate) : "รอประกาศ";
 
     return (
         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>

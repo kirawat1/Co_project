@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+import { fmtDate, fmtDateTime } from '../utils/dateFormat';
 import StatusBadge from "./StatusBadge";
 import SupervisionCalendar from "./SupervisionCalendar";
 import type { CalendarEvent } from "./SupervisionCalendar";
@@ -77,17 +78,10 @@ export default function S_Supervision() {
         "16:00", "16:30", "17:00"
     ];
 
-    const formatDateTime24 = (dateString: string) => {
-        return new Date(dateString).toLocaleString('th-TH', {
-            year: 'numeric', month: 'short', day: 'numeric',
-            hour: '2-digit', minute: '2-digit', hour12: false
-        }).replace(':', '.');
-    };
-
     const formatProposedDate = (dateStr: string) => {
         if (!dateStr) return "-";
         const [dPart, tPart] = dateStr.includes('|') ? dateStr.split('|') : [dateStr, ""];
-        const formattedDate = new Date(dPart).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' });
+        const formattedDate = fmtDate(dPart);
         return `${formattedDate} ${tPart ? `เวลา ${tPart.replace(':', '.')} น.` : ''}`;
     };
 
@@ -282,12 +276,12 @@ export default function S_Supervision() {
                             <div style={{ gridColumn: '1 / -1', background: '#f8fafc', padding: 12, borderRadius: 8, border: '1px solid #e2e8f0', display: 'flex', gap: 20 }}>
                                 <div>
                                     <div style={{ fontSize: 13, color: '#64748b', fontWeight: 600 }}>เริ่มนิเทศตั้งแต่วันที่</div>
-                                    <div style={{ fontWeight: 'bold', color: '#0f172a' }}>{activePeriod?.supervisionStartDate ? new Date(activePeriod.supervisionStartDate).toLocaleDateString('th-TH', { dateStyle: 'long' }) : "รอประกาศ"}</div>
+                                    <div style={{ fontWeight: 'bold', color: '#0f172a' }}>{activePeriod?.supervisionStartDate ? fmtDate(activePeriod.supervisionStartDate) : "รอประกาศ"}</div>
                                 </div>
                                 <div style={{ borderLeft: '1px solid #cbd5e1' }}></div>
                                 <div>
                                     <div style={{ fontSize: 13, color: '#64748b', fontWeight: 600 }}>ถึงวันที่</div>
-                                    <div style={{ fontWeight: 'bold', color: '#0f172a' }}>{activePeriod?.supervisionEndDate ? new Date(activePeriod.supervisionEndDate).toLocaleDateString('th-TH', { dateStyle: 'long' }) : "รอประกาศ"}</div>
+                                    <div style={{ fontWeight: 'bold', color: '#0f172a' }}>{activePeriod?.supervisionEndDate ? fmtDate(activePeriod.supervisionEndDate) : "รอประกาศ"}</div>
                                 </div>
                             </div>
                         </div>
@@ -307,7 +301,7 @@ export default function S_Supervision() {
                                         <div style={{ fontWeight: 700, color: ui.color, fontSize: 14 }}>{ui.label}</div>
                                         {appointment.status === 'DATE_CONFIRMED' && appointment.confirmedDate && (
                                             <div style={{ fontSize: 13, color: '#475569', marginTop: 2 }}>
-                                                วันที่นิเทศ: {new Date(appointment.confirmedDate).toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })}
+                                                วันที่นิเทศ: {fmtDate(appointment.confirmedDate)}
                                             </div>
                                         )}
                                         {appointment.status === 'TEACHER_REJECTED' && appointment.rejectReason && (
@@ -496,7 +490,7 @@ export default function S_Supervision() {
 
                                         <div style={{ fontSize: 14, color: '#166534', fontWeight: 700, marginBottom: 8 }}>✅ วันเวลาที่อาจารย์ยืนยันแล้ว</div>
                                         <div style={{ fontSize: 20, color: '#14532d', fontWeight: 800, marginBottom: 16 }}>
-                                            {appointment.confirmedDate ? formatDateTime24(appointment.confirmedDate) + ' น.' : '-'}
+                                            {appointment.confirmedDate ? fmtDateTime(appointment.confirmedDate) : '-'}
                                         </div>
 
                                         <InfoRow label="อาจารย์ที่ปรึกษา" value={teacherFullName} />
