@@ -325,7 +325,7 @@ export default function T_SupervisionReview() {
 
     const myCalendarEvents = useMemo<CalendarEvent[]>(() =>
         mySupervisions.filter(s => s.confirmedDate && ["DATE_CONFIRMED","LETTER_UPLOADED","COMPLETED"].includes(s.status))
-            .map(s => ({ id: s.id, confirmedDate: s.confirmedDate!, studentId: s.student.studentId, studentName: `${s.student.firstName} ${s.student.lastName}`, type: s.supervisionType, status: s.status, companyName: s.student.coop?.company?.name, onlineLink: s.onlineLink })),
+            .map(s => ({ id: s.id, confirmedDate: s.confirmedDate!, studentId: s.student.studentId, studentName: `${s.student.firstName} ${s.student.lastName}`, type: s.supervisionType, status: s.status, companyName: s.student.coop?.company?.name, onlineLink: s.onlineLink, groupId: (s as any).groupId ?? null })),
         [mySupervisions]);
 
     // ══════════════ "ทั้งหมด" handlers ══════════════
@@ -409,7 +409,7 @@ export default function T_SupervisionReview() {
 
     const allCalendarEvents = useMemo<CalendarEvent[]>(() =>
         allSupervisions.filter(s => s.confirmedDate && ["DATE_CONFIRMED","LETTER_UPLOADED","COMPLETED"].includes(s.status))
-            .map(s => ({ id: s.id, confirmedDate: s.confirmedDate!, studentId: s.student.studentId, studentName: `${s.student.firstName} ${s.student.lastName}`, type: s.supervisionType, status: s.status, companyName: s.student.coop?.company?.name, onlineLink: s.onlineLink ?? null })),
+            .map(s => ({ id: s.id, confirmedDate: s.confirmedDate!, studentId: s.student.studentId, studentName: `${s.student.firstName} ${s.student.lastName}`, type: s.supervisionType, status: s.status, companyName: s.student.coop?.company?.name, onlineLink: s.onlineLink ?? null, groupId: (s as any).groupId ?? null })),
         [allSupervisions]);
 
     const SortIcon = ({ col }: { col: SortKey }) => col === sortKey ? <span style={{ color: "#2563eb", marginLeft: 4 }}>{sortDir === "asc" ? "↑" : "↓"}</span> : <span style={{ color: "#cbd5e1", marginLeft: 4 }}>↕</span>;

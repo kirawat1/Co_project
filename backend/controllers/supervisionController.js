@@ -665,7 +665,7 @@ exports.getSupervisionsByCompany = async (req, res) => {
     const appts = await prisma.supervisionAppointment.findMany({
       where: {
         teacherId: teacher.id,
-        status: { notIn: ['COMPLETED'] },
+        status: { in: ['PENDING_TEACHER', 'TEACHER_REJECTED'] },
         student: { deletedAt: null },
       },
       include: {
@@ -733,6 +733,11 @@ exports.confirmGroupSupervision = async (req, res) => {
     if (!Array.isArray(appointmentIds) || appointmentIds.length === 0) {
       return res.status(400).json({ ok: false, message: 'appointmentIds ต้องมีอย่างน้อย 1 รายการ' });
     }
+    // Fix 6: NaN validation — convert once and reuse
+    const ids = appointmentIds.map(Number);
+    if (ids.some(isNaN)) {
+      return res.status(400).json({ ok: false, message: 'appointmentIds ต้องเป็นตัวเลข' });
+    }
     if (!confirmedDate) {
       return res.status(400).json({ ok: false, message: 'กรุณาระบุวันที่ยืนยัน' });
     }
@@ -741,11 +746,11 @@ exports.confirmGroupSupervision = async (req, res) => {
     if (!teacher) return res.status(404).json({ ok: false, message: 'ไม่พบข้อมูลอาจารย์' });
 
     const appts = await prisma.supervisionAppointment.findMany({
-      where: { id: { in: appointmentIds.map(Number) } },
+      where: { id: { in: ids } },
     });
 
     // ตรวจว่าพบทุก id ที่ส่งมา
-    if (appts.length !== appointmentIds.length) {
+    if (appts.length !== ids.length) {
       return res.status(404).json({ ok: false, message: 'ไม่พบ appointment บางรายการ' });
     }
 
@@ -755,8 +760,16 @@ exports.confirmGroupSupervision = async (req, res) => {
       return res.status(403).json({ ok: false, message: 'ไม่มีสิทธิ์ยืนยันการนัดหมายนี้' });
     }
 
+    // Fix 2: Status guard — ต้องเป็น PENDING_TEACHER หรือ TEACHER_REJECTED เท่านั้น
+    const invalidStatuses = appts.filter(a => !['PENDING_TEACHER', 'TEACHER_REJECTED'].includes(a.status));
+    if (invalidStatuses.length > 0) {
+      return res.status(400).json({ ok: false, message: 'บางรายการไม่อยู่ในสถานะที่สามารถยืนยันได้' });
+    }
+
+    // Fix 3: UTC date fix — slice directly to avoid timezone shift
+    const confirmKey = confirmedDate.slice(0, 10);
+
     // ตรวจว่า confirmedDate อยู่ใน proposedDates ของแต่ละคน
-    const confirmKey = new Date(confirmedDate).toISOString().slice(0, 10);
     for (const appt of appts) {
       let dates = [];
       try { dates = JSON.parse(appt.proposedDates || '[]'); } catch {}
@@ -772,10 +785,20 @@ exports.confirmGroupSupervision = async (req, res) => {
     const groupId = appts.length > 1 ? require('crypto').randomUUID() : null;
     const confirmedDateObj = new Date(confirmedDate);
 
-    await prisma.supervisionAppointment.updateMany({
-      where: { id: { in: appts.map(a => a.id) } },
-      data: { confirmedDate: confirmedDateObj, status: 'DATE_CONFIRMED', groupId },
-    });
+    // Fix 5: Use individual updates in $transaction to set supervisionType per appointment
+    await prisma.$transaction(
+      appts.map(a => {
+        let dates = [];
+        try { dates = JSON.parse(a.proposedDates || '[]'); } catch {}
+        const matchedEntry = dates.find(e => e.split('|')[0].slice(0, 10) === confirmKey);
+        const parts = (matchedEntry || '').split('|');
+        const sType = parts[2] === 'ONLINE' ? 'ONLINE' : 'ONSITE';
+        return prisma.supervisionAppointment.update({
+          where: { id: a.id },
+          data: { confirmedDate: confirmedDateObj, status: 'DATE_CONFIRMED', groupId, supervisionType: sType },
+        });
+      })
+    );
 
     res.json({ ok: true, groupId, updatedCount: appts.length });
   } catch (err) {
@@ -815,6 +838,7 @@ exports.getSupervisionCalendar = async (_req, res) => {
             type: a.supervisionType,
             status: a.status,
             companyName: a.student.coop?.company?.name ?? null,
+            groupId: a.groupId,
         }));
 
         res.json({ ok: true, events });

@@ -486,10 +486,10 @@ describe('confirmGroupSupervision', () => {
   test('200 — confirms group, returns groupId', async () => {
     prisma.teacher.findUnique.mockResolvedValue({ id: 1 });
     prisma.supervisionAppointment.findMany.mockResolvedValue([
-      { id: 1, teacherId: 1, proposedDates: JSON.stringify(['2026-04-10T00:00:00.000Z|10:00|ONSITE']) },
-      { id: 2, teacherId: 1, proposedDates: JSON.stringify(['2026-04-10T00:00:00.000Z|10:00|ONSITE']) },
+      { id: 1, teacherId: 1, status: 'PENDING_TEACHER', proposedDates: JSON.stringify(['2026-04-10T00:00:00.000Z|10:00|ONSITE']) },
+      { id: 2, teacherId: 1, status: 'PENDING_TEACHER', proposedDates: JSON.stringify(['2026-04-10T00:00:00.000Z|10:00|ONSITE']) },
     ]);
-    prisma.supervisionAppointment.updateMany = jest.fn().mockResolvedValue({ count: 2 });
+    prisma.supervisionAppointment.update.mockResolvedValue({ id: 1 });
     const res = makeRes();
     await confirmGroupSupervision(
       makeReq({ appointmentIds: [1, 2], confirmedDate: '2026-04-10T10:00:00.000Z' }),
@@ -500,7 +500,8 @@ describe('confirmGroupSupervision', () => {
     const { groupId } = res.json.mock.calls[0][0];
     expect(typeof groupId).toBe('string');
     expect(groupId).toMatch(/^[0-9a-f-]{36}$/);
-    expect(prisma.supervisionAppointment.updateMany).toHaveBeenCalledTimes(1);
+    // ใช้ individual update (ผ่าน $transaction) แทน updateMany
+    expect(prisma.supervisionAppointment.update).toHaveBeenCalledTimes(2);
   });
 });
 
