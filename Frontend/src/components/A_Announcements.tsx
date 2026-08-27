@@ -3,6 +3,7 @@ import { apiFetch } from "../utils/apiFetch";
 import type { CSSProperties } from "react";
 import { fmtDate } from '../utils/dateFormat';
 import AutoTextarea from "./AutoTextarea";
+import DateInput from "./DateInput";
 
 function safeHref(url: string | null | undefined): string | undefined {
   if (!url) return undefined;
@@ -339,7 +340,7 @@ export default function A_Announcements() {
               <div style={rowGrid}>
                 <div style={inputGroup}>
                   <label style={labelStyle}>วันที่ประกาศ</label>
-                  <input type="date" lang="th-TH" className="custom-input" value={date} onChange={e => setDate(e.target.value)} />
+                  <DateInput className="custom-input" value={date} onChange={e => setDate(e.target.value)} />
                 </div>
                 <div style={inputGroup}>
                   <label style={labelStyle}>สำหรับปีการศึกษา</label>

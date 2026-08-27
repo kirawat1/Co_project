@@ -9,6 +9,7 @@ import type { CalendarEvent } from "./SupervisionCalendar";
 import { useToast } from "./Toast";
 import ConfirmDialog from "./ConfirmDialog";
 import Spinner from "./Spinner";
+import DateInput from './DateInput';
 
 // --- Types ---
 type SupervisionStatus = "PENDING_TEACHER" | "TEACHER_REJECTED" | "DATE_CONFIRMED" | "LETTER_UPLOADED" | "COMPLETED";
@@ -406,11 +407,11 @@ export default function A_SupervisionManage() {
 
                     <div>
                         <label style={labelStyle}>วันเริ่มนัดหมายนิเทศ</label>
-                        <input type="date" lang="th-TH" className="input" value={startDate} onChange={e => setStartDate(e.target.value)} disabled={!selectedPeriodId} />
+                        <DateInput className="input" value={startDate} onChange={e => setStartDate(e.target.value)} disabled={!selectedPeriodId} />
                     </div>
                     <div>
                         <label style={labelStyle}>วันสิ้นสุดนัดหมาย</label>
-                        <input type="date" lang="th-TH" className="input" value={endDate} onChange={e => setEndDate(e.target.value)} disabled={!selectedPeriodId} />
+                        <DateInput className="input" value={endDate} onChange={e => setEndDate(e.target.value)} disabled={!selectedPeriodId} />
                     </div>
                     <div>
                         <label style={labelStyle}>สถานะระบบนัดหมาย</label>
@@ -610,7 +611,7 @@ export default function A_SupervisionManage() {
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
                             <div>
                                 <label style={labelStyle}>วันที่นิเทศ *</label>
-                                <input type="date" lang="th-TH" className="input" value={editDateValue} onChange={e => setEditDateValue(e.target.value)} />
+                                <DateInput className="input" value={editDateValue} onChange={e => setEditDateValue(e.target.value)} />
                             </div>
                             <div>
                                 <label style={labelStyle}>เวลา *</label>

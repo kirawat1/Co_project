@@ -4,6 +4,7 @@ import { apiFetch } from "../utils/apiFetch";
 import { createPlacementPDF } from "../utils/pdfGeneratorPlacement";
 import { createWordBlob, createPreviewBlob, buildPlacementLetterHtml, thaiPrefix } from "../utils/docGeneratorUtils";
 import { FileReady, DeliveryPicker, CompanyAddressBox, MODAL_CSS } from "./LetterModalShared";
+import DateInput from './DateInput';
 
 interface Props { student: any; onClose: () => void; onSuccess: () => void; }
 
@@ -119,7 +120,7 @@ export default function IssuePlacementLetterModal({ student, onClose, onSuccess 
                             <div style={sec}>1. ข้อมูลหนังสือ</div>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
                                 <div><label style={lbl}>เลขที่หนังสือ</label><input className="input" value={placeDocNumber} onChange={e => setPlaceDocNumber(e.target.value)} /></div>
-                                <div><label style={lbl}>วันที่ออกหนังสือ</label><input type="date" lang="th-TH" className="input" value={placeDocDate} onChange={e => setPlaceDocDate(e.target.value)} /></div>
+                                <div><label style={lbl}>วันที่ออกหนังสือ</label><DateInput className="input" value={placeDocDate} onChange={e => setPlaceDocDate(e.target.value)} /></div>
                             </div>
                         </div>
                         <div>

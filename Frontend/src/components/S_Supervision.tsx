@@ -1,4 +1,5 @@
 ﻿import React, { useState, useEffect } from "react";
+import DateInput from './DateInput';
 import axios from "axios";
 import { fmtDate, fmtDateTime } from '../utils/dateFormat';
 import StatusBadge from "./StatusBadge";
@@ -382,8 +383,7 @@ export default function S_Supervision() {
                                                     <div style={{ background: '#f1f5f9', padding: '10px', borderRadius: 8, color: '#475569', fontWeight: 700, fontSize: 14 }}>ตัวเลือก {idx + 1}</div>
 
                                                     <div style={{ display: 'flex', gap: 8, flex: 1, flexWrap: 'wrap', alignItems: 'center' }}>
-                                                        <input
-                                                            type="date" lang="th-TH"
+                                                        <DateInput
                                                             className="input"
                                                             style={{ flex: 1, minWidth: '130px' }}
                                                             value={dPart || ''}

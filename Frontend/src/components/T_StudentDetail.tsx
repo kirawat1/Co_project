@@ -3,6 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import StatusBadge from "../components/StatusBadge";
 import { apiFetch } from "../utils/apiFetch";
 import { fmtDate } from '../utils/dateFormat';
+import DateInput from './DateInput';
 
 /* =========================
    Types
@@ -364,7 +365,7 @@ export default function T_StudentDetail() {
             <div style={{ display: 'flex', gap: 12, marginBottom: 24, alignItems: 'end', flexWrap: 'wrap', background: '#f8fafc', padding: 20, borderRadius: 12, border: '1px solid #e2e8f0' }}>
               <div>
                 <label className="input-label">วันที่นัดหมาย</label>
-                <input type="date" lang="th-TH" className="input" value={visitForm.date} onChange={e => setVisitForm({ ...visitForm, date: e.target.value })} />
+                <DateInput className="input" value={visitForm.date} onChange={e => setVisitForm({ ...visitForm, date: e.target.value })} />
               </div>
               <div>
                 <label className="input-label">เวลา</label>
