@@ -10,6 +10,30 @@ export interface CalendarEvent {
     status?: string;
     companyName?: string | null;
     onlineLink?: string | null;
+    groupId?: string | null;
+}
+
+function mergeGroupEvents(events: CalendarEvent[]): CalendarEvent[] {
+    const groups = new Map<string, CalendarEvent[]>();
+    const singles: CalendarEvent[] = [];
+    for (const ev of events) {
+        if (ev.groupId) {
+            const bucket = groups.get(ev.groupId) ?? [];
+            bucket.push(ev);
+            groups.set(ev.groupId, bucket);
+        } else {
+            singles.push(ev);
+        }
+    }
+    const merged: CalendarEvent[] = [...singles];
+    for (const [, members] of groups) {
+        const rep = members[0];
+        merged.push({
+            ...rep,
+            studentName: `นิเทศกลุ่ม (${members.length} คน)`,
+        });
+    }
+    return merged;
 }
 
 interface Props {
@@ -83,10 +107,12 @@ export default function SupervisionCalendar({ events, title = "📅 ปฏิท
 
     const todayKey = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,"0")}-${String(today.getDate()).padStart(2,"0")}`;
 
+    const mergedEvents = useMemo(() => mergeGroupEvents(events), [events]);
+
     // กรองตามประเภทที่เลือก (ทั้งหมด / ออนไลน์ / ออนไซต์) — ใช้เป็นฐานทั้ง grid, stats, และ agenda
     const filteredEvents = useMemo(
-        () => filterType === "ALL" ? events : events.filter(ev => ev.type === filterType),
-        [events, filterType]
+        () => filterType === "ALL" ? mergedEvents : mergedEvents.filter(ev => ev.type === filterType),
+        [mergedEvents, filterType]
     );
 
     // map eventsByDay: "YYYY-MM-DD" → CalendarEvent[] (จาก filteredEvents)
