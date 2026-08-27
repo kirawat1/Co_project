@@ -1,5 +1,15 @@
 # CHANGELOG — Co_project
 
+## [2026-08-27] feat: batch 146 — group supervision (นัดนิเทศหลายคนในบริษัทเดียวกันพร้อมกัน)
+
+### Added
+- **backend/prisma/schema.prisma** — เพิ่ม `groupId String?` บน `SupervisionAppointment` เพื่อเชื่อม appointment ที่นัดพร้อมกัน; migration `20260827091040_add_group_supervision`
+- **GET /api/teacher/supervisions/by-company** — จัดกลุ่ม appointment ตามบริษัท พร้อม `commonDates` (วันที่มี overlap ≥ 2 คน)
+- **POST /api/teacher/supervisions/confirm-group** — ยืนยันนัดหมายสำหรับหลาย appointment พร้อมกัน ตั้ง `groupId` UUID และ `DATE_CONFIRMED`
+- **Frontend/src/components/T_GroupSupervision.tsx** — หน้า Teacher ดูและยืนยันนัดกลุ่มตามบริษัท (accordion, modal เลือกวัน+นักศึกษา)
+- **Frontend/src/components/T_SupervisionReview.tsx** — เพิ่ม tab "🏢 นิเทศตามบริษัท" เรนเดอร์ `T_GroupSupervision`
+- **Frontend/src/components/SupervisionCalendar.tsx** — เพิ่ม `groupId?` บน `CalendarEvent`; `mergeGroupEvents()` รวม appointment กลุ่มเดียวกันแสดงเป็น event เดียว "นิเทศกลุ่ม (N คน)"
+
 ## [2026-08-19] docs: batch 145 — Let's Encrypt setup guide สำหรับ coop.computing.kku.ac.th
 
 ### Added
