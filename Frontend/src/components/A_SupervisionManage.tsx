@@ -353,6 +353,7 @@ export default function A_SupervisionManage() {
                 status: s.status,
                 companyName: s.student.coop?.company?.name,
                 onlineLink: s.onlineLink ?? null,
+                groupId: (s as any).groupId ?? null,
             })),
         [supervisions]
     );
