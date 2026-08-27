@@ -597,7 +597,7 @@ export default function A_Students() {
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={6} style={{ padding: 20, textAlign: 'center', color: "#64748b" }}>
+                <td colSpan={7} style={{ padding: 20, textAlign: 'center', color: "#64748b" }}>
                   ไม่พบนักศึกษาตามเงื่อนไข
                 </td>
               </tr>
@@ -605,9 +605,8 @@ export default function A_Students() {
               filtered.map((s) => (
                 <tr key={s.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                   <td style={td} data-label="รหัส">{s.studentId}</td>
-                  <td style={td} data-label="ชื่อ–นามสกุล">
-                    {getThaiPrefix(s.prefix)} {s.firstName} {s.lastName}
-                  </td>
+                  <td style={td} data-label="ชื่อ">{getThaiPrefix(s.prefix)} {s.firstName}</td>
+                  <td style={td} data-label="นามสกุล">{s.lastName}</td>
                   <td style={td} data-label="อีเมล">{s.user?.email || "-"}</td>
                   <td style={td} data-label="หลักสูตร">{CURRICULUM_TH[s.studyProgram ?? ""] ?? s.studyProgram ?? "-"}</td>
                   <td style={td} data-label="สถานะ"><StatusBadge status={s.coop?.status || s.docStatus} /></td>
