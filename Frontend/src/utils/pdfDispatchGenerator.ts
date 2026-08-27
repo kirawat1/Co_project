@@ -177,7 +177,7 @@ export const createDispatchPDF = async (
   const p1 = `       ตามที่ ${companyName} ได้เข้าร่วมโครงการสหกิจศึกษากับ มหาวิทยาลัยขอนแก่น วิทยาลัยการคอมพิวเตอร์ และยินดีรับนักศึกษาหลักสูตรวิทยาการคอมพิวเตอร์ เข้าปฏิบัติงานสหกิจศึกษากับบริษัทของท่าน ซึ่งมีกำหนดช่วงเวลาปฏิบัติงาน ระหว่างวันที่ ${startDate} ถึงวันที่ ${endDate} นั้น ในการนี้ ทางวิทยาลัยการคอมพิวเตอร์ จึงใคร่ขอให้ท่านพิจารณานักศึกษาเข้าร่วมโครงการสหกิจศึกษากับทาง ${companyName} จำนวน 1 คน ดังมีรายชื่อต่อไปนี้`;
 
   const splitP1 = doc.splitTextToSize(p1, contentWidth);
-  doc.text(splitP1, margin, y);
+  doc.text(splitP1, margin, y, { align: "justify", maxWidth: contentWidth });
   y += splitP1.length * 7 + 5;
 
   const nameLine = `1. ${studentName}        รหัสประจำตัว  ${studentId}`;
@@ -187,7 +187,7 @@ export const createDispatchPDF = async (
 
   const p2 = `       จึงเรียนมาเพื่อโปรดพิจารณาให้ความอนุเคราะห์ในการรับนักศึกษาเข้าร่วมโครงการสหกิจศึกษา หากผลการพิจารณาเป็นประการใด กรุณาแจ้งผลกลับมายังวิทยาลัยการคอมพิวเตอร์ มหาวิทยาลัยขอนแก่น 40002 หรือ E-mail: wijika@kku.ac.th ด้วยจักขอบคุณยิ่ง`;
   const splitP2 = doc.splitTextToSize(p2, contentWidth);
-  doc.text(splitP2, margin, y);
+  doc.text(splitP2, margin, y, { align: "justify", maxWidth: contentWidth });
   y += splitP2.length * 7 + 20;
 
   // 8. คำลงท้าย & ลายเซ็น
