@@ -150,6 +150,15 @@ export default function A_Sidebar({ isOpen = false, onClose = () => {} }: Sideba
           <span className="text">รอบรับสมัครสหกิจ</span>
         </NavLink>
 
+        <NavLink
+          to="/admin/staff"
+          className={({ isActive }) => "item" + (isActive ? " active" : "")}
+          onClick={nav}
+        >
+          <span className="ico"><IcUser /></span>
+          <span className="text">จัดการบัญชีเจ้าหน้าที่</span>
+        </NavLink>
+
 
 
 

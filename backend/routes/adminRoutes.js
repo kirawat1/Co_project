@@ -18,6 +18,7 @@ const supervisionController = require('../controllers/supervisionController');
 const teacherController = require('../controllers/teacherController');
 const studentImportController = require('../controllers/studentImportController');
 const studentController = require('../controllers/studentController');
+const staffController = require('../controllers/staffController');
 const multerMemory = require('multer')({ storage: require('multer').memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 // สิทธิ์ที่อนุญาตจัดการระบบ (ต้องตรงกับ Prisma enum — lowercase)
@@ -148,6 +149,14 @@ router.put('/config/gateway', verifyToken, verifyRole(...ADMIN_ROLES), configCon
 
 // Supervision
 router.put('/supervisions/:id/co-teachers', verifyToken, verifyCoopTeacherOrStaff, supervisionController.assignCoTeachers);
+
+// ==========================================
+// STAFF MANAGEMENT — จัดการบัญชีเจ้าหน้าที่
+// ==========================================
+router.get('/staff', verifyToken, verifyRole(...ADMIN_ROLES), staffController.listStaff);
+router.post('/staff', verifyToken, verifyRole(...ADMIN_ROLES), staffController.createStaff);
+router.patch('/staff/:id/password', verifyToken, verifyRole(...ADMIN_ROLES), staffController.resetPassword);
+router.delete('/staff/:id', verifyToken, verifyRole(...ADMIN_ROLES), staffController.deleteStaff);
 
 // ==========================================
 // TEACHER MANAGEMENT — เจ้าหน้าที่จัดการอาจารย์
