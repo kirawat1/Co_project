@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
+﻿import React, { useState, useEffect, useMemo, useRef } from "react";
 import type { CSSProperties } from "react";
 import axios from "axios";
 import { apiFetch } from "../utils/apiFetch";
@@ -303,11 +303,11 @@ export default function A_T002Review() {
                     <div style={{ display: 'flex', gap: 16, alignItems: 'flex-end', flexWrap: 'wrap' }}>
                         <div>
                             <label style={{ fontSize: 12, display: 'block', color: '#64748b', marginBottom: 6, fontWeight: 700 }}>วันเปิดรับ</label>
-                            <input type="date" className="input" value={config.startDate} onChange={e => setConfig({ ...config, startDate: e.target.value })} style={{ background: '#fff' }} />
+                            <input type="date" lang="th-TH" className="input" value={config.startDate} onChange={e => setConfig({ ...config, startDate: e.target.value })} style={{ background: '#fff' }} />
                         </div>
                         <div>
                             <label style={{ fontSize: 12, display: 'block', color: '#64748b', marginBottom: 6, fontWeight: 700 }}>วันปิดรับ</label>
-                            <input type="date" className="input" value={config.endDate} onChange={e => setConfig({ ...config, endDate: e.target.value })} style={{ background: '#fff' }} />
+                            <input type="date" lang="th-TH" className="input" value={config.endDate} onChange={e => setConfig({ ...config, endDate: e.target.value })} style={{ background: '#fff' }} />
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', height: 42, gap: 16 }}>
                             <label style={{ fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, fontWeight: 600, color: '#334155' }}>

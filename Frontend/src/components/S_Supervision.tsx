@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { fmtDate, fmtDateTime } from '../utils/dateFormat';
 import StatusBadge from "./StatusBadge";
@@ -383,7 +383,7 @@ export default function S_Supervision() {
 
                                                     <div style={{ display: 'flex', gap: 8, flex: 1, flexWrap: 'wrap', alignItems: 'center' }}>
                                                         <input
-                                                            type="date"
+                                                            type="date" lang="th-TH"
                                                             className="input"
                                                             style={{ flex: 1, minWidth: '130px' }}
                                                             value={dPart || ''}

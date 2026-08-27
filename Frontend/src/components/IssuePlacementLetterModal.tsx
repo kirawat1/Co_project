@@ -1,4 +1,4 @@
-// Frontend/src/components/IssuePlacementLetterModal.tsx
+﻿// Frontend/src/components/IssuePlacementLetterModal.tsx
 import React, { useState } from "react";
 import { apiFetch } from "../utils/apiFetch";
 import { createPlacementPDF } from "../utils/pdfGeneratorPlacement";
@@ -119,7 +119,7 @@ export default function IssuePlacementLetterModal({ student, onClose, onSuccess 
                             <div style={sec}>1. ข้อมูลหนังสือ</div>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
                                 <div><label style={lbl}>เลขที่หนังสือ</label><input className="input" value={placeDocNumber} onChange={e => setPlaceDocNumber(e.target.value)} /></div>
-                                <div><label style={lbl}>วันที่ออกหนังสือ</label><input type="date" className="input" value={placeDocDate} onChange={e => setPlaceDocDate(e.target.value)} /></div>
+                                <div><label style={lbl}>วันที่ออกหนังสือ</label><input type="date" lang="th-TH" className="input" value={placeDocDate} onChange={e => setPlaceDocDate(e.target.value)} /></div>
                             </div>
                         </div>
                         <div>

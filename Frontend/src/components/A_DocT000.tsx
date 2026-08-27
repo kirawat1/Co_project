@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+﻿import React, { useState, useEffect, useMemo } from "react";
 import { apiFetch } from "../utils/apiFetch";
 import { fmtDate } from '../utils/dateFormat';
 import StatusBadge from "../components/StatusBadge";
@@ -468,8 +468,8 @@ export default function A_DocT000() {
                         </div>
                     </div>
                     <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
-                        <div><label style={lbl}>วันเปิดรับ</label><input type="date" className="input" value={config.startDate} onChange={e => setConfig({ ...config, startDate: e.target.value })} /></div>
-                        <div><label style={lbl}>วันปิดรับ</label><input type="date" className="input" value={config.endDate} onChange={e => setConfig({ ...config, endDate: e.target.value })} /></div>
+                        <div><label style={lbl}>วันเปิดรับ</label><input type="date" lang="th-TH" className="input" value={config.startDate} onChange={e => setConfig({ ...config, startDate: e.target.value })} /></div>
+                        <div><label style={lbl}>วันปิดรับ</label><input type="date" lang="th-TH" className="input" value={config.endDate} onChange={e => setConfig({ ...config, endDate: e.target.value })} /></div>
                         <div style={{ display: 'flex', alignItems: 'center', height: 38, gap: 15 }}>
                             <label style={{ fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, fontWeight: 500 }}>
                                 <input type="checkbox" checked={config.isOpen} onChange={e => setConfig({ ...config, isOpen: e.target.checked })} style={{ width: 16, height: 16 }} />

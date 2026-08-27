@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
+﻿import React, { useState, useEffect, useMemo, useRef } from "react";
 import DocTable from "./S_DocTable";
 import { createT000PDF, type T000FormData } from "../utils/pdfGeneratorT000";
 import PlacementLetterCard from "./PlacementLetterCard";
@@ -525,8 +525,8 @@ export default function S_Docs({ profile, setProfile }: { profile: LocalStudentP
               <div style={{ fontSize: 12, color: '#dc2626', marginBottom: 12, fontWeight: 600 }}>⚠️ กรุณากรอกวันที่ก่อนสร้าง PDF</div>
             )}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 20, marginBottom: 16 }}>
-              <div><label style={{ ...lbl, color: !formData.startDate ? '#dc2626' : undefined }}>วันที่เริ่มฝึก: <span style={{ color: '#dc2626' }}>*</span></label><input type="date" className="input" style={!formData.startDate ? { borderColor: '#fca5a5' } : undefined} value={formData.startDate || ""} onChange={e => setFormData({ ...formData, startDate: e.target.value })} /></div>
-              <div><label style={{ ...lbl, color: !formData.endDate ? '#dc2626' : undefined }}>ถึงวันที่: <span style={{ color: '#dc2626' }}>*</span></label><input type="date" className="input" style={!formData.endDate ? { borderColor: '#fca5a5' } : undefined} value={formData.endDate || ""} onChange={e => setFormData({ ...formData, endDate: e.target.value })} /></div>
+              <div><label style={{ ...lbl, color: !formData.startDate ? '#dc2626' : undefined }}>วันที่เริ่มฝึก: <span style={{ color: '#dc2626' }}>*</span></label><input type="date" lang="th-TH" className="input" style={!formData.startDate ? { borderColor: '#fca5a5' } : undefined} value={formData.startDate || ""} onChange={e => setFormData({ ...formData, startDate: e.target.value })} /></div>
+              <div><label style={{ ...lbl, color: !formData.endDate ? '#dc2626' : undefined }}>ถึงวันที่: <span style={{ color: '#dc2626' }}>*</span></label><input type="date" lang="th-TH" className="input" style={!formData.endDate ? { borderColor: '#fca5a5' } : undefined} value={formData.endDate || ""} onChange={e => setFormData({ ...formData, endDate: e.target.value })} /></div>
             </div>
             <p style={{ fontSize: 13, color: '#64748b', marginBottom: 8, fontWeight: 600 }}>ระบุสายงานและลักษณะงานอาชีพที่นักศึกษาสนใจ (สูงสุด 3 ข้อ)</p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>

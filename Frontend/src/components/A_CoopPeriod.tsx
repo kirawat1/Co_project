@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import axios from "axios";
 import type { CSSProperties } from "react";
 import { fmtDate } from '../utils/dateFormat';
@@ -218,11 +218,11 @@ export default function A_CoopPeriod() {
                             <div style={{ display: 'flex', gap: 16 }}>
                                 <div style={field}>
                                     <label style={label}>วันที่เปิดรับสมัคร</label>
-                                    <input type="date" required className="input" value={startDate} onChange={e => setStartDate(e.target.value)} />
+                                    <input type="date" lang="th-TH" required className="input" value={startDate} onChange={e => setStartDate(e.target.value)} />
                                 </div>
                                 <div style={field}>
                                     <label style={label}>วันที่ปิดรับสมัคร</label>
-                                    <input type="date" required className="input" value={endDate} onChange={e => setEndDate(e.target.value)} />
+                                    <input type="date" lang="th-TH" required className="input" value={endDate} onChange={e => setEndDate(e.target.value)} />
                                 </div>
                             </div>
 

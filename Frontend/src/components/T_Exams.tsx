@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import type { StudentProfile } from "./store";
 import AutoTextarea from "./AutoTextarea";
 
@@ -328,7 +328,7 @@ export default function T_Exams() {
                 <label className="label">วันที่</label>
                 <input
                   className="input"
-                  type="date"
+                  type="date" lang="th-TH"
                   value={edit.date}
                   onChange={(e) => setEdit({ ...edit, date: e.target.value })}
                   style={{ width: "94%" }}
