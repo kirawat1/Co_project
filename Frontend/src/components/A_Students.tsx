@@ -177,6 +177,8 @@ export default function A_Students() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const PAGE_SIZE = 50;
+  const [sortBy, setSortBy] = useState<'studentId' | 'firstName' | 'lastName' | 'studyProgram'>('studentId');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
 
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importLoading, setImportLoading] = useState(false);
@@ -189,9 +191,9 @@ export default function A_Students() {
   const previewRef = useRef<HTMLDivElement>(null);
 
   // --- Fetch Data ---
-  const fetchStudents = async (periodId: string, page = 1, search = "", statuses: string[] = [], curriculums: string[] = []) => {
+  const fetchStudents = async (periodId: string, page = 1, search = "", statuses: string[] = [], curriculums: string[] = [], sb = sortBy, sd = sortDir) => {
     try {
-      const params = new URLSearchParams({ page: String(page), limit: String(PAGE_SIZE) });
+      const params = new URLSearchParams({ page: String(page), limit: String(PAGE_SIZE), sortBy: sb, sortDir: sd });
       if (periodId !== "all") params.set("coopPeriodId", periodId);
       if (search.trim()) params.set("search", search.trim());
       if (statuses.length > 0) params.set("statuses", statuses.join(','));
@@ -568,9 +570,26 @@ export default function A_Students() {
         <table width="100%" className="responsive-table" style={{ borderCollapse: 'collapse' }}>
           <thead>
             <tr>
-              {["รหัส", "ชื่อ–นามสกุล", "อีเมล", "หลักสูตร", "สถานะ", "รายละเอียด"].map((h) => (
-                <th key={h} style={th}>
-                  {h}
+              {([
+                { label: "รหัส", key: "studentId" },
+                { label: "ชื่อ", key: "firstName" },
+                { label: "นามสกุล", key: "lastName" },
+                { label: "อีเมล", key: null },
+                { label: "หลักสูตร", key: "studyProgram" },
+                { label: "สถานะ", key: null },
+                { label: "รายละเอียด", key: null },
+              ] as { label: string; key: string | null }[]).map(({ label, key }) => (
+                <th key={label} style={{ ...th, cursor: key ? 'pointer' : 'default', userSelect: 'none', whiteSpace: 'nowrap' }}
+                  onClick={() => {
+                    if (!key) return;
+                    const newDir = sortBy === key && sortDir === 'asc' ? 'desc' : 'asc';
+                    setSortBy(key as typeof sortBy);
+                    setSortDir(newDir);
+                    setCurrentPage(1);
+                    fetchStudents(selectedPeriodId, 1, debouncedQ, filterStatuses, filterCurriculums, key as typeof sortBy, newDir);
+                  }}
+                >
+                  {label}{key && (sortBy === key ? (sortDir === 'asc' ? ' ▲' : ' ▼') : ' ⇅')}
                 </th>
               ))}
             </tr>
