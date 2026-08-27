@@ -10,6 +10,7 @@ import IssueSupervisionLetterModal from "./IssueSupervisionLetterModal";
 import { useToast } from "./Toast";
 import ConfirmDialog from "./ConfirmDialog";
 import Spinner from "./Spinner";
+import T_GroupSupervision from "./T_GroupSupervision";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -140,7 +141,7 @@ export default function T_SupervisionReview() {
 
     // ── Profile / Tab
     const [isCoopTeacher, setIsCoopTeacher] = useState(false);
-    const [activeTab, setActiveTab] = useState<'mine' | 'all'>('mine');
+    const [activeTab, setActiveTab] = useState<'mine' | 'all' | 'group'>('mine');
 
     // ══════════════ "ของฉัน" state ══════════════
     const [mySupervisions, setMySupervisions] = useState<SupervisionAppt[]>([]);
@@ -426,6 +427,7 @@ export default function T_SupervisionReview() {
                 <div style={{ display: 'flex', borderBottom: '2px solid #e2e8f0', marginBottom: 24 }}>
                     <TabBtn active={activeTab === 'mine'} onClick={() => setActiveTab('mine')} label="📋 ของฉัน" count={myPendingCount} />
                     <TabBtn active={activeTab === 'all'} onClick={() => setActiveTab('all')} label="🗂️ ทั้งหมด" count={allPendingCount} />
+                    <TabBtn active={activeTab === 'group'} onClick={() => setActiveTab('group')} label="🏢 นิเทศตามบริษัท" count={0} />
                 </div>
             )}
 
@@ -809,6 +811,9 @@ export default function T_SupervisionReview() {
             )}
 
             <ConfirmDialog open={confirmEditOpen} title="ยืนยันการแก้ไขวันนิเทศ" message={`เปลี่ยนวันนิเทศเป็น ${editDateVal} เวลา ${editDateTime} น.?`} icon="✏️" confirmLabel="บันทึก" confirmColor="#d97706" onConfirm={handleSaveEditDate} onCancel={() => setConfirmEditOpen(false)} />
+
+            {/* ══════════════════ TAB: นิเทศตามบริษัท ══════════════════ */}
+            {activeTab === 'group' && <T_GroupSupervision />}
 
             {/* ── Modal: Issue Letter ── */}
             {letterSup && !assignSup && (
