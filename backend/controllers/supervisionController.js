@@ -654,6 +654,77 @@ exports.updateConfirmedDate = async (req, res) => {
 };
 
 // ==========================================
+// getSupervisionsByCompany — Teacher group view
+// GET /api/teacher/supervisions/by-company
+// ==========================================
+exports.getSupervisionsByCompany = async (req, res) => {
+  try {
+    const teacher = await prisma.teacher.findUnique({ where: { userId: parseInt(req.user.id) } });
+    if (!teacher) return res.status(404).json({ ok: false, message: 'ไม่พบข้อมูลอาจารย์' });
+
+    const appts = await prisma.supervisionAppointment.findMany({
+      where: {
+        teacherId: teacher.id,
+        status: { notIn: ['COMPLETED'] },
+        student: { deletedAt: null },
+      },
+      include: {
+        student: { include: { coop: { include: { company: true } } } },
+      },
+      orderBy: { id: 'asc' },
+    });
+
+    // จัดกลุ่มตาม companyId
+    const companyMap = new Map();
+    for (const appt of appts) {
+      const company = appt.student?.coop?.company;
+      if (!company) continue;
+      if (!companyMap.has(company.id)) {
+        companyMap.set(company.id, { companyId: company.id, companyName: company.name, students: [] });
+      }
+      let proposedDates = [];
+      try { proposedDates = JSON.parse(appt.proposedDates || '[]'); } catch {}
+      companyMap.get(company.id).students.push({
+        appointmentId: appt.id,
+        studentId: appt.student.id,
+        studentName: `${appt.student.firstName} ${appt.student.lastName}`,
+        studentCode: appt.student.studentId,
+        proposedDates,
+        status: appt.status,
+        groupId: appt.groupId,
+      });
+    }
+
+    // คำนวณ commonDates ต่อบริษัท
+    const companies = [];
+    for (const group of companyMap.values()) {
+      const dateCount = new Map(); // dateKey → { count, entry }
+      for (const stu of group.students) {
+        const seen = new Set();
+        for (const entry of stu.proposedDates) {
+          const key = entry.split('|')[0].slice(0, 10);
+          if (!seen.has(key)) {
+            seen.add(key);
+            if (!dateCount.has(key)) dateCount.set(key, { count: 0, entry });
+            dateCount.get(key).count += 1;
+          }
+        }
+      }
+      const commonDates = [];
+      for (const { count, entry } of dateCount.values()) {
+        if (count >= 2) commonDates.push(entry);
+      }
+      companies.push({ ...group, commonDates });
+    }
+
+    res.json({ ok: true, companies });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ ok: false, message: 'ไม่สามารถดึงข้อมูลได้' });
+  }
+};
+
+// ==========================================
 // ปฏิทินนิเทศ — คืนรายการที่ยืนยันวันแล้วทั้งหมด
 // เข้าถึงได้ทุก role (student / teacher / admin)
 // ==========================================

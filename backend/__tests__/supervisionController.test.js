@@ -383,6 +383,64 @@ describe('getSupervisionCalendar', () => {
 });
 
 // ===========================
+// getSupervisionsByCompany
+// ===========================
+describe('getSupervisionsByCompany', () => {
+  const { getSupervisionsByCompany } = require('../controllers/supervisionController');
+
+  test('404 — teacher not found', async () => {
+    prisma.teacher.findUnique.mockResolvedValue(null);
+    const req = { user: { id: 99 } };
+    const res = makeRes();
+    await getSupervisionsByCompany(req, res);
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: false }));
+  });
+
+  test('200 — groups students by company with commonDates', async () => {
+    prisma.teacher.findUnique.mockResolvedValue({ id: 1 });
+    // student A: บริษัท X เสนอวัน 2026-04-10
+    // student B: บริษัท X เสนอวัน 2026-04-10 และ 2026-04-11
+    prisma.supervisionAppointment.findMany.mockResolvedValue([
+      {
+        id: 1, groupId: null, status: 'PENDING_TEACHER',
+        proposedDates: JSON.stringify(['2026-04-10T00:00:00.000Z|10:00|ONSITE']),
+        student: {
+          id: 10, studentId: '651111111', firstName: 'ก', lastName: 'ข',
+          coop: { company: { id: 'cid1', name: 'บริษัท X' } }
+        }
+      },
+      {
+        id: 2, groupId: null, status: 'PENDING_TEACHER',
+        proposedDates: JSON.stringify(['2026-04-10T00:00:00.000Z|10:00|ONSITE','2026-04-11T00:00:00.000Z|13:00|ONLINE']),
+        student: {
+          id: 11, studentId: '651111112', firstName: 'ค', lastName: 'ง',
+          coop: { company: { id: 'cid1', name: 'บริษัท X' } }
+        }
+      }
+    ]);
+    const req = { user: { id: 1 } };
+    const res = makeRes();
+    await getSupervisionsByCompany(req, res);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: true }));
+    const { companies } = res.json.mock.calls[0][0];
+    expect(companies).toHaveLength(1);
+    expect(companies[0].companyId).toBe('cid1');
+    expect(companies[0].students).toHaveLength(2);
+    // 2026-04-10 ปรากฏใน 2 คน → commonDates มี 1 entry
+    expect(companies[0].commonDates).toHaveLength(1);
+    expect(companies[0].commonDates[0]).toContain('2026-04-10');
+  });
+
+  test('500 — DB error', async () => {
+    prisma.teacher.findUnique.mockRejectedValue(new Error('fail'));
+    const res = makeRes();
+    await getSupervisionsByCompany({ user: { id: 1 } }, res);
+    expect(res.status).toHaveBeenCalledWith(500);
+  });
+});
+
+// ===========================
 // getSupervisionsForTeacher
 // ===========================
 describe('getSupervisionsForTeacher', () => {
