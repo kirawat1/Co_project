@@ -31,6 +31,7 @@ router.put('/documents/review-t002', verifyToken, verifyRole('teacher', 'staff')
 router.put('/documents/review-t003', verifyToken, verifyRole('teacher', 'staff'), teacherController.reviewT003);
 
 router.get('/supervisions/by-company', verifyToken, verifyRole('teacher', 'staff'), supervisionController.getSupervisionsByCompany);
+router.post('/supervisions/confirm-group', verifyToken, verifyRole('teacher', 'staff'), supervisionController.confirmGroupSupervision);
 router.get('/supervisions', verifyToken, verifyRole('teacher', 'staff'), supervisionController.getSupervisionsForTeacher);
 router.put('/supervisions/:id/review', verifyToken, verifyRole('teacher', 'staff'), supervisionController.reviewSupervision);
 router.put('/supervisions/:id/complete', verifyToken, verifyRole('teacher', 'staff'), supervisionController.completeSupervision);

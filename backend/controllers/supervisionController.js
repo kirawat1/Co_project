@@ -725,6 +725,63 @@ exports.getSupervisionsByCompany = async (req, res) => {
 };
 
 // ==========================================
+// confirmGroupSupervision — ยืนยันกลุ่ม
+// ==========================================
+exports.confirmGroupSupervision = async (req, res) => {
+  try {
+    const { appointmentIds, confirmedDate } = req.body;
+    if (!Array.isArray(appointmentIds) || appointmentIds.length === 0) {
+      return res.status(400).json({ ok: false, message: 'appointmentIds ต้องมีอย่างน้อย 1 รายการ' });
+    }
+    if (!confirmedDate) {
+      return res.status(400).json({ ok: false, message: 'กรุณาระบุวันที่ยืนยัน' });
+    }
+
+    const teacher = await prisma.teacher.findUnique({ where: { userId: parseInt(req.user.id) } });
+    if (!teacher) return res.status(404).json({ ok: false, message: 'ไม่พบข้อมูลอาจารย์' });
+
+    const appts = await prisma.supervisionAppointment.findMany({
+      where: { id: { in: appointmentIds.map(Number) } },
+    });
+
+    // ตรวจสิทธิ์ — ทุก appointment ต้องเป็นของ teacher นี้
+    const unauthorized = appts.find(a => a.teacherId !== teacher.id);
+    if (unauthorized) {
+      return res.status(403).json({ ok: false, message: 'ไม่มีสิทธิ์ยืนยันการนัดหมายนี้' });
+    }
+
+    // ตรวจว่า confirmedDate อยู่ใน proposedDates ของแต่ละคน
+    const confirmKey = new Date(confirmedDate).toISOString().slice(0, 10);
+    for (const appt of appts) {
+      let dates = [];
+      try { dates = JSON.parse(appt.proposedDates || '[]'); } catch {}
+      const hasDate = dates.some(e => e.split('|')[0].slice(0, 10) === confirmKey);
+      if (!hasDate) {
+        return res.status(400).json({
+          ok: false,
+          message: `วันที่เลือกไม่อยู่ในวันที่นักศึกษา appointment ${appt.id} เสนอมา`,
+        });
+      }
+    }
+
+    const groupId = appts.length > 1 ? require('crypto').randomUUID() : null;
+    const confirmedDateObj = new Date(confirmedDate);
+
+    for (const appt of appts) {
+      await prisma.supervisionAppointment.update({
+        where: { id: appt.id },
+        data: { confirmedDate: confirmedDateObj, status: 'DATE_CONFIRMED', groupId },
+      });
+    }
+
+    res.json({ ok: true, groupId, updatedCount: appts.length });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ ok: false, message: 'ไม่สามารถยืนยันการนัดหมายได้' });
+  }
+};
+
+// ==========================================
 // ปฏิทินนิเทศ — คืนรายการที่ยืนยันวันแล้วทั้งหมด
 // เข้าถึงได้ทุก role (student / teacher / admin)
 // ==========================================
