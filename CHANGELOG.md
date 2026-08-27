@@ -1,5 +1,26 @@
 # CHANGELOG — Co_project
 
+## [2026-08-27] refactor: batch 147 — standardize date format to "10 ส.ค. 2568" (th-TH medium)
+
+### Changed
+- **Frontend/src/utils/dateFormat.ts** — สร้าง utility ใหม่: `fmtDate`, `fmtTime`, `fmtDateTime` (th-TH, dateStyle:medium)
+- แก้ 20 component ให้ใช้ utility ร่วมกัน แทน inline `toLocaleDateString` / manual string ที่กระจายอยู่ทั่วโปรเจกต์
+- ลบ local helper ซ้ำ: `formatDMY`, `formatDMYTime`, `fmtDate` (local), `fmtDateShort`, `formatDateTime24` ออกจาก 5 ไฟล์
+
+## [2026-08-27] feat: batch 146b — server-side sort สำหรับ A_Students + staff account management
+
+### Added
+- **A_StaffManage.tsx** — UI จัดการบัญชีเจ้าหน้าที่: เพิ่ม/reset รหัสผ่าน/ลบ
+- **backend/controllers/staffController.js** — `listStaff`, `createStaff`, `resetPassword`, `deleteStaff`
+- **backend/routes/adminRoutes.js** — 4 routes ใหม่ใต้ `/api/admin/staff`
+- **backend/prisma/schema.prisma** — model `StaffProfile` (id, userId @unique, firstName, lastName, phone)
+- **A_Sidebar.tsx** — link "จัดการบัญชีเจ้าหน้าที่" ใต้ section ระบบ
+- **A_App.tsx** — route `/admin/staff`
+
+### Changed
+- **studentController.js `getStudents`** — รองรับ `sortBy` (allowlist: studentId/firstName/lastName/studyProgram) และ `sortDir` (asc/desc) query params
+- **A_Students.tsx** — column headers คลิกได้ เปลี่ยน sort direction, re-fetch page 1 พร้อม ▲▼⇅
+
 ## [2026-08-27] fix: ปิดรอบสมัครสหกิจอัตโนมัติเมื่อหมดวันที่ประกาศ
 
 ### Fixed
