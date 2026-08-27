@@ -137,15 +137,15 @@ export const createPlacementPDF = async (
   const lineHeight = 7;
 
   const lines1 = doc.splitTextToSize(p1, 165);
-  doc.text(lines1, 20, currentY);
+  doc.text(lines1, 20, currentY, { align: "justify", maxWidth: 165 });
   currentY += lines1.length * lineHeight + 5;
 
   const lines2 = doc.splitTextToSize(p2, 165);
-  doc.text(lines2, 20, currentY);
+  doc.text(lines2, 20, currentY, { align: "justify", maxWidth: 165 });
   currentY += lines2.length * lineHeight + 5;
 
   const lines3 = doc.splitTextToSize(p3, 165);
-  doc.text(lines3, 20, currentY);
+  doc.text(lines3, 20, currentY, { align: "justify", maxWidth: 165 });
   currentY += lines3.length * lineHeight + 15;
 
   // 6. คำลงท้าย & ลายเซ็น
