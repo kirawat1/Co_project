@@ -1,5 +1,10 @@
 # CHANGELOG — Co_project
 
+## [2026-08-27] fix: ปิดรอบสมัครสหกิจอัตโนมัติเมื่อหมดวันที่ประกาศ
+
+### Fixed
+- **coopPeriodController.js** — `getPeriods` และ `getAllCoopPeriods` ตอนนี้รัน `autoCloseIfExpired` บนทุกรอบก่อน return — หน้า admin จะแสดงสถานะปิดทันทีที่ `endDate` ผ่านไปแล้ว แทนที่จะรอจนมีคนเรียก `getActivePeriod`
+
 ## [2026-08-27] feat: batch 146 — group supervision (นัดนิเทศหลายคนในบริษัทเดียวกันพร้อมกัน)
 
 ### Added
