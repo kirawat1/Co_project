@@ -61,6 +61,7 @@ export default function IssuePlacementLetterModal({ student, onClose, onSuccess 
                 docNumber: placeDocNumber, docDate: placeDocDate, studentName,
                 studentId: student.studentId, major: student.major || "วิทยาการคอมพิวเตอร์",
                 companyName: student.coop?.company?.name || "....",
+                companyRecipient: student.coop?.company?.contactPerson || undefined,
                 startDate, endDate, deanName, deanPosition,
             });
             setDocBlob(createWordBlob(html));
