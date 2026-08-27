@@ -272,7 +272,7 @@ export default function A_Companies() {
             onChange={(e) => setQ(e.target.value)}
             style={{ width: 320, maxWidth: "100%" }}
           />
-          <button className="btn" style={{ background: '#0369a1' }} onClick={() => { setForm(emptyCompany()); setShowAdd(true); }}>
+          <button className="btn" style={saveBtn} onClick={() => { setForm(emptyCompany()); setShowAdd(true); }}>
             + เพิ่มบริษัท
           </button>
         </div>
@@ -371,7 +371,7 @@ export default function A_Companies() {
 
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 24, marginBottom: 12 }}>
             <h4 style={{ margin: 0, color: '#4c1d95' }}>👥 ข้อมูลพี่เลี้ยง (Mentors)</h4>
-            <button className="btn" style={{ background: '#0284c7', padding: '6px 12px', fontSize: 13 }} onClick={() => { setQuickAddMentor(false); setShowAddMentor(true); }}>+ เพิ่มพี่เลี้ยง</button>
+            <button className="btn" style={saveBtn} onClick={() => { setQuickAddMentor(false); setShowAddMentor(true); }}>+ เพิ่มพี่เลี้ยง</button>
           </div>
 
           {(viewCompany.mentors || []).length === 0 ? (
@@ -393,8 +393,8 @@ export default function A_Companies() {
                     <td style={{ padding: '10px 8px' }} data-label="ตำแหน่ง / แผนก">{m.position} <br /><span style={{ color: '#64748b', fontSize: 12 }}>{m.department}</span></td>
                     <td style={{ padding: '10px 8px' }} data-label="ติดต่อ">{m.phone} <br /><span style={{ color: '#64748b', fontSize: 12 }}>{m.email}</span></td>
                     <td style={{ textAlign: "center", padding: '10px 8px' }}>
-                      <button className="btn-secondary small" onClick={() => { setEditingMentor(m); setMentorForm(m); setShowAddMentor(true); }}>แก้ไข</button>
-                      <button className="btn-danger small" onClick={() => removeMentor(m.id)}>ลบ</button>
+                      <button style={{ ...ghostBtn, height: 30, fontSize: 12 }} onClick={() => { setEditingMentor(m); setMentorForm(m); setShowAddMentor(true); }}>✏️ แก้ไข</button>
+                      <button style={{ ...dangerBtn, height: 30, fontSize: 12 }} onClick={() => removeMentor(m.id)}>🗑️ ลบ</button>
                     </td>
                   </tr>
                 ))}
@@ -416,11 +416,11 @@ export default function A_Companies() {
             เพิ่มบริษัท <b>{justCreatedCompany.name}</b> สำเร็จ! ต้องการเพิ่มข้อมูลพี่เลี้ยงตอนนี้เลยหรือไม่?
           </p>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
-            <button className="btn-secondary" onClick={() => setJustCreatedCompany(null)}>
+            <button style={ghostBtn} onClick={() => setJustCreatedCompany(null)}>
               ข้ามไปก่อน
             </button>
             <button
-              className="btn"
+              style={saveBtn}
               onClick={() => {
                 setViewCompany(justCreatedCompany);
                 setQuickAddMentor(true);
@@ -541,7 +541,7 @@ function CompanyForm({ form, setForm, onSubmit, coopPeriods }: any) {
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10, borderTop: '1px solid #e2e8f0', paddingTop: 20 }}>
-        <button type="submit" className="btn" style={{ background: '#0284c7', padding: '12px 24px', fontSize: 15 }}>💾 บันทึกข้อมูลบริษัท</button>
+        <button type="submit" className="btn" style={saveBtn}>💾 บันทึกข้อมูลบริษัท</button>
       </div>
     </form>
   );
@@ -567,12 +567,14 @@ function MentorForm({ form, setForm, onSubmit }: any) {
         <div><label style={lbl}>เบอร์โทร <span style={{ color: 'red' }}>*</span></label><input required className="input" name="phone" value={form.phone || ""} onChange={handleChange} /></div>
       </div>
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
-        <button type="submit" className="btn" style={{ background: '#059669' }}>💾 บันทึกข้อมูลพี่เลี้ยง</button>
+        <button type="submit" className="btn" style={saveBtn}>💾 บันทึกข้อมูลพี่เลี้ยง</button>
       </div>
     </form>
   );
 }
 
-const ghostBtn: React.CSSProperties = { background: "#fff", color: "#0074B7", border: "1px solid rgba(10,132,255,.25)", height: 34, borderRadius: 8, padding: '0 12px', cursor: 'pointer', fontWeight: 600, fontSize: 13 };
+const ghostBtn: React.CSSProperties = { background: "#fff", color: "#0074B7", boxShadow: "none", border: "1px solid rgba(10,132,255,.25)", height: 34, borderRadius: 8, padding: '0 12px', cursor: 'pointer', fontWeight: 600, fontSize: 13 };
+const saveBtn: React.CSSProperties = { background: "#0074B7", color: "#fff", boxShadow: "none", border: "1px solid rgba(10,132,255,.25)", height: 36, borderRadius: 8, padding: '0 16px', cursor: 'pointer', fontWeight: 600, fontSize: 14 };
+const dangerBtn: React.CSSProperties = { ...ghostBtn, color: '#ef4444', borderColor: '#ef4444' } as React.CSSProperties;
 const td: React.CSSProperties = { padding: "14px 16px", fontSize: 14, color: '#334155', verticalAlign: 'middle' };
 const lbl = { display: 'block', fontSize: 12, fontWeight: 600, color: '#64748b', margin: "0 0 4px 0" };
