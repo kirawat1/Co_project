@@ -7,7 +7,8 @@ exports.getPeriods = async (req, res) => {
     const periods = await prisma.coopPeriod.findMany({
       orderBy: [{ academicYear: "desc" }, { semester: "desc" }],
     });
-    res.json({ ok: true, periods });
+    const updated = await Promise.all(periods.map(p => autoCloseIfExpired(p)));
+    res.json({ ok: true, periods: updated });
   } catch (error) {
     console.error("Get periods error:", error);
     res.status(500).json({ ok: false, error: "Server error" });
@@ -161,7 +162,8 @@ exports.getAllCoopPeriods = async (req, res) => {
         { semester: 'desc' }      // เรียงเทอมล่าสุดขึ้นก่อน
       ]
     });
-    res.json({ ok: true, periods });
+    const updated = await Promise.all(periods.map(p => autoCloseIfExpired(p)));
+    res.json({ ok: true, periods: updated });
   } catch (err) {
     console.error("Error fetching CoopPeriods:", err);
     res.status(500).json({ ok: false, message: "Server Error" });
