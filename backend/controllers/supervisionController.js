@@ -744,6 +744,11 @@ exports.confirmGroupSupervision = async (req, res) => {
       where: { id: { in: appointmentIds.map(Number) } },
     });
 
+    // ตรวจว่าพบทุก id ที่ส่งมา
+    if (appts.length !== appointmentIds.length) {
+      return res.status(404).json({ ok: false, message: 'ไม่พบ appointment บางรายการ' });
+    }
+
     // ตรวจสิทธิ์ — ทุก appointment ต้องเป็นของ teacher นี้
     const unauthorized = appts.find(a => a.teacherId !== teacher.id);
     if (unauthorized) {
@@ -767,12 +772,10 @@ exports.confirmGroupSupervision = async (req, res) => {
     const groupId = appts.length > 1 ? require('crypto').randomUUID() : null;
     const confirmedDateObj = new Date(confirmedDate);
 
-    for (const appt of appts) {
-      await prisma.supervisionAppointment.update({
-        where: { id: appt.id },
-        data: { confirmedDate: confirmedDateObj, status: 'DATE_CONFIRMED', groupId },
-      });
-    }
+    await prisma.supervisionAppointment.updateMany({
+      where: { id: { in: appts.map(a => a.id) } },
+      data: { confirmedDate: confirmedDateObj, status: 'DATE_CONFIRMED', groupId },
+    });
 
     res.json({ ok: true, groupId, updatedCount: appts.length });
   } catch (err) {
