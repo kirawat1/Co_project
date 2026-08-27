@@ -121,11 +121,12 @@ export const createPlacementPDF = async (
 
   // 4. เรื่อง & เรียน
   doc.text("เรื่อง  ขอส่งตัวนักศึกษาเข้ารับการปฏิบัติงานสหกิจศึกษา", 20, 85);
-  doc.text(
-    `เรียน  ผู้จัดการ / ผู้อำนวยการ / หัวหน้างานทรัพยากรบุคคล บริษัท ${companyName}`,
-    20,
-    92,
-  );
+  const companyContactPerson = student.coop?.company?.contactPerson || "";
+  const companyContactPos = student.coop?.company?.contactPersonPosition || "";
+  const recipientStr = companyContactPerson
+    ? `${companyContactPerson}${companyContactPos ? ` ${companyContactPos}` : ""}`
+    : `ผู้จัดการบริษัท ${companyName}`;
+  doc.text(`เรียน  ${recipientStr}`, 20, 92);
 
   // 5. เนื้อหา
   const p1 = `       ตามแบบตอบรับนักศึกษาปฏิบัติงานสหกิจศึกษา ที่ทางบริษัท ${companyName} ยินดีรับนักศึกษาสาขาวิชา${majorName} วิทยาลัยการคอมพิวเตอร์ มหาวิทยาลัยขอนแก่น เข้ารับการปฏิบัติงานสหกิจศึกษา จำนวน 1 คน คือ ${studentName} รหัสประจำตัว ${studentId}`;
@@ -178,9 +179,9 @@ export const createPlacementPDF = async (
 
   doc.setFontSize(14);
   doc.text("วิทยาลัยการคอมพิวเตอร์", 20, currentY);
-  doc.text("งานสหกิจศึกษา", 20, currentY + 6);
-  doc.text("โทรศัพท์ 0 4300 9700 ต่อ 50523", 20, currentY + 12);
-  doc.text("Email: coop.cp@kku.ac.th", 20, currentY + 18);
+  doc.text("โทรศัพท์ 0 4300 9700 ต่อ 50523", 20, currentY + 6);
+  doc.text("Email: wijika@kku.ac.th", 20, currentY + 12);
+  doc.text("ผู้ร่าง/พิมพ์: วิจิตรา ขจร", 190, currentY + 12, { align: "right" });
 
   return doc;
 };

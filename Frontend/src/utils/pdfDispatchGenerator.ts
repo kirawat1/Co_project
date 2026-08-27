@@ -136,7 +136,9 @@ export const createDispatchPDF = async (
     profile.coop?.company?.contactPersonPosition ||
     "..............";
 
-  doc.text(`เรียน   กรรมการผู้จัดการ ${companyName}`, margin, y);
+  const recipientName = companyContact !== ".............." ? companyContact : `กรรมการผู้จัดการ ${companyName}`;
+  const recipientSuffix = companyContact !== ".............." && companyPosition !== ".............." ? ` ${companyPosition}` : "";
+  doc.text(`เรียน   ${recipientName}${recipientSuffix}`, margin, y);
 
   // 6. สิ่งที่ส่งมาด้วย
   y += 8;

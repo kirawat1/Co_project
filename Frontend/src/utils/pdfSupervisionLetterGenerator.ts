@@ -186,7 +186,7 @@ export const createSupervisionLetterPDF = async (
   y += splitP2.length * 7 + 2;
 
   // ย่อหน้า 3
-  const p3 = `       สาขาวิชาวิทยาการคอมพิวเตอร์ วิทยาลัยการคอมพิวเตอร์ มหาวิทยาลัยขอนแก่น ใคร่ขอขอบคุณท่านที่ให้ความอนุเคราะห์เข้านิเทศงานนักศึกษา และหวังเป็นอย่างยิ่งว่าจะได้รับความร่วมมือจากท่านด้วยดีตลอดไป`;
+  const p3 = `       สาขาวิชาวิทยาการคอมพิวเตอร์ วิทยาลัยการคอมพิวเตอร์ มหาวิทยาลัยขอนแก่น ใคร่ขอขอบคุณท่านที่ให้ความอนุเคราะห์เข้านิเทศงาน และร่วมประเมินเบื้องต้นและแจ้งลักษณะการมอบหมายงานของนักศึกษาในครั้งนี้ด้วย จักขอบพระคุณยิ่ง`;
   const splitP3 = doc.splitTextToSize(p3, contentWidth);
   doc.text(splitP3, margin, y);
   y += splitP3.length * 7 + 15;
@@ -227,10 +227,11 @@ export const createSupervisionLetterPDF = async (
   y = 265;
   doc.setFontSize(14);
   doc.text(`สาขาวิชาวิทยาการคอมพิวเตอร์`, margin, y);
-  doc.text(`โทรศัพท์ 043-009700 ต่อ 50523`, margin, y + 5);
-  doc.text(`อีเมล: wijika@kku.ac.th`, margin, y + 10);
+  doc.text(`วิทยาลัยการคอมพิวเตอร์`, margin, y + 5);
+  doc.text(`โทรศัพท์ 0 4300 9700 ต่อ 50523`, margin, y + 10);
+  doc.text(`Email: wijika@kku.ac.th`, margin, y + 15);
 
-  doc.text(`ผู้ร่าง/พิมพ์ : วิจิตรา ขจร`, pageWidth - margin, y + 10, {
+  doc.text(`ผู้ร่าง/พิมพ์ : วิจิตรา ขจร`, pageWidth - margin, y + 15, {
     align: "right",
   });
 

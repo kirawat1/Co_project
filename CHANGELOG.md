@@ -1,5 +1,12 @@
 # CHANGELOG — Co_project
 
+## [2026-08-27] fix: batch 148 — แก้ format หนังสือทั้ง 3 ประเภทให้ตรงกับต้นแบบจริง
+
+### Changed
+- **pdfDispatchGenerator.ts** — ฟิลด์ "เรียน" ใช้ชื่อ+ตำแหน่ง contact person จริง แทน "กรรมการผู้จัดการ [บริษัท]" (fallback ถ้าไม่มี contact)
+- **pdfGeneratorPlacement.ts** — ฟิลด์ "เรียน" ใช้ contact person, แก้ email footer `coop.cp@kku.ac.th` → `wijika@kku.ac.th`, ลบ "งานสหกิจศึกษา" ออกจาก footer, เพิ่ม "ผู้ร่าง/พิมพ์: วิจิตรา ขจร"
+- **pdfSupervisionLetterGenerator.ts** — แก้ย่อหน้า 3 ให้ตรงกับต้นแบบ ("ร่วมประเมินเบื้องต้นและแจ้งลักษณะ..."), แก้เบอร์โทร `043-009700` → `0 4300 9700`, เพิ่ม "วิทยาลัยการคอมพิวเตอร์" ใน footer, แก้ label email "อีเมล" → "Email"
+
 ## [2026-08-27] refactor: batch 147 — standardize date format to "10 ส.ค. 2568" (th-TH medium)
 
 ### Changed
