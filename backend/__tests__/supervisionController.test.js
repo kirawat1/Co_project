@@ -441,6 +441,58 @@ describe('getSupervisionsByCompany', () => {
 });
 
 // ===========================
+// confirmGroupSupervision
+// ===========================
+describe('confirmGroupSupervision', () => {
+  const { confirmGroupSupervision } = require('../controllers/supervisionController');
+
+  const makeReq = (body) => ({ user: { id: 1 }, body });
+
+  test('400 — missing appointmentIds', async () => {
+    const res = makeRes();
+    await confirmGroupSupervision(makeReq({ confirmedDate: '2026-04-10T10:00:00.000Z' }), res);
+    expect(res.status).toHaveBeenCalledWith(400);
+  });
+
+  test('400 — missing confirmedDate', async () => {
+    const res = makeRes();
+    await confirmGroupSupervision(makeReq({ appointmentIds: [1] }), res);
+    expect(res.status).toHaveBeenCalledWith(400);
+  });
+
+  test('403 — appointment belongs to another teacher', async () => {
+    prisma.teacher.findUnique.mockResolvedValue({ id: 5 });
+    // teacherId = 99 ≠ 5
+    prisma.supervisionAppointment.findMany.mockResolvedValue([
+      { id: 1, teacherId: 99, proposedDates: JSON.stringify(['2026-04-10T00:00:00.000Z|10:00|ONSITE']) }
+    ]);
+    const res = makeRes();
+    await confirmGroupSupervision(makeReq({ appointmentIds: [1], confirmedDate: '2026-04-10T10:00:00.000Z' }), res);
+    expect(res.status).toHaveBeenCalledWith(403);
+  });
+
+  test('200 — confirms group, returns groupId', async () => {
+    prisma.teacher.findUnique.mockResolvedValue({ id: 1 });
+    prisma.supervisionAppointment.findMany.mockResolvedValue([
+      { id: 1, teacherId: 1, proposedDates: JSON.stringify(['2026-04-10T00:00:00.000Z|10:00|ONSITE']) },
+      { id: 2, teacherId: 1, proposedDates: JSON.stringify(['2026-04-10T00:00:00.000Z|10:00|ONSITE']) },
+    ]);
+    prisma.supervisionAppointment.update = jest.fn().mockResolvedValue({});
+    const res = makeRes();
+    await confirmGroupSupervision(
+      makeReq({ appointmentIds: [1, 2], confirmedDate: '2026-04-10T10:00:00.000Z' }),
+      res
+    );
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: true, updatedCount: 2 }));
+    // groupId ต้องเป็น UUID string
+    const { groupId } = res.json.mock.calls[0][0];
+    expect(typeof groupId).toBe('string');
+    expect(groupId).toMatch(/^[0-9a-f-]{36}$/);
+    expect(prisma.supervisionAppointment.update).toHaveBeenCalledTimes(2);
+  });
+});
+
+// ===========================
 // getSupervisionsForTeacher
 // ===========================
 describe('getSupervisionsForTeacher', () => {
