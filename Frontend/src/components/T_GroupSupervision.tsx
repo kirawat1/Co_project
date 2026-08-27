@@ -41,15 +41,20 @@ export default function T_GroupSupervision() {
   const [selectedDateEntry, setSelectedDateEntry] = useState<string>("");
   const [checkedIds, setCheckedIds] = useState<Set<number>>(new Set());
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
 
   const fetchData = async () => {
     setLoading(true);
+    setError(null);
     try {
       const res = await axios.get("/api/teacher/supervisions/by-company", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.data.ok) setCompanies(res.data.companies);
-    } catch {}
+    } catch {
+      setError("ไม่สามารถโหลดข้อมูลได้ กรุณาลองใหม่อีกครั้ง");
+    }
     setLoading(false);
   };
 
@@ -96,6 +101,7 @@ export default function T_GroupSupervision() {
   const handleConfirm = async () => {
     if (!modal || !selectedDateEntry || checkedIds.size === 0) return;
     setSubmitting(true);
+    setConfirmError(null);
     try {
       const [dPart, tPart = "00:00"] = selectedDateEntry.split("|");
       const confirmedDate = new Date(`${dPart.slice(0, 10)}T${tPart}:00`).toISOString();
@@ -107,12 +113,17 @@ export default function T_GroupSupervision() {
       if (res.data.ok) {
         setModal(null);
         fetchData();
+      } else {
+        setConfirmError(res.data.message || "เกิดข้อผิดพลาด");
       }
-    } catch {}
+    } catch {
+      setConfirmError("ไม่สามารถยืนยันการนัดหมายได้ กรุณาลองใหม่");
+    }
     setSubmitting(false);
   };
 
   if (loading) return <div style={{ padding: 32 }}><Spinner /></div>;
+  if (error) return <div style={{ padding: 32, color: '#ef4444', textAlign: 'center' }}>{error}</div>;
   if (companies.length === 0) return (
     <div style={{ padding: 32, color: "#64748b", textAlign: "center" }}>
       ยังไม่มีการนัดหมายที่รอยืนยัน
@@ -232,6 +243,7 @@ export default function T_GroupSupervision() {
                 </label>
               );
             })}
+            {confirmError && <div style={{ color: '#ef4444', fontSize: 13, marginBottom: 8 }}>{confirmError}</div>}
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 20 }}>
               <button
                 onClick={() => setModal(null)}
