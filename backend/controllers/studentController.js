@@ -234,6 +234,10 @@ exports.getStudents = async (req, res) => {
     const statuses = req.query.statuses ? req.query.statuses.split(',').filter(Boolean) : [];
     const studyPrograms = req.query.studyProgram ? req.query.studyProgram.split(',').filter(Boolean) : [];
 
+    const ALLOWED_SORT = ['studentId', 'firstName', 'lastName', 'studyProgram'];
+    const sortBy = ALLOWED_SORT.includes(req.query.sortBy) ? req.query.sortBy : 'studentId';
+    const sortDir = req.query.sortDir === 'desc' ? 'desc' : 'asc';
+
     const conditions = [{ deletedAt: null }];
     if (coopPeriodId) conditions.push({ coop: { coopPeriodId } });
     if (statuses.length > 0) conditions.push({ coop: { status: { in: statuses } } });
@@ -274,7 +278,7 @@ exports.getStudents = async (req, res) => {
           documents: true,
           coopApplicationForm: { select: { gradeSheetUrl: true } },
         },
-        orderBy: { studentId: "asc" },
+        orderBy: { [sortBy]: sortDir },
       }),
       prisma.student.count({ where }),
     ]);
