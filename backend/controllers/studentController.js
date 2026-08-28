@@ -607,3 +607,67 @@ exports.updateStudentBasicInfo = async (req, res) => {
   }
 };
 
+// POST /api/admin/students/create — เพิ่มนักศึกษาทีละคน (staff only)
+exports.createStudentSingle = async (req, res) => {
+  try {
+    const {
+      studentId, prefix, firstName, lastName, firstNameEn, lastNameEn,
+      email, phone, major, studyProgram, year, gpa, advisorName,
+    } = req.body;
+
+    const missing = ["studentId", "firstName", "lastName", "email"].filter(f => !req.body[f]?.toString().trim());
+    if (missing.length) return res.status(400).json({ ok: false, message: `กรุณากรอก: ${missing.join(", ")}` });
+
+    const emailLower = email.trim().toLowerCase();
+    if (!/^[^@\s]+@(kkumail\.com|kku\.ac\.th)$/i.test(emailLower)) {
+      return res.status(400).json({ ok: false, message: "กรุณาใช้อีเมล @kkumail.com หรือ @kku.ac.th" });
+    }
+
+    const prefixMap = { นาย: "MR", นางสาว: "MS", mr: "MR", ms: "MS", mrs: "MS" };
+    const prefixEnum = prefix ? (prefixMap[prefix.toLowerCase()] || (["MR", "MS"].includes(prefix.toUpperCase()) ? prefix.toUpperCase() : undefined)) : undefined;
+
+    const studyProgramEnum = studyProgram === "special" ? "special" : studyProgram === "normal" ? "normal" : undefined;
+    const gpaFloat = gpa ? parseFloat(gpa) : undefined;
+
+    let user;
+    await prisma.$transaction(async (tx) => {
+      const existEmail = await tx.user.findFirst({ where: { OR: [{ email: emailLower }, { username: emailLower }] } });
+      if (existEmail) throw Object.assign(new Error("อีเมลนี้มีในระบบแล้ว"), { is409: true });
+
+      const existId = await tx.student.findFirst({ where: { studentId: studentId.trim(), deletedAt: null } });
+      if (existId) throw Object.assign(new Error("รหัสนักศึกษานี้มีในระบบแล้ว"), { is409: true });
+
+      user = await tx.user.create({
+        data: {
+          username: emailLower, email: emailLower, role: "student", provider: "google",
+          student: {
+            create: {
+              studentId: studentId.trim(),
+              prefix: prefixEnum,
+              firstName: firstName.trim(),
+              lastName: lastName.trim(),
+              firstNameEn: firstNameEn?.trim() || null,
+              lastNameEn: lastNameEn?.trim() || null,
+              email: emailLower,
+              phone: phone?.trim() || null,
+              major: major?.trim() || null,
+              studyProgram: studyProgramEnum,
+              year: year?.toString().trim() || null,
+              gpa: gpaFloat && !isNaN(gpaFloat) ? gpaFloat : 0,
+              advisorName: advisorName?.trim() || null,
+            },
+          },
+        },
+        include: { student: true },
+      });
+    });
+
+    res.status(201).json({ ok: true, message: "เพิ่มนักศึกษาเรียบร้อย", data: { id: user.id, email: user.email, studentId: user.student.studentId } });
+  } catch (err) {
+    if (err.is409) return res.status(409).json({ ok: false, message: err.message });
+    if (err.code === "P2002") return res.status(409).json({ ok: false, message: "ข้อมูลซ้ำกับในระบบ (รหัสนักศึกษาหรืออีเมล)" });
+    console.error("CREATE STUDENT SINGLE ERROR:", err);
+    res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดที่ Server" });
+  }
+};
+
