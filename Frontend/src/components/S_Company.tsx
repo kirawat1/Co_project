@@ -409,6 +409,7 @@ function CompanyNameSearch({ value, onChange, onSelect }: {
     const [suggestions, setSuggestions] = useState<any[]>([]);
     const [open, setOpen] = useState(false);
     const [selected, setSelected] = useState<any>(null);
+    const [noResult, setNoResult] = useState(false);
     const wrapRef = useRef<HTMLDivElement>(null);
     const token = localStorage.getItem("coop.token");
 
@@ -421,8 +422,10 @@ function CompanyNameSearch({ value, onChange, onSelect }: {
                     headers: { Authorization: `Bearer ${token}` },
                 });
                 const data = await res.json();
-                setSuggestions(data.data || []);
-                setOpen((data.data || []).length > 0);
+                const results = data.data || [];
+                setSuggestions(results);
+                setOpen(results.length > 0);
+                setNoResult(results.length === 0);
             } catch { setSuggestions([]); }
         }, 300);
         return () => clearTimeout(t);
@@ -446,6 +449,7 @@ function CompanyNameSearch({ value, onChange, onSelect }: {
     const handleClear = () => {
         setSelected(null);
         onChange("");
+        setNoResult(false);
     };
 
     return (
@@ -464,6 +468,11 @@ function CompanyNameSearch({ value, onChange, onSelect }: {
                     onFocus={() => suggestions.length > 0 && setOpen(true)}
                     placeholder="พิมพ์ชื่อบริษัทเพื่อค้นหา..."
                 />
+            )}
+            {!selected && noResult && value.length >= 2 && (
+                <div style={{ fontSize: 11, color: "#64748b", marginTop: 4, padding: "4px 8px", background: "#fafafa", borderRadius: 4, border: "1px solid #e2e8f0" }}>
+                    ไม่พบบริษัทที่ตรงกัน — กรอกข้อมูลด้านล่างเพื่อสร้างบริษัทใหม่
+                </div>
             )}
             {open && suggestions.length > 0 && (
                 <div style={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 999, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", marginTop: 2, maxHeight: 260, overflowY: "auto" }}>
