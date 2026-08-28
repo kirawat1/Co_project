@@ -124,9 +124,8 @@ model StudentCoop {
   placeDocDate   DateTime? // วันที่ออกหนังสือส่งตัว
   placeLetterUrl String? // ไฟล์ PDF ส่งตัว 
 
-  // Mentor (พี่เลี้ยง) อาจจะมาใส่ทีหลังตอนเริ่มฝึกงานแล้ว
-  mentorId String?
-  mentor   Mentor? @relation(fields: [mentorId], references: [id])
+  // Mentor (พี่เลี้ยง) อาจจะมาใส่ทีหลังตอนเริ่มฝึกงานแล้ว (many-to-many)
+  mentors Mentor[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

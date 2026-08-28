@@ -1,5 +1,33 @@
 # CHANGELOG — Co_project
 
+## [2026-08-28] feat: นำเข้าบริษัทจาก Excel (bulk import)
+
+### Added
+- **A_CompanyImport.tsx** — modal อ่าน .xlsx ด้วย SheetJS, parse ที่อยู่ไทยออกเป็น addressNo/moo/road/subDistrict/district/province/zipcode, preview table, POST ไป bulk endpoint
+- **companyController.js** — `bulkImportCompanies`: สร้างบริษัทใหม่ skip ซ้ำตามชื่อ
+- **companyRoutes.js** — `POST /api/companies/bulk` (staff เท่านั้น)
+- **A_Company.tsx** — ปุ่ม "📥 นำเข้า Excel" เปิด modal, reload list หลัง import
+
+## [2026-08-28] feat: student เลือกพี่เลี้ยงได้หลายคน (many-to-many)
+
+### Changed
+- **schema.prisma** — เปลี่ยน `StudentCoop.mentorId` (FK เดียว) → `mentors Mentor[]` (implicit many-to-many join table)
+- **migration 20260828000000** — สร้าง `_MentorToStudentCoop` join table, migrate ข้อมูล `mentorId` เดิม, drop column `mentorId`
+- **studentController.js** — `mentorId` → `mentorIds[]`, update include `mentor` → `mentors`
+- **adminDocController.js** — include `mentor` → `mentors`
+- **S_ProfilePage.tsx** — เปลี่ยน single dropdown เป็น multi-select + chip UI, ส่ง `mentorIds[]` ตอน save
+
+## [2026-08-28] feat: เพิ่มพี่เลี้ยงหลายคนต่อเนื่องได้ในครั้งเด���ยว
+
+### Changed
+- **S_Company.tsx** — เพิ่มปุ่ม "+ บันทึกและเพิ่มคนถัดไป" ใน MentorForm: save พี่เลี้ยงปัจจุบัน + reset form โดยไม่ปิด modal ให้กรอกคนถัดไปได้เลย (ปุ่มนี้ปรากฏเฉพาะตอน add ไม่ใช่ตอน edit)
+
+## [2026-08-28] feat: นักศึกษาสามารถแก้ไขข้อมูลบริษัทของผู้อื่นได้
+
+### Changed
+- **S_Company.tsx** — `handleSelectExisting` เก็บ `id` + `createdById` ไว้ใน form เมื่อเลือกบริษัทจาก autocomplete; `saveAdd` ตรวจ `form.id` — ถ้ามีอยู่แล้วจะ PUT (update) แทน POST (create ใหม่); ลบ `createdById !== userId` check ออกจาก `saveEdit` เพื่อให้นักศึกษาทุกคนแก้ไขข้อมูลบริษัทได้
+- **companyController.js** — ลบ ownership check (createdById) ออกจาก `updateCompany` เพื่อให้นักศึกษาทุกคน (ไม่ใช่เฉพาะเจ้าของ) อัปเดตข้อมูลบริษัทได้
+
 ## [2026-08-27] fix: batch 148 — แก้ format หนังสือทั้ง 3 ประเภทให้ตรงกับต้นแบบจริง
 
 ### Changed

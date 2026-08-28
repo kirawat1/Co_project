@@ -13,7 +13,7 @@ exports.getMyProfile = async (req, res) => {
         coop: {
           include: {
             company: { include: { mentors: true } },
-            mentor: true,
+            mentors: true,
           },
         },
         coopApplicationForm: true,
@@ -170,21 +170,24 @@ exports.updateMyProfile = async (req, res) => {
       // เช็คจาก 'undefined' แทนการเช็ค truthy value
       // เพื่อให้ทำงานได้แม้มีการส่ง { companyId: null } มาก็ตาม
       if (data.companyId !== undefined) {
+        const mentorConnect = Array.isArray(data.mentorIds) && data.mentorIds.length > 0
+          ? { set: data.mentorIds.map(id => ({ id })) }
+          : { set: [] };
         updatedCoop = await tx.studentCoop.upsert({
           where: { studentId: student.id },
           update: {
             companyId: data.companyId,
-            mentorId: data.mentorId || null,
+            mentors: mentorConnect,
           },
           create: {
             studentId: student.id,
             companyId: data.companyId,
-            mentorId: data.mentorId || null,
+            mentors: { connect: Array.isArray(data.mentorIds) ? data.mentorIds.map(id => ({ id })) : [] },
             status: "NOT_SUBMITTED",
           },
           include: {
             company: { include: { mentors: true } },
-            mentor: true,
+            mentors: true,
           },
         });
       }
@@ -274,7 +277,7 @@ exports.getStudents = async (req, res) => {
         where,
         include: {
           user: { select: { email: true, username: true } },
-          coop: { include: { company: true, mentor: true } },
+          coop: { include: { company: true, mentors: true } },
           documents: true,
           coopApplicationForm: { select: { gradeSheetUrl: true } },
         },
