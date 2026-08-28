@@ -1,7 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // Frontend/src/components/S_Company.tsx
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useRef } from "react";
 import { apiFetch } from "../utils/apiFetch";
 
 interface MentorRecord {
@@ -400,10 +400,117 @@ function Modal({ title, onClose, children }: any) {
     )
 }
 
+// Autocomplete สำหรับชื่อบริษัท
+function CompanyNameSearch({ value, onChange, onSelect }: {
+    value: string;
+    onChange: (v: string) => void;
+    onSelect: (company: any) => void;
+}) {
+    const [suggestions, setSuggestions] = useState<any[]>([]);
+    const [open, setOpen] = useState(false);
+    const [selected, setSelected] = useState<any>(null);
+    const wrapRef = useRef<HTMLDivElement>(null);
+    const token = localStorage.getItem("coop.token");
+
+    useEffect(() => {
+        if (selected) return;
+        const t = setTimeout(async () => {
+            if (!value || value.length < 2) { setSuggestions([]); setOpen(false); return; }
+            try {
+                const res = await fetch(`/api/companies/search?q=${encodeURIComponent(value)}`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+                const data = await res.json();
+                setSuggestions(data.data || []);
+                setOpen((data.data || []).length > 0);
+            } catch { setSuggestions([]); }
+        }, 300);
+        return () => clearTimeout(t);
+    }, [value, selected]);
+
+    useEffect(() => {
+        const handler = (e: MouseEvent) => {
+            if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
+        };
+        document.addEventListener("mousedown", handler);
+        return () => document.removeEventListener("mousedown", handler);
+    }, []);
+
+    const handleSelect = (c: any) => {
+        setSelected(c);
+        setOpen(false);
+        setSuggestions([]);
+        onSelect(c);
+    };
+
+    const handleClear = () => {
+        setSelected(null);
+        onChange("");
+    };
+
+    return (
+        <div ref={wrapRef} style={{ position: "relative" }}>
+            {selected ? (
+                <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", border: "1px solid #22c55e", borderRadius: 6, background: "#f0fdf4" }}>
+                    <span style={{ fontSize: 13, flex: 1, color: "#15803d" }}>✅ {selected.name}</span>
+                    <button type="button" onClick={handleClear} style={{ border: "none", background: "none", color: "#ef4444", cursor: "pointer", fontSize: 16, lineHeight: 1 }}>✕</button>
+                </div>
+            ) : (
+                <input
+                    required
+                    className="input"
+                    value={value}
+                    onChange={e => { onChange(e.target.value); setSelected(null); }}
+                    onFocus={() => suggestions.length > 0 && setOpen(true)}
+                    placeholder="พิมพ์ชื่อบริษัทเพื่อค้นหา..."
+                />
+            )}
+            {open && suggestions.length > 0 && (
+                <div style={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 999, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", marginTop: 2, maxHeight: 260, overflowY: "auto" }}>
+                    <div style={{ padding: "6px 12px", fontSize: 11, color: "#94a3b8", borderBottom: "1px solid #f1f5f9" }}>พบ {suggestions.length} บริษัทที่คล้ายกัน — เลือกเพื่อใช้ข้อมูลที่มีอยู่</div>
+                    {suggestions.map(c => (
+                        <div key={c.id} onMouseDown={() => handleSelect(c)} style={{ padding: "10px 14px", cursor: "pointer", borderBottom: "1px solid #f8fafc", fontSize: 13 }}
+                            onMouseEnter={e => (e.currentTarget.style.background = "#f0f9ff")}
+                            onMouseLeave={e => (e.currentTarget.style.background = "")}>
+                            <div style={{ fontWeight: 600, color: "#1e293b" }}>{c.name}</div>
+                            {c.nameEn && <div style={{ fontSize: 11, color: "#64748b" }}>{c.nameEn}</div>}
+                            {c.province && <div style={{ fontSize: 11, color: "#94a3b8" }}>{c.province}</div>}
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
+
 // 🟢 3. รับค่า coopPeriods ใน CompanyForm และดึงไปสร้าง Dropdown
 function CompanyForm({ form, setForm, onSubmit, coopPeriods }: any) {
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         setForm({ ...form, [e.target.name]: e.target.value });
+    };
+
+    const handleSelectExisting = (c: any) => {
+        setForm({
+            ...form,
+            name: c.name || "",
+            nameEn: c.nameEn || "",
+            address: c.address || "",
+            addressNo: c.addressNo || "",
+            moo: c.moo || "",
+            soi: c.soi || "",
+            road: c.road || "",
+            subDistrict: c.subDistrict || "",
+            district: c.district || "",
+            province: c.province || "",
+            zipcode: c.zipcode || "",
+            phone: c.phone || "",
+            fax: c.fax || "",
+            email: c.email || "",
+            website: c.website || "",
+            pastYears: c.pastYears || "",
+            contactPerson: c.contactPerson || "",
+            contactPosition: c.contactPosition || "",
+        });
     };
 
     return (
@@ -412,7 +519,14 @@ function CompanyForm({ form, setForm, onSubmit, coopPeriods }: any) {
             <div>
                 <h4 style={{ margin: '0 0 10px 0', color: '#475569' }}>1. ข้อมูลทั่วไป</h4>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                    <div><label style={lbl}>ชื่อบริษัท (ไทย) <span style={{ color: 'red' }}>*</span></label><input required className="input" name="name" value={form.name || ""} onChange={handleChange} /></div>
+                    <div>
+                        <label style={lbl}>ชื่อบริษัท (ไทย) <span style={{ color: 'red' }}>*</span></label>
+                        <CompanyNameSearch
+                            value={form.name || ""}
+                            onChange={v => setForm({ ...form, name: v })}
+                            onSelect={handleSelectExisting}
+                        />
+                    </div>
                     <div><label style={lbl}>ชื่อบริษัท (อังกฤษ)</label><input className="input" name="nameEn" value={form.nameEn || ""} onChange={handleChange} /></div>
                 </div>
             </div>

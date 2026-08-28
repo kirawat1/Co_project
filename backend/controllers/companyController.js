@@ -11,6 +11,22 @@ function safeUrl(raw) {
 }
 
 // ---------------- Company ----------------
+exports.searchCompanies = async (req, res) => {
+  try {
+    const q = (req.query.q || '').trim();
+    if (!q || q.length < 2) return res.json({ ok: true, data: [] });
+    const companies = await prisma.company.findMany({
+      where: { OR: [{ name: { contains: q } }, { nameEn: { contains: q } }] },
+      take: 10,
+      orderBy: { name: 'asc' },
+    });
+    res.json({ ok: true, data: companies });
+  } catch (err) {
+    console.error("Search Companies Error:", err);
+    res.status(500).json({ ok: false, message: "ค้นหาบริษัทไม่สำเร็จ" });
+  }
+};
+
 exports.getCompanies = async (req, res) => {
   try {
     const companies = await prisma.company.findMany({
