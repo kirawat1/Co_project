@@ -27,6 +27,36 @@ exports.searchCompanies = async (req, res) => {
   }
 };
 
+exports.bulkImportCompanies = async (req, res) => {
+  try {
+    const rows = req.body.companies;
+    if (!Array.isArray(rows) || rows.length === 0) {
+      return res.status(400).json({ ok: false, message: 'ไม่มีข้อมูลบริษัท' });
+    }
+    const userId = req.user?.id || null;
+    let created = 0, skipped = 0;
+    for (const row of rows) {
+      const name = (row.name || '').trim();
+      if (!name) { skipped++; continue; }
+      const exists = await prisma.company.findFirst({ where: { name } });
+      if (exists) { skipped++; continue; }
+      await prisma.company.create({
+        data: {
+          name,
+          address: row.address || null,
+          pastYears: row.pastYears || null,
+          createdById: userId,
+        },
+      });
+      created++;
+    }
+    res.json({ ok: true, created, skipped });
+  } catch (err) {
+    console.error('Bulk Import Error:', err);
+    res.status(500).json({ ok: false, message: 'นำเข้าไม่สำเร็จ' });
+  }
+};
+
 exports.getCompanies = async (req, res) => {
   try {
     const companies = await prisma.company.findMany({
@@ -82,10 +112,7 @@ exports.addCompany = async (req, res) => {
 // แก้ไขบริษัท// แก้ไขบริษัท// แก้ไขบริษัท
 exports.updateCompany = async (req, res) => {
   try {
-    // ✅ 1. ดึง ID ออกมาให้ครอบคลุม (เผื่อ Middleware ใช้ req.userId หรือ req.user.id)
-    const currentUserId = req.userId || (req.user && req.user.id);
-    
-    const { 
+    const {
         name, nameEn, 
         address, addressNo, moo, soi, road, 
         subDistrict, district, province, zipcode, 
@@ -97,12 +124,6 @@ exports.updateCompany = async (req, res) => {
     await prisma.$transaction(async (tx) => {
       const company = await tx.company.findUnique({ where: { id: req.params.id } });
       if (!company) throw Object.assign(new Error("ไม่พบบริษัท"), { is404: true });
-
-      const currentUser = await tx.user.findUnique({ where: { id: Number(currentUserId) } });
-      const isStaff = currentUser && currentUser.role === "staff";
-      if (!isStaff && company.createdById !== Number(currentUserId)) {
-        throw Object.assign(new Error("ไม่มีสิทธิ์แก้ไขบริษัทนี้"), { is403: true });
-      }
 
       if (website && !safeUrl(website)) {
         throw Object.assign(new Error('website ต้องเป็น URL แบบ http/https เท่านั้น'), { is400: true });

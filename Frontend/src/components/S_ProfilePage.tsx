@@ -24,7 +24,7 @@ interface StudentCompany {
   contactPosition?: string;
   phone?: string;
   mentors: Mentor[];
-  mentor?: Mentor;
+  selectedMentors?: Mentor[];
 }
 
 interface StudentProfile {
@@ -51,8 +51,8 @@ interface StudentProfile {
   coopAdvisorId?: number | null;
   coop?: {
     company: StudentCompany;
-    mentor?: Mentor;
-    status?: string; // สถานะจริงจะอยู่ตรงนี้ (เช่น NOT_SUBMITTED, APPLYING, QUALIFIED)
+    mentors?: Mentor[];
+    status?: string;
   };
 }
 interface StudentCompany {
@@ -71,7 +71,7 @@ interface StudentCompany {
   contactPosition?: string;
   phone?: string;
   mentors: Mentor[];
-  mentor?: Mentor;
+  selectedMentors?: Mentor[];
 }
 /* ================= ADVISOR ROW ================= */
 function AdvisorRow({
@@ -186,7 +186,7 @@ export default function S_ProfilePage() {
         if (profileResult.status === "fulfilled") {
           const profileData = profileResult.value;
           const emails = profileData.emails?.length > 0 ? profileData.emails : [{ email: "", primary: false }];
-          const company = profileData.coop ? { ...profileData.coop.company, mentor: profileData.coop.mentor } : profileData.company;
+          const company = profileData.coop ? { ...profileData.coop.company, selectedMentors: profileData.coop.mentors || [] } : profileData.company;
           setProfile({ ...profileData, emails, company });
         } else {
           console.error("Error fetching profile:", profileResult.reason);
@@ -242,7 +242,7 @@ export default function S_ProfilePage() {
       if (fresh.ok) {
         const data = await fresh.json();
         const emails = data.emails?.length > 0 ? data.emails : [{ email: "", primary: false }];
-        const company = data.coop ? { ...data.coop.company, mentor: data.coop.mentor } : data.company;
+        const company = data.coop ? { ...data.coop.company, selectedMentors: data.coop.mentors || [] } : data.company;
         setProfile({ ...data, emails, company });
       }
 
@@ -261,7 +261,7 @@ export default function S_ProfilePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           companyId: profile.company?.id || null,
-          mentorId: profile.company?.mentor?.id || null,
+          mentorIds: profile.company?.selectedMentors?.map((m: any) => m.id) || [],
         }),
       });
       if (res.ok) {
@@ -311,9 +311,9 @@ export default function S_ProfilePage() {
     ...companies.map(c => ({ id: c.id, label: c.name, rawData: c }))
   ];
 
+  const selectedMentorIds = new Set((profile.company?.selectedMentors || []).map((m: any) => m.id));
   const mentorOptions = profile.company ? [
-    { id: "clear", label: "❌ ยกเลิกการเลือก (ยังไม่มีพี่เลี้ยง)", rawData: null },
-    ...(profile.company.mentors?.map(m => ({
+    ...(profile.company.mentors?.filter(m => !selectedMentorIds.has(m.id)).map(m => ({
       id: m.id,
       label: `${m.firstName} ${m.lastName} ${m.position ? `(${m.position})` : ''}`,
       rawData: m
@@ -455,19 +455,27 @@ export default function S_ProfilePage() {
           </div>
 
           <div style={{ marginBottom: 15 }}>
-            <label className="label">พี่เลี้ยง</label>
-            <div style={{ marginTop: 5 }}>
+            <label className="label">พี่เลี้ยง (เลือกได้หลายคน)</label>
+            {/* chips ของพี่เลี้ยงที่เลือกแล้ว */}
+            {(profile.company?.selectedMentors || []).length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8, marginTop: 4 }}>
+                {(profile.company!.selectedMentors as Mentor[]).map(m => (
+                  <span key={m.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#dbeafe', color: '#1e40af', borderRadius: 16, padding: '3px 10px', fontSize: 13 }}>
+                    {m.firstName} {m.lastName} {m.position ? `(${m.position})` : ''}
+                    <button type="button" onClick={() => setProfile({ ...profile, company: { ...profile.company!, selectedMentors: (profile.company!.selectedMentors as Mentor[]).filter(x => x.id !== m.id) } })} style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#1e40af', fontWeight: 700, fontSize: 14, padding: 0, lineHeight: 1 }}>×</button>
+                  </span>
+                ))}
+              </div>
+            )}
+            <div style={{ marginTop: 4 }}>
               <SearchableDropdown
                 options={mentorOptions}
-                value={profile.company?.mentor?.id || ""}
-                placeholder={profile.company ? "พิมพ์ค้นหาชื่อพี่เลี้ยง..." : "กรุณาเลือกบริษัทก่อน"}
+                value=""
+                placeholder={profile.company ? (mentorOptions.length > 0 ? "พิมพ์ค้นหาเพื่อเพิ่มพี่เลี้ยง..." : "เลือกครบแล้ว") : "กรุณาเลือกบริษัทก่อน"}
                 noOptionText="ไม่พบพี่เลี้ยงในบริษัทนี้"
-                onChange={(id: string, rawData: any) => {
-                  if (id === "clear") {
-                    setProfile({ ...profile, company: { ...profile.company!, mentor: undefined } });
-                  } else {
-                    setProfile({ ...profile, company: { ...profile.company!, mentor: rawData } });
-                  }
+                onChange={(_id: string, rawData: any) => {
+                  if (!rawData) return;
+                  setProfile({ ...profile, company: { ...profile.company!, selectedMentors: [...(profile.company!.selectedMentors as Mentor[] || []), rawData] } });
                 }}
               />
             </div>
@@ -492,13 +500,18 @@ export default function S_ProfilePage() {
             </div>
           )}
 
-          {profile.company?.mentor && (
+          {(profile.company?.selectedMentors || []).length > 0 && (
             <div style={{ marginTop: 20 }}>
               <div className="divider" />
               <h4 className="profile-sub">รายละเอียดพี่เลี้ยง</h4>
-              <Info label="ชื่อพี่เลี้ยง" value={`${profile.company.mentor.firstName} ${profile.company.mentor.lastName}`} />
-              <Info label="ตำแหน่ง" value={profile.company.mentor.position || "-"} />
-              <Info label="เบอร์โทร" value={profile.company.mentor.phone || "-"} />
+              {(profile.company!.selectedMentors as Mentor[]).map((m, i) => (
+                <div key={m.id} style={{ marginBottom: 8 }}>
+                  {(profile.company!.selectedMentors as Mentor[]).length > 1 && <div style={{ fontSize: 12, fontWeight: 600, color: '#64748b', marginBottom: 2 }}>คนที่ {i + 1}</div>}
+                  <Info label="ชื่อพี่เลี้ยง" value={`${m.firstName} ${m.lastName}`} />
+                  <Info label="ตำแหน่ง" value={m.position || "-"} />
+                  <Info label="เบอร์โทร" value={m.phone || "-"} />
+                </div>
+              ))}
             </div>
           )}
         </section>

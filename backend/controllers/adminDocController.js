@@ -333,7 +333,7 @@ exports.getCoopApplications = async (req, res) => {
           }
         },
         company: true,
-        mentor: true,
+        mentors: true,
       },
       orderBy: { updatedAt: "desc" }
     });

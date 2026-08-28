@@ -3,6 +3,7 @@
 
 import React, { useMemo, useState, useEffect } from "react";
 import { apiFetch } from "../utils/apiFetch";
+import A_CompanyImport from "./A_CompanyImport";
 
 /* ----------------------------------------------------
    Types
@@ -50,6 +51,7 @@ export default function A_Companies() {
 
   const [showAdd, setShowAdd] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const [viewCompany, setViewCompany] = useState<AdminCompanyRecord | null>(null);
   const [showAddMentor, setShowAddMentor] = useState(false);
   const [editingMentor, setEditingMentor] = useState<any>(null);
@@ -272,6 +274,9 @@ export default function A_Companies() {
             onChange={(e) => setQ(e.target.value)}
             style={{ width: 320, maxWidth: "100%" }}
           />
+          <button className="btn" style={{ ...saveBtn, background: "#059669" }} onClick={() => setShowImport(true)}>
+            📥 นำเข้า Excel
+          </button>
           <button className="btn" style={saveBtn} onClick={() => { setForm(emptyCompany()); setShowAdd(true); }}>
             + เพิ่มบริษัท
           </button>
@@ -327,6 +332,21 @@ export default function A_Companies() {
       </section>
 
       {/* ---------------- Modals ---------------- */}
+      {showImport && (
+        <A_CompanyImport
+          onClose={() => setShowImport(false)}
+          onImported={() => {
+            apiFetch("/api/companies")
+              .then(async (res: any) => {
+                if (!res.ok) return;
+                const data = await res.json();
+                setItems(Array.isArray(data) ? data : (data?.data ?? []));
+              })
+              .catch(() => {});
+          }}
+        />
+      )}
+
       {showAdd && (
         <Modal title="✨ เพิ่มบริษัทสถานประกอบการใหม่" onClose={() => setShowAdd(false)}>
           {/* 🟢 ส่ง coopPeriods ลงไปให้แบบฟอร์มด้วย */}

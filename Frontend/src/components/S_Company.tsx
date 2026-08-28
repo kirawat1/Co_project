@@ -102,18 +102,32 @@ export default function Company({ profile }: { profile: any }) {
         if (!token) return alert("กรุณาเข้าสู่ระบบ");
 
         try {
-            const res = await apiFetch("/api/companies", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ ...form, createdBy: userId }),
-            });
-            const data = await res.json();
-            if (!data.ok) return alert("บันทึกบริษัทไม่สำเร็จ");
-
-            setItems(prev => [...prev, data.company]);
-            setShowAdd(false);
-            setForm(emptyCompany());
-            setJustCreatedCompany(data.company);
+            if (form.id) {
+                // existing company selected via autocomplete → update it
+                const res = await apiFetch(`/api/companies/${form.id}`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(form),
+                });
+                const data = await res.json();
+                if (!data.ok) return alert("แก้ไขข้อมูลบริษัทไม่สำเร็จ");
+                setItems(prev => prev.map(c => c.id === form.id ? data.company : c));
+                setShowAdd(false);
+                setForm(emptyCompany());
+                setJustCreatedCompany(data.company);
+            } else {
+                const res = await apiFetch("/api/companies", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ ...form, createdBy: userId }),
+                });
+                const data = await res.json();
+                if (!data.ok) return alert("บันทึกบริษัทไม่สำเร็จ");
+                setItems(prev => [...prev, data.company]);
+                setShowAdd(false);
+                setForm(emptyCompany());
+                setJustCreatedCompany(data.company);
+            }
         } catch (err) { console.error(err); alert("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้"); }
     }
 
@@ -121,9 +135,6 @@ export default function Company({ profile }: { profile: any }) {
         e.preventDefault();
         if (!token || !form.id) return alert("กรุณาเข้าสู่ระบบ");
 
-        if (String(form.createdById) !== String(userId)) {
-            return alert("คุณไม่มีสิทธิ์แก้ไขข้อมูลบริษัทที่เพิ่มโดยผู้อื่นครับ");
-        }
         try {
             const res = await apiFetch(`/api/companies/${form.id}`, {
                 method: "PUT",
@@ -204,6 +215,29 @@ export default function Company({ profile }: { profile: any }) {
         } catch (err) { console.error(err); alert("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้"); }
     }
 
+    async function saveMentorAndNext(e: React.FormEvent) {
+        e.preventDefault();
+        if (!viewCompany) return;
+
+        const { firstName, lastName, department, position, email, phone } = mentorForm;
+        if (!firstName || !lastName || !department || !position || !email || !phone) return alert("กรุณากรอกให้ครบ");
+        if (!/^\S+@\S+\.\S+$/.test(email)) return alert("รูปแบบอีเมลไม่ถูกต้อง");
+
+        try {
+            const res = await apiFetch(`/api/companies/${viewCompany.id}/mentors`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(mentorForm)
+            });
+            const data = await res.json();
+            if (!data.ok) return alert("เพิ่มพี่เลี้ยงไม่สำเร็จ");
+
+            setViewCompany(prev => prev ? { ...prev, mentors: [...(prev.mentors || []), data.mentor] } : prev);
+            setItems(prev => prev.map(c => c.id === viewCompany?.id ? { ...c, mentors: [...(c.mentors || []), data.mentor] } : c));
+            setMentorForm(emptyMentor()); // reset form แต่ modal ยังเปิดอยู่
+        } catch (err) { console.error(err); alert("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้"); }
+    }
+
     async function removeMentor(mentorId: string) {
         if (!confirm("ลบพี่เลี้ยงคนนี้หรือไม่?")) return;
         if (!token) return alert("กรุณาเข้าสู่ระบบ");
@@ -249,12 +283,9 @@ export default function Company({ profile }: { profile: any }) {
                                     <td style={{ textAlign: "right" }}>
                                         <button className="btn-secondary small" onClick={() => setViewCompany(c)}>ดูรายละเอียด</button>
 
-                                        {/* 🟢 ให้โชว์ปุ่ม แก้ไข/ลบ เฉพาะคนที่ตัวเองเพิ่มมา */}
+                                        <button className="btn-secondary small" onClick={() => { setForm(c); setShowEdit(true); }} style={{ marginLeft: 6 }}>แก้ไข</button>
                                         {String(c.createdById) === String(userId) && (
-                                            <>
-                                                <button className="btn-secondary small" onClick={() => { setForm(c); setShowEdit(true); }} style={{ marginLeft: 6 }}>แก้ไข</button>
-                                                <button className="btn-danger small" onClick={() => removeCompany(c.id)} style={{ marginLeft: 6 }}>ลบ</button>
-                                            </>
+                                            <button className="btn-danger small" onClick={() => removeCompany(c.id)} style={{ marginLeft: 6 }}>ลบ</button>
                                         )}
                                     </td>
                                 </tr>
@@ -332,7 +363,7 @@ export default function Company({ profile }: { profile: any }) {
             </Modal>}
 
             {showAddMentor && <Modal title={editingMentor ? "แก้ไขพี่เลี้ยง" : "เพิ่มพี่เลี้ยง"} onClose={() => { setShowAddMentor(false); setEditingMentor(null) }}>
-                <MentorForm form={mentorForm} setForm={setMentorForm} onSubmit={saveMentor} />
+                <MentorForm form={mentorForm} setForm={setMentorForm} onSubmit={saveMentor} onSubmitAndNext={editingMentor ? undefined : saveMentorAndNext} />
             </Modal>}
 
             {justCreatedCompany && <Modal title="✅ เพิ่มบริษัทสำเร็จ" onClose={() => setJustCreatedCompany(null)}>
@@ -401,10 +432,11 @@ function Modal({ title, onClose, children }: any) {
 }
 
 // Autocomplete สำหรับชื่อบริษัท
-function CompanyNameSearch({ value, onChange, onSelect }: {
+function CompanyNameSearch({ value, onChange, onSelect, onClear }: {
     value: string;
     onChange: (v: string) => void;
     onSelect: (company: any) => void;
+    onClear: () => void;
 }) {
     const [suggestions, setSuggestions] = useState<any[]>([]);
     const [open, setOpen] = useState(false);
@@ -450,6 +482,7 @@ function CompanyNameSearch({ value, onChange, onSelect }: {
         setSelected(null);
         onChange("");
         setNoResult(false);
+        onClear();
     };
 
     return (
@@ -464,7 +497,7 @@ function CompanyNameSearch({ value, onChange, onSelect }: {
                     required
                     className="input"
                     value={value}
-                    onChange={e => { onChange(e.target.value); setSelected(null); }}
+                    onChange={e => { onChange(e.target.value); setSelected(null); onClear(); }}
                     onFocus={() => suggestions.length > 0 && setOpen(true)}
                     placeholder="พิมพ์ชื่อบริษัทเพื่อค้นหา..."
                 />
@@ -501,6 +534,8 @@ function CompanyForm({ form, setForm, onSubmit, coopPeriods }: any) {
     const handleSelectExisting = (c: any) => {
         setForm({
             ...form,
+            id: c.id,
+            createdById: c.createdById,
             name: c.name || "",
             nameEn: c.nameEn || "",
             address: c.address || "",
@@ -534,6 +569,7 @@ function CompanyForm({ form, setForm, onSubmit, coopPeriods }: any) {
                             value={form.name || ""}
                             onChange={v => setForm({ ...form, name: v })}
                             onSelect={handleSelectExisting}
+                            onClear={() => setForm((f: any) => ({ ...f, id: undefined, createdById: undefined }))}
                         />
                     </div>
                     <div><label style={lbl}>ชื่อบริษัท (อังกฤษ)</label><input className="input" name="nameEn" value={form.nameEn || ""} onChange={handleChange} /></div>
@@ -599,7 +635,7 @@ function CompanyForm({ form, setForm, onSubmit, coopPeriods }: any) {
     )
 }
 
-function MentorForm({ form, setForm, onSubmit }: any) {
+function MentorForm({ form, setForm, onSubmit, onSubmitAndNext }: any) {
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setForm({ ...form, [e.target.name]: e.target.value });
     };
@@ -618,8 +654,13 @@ function MentorForm({ form, setForm, onSubmit }: any) {
                 <div><label style={lbl}>อีเมล <span style={{ color: 'red' }}>*</span></label><input required type="email" className="input" name="email" value={form.email || ""} onChange={handleChange} /></div>
                 <div><label style={lbl}>เบอร์โทร <span style={{ color: 'red' }}>*</span></label><input required className="input" name="phone" value={form.phone || ""} onChange={handleChange} /></div>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
-                <button type="submit" className="btn">💾 บันทึกข้อมูลพี่เลี้ยง</button>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 10 }}>
+                {onSubmitAndNext && (
+                    <button type="button" className="btn-secondary" onClick={onSubmitAndNext}>
+                        + บันทึกและเพิ่มคนถัดไป
+                    </button>
+                )}
+                <button type="submit" className="btn">💾 บันทึกพี่เลี้ยง</button>
             </div>
         </form>
     )

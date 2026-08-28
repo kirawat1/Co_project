@@ -5,6 +5,7 @@ const companyController = require("../controllers/companyController");
 const { verifyToken, verifyRole } = require("../middlewares/authMiddleware");
 
 router.get("/search", verifyToken, companyController.searchCompanies);
+router.post("/bulk", verifyToken, verifyRole('staff'), companyController.bulkImportCompanies);
 router.get("/", verifyToken, companyController.getCompanies);
 router.post("/", verifyToken, verifyRole('staff', 'teacher', 'student'), companyController.addCompany);
 router.put("/:id", verifyToken, verifyRole('staff', 'teacher', 'student'), companyController.updateCompany);
