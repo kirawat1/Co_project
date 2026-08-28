@@ -5,6 +5,7 @@ import { STATUS_GROUPS } from "./StatusFilterChips";
 import { useDebounce } from "../hooks/useDebounce";
 import A_StudentEditModal from "./A_StudentEditModal";
 import A_StudentTrash from "./A_StudentTrash";
+import A_AddStudentModal from "./A_AddStudentModal";
 
 function safeHref(url: string | null | undefined): string | undefined {
   if (!url) return undefined;
@@ -162,6 +163,7 @@ export default function A_Students() {
 
   const [modalStudent, setModalStudent] = useState<StudentProfile | null>(null);
   const [editStudent, setEditStudent] = useState<StudentProfile | null>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
   const [pageTab, setPageTab] = useState<"list" | "trash">("list");
   const [coopPeriods, setCoopPeriods] = useState<CoopPeriod[]>([]);
   const [selectedPeriodId, setSelectedPeriodId] = useState<string>("all");
@@ -370,6 +372,12 @@ export default function A_Students() {
       {/* ── Import toolbar ── */}
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12, padding: "12px 16px", background: "#f8fafc", borderRadius: 12, border: "1px solid #e2e8f0", flexWrap: "wrap" }}>
         <span style={{ fontSize: 13, fontWeight: 700, color: "#334155" }}>📥 นำเข้าข้อมูลนักศึกษา</span>
+        <button
+          onClick={() => setShowAddModal(true)}
+          style={{ padding: "6px 14px", background: "#2563eb", color: "#fff", border: "none", borderRadius: 8, fontWeight: 700, cursor: "pointer", fontSize: 13 }}
+        >
+          + เพิ่มทีละคน
+        </button>
         <label style={{ cursor: "pointer", fontSize: 12, padding: "6px 14px", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, fontWeight: 600, color: "#475569" }}>
           เลือกไฟล์ Excel
           <input
@@ -721,6 +729,12 @@ export default function A_Students() {
           student={editStudent}
           onClose={() => setEditStudent(null)}
           onSaved={() => fetchStudents(selectedPeriodId, currentPage, debouncedQ)}
+        />
+      )}
+      {showAddModal && (
+        <A_AddStudentModal
+          onClose={() => setShowAddModal(false)}
+          onSuccess={() => { setShowAddModal(false); fetchStudents(selectedPeriodId, currentPage, debouncedQ, filterStatuses, filterCurriculums); }}
         />
       )}
     </div>

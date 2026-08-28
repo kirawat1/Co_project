@@ -101,6 +101,9 @@ router.get('/students/majors', verifyToken, verifyRole(...ADMIN_ROLES), async (r
   }
 });
 
+// POST /api/admin/students/create — เพิ่มนักศึกษาทีละคน
+router.post('/students/create', verifyToken, verifyRole(...STAFF_ONLY), studentController.createStudentSingle);
+
 // Students: Edit basic info — staff only (ไม่ใช่ teacher แม้ ADMIN_ROLES ปกติจะรวม teacher ด้วย)
 router.put('/students/:id', verifyToken, verifyRole(...STAFF_ONLY), studentController.updateStudentBasicInfo);
 
