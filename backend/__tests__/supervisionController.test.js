@@ -12,6 +12,7 @@ const {
   getAllSupervisions,
   uploadOfficialLetter,
   getStudentSupervision,
+  proposeSupervisionDate,
   reviewSupervision,
   getSupervisionCalendar,
   getSupervisionsForTeacher,
@@ -187,8 +188,8 @@ describe('getStudentSupervision', () => {
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: false }));
   });
 
-  test('200 — returns appointment for existing student', async () => {
-    const student = { id: 10, userId: 1 };
+  test('200 — returns appointment for existing student, supervisionPeriod null when no coopPeriodId', async () => {
+    const student = { id: 10, userId: 1, coop: { coopPeriodId: null } };
     const appointment = { id: 5, studentId: 10, status: 'PENDING_TEACHER' };
     prisma.student.findUnique.mockResolvedValue(student);
     prisma.supervisionAppointment.findUnique.mockResolvedValue(appointment);
@@ -200,7 +201,156 @@ describe('getStudentSupervision', () => {
     expect(prisma.supervisionAppointment.findUnique).toHaveBeenCalledWith(
       expect.objectContaining({ where: { studentId: student.id } })
     );
-    expect(res.json).toHaveBeenCalledWith({ ok: true, appointment });
+    expect(prisma.coopPeriod.findUnique).not.toHaveBeenCalled();
+    expect(res.json).toHaveBeenCalledWith({ ok: true, appointment, supervisionPeriod: null });
+  });
+
+  // นักศึกษาต้องดูรอบสหกิจของตัวเอง (StudentCoop.coopPeriodId) ไม่ใช่ "รอบรับสมัครที่เปิดอยู่ตอนนี้"
+  // — isActive ปิดอัตโนมัติเมื่อหมดเขตรับสมัคร แต่ นศ. เริ่มนัดนิเทศตอนฝึกงานไปแล้วครึ่งทาง ซึ่งรอบ
+  // รับสมัครของรุ่นตัวเองมักปิดไปนานแล้วเป็นปกติ (ดู CHANGELOG 2026-09-07)
+  test('200 — fetches supervisionPeriod via student.coop.coopPeriodId when set', async () => {
+    const student = { id: 10, userId: 1, coop: { coopPeriodId: 2 } };
+    const appointment = { id: 5, studentId: 10, status: 'PENDING_TEACHER' };
+    const period = { id: 2, isSupervisionOpen: true, isActive: false };
+    prisma.student.findUnique.mockResolvedValue(student);
+    prisma.supervisionAppointment.findUnique.mockResolvedValue(appointment);
+    prisma.coopPeriod.findUnique.mockResolvedValue(period);
+
+    const req = { user: { id: 1 } };
+    const res = makeRes();
+    await getStudentSupervision(req, res);
+
+    expect(prisma.coopPeriod.findUnique).toHaveBeenCalledWith({ where: { id: 2 } });
+    expect(res.json).toHaveBeenCalledWith({ ok: true, appointment, supervisionPeriod: period });
+  });
+});
+
+// ===========================
+// proposeSupervisionDate
+// ===========================
+describe('proposeSupervisionDate', () => {
+  const student = { id: 10, userId: 1, deletedAt: null, coopAdvisorId: 5, coop: { coopPeriodId: 2 } };
+  const teacher = { id: 5, userId: 2 };
+  const openPeriod = { id: 2, isSupervisionOpen: true };
+
+  function baseReq(body) {
+    return { user: { id: 1 }, body: { proposedDates: '["2026-11-10|09:00|ONSITE"]', supervisionType: 'ONSITE', ...body } };
+  }
+
+  test('400 — invalid supervisionType', async () => {
+    const res = makeRes();
+    await proposeSupervisionDate(baseReq({ supervisionType: 'HYBRID' }), res);
+    expect(res.status).toHaveBeenCalledWith(400);
+  });
+
+  test('400 — onlineLink with disallowed protocol', async () => {
+    const res = makeRes();
+    await proposeSupervisionDate(baseReq({ onlineLink: 'javascript:alert(1)' }), res);
+    expect(res.status).toHaveBeenCalledWith(400);
+  });
+
+  test('404 — student not found', async () => {
+    prisma.student.findUnique.mockResolvedValue(null);
+    const res = makeRes();
+    await proposeSupervisionDate(baseReq(), res);
+    expect(res.status).toHaveBeenCalledWith(404);
+  });
+
+  test('400 — student has no coopAdvisorId', async () => {
+    prisma.student.findUnique.mockResolvedValue({ ...student, coopAdvisorId: null });
+    const res = makeRes();
+    await proposeSupervisionDate(baseReq(), res);
+    expect(res.status).toHaveBeenCalledWith(400);
+  });
+
+  // ป้องกัน regression ของบั๊กที่พบระหว่างตรวจระบบ 2026-09-07:
+  // ต้องเช็ค isSupervisionOpen จากรอบสหกิจของ นศ. เอง (coop.coopPeriodId) ไม่ใช่รอบรับสมัครที่ isActive
+  test('403 — supervisionPeriod ของ นศ. คนนี้ isSupervisionOpen เป็น false', async () => {
+    prisma.student.findUnique.mockResolvedValue(student);
+    prisma.coopPeriod.findUnique.mockResolvedValue({ id: 2, isSupervisionOpen: false });
+    const res = makeRes();
+    await proposeSupervisionDate(baseReq(), res);
+    expect(prisma.coopPeriod.findUnique).toHaveBeenCalledWith({ where: { id: 2 } });
+    expect(res.status).toHaveBeenCalledWith(403);
+  });
+
+  test('403 — นศ. ไม่มี coopPeriodId เลย (หา supervisionPeriod ไม่เจอ)', async () => {
+    prisma.student.findUnique.mockResolvedValue({ ...student, coop: { coopPeriodId: null } });
+    const res = makeRes();
+    await proposeSupervisionDate(baseReq(), res);
+    expect(prisma.coopPeriod.findUnique).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(403);
+  });
+
+  test('400 — อาจารย์ที่ปรึกษาโครงการไม่มีในระบบ', async () => {
+    prisma.student.findUnique.mockResolvedValue(student);
+    prisma.coopPeriod.findUnique.mockResolvedValue(openPeriod);
+    prisma.teacher.findUnique.mockResolvedValue(null);
+    const res = makeRes();
+    await proposeSupervisionDate(baseReq(), res);
+    expect(res.status).toHaveBeenCalledWith(400);
+  });
+
+  test('403 — ถูกล็อกเพราะสถานะเป็น DATE_CONFIRMED แล้ว', async () => {
+    prisma.student.findUnique.mockResolvedValue(student);
+    prisma.coopPeriod.findUnique.mockResolvedValue(openPeriod);
+    prisma.teacher.findUnique.mockResolvedValue(teacher);
+    prisma.supervisionAppointment.findUnique.mockResolvedValue({ status: 'DATE_CONFIRMED' });
+    const res = makeRes();
+    await proposeSupervisionDate(baseReq(), res);
+    expect(res.status).toHaveBeenCalledWith(403);
+  });
+
+  // ป้องกัน regression ของบั๊ก 500 ที่พบระหว่างตรวจระบบ: Prisma upsert() validate ทั้ง
+  // create/update block พร้อมกันเสมอ — ถ้า record มีอยู่แล้วแต่ไม่ส่ง supervisionType มา
+  // ต้อง fallback ไปใช้ค่าเดิมของ record นั้น ไม่ใช่ปล่อย undefined เข้า create block
+  test('200 — เสนอวันใหม่โดยไม่ส่ง supervisionType มา (ใช้ค่าเดิมของนัดที่มีอยู่)', async () => {
+    prisma.student.findUnique.mockResolvedValue(student);
+    prisma.coopPeriod.findUnique.mockResolvedValue(openPeriod);
+    prisma.teacher.findUnique.mockResolvedValue(teacher);
+    prisma.supervisionAppointment.findUnique.mockResolvedValue({ status: 'TEACHER_REJECTED', supervisionType: 'ONLINE' });
+    prisma.supervisionAppointment.upsert.mockResolvedValue({ id: 1, status: 'PENDING_TEACHER', supervisionType: 'ONLINE' });
+
+    const req = baseReq({ supervisionType: undefined });
+    const res = makeRes();
+    await proposeSupervisionDate(req, res);
+
+    expect(prisma.supervisionAppointment.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        update: expect.objectContaining({ supervisionType: 'ONLINE' }),
+        create: expect.objectContaining({ supervisionType: 'ONLINE' }),
+      })
+    );
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: true }));
+  });
+
+  test('400 — สร้างนัดใหม่ (ไม่มี record เดิม) แต่ไม่ส่ง supervisionType มา', async () => {
+    prisma.student.findUnique.mockResolvedValue(student);
+    prisma.coopPeriod.findUnique.mockResolvedValue(openPeriod);
+    prisma.teacher.findUnique.mockResolvedValue(teacher);
+    prisma.supervisionAppointment.findUnique.mockResolvedValue(null);
+
+    const req = baseReq({ supervisionType: undefined });
+    const res = makeRes();
+    await proposeSupervisionDate(req, res);
+
+    expect(prisma.supervisionAppointment.upsert).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(400);
+  });
+
+  test('200 — สร้างนัดใหม่สำเร็จ', async () => {
+    prisma.student.findUnique.mockResolvedValue(student);
+    prisma.coopPeriod.findUnique.mockResolvedValue(openPeriod);
+    prisma.teacher.findUnique.mockResolvedValue(teacher);
+    prisma.supervisionAppointment.findUnique.mockResolvedValue(null);
+    prisma.supervisionAppointment.upsert.mockResolvedValue({ id: 1, status: 'PENDING_TEACHER', supervisionType: 'ONSITE' });
+
+    const res = makeRes();
+    await proposeSupervisionDate(baseReq(), res);
+
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ ok: true, appointment: expect.objectContaining({ status: 'PENDING_TEACHER' }) })
+    );
   });
 });
 
