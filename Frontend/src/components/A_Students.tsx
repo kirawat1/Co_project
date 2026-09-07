@@ -153,6 +153,8 @@ function getFullAddress(c?: Company) {
 export default function A_Students() {
   const [items, setItems] = useState<StudentProfile[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   // Filters
   const [q, setQ] = useState("");
@@ -199,6 +201,7 @@ export default function A_Students() {
         setTotalPages(data?.meta?.totalPages ?? 1);
         setTotalCount(data?.meta?.total ?? 0);
         setCurrentPage(data?.meta?.page ?? 1);
+        setSelectedIds(new Set()); // รายการเปลี่ยนหน้า/ตัวกรอง — เคลียร์การเลือกเดิมทิ้ง
       }
     } catch (err) {
       console.error(err);
@@ -295,6 +298,43 @@ export default function A_Students() {
       fetchStudents(selectedPeriodId, currentPage, debouncedQ, filterStatuses, filterCurriculums);
     } catch (err: any) {
       alert(err.message || "เกิดข้อผิดพลาด");
+    }
+  };
+
+  function toggleSelectAll() {
+    setSelectedIds(prev =>
+      prev.size === filtered.length ? new Set() : new Set(filtered.map(s => s.id))
+    );
+  }
+
+  function toggleSelectOne(id: number) {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  const handleBulkDeleteStudents = async () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    if (!window.confirm(`ย้ายนักศึกษาที่เลือก ${ids.length} คน ไปถังขยะ?`)) return;
+    setBulkDeleting(true);
+    try {
+      const results = await Promise.allSettled(
+        ids.map(id => apiFetch(`/api/admin/students/${id}`, { method: "DELETE" }).then(async r => {
+          const data = await r.json().catch(() => ({}));
+          if (!data.ok) throw new Error(data.message || "ลบไม่สำเร็จ");
+        }))
+      );
+      const failed = results.filter(r => r.status === "rejected").length;
+      const ok = results.length - failed;
+      if (failed > 0) {
+        alert(`ย้ายไปถังขยะสำเร็จ ${ok} คน, ไม่สำเร็จ ${failed} คน`);
+      }
+      fetchStudents(selectedPeriodId, currentPage, debouncedQ, filterStatuses, filterCurriculums);
+    } finally {
+      setBulkDeleting(false);
     }
   };
 
@@ -572,11 +612,48 @@ export default function A_Students() {
         </div>
       </section>
 
+      {/* ================= Bulk action bar ================= */}
+      {selectedIds.size > 0 && (
+        <div style={{
+          display: "flex", alignItems: "center", gap: 12, marginTop: 16,
+          padding: "10px 16px", background: "#fff7ed", border: "1px solid #fdba74", borderRadius: 10,
+        }}>
+          <span style={{ fontSize: 13, fontWeight: 700, color: "#9a3412" }}>
+            เลือกแล้ว {selectedIds.size} คน
+          </span>
+          <button
+            className="btn"
+            style={{ ...ghostBtn, color: "#ef4444", borderColor: "#ef4444", opacity: bulkDeleting ? 0.6 : 1, cursor: bulkDeleting ? "not-allowed" : "pointer" }}
+            onClick={handleBulkDeleteStudents}
+            disabled={bulkDeleting}
+          >
+            🗑️ {bulkDeleting ? "กำลังลบ..." : `ย้ายไปถังขยะ (${selectedIds.size})`}
+          </button>
+          <button
+            className="btn"
+            style={{ ...ghostBtn, marginLeft: "auto" }}
+            onClick={() => setSelectedIds(new Set())}
+            disabled={bulkDeleting}
+          >
+            ยกเลิกการเลือก
+          </button>
+        </div>
+      )}
+
       {/* ================= Table ================= */}
-      <section style={{ ...card, marginTop: 20, padding: 0, overflowX: 'auto' }}>
+      <section style={{ ...card, marginTop: 12, padding: 0, overflowX: 'auto' }}>
         <table width="100%" className="responsive-table" style={{ borderCollapse: 'collapse' }}>
           <thead>
             <tr>
+              <th style={{ ...th, width: 36 }}>
+                <input
+                  type="checkbox"
+                  checked={filtered.length > 0 && selectedIds.size === filtered.length}
+                  ref={el => { if (el) el.indeterminate = selectedIds.size > 0 && selectedIds.size < filtered.length; }}
+                  onChange={toggleSelectAll}
+                  aria-label="เลือกทั้งหมดในหน้านี้"
+                />
+              </th>
               {([
                 { label: "รหัส", key: "studentId" },
                 { label: "ชื่อ", key: "firstName" },
@@ -604,13 +681,21 @@ export default function A_Students() {
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={7} style={{ padding: 20, textAlign: 'center', color: "#64748b" }}>
+                <td colSpan={8} style={{ padding: 20, textAlign: 'center', color: "#64748b" }}>
                   ไม่พบนักศึกษาตามเงื่อนไข
                 </td>
               </tr>
             ) : (
               filtered.map((s) => (
-                <tr key={s.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                <tr key={s.id} style={{ borderBottom: '1px solid #f1f5f9', background: selectedIds.has(s.id) ? "#fff7ed" : undefined }}>
+                  <td style={td}>
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(s.id)}
+                      onChange={() => toggleSelectOne(s.id)}
+                      aria-label={`เลือก ${s.firstName} ${s.lastName}`}
+                    />
+                  </td>
                   <td style={td} data-label="รหัส">{s.studentId}</td>
                   <td style={td} data-label="ชื่อ">{getThaiPrefix(s.prefix)} {s.firstName}</td>
                   <td style={td} data-label="นามสกุล">{s.lastName}</td>

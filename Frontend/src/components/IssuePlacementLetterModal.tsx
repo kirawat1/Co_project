@@ -2,14 +2,15 @@
 import React, { useState } from "react";
 import { apiFetch } from "../utils/apiFetch";
 import { createPlacementPDF } from "../utils/pdfGeneratorPlacement";
-import { createWordBlob, createPreviewBlob, buildPlacementLetterHtml, thaiPrefix } from "../utils/docGeneratorUtils";
+import { createWordBlob, createPreviewBlob, buildPlacementLetterHtml, thaiPrefix, normalizeDocNumber } from "../utils/docGeneratorUtils";
 import { FileReady, DeliveryPicker, CompanyAddressBox, MODAL_CSS } from "./LetterModalShared";
 import DateInput from './DateInput';
 
 interface Props { student: any; onClose: () => void; onSuccess: () => void; }
 
 export default function IssuePlacementLetterModal({ student, onClose, onSuccess }: Props) {
-    const [placeDocNumber, setPlaceDocNumber] = useState("อว 660301.26.6.2/xxxx");
+    // เก็บเฉพาะตัวเลข — คำนำหน้า "ที่ อว" ถูกเติมในเทมเพลตหนังสือแล้ว
+    const [placeDocNumber, setPlaceDocNumber] = useState("660301.26.6.2/");
     const [placeDocDate, setPlaceDocDate] = useState(new Date().toISOString().split("T")[0]);
     const [loadingPdf, setLoadingPdf] = useState(false);
     const [loadingDoc, setLoadingDoc] = useState(false);
@@ -77,6 +78,11 @@ export default function IssuePlacementLetterModal({ student, onClose, onSuccess 
     };
 
     const handleConfirm = async () => {
+        // เลขที่หนังสือราชการห้ามซ้ำ — เทมเพลตที่ยังไม่กรอกเลขท้าย "/" จะกลายเป็นเลขซ้ำทันที
+        const docNo = normalizeDocNumber(placeDocNumber);
+        if (!docNo || /[.]{3,}|x{3,}/i.test(docNo) || !/\/\s*\S/.test(docNo)) {
+            return alert("กรุณากรอกเลขที่หนังสือส่งตัวให้ครบก่อนบันทึก (ใส่เลขต่อท้าย / เช่น 660301.26.6.2/1234)");
+        }
         if (!signedFile) return alert("กรุณาอัปโหลดไฟล์ที่ลงนามแล้วก่อนบันทึกเข้าระบบ");
         if (!confirm("ยืนยันการบันทึกข้อมูล และอัปเดตสถานะให้นักศึกษา?")) return;
         try {
@@ -88,7 +94,7 @@ export default function IssuePlacementLetterModal({ student, onClose, onSuccess 
                 ? `เจ้าหน้าที่ออกหนังสือส่งตัวแล้ว ให้นักศึกษามารับเอกสารตัวจริงที่คณะ หรือดาวน์โหลดไปยื่นบริษัทในวันรายงานตัว`
                 : `เจ้าหน้าที่ออกหนังสือส่งตัวและจัดส่งให้บริษัทล่วงหน้าเรียบร้อยแล้ว`;
             formData.append("comment", msg);
-            formData.append("placeDocNumber", placeDocNumber);
+            formData.append("placeDocNumber", docNo);
             formData.append("placeDocDate", placeDocDate);
             formData.append("file", signedFile);
             const res = await apiFetch("/api/admin/t000/review", { method: "PUT", body: formData });
@@ -120,7 +126,14 @@ export default function IssuePlacementLetterModal({ student, onClose, onSuccess 
                         <div>
                             <div style={sec}>1. ข้อมูลหนังสือ</div>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
-                                <div><label style={lbl}>เลขที่หนังสือ</label><input className="input" value={placeDocNumber} onChange={e => setPlaceDocNumber(e.target.value)} /></div>
+                                <div>
+                                    <label style={lbl}>เลขที่หนังสือ</label>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                        <span style={{ whiteSpace: 'nowrap', opacity: .7 }}>ที่ อว</span>
+                                        <input className="input" style={{ flex: 1 }} value={placeDocNumber}
+                                            onChange={e => setPlaceDocNumber(e.target.value)} placeholder="660301.26.6.2/1234" />
+                                    </div>
+                                </div>
                                 <div><label style={lbl}>วันที่ออกหนังสือ</label><DateInput className="input" value={placeDocDate} onChange={e => setPlaceDocDate(e.target.value)} /></div>
                             </div>
                         </div>

@@ -130,9 +130,13 @@ describe('updateCompany', () => {
     expect(prisma.company.update).not.toHaveBeenCalled();
   });
 
-  test('403 – not staff and not creator', async () => {
+  // ข้อมูลบริษัทเป็นข้อมูลกลาง — ผู้ใช้ที่ล็อกอินแล้วแก้ไขบริษัทของใครก็ได้
+  // (สิทธิ์เจ้าของยังคงบังคับใช้กับการ "ลบ" เท่านั้น)
+  test('200 – student can update a company created by someone else', async () => {
+    const updatedCompany = { id: 'c1', name: 'Changed' };
     prisma.company.findUnique.mockResolvedValue({ id: 'c1', createdById: 99 });
     prisma.user.findUnique.mockResolvedValue({ id: 5, role: 'student' });
+    prisma.company.update.mockResolvedValue(updatedCompany);
 
     const req = {
       params: { id: 'c1' },
@@ -143,9 +147,8 @@ describe('updateCompany', () => {
 
     await updateCompany(req, res);
 
-    expect(res.status).toHaveBeenCalledWith(403);
-    expect(res.json).toHaveBeenCalledWith({ ok: false, message: 'ไม่มีสิทธิ์แก้ไขบริษัทนี้' });
-    expect(prisma.company.update).not.toHaveBeenCalled();
+    expect(prisma.company.update).toHaveBeenCalled();
+    expect(res.json).toHaveBeenCalledWith({ ok: true, company: updatedCompany });
   });
 
   test('200 – staff user can update any company', async () => {

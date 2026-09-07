@@ -109,7 +109,7 @@ model StudentCoop {
 
   // --- Step 5-6: เจ้าหน้าที่ตรวจเอกสาร & ออก "เอกสารยื่นสหกิจ" (ใบแรก) ---
   staffCheckComment String?   @db.Text // เหตุผลที่ให้แก้เอกสาร (EDITS_REQUIRED)
-  reqDocNumber      String? // เลขที่หนังสือ "ที่ อว 660301..."
+  reqDocNumber      String? @unique // เลขที่หนังสือ "ที่ อว 660301..." — หนังสือราชการ ห้ามซ้ำ (NULL ซ้ำได้)
   reqDocDate        DateTime? // วันที่ออกหนังสือ
   reqLetterUrl      String? // ไฟล์ PDF ออกเอกสารยื่นสหกิจ 
 
@@ -120,7 +120,7 @@ model StudentCoop {
   actualStartDate DateTime? // วันเริ่มงานจริง
   actualEndDate   DateTime? // วันจบงานจริง
 
-  placeDocNumber String? // เลขที่หนังสือส่งตัว "ที่ อว..."
+  placeDocNumber String? @unique // เลขที่หนังสือส่งตัว "ที่ อว..." — หนังสือราชการ ห้ามซ้ำ (NULL ซ้ำได้)
   placeDocDate   DateTime? // วันที่ออกหนังสือส่งตัว
   placeLetterUrl String? // ไฟล์ PDF ส่งตัว 
 

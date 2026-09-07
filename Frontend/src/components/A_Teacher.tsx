@@ -53,6 +53,9 @@ export default function A_Teacher() {
 
   // ConfirmDialog
   const [confirmDel, setConfirmDel] = useState<Teacher | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [confirmBulkDel, setConfirmBulkDel] = useState(false);
 
   const fetchData = async () => {
     try {
@@ -64,6 +67,7 @@ export default function A_Teacher() {
           ...t, email: t.user?.email || t.email || "", major: t.major || t.department,
           isCoopTeacher: t.isCoopTeacher ?? false,
         })));
+        setSelectedIds(new Set());
       }
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
@@ -156,6 +160,47 @@ export default function A_Teacher() {
     finally { setSaving(false); setConfirmDel(null); }
   };
 
+  function toggleSelectAll() {
+    setSelectedIds(prev =>
+      prev.size === filtered.length ? new Set() : new Set(filtered.map(t => t.id))
+    );
+  }
+
+  function toggleSelectOne(id: number) {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  const handleBulkDelete = async () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    setBulkDeleting(true);
+    try {
+      const results = await Promise.allSettled(
+        ids.map(id => apiFetch(`/api/admin/teachers/${id}`, { method: "DELETE" }).then(async r => {
+          const data = await r.json().catch(() => ({}));
+          if (!r.ok || !data.ok) throw new Error(data.message || "ลบไม่สำเร็จ");
+        }))
+      );
+      const failed = results.filter(r => r.status === "rejected");
+      const ok = results.length - failed.length;
+      if (failed.length > 0) {
+        const reasons = failed.map(r => (r as PromiseRejectedResult).reason?.message).filter(Boolean);
+        const uniqueReasons = Array.from(new Set(reasons));
+        toast.warning(`ลบสำเร็จ ${ok} คน, ไม่สำเร็จ ${failed.length} คน${uniqueReasons.length ? ` — ${uniqueReasons[0]}` : ""}`);
+      } else {
+        toast.success(`ลบอาจารย์ ${ok} คน เรียบร้อย`);
+      }
+      fetchData();
+    } finally {
+      setBulkDeleting(false);
+      setConfirmBulkDel(false);
+    }
+  };
+
   const handleResetPassword = async () => {
     if (!pwModal) return;
     if (!newPassword || newPassword.length < 8 || !/[A-Z]/.test(newPassword) || !/[a-z]/.test(newPassword) || !/\d/.test(newPassword) || !/[!@#$%^&*()\-_=+[\]{};:'"<>,./?\\|`~]/.test(newPassword)) {
@@ -205,6 +250,17 @@ export default function A_Teacher() {
         onCancel={() => setConfirmDel(null)}
       />
 
+      <ConfirmDialog
+        open={confirmBulkDel}
+        title="ยืนยันการลบอาจารย์หลายคน"
+        message={`ลบอาจารย์ที่เลือก ${selectedIds.size} คน ออกจากระบบ? การดำเนินการนี้จะลบบัญชีผู้ใช้ด้วย`}
+        icon="🗑️"
+        confirmLabel="ลบทั้งหมด"
+        confirmColor="#ef4444"
+        onConfirm={handleBulkDelete}
+        onCancel={() => setConfirmBulkDel(false)}
+      />
+
       {/* ─── Filters ─── */}
       <section style={card}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
@@ -226,14 +282,51 @@ export default function A_Teacher() {
         </div>
       </section>
 
+      {/* ─── Bulk action bar ─── */}
+      {selectedIds.size > 0 && (
+        <div style={{
+          display: "flex", alignItems: "center", gap: 12, marginTop: 20,
+          padding: "10px 16px", background: "#fff7ed", border: "1px solid #fdba74", borderRadius: 10,
+        }}>
+          <span style={{ fontSize: 13, fontWeight: 700, color: "#9a3412" }}>
+            เลือกแล้ว {selectedIds.size} คน
+          </span>
+          <button
+            className="btn"
+            style={{ ...ghostBtn, color: "#ef4444", borderColor: "#ef4444", opacity: bulkDeleting ? 0.6 : 1, cursor: bulkDeleting ? "not-allowed" : "pointer" }}
+            onClick={() => setConfirmBulkDel(true)}
+            disabled={bulkDeleting}
+          >
+            🗑️ {bulkDeleting ? "กำลังลบ..." : `ลบที่เลือก (${selectedIds.size})`}
+          </button>
+          <button
+            className="btn"
+            style={{ ...ghostBtn, marginLeft: "auto" }}
+            onClick={() => setSelectedIds(new Set())}
+            disabled={bulkDeleting}
+          >
+            ยกเลิกการเลือก
+          </button>
+        </div>
+      )}
+
       {/* ─── Table ─── */}
-      <section style={{ ...card, marginTop: 20, padding: 0, overflow: "hidden" }}>
+      <section style={{ ...card, marginTop: selectedIds.size > 0 ? 12 : 20, padding: 0, overflow: "hidden" }}>
         <div style={{ padding: "12px 16px", borderBottom: "1px solid #f1f5f9", color: "#64748b", fontSize: 13 }}>
           ทั้งหมด {filtered.length} คน
         </div>
         <table width="100%" className="responsive-table" style={{ borderCollapse: "collapse" }}>
           <thead>
             <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
+              <th style={{ ...th, width: 36 }}>
+                <input
+                  type="checkbox"
+                  checked={filtered.length > 0 && selectedIds.size === filtered.length}
+                  ref={el => { if (el) el.indeterminate = selectedIds.size > 0 && selectedIds.size < filtered.length; }}
+                  onChange={toggleSelectAll}
+                  aria-label="เลือกทั้งหมด"
+                />
+              </th>
               {["ชื่อ-นามสกุล", "อีเมล (Username)", "เบอร์โทร", "สาขาวิชา", "จัดการ"].map((h) => (
                 <th key={h} style={th}>{h}</th>
               ))}
@@ -241,9 +334,17 @@ export default function A_Teacher() {
           </thead>
           <tbody>
             {filtered.length === 0 ? (
-              <tr><td colSpan={5} style={{ padding: 40, textAlign: "center", color: "#64748b" }}>ไม่พบข้อมูลอาจารย์</td></tr>
+              <tr><td colSpan={6} style={{ padding: 40, textAlign: "center", color: "#64748b" }}>ไม่พบข้อมูลอาจารย์</td></tr>
             ) : filtered.map((t) => (
-              <tr key={t.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
+              <tr key={t.id} style={{ borderBottom: "1px solid #f1f5f9", background: selectedIds.has(t.id) ? "#fff7ed" : undefined }}>
+                <td style={td}>
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.has(t.id)}
+                    onChange={() => toggleSelectOne(t.id)}
+                    aria-label={`เลือก ${t.firstName} ${t.lastName}`}
+                  />
+                </td>
                 <td style={td} data-label="ชื่อ-นามสกุล">
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                     <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#eff6ff", display: "flex", alignItems: "center", justifyContent: "center" }}>

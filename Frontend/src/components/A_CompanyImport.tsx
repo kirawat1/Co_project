@@ -25,24 +25,29 @@ function parseThaiAddress(raw: string): Partial<ParsedCompany> {
   const zipM = s.match(/(\d{5})\s*$/);
   if (zipM) result.zipcode = zipM[1];
 
-  // province
-  const provM = s.match(/จังหวัด\s*([^\s\d]+)/);
-  if (provM) result.province = provM[1];
+  // ตัวย่อ (ถ. ต. อ. จ. ม.) ต้องอยู่ต้นคำเสมอ ไม่งั้นจะไปจับตัวท้ายของคำอื่น
+  // เช่น "กทม." โดน /ม\./ จับ, "บจ." โดน /จ\./ จับ
+  const B = "(?:^|[\\s,(])";
 
-  // district
-  const distM = s.match(/(?:อำเภอ|อ\.)\s*([^\s]+)/);
+  // province — "จังหวัดขอนแก่น" / "จ.ขอนแก่น", หรือกรุงเทพที่เขียนลอย ๆ ไม่มีคำนำหน้า
+  const provM = s.match(new RegExp(B + "(?:จังหวัด|จ\\.)\\s*([^\\s\\d]+)"));
+  if (provM) result.province = provM[1];
+  else if (/กรุงเทพมหานคร|กรุงเทพฯ|กทม\.?/.test(s)) result.province = "กรุงเทพมหานคร";
+
+  // district — ต่างจังหวัดใช้ "อำเภอ/อ." กรุงเทพใช้ "เขต"
+  const distM = s.match(new RegExp(B + "(?:อำเภอ|อ\\.|เขต)\\s*([^\\s]+)"));
   if (distM) result.district = distM[1];
 
-  // subDistrict
-  const subM = s.match(/(?:ตำบล|ต\.|แขวง)\s*([^\s]+)/);
+  // subDistrict — ต่างจังหวัดใช้ "ตำบล/ต." กรุงเทพใช้ "แขวง"
+  const subM = s.match(new RegExp(B + "(?:ตำบล|ต\\.|แขวง)\\s*([^\\s]+)"));
   if (subM) result.subDistrict = subM[1];
 
   // road
-  const roadM = s.match(/(?:ถนน|ถ\.)\s*([^\s]+)/);
+  const roadM = s.match(new RegExp(B + "(?:ถนน|ถ\\.)\\s*([^\\s]+)"));
   if (roadM) result.road = roadM[1];
 
-  // moo
-  const mooM = s.match(/(?:หมู่ที่|หมู่|ม\.)\s*(\d+)/);
+  // moo — ไม่รับเลขที่ยาวเท่ารหัสไปรษณีย์ (กัน "กทม. 10900")
+  const mooM = s.match(new RegExp(B + "(?:หมู่ที่|หมู่|ม\\.)\\s*(\\d{1,3})(?!\\d)"));
   if (mooM) result.moo = mooM[1];
 
   // addressNo — leading number(s) before a space/slash

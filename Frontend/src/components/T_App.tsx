@@ -19,12 +19,15 @@ import A_DocT005_006 from "./A_DocT005_006";
 import A_DocT007 from "./A_DocT007";
 import A_DocT008 from "./A_DocT008";
 import A_GatewaySettings from "./A_GatewaySettings";
+import A_Announcements from "./A_Announcements";
 const IOS_BLUE = "#0074B7";
 
 export default function TeacherApp() {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [isCoopTeacher, setIsCoopTeacher] = useState(false);
+  // null = ยังไม่รู้ (รอ /api/teacher/me) — ต้องแยกจาก false ไม่งั้น route guard
+  // จะ redirect ทิ้งก่อนที่ค่าจริงจะโหลดเสร็จ (เจอตอนเข้า /teacher/announcements ตรง ๆ)
+  const [isCoopTeacher, setIsCoopTeacher] = useState<boolean | null>(null);
 
   /* =========================
      Display name (pattern เดียวกับ S_App)
@@ -59,13 +62,18 @@ export default function TeacherApp() {
             setDisplayName(name);
             localStorage.setItem("coop.teacher.displayName", name);
             setIsCoopTeacher(data.isCoopTeacher ?? false);
+          } else {
+            setIsCoopTeacher(false);
           }
         })
         .catch(() => {
           // fallback: ใช้ค่าจาก localStorage ถ้า fetch ไม่ได้
           const n = localStorage.getItem("coop.teacher.displayName");
           if (n && n.trim()) setDisplayName(n);
+          setIsCoopTeacher(false);
         });
+    } else {
+      setIsCoopTeacher(false);
     }
 
     // รับ event เมื่อ T_Profile บันทึกชื่อใหม่ในหน้าเดียวกัน
@@ -111,7 +119,7 @@ export default function TeacherApp() {
 
       <div className="layout">
         <div className={`sidebar-overlay${sidebarOpen ? " open" : ""}`} onClick={() => setSidebarOpen(false)} />
-        <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+        <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} isCoopTeacher={!!isCoopTeacher} />
         <main className="main">
           <Routes>
             <Route index element={<Navigate to="dashboard" replace />} />
@@ -119,7 +127,7 @@ export default function TeacherApp() {
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="requests" element={<Requests />} />
 
-            <Route path="students" element={<Students isCoopTeacher={isCoopTeacher} />} />
+            <Route path="students" element={<Students isCoopTeacher={!!isCoopTeacher} />} />
             <Route
               path="students/:studentId"
               element={<StudentDetail />}
@@ -134,6 +142,15 @@ export default function TeacherApp() {
             <Route path="doc-t007" element={<A_DocT007 />} />
             <Route path="doc-t008" element={<A_DocT008 />} />
             <Route path="gateway-settings" element={<A_GatewaySettings />} />
+            {/* เขียนประกาศได้เฉพาะอาจารย์ประจำวิชาสหกิจ — backend กันซ้ำด้วย verifyCoopTeacherOrStaff */}
+            <Route
+              path="announcements"
+              element={
+                isCoopTeacher === null ? null // ยังไม่รู้สถานะ — รอ /api/teacher/me ก่อน อย่าเพิ่ง redirect
+                  : isCoopTeacher ? <A_Announcements />
+                  : <Navigate to="/teacher/dashboard" replace />
+              }
+            />
 
             <Route path="*" element={<Navigate to="/teacher/dashboard" replace />} />
           </Routes>

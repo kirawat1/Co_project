@@ -3,6 +3,7 @@
 import { jsPDF } from "jspdf";
 import { PDFDocument } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
+import { normalizeDocNumber } from "./docGeneratorUtils";
 
 // --- Helpers ---
 const getFontBase64 = async (url: string): Promise<string> => {
@@ -99,7 +100,7 @@ export const createDispatchPDF = async (
   // 3. เลขที่หนังสือ & ส่วนราชการ
   y += 35;
   doc.setFontSize(16);
-  doc.text(`ที่ อว ${docNumber}`, margin, y);
+  doc.text(`ที่ อว ${normalizeDocNumber(docNumber)}`, margin, y);
 
   doc.text(`มหาวิทยาลัยขอนแก่น`, pageWidth - margin - 50, y);
   y += 7;

@@ -4,8 +4,11 @@ async function createNotifications(userIds, { type, title, message, link, relate
   if (!userIds || !userIds.length) return;
 
   await prisma.$transaction(async (tx) => {
+    // ต้องเทียบ message ด้วย — ไม่งั้นแจ้งเตือนคนละเหตุการณ์ที่ใช้ type/relatedId เดียวกัน
+    // (เช่น STATUS_UPDATED ทุกสถานะของ นศ. คนเดียวกัน) จะถูกกลืนหายเงียบ ๆ
+    // ตราบใดที่ นศ. ยังไม่กดอ่านอันแรก
     const existing = await tx.notification.findMany({
-      where: { userId: { in: userIds }, type, relatedId: relatedId ?? null, isRead: false },
+      where: { userId: { in: userIds }, type, message, relatedId: relatedId ?? null, isRead: false },
       select: { userId: true },
     });
     const existingSet = new Set(existing.map(n => n.userId));

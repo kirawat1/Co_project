@@ -11,10 +11,11 @@ import {
   IcClipboardCheck,
   IcBook,
   IcSettings,
+  IcAnnounce,
 } from "./icons";
 import { useNotifCounts } from "../hooks/useNotifCounts";
 
-interface SidebarProps { isOpen?: boolean; onClose?: () => void; }
+interface SidebarProps { isOpen?: boolean; onClose?: () => void; isCoopTeacher?: boolean; }
 
 function NavItem({ to, label, icon, count, onClick, end }: {
   to: string; label: string; icon: React.ReactNode;
@@ -38,7 +39,7 @@ function NavItem({ to, label, icon, count, onClick, end }: {
   );
 }
 
-export default function T_Sidebar({ isOpen = false, onClose = () => {} }: SidebarProps) {
+export default function T_Sidebar({ isOpen = false, onClose = () => {}, isCoopTeacher = false }: SidebarProps) {
   const nav = () => onClose();
   const { counts, markAllRead } = useNotifCounts();
   const navAndRead = () => { onClose(); markAllRead(); };
@@ -64,6 +65,10 @@ export default function T_Sidebar({ isOpen = false, onClose = () => {} }: Sideba
           count={(counts.T002_SUBMITTED ?? 0) + (counts.T003_SUBMITTED ?? 0) + (counts.SUPERVISION_PROPOSED ?? 0) + (counts.COOP_APPLICATION_SUBMITTED ?? 0)}
           onClick={navAndRead} />
         <NavItem to="/teacher/profile" label="ข้อมูลอาจารย์" icon={<IcUser />} onClick={nav} />
+
+        {isCoopTeacher && (
+          <NavItem to="/teacher/announcements" label="ประกาศ" icon={<IcAnnounce />} onClick={nav} />
+        )}
 
         <div className="sec-label">เอกสารและบันทึก</div>
 

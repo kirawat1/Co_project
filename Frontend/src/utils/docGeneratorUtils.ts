@@ -19,6 +19,16 @@ export function thaiPrefix(prefix?: string): string {
   return prefix || "";
 }
 
+/**
+ * เลขที่หนังสือเก็บเป็นตัวเลขล้วน เช่น "660301.26.6.2/1234"
+ * คำนำหน้า "ที่ อว" อยู่ในเทมเพลตหนังสือ — ตัดออกเผื่อข้อมูลเก่าหรือผู้ใช้พิมพ์ซ้ำมา
+ * ไม่งั้นจะได้ "ที่ อว อว 660301..."
+ */
+export function normalizeDocNumber(docNumber?: string): string {
+  if (!docNumber) return "";
+  return docNumber.trim().replace(/^(?:ที่\s*)?(?:อว\.?\s*)/, "").trim();
+}
+
 export function studyProgramLabel(sp?: string | null): string {
   const v = (sp || "").toLowerCase();
   if (v === "normal") return "ภาคปกติ";
@@ -122,7 +132,7 @@ export function buildDispatchLetterHtml(opts: {
   return `
 <table style="width:100%;margin-bottom:4pt">
   <tr>
-    <td style="width:55%"><p>ที่ อว ${docNumber}</p></td>
+    <td style="width:55%"><p>ที่ อว ${normalizeDocNumber(docNumber)}</p></td>
     <td style="width:45%;text-align:right">
       <p>มหาวิทยาลัยขอนแก่น</p>
       <p>123 ถนนมิตรภาพ</p>
@@ -203,7 +213,7 @@ export function buildPlacementLetterHtml(opts: {
   return `
 <table style="width:100%;margin-bottom:4pt">
   <tr>
-    <td style="width:55%"><p>ที่ อว ${docNumber}</p></td>
+    <td style="width:55%"><p>ที่ อว ${normalizeDocNumber(docNumber)}</p></td>
     <td style="width:45%;text-align:right">
       <p>มหาวิทยาลัยขอนแก่น</p>
       <p>123 ถนนมิตรภาพ</p>
@@ -269,7 +279,7 @@ export function buildSupervisionLetterHtml(opts: {
   return `
 <table style="width:100%;margin-bottom:4pt">
   <tr>
-    <td style="width:55%"><p>ที่ อว ${docNumber}</p></td>
+    <td style="width:55%"><p>ที่ อว ${normalizeDocNumber(docNumber)}</p></td>
     <td style="width:45%;text-align:right">
       <p>มหาวิทยาลัยขอนแก่น</p>
       <p>123 ถนนมิตรภาพ</p>
