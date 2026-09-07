@@ -133,14 +133,24 @@ exports.uploadOfficialLetter = async (req, res) => {
 // ==========================================
 exports.getStudentSupervision = async (req, res) => {
     try {
-        const student = await prisma.student.findUnique({ where: { userId: req.user.id } });
+        const student = await prisma.student.findUnique({
+            where: { userId: req.user.id },
+            include: { coop: { select: { coopPeriodId: true } } },
+        });
         if (!student || student.deletedAt) return res.status(404).json({ ok: false, message: 'Student not found' });
 
         const appointment = await prisma.supervisionAppointment.findUnique({
             where: { studentId: student.id }
         });
 
-        res.json({ ok: true, appointment });
+        // ต้องดูรอบสหกิจของ นศ. คนนี้เอง (StudentCoop.coopPeriodId) ไม่ใช่ "รอบรับสมัครที่เปิดอยู่ตอนนี้"
+        // (CoopPeriod.isActive) — isActive ปิดอัตโนมัติเมื่อหมดเขตรับสมัคร แต่ นศ. มักจะเริ่มนัดนิเทศ
+        // ตอนฝึกงานไปแล้วครึ่งทาง ซึ่งรอบรับสมัครของรุ่นตัวเองปิดไปนานแล้วเป็นปกติ
+        const supervisionPeriod = student.coop?.coopPeriodId
+            ? await prisma.coopPeriod.findUnique({ where: { id: student.coop.coopPeriodId } })
+            : null;
+
+        res.json({ ok: true, appointment, supervisionPeriod });
     } catch (err) {
         console.error(err);
         res.status(500).json({ ok: false, message: 'Server error' });
@@ -161,9 +171,22 @@ exports.proposeSupervisionDate = async (req, res) => {
                 return res.status(400).json({ ok: false, message: 'onlineLink ต้องเป็น URL แบบ http/https เท่านั้น' });
             }
         }
-        const student = await prisma.student.findUnique({ where: { userId: req.user.id } });
+        const student = await prisma.student.findUnique({
+            where: { userId: req.user.id },
+            include: { coop: { select: { coopPeriodId: true } } },
+        });
 
         if (!student || student.deletedAt) return res.status(404).json({ ok: false, message: 'Student not found' });
+
+        // เดิม frontend ปิดปุ่มเองตาม isSupervisionOpen (S_Supervision.tsx) แต่ backend ไม่เคยเช็คซ้ำเลย
+        // — เรียก endpoint ตรงผ่านปุ่มที่ถูกปิดได้เสมอ ต้องดูรอบสหกิจของ นศ. คนนี้เอง ไม่ใช่ "รอบรับสมัคร
+        // ที่เปิดอยู่ตอนนี้" (isActive ปิดอัตโนมัติเมื่อหมดเขตรับสมัคร ซึ่งมักปิดไปนานแล้วตอนเริ่มนิเทศ)
+        const supervisionPeriod = student.coop?.coopPeriodId
+            ? await prisma.coopPeriod.findUnique({ where: { id: student.coop.coopPeriodId } })
+            : null;
+        if (!supervisionPeriod || !supervisionPeriod.isSupervisionOpen) {
+            return res.status(403).json({ ok: false, message: '⛔ ระบบยังไม่เปิดให้นัดหมายนิเทศในขณะนี้' });
+        }
 
         // หา Teacher จาก coopAdvisorId (อาจารย์ที่ปรึกษาโครงการสหกิจ) เป็นผู้นิเทศหลัก
         if (!student.coopAdvisorId) {
@@ -180,11 +203,21 @@ exports.proposeSupervisionDate = async (req, res) => {
         const appointment = await prisma.$transaction(async (tx) => {
             const existing = await tx.supervisionAppointment.findUnique({
                 where: { studentId: student.id },
-                select: { status: true }
+                select: { status: true, supervisionType: true }
             });
             if (existing && LOCKED_STATUSES.includes(existing.status)) {
                 const err = new Error('LOCKED');
                 err.status = 403;
+                throw err;
+            }
+            // supervisionType เป็นคอลัมน์บังคับ (NOT NULL) — ตอนสร้างใหม่ต้องระบุมา
+            // ตอนอัปเดตถ้าไม่ส่งมาให้คงค่าเดิมไว้ (Prisma validate ทั้ง create/update
+            // block ของ upsert พร้อมกัน ถ้าปล่อย undefined เข้า create มันจะ throw
+            // แม้ query จริงจะจบที่ update ก็ตาม)
+            const resolvedType = supervisionType ?? existing?.supervisionType;
+            if (!resolvedType) {
+                const err = new Error('กรุณาระบุรูปแบบการนิเทศ (ONLINE หรือ ONSITE)');
+                err.status = 400;
                 throw err;
             }
             return tx.supervisionAppointment.upsert({
@@ -192,7 +225,7 @@ exports.proposeSupervisionDate = async (req, res) => {
                 update: {
                     teacherId: teacher.id,
                     proposedDates,
-                    supervisionType,
+                    supervisionType: resolvedType,
                     onlineLink,
                     coTeacherName,
                     status: 'PENDING_TEACHER',
@@ -202,7 +235,7 @@ exports.proposeSupervisionDate = async (req, res) => {
                     studentId: student.id,
                     teacherId: teacher.id,
                     proposedDates,
-                    supervisionType,
+                    supervisionType: resolvedType,
                     onlineLink,
                     coTeacherName,
                     status: 'PENDING_TEACHER'
@@ -211,6 +244,10 @@ exports.proposeSupervisionDate = async (req, res) => {
         }).catch(err => {
             if (err.status === 403) {
                 res.status(403).json({ ok: false, message: 'ไม่สามารถแก้ไขได้ เนื่องจากอาจารย์ยืนยันวันนิเทศแล้ว' });
+                return null;
+            }
+            if (err.status === 400) {
+                res.status(400).json({ ok: false, message: err.message });
                 return null;
             }
             throw err;
@@ -644,6 +681,22 @@ exports.updateConfirmedDate = async (req, res) => {
         });
 
         res.json({ ok: true, appointment: updated });
+
+        // แก้วันแล้วไม่แจ้ง นศ. เลย — วันนัดของ นศ. เปลี่ยนไปเงียบ ๆ ต่างจากตอนอาจารย์
+        // ยืนยันครั้งแรก (reviewSupervision) ที่แจ้งอยู่แล้ว
+        prisma.student.findUnique({ where: { id: updated.studentId }, select: { userId: true } })
+          .then(student => {
+            if (student?.userId) {
+              return createNotifications([student.userId], {
+                type: 'SUPERVISION_DATE_UPDATED',
+                title: 'วันนิเทศมีการเปลี่ยนแปลง',
+                message: 'เจ้าหน้าที่ปรับวันนิเทศของคุณ กรุณาตรวจสอบวันที่ใหม่',
+                link: '/student/supervision',
+                relatedId: null,
+              });
+            }
+          })
+          .catch(console.error);
     } catch (err) {
         if (err.is404) return res.status(404).json({ ok: false, message: err.message });
         if (err.is400) return res.status(400).json({ ok: false, message: err.message });
@@ -801,6 +854,24 @@ exports.confirmGroupSupervision = async (req, res) => {
     );
 
     res.json({ ok: true, groupId, updatedCount: appts.length });
+
+    // แจ้งนักศึกษาทุกคนในกลุ่ม — เดิมยืนยันสำเร็จแต่ไม่มีใครถูกแจ้งเตือนเลย
+    // ต่างจากเส้นทางยืนยันทีละคน (reviewSupervision) ที่แจ้งอยู่แล้ว
+    prisma.student.findMany({
+      where: { id: { in: appts.map(a => a.studentId) } },
+      select: { userId: true },
+    }).then(async students => {
+      const userIds = students.map(s => s.userId).filter(Boolean);
+      if (userIds.length) {
+        await createNotifications(userIds, {
+          type: 'SUPERVISION_DATE_UPDATED',
+          title: 'วันนิเทศได้รับการยืนยัน',
+          message: 'อาจารย์ยืนยันวันนิเทศแล้ว',
+          link: '/student/supervision',
+          relatedId: null,
+        });
+      }
+    }).catch(console.error);
   } catch (err) {
     console.error(err);
     res.status(500).json({ ok: false, message: 'ไม่สามารถยืนยันการนัดหมายได้' });

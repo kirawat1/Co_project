@@ -103,6 +103,7 @@ const prismaMock = {
     findFirst: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
+    upsert: jest.fn(),
     delete: jest.fn(),
     count: jest.fn(),
   },

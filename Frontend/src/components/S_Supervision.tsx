@@ -98,18 +98,14 @@ export default function S_Supervision() {
                 setCoopAdvisor(profileRes.data.coopAdvisor || null);
             }
 
-            // 2. Active Period
-            try {
-                const periodRes = await axios.get("/api/students/coop-periods/active", {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
-                if (periodRes.data?.period) setActivePeriod(periodRes.data.period);
-            } catch (e) { console.warn("No active coop period found"); }
-
-            // 3. Supervision Data
+            // 2. Supervision Data + รอบสหกิจของ นศ. คนนี้เอง (ไม่ใช่ "รอบรับสมัครที่เปิดอยู่ตอนนี้"
+            // จาก /api/students/coop-periods/active — รอบรับสมัครปิดอัตโนมัติเมื่อหมดเขต แต่ นศ.
+            // มักเริ่มนัดนิเทศตอนฝึกงานไปแล้วครึ่งทาง ซึ่งรอบรับสมัครของรุ่นตัวเองปิดไปนานแล้วเป็นปกติ
+            // — ใช้ supervisionPeriod ที่ผูกกับ StudentCoop.coopPeriodId ของ นศ. โดยตรงแทน)
             const apptRes = await axios.get("/api/coop/supervision/me", {
                 headers: { Authorization: `Bearer ${token}` }
             });
+            if (apptRes.data?.supervisionPeriod) setActivePeriod(apptRes.data.supervisionPeriod);
             if (apptRes.data?.appointment) {
                 const appt = apptRes.data.appointment;
                 setAppointment(appt);
@@ -124,7 +120,7 @@ export default function S_Supervision() {
                     }
                 }
             }
-            // 4. ปฏิทินนิเทศ — วันที่จองทั้งหมดของทุกคน
+            // 3. ปฏิทินนิเทศ — วันที่จองทั้งหมดของทุกคน
             try {
                 const calRes = await axios.get("/api/coop/supervision/calendar", {
                     headers: { Authorization: `Bearer ${token}` }

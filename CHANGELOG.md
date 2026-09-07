@@ -1,5 +1,20 @@
 # CHANGELOG — Co_project
 
+## [2026-09-07] fix: ตรวจสอบทั้งระบบ — พบบั๊กจริงในระบบนัดหมายนิเทศ
+
+ทดสอบทุกหน้า (47 หน้า × 3 role) ผ่าน Playwright ไม่มี console error/failed API เลย
+รวมกับ API test 218+ เคส (permission matrix, mutation, T000 flow, doc-number,
+supervision, T002/T003) — พบบั๊กจริงทั้งหมดอยู่ในระบบนัดหมายนิเทศ (`supervisionController.js`):
+
+### Fixed
+- **supervisionController.js `proposeSupervisionDate`** — ยื่นข้อเสนอวันนิเทศซ้ำ (เช่นหลังถูกอาจารย์ปฏิเสธ) โดยไม่ส่ง `supervisionType` มาด้วย ทำให้ 500 เพราะ Prisma `upsert()` validate ทั้ง block `create` และ `update` พร้อมกันเสมอ แม้ query จริงจะจบที่ update ก็ตาม — `create` ที่มี field บังคับ (`supervisionType`) เป็น `undefined` เลยถูกปฏิเสธทันที ทั้งที่ record มีอยู่แล้วและมีค่าเดิม แก้โดย fallback ไปใช้ `existing.supervisionType` ตอน update และตอบ 400 สวย ๆ ถ้าเป็นการสร้างใหม่แต่ไม่ส่งมา (เดิมเป็น 500 ไม่บอกอะไร)
+- **supervisionController.js `confirmGroupSupervision`** — ยืนยันวันนิเทศแบบกลุ่ม (นักศึกษาหลายคนที่บริษัทเดียวกัน นิเทศพร้อมกัน) สำเร็จจริง แต่**ไม่ส่ง notification ให้นักศึกษาเลยสักคน** ต่างจากเส้นทางยืนยันทีละคน (`reviewSupervision`) ที่แจ้งอยู่แล้ว นักศึกษาจะไม่รู้ว่าวันนิเทศถูกยืนยันแล้วนอกจากเข้ามาเช็คเอง เพิ่มการแจ้งเตือนให้ครบทุกคนในกลุ่ม
+- **supervisionController.js `updateConfirmedDate`** — เจ้าหน้าที่แก้ไขวันนิเทศที่ยืนยันแล้ว (ก่อนออกหนังสือ) ก็ไม่แจ้งนักศึกษาเช่นกัน วันนัดเปลี่ยนไปเงียบ ๆ เพิ่มการแจ้งเตือนตาม pattern เดียวกัน
+
+- **supervisionController.js `proposeSupervisionDate`** — เพิ่มการบังคับใช้ `CoopPeriod.isSupervisionOpen` จริงที่ backend (เดิม frontend ปิดปุ่มเองแต่เรียก endpoint ตรงได้เสมอ) block เฉพาะฝั่งนักศึกษาเสนอ ไม่แตะฝั่งอาจารย์/เจ้าหน้าที่ทำรายการต่อจากที่ยื่นไปแล้ว ตาม pattern เดียวกับ T000/T002/T003 (`checkSystemOpen` บล็อกแค่ตอนส่ง ไม่บล็อกตอนตรวจ)
+- **บั๊กที่เจอระหว่างแก้ข้อบน — สำคัญกว่าที่คิด**: จะเช็คจาก `CoopPeriod` ตัวไหนดี ลองใช้ `isActive` (รอบรับสมัครที่เจ้าหน้าที่เปิด/ปิดเอง) ก่อน แต่พบว่า **`isActive` ปิดอัตโนมัติเมื่อหมดเขตรับสมัคร** (`autoCloseIfExpired`) ซึ่งมักปิดไปนานแล้วตอนนักศึกษาเริ่มนัดนิเทศ (ฝึกงานไปแล้วครึ่งทาง) ทดสอบกับข้อมูลจริงพบว่า period ที่ `isSupervisionOpen: true` (ตั้งใจเปิดถึง ม.ค. 2570) กลับถูก fix เดิม block ทิ้งเพราะ `isActive: false` ไปแล้ว — และพบว่า **frontend เดิมก็ผูกกับ `isActive` แบบเดียวกัน** (`/api/students/coop-periods/active`) ทำให้หน้านัดนิเทศโชว์ "🔴 ปิดระบบ" ผิด ๆ ทั้งที่เจ้าหน้าที่เปิดไว้จริง แก้โดยให้ทั้ง backend และ frontend อ่านจาก **`StudentCoop.coopPeriodId` ของนักศึกษาคนนั้นเอง** แทน (`getStudentSupervision` ส่ง `supervisionPeriod` แนบไปด้วย, `S_Supervision.tsx` อ่านจากตรงนั้นแทนการยิง endpoint แยก) ทดสอบยืนยันใน browser จริง: จาก "🔴 ปิดระบบ" + "ปีการศึกษา / เทอม: -" กลายเป็น "🟢 เปิดให้จองคิว" + "2569 / 2" ตรงข้อมูลจริง ปุ่มส่งเปิดใช้งานถูกต้อง
+- เพิ่ม unit test ให้ `proposeSupervisionDate` (11 เคส) และ `getStudentSupervision` (เพิ่ม 1 เคส) ที่ไม่เคยมี jest coverage มาก่อน — กัน regression ของทั้งบั๊ก 500 เดิมและบั๊ก "เช็ค period ผิดตัว" นี้
+
 ## [2026-09-07] feat: ลบทีละหลายรายการ (นักศึกษา/อาจารย์/บริษัท)
 
 ### Added
