@@ -82,7 +82,16 @@ async function realFetch(
     body: JSON.stringify(body),
   });
 
-  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  // backend ส่งเหตุผลเป็นภาษาไทยมาใน body เสมอ (เช่น rate limit ตอบ 429 พร้อม
+  // "ลองใหม่ภายหลัง (พยายาม login มากเกินไป)") — ถ้าโยนแค่ `HTTP <status>` ทิ้งไป
+  // ผู้ใช้จะเห็นรหัสดิบบนหน้าล็อกอินและไม่รู้ว่าต้องทำอะไรต่อ
+  if (!r.ok) {
+    const detail = await r
+      .json()
+      .then((d: { message?: string }) => d?.message)
+      .catch(() => undefined);
+    throw new Error(detail || `HTTP ${r.status}`);
+  }
 
   return r.json() as Promise<AuthRes>;
 }

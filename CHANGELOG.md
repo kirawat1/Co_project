@@ -1,6 +1,17 @@
 # CHANGELOG — Co_project
 
-## [2026-09-07] fix: ตรวจสอบทั้งระบบ — พบบั๊กจริงในระบบนัดหมายนิเทศ
+## [2026-09-07] test: E2E เดิน flow สหกิจต้นจนจบข้าม 3 role + บั๊กที่เจอระหว่างทาง
+
+### Added
+- **Frontend/tests/coop-lifecycle.e2e.spec.ts** — E2E 14 เฟส ยิง backend จริงและเขียน DB จริง (ไม่ mock) เดินตั้งแต่ `NOT_SUBMITTED` จนถึง `T003_APPROVED` และ `SupervisionAppointment` จนถึง `COMPLETED` สลับบทบาทนักศึกษา/อาจารย์/เจ้าหน้าที่ตามจริงทุกจุดส่งต่อ จุดที่มี logic ฝั่ง UI (modal ออกหนังสือ, ตรวจเอกสาร T000, ฟอร์มนัดนิเทศ) ทดสอบผ่านหน้าจอ ส่วนที่เป็นการอัปโหลดไฟล์ล้วนยิงผ่าน API ทุกเฟสยืนยันผลจาก DB โดยตรง ไม่เชื่อหน้าจออย่างเดียว
+- **Frontend/tests/helpers/e2eSeed.ts** — fixture สร้าง user ทั้ง 3 role + รอบสหกิจ + บริษัทของตัวเอง แล้วลบทิ้งตอนจบ ไม่ผูกกับบัญชีที่มีอยู่ใน DB จึงรันซ้ำได้ไม่ทิ้งขยะ (ตรวจแล้วหลังรัน: ไม่มี record ตกค้าง)
+
+### Fixed
+- **backend/routes/authRoutes.js** — rate limiter ของ `/api/auth/signin` นับ**การล็อกอินที่สำเร็จ**ด้วย (30 ครั้ง/15 นาที/IP) ผิดหลักการกันเดารหัสผ่าน และอันตรายจริงใน production เพราะนักศึกษาทั้งคณะออกเน็ตผ่าน IP เดียวกัน (NAT + nginx/ngrok ซึ่ง `trust proxy` ทำให้เห็นเป็น IP ปลายทางเดียว) — พอ 30 คนแรกล็อกอินปกติ คนที่ 31 จะได้ 429 ยาว 15 นาทีทั้งที่ไม่มีใครทำอะไรผิด แก้ด้วย `skipSuccessfulRequests: true` ให้นับเฉพาะครั้งที่ล็อกอินไม่ผ่าน (เจอเพราะ E2E ที่สลับ role บ่อยโดนเตะออกกลางคัน)
+- **Frontend/src/components/api.ts** — `realFetch` โยน `HTTP <status>` ทิ้ง response body ทั้งก้อน ทำให้ข้อความภาษาไทยที่ backend ตั้งใจส่งมาไม่ถึงผู้ใช้เลย หน้าล็อกอินจึงขึ้นว่า "HTTP 429" ดิบ ๆ (เห็นกับตาใน screenshot ตอน E2E ล้ม) แก้ให้อ่าน `message` จาก body ก่อน แล้ว fallback เป็นรหัสสถานะ + เพิ่มข้อความสำรองของ 429 ใน `friendlyError` ของ `loginpage.tsx`
+- **Frontend/src/components/A_App.tsx** — `.catch()` ของ `/api/auth/me` ลบ token แล้วเด้งกลับหน้าล็อกอินทุกกรณี รวมถึงตอน `fetch` ถูก**ยกเลิก**เพราะผู้ใช้กดเมนูอื่นทันทีหลังหน้า dashboard โหลด (หรือเน็ตสะดุดชั่วขณะ) — เจ้าหน้าที่จึงหลุดออกจากระบบทั้งที่ token ยังไม่หมดอายุ ไม่มี 401 จาก server เลยสักครั้ง (ยืนยันด้วย network log ของ E2E) แก้ให้ข้าม `TypeError` ซึ่งเป็น error ของ network/abort ไม่ใช่ปัญหาสิทธิ์
+
+
 
 ทดสอบทุกหน้า (47 หน้า × 3 role) ผ่าน Playwright ไม่มี console error/failed API เลย
 รวมกับ API test 218+ เคส (permission matrix, mutation, T000 flow, doc-number,

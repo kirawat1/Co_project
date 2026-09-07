@@ -8,6 +8,11 @@ const prismaMock = {
     upsert: jest.fn(),
     update: jest.fn(),
     delete: jest.fn(),
+    count: jest.fn(),
+  },
+  staffProfile: {
+    findUnique: jest.fn(),
+    create: jest.fn(),
   },
   studentEmail: {
     findMany: jest.fn(),

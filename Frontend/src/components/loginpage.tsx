@@ -66,6 +66,8 @@ export default function LoginPage() {
       return "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง";
     if (/403|forbidden/i.test(msg))
       return "ไม่มีสิทธิ์เข้าถึง กรุณาติดต่อผู้ดูแลระบบ";
+    if (/\b429\b|too many requests/i.test(msg))
+      return "พยายามเข้าสู่ระบบบ่อยเกินไป กรุณารอสักครู่แล้วลองใหม่";
     if (/5\d{2}|internal server|server error/i.test(msg))
       return "เกิดข้อผิดพลาดของระบบ กรุณาลองใหม่อีกครั้ง";
     if (/failed to fetch|networkerror|network request failed/i.test(msg))
