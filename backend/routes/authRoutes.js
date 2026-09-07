@@ -6,9 +6,13 @@ const { verifyToken, verifyRole } = require("../middlewares/authMiddleware");
 
 const router = express.Router();
 
+// นับเฉพาะ login ที่ "ไม่สำเร็จ" — เป้าหมายคือกันเดารหัสผ่าน ไม่ใช่จำกัดคนที่ล็อกอินถูก
+// สำคัญเพราะนักศึกษาทั้งคณะออกเน็ตผ่าน IP เดียวกัน (NAT/nginx+ngrok) ถ้านับครั้งที่สำเร็จด้วย
+// การล็อกอินปกติ 30 คนแรกจะทำให้ที่เหลือเข้าระบบไม่ได้ยาว 15 นาที
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 30,
+  skipSuccessfulRequests: true,
   standardHeaders: true,
   legacyHeaders: false,
   message: { ok: false, message: "ลองใหม่ภายหลัง (พยายาม login มากเกินไป)" },

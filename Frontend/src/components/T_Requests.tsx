@@ -71,12 +71,27 @@ export default function T_Requests() {
       }
 
       // 🟢 2. ดึงนักศึกษาของที่ปรึกษา
-      const res = await axios.get("/api/students", {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      // API คืน { data: [...], meta: {...} } หลัง pagination — unwrap ให้ถูกต้อง
-      const studentArray = Array.isArray(res.data) ? res.data : (res.data?.data ?? []);
-      setStudents(studentArray);
+      // /api/students แบ่งหน้า (default 50, เพดาน 100) และหน้านี้กรอง/ค้นหาฝั่ง client ทั้งหมด
+      // ถ้าดึงแค่หน้าแรกเหมือนเดิม อาจารย์ประจำวิชาสหกิจที่เห็นนักศึกษาทั้งระบบ (หลักร้อยคน)
+      // จะเข้าถึงคำร้องได้แค่ 50 คนแรกเท่านั้น ที่เหลือหายไปเงียบ ๆ — ต้องวนดึงให้ครบทุกหน้า
+      // (ใช้ /api/students ต่อไป ไม่ย้ายไป /api/admin/students เพราะตัวนั้นไม่ scope
+      //  ตามที่ปรึกษา จะทำให้อาจารย์ทั่วไปเห็นคำร้องของนักศึกษาที่ไม่ใช่ที่ปรึกษาตัวเอง)
+      const PER_PAGE = 100;
+      const all: StudentProfile[] = [];
+      let currentPage = 1;
+      let totalPages = 1;
+      do {
+        const res = await axios.get("/api/students", {
+          params: { page: currentPage, limit: PER_PAGE },
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        // API คืน { data: [...], meta: {...} } หลัง pagination — unwrap ให้ถูกต้อง
+        const chunk = Array.isArray(res.data) ? res.data : (res.data?.data ?? []);
+        all.push(...chunk);
+        totalPages = res.data?.meta?.totalPages ?? 1;
+        currentPage += 1;
+      } while (currentPage <= totalPages);
+      setStudents(all);
     } catch (err) { console.error(err); }
     setLoading(false);
   };

@@ -57,10 +57,14 @@ export default function AdminApp() {
     apiFetch("/api/auth/me")
       .then(res => res.json())
       .then(data => {
-        if (!data.ok) throw new Error();
+        if (!data.ok) throw new Error("unauthorized");
         setProfile(data.user);
       })
-      .catch(() => {
+      .catch((err: unknown) => {
+        // fetch โยน TypeError เมื่อ request ถูกยกเลิก (เจ้าหน้าที่กดเมนูอื่นทันทีหลังหน้าโหลด)
+        // หรือเน็ตหลุดชั่วคราว — ไม่ใช่ปัญหาสิทธิ์ ถ้าลบ token ตรงนี้จะเด้งออกทั้งที่ยังล็อกอินอยู่
+        // (เจอจริงตอนรัน E2E: กด goto หน้าถัดไปเร็วเกินไปแล้วโดนเตะกลับหน้าล็อกอิน)
+        if (err instanceof TypeError) return;
         localStorage.removeItem("coop.token");
         navigate("/", { replace: true });
       })

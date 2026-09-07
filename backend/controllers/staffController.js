@@ -70,9 +70,20 @@ exports.deleteStaff = async (req, res) => {
     const id = parseInt(req.params.id, 10);
     if (isNaN(id)) return res.status(400).json({ ok: false, message: 'id ไม่ถูกต้อง' });
 
+    // กันลบบัญชีตัวเอง — ไม่มีเหตุผลทางธุรกิจให้ทำแบบนี้ และจะตัดสิทธิ์ตัวเองออกจากระบบทันที
+    if (id === req.user.id) {
+      return res.status(400).json({ ok: false, message: 'ไม่สามารถลบบัญชีของตัวเองได้' });
+    }
+
     const user = await prisma.user.findUnique({ where: { id } });
     if (!user || user.role !== 'staff')
       return res.status(404).json({ ok: false, message: 'ไม่พบเจ้าหน้าที่' });
+
+    // กันลบเจ้าหน้าที่คนสุดท้าย — ไม่งั้นจะไม่มีใครเข้าจัดการระบบได้อีกเลย
+    const staffCount = await prisma.user.count({ where: { role: 'staff' } });
+    if (staffCount <= 1) {
+      return res.status(400).json({ ok: false, message: 'ไม่สามารถลบเจ้าหน้าที่คนสุดท้ายในระบบได้' });
+    }
 
     await prisma.user.delete({ where: { id } });
     res.json({ ok: true });
