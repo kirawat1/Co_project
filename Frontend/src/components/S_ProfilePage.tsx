@@ -186,7 +186,8 @@ export default function S_ProfilePage() {
         if (profileResult.status === "fulfilled") {
           const profileData = profileResult.value;
           const emails = profileData.emails?.length > 0 ? profileData.emails : [{ email: "", primary: false }];
-          const company = profileData.coop ? { ...profileData.coop.company, selectedMentors: profileData.coop.mentors || [] } : profileData.company;
+          // ต้องเช็ค coop.company ด้วย — ถ้า companyId เป็น null การ spread จะได้ object ว่างที่ truthy
+          const company = profileData.coop?.company ? { ...profileData.coop.company, selectedMentors: profileData.coop.mentors || [] } : profileData.company;
           setProfile({ ...profileData, emails, company });
         } else {
           console.error("Error fetching profile:", profileResult.reason);
@@ -242,7 +243,7 @@ export default function S_ProfilePage() {
       if (fresh.ok) {
         const data = await fresh.json();
         const emails = data.emails?.length > 0 ? data.emails : [{ email: "", primary: false }];
-        const company = data.coop ? { ...data.coop.company, selectedMentors: data.coop.mentors || [] } : data.company;
+        const company = data.coop?.company ? { ...data.coop.company, selectedMentors: data.coop.mentors || [] } : data.company;
         setProfile({ ...data, emails, company });
       }
 
@@ -471,7 +472,12 @@ export default function S_ProfilePage() {
               <SearchableDropdown
                 options={mentorOptions}
                 value=""
-                placeholder={profile.company ? (mentorOptions.length > 0 ? "พิมพ์ค้นหาเพื่อเพิ่มพี่เลี้ยง..." : "เลือกครบแล้ว") : "กรุณาเลือกบริษัทก่อน"}
+                placeholder={
+                  !profile.company ? "กรุณาเลือกบริษัทก่อน"
+                    : mentorOptions.length > 0 ? "พิมพ์ค้นหาเพื่อเพิ่มพี่เลี้ยง..."
+                    : (profile.company.mentors?.length ?? 0) > 0 ? "เลือกครบแล้ว"
+                    : "บริษัทนี้ยังไม่มีพี่เลี้ยงในระบบ"
+                }
                 noOptionText="ไม่พบพี่เลี้ยงในบริษัทนี้"
                 onChange={(_id: string, rawData: any) => {
                   if (!rawData) return;

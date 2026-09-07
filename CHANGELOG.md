@@ -1,5 +1,56 @@
 # CHANGELOG — Co_project
 
+## [2026-09-07] feat: ลบทีละหลายรายการ (นักศึกษา/อาจารย์/บริษัท)
+
+### Added
+- **A_Students.tsx** — checkbox เลือกหลายแถว + select-all (indeterminate เมื่อเลือกไม่ครบ) + toolbar "ย้ายไปถังขยะ (N)" ยิง `DELETE /api/admin/students/:id` แบบขนานด้วย `Promise.allSettled` แล้วสรุปผลสำเร็จ/ไม่สำเร็จ selection ถูกเคลียร์อัตโนมัติเมื่อเปลี่ยนหน้า/ตัวกรอง (server-side pagination)
+- **A_Teacher.tsx** — เหมือนกัน ยิง `DELETE /api/admin/teachers/:id` ใช้ `ConfirmDialog`/`toast` แบบเดียวกับปุ่มลบเดี่ยวเดิมของไฟล์นี้
+- **A_Company.tsx** — เหมือนกัน ยิง `DELETE /api/companies/:id` ตัดรายการที่ลบสำเร็จออกจาก state ทันทีแบบเดียวกับปุ่มลบเดี่ยวเดิม (ไม่ re-fetch ทั้งตาราง)
+
+ทั้ง 3 หน้าไม่มี bulk endpoint ใหม่ที่ backend — ยิง endpoint ลบทีละรายการเดิมแบบขนาน รายการที่ลบไม่สำเร็จ (เช่นมี dependency ผูกอยู่) จะไม่ถูกตัดออกจากตาราง และมีข้อความสรุปจำนวนที่ล้มเหลว
+
+### Known issue (พบระหว่างทดสอบ ไม่ใช่ regression จากงานนี้)
+- **schema.prisma** — `StudentCoop.company` relation ไม่ได้ระบุ `onDelete` ทำให้ MySQL ใช้ `SET NULL` โดย default การลบบริษัทที่มีนักศึกษาผูกอยู่ (`StudentCoop.companyId`) จึงลบสำเร็จเงียบ ๆ แล้วตัดข้อมูลนักศึกษาทิ้ง แทนที่จะถูกปฏิเสธ — `companyController.js` มี handler ดักปี `P2003` ไว้แล้ว (ตอบ 409 "มีข้อมูลนักศึกษาอ้างอิงอยู่") แต่ไม่มีวันถูกเรียกใช้จริงเพราะ schema ปัจจุบันไม่ throw error นี้ พฤติกรรมเดิมมีอยู่ก่อนแล้วทั้งปุ่มลบเดี่ยวและปุ่ม bulk ใหม่ ยังไม่ได้แก้ — ต้องตัดสินใจว่าจะเปลี่ยน relation เป็น `onDelete: Restrict` (บล็อกการลบจริง ตรงกับข้อความ error ที่มีอยู่) หรือปล่อยตามเดิม
+
+## [2026-09-07] feat: อาจารย์ประจำวิชาสหกิจเขียนประกาศได้
+
+### Added
+- **announcementRoutes.js** — เปลี่ยน POST/DELETE จาก `verifyRole('staff')` เป็น `verifyCoopTeacherOrStaff` (middleware เดิมที่มีอยู่แล้ว) เจ้าหน้าที่ยังทำได้เหมือนเดิม เพิ่มอาจารย์ที่ `isCoopTeacher=true` เท่านั้น (ปัจจุบัน 4/76 คน) — อาจารย์ทั่วไปและนักศึกษายัง 403
+- **T_App.tsx** — เพิ่ม route `/teacher/announcements` ใช้ `A_Announcements` component เดิมร่วมกับฝั่งเจ้าหน้าที่ (ตาม pattern ที่มีอยู่แล้วกับ A_DocT007/A_GatewaySettings)
+- **T_Sidebar.tsx** — เมนู "ประกาศ" แสดงเฉพาะ `isCoopTeacher === true`
+
+### Fixed
+- **T_App.tsx** — `isCoopTeacher` เดิม default เป็น `false` ทำให้เข้า `/teacher/announcements` ตรง ๆ โดน `<Navigate>` เด้งออกก่อนที่ `/api/teacher/me` จะโหลดเสร็จ (race condition) แก้เป็น `boolean | null` — `null` แปลว่ายังไม่รู้ ไม่ตัดสินใจ redirect จนกว่าจะได้ค่าจริง
+
+## [2026-09-06] fix: ออกเอกสาร/เปลี่ยนสถานะ (เจ้าหน้าที่)
+
+### Fixed
+- **notificationHelper.js** — dedup ใช้คีย์ `(userId, type, relatedId, isRead=false)` แต่ทุกการเปลี่ยนสถานะใช้ `type='STATUS_UPDATED'` + `relatedId=studentId` เหมือนกัน ทำให้ นศ. ที่ยังไม่กดอ่านแจ้งเตือนแรก **ไม่ได้รับแจ้งเตือนสถานะถัดไปเลย** (ทดสอบแล้วได้ 1 จาก 4 — พลาด "ออกหนังสือขอความอนุเคราะห์แล้ว" และ "ออกหนังสือส่งตัวแล้ว") แก้โดยเทียบ `message` ในคีย์ dedup ด้วย
+- **adminDocController.js** — เลขที่หนังสือราชการที่ยังเป็นเทมเพลต (`660301.26.6.2/.......`, `อว 660301.26.6.2/xxxx`) ถูกบันทึกได้ ตอนนี้ตอบ 400 พร้อมบอกช่องที่ต้องกรอก
+- **adminDocController.js** — เลขที่หนังสือราชการซ้ำข้ามนักศึกษาได้ (ข้อมูลจริงมีซ้ำแล้ว 4+4 รายการ) ตอนนี้เช็คในทรานแซกชันแล้วตอบ 409 พร้อมบอกว่าเลขนั้นถูกใช้กับใคร — เลขเดิมของนักศึกษาคนเดิมยังออกซ้ำได้ (กรณีออกใหม่/แก้ไข)
+- **adminDocController.js** — วันที่ผิดรูปแบบทำให้ Prisma โยน 500 (`{"message":"Error"}`) ตอนนี้เป็น 400 พร้อมชื่อช่องที่ผิด
+- **adminDocController.js** — รับวันสิ้นสุดการฝึกงานที่มาก่อนวันเริ่มได้ ตอนนี้ตอบ 400
+- **IssueLetterModal.tsx / IssuePlacementLetterModal.tsx** — บังคับกรอกเลขที่หนังสือจริงก่อนบันทึก (เดิมเช็คแค่ไฟล์แนบ)
+
+### Changed
+- **schema.prisma + migration 20260906000000** — `reqDocNumber` และ `placeDocNumber` เป็น `@unique` (NULL ซ้ำได้ตามพฤติกรรม unique index ของ MySQL) migration ล้างค่าเทมเพลตที่ไม่เคยกรอก (จุดไข่ปลา/xxxx/ค่าว่าง) เป็น NULL ก่อนสร้าง index
+- **adminDocController.js** — แปลง Prisma P2002 เป็น 409 พร้อมบอกว่าเป็นเลขหนังสือใบไหน (กันกรณีสองคำขอออกเลขเดียวกันพร้อมกันจนรอดด่านเช็คใน transaction)
+- **เลขที่หนังสือเก็บเป็นตัวเลขล้วน** — เดิมข้อมูลปนกันสองรูปแบบ (`660301.26.6.2/123` กับ `อว 660301.26.6.2/123`) ซึ่งเลี่ยง unique index ได้ และเทมเพลตที่มี `ที่ อว ${docNumber}` อยู่แล้วจะเรนเดอร์เป็น "ที่ อว อว 660301..."
+  - `docGeneratorUtils.ts` — เพิ่ม `normalizeDocNumber()` ตัดคำนำหน้า "ที่/อว" ใช้ใน 3 เทมเพลต Word/HTML และ `pdfDispatchGenerator.ts`
+  - `adminDocController.js` — normalize ก่อนบันทึกและก่อนเช็คซ้ำ ทำให้ "อว X" กับ "X" ถือเป็นเลขเดียวกัน
+  - `IssueLetterModal.tsx` / `IssuePlacementLetterModal.tsx` — ค่าเริ่มต้นเป็น `660301.26.6.2/` แสดง "ที่ อว" เป็น prefix นอกช่องกรอก และบังคับว่าต้องมีเลขต่อท้าย `/`
+  - `migration 20260906010000` — ตัดคำนำหน้าออกจากข้อมูลเดิม (req 2 แถว, place 4 แถว ไม่มีชนกันหลังตัด)
+
+## [2026-09-06] fix: ปัญหาที่พบจากการทดสอบระบบทั้ง 3 role
+
+### Fixed
+- **companyController.js** — `bulkImportCompanies` บันทึกแค่ `name/address/pastYears` ทำให้ฟิลด์ที่อยู่ที่แยกไว้ (addressNo, moo, road, subDistrict, district, province, zipcode) หายทั้งหมด ตอนนี้บันทึกครบ + รับ nameEn/email/phone
+- **A_CompanyImport.tsx** — address parser ไม่รองรับที่อยู่กรุงเทพฯ (ใช้ "เขต/แขวง" และไม่มีคำว่า "จังหวัด" นำหน้า) ตอนนี้ parse ได้ทั้งต่างจังหวัดและ กทม.
+- **A_CompanyImport.tsx** — ตัวย่อ (ถ. ต. อ. จ. ม.) ต้องอยู่ต้นคำ ป้องกัน "กทม. 10900" ถูกอ่านเป็น `moo=10900` และ "บจ.xxx" ถูกอ่านเป็นจังหวัด
+- **S_ProfilePage.tsx** — `{ ...coop.company }` เมื่อ `companyId` เป็น null ให้ object ว่างที่ truthy ทำให้ นศ. ที่ยังไม่เลือกบริษัทเห็น "เลือกครบแล้ว" แทน "กรุณาเลือกบริษัทก่อน"
+- **S_ProfilePage.tsx** — แยกข้อความกรณี "บริษัทนี้ยังไม่มีพี่เลี้ยงในระบบ" ออกจาก "เลือกครบแล้ว"
+- **__tests__/companyController.test.js** — อัปเดต test ที่ยังคาดหวัง 403 ตอน นศ. แก้ไขบริษัทของคนอื่น ให้ตรงกับพฤติกรรมใหม่ (แก้ได้ทุกบริษัท, ลบได้เฉพาะของตัวเอง)
+
 ## [2026-08-28] feat: นำเข้าบริษัทจาก Excel (bulk import)
 
 ### Added

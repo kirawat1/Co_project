@@ -43,7 +43,18 @@ exports.bulkImportCompanies = async (req, res) => {
       await prisma.company.create({
         data: {
           name,
+          nameEn: row.nameEn || null,
           address: row.address || null,
+          addressNo: row.addressNo || null,
+          moo: row.moo || null,
+          soi: row.soi || null,
+          road: row.road || null,
+          subDistrict: row.subDistrict || null,
+          district: row.district || null,
+          province: row.province || null,
+          zipcode: row.zipcode || null,
+          email: row.email || null,
+          phone: row.phone || null,
           pastYears: row.pastYears || null,
           createdById: userId,
         },

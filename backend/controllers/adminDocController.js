@@ -3,6 +3,20 @@ const { createNotifications } = require('../utils/notificationHelper');
 const path = require('path');
 const fs = require('fs');
 
+// เลขที่หนังสือเก็บเป็นตัวเลขล้วน เช่น "660301.26.6.2/1234"
+// คำนำหน้า "ที่ อว" อยู่ในเทมเพลตหนังสือ — ตัดออกเพื่อไม่ให้เลขเดียวกันถูกเก็บสองรูปแบบจนเลี่ยง unique index ได้
+function normalizeDocNumber(value) {
+  if (!value) return '';
+  return String(value).trim().replace(/^(?:ที่\s*)?(?:อว\.?\s*)/, '').trim();
+}
+
+// แปลงวันที่จาก request — วันที่ผิดรูปแบบต้องเป็น 400 พร้อมบอกช่อง ไม่ใช่ Invalid Date ที่ทำให้ Prisma โยน 500
+function parseDateOr400(value, label) {
+  const d = new Date(value);
+  if (isNaN(d.getTime())) throw Object.assign(new Error(`${label}ไม่ถูกต้อง`), { is400: true });
+  return d;
+}
+
 // 1. ดึงค่า Config
 exports.getT000Config = async (req, res) => {
   try {
@@ -155,17 +169,36 @@ exports.reviewStudentStatus = async (req, res) => {
       t000Comment: comment
     };
 
+    // เลขที่หนังสือเก็บเป็นตัวเลขล้วน — "ที่ อว" อยู่ในเทมเพลตหนังสือ ตัดออกถ้าพิมพ์มาด้วย
+    const reqDocNo = normalizeDocNumber(reqDocNumber);
+    const placeDocNo = normalizeDocNumber(placeDocNumber);
+
+    // ต้องกรอกจริง — เทมเพลตที่ยังไม่แก้ (จุดไข่ปลา/xxxx) หรือไม่มีเลขต่อท้าย "/" ถือว่าไม่ผ่าน
+    const isPlaceholderDocNo = (v) => /[.]{3,}|x{3,}/i.test(v) || !/\/\s*\S/.test(v);
+    for (const [label, value] of [['เลขที่หนังสือขอความอนุเคราะห์', reqDocNo], ['เลขที่หนังสือส่งตัว', placeDocNo]]) {
+      if (value && isPlaceholderDocNo(value)) {
+        if (req.file) try { fs.unlinkSync(path.join(__dirname, '../uploads', req.file.filename)); } catch (_) {}
+        return res.status(400).json({ ok: false, message: `${label}ยังไม่ได้กรอก กรุณาระบุเลขที่จริง เช่น 660301.26.6.2/1234` });
+      }
+    }
+
     // หนังสือขอความอนุเคราะห์
-    if (reqDocNumber) updateData.reqDocNumber = reqDocNumber;
-    if (reqDocDate) updateData.reqDocDate = new Date(reqDocDate);
+    if (reqDocNo) updateData.reqDocNumber = reqDocNo;
+    if (reqDocDate) updateData.reqDocDate = parseDateOr400(reqDocDate, 'วันที่ออกหนังสือขอความอนุเคราะห์');
 
     // หนังสือส่งตัว
-    if (placeDocNumber) updateData.placeDocNumber = placeDocNumber;
-    if (placeDocDate) updateData.placeDocDate = new Date(placeDocDate);
+    if (placeDocNo) updateData.placeDocNumber = placeDocNo;
+    if (placeDocDate) updateData.placeDocDate = parseDateOr400(placeDocDate, 'วันที่ออกหนังสือส่งตัว');
 
     // วันที่ฝึกจริง
-    if (actualStartDate) updateData.actualStartDate = new Date(actualStartDate);
-    if (actualEndDate) updateData.actualEndDate = new Date(actualEndDate);
+    if (actualStartDate) updateData.actualStartDate = parseDateOr400(actualStartDate, 'วันเริ่มฝึกงาน');
+    if (actualEndDate) updateData.actualEndDate = parseDateOr400(actualEndDate, 'วันสิ้นสุดการฝึกงาน');
+
+    if (updateData.actualStartDate && updateData.actualEndDate &&
+        updateData.actualEndDate < updateData.actualStartDate) {
+      if (req.file) try { fs.unlinkSync(path.join(__dirname, '../uploads', req.file.filename)); } catch (_) {}
+      return res.status(400).json({ ok: false, message: 'วันสิ้นสุดการฝึกงานต้องไม่มาก่อนวันเริ่มฝึกงาน' });
+    }
 
     // ไฟล์ (แยกตาม status)
     if (req.file) {
@@ -203,6 +236,25 @@ exports.reviewStudentStatus = async (req, res) => {
       if (!studentCheck || studentCheck.deletedAt) {
         throw Object.assign(new Error('ไม่พบนักศึกษา'), { is404: true });
       }
+
+      // เลขที่หนังสือราชการห้ามซ้ำข้ามนักศึกษา (เช็คในทรานแซกชันเพื่อกันแข่งกันบันทึก)
+      for (const [field, value, label] of [
+        ['reqDocNumber', updateData.reqDocNumber, 'เลขที่หนังสือขอความอนุเคราะห์'],
+        ['placeDocNumber', updateData.placeDocNumber, 'เลขที่หนังสือส่งตัว'],
+      ]) {
+        if (!value) continue;
+        const clash = await tx.studentCoop.findFirst({
+          where: { [field]: value, studentId: { not: parsedStudentId } },
+          select: { student: { select: { studentId: true, firstName: true, lastName: true } } },
+        });
+        if (clash) {
+          const who = clash.student
+            ? `${clash.student.studentId} ${clash.student.firstName} ${clash.student.lastName}`
+            : 'นักศึกษารายอื่น';
+          throw Object.assign(new Error(`${label} "${value}" ถูกใช้กับ ${who} แล้ว`), { is409: true });
+        }
+      }
+
       if (req.file && docType) {
         const existingDoc = await tx.document.findFirst({
           where: { studentId: parsedStudentId, type: docType }
@@ -269,7 +321,14 @@ exports.reviewStudentStatus = async (req, res) => {
       if (fs.existsSync(fp)) try { fs.unlinkSync(fp); } catch (_) {}
     }
     if (err.is404) return res.status(404).json({ ok: false, message: err.message });
+    if (err.is409) return res.status(409).json({ ok: false, message: err.message });
     if (err.is400) return res.status(400).json({ ok: false, message: err.message });
+    // unique index ที่ DB — กันกรณีสองคำขอออกเลขเดียวกันพร้อมกันจนรอดด่านเช็คใน transaction
+    if (err.code === 'P2002') {
+      const target = String(err.meta?.target || '');
+      const label = target.includes('placeDocNumber') ? 'เลขที่หนังสือส่งตัว' : 'เลขที่หนังสือขอความอนุเคราะห์';
+      return res.status(409).json({ ok: false, message: `${label}นี้ถูกใช้ไปแล้ว กรุณาใช้เลขอื่น` });
+    }
     console.error(err);
     res.status(500).json({ ok: false, message: "Error" });
   }

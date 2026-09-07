@@ -1,7 +1,7 @@
 ﻿import React, { useState } from "react";
 import { apiFetch } from "../utils/apiFetch";
 import { createDispatchPDF } from "../utils/pdfDispatchGenerator";
-import { createWordBlob, createPreviewBlob, buildDispatchLetterHtml, thaiPrefix } from "../utils/docGeneratorUtils";
+import { createWordBlob, createPreviewBlob, buildDispatchLetterHtml, thaiPrefix, normalizeDocNumber } from "../utils/docGeneratorUtils";
 import { FileReady, DeliveryPicker, CompanyAddressBox, MODAL_CSS } from "./LetterModalShared";
 import DateInput from './DateInput';
 
@@ -12,7 +12,8 @@ interface Props {
 }
 
 export default function IssueLetterModal({ student, onClose, onSuccess }: Props) {
-    const [docNumber, setDocNumber] = useState("660301.26.6.2/.......");
+    // เก็บเฉพาะตัวเลข — คำนำหน้า "ที่ อว" ถูกเติมในเทมเพลตหนังสือแล้ว
+    const [docNumber, setDocNumber] = useState("660301.26.6.2/");
     const [docDate, setDocDate] = useState(new Date().toISOString().split('T')[0]);
     const [loadingPdf, setLoadingPdf] = useState(false);
     const [loadingDoc, setLoadingDoc] = useState(false);
@@ -118,6 +119,11 @@ export default function IssueLetterModal({ student, onClose, onSuccess }: Props)
     };
 
     const handleConfirm = async () => {
+        // เลขที่หนังสือราชการห้ามซ้ำ — เทมเพลตที่ยังไม่กรอกเลขท้าย "/" จะกลายเป็นเลขซ้ำทันที
+        const docNo = normalizeDocNumber(docNumber);
+        if (!docNo || /[.]{3,}|x{3,}/i.test(docNo) || !/\/\s*\S/.test(docNo)) {
+            return alert("กรุณากรอกเลขที่หนังสือให้ครบก่อนบันทึก (ใส่เลขต่อท้าย / เช่น 660301.26.6.2/1234)");
+        }
         if (!signedFile) return alert("กรุณาอัปโหลดไฟล์ที่ลงนามแล้วก่อนบันทึกเข้าระบบ");
         if (!confirm("ยืนยันการบันทึกข้อมูล และอัปเดตสถานะให้นักศึกษา?")) return;
         try {
@@ -129,7 +135,7 @@ export default function IssueLetterModal({ student, onClose, onSuccess }: Props)
                 ? `เจ้าหน้าที่ออกหนังสือแล้ว ให้นักศึกษามารับเอกสารตัวจริงที่คณะ หรือดาวน์โหลดไฟล์เพื่อนำไปยื่นบริษัทด้วยตนเอง`
                 : `เจ้าหน้าที่ออกหนังสือและได้จัดส่งให้บริษัททางไปรษณีย์/อีเมลเรียบร้อยแล้ว`;
             formData.append("comment", msg);
-            formData.append("reqDocNumber", docNumber);
+            formData.append("reqDocNumber", docNo);
             formData.append("reqDocDate", docDate);
             formData.append("file", signedFile);
             const res = await apiFetch("/api/admin/t000/review", { method: "PUT", body: formData });
@@ -171,7 +177,14 @@ export default function IssueLetterModal({ student, onClose, onSuccess }: Props)
                         <div>
                             <div style={sec}>1. ข้อมูลหนังสือ</div>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
-                                <div><label style={lbl}>เลขที่หนังสือ</label><input className="input" value={docNumber} onChange={e => setDocNumber(e.target.value)} /></div>
+                                <div>
+                                    <label style={lbl}>เลขที่หนังสือ</label>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                        <span style={{ whiteSpace: 'nowrap', opacity: .7 }}>ที่ อว</span>
+                                        <input className="input" style={{ flex: 1 }} value={docNumber}
+                                            onChange={e => setDocNumber(e.target.value)} placeholder="660301.26.6.2/1234" />
+                                    </div>
+                                </div>
                                 <div><label style={lbl}>วันที่ออกหนังสือ</label><DateInput className="input" value={docDate} onChange={e => setDocDate(e.target.value)} /></div>
                             </div>
                         </div>

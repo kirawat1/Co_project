@@ -48,6 +48,8 @@ export default function A_Companies() {
   const [items, setItems] = useState<AdminCompanyRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   const [showAdd, setShowAdd] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
@@ -77,6 +79,7 @@ export default function A_Companies() {
       .then(data => setItems(Array.isArray(data) ? data : (data?.data ?? [])))
       .catch(err => console.error("Error fetching companies:", err))
       .finally(() => setLoading(false));
+    setSelectedIds(new Set());
   }, []);
 
   useEffect(() => {
@@ -184,6 +187,50 @@ export default function A_Companies() {
     } catch (err) { alert("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้"); }
   }
 
+  function toggleSelectAll() {
+    setSelectedIds(prev =>
+      prev.size === filtered.length ? new Set() : new Set(filtered.map(c => c.id))
+    );
+  }
+
+  function toggleSelectOne(id: string) {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  async function handleBulkDeleteCompanies() {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    if (!confirm(`ลบบริษัทที่เลือก ${ids.length} แห่ง พร้อมพี่เลี้ยงทั้งหมดหรือไม่?`)) return;
+    setBulkDeleting(true);
+    try {
+      const results = await Promise.allSettled(
+        ids.map(id => apiFetch(`/api/companies/${id}`, { method: "DELETE" }).then(async r => {
+          const data = await r.json().catch(() => ({}));
+          if (!data.ok) throw new Error(data.message || "ลบไม่สำเร็จ");
+          return id;
+        }))
+      );
+      const succeededIds = new Set(
+        results.filter((r): r is PromiseFulfilledResult<string> => r.status === "fulfilled").map(r => r.value)
+      );
+      const failed = results.length - succeededIds.size;
+
+      setItems(prev => prev.filter(c => !succeededIds.has(c.id)));
+      if (viewCompany && succeededIds.has(viewCompany.id)) setViewCompany(null);
+      setSelectedIds(new Set());
+
+      if (failed > 0) {
+        alert(`ลบสำเร็จ ${succeededIds.size} แห่ง, ไม่สำเร็จ ${failed} แห่ง (อาจมีนักศึกษาอ้างอิงอยู่)`);
+      }
+    } finally {
+      setBulkDeleting(false);
+    }
+  }
+
   /* ---------------- Mentor ---------------- */
   async function saveMentor(e: React.FormEvent) {
     e.preventDefault();
@@ -283,11 +330,48 @@ export default function A_Companies() {
         </div>
       </section>
 
+      {/* Bulk action bar */}
+      {selectedIds.size > 0 && (
+        <div style={{
+          display: "flex", alignItems: "center", gap: 12, marginBottom: 12,
+          padding: "10px 16px", background: "#fff7ed", border: "1px solid #fdba74", borderRadius: 10,
+        }}>
+          <span style={{ fontSize: 13, fontWeight: 700, color: "#9a3412" }}>
+            เลือกแล้ว {selectedIds.size} แห่ง
+          </span>
+          <button
+            className="btn"
+            style={{ ...ghostBtn, color: "#ef4444", borderColor: "#ef4444", opacity: bulkDeleting ? 0.6 : 1, cursor: bulkDeleting ? "not-allowed" : "pointer" }}
+            onClick={handleBulkDeleteCompanies}
+            disabled={bulkDeleting}
+          >
+            🗑️ {bulkDeleting ? "กำลังลบ..." : `ลบที่เลือก (${selectedIds.size})`}
+          </button>
+          <button
+            className="btn"
+            style={{ ...ghostBtn, marginLeft: "auto" }}
+            onClick={() => setSelectedIds(new Set())}
+            disabled={bulkDeleting}
+          >
+            ยกเลิกการเลือก
+          </button>
+        </div>
+      )}
+
       {/* Table */}
       <section className="card" style={{ padding: 24 }}>
         <table className="tbl responsive-table" style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
             <tr>
+              <th style={{ width: 36 }}>
+                <input
+                  type="checkbox"
+                  checked={filtered.length > 0 && selectedIds.size === filtered.length}
+                  ref={el => { if (el) el.indeterminate = selectedIds.size > 0 && selectedIds.size < filtered.length; }}
+                  onChange={toggleSelectAll}
+                  aria-label="เลือกทั้งหมด"
+                />
+              </th>
               <th>ชื่อบริษัท</th>
               <th>จังหวัด</th>
               <th>อีเมล</th>
@@ -299,14 +383,22 @@ export default function A_Companies() {
           <tbody>
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={6} style={{ textAlign: "center", padding: 16, color: "#6b7280" }}>
+                <td colSpan={7} style={{ textAlign: "center", padding: 16, color: "#6b7280" }}>
                   — ไม่มีข้อมูล —
                 </td>
               </tr>
             )}
 
             {filtered.map((c, idx) => (
-              <tr key={c.id} className={idx % 2 ? "row-odd" : "row-even"}>
+              <tr key={c.id} className={idx % 2 ? "row-odd" : "row-even"} style={selectedIds.has(c.id) ? { background: "#fff7ed" } : undefined}>
+                <td>
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.has(c.id)}
+                    onChange={() => toggleSelectOne(c.id)}
+                    aria-label={`เลือก ${c.name}`}
+                  />
+                </td>
                 <td style={{ fontWeight: 600, color: '#1e293b' }} data-label="ชื่อบริษัท">{c.name}</td>
                 <td data-label="จังหวัด">{c.province || "-"}</td>
                 <td data-label="อีเมล">{c.email || "-"}</td>

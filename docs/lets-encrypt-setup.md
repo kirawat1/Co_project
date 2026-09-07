@@ -16,9 +16,10 @@ New-Item -ItemType Directory -Force -Path C:\letsencrypt\webroot\.well-known\acm
 
 ### 2. ดาวน์โหลด win-acme
 ```powershell
-# ดาวน์โหลดจาก GitHub releases
-$url = "https://github.com/win-acme/win-acme/releases/latest/download/win-acme.v2.x.x.x64.pluggable.zip"
-Invoke-WebRequest $url -OutFile C:\win-acme.zip
+# ดาวน์โหลด latest release อัตโนมัติจาก GitHub API
+$release = Invoke-RestMethod "https://api.github.com/repos/win-acme/win-acme/releases/latest"
+$asset = $release.assets | Where-Object { $_.name -like "*x64.pluggable*" }
+Invoke-WebRequest $asset.browser_download_url -OutFile C:\win-acme.zip
 Expand-Archive C:\win-acme.zip -DestinationPath C:\win-acme
 ```
 หรือโหลด manual จาก: https://github.com/win-acme/win-acme/releases
