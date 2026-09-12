@@ -66,31 +66,6 @@ export interface DocumentItem {
 }
 
 /* =========================
-   Document Helper (IMPORTANT)
-========================= */
-export function updateDocumentStatus(
-  doc: DocumentItem,
-  status: DocStatus,
-  by: string,
-  reason?: string
-): DocumentItem {
-  const h: DocumentHistory = {
-    status,
-    by,
-    reason,
-    at: new Date().toISOString(),
-  };
-
-  return {
-    ...doc,
-    status,
-    rejectReason: reason,
-    lastUpdated: h.at,
-    history: [...(doc.history ?? []), h],
-  };
-}
-
-/* =========================
    Coop Request
 ========================= */
 export type CoopRequestState = {
@@ -125,11 +100,6 @@ export type CoopRequestState = {
 /* =========================
    Student
 ========================= */
-export interface StudentEmail {
-  email: string;
-  primary: boolean;
-}
-
 export interface StudentCompany {
   id?: string;
   name: string;
@@ -202,40 +172,6 @@ export function loadStudents(): StudentProfile[] {
   return jsonLoad<StudentProfile[]>(K.STUDENTS, []).map(normalizeStudent);
 }
 
-export function saveStudents(list: StudentProfile[]) {
-  jsonSave(K.STUDENTS, list);
-}
-
-export function upsertStudent(profile: StudentProfile) {
-  const list = loadStudents();
-  const idx = list.findIndex((s) => s.studentId === profile.studentId);
-  const next = normalizeStudent(profile);
-
-  if (idx >= 0) list[idx] = { ...next };
-  else list.push(next);
-
-  saveStudents(list);
-
-  const index = jsonLoad<Record<string, boolean>>(K.STUDENT_INDEX, {});
-  index[profile.studentId] = true;
-  jsonSave(K.STUDENT_INDEX, index);
-}
-
-export function loadProfile(studentId: string): StudentProfile {
-  return (
-    loadStudents().find((s) => s.studentId === studentId) ??
-    normalizeStudent({
-      studentId,
-      emails: [],
-      docs: [],
-    } as StudentProfile)
-  );
-}
-
-export function saveProfile(profile: StudentProfile) {
-  upsertStudent(profile);
-}
-
 /* =========================
    Announcements
 ========================= */
@@ -254,14 +190,6 @@ export interface Announcement {
   attachments?: AnnouncementAttachment[];
 }
 
-export function loadAnnouncements(): Announcement[] {
-  return jsonLoad<Announcement[]>(K.ANNOUNCEMENTS, []);
-}
-
-export function saveAnnouncements(list: Announcement[]) {
-  jsonSave(K.ANNOUNCEMENTS, list);
-}
-
 /* =========================
    Academic Year
 ========================= */
@@ -276,10 +204,6 @@ export function loadAcademicYear(): string {
 
   localStorage.setItem(K.ACADEMIC_YEAR, guess);
   return guess;
-}
-
-export function saveAcademicYear(y: string) {
-  localStorage.setItem(K.ACADEMIC_YEAR, y);
 }
 
 /* =========================
@@ -327,44 +251,3 @@ export function loadDaily(studentId: string): DailyLog[] {
 export function saveDaily(studentId: string, list: DailyLog[]) {
   jsonSave(`${K.DAILY_PREFIX}${studentId}`, list);
 }
-
-export function loadAllDaily(): DailyLog[] {
-  return loadStudents().flatMap((s) =>
-    loadDaily(s.studentId).map((l) => ({
-      ...l,
-      studentId: s.studentId,
-    }))
-  );
-}
-
-/* =========================
-   Mentors / Teachers
-========================= */
-export interface MentorProfile {
-  id: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  phone?: string;
-  title?: string;
-  department?: string;
-}
-
-export function loadMentors(): MentorProfile[] {
-  return jsonLoad<MentorProfile[]>(K.MENTORS, []);
-}
-
-export function saveMentors(list: MentorProfile[]) {
-  jsonSave(K.MENTORS, list);
-}
-
-/* =========================
-   Notifications (Optional)
-========================= */
-export type StudentNotification = {
-  id: string;
-  studentId: string;
-  message: string;
-  createdAt: string;
-  read?: boolean;
-};
