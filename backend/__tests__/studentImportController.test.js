@@ -61,6 +61,9 @@ describe('importStudents', () => {
     jest.clearAllMocks();
     prisma.user.findMany.mockResolvedValue([]);
     prisma.student.findMany.mockResolvedValue([]);
+    // controller แปลงชื่อสาขาภาษาไทย -> รหัส ผ่าน CoopCriteria (เพิ่มทีหลังตอน batch 129)
+    // ถ้าไม่ mock จะคืน undefined แล้ว for...of พังเป็น 500 ทั้งที่ไม่ใช่บั๊กของ controller
+    prisma.coopCriteria.findMany.mockResolvedValue([]);
   });
 
   // ── shared / format-agnostic ────────────────────────────────────────────────
