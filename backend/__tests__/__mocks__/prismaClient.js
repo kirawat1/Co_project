@@ -135,6 +135,8 @@ const prismaMock = {
     upsert: jest.fn(),
     delete: jest.fn(),
     create: jest.fn(),
+    update: jest.fn(),
+    createMany: jest.fn(),
   },
   visit: {
     findMany: jest.fn(),

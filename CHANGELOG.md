@@ -1,5 +1,30 @@
 # CHANGELOG — Co_project
 
+## [2026-09-12] chore: ทำความสะอาดโค้ดทั้งระบบ
+
+ตรวจทั้ง repo แล้วพบว่าโค้ดสะอาดกว่าที่คาด (`console.log` ค้างแค่ 5 จุด, โค้ดที่คอมเมนต์ทิ้ง 3 บรรทัด,
+`TODO` 1 จุด, controller ทุกตัวมี route เรียกครบ) ของที่ต้องเก็บกวาดจริงเป็นโค้ดตายจากยุคที่ยัง mock ข้อมูล
+
+### Removed
+- **ไฟล์ขยะค้าง repo** — `prof.yml` + `backend/prof.yml` (Playwright snapshot dump เนื้อหาเหมือนกันทั้งคู่), `mock-student.png`, `v-student.png`
+- **ไฟล์ที่ไม่มีใคร import เลย 4 ไฟล์** — `T_Docs.tsx` (221 บรรทัด, ไม่มี route ใน `T_App.tsx` เข้าถึงไม่ได้จากทุกทาง), `S_NavItem.tsx` (ถูกแทนด้วย `NavItem` ที่เขียนอยู่ใน `S_Sidebar.tsx`), `notify.ts`, `static.d.ts` (ซ้ำซ้อนกับ `vite/client` ใน `vite-env.d.ts` ที่ประกาศ `*.png` ให้อยู่แล้ว — ยืนยันด้วย `tsc --noEmit` หลังลบ)
+- **`store.ts` 370 → 253 บรรทัด** — ลบ export ที่ไม่มีใครเรียก 14 ตัว ไล่ทั้ง chain (`saveProfile` → `upsertStudent` → `saveStudents` ตายทั้งสาย, `loadMentors`/`saveMentors`/`MentorProfile` เช่นกัน) เก็บ `CoopRequestState` กับ `DocPeriod` ไว้เพราะถูกใช้ภายในไฟล์โดยของที่ยังมีคนเรียก
+- **`api.ts` 138 → 78 บรรทัด** — `USE_MOCK` ถูก hardcode เป็น `false` ทำให้ `mockSignin`, `mockSignup`, `createMockClaims`, `encodeToken` ตายทั้งหมด แต่ TypeScript ไม่ฟ้องเพราะยังถูกอ้างในเงื่อนไข ternary
+- **dependency ที่ไม่ถูกใช้ 5 ตัว** — frontend: `jwt-decode`, `lucide-react`, `react-hot-toast` · backend: `mysql2`, `validator` (Prisma ใช้ engine ของตัวเอง ไม่ต้องพึ่ง `mysql2` — ยืนยันด้วยการต่อ DB จริงหลังถอน)
+
+### Fixed
+- **`criteriaController.test.js`** — เทสต์ import `saveCriteria` ที่ถูก refactor เป็น `createCriteria`/`updateCriteria` ไปตั้งแต่ batch 126 ทำให้ล้ม 3 เคสมานาน แก้ให้ตรงของจริง (รวมพฤติกรรมใหม่ที่ `nameTh` ว่างต้องเก็บเป็น `null`) และเพิ่มเทสต์ `updateCriteria` ซึ่งไม่เคยมี coverage เลยทั้งที่เป็นอีกครึ่งของฟังก์ชันเดิม (404 P2025 / 409 P2002)
+- **`studentImportController.test.js`** — ล้ม 2 เคสด้วย 500 `existing is not iterable` สาเหตุคือ controller ถูกเพิ่มการแปลงชื่อสาขาภาษาไทยเป็นรหัสผ่าน `CoopCriteria` (batch 129) แต่เทสต์ไม่เคย mock `coopCriteria.findMany` ให้ มันเลยคืน `undefined` แล้ว `for...of` พัง — เป็นช่องโหว่ของเทสต์ ไม่ใช่บั๊กของ controller (เคส `[old]` รอดเพราะไม่ได้ส่งคอลัมน์สาขามา จึงไม่เข้าโค้ดท่อนนั้น)
+- ผลรวม: backend test จาก **320 เคส ล้ม 5** เป็น **325 เคส ผ่านหมด**
+
+### Known issue (พบระหว่างทำความสะอาด ยังไม่แก้)
+- **`api.ts` `decodeToken` ใช้ไม่ได้กับ token จริง** — ฟังก์ชันนี้ทำ `JSON.parse(atob(token))` ซึ่งเป็นรูปแบบ token สมัย mock แต่ backend ออก JWT จริง (`jwt.sign` มีจุดคั่น 3 ส่วน) `atob` จึง throw ทุกครั้งแล้วคืน `null` เสมอ ผลคือบล็อก `if (claims)` ใน `loginpage.tsx` ไม่เคยทำงาน และ `coop.claims` ถูกเขียนลง localStorage โดย**ไม่มีโค้ดส่วนไหนอ่านมันเลย** ทั้งโปรเจกต์ กระทบแค่ชื่อผู้ใช้ที่ควรขึ้นบนหน้าล็อกอินหลังเข้าสำเร็จ ไม่กระทบสิทธิ์การเข้าถึง (ทุกอย่างตรวจที่ backend จาก JWT จริง)
+- **`A_Docs.tsx` เก็บรอบเอกสารไว้ใน localStorage** ผ่าน `loadDocPeriods`/`saveDocPeriods` แปลว่าเจ้าหน้าที่แต่ละคนเห็นค่าไม่ตรงกัน และข้อมูลหายถ้าล้าง browser ควรย้ายไปเก็บที่ฐานข้อมูล — เป็นการแก้พฤติกรรมระบบ ไม่ใช่งานทำความสะอาด
+- **`backend/scripts/seed_test_student.js`** มีรหัสผ่าน `Test1234!` ฝังไว้สำหรับบัญชี `teststudent01@kku.ac.th` ถ้าเผลอรันกับฐานข้อมูลจริงจะได้บัญชีที่มีรหัสผ่านรู้กันทั่ว ควรเปลี่ยนให้รับรหัสผ่านจาก env หรือใส่การ์ดกัน production
+
+### Verified
+`tsc --noEmit` ผ่าน · `vite build` ผ่าน · backend jest 325/325 · Playwright 97/97 (รวม E2E สหกิจ 14 เฟสที่เดินครบ flow จริง)
+
 ## [2026-09-07] test: E2E เดิน flow สหกิจต้นจนจบข้าม 3 role + บั๊กที่เจอระหว่างทาง
 
 ### Added

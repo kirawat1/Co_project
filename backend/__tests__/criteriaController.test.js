@@ -8,7 +8,8 @@ jest.mock('@prisma/client', () => {
 const prisma = require('./__mocks__/prismaClient');
 const {
   getAllCriteria,
-  saveCriteria,
+  createCriteria,
+  updateCriteria,
   deleteCriteria,
   getMajorList,
 } = require('../controllers/criteriaController');
@@ -58,32 +59,44 @@ describe('getAllCriteria', () => {
 });
 
 // ---------------------------------------------------------------------------
-// saveCriteria
+// createCriteria  (เดิมชื่อ saveCriteria — ถูกแยกเป็น create/update ตอน batch 126)
 // ---------------------------------------------------------------------------
-describe('saveCriteria', () => {
+describe('createCriteria', () => {
   test('200 – creates major and returns { ok: true, criteria }', async () => {
-    const upserted = { id: '1', major: 'CS' };
+    const upserted = { id: '1', major: 'CS', nameTh: 'วิทยาการคอมพิวเตอร์' };
     prisma.coopCriteria.upsert.mockResolvedValue(upserted);
 
-    const req = { body: { major: 'CS' } };
+    const req = { body: { major: 'CS', nameTh: 'วิทยาการคอมพิวเตอร์' } };
     const res = makeRes();
 
-    await saveCriteria(req, res);
+    await createCriteria(req, res);
 
     expect(prisma.coopCriteria.upsert).toHaveBeenCalledWith({
       where: { major: 'CS' },
-      update: {},
-      create: { major: 'CS' },
+      update: { nameTh: 'วิทยาการคอมพิวเตอร์' },
+      create: { major: 'CS', nameTh: 'วิทยาการคอมพิวเตอร์' },
     });
     expect(res.json).toHaveBeenCalledWith({ ok: true, criteria: upserted });
     expect(res.status).not.toHaveBeenCalled();
+  });
+
+  test('nameTh ว่าง → เก็บเป็น null ไม่ใช่ string ว่าง', async () => {
+    prisma.coopCriteria.upsert.mockResolvedValue({ id: '1', major: 'CS' });
+
+    await createCriteria({ body: { major: '  CS  ' } }, makeRes());
+
+    expect(prisma.coopCriteria.upsert).toHaveBeenCalledWith({
+      where: { major: 'CS' },
+      update: { nameTh: null },
+      create: { major: 'CS', nameTh: null },
+    });
   });
 
   test('400 – missing major', async () => {
     const req = { body: {} };
     const res = makeRes();
 
-    await saveCriteria(req, res);
+    await createCriteria(req, res);
 
     expect(res.status).toHaveBeenCalledWith(400);
     expect(prisma.coopCriteria.upsert).not.toHaveBeenCalled();
@@ -95,10 +108,58 @@ describe('saveCriteria', () => {
     const req = { body: { major: 'CS' } };
     const res = makeRes();
 
-    await saveCriteria(req, res);
+    await createCriteria(req, res);
 
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith({ ok: false, message: 'Save failed' });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// updateCriteria — ไม่เคยมี test มาก่อน ทั้งที่เป็นครึ่งหนึ่งของ saveCriteria เดิม
+// ---------------------------------------------------------------------------
+describe('updateCriteria', () => {
+  test('200 – updates and returns { ok: true, criteria }', async () => {
+    const updated = { id: '7', major: 'IT', nameTh: 'เทคโนโลยีสารสนเทศ' };
+    prisma.coopCriteria.update.mockResolvedValue(updated);
+
+    const req = { params: { id: '7' }, body: { major: 'IT', nameTh: 'เทคโนโลยีสารสนเทศ' } };
+    const res = makeRes();
+
+    await updateCriteria(req, res);
+
+    expect(prisma.coopCriteria.update).toHaveBeenCalledWith({
+      where: { id: '7' },
+      data: { major: 'IT', nameTh: 'เทคโนโลยีสารสนเทศ' },
+    });
+    expect(res.json).toHaveBeenCalledWith({ ok: true, criteria: updated });
+  });
+
+  test('400 – missing major', async () => {
+    const res = makeRes();
+    await updateCriteria({ params: { id: '7' }, body: {} }, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(prisma.coopCriteria.update).not.toHaveBeenCalled();
+  });
+
+  test('404 – P2025 (ไม่พบสาขาที่จะแก้)', async () => {
+    const err = new Error('not found');
+    err.code = 'P2025';
+    prisma.coopCriteria.update.mockRejectedValue(err);
+
+    const res = makeRes();
+    await updateCriteria({ params: { id: '99' }, body: { major: 'IT' } }, res);
+    expect(res.status).toHaveBeenCalledWith(404);
+  });
+
+  test('409 – P2002 (ชื่อสาขาซ้ำ)', async () => {
+    const err = new Error('duplicate');
+    err.code = 'P2002';
+    prisma.coopCriteria.update.mockRejectedValue(err);
+
+    const res = makeRes();
+    await updateCriteria({ params: { id: '7' }, body: { major: 'CS' } }, res);
+    expect(res.status).toHaveBeenCalledWith(409);
   });
 });
 
