@@ -3,6 +3,19 @@
 require('dotenv').config();
 const prisma = require('../config/prismaClient');
 
+// ── การ์ดกันรันผิดเครื่อง ──────────────────────────────────────────────────
+// สคริปต์นี้เลื่อนสถานะสหกิจของนักศึกษาในฐานข้อมูลที่ DATABASE_URL ชี้อยู่ ซึ่งบนเครื่อง
+// production ก็คือฐานข้อมูลจริง โปรเจกต์นี้ไม่ได้ตั้ง NODE_ENV ไว้ที่ไหนเลย การเช็ค
+// production จึงไม่ช่วยอะไร ใช้ fail-closed แทน คือต้องเปิดสวิตช์เองทุกครั้งถึงจะรันได้
+if (process.env.SEED_ALLOW !== '1') {
+    console.error('');
+    console.error('ปฏิเสธการรัน: สคริปต์นี้แก้สถานะสหกิจในฐานข้อมูลที่ DATABASE_URL ชี้อยู่');
+    console.error('ถ้าแน่ใจว่าเป็นเครื่อง dev ให้รันด้วย');
+    console.error('  SEED_ALLOW=1 node backend/scripts/seed_advance_to_placement.js');
+    console.error('');
+    process.exit(1);
+}
+
 async function main() {
     const student = await prisma.student.findUnique({
         where: { studentId: '643040001-1' },
