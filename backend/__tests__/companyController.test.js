@@ -94,6 +94,30 @@ describe('addCompany', () => {
     expect(res.json).toHaveBeenCalledWith({ ok: true, company: newCompany });
   });
 
+  test.each([
+    ['www.scb.co.th', 'https://www.scb.co.th'],
+    ['scb.co.th/th/home', 'https://scb.co.th/th/home'],
+    ['  http://scb.co.th ', 'http://scb.co.th'],
+    ['HTTPS://SCB.CO.TH', 'HTTPS://SCB.CO.TH'],
+    ['', null],
+  ])('website "%s" ไม่มี http(s):// → เติม https:// ให้ (เดิมได้ 400 เพิ่มบริษัทไม่ได้)', async (input, saved) => {
+    prisma.company.create.mockResolvedValue({ id: 'c1' });
+    const res = makeRes();
+    await addCompany({ user: { id: 1 }, body: { name: 'Corp', website: input } }, res);
+    expect(res.status).not.toHaveBeenCalled();
+    expect(prisma.company.create.mock.calls[0][0].data.website).toBe(saved);
+  });
+
+  test.each(['javascript:alert(1)', 'ftp://scb.co.th', 'ไม่มีเว็บ', 'scb co th'])(
+    '400 – website "%s" ไม่ใช่ลิงก์เว็บ → ไม่บันทึก',
+    async (input) => {
+      const res = makeRes();
+      await addCompany({ user: { id: 1 }, body: { name: 'Corp', website: input } }, res);
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(prisma.company.create).not.toHaveBeenCalled();
+    },
+  );
+
   test('500 – DB error returns { ok: false, message }', async () => {
     prisma.company.create.mockRejectedValue(new Error('DB fail'));
 
@@ -254,6 +278,15 @@ describe('updateCompany', () => {
 
     expect(prisma.company.update).toHaveBeenCalled();
     expect(res.json).toHaveBeenCalledWith({ ok: true, company: updatedCompany });
+  });
+
+  test('200 – แก้ไขบริษัท website ไม่มี https:// → เติมให้ (เดิมได้ 400)', async () => {
+    prisma.company.findUnique.mockResolvedValue({ id: 'c1', createdById: 99 });
+    prisma.company.update.mockResolvedValue({ id: 'c1' });
+    const res = makeRes();
+    await updateCompany({ params: { id: 'c1' }, user: { id: 5 }, body: { name: 'Corp', website: 'www.scb.co.th' } }, res);
+    expect(res.status).not.toHaveBeenCalled();
+    expect(prisma.company.update.mock.calls[0][0].data.website).toBe('https://www.scb.co.th');
   });
 
   test('200 – staff user can update any company', async () => {

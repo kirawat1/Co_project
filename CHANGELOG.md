@@ -1,5 +1,17 @@
 # CHANGELOG — Co_project
 
+## [2026-09-14] fix: เพิ่ม/แก้บริษัทไม่ได้ ถ้าเว็บไซต์ไม่มี http(s)://
+
+production: `POST /api/companies` ได้ 400 "เพิ่มบริษัทไม่ได้" — เกิดจากกรอกเว็บไซต์แบบ `www.abc.co.th` หรือ `abc.com` (ไม่มี `http://`/`https://` นำหน้า) แล้ว `safeUrl()` มองว่าไม่ใช่ URL ที่ถูกต้อง
+
+### Fixed
+- **`backend/controllers/companyController.js` (`safeUrl`)** — ถ้าเว็บไซต์ที่กรอกไม่มี scheme นำหน้า เติม `https://` ให้อัตโนมัติก่อนตรวจสอบ (ยังปฏิเสธ scheme อื่น เช่น `javascript:`/`ftp:` เหมือนเดิม) ใช้ร่วมกันทั้งเพิ่มและแก้ไขบริษัท
+- ข้อความ error สื่อสารชัดขึ้น: "เว็บไซต์ไม่ถูกต้อง — ใส่เป็นลิงก์เว็บ เช่น www.example.co.th"
+- **`A_Company.tsx`, `S_Company.tsx`** — แจ้ง `data.message` จาก backend แทนข้อความกลางๆ ที่ไม่บอกสาเหตุ
+
+### Verified
+- unit tests 391/391 (เพิ่ม test เว็บไซต์ไม่มี scheme/มี scheme แปลกๆ ทั้งตอนเพิ่มและแก้ไข) · ทดสอบกับ backend จริงผ่าน
+
 ## [2026-09-14] fix: ลบนักศึกษาถาวรได้ 500 + บัญชีนักศึกษาโผล่ในหน้าอาจารย์
 
 production: ลบถาวรนักศึกษา 6430212186 (green1@kkumail.com) ได้ "เกิดข้อผิดพลาดที่ Server" และบัญชีนี้ขึ้นในหน้าอาจารย์ — บัญชี role นักศึกษามีแถว `Teacher` ผูกอยู่ด้วย (`Teacher.userId` เป็น ON DELETE RESTRICT → ลบบัญชีติด P2003)

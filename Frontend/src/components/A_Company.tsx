@@ -149,7 +149,7 @@ export default function A_Companies() {
       const data = await res.json();
 
       if (!data.ok || !data.company) {
-        alert("บันทึกบริษัทไม่สำเร็จ");
+        alert(data.message || "บันทึกบริษัทไม่สำเร็จ");
         return;
       }
 

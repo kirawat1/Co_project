@@ -116,7 +116,7 @@ export default function Company({ profile }: { profile: any }) {
                     body: JSON.stringify(form),
                 });
                 const data = await res.json();
-                if (!data.ok) return alert("แก้ไขข้อมูลบริษัทไม่สำเร็จ");
+                if (!data.ok) return alert(data.message || "แก้ไขข้อมูลบริษัทไม่สำเร็จ");
                 setItems(prev => prev.map(c => c.id === form.id ? data.company : c));
                 setShowAdd(false);
                 setForm(emptyCompany());
@@ -128,7 +128,7 @@ export default function Company({ profile }: { profile: any }) {
                     body: JSON.stringify({ ...form, createdBy: userId }),
                 });
                 const data = await res.json();
-                if (!data.ok) return alert("บันทึกบริษัทไม่สำเร็จ");
+                if (!data.ok) return alert(data.message || "บันทึกบริษัทไม่สำเร็จ");
                 setItems(prev => [...prev, data.company]);
                 setShowAdd(false);
                 setForm(emptyCompany());
@@ -148,7 +148,7 @@ export default function Company({ profile }: { profile: any }) {
                 body: JSON.stringify(form),
             });
             const data = await res.json();
-            if (!data.ok) return alert("แก้ไขข้อมูลบริษัทไม่สำเร็จ");
+            if (!data.ok) return alert(data.message || "แก้ไขข้อมูลบริษัทไม่สำเร็จ");
 
             setItems(prev => prev.map(c => c.id === form.id ? data.company : c));
             setShowEdit(false);
