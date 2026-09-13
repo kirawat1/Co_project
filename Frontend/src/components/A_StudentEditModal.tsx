@@ -43,6 +43,8 @@ export default function A_StudentEditModal({ student, onClose, onSaved }: Props)
   const [teachers, setTeachers] = useState<TeacherOption[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [resetting, setResetting] = useState(false);
+  const [resetResult, setResetResult] = useState<{ ok: boolean; message: string } | null>(null);
 
   useEffect(() => {
     const token = localStorage.getItem("coop.token");
@@ -77,6 +79,22 @@ export default function A_StudentEditModal({ student, onClose, onSaved }: Props)
       setError(err.message || "เกิดข้อผิดพลาด");
     } finally {
       setSaving(false);
+    }
+  }
+
+  // ใช้รหัสนักศึกษาที่บันทึกในระบบ (ฝั่ง server อ่านจาก DB) ไม่ใช่ค่าที่กำลังแก้ในฟอร์ม
+  async function handleResetPassword() {
+    if (!window.confirm(`รีเซ็ตรหัสผ่านของ ${student.firstName ?? ""} ${student.lastName ?? ""} เป็นรหัสนักศึกษา (${student.studentId})?\nรหัสผ่านเดิมจะใช้ไม่ได้อีก`)) return;
+    setResetting(true);
+    setResetResult(null);
+    try {
+      const res = await apiFetch(`/api/admin/students/${student.id}/reset-password`, { method: "PATCH" });
+      const data = await res.json().catch(() => ({}));
+      setResetResult({ ok: !!(res.ok && data.ok), message: data.message || (res.ok ? "รีเซ็ตรหัสผ่านเรียบร้อย" : "รีเซ็ตรหัสผ่านไม่สำเร็จ") });
+    } catch (err: any) {
+      setResetResult({ ok: false, message: err.message || "เกิดข้อผิดพลาด" });
+    } finally {
+      setResetting(false);
     }
   }
 
@@ -144,6 +162,19 @@ export default function A_StudentEditModal({ student, onClose, onSaved }: Props)
           <Field label="ตำแหน่งงานที่สนใจ">
             <input style={input} value={form.jobPosition} onChange={e => update("jobPosition", e.target.value)} />
           </Field>
+        </div>
+
+        <div style={{ marginTop: 20, paddingTop: 16, borderTop: "1px solid #e5e7eb" }}>
+          <div style={{ fontSize: 13, color: "#64748b", marginBottom: 8, fontWeight: 600 }}>รหัสผ่านเข้าสู่ระบบ</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+            <button type="button" style={ghostBtn} onClick={handleResetPassword} disabled={resetting || saving}>
+              {resetting ? "กำลังรีเซ็ต..." : "🔑 รีเซ็ตรหัสผ่านเป็นรหัสนักศึกษา"}
+            </button>
+            <span style={{ fontSize: 12, color: "#94a3b8" }}>ใช้เมื่อนักศึกษาลืมรหัสผ่าน</span>
+          </div>
+          {resetResult && (
+            <div style={{ marginTop: 8, fontSize: 13, color: resetResult.ok ? "#15803d" : "#dc2626" }}>{resetResult.message}</div>
+          )}
         </div>
 
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 24 }}>

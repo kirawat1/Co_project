@@ -1,7 +1,7 @@
 // backend/routes/auth.js
 const express = require("express");
 const rateLimit = require("express-rate-limit");
-const { signIn, getProfile, loginWithSSO, loginWithKKU, registerStudent, loginWithGoogle } = require("../controllers/authController");
+const { signIn, getProfile, loginWithSSO, loginWithKKU, registerStudent, loginWithGoogle, changeMyPassword } = require("../controllers/authController");
 const { verifyToken, verifyRole } = require("../middlewares/authMiddleware");
 
 const router = express.Router();
@@ -33,6 +33,9 @@ router.post("/login/google", loginLimiter, loginWithGoogle);
 router.post("/register", verifyToken, verifyRole('staff'), registerStudent);
 
 router.get("/me", verifyToken, getProfile);
+// ไม่ใส่ loginLimiter: นักศึกษาใช้ IP เดียวกัน การตั้งรหัสใหม่ไม่ผ่านกติกา (400) จะไปกินโควตา
+// login ที่ล้มเหลวของทั้งคณะ และเส้นนี้ต้องมี token ที่ login แล้วอยู่ก่อน
+router.put("/me/password", verifyToken, verifyRole('student'), changeMyPassword);
 
 
 module.exports = router;

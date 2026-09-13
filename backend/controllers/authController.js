@@ -592,6 +592,43 @@ exports.registerStudent = async (req, res) => {
 };
 
 // ==========================================
+// เปลี่ยนรหัสผ่านของตัวเอง (นักศึกษา)
+// PUT /api/auth/me/password
+// ==========================================
+exports.changeMyPassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body || {};
+    if (typeof currentPassword !== "string" || typeof newPassword !== "string" || !currentPassword || !newPassword) {
+      return res.status(400).json({ ok: false, message: "กรุณากรอกรหัสผ่านปัจจุบันและรหัสผ่านใหม่" });
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: req.user.id }, include: { student: true } });
+    if (!user || (user.role === "student" && (!user.student || user.student.deletedAt))) {
+      return res.status(404).json({ ok: false, message: "ไม่พบบัญชีผู้ใช้" });
+    }
+    if (!user.password) {
+      return res.status(400).json({ ok: false, message: "บัญชีนี้ยังไม่มีรหัสผ่าน กรุณาติดต่อเจ้าหน้าที่ให้รีเซ็ตรหัสผ่าน" });
+    }
+
+    // รหัสปัจจุบันผิดตอบ 400 ไม่ใช่ 401 — หน้าเว็บจะ logout อัตโนมัติเมื่อเจอ 401
+    const valid = await bcrypt.compare(currentPassword, user.password);
+    if (!valid) return res.status(400).json({ ok: false, message: "รหัสผ่านปัจจุบันไม่ถูกต้อง" });
+
+    // กติกาเดียวกับตอนตั้งรหัสผ่านที่อื่น — รหัสนักศึกษาไม่ผ่านกติกานี้อยู่แล้ว (ไม่มีตัวอักษร)
+    const { validatePassword } = require("../utils/validatePassword");
+    const pwError = validatePassword(newPassword);
+    if (pwError) return res.status(400).json({ ok: false, message: pwError });
+
+    const hashed = await bcrypt.hash(newPassword, 10);
+    await prisma.user.update({ where: { id: user.id }, data: { password: hashed } });
+    res.json({ ok: true, message: "เปลี่ยนรหัสผ่านเรียบร้อย" });
+  } catch (err) {
+    console.error("[changeMyPassword]", err);
+    res.status(500).json({ ok: false, message: "เปลี่ยนรหัสผ่านไม่สำเร็จ" });
+  }
+};
+
+// ==========================================
 // Google OAuth Login (students only)
 // ==========================================
 exports.loginWithGoogle = async (req, res) => {

@@ -106,6 +106,8 @@ router.post('/students/create', verifyToken, verifyRole(...STAFF_ONLY), studentC
 
 // Students: Edit basic info — staff only (ไม่ใช่ teacher แม้ ADMIN_ROLES ปกติจะรวม teacher ด้วย)
 router.put('/students/:id', verifyToken, verifyRole(...STAFF_ONLY), studentController.updateStudentBasicInfo);
+// รีเซ็ตรหัสผ่านนักศึกษากลับเป็นรหัสนักศึกษา (ลืมรหัสผ่าน)
+router.patch('/students/:id/reset-password', verifyToken, verifyRole(...STAFF_ONLY), studentController.resetStudentPassword);
 
 // Students: Trash (soft delete / restore) — permanent delete removed; data preserved for history
 router.delete('/students/:id', verifyToken, verifyRole(...STAFF_ONLY), studentController.softDeleteStudent);

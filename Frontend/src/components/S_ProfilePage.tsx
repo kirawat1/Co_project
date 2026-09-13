@@ -4,6 +4,7 @@ import { IcEdit, IcSave } from "./icons";
 import { useToast } from "./Toast";
 import Spinner from "./Spinner";
 import { apiFetch } from "../utils/apiFetch";
+import S_ChangePasswordModal from "./S_ChangePasswordModal";
 
 /* ================= TYPES ================= */
 interface Mentor {
@@ -121,6 +122,7 @@ export default function S_ProfilePage() {
   const [teachers, setTeachers] = useState<any[]>([]);
   const [deptMap, setDeptMap] = useState<Record<string, string>>({});
   const [openStudentModal, setOpenStudentModal] = useState(false);
+  const [openPasswordModal, setOpenPasswordModal] = useState(false);
   const [loading, setLoading] = useState(true);
   // ── KKU REG Sync ──────────────────────────────
   const [kkuModalOpen, setKkuModalOpen] = useState(false);
@@ -347,6 +349,9 @@ export default function S_ProfilePage() {
                   🏫 {kkuAvailable ? "ดึงข้อมูลจาก KKU" : "KKU Sync (เร็วๆ นี้)"}
                 </button>
               )}
+              <button className="btn-edit" onClick={() => setOpenPasswordModal(true)} style={editBtnStyle}>
+                🔑 เปลี่ยนรหัสผ่าน
+              </button>
               <button className="btn-edit" onClick={() => setOpenStudentModal(true)} style={editBtnStyle}>
                 <IcEdit width={16} height={16} /> แก้ไขข้อมูล
               </button>
@@ -531,6 +536,7 @@ export default function S_ProfilePage() {
           closeModal={() => setOpenStudentModal(false)}
         />
       )}
+      {openPasswordModal && <S_ChangePasswordModal onClose={() => setOpenPasswordModal(false)} />}
     </div>
   );
 }
