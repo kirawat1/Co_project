@@ -12,6 +12,7 @@ const {
   updateCompany,
   deleteCompany,
   addMentor,
+  bulkImportCompanies,
 } = require('../controllers/companyController');
 
 function makeRes() {
@@ -106,6 +107,110 @@ describe('addCompany', () => {
 
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith({ ok: false, message: 'เพิ่มบริษัทไม่สำเร็จ' });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// bulkImportCompanies
+// ---------------------------------------------------------------------------
+describe('bulkImportCompanies', () => {
+  test('ชื่อใหม่ – สร้างบริษัท', async () => {
+    prisma.company.findFirst.mockResolvedValue(null);
+    prisma.company.create.mockResolvedValue({ id: 'c1' });
+
+    const req = { user: { id: 7 }, body: { companies: [{ name: ' New Corp ', province: 'ขอนแก่น', pastYears: '2558' }] } };
+    const res = makeRes();
+
+    await bulkImportCompanies(req, res);
+
+    expect(prisma.company.findFirst).toHaveBeenCalledWith({ where: { name: 'New Corp' } });
+    expect(prisma.company.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ name: 'New Corp', province: 'ขอนแก่น', pastYears: '2558', createdById: 7 }),
+    });
+    expect(prisma.company.update).not.toHaveBeenCalled();
+    expect(res.json).toHaveBeenCalledWith({ ok: true, created: 1, updated: 0, skipped: 0 });
+  });
+
+  test('ชื่อซ้ำกับที่มีอยู่ – เติมเฉพาะช่องที่ยังว่าง ไม่ทับข้อมูลเดิม', async () => {
+    prisma.company.findFirst.mockResolvedValue({
+      id: 'c9', name: 'Old Corp',
+      address: null, addressNo: '99', road: '', subDistrict: '   ',
+      province: 'ขอนแก่น', zipcode: null, pastYears: '2558',
+    });
+    prisma.company.update.mockResolvedValue({});
+
+    const req = {
+      user: { id: 7 },
+      body: {
+        companies: [{
+          name: 'Old Corp',
+          address: '123 ถ.มิตรภาพ ต.ในเมือง 40000',
+          addressNo: '123',
+          road: 'มิตรภาพ',
+          subDistrict: 'ในเมือง',
+          province: 'กรุงเทพมหานคร',
+          zipcode: '40000',
+          pastYears: '2560',
+        }],
+      },
+    };
+    const res = makeRes();
+
+    await bulkImportCompanies(req, res);
+
+    expect(prisma.company.create).not.toHaveBeenCalled();
+    expect(prisma.company.update).toHaveBeenCalledWith({
+      where: { id: 'c9' },
+      data: {
+        address: '123 ถ.มิตรภาพ ต.ในเมือง 40000',
+        road: 'มิตรภาพ',
+        subDistrict: 'ในเมือง',
+        zipcode: '40000',
+      },
+    });
+    expect(res.json).toHaveBeenCalledWith({ ok: true, created: 0, updated: 1, skipped: 0 });
+  });
+
+  test('ชื่อซ้ำและไม่มีช่องไหนให้เติม – ข้าม ไม่เขียน DB', async () => {
+    prisma.company.findFirst.mockResolvedValue({ id: 'c9', name: 'Full Corp', province: 'ขอนแก่น', zipcode: '40000', pastYears: '2558' });
+
+    const req = { user: { id: 7 }, body: { companies: [{ name: 'Full Corp', province: 'ขอนแก่น', zipcode: '40002', moo: '', pastYears: '2561' }] } };
+    const res = makeRes();
+
+    await bulkImportCompanies(req, res);
+
+    expect(prisma.company.update).not.toHaveBeenCalled();
+    expect(prisma.company.create).not.toHaveBeenCalled();
+    expect(res.json).toHaveBeenCalledWith({ ok: true, created: 0, updated: 0, skipped: 1 });
+  });
+
+  test('บริษัทเดิมยังไม่มีปี – เติมปีจากไฟล์ให้', async () => {
+    prisma.company.findFirst.mockResolvedValue({ id: 'c3', name: 'No Year Corp', pastYears: null });
+    prisma.company.update.mockResolvedValue({});
+
+    const req = { user: { id: 7 }, body: { companies: [{ name: 'No Year Corp', pastYears: '2563' }] } };
+    const res = makeRes();
+
+    await bulkImportCompanies(req, res);
+
+    expect(prisma.company.update).toHaveBeenCalledWith({ where: { id: 'c3' }, data: { pastYears: '2563' } });
+    expect(res.json).toHaveBeenCalledWith({ ok: true, created: 0, updated: 1, skipped: 0 });
+  });
+
+  test('ไม่มีชื่อ – ข้าม', async () => {
+    const req = { user: { id: 7 }, body: { companies: [{ name: '  ', province: 'ขอนแก่น' }] } };
+    const res = makeRes();
+
+    await bulkImportCompanies(req, res);
+
+    expect(prisma.company.findFirst).not.toHaveBeenCalled();
+    expect(res.json).toHaveBeenCalledWith({ ok: true, created: 0, updated: 0, skipped: 1 });
+  });
+
+  test('400 – ไม่มีรายการ', async () => {
+    const res = makeRes();
+    await bulkImportCompanies({ user: { id: 7 }, body: { companies: [] } }, res);
+    expect(res.status).toHaveBeenCalledWith(400);
   });
 });
 
