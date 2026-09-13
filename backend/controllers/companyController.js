@@ -27,6 +27,19 @@ exports.searchCompanies = async (req, res) => {
   }
 };
 
+// ช่องที่รับจากไฟล์นำเข้า — ใช้ทั้งตอนสร้างบริษัทใหม่ และตอนเติมช่องที่ยังว่างของบริษัทที่มีอยู่แล้ว
+const IMPORT_FIELDS = [
+  'nameEn', 'address', 'addressNo', 'moo', 'soi', 'road',
+  'subDistrict', 'district', 'province', 'zipcode', 'email', 'phone', 'pastYears',
+];
+
+/** ค่าว่าง / มีแต่ช่องว่าง นับเป็นไม่มีข้อมูล */
+function importValue(v) {
+  if (v === null || v === undefined) return null;
+  const s = String(v).trim();
+  return s || null;
+}
+
 exports.bulkImportCompanies = async (req, res) => {
   try {
     const rows = req.body.companies;
@@ -34,34 +47,30 @@ exports.bulkImportCompanies = async (req, res) => {
       return res.status(400).json({ ok: false, message: 'ไม่มีข้อมูลบริษัท' });
     }
     const userId = req.user?.id || null;
-    let created = 0, skipped = 0;
+    let created = 0, updated = 0, skipped = 0;
     for (const row of rows) {
       const name = (row.name || '').trim();
       if (!name) { skipped++; continue; }
       const exists = await prisma.company.findFirst({ where: { name } });
-      if (exists) { skipped++; continue; }
-      await prisma.company.create({
-        data: {
-          name,
-          nameEn: row.nameEn || null,
-          address: row.address || null,
-          addressNo: row.addressNo || null,
-          moo: row.moo || null,
-          soi: row.soi || null,
-          road: row.road || null,
-          subDistrict: row.subDistrict || null,
-          district: row.district || null,
-          province: row.province || null,
-          zipcode: row.zipcode || null,
-          email: row.email || null,
-          phone: row.phone || null,
-          pastYears: row.pastYears || null,
-          createdById: userId,
-        },
-      });
+      if (exists) {
+        // ชื่อซ้ำ: ไม่ทับข้อมูลเดิม เติมเฉพาะช่องที่ยังว่าง
+        // (ปีที่รับซึ่งมีอยู่แล้วจึงคงเป็นปีแรกที่พบตามเดิม)
+        const fill = {};
+        for (const field of IMPORT_FIELDS) {
+          const incoming = importValue(row[field]);
+          if (incoming && !importValue(exists[field])) fill[field] = incoming;
+        }
+        if (Object.keys(fill).length === 0) { skipped++; continue; }
+        await prisma.company.update({ where: { id: exists.id }, data: fill });
+        updated++;
+        continue;
+      }
+      const data = { name, createdById: userId };
+      for (const field of IMPORT_FIELDS) data[field] = importValue(row[field]);
+      await prisma.company.create({ data });
       created++;
     }
-    res.json({ ok: true, created, skipped });
+    res.json({ ok: true, created, updated, skipped });
   } catch (err) {
     console.error('Bulk Import Error:', err);
     res.status(500).json({ ok: false, message: 'นำเข้าไม่สำเร็จ' });

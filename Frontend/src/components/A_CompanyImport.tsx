@@ -20,7 +20,7 @@ interface ParsedCompany {
 interface PreviewRow extends ParsedCompany {
   sheet: string;
   seq: number;
-  /** ชื่อเดียวกันพบในชีตก่อนหน้าแล้ว — ระบบจะข้ามแถวนี้ (pastYears = ปีแรกที่รับ) */
+  /** ชื่อเดียวกันพบในชีตก่อนหน้าแล้ว — ไม่สร้างซ้ำ ใช้เติมเฉพาะช่องที่ยังว่าง (pastYears = ปีแรกที่รับ) */
   duplicateOf?: string;
 }
 
@@ -125,7 +125,7 @@ export default function A_CompanyImport({ onClose, onImported }: Props) {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
-  const [result, setResult] = useState<{ created: number; skipped: number } | null>(null);
+  const [result, setResult] = useState<{ created: number; updated: number; skipped: number } | null>(null);
   const [error, setError] = useState("");
 
   function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -210,12 +210,13 @@ export default function A_CompanyImport({ onClose, onImported }: Props) {
     const payload: ParsedCompany[] = rows.map(({ sheet: _s, seq: _q, duplicateOf: _d, ...company }) => company);
     const chunks = chunkByBytes(payload);
     let created = 0;
+    let updated = 0;
     let skipped = 0;
     let done = 0;
     setProgress({ done: 0, total: payload.length });
     try {
       // ส่งทีละชุดตามลำดับ (ไม่ขนาน) — backend เช็คชื่อซ้ำกับ DB ตอนบันทึก
-      // ชุดหลังจึงเห็นบริษัทที่ชุดก่อนเพิ่งสร้าง และปีแรกที่พบยังคงเป็นปีที่ถูกเก็บ
+      // ชุดหลังจึงเห็นบริษัทที่ชุดก่อนเพิ่งสร้าง: ไม่สร้างซ้ำ แค่เติมช่องที่ยังว่าง ปีแรกที่พบจึงยังคงอยู่
       for (const chunk of chunks) {
         const httpRes = await apiFetch("/api/companies/bulk", {
           method: "POST",
@@ -224,19 +225,20 @@ export default function A_CompanyImport({ onClose, onImported }: Props) {
         });
         const res = await readJsonSafe(httpRes);
         if (!httpRes.ok || !res.ok) {
-          const partial = created + skipped > 0 ? ` (นำเข้าไปแล้ว ${done} จาก ${payload.length} รายการก่อนเกิดข้อผิดพลาด)` : "";
+          const partial = done > 0 ? ` (นำเข้าไปแล้ว ${done} จาก ${payload.length} รายการก่อนเกิดข้อผิดพลาด)` : "";
           throw new Error((res.message || "นำเข้าไม่สำเร็จ") + partial);
         }
         created += res.created ?? 0;
+        updated += res.updated ?? 0;
         skipped += res.skipped ?? 0;
         done += chunk.length;
         setProgress({ done, total: payload.length });
       }
-      setResult({ created, skipped });
+      setResult({ created, updated, skipped });
       onImported();
     } catch (err: any) {
       setError(err.message || "เกิดข้อผิดพลาด");
-      if (created > 0) onImported();
+      if (created + updated > 0) onImported();
     } finally {
       setLoading(false);
       setProgress(null);
@@ -260,6 +262,8 @@ export default function A_CompanyImport({ onClose, onImported }: Props) {
 
         <p style={{ margin: "0 0 12px", fontSize: 13, opacity: .7 }}>
           รูปแบบที่รองรับ: คอลัมน์ A=ลำดับ, B=ชื่อบริษัท, C=ที่อยู่ | แต่ละ sheet = ปีการศึกษา (เช่น "ปี 2558")
+          <br />
+          ถ้าชื่อตรงกับบริษัทที่มีในระบบแล้ว จะไม่สร้างซ้ำและไม่ทับข้อมูลเดิม แต่จะเติมช่องที่ยังว่างให้
         </p>
 
         <input ref={fileRef} type="file" accept=".xlsx,.xls" onChange={handleFile} style={{ marginBottom: 16 }} disabled={loading} />
@@ -270,7 +274,7 @@ export default function A_CompanyImport({ onClose, onImported }: Props) {
               <b>พบข้อมูล {rows.length} รายการ จาก {sheetSummary.length} sheet</b>
               {duplicateCount > 0 && (
                 <span style={{ marginLeft: 8, fontSize: 13, color: "#92400e" }}>
-                  · ชื่อซ้ำกับปีก่อนหน้าในไฟล์ {duplicateCount} รายการ (ระบบเก็บปีแรกที่พบ แถวซ้ำจะถูกข้าม)
+                  · ชื่อซ้ำกับปีก่อนหน้าในไฟล์ {duplicateCount} รายการ (ไม่สร้างซ้ำ เก็บปีแรกที่พบ แถวซ้ำใช้เติมช่องที่ยังว่าง)
                 </span>
               )}
             </div>
@@ -323,7 +327,7 @@ export default function A_CompanyImport({ onClose, onImported }: Props) {
                         {r.name}
                         {r.duplicateOf && (
                           <span style={{ marginLeft: 6, fontSize: 11, color: "#92400e", background: "#fef3c7", padding: "1px 6px", borderRadius: 6, whiteSpace: "nowrap" }}>
-                            ซ้ำกับ {r.duplicateOf} — จะข้าม
+                            ซ้ำกับ {r.duplicateOf} — เติมเฉพาะช่องที่ว่าง
                           </span>
                         )}
                       </td>
@@ -350,7 +354,7 @@ export default function A_CompanyImport({ onClose, onImported }: Props) {
 
         {result && (
           <div style={{ padding: "12px 16px", background: "var(--success-bg, #ecfdf5)", borderRadius: 8, marginBottom: 16, fontSize: 14 }}>
-            ✅ นำเข้าสำเร็จ: เพิ่มใหม่ <b>{result.created}</b> บริษัท, ข้ามซ้ำ <b>{result.skipped}</b> รายการ
+            ✅ นำเข้าสำเร็จ: เพิ่มใหม่ <b>{result.created}</b> บริษัท, เติมข้อมูลที่ขาดให้บริษัทเดิม <b>{result.updated}</b> รายการ, ข้าม <b>{result.skipped}</b> รายการ (ซ้ำและไม่มีข้อมูลใหม่)
           </div>
         )}
 
