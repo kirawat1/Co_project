@@ -632,6 +632,22 @@ exports.createStudentSingle = async (req, res) => {
 
     const studyProgramEnum = studyProgram === "special" ? "special" : studyProgram === "normal" ? "normal" : undefined;
     const gpaFloat = gpa ? parseFloat(gpa) : undefined;
+
+    // สาขาวิชาต้องเป็นสาขาที่มีในหน้าจัดการสาขาวิชา (CoopCriteria) และเก็บเป็นรหัสสาขา (เช่น CS)
+    // ให้ตรงกันทั้งระบบ — รับชื่อไทยได้ด้วย แล้วแปลงเป็นรหัส แบบเดียวกับตอนนำเข้า Excel
+    let majorCode = null;
+    const majorInput = major?.toString().trim();
+    if (majorInput) {
+      const criteria = await prisma.coopCriteria.findFirst({
+        where: { OR: [{ major: majorInput }, { nameTh: majorInput }] },
+        select: { major: true },
+      });
+      if (!criteria) {
+        return res.status(400).json({ ok: false, message: `ไม่พบสาขาวิชา "${majorInput}" ในระบบ — เพิ่มที่หน้าจัดการสาขาวิชาก่อน` });
+      }
+      majorCode = criteria.major;
+    }
+
     // รหัสผ่านเริ่มต้น = รหัสนักศึกษา (นักศึกษาไปเปลี่ยนเองทีหลัง)
     const defaultPasswordHash = await hashDefaultStudentPassword(studentId);
 
@@ -656,7 +672,7 @@ exports.createStudentSingle = async (req, res) => {
               lastNameEn: lastNameEn?.trim() || null,
               email: emailLower,
               phone: phone?.trim() || null,
-              major: major?.trim() || null,
+              major: majorCode,
               studyProgram: studyProgramEnum,
               year: year?.toString().trim() || null,
               gpa: gpaFloat && !isNaN(gpaFloat) ? gpaFloat : 0,

@@ -1,10 +1,15 @@
 // Frontend/src/components/A_AddStudentModal.tsx
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { apiFetch } from "../utils/apiFetch";
 
 interface Props {
   onClose: () => void;
   onSuccess: () => void;
+}
+
+interface Department {
+  major: string;
+  nameTh: string | null;
 }
 
 const FIELD_STYLE: React.CSSProperties = {
@@ -21,6 +26,15 @@ export default function A_AddStudentModal({ onClose, onSuccess }: Props) {
     major: "", studyProgram: "normal", year: "", gpa: "", advisorName: "",
   });
   const [loading, setLoading] = useState(false);
+  // สาขาวิชาจากหน้าจัดการสาขาวิชา (admin/criteria) — เลือกแทนพิมพ์เอง ให้เก็บเป็นรหัสสาขาเดียวกันทั้งระบบ
+  const [departments, setDepartments] = useState<Department[] | null>(null);
+
+  useEffect(() => {
+    apiFetch("/api/coop/departments")
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => setDepartments(d?.ok && Array.isArray(d.departments) ? d.departments : []))
+      .catch(() => setDepartments([]));
+  }, []);
 
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setForm(f => ({ ...f, [k]: e.target.value }));
@@ -108,7 +122,17 @@ export default function A_AddStudentModal({ onClose, onSuccess }: Props) {
           {/* สาขา + แผนการศึกษา */}
           <div>
             <label style={LBL}>สาขาวิชา / หลักสูตร</label>
-            <input style={FIELD_STYLE} value={form.major} onChange={set("major")} placeholder="เช่น วิทยาการคอมพิวเตอร์" />
+            <select style={FIELD_STYLE} value={form.major} onChange={set("major")} disabled={departments === null}>
+              <option value="">{departments === null ? "กำลังโหลด..." : "-- เลือกสาขาวิชา --"}</option>
+              {(departments ?? []).map(d => (
+                <option key={d.major} value={d.major}>
+                  {d.nameTh && d.nameTh !== d.major ? `${d.nameTh} (${d.major})` : d.major}
+                </option>
+              ))}
+            </select>
+            {departments !== null && departments.length === 0 && (
+              <div style={{ fontSize: 11, color: "#b45309", marginTop: 3 }}>ยังไม่มีสาขาวิชา — เพิ่มที่เมนู "จัดการสาขาวิชา"</div>
+            )}
           </div>
           <div>
             <label style={LBL}>แผนการศึกษา</label>
