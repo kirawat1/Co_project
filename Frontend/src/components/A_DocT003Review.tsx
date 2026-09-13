@@ -5,6 +5,8 @@ import { useToast } from "./Toast";
 import ConfirmDialog from "./ConfirmDialog";
 import AutoTextarea from "./AutoTextarea";
 import DateInput from './DateInput';
+import LoadMoreFooter from "./LoadMoreFooter";
+import { useLoadMore } from "../utils/useLoadMore";
 
 // --- Types ---
 type Document = {
@@ -203,6 +205,9 @@ export default function A_DocT003Review() {
         return filtered;
     }, [students, searchTerm, sortKey, sortDirection]);
 
+    // แสดงทีละ 30 รายการ เลื่อนถึงท้ายตารางแล้วแสดงเพิ่ม แทนโหลดทั้งหมดในตารางเดียว
+    const { shown: shownStudents, hasMore, sentinelRef, showMore, total } = useLoadMore(processedStudents, `${searchTerm}|${selectedPeriod}`);
+
     const openReviewModal = (student: Student) => {
         setSelectedStudent(student);
         setComment("");
@@ -296,7 +301,7 @@ export default function A_DocT003Review() {
                         </button>
 
                         <div style={{ background: '#dbeafe', color: '#1e40af', padding: '10px 16px', borderRadius: 8, fontWeight: 700, border: '1px solid #bfdbfe' }}>
-                            ทั้งหมด: {processedStudents.length} รายการ
+                            ทั้งหมด: {total} รายการ
                         </div>
                     </div>
                 </div>
@@ -361,7 +366,7 @@ export default function A_DocT003Review() {
                     <tbody>
                         {processedStudents.length === 0 ? (
                             <tr><td colSpan={5} style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>🎉 ไม่มีโครงร่างรายงาน (T003) ในระบบ</td></tr>
-                        ) : processedStudents.map(s => {
+                        ) : shownStudents.map(s => {
                             const statusInfo = getT003Status(s);
 
                             return (
@@ -384,6 +389,7 @@ export default function A_DocT003Review() {
                         })}
                     </tbody>
                 </table>
+                <LoadMoreFooter shownCount={shownStudents.length} total={total} hasMore={hasMore} onShowMore={showMore} sentinelRef={sentinelRef} itemLabel="รายการ" />
             </section>
 
             {/* MODAL ตรวจเอกสาร */}

@@ -4,6 +4,8 @@
 import React, { useEffect, useState, useMemo, useRef } from "react";
 import { apiFetch } from "../utils/apiFetch";
 import { applyAddressChange } from "../utils/addressAutofill";
+import LoadMoreFooter from "./LoadMoreFooter";
+import { useLoadMore } from "../utils/useLoadMore";
 
 interface MentorRecord {
     id: string;
@@ -96,6 +98,9 @@ export default function Company({ profile }: { profile: any }) {
             `${c.name} ${c.nameEn} ${c.province} ${c.email} ${c.pastYears} ${c.addressNo || ''}`.toLowerCase().includes(q.toLowerCase())
         );
     }, [items, q]);
+
+    // แสดงทีละ 30 แห่ง เลื่อนถึงท้ายตารางแล้วแสดงเพิ่ม แทนโหลดทั้งหมดในตารางเดียว
+    const { shown: shownItems, hasMore, sentinelRef, showMore, total } = useLoadMore(filtered, q);
 
     /* ---------------- Company Functions ---------------- */
     async function saveAdd(e: React.FormEvent) {
@@ -274,7 +279,7 @@ export default function Company({ profile }: { profile: any }) {
                     <tbody>
                         {filtered.length === 0 ?
                             <tr><td colSpan={6} style={{ textAlign: "center", padding: 16, color: "#6b7280" }}>— ไม่มีข้อมูล —</td></tr>
-                            : filtered.map((c, idx) =>
+                            : shownItems.map((c, idx) =>
                                 <tr key={c.id} className={idx % 2 ? "row-odd" : "row-even"}>
                                     <td style={{ fontWeight: 600, color: '#1e293b' }} data-label="ชื่อบริษัท">{c.name}</td>
                                     <td data-label="จังหวัด">{c.province || "-"}</td>
@@ -294,6 +299,8 @@ export default function Company({ profile }: { profile: any }) {
                     </tbody>
                 </table>
             </section>
+
+            <LoadMoreFooter shownCount={shownItems.length} total={total} hasMore={hasMore} onShowMore={showMore} sentinelRef={sentinelRef} itemLabel="แห่ง" />
 
             {/* Modals */}
             {showAdd && <Modal title="✨ เพิ่มบริษัทสถานประกอบการใหม่" onClose={() => setShowAdd(false)}>

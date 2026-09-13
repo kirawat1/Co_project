@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { apiFetch } from "../utils/apiFetch";
 import StatusBadge from "../components/StatusBadge";
 import { STATUS_GROUPS } from "./StatusFilterChips";
@@ -6,6 +6,9 @@ import { useDebounce } from "../hooks/useDebounce";
 import A_StudentEditModal from "./A_StudentEditModal";
 import A_StudentTrash from "./A_StudentTrash";
 import A_AddStudentModal from "./A_AddStudentModal";
+import LoadMoreFooter from "./LoadMoreFooter";
+import { useInfinitePages } from "../utils/useInfinitePages";
+import { toggleSelectAllShown, allShownSelected } from "../utils/useLoadMore";
 
 function safeHref(url: string | null | undefined): string | undefined {
   if (!url) return undefined;
@@ -151,7 +154,6 @@ function getFullAddress(c?: Company) {
    Main Component
 ========================= */
 export default function A_Students() {
-  const [items, setItems] = useState<StudentProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [bulkDeleting, setBulkDeleting] = useState(false);
@@ -171,9 +173,6 @@ export default function A_Students() {
   const [pageTab, setPageTab] = useState<"list" | "trash">("list");
   const [coopPeriods, setCoopPeriods] = useState<CoopPeriod[]>([]);
   const [selectedPeriodId, setSelectedPeriodId] = useState<string>("all");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalCount, setTotalCount] = useState(0);
   const PAGE_SIZE = 50;
   const [sortBy, setSortBy] = useState<'studentId' | 'firstName' | 'lastName' | 'studyProgram'>('studentId');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
@@ -189,26 +188,30 @@ export default function A_Students() {
   const previewRef = useRef<HTMLDivElement>(null);
 
   // --- Fetch Data ---
-  const fetchStudents = async (periodId: string, page = 1, search = "", statuses: string[] = [], curriculums: string[] = [], sb = sortBy, sd = sortDir) => {
+  // เปลี่ยนค่านี้เมื่อไหร่ (ค้นหา/ตัวกรอง/เรียงลำดับ/ปีการศึกษา) → useInfinitePages ละทิ้งรายการเดิม
+  // แล้วโหลดหน้า 1 ใหม่ให้เอง แทนการเรียก fetchStudents(...) มือเองแบบเดิม
+  const resetKey = `${selectedPeriodId}|${debouncedQ}|${filterStatuses.join(",")}|${filterCurriculums.join(",")}|${sortBy}|${sortDir}`;
+
+  const fetchStudentsPage = async (page: number) => {
     try {
-      const params = new URLSearchParams({ page: String(page), limit: String(PAGE_SIZE), sortBy: sb, sortDir: sd });
-      if (periodId !== "all") params.set("coopPeriodId", periodId);
-      if (search.trim()) params.set("search", search.trim());
-      if (statuses.length > 0) params.set("statuses", statuses.join(','));
-      if (curriculums.length > 0) params.set("studyProgram", curriculums.join(','));
+      const params = new URLSearchParams({ page: String(page), limit: String(PAGE_SIZE), sortBy, sortDir });
+      if (selectedPeriodId !== "all") params.set("coopPeriodId", selectedPeriodId);
+      if (debouncedQ.trim()) params.set("search", debouncedQ.trim());
+      if (filterStatuses.length > 0) params.set("statuses", filterStatuses.join(','));
+      if (filterCurriculums.length > 0) params.set("studyProgram", filterCurriculums.join(','));
       const res = await apiFetch(`/api/students?${params}`);
-      if (res.ok) {
-        const data = await res.json();
-        setItems(data?.data ?? []);
-        setTotalPages(data?.meta?.totalPages ?? 1);
-        setTotalCount(data?.meta?.total ?? 0);
-        setCurrentPage(data?.meta?.page ?? 1);
-        setSelectedIds(new Set()); // รายการเปลี่ยนหน้า/ตัวกรอง — เคลียร์การเลือกเดิมทิ้ง
-      }
+      if (!res.ok) return null;
+      const data = await res.json();
+      return { items: data?.data ?? [], total: data?.meta?.total ?? 0, totalPages: data?.meta?.totalPages ?? 1 };
     } catch (err) {
       console.error(err);
+      return null;
     }
   };
+
+  const {
+    items, setItems, setTotal, reload: reloadStudents, loadMore, hasMore, sentinelRef, total,
+  } = useInfinitePages<StudentProfile>(fetchStudentsPage, resetKey);
 
   const fetchData = async () => {
     try {
@@ -220,7 +223,7 @@ export default function A_Students() {
         if (data?.periods) setCoopPeriods(data.periods);
       }
 
-      await fetchStudents(selectedPeriodId, 1, "");
+      await reloadStudents();
     } catch (err) {
       console.error(err);
     } finally {
@@ -230,37 +233,14 @@ export default function A_Students() {
 
   useEffect(() => {
     fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const initialMount = useRef(true);
+  // ค้นหา/ตัวกรอง/เรียงลำดับเปลี่ยน — เคลียร์การเลือกเดิมทิ้ง (รายการที่แสดงเปลี่ยนไปแล้ว)
   useEffect(() => {
-    if (initialMount.current) {
-      initialMount.current = false;
-      return;
-    }
-    setCurrentPage(1);
-    fetchStudents(selectedPeriodId, 1, debouncedQ, filterStatuses, filterCurriculums);
-  }, [selectedPeriodId]);
-
-  const initialSearchMount = useRef(true);
-  useEffect(() => {
-    if (initialSearchMount.current) {
-      initialSearchMount.current = false;
-      return;
-    }
-    setCurrentPage(1);
-    fetchStudents(selectedPeriodId, 1, debouncedQ, filterStatuses, filterCurriculums);
-  }, [debouncedQ]);
-
-  const initialCurriculumMount = useRef(true);
-  useEffect(() => {
-    if (initialCurriculumMount.current) {
-      initialCurriculumMount.current = false;
-      return;
-    }
-    setCurrentPage(1);
-    fetchStudents(selectedPeriodId, 1, debouncedQ, filterStatuses, filterCurriculums);
-  }, [filterCurriculums]);
+    setSelectedIds(new Set());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resetKey]);
 
   useEffect(() => {
     if (importPreview && previewRef.current) {
@@ -273,16 +253,14 @@ export default function A_Students() {
     setFilterCurriculums([]);
     setFilterStatuses([]);
     setFilterStatusGroups([]);
-    setCurrentPage(1);
-    fetchStudents(selectedPeriodId, 1, "", [], []);
+    // debouncedQ ยังไม่ทันเปลี่ยนตาม q ทันที (มี debounce 300ms) แต่ตัวกรองอื่นเปลี่ยนทันที
+    // resetKey จะเปลี่ยนและโหลดหน้า 1 ใหม่ให้เอง ไม่ต้องเรียก reload เอง
   }
 
   function handleStatusGroupsChange(groups: string[]) {
     setFilterStatusGroups(groups);
     const expanded = groups.flatMap(g => STATUS_GROUPS[g]?.statuses ?? []);
     setFilterStatuses(expanded);
-    setCurrentPage(1);
-    fetchStudents(selectedPeriodId, 1, debouncedQ, expanded, filterCurriculums);
   }
 
   const handleDeleteStudent = async (s: StudentProfile) => {
@@ -297,16 +275,17 @@ export default function A_Students() {
         alert(data.message || "ลบไม่สำเร็จ");
         return;
       }
-      fetchStudents(selectedPeriodId, currentPage, debouncedQ, filterStatuses, filterCurriculums);
+      // ลบออกจากรายการที่โหลดไว้แล้วเลย ไม่ต้องโหลดใหม่ทั้งหมด (เหมือนหน้าบริษัท/อาจารย์)
+      setItems(prev => prev.filter(x => x.id !== s.id));
+      setTotal(t => Math.max(0, t - 1));
     } catch (err: any) {
       alert(err.message || "เกิดข้อผิดพลาด");
     }
   };
 
+  // เลือกทั้งหมด = เฉพาะรายชื่อที่โหลดมาแสดงแล้ว ไม่เหมารวมรายชื่อที่ยังไม่ได้เลื่อนลงไปแสดง
   function toggleSelectAll() {
-    setSelectedIds(prev =>
-      prev.size === filtered.length ? new Set() : new Set(filtered.map(s => s.id))
-    );
+    setSelectedIds(prev => toggleSelectAllShown(filtered, prev, s => s.id));
   }
 
   function toggleSelectOne(id: number) {
@@ -332,15 +311,20 @@ export default function A_Students() {
         ids.map(id => apiFetch(`/api/admin/students/${id}`, { method: "DELETE" }).then(async r => {
           const data = await r.json().catch(() => ({}));
           if (!data.ok) throw new Error(data.message || "ลบไม่สำเร็จ");
+          return id;
         }))
       );
-      const failed = results.filter(r => r.status === "rejected").length;
-      const ok = results.length - failed;
+      const succeededIds = new Set(
+        results.filter((r): r is PromiseFulfilledResult<number> => r.status === "fulfilled").map(r => r.value)
+      );
+      const failed = results.length - succeededIds.size;
       if (failed > 0) {
-        alert(`ย้ายไปถังขยะสำเร็จ ${ok} คน, ไม่สำเร็จ ${failed} คน`);
+        alert(`ย้ายไปถังขยะสำเร็จ ${succeededIds.size} คน, ไม่สำเร็จ ${failed} คน`);
       }
+      // ลบออกจากรายการที่โหลดไว้แล้วเลย ไม่ต้องโหลดใหม่ทั้งหมด
+      setItems(prev => prev.filter(s => !succeededIds.has(s.id)));
+      setTotal(t => Math.max(0, t - succeededIds.size));
       exitSelectMode();
-      fetchStudents(selectedPeriodId, currentPage, debouncedQ, filterStatuses, filterCurriculums);
     } finally {
       setBulkDeleting(false);
     }
@@ -399,7 +383,7 @@ export default function A_Students() {
         setImportFile(null);
         setImportPreview(null);
         setImportPreviewSummary(null);
-        fetchStudents(selectedPeriodId, currentPage, debouncedQ, filterStatuses, filterCurriculums);
+        reloadStudents(); // นำเข้าใหม่อาจมีหลายร้อยแถว ไม่รู้ตำแหน่งที่ควรแทรก โหลดหน้า 1 ใหม่ทั้งหมด
       } else {
         alert(data.message || "นำเข้าไม่สำเร็จ");
       }
@@ -410,8 +394,9 @@ export default function A_Students() {
     }
   };
 
-  // All filtering (status, curriculum, search) is now server-side; items = already filtered page
+  // การกรอง/ค้นหา/เรียงลำดับทำที่ server ทั้งหมด — items คือรายการที่โหลดมาแสดงแล้ว (ต่อท้ายเรื่อยๆ เมื่อเลื่อน)
   const filtered = items;
+  const isAllShownSelected = allShownSelected(filtered, selectedIds, s => s.id);
 
   if (loading) return <div style={{ padding: 28, marginLeft: 35 }}>กำลังโหลดข้อมูล...</div>;
 
@@ -637,7 +622,7 @@ export default function A_Students() {
           </span>
           {/* อยู่ในแถบนี้แทนหัวตาราง เพราะจอ ≤1024px ซ่อน thead ทั้งแถว (S_Theme.tsx) */}
           <button className="btn" style={ghostBtn} onClick={toggleSelectAll} disabled={bulkDeleting || filtered.length === 0}>
-            {filtered.length > 0 && selectedIds.size === filtered.length ? "ยกเลิกเลือกทั้งหมด" : `เลือกทั้งหมดในหน้านี้ (${filtered.length})`}
+            {isAllShownSelected ? "ยกเลิกเลือกทั้งหมด" : `เลือกทั้งหมดที่โหลดแล้ว (${filtered.length})`}
           </button>
           <button
             className="btn"
@@ -667,10 +652,10 @@ export default function A_Students() {
                 <th style={{ ...th, width: 36 }}>
                   <input
                     type="checkbox"
-                    checked={filtered.length > 0 && selectedIds.size === filtered.length}
-                    ref={el => { if (el) el.indeterminate = selectedIds.size > 0 && selectedIds.size < filtered.length; }}
+                    checked={isAllShownSelected}
+                    ref={el => { if (el) el.indeterminate = !isAllShownSelected && filtered.some(s => selectedIds.has(s.id)); }}
                     onChange={toggleSelectAll}
-                    aria-label="เลือกทั้งหมดในหน้านี้"
+                    aria-label="เลือกทั้งหมดที่โหลดแล้ว"
                   />
                 </th>
               )}
@@ -689,8 +674,7 @@ export default function A_Students() {
                     const newDir = sortBy === key && sortDir === 'asc' ? 'desc' : 'asc';
                     setSortBy(key as typeof sortBy);
                     setSortDir(newDir);
-                    setCurrentPage(1);
-                    fetchStudents(selectedPeriodId, 1, debouncedQ, filterStatuses, filterCurriculums, key as typeof sortBy, newDir);
+                    // resetKey (รวม sortBy/sortDir) เปลี่ยน → useInfinitePages โหลดหน้า 1 ใหม่ให้เอง
                   }}
                 >
                   {label}{key && (sortBy === key ? (sortDir === 'asc' ? ' ▲' : ' ▼') : ' ⇅')}
@@ -766,60 +750,7 @@ export default function A_Students() {
         </table>
       </section>
 
-      {/* ================= Pagination ================= */}
-      {totalPages > 1 && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 16, padding: '0 4px' }}>
-          <span style={{ fontSize: 13, color: '#64748b' }}>
-            แสดง {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, totalCount)} จาก {totalCount} คน
-          </span>
-          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-            <button
-              className="btn"
-              style={{ ...ghostBtn, padding: '6px 14px' }}
-              disabled={currentPage <= 1}
-              onClick={() => { setCurrentPage(p => p - 1); fetchStudents(selectedPeriodId, currentPage - 1, debouncedQ, filterStatuses, filterCurriculums); }}
-            >
-              ← ก่อนหน้า
-            </button>
-            {Array.from({ length: totalPages }, (_, i) => i + 1)
-              .filter(p => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1)
-              .reduce<(number | '…')[]>((acc, p, idx, arr) => {
-                if (idx > 0 && p - (arr[idx - 1] as number) > 1) acc.push('…');
-                acc.push(p);
-                return acc;
-              }, [])
-              .map((p, i) =>
-                p === '…' ? (
-                  <span key={`ellipsis-${i}`} style={{ fontSize: 13, color: '#94a3b8', padding: '0 4px' }}>…</span>
-                ) : (
-                  <button
-                    key={p}
-                    className="btn"
-                    style={{
-                      ...ghostBtn,
-                      padding: '6px 12px',
-                      fontWeight: currentPage === p ? 800 : 600,
-                      background: currentPage === p ? '#e0f2fe' : '#fff',
-                      color: currentPage === p ? '#0284c7' : '#475569',
-                      borderColor: currentPage === p ? '#7dd3fc' : '#cbd5e1',
-                    }}
-                    onClick={() => { setCurrentPage(p as number); fetchStudents(selectedPeriodId, p as number, debouncedQ, filterStatuses, filterCurriculums); }}
-                  >
-                    {p}
-                  </button>
-                )
-              )}
-            <button
-              className="btn"
-              style={{ ...ghostBtn, padding: '6px 14px' }}
-              disabled={currentPage >= totalPages}
-              onClick={() => { setCurrentPage(p => p + 1); fetchStudents(selectedPeriodId, currentPage + 1, debouncedQ, filterStatuses, filterCurriculums); }}
-            >
-              ถัดไป →
-            </button>
-          </div>
-        </div>
-      )}
+      <LoadMoreFooter shownCount={filtered.length} total={total} hasMore={hasMore} onShowMore={loadMore} sentinelRef={sentinelRef} itemLabel="คน" />
         </>
       )}
       {pageTab === "trash" && <A_StudentTrash />}
@@ -835,13 +766,13 @@ export default function A_Students() {
         <A_StudentEditModal
           student={editStudent}
           onClose={() => setEditStudent(null)}
-          onSaved={() => fetchStudents(selectedPeriodId, currentPage, debouncedQ)}
+          onSaved={() => reloadStudents()}
         />
       )}
       {showAddModal && (
         <A_AddStudentModal
           onClose={() => setShowAddModal(false)}
-          onSuccess={() => { setShowAddModal(false); fetchStudents(selectedPeriodId, currentPage, debouncedQ, filterStatuses, filterCurriculums); }}
+          onSuccess={() => { setShowAddModal(false); reloadStudents(); }}
         />
       )}
     </div>

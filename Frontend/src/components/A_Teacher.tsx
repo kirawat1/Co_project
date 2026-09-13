@@ -4,6 +4,8 @@ import { IcSave, IcUser } from "./icons";
 import { useToast } from "./Toast";
 import ConfirmDialog from "./ConfirmDialog";
 import Spinner from "./Spinner";
+import LoadMoreFooter from "./LoadMoreFooter";
+import { useLoadMore, toggleSelectAllShown, allShownSelected } from "../utils/useLoadMore";
 
 /* =========================
    Types
@@ -162,10 +164,9 @@ export default function A_Teacher() {
     finally { setSaving(false); setConfirmDel(null); }
   };
 
+  // เลือกทั้งหมด = เฉพาะรายชื่อที่แสดงอยู่บนจอ ไม่เหมารวมรายชื่อที่ยังไม่ได้เลื่อนลงไปแสดง
   function toggleSelectAll() {
-    setSelectedIds(prev =>
-      prev.size === filtered.length ? new Set() : new Set(filtered.map(t => t.id))
-    );
+    setSelectedIds(prev => toggleSelectAllShown(shownItems, prev, t => t.id));
   }
 
   function toggleSelectOne(id: number) {
@@ -241,6 +242,10 @@ export default function A_Teacher() {
       (filterMajor.length === 0 || filterMajor.includes(t.major || ""));
   }), [items, q, filterMajor]);
 
+  // แสดงทีละ 30 คน เลื่อนถึงท้ายตารางแล้วแสดงเพิ่ม แทนโหลดทั้งหมดในตารางเดียว
+  const { shown: shownItems, hasMore, sentinelRef, showMore, total } = useLoadMore(filtered, `${q}|${filterMajor.join(",")}`);
+  const isAllShownSelected = allShownSelected(shownItems, selectedIds, t => t.id);
+
   if (loading) return <div style={{ padding: 40, textAlign: "center", color: "#64748b" }}>กำลังโหลดข้อมูลอาจารย์...</div>;
 
   return (
@@ -306,8 +311,8 @@ export default function A_Teacher() {
             เลือกแล้ว {selectedIds.size} คน
           </span>
           {/* อยู่ในแถบนี้แทนหัวตาราง เพราะจอ ≤1024px ซ่อน thead ทั้งแถว (S_Theme.tsx) */}
-          <button className="btn" style={ghostBtn} onClick={toggleSelectAll} disabled={bulkDeleting || filtered.length === 0}>
-            {filtered.length > 0 && selectedIds.size === filtered.length ? "ยกเลิกเลือกทั้งหมด" : `เลือกทั้งหมด (${filtered.length})`}
+          <button className="btn" style={ghostBtn} onClick={toggleSelectAll} disabled={bulkDeleting || shownItems.length === 0}>
+            {isAllShownSelected ? "ยกเลิกเลือกทั้งหมด" : `เลือกทั้งหมด (${shownItems.length})`}
           </button>
           <button
             className="btn"
@@ -331,7 +336,7 @@ export default function A_Teacher() {
       {/* ─── Table ─── */}
       <section style={{ ...card, marginTop: 12, padding: 0, overflow: "hidden" }}>
         <div style={{ padding: "12px 16px", borderBottom: "1px solid #f1f5f9", color: "#64748b", fontSize: 13 }}>
-          ทั้งหมด {filtered.length} คน
+          ทั้งหมด {total} คน
         </div>
         <table width="100%" className="responsive-table" style={{ borderCollapse: "collapse" }}>
           <thead>
@@ -340,8 +345,8 @@ export default function A_Teacher() {
                 <th style={{ ...th, width: 36 }}>
                   <input
                     type="checkbox"
-                    checked={filtered.length > 0 && selectedIds.size === filtered.length}
-                    ref={el => { if (el) el.indeterminate = selectedIds.size > 0 && selectedIds.size < filtered.length; }}
+                    checked={isAllShownSelected}
+                    ref={el => { if (el) el.indeterminate = !isAllShownSelected && shownItems.some(t => selectedIds.has(t.id)); }}
                     onChange={toggleSelectAll}
                     aria-label="เลือกทั้งหมด"
                   />
@@ -355,7 +360,7 @@ export default function A_Teacher() {
           <tbody>
             {filtered.length === 0 ? (
               <tr><td colSpan={selectMode ? 6 : 5} style={{ padding: 40, textAlign: "center", color: "#64748b" }}>ไม่พบข้อมูลอาจารย์</td></tr>
-            ) : filtered.map((t) => (
+            ) : shownItems.map((t) => (
               <tr key={t.id} style={{ borderBottom: "1px solid #f1f5f9", background: selectedIds.has(t.id) ? "#fff7ed" : undefined }}>
                 {selectMode && (
                   <td style={td}>
@@ -405,6 +410,8 @@ export default function A_Teacher() {
           </tbody>
         </table>
       </section>
+
+      <LoadMoreFooter shownCount={shownItems.length} total={total} hasMore={hasMore} onShowMore={showMore} sentinelRef={sentinelRef} itemLabel="คน" />
 
       {/* ─── Edit Modal ─── */}
       {editModal && (

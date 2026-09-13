@@ -4,6 +4,8 @@ import axios from "axios";
 import { apiFetch } from "../utils/apiFetch";
 import AutoTextarea from "./AutoTextarea";
 import DateInput from './DateInput';
+import LoadMoreFooter from "./LoadMoreFooter";
+import { useLoadMore } from "../utils/useLoadMore";
 
 // --- Types ---
 type Document = {
@@ -178,6 +180,9 @@ export default function A_T002Review() {
         return filtered;
     }, [students, searchTerm, sortKey, sortDirection]);
 
+    // แสดงทีละ 30 รายการ เลื่อนถึงท้ายตารางแล้วแสดงเพิ่ม แทนโหลดทั้งหมดในตารางเดียว
+    const { shown: shownStudents, hasMore, sentinelRef, showMore, total } = useLoadMore(processedStudents, `${searchTerm}|${selectedPeriod}`);
+
     // 2. เปิด Modal ตรวจเอกสาร
     const openReviewModal = (student: Student) => {
         setSelectedStudent(student);
@@ -285,7 +290,7 @@ export default function A_T002Review() {
                         </button>
 
                         <div style={{ background: '#ecfdf5', color: '#047857', padding: '10px 16px', borderRadius: 8, fontWeight: 700, border: '1px solid #a7f3d0' }}>
-                            ทั้งหมด: {processedStudents.length} รายการ
+                            ทั้งหมด: {total} รายการ
                         </div>
                     </div>
                 </div>
@@ -347,7 +352,7 @@ export default function A_T002Review() {
                     <tbody>
                         {processedStudents.length === 0 ? (
                             <tr><td colSpan={5} style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>🎉 ไม่มีเอกสาร T002 ในระบบ</td></tr>
-                        ) : processedStudents.map(s => {
+                        ) : shownStudents.map(s => {
                             const statusInfo = getT002Status(s);
 
                             return (
@@ -370,6 +375,7 @@ export default function A_T002Review() {
                         })}
                     </tbody>
                 </table>
+                <LoadMoreFooter shownCount={shownStudents.length} total={total} hasMore={hasMore} onShowMore={showMore} sentinelRef={sentinelRef} itemLabel="รายการ" />
             </section>
 
             {/* MODAL ตรวจเอกสาร */}

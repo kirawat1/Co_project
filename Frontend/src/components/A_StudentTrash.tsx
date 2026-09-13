@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { apiFetch } from "../utils/apiFetch";
 import type { StudentProfile } from "./A_Students";
+import LoadMoreFooter from "./LoadMoreFooter";
+import { useLoadMore } from "../utils/useLoadMore";
 
 export default function A_StudentTrash() {
   const [items, setItems] = useState<StudentProfile[]>([]);
@@ -40,6 +42,9 @@ export default function A_StudentTrash() {
     }
   };
 
+  // แสดงทีละ 30 คน เลื่อนถึงท้ายตารางแล้วแสดงเพิ่ม แทนโหลดทั้งหมดในตารางเดียว
+  const { shown: shownItems, hasMore, sentinelRef, showMore, total } = useLoadMore(items);
+
   if (loading) return <div style={{ padding: 20 }}>กำลังโหลด...</div>;
 
   return (
@@ -57,7 +62,7 @@ export default function A_StudentTrash() {
             </tr>
           </thead>
           <tbody>
-            {items.map(s => (
+            {shownItems.map(s => (
               <tr key={s.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
                 <td style={td} data-label="รหัส">{s.studentId}</td>
                 <td style={td} data-label="ชื่อ–นามสกุล">{s.firstName} {s.lastName}</td>
@@ -72,6 +77,7 @@ export default function A_StudentTrash() {
           </tbody>
         </table>
       )}
+      <LoadMoreFooter shownCount={shownItems.length} total={total} hasMore={hasMore} onShowMore={showMore} sentinelRef={sentinelRef} itemLabel="คน" />
     </section>
   );
 }

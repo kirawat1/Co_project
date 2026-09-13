@@ -5,6 +5,8 @@ import axios from "axios";
 import { useToast } from "./Toast";
 import AutoTextarea from "./AutoTextarea";
 import ConfirmDialog from "./ConfirmDialog";
+import LoadMoreFooter from "./LoadMoreFooter";
+import { useLoadMore } from "../utils/useLoadMore";
 
 // ================= TYPES =================
 interface StudentDocument { id: number; name: string; path: string; type?: string; }
@@ -205,6 +207,9 @@ export default function T_Requests() {
     return matchSearch && matchStatus && matchPeriod;
   });
 
+  // แสดงทีละ 30 รายการ เลื่อนถึงท้ายตารางแล้วแสดงเพิ่ม แทนโหลดทั้งหมดในตารางเดียว
+  const { shown: shownList, hasMore, sentinelRef, showMore, total } = useLoadMore(filteredList, `${searchTerm}|${filterStatus}|${filterPeriodId}`);
+
   return (
     <div className="page" style={{ padding: 4, margin: 28, marginLeft: 65 }}>
 
@@ -267,7 +272,7 @@ export default function T_Requests() {
           <tbody>
             {filteredList.length === 0 ? (
               <tr><td colSpan={4} style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>ไม่มีคำร้องในระบบ</td></tr>
-            ) : filteredList.map(s => (
+            ) : shownList.map(s => (
               <tr key={s.id} style={trStyle}>
                 <td style={td} data-label="รหัสนักศึกษา / ชื่อ-สกุล">
                   <div style={{ fontWeight: 700, color: '#0ea5e9' }}>{s.studentId}</div>
@@ -285,6 +290,7 @@ export default function T_Requests() {
             ))}
           </tbody>
         </table>
+        <LoadMoreFooter shownCount={shownList.length} total={total} hasMore={hasMore} onShowMore={showMore} sentinelRef={sentinelRef} itemLabel="รายการ" />
       </section>
 
       {/* MODAL: SPLIT SCREEN */}

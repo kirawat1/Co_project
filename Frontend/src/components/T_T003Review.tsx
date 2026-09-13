@@ -5,6 +5,8 @@ import { apiFetch } from "../utils/apiFetch";
 import { useToast } from "./Toast";
 import ConfirmDialog from "./ConfirmDialog";
 import AutoTextarea from "./AutoTextarea";
+import LoadMoreFooter from "./LoadMoreFooter";
+import { useLoadMore } from "../utils/useLoadMore";
 
 // --- Types ---
 type Document = { id: number; type: string; path: string; name: string; status: string; };
@@ -154,6 +156,9 @@ export default function T_T003Review() {
         return filtered;
     }, [students, searchTerm, sortKey, sortDirection]);
 
+    // แสดงทีละ 30 รายการ เลื่อนถึงท้ายตารางแล้วแสดงเพิ่ม แทนโหลดทั้งหมดในตารางเดียว
+    const { shown: shownStudents, hasMore, sentinelRef, showMore, total } = useLoadMore(processedStudents, `${searchTerm}|${selectedPeriod}`);
+
     const openReviewModal = (student: Student) => { setSelectedStudent(student); setComment(""); setModalOpen(true); };
 
     const getT003FileUrl = (docs: Document[]) => {
@@ -226,7 +231,7 @@ export default function T_T003Review() {
                     </button>
 
                     <div style={{ background: '#dbeafe', color: '#1e40af', padding: '10px 16px', borderRadius: 8, fontWeight: 700, border: '1px solid #bfdbfe' }}>
-                        ทั้งหมด: {processedStudents.length} รายการ
+                        ทั้งหมด: {total} รายการ
                     </div>
                 </div>
             </section>
@@ -254,7 +259,7 @@ export default function T_T003Review() {
                     <tbody>
                         {processedStudents.length === 0 ? (
                             <tr><td colSpan={5} style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>🎉 ไม่มีเอกสาร T003 ในระบบ</td></tr>
-                        ) : processedStudents.map(s => {
+                        ) : shownStudents.map(s => {
                             const statusInfo = getT003Status(s);
                             return (
                                 <tr key={s.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
@@ -274,6 +279,7 @@ export default function T_T003Review() {
                         })}
                     </tbody>
                 </table>
+                <LoadMoreFooter shownCount={shownStudents.length} total={total} hasMore={hasMore} onShowMore={showMore} sentinelRef={sentinelRef} itemLabel="รายการ" />
             </section>
 
             {modalOpen && selectedStudent && (
