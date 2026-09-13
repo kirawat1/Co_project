@@ -492,6 +492,7 @@ exports.permanentlyDeleteStudent = async (req, res) => {
     if (isNaN(id)) return res.status(400).json({ ok: false, message: "id ไม่ถูกต้อง" });
     let statusErr = null;
     let files = [];
+    let accountKept = null;
     // ลบ Student และ User (บัญชี login) คู่กัน ป้องกัน User เหลือค้างเป็น "ผี" ที่บล็อก username เดิมไว้
     // Guard อยู่ใน transaction เพื่อกันเงื่อนไข TOCTOU (restore concurrently before delete)
     // ข้อมูลที่ผูกกับนักศึกษา (สหกิจ, เอกสาร, T002/T003, นิเทศ, บันทึก, แจ้งเตือน) ลบตาม (onDelete: Cascade)
@@ -504,6 +505,7 @@ exports.permanentlyDeleteStudent = async (req, res) => {
           documents: { select: { path: true } },
           coop: { select: { reqLetterUrl: true, acceptanceFileUrl: true, placeLetterUrl: true } },
           supervisionAppointment: { select: { officialLetterPath: true } },
+          user: { select: { role: true, teacher: { select: { id: true } }, staffProfile: { select: { id: true } } } },
         },
       });
       if (!s) { statusErr = { code: 404, msg: "ไม่พบนักศึกษา" }; throw new Error('not-found'); }
@@ -514,11 +516,50 @@ exports.permanentlyDeleteStudent = async (req, res) => {
         s.supervisionAppointment?.officialLetterPath,
       ];
       await tx.student.delete({ where: { id } });
+      const role = s.user?.role;
+      // บัญชีจริงเป็นอาจารย์/เจ้าหน้าที่ แต่มีข้อมูลนักศึกษาผูกอยู่ → ลบเฉพาะข้อมูลนักศึกษา เก็บบัญชีไว้
+      if (role === 'teacher' || role === 'staff') {
+        accountKept = role === 'teacher' ? 'อาจารย์' : 'เจ้าหน้าที่';
+        return;
+      }
+      // บัญชีนักศึกษาที่มีข้อมูลอาจารย์ค้างอยู่ (Teacher.userId เป็น RESTRICT ลบบัญชีจะติด P2003 → เดิมได้ 500)
+      // ลบข้อมูลอาจารย์ตามไปด้วยแบบเดียวกับตอนลบอาจารย์ — ยกเว้นยังเป็นอาจารย์นิเทศในนัดหมาย/การนิเทศของคนอื่น
+      const strayTeacherId = s.user?.teacher?.id;
+      if (strayTeacherId) {
+        const [apptCount, visitCount] = await Promise.all([
+          tx.supervisionAppointment.count({ where: { teacherId: strayTeacherId } }),
+          tx.visit.count({ where: { teacherId: strayTeacherId } }),
+        ]);
+        if (apptCount > 0 || visitCount > 0) {
+          statusErr = {
+            code: 409,
+            msg: `ลบไม่ได้ เพราะบัญชีนี้มีข้อมูลอาจารย์ผูกอยู่ด้วย และยังเป็นอาจารย์นิเทศในนัดหมายนิเทศ ${apptCount} รายการ การนิเทศ ${visitCount} รายการ — กรุณาเปลี่ยนอาจารย์นิเทศหรือลบรายการดังกล่าวก่อน`,
+          };
+          throw new Error('stray-teacher-in-use'); // rollback — ข้อมูลนักศึกษายังอยู่ครบ
+        }
+        await tx.student.updateMany({ where: { generalAdvisorId: strayTeacherId }, data: { generalAdvisorId: null, advisorName: null } });
+        await tx.student.updateMany({ where: { coopAdvisorId: strayTeacherId }, data: { coopAdvisorId: null, advisorName: null } });
+        await tx.teacher.delete({ where: { id: strayTeacherId } });
+      }
       await tx.user.delete({ where: { id: s.userId } });
-    }).catch((err) => { if (!statusErr) throw err; });
+    }).catch((err) => {
+      if (statusErr) return;
+      if (err.code === 'P2003') {
+        statusErr = { code: 409, msg: "ลบไม่ได้ เพราะยังมีข้อมูลอื่นในระบบอ้างถึงบัญชีนี้ — กรุณาติดต่อผู้ดูแลระบบ" };
+        console.error("PERMANENTLY DELETE STUDENT FK:", err.meta || err.message);
+        return;
+      }
+      throw err;
+    });
     if (statusErr) return res.status(statusErr.code).json({ ok: false, message: statusErr.msg });
     // ลบไฟล์หลัง commit แล้วเท่านั้น — ถ้าลบ DB ไม่สำเร็จ ไฟล์ต้องยังอยู่
     const removedFiles = await removeUnreferencedUploads(files);
+    if (accountKept) {
+      return res.json({
+        ok: true, accountKept: true, removedFiles,
+        message: `ลบข้อมูลนักศึกษาถาวรเรียบร้อย — บัญชี login ยังเก็บไว้ เพราะใช้เป็นบัญชี${accountKept}ด้วย`,
+      });
+    }
     res.json({ ok: true, message: "ลบถาวรเรียบร้อย", removedFiles });
   } catch (err) {
     console.error("PERMANENTLY DELETE STUDENT ERROR:", err);

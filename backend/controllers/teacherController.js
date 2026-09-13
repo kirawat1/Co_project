@@ -143,6 +143,8 @@ exports.getTeacherPrefixes = async (req, res) => {
 exports.getAllTeachers = async (req, res) => {
   try {
     const teachers = await prisma.teacher.findMany({
+      // เฉพาะบัญชีที่เป็นอาจารย์จริง — กันข้อมูลอาจารย์ที่ค้างอยู่บนบัญชีนักศึกษาโผล่ในหน้าอาจารย์/ตัวเลือกอาจารย์ที่ปรึกษา
+      where: { user: { role: 'teacher' } },
       include: {
         user: { select: { email: true } } // ดึงอีเมลจากตาราง User
       },
