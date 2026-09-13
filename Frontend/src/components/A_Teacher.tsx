@@ -54,6 +54,8 @@ export default function A_Teacher() {
   // ConfirmDialog
   const [confirmDel, setConfirmDel] = useState<Teacher | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  // ช่องติ๊กจะแสดงเฉพาะตอนเปิดโหมดเลือก — กันกดลบผิดคนตอนดูรายชื่อตามปกติ
+  const [selectMode, setSelectMode] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [confirmBulkDel, setConfirmBulkDel] = useState(false);
 
@@ -174,6 +176,11 @@ export default function A_Teacher() {
     });
   }
 
+  function exitSelectMode() {
+    setSelectMode(false);
+    setSelectedIds(new Set());
+  }
+
   const handleBulkDelete = async () => {
     const ids = Array.from(selectedIds);
     if (ids.length === 0) return;
@@ -194,6 +201,7 @@ export default function A_Teacher() {
       } else {
         toast.success(`ลบอาจารย์ ${ok} คน เรียบร้อย`);
       }
+      exitSelectMode();
       fetchData();
     } finally {
       setBulkDeleting(false);
@@ -283,50 +291,62 @@ export default function A_Teacher() {
       </section>
 
       {/* ─── Bulk action bar ─── */}
-      {selectedIds.size > 0 && (
+      {!selectMode ? (
+        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 20 }}>
+          <button className="btn" style={ghostBtn} onClick={() => setSelectMode(true)}>
+            ☑️ เลือกหลายคน
+          </button>
+        </div>
+      ) : (
         <div style={{
-          display: "flex", alignItems: "center", gap: 12, marginTop: 20,
+          display: "flex", alignItems: "center", flexWrap: "wrap", gap: 12, marginTop: 20,
           padding: "10px 16px", background: "#fff7ed", border: "1px solid #fdba74", borderRadius: 10,
         }}>
           <span style={{ fontSize: 13, fontWeight: 700, color: "#9a3412" }}>
             เลือกแล้ว {selectedIds.size} คน
           </span>
+          {/* อยู่ในแถบนี้แทนหัวตาราง เพราะจอ ≤1024px ซ่อน thead ทั้งแถว (S_Theme.tsx) */}
+          <button className="btn" style={ghostBtn} onClick={toggleSelectAll} disabled={bulkDeleting || filtered.length === 0}>
+            {filtered.length > 0 && selectedIds.size === filtered.length ? "ยกเลิกเลือกทั้งหมด" : `เลือกทั้งหมด (${filtered.length})`}
+          </button>
           <button
             className="btn"
-            style={{ ...ghostBtn, color: "#ef4444", borderColor: "#ef4444", opacity: bulkDeleting ? 0.6 : 1, cursor: bulkDeleting ? "not-allowed" : "pointer" }}
+            style={{ ...ghostBtn, color: "#ef4444", borderColor: "#ef4444", opacity: bulkDeleting || selectedIds.size === 0 ? 0.6 : 1, cursor: bulkDeleting || selectedIds.size === 0 ? "not-allowed" : "pointer" }}
             onClick={() => setConfirmBulkDel(true)}
-            disabled={bulkDeleting}
+            disabled={bulkDeleting || selectedIds.size === 0}
           >
             🗑️ {bulkDeleting ? "กำลังลบ..." : `ลบที่เลือก (${selectedIds.size})`}
           </button>
           <button
             className="btn"
             style={{ ...ghostBtn, marginLeft: "auto" }}
-            onClick={() => setSelectedIds(new Set())}
+            onClick={exitSelectMode}
             disabled={bulkDeleting}
           >
-            ยกเลิกการเลือก
+            ปิดโหมดเลือก
           </button>
         </div>
       )}
 
       {/* ─── Table ─── */}
-      <section style={{ ...card, marginTop: selectedIds.size > 0 ? 12 : 20, padding: 0, overflow: "hidden" }}>
+      <section style={{ ...card, marginTop: 12, padding: 0, overflow: "hidden" }}>
         <div style={{ padding: "12px 16px", borderBottom: "1px solid #f1f5f9", color: "#64748b", fontSize: 13 }}>
           ทั้งหมด {filtered.length} คน
         </div>
         <table width="100%" className="responsive-table" style={{ borderCollapse: "collapse" }}>
           <thead>
             <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
-              <th style={{ ...th, width: 36 }}>
-                <input
-                  type="checkbox"
-                  checked={filtered.length > 0 && selectedIds.size === filtered.length}
-                  ref={el => { if (el) el.indeterminate = selectedIds.size > 0 && selectedIds.size < filtered.length; }}
-                  onChange={toggleSelectAll}
-                  aria-label="เลือกทั้งหมด"
-                />
-              </th>
+              {selectMode && (
+                <th style={{ ...th, width: 36 }}>
+                  <input
+                    type="checkbox"
+                    checked={filtered.length > 0 && selectedIds.size === filtered.length}
+                    ref={el => { if (el) el.indeterminate = selectedIds.size > 0 && selectedIds.size < filtered.length; }}
+                    onChange={toggleSelectAll}
+                    aria-label="เลือกทั้งหมด"
+                  />
+                </th>
+              )}
               {["ชื่อ-นามสกุล", "อีเมล (Username)", "เบอร์โทร", "สาขาวิชา", "จัดการ"].map((h) => (
                 <th key={h} style={th}>{h}</th>
               ))}
@@ -334,17 +354,19 @@ export default function A_Teacher() {
           </thead>
           <tbody>
             {filtered.length === 0 ? (
-              <tr><td colSpan={6} style={{ padding: 40, textAlign: "center", color: "#64748b" }}>ไม่พบข้อมูลอาจารย์</td></tr>
+              <tr><td colSpan={selectMode ? 6 : 5} style={{ padding: 40, textAlign: "center", color: "#64748b" }}>ไม่พบข้อมูลอาจารย์</td></tr>
             ) : filtered.map((t) => (
               <tr key={t.id} style={{ borderBottom: "1px solid #f1f5f9", background: selectedIds.has(t.id) ? "#fff7ed" : undefined }}>
-                <td style={td}>
-                  <input
-                    type="checkbox"
-                    checked={selectedIds.has(t.id)}
-                    onChange={() => toggleSelectOne(t.id)}
-                    aria-label={`เลือก ${t.firstName} ${t.lastName}`}
-                  />
-                </td>
+                {selectMode && (
+                  <td style={td}>
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(t.id)}
+                      onChange={() => toggleSelectOne(t.id)}
+                      aria-label={`เลือก ${t.firstName} ${t.lastName}`}
+                    />
+                  </td>
+                )}
                 <td style={td} data-label="ชื่อ-นามสกุล">
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                     <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#eff6ff", display: "flex", alignItems: "center", justifyContent: "center" }}>

@@ -49,6 +49,8 @@ export default function A_Companies() {
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  // ช่องติ๊กจะแสดงเฉพาะตอนเปิดโหมดเลือก — กันกดลบผิดแห่งตอนดูรายการตามปกติ
+  const [selectMode, setSelectMode] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
 
   const [showAdd, setShowAdd] = useState(false);
@@ -201,6 +203,11 @@ export default function A_Companies() {
     });
   }
 
+  function exitSelectMode() {
+    setSelectMode(false);
+    setSelectedIds(new Set());
+  }
+
   async function handleBulkDeleteCompanies() {
     const ids = Array.from(selectedIds);
     if (ids.length === 0) return;
@@ -221,7 +228,7 @@ export default function A_Companies() {
 
       setItems(prev => prev.filter(c => !succeededIds.has(c.id)));
       if (viewCompany && succeededIds.has(viewCompany.id)) setViewCompany(null);
-      setSelectedIds(new Set());
+      exitSelectMode();
 
       if (failed > 0) {
         alert(`ลบสำเร็จ ${succeededIds.size} แห่ง, ไม่สำเร็จ ${failed} แห่ง (อาจมีนักศึกษาอ้างอิงอยู่)`);
@@ -331,29 +338,39 @@ export default function A_Companies() {
       </section>
 
       {/* Bulk action bar */}
-      {selectedIds.size > 0 && (
+      {!selectMode ? (
+        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
+          <button className="btn" style={ghostBtn} onClick={() => setSelectMode(true)}>
+            ☑️ เลือกหลายแห่ง
+          </button>
+        </div>
+      ) : (
         <div style={{
-          display: "flex", alignItems: "center", gap: 12, marginBottom: 12,
+          display: "flex", alignItems: "center", flexWrap: "wrap", gap: 12, marginBottom: 12,
           padding: "10px 16px", background: "#fff7ed", border: "1px solid #fdba74", borderRadius: 10,
         }}>
           <span style={{ fontSize: 13, fontWeight: 700, color: "#9a3412" }}>
             เลือกแล้ว {selectedIds.size} แห่ง
           </span>
+          {/* อยู่ในแถบนี้แทนหัวตาราง เพราะจอ ≤1024px ซ่อน thead ทั้งแถว (S_Theme.tsx) */}
+          <button className="btn" style={ghostBtn} onClick={toggleSelectAll} disabled={bulkDeleting || filtered.length === 0}>
+            {filtered.length > 0 && selectedIds.size === filtered.length ? "ยกเลิกเลือกทั้งหมด" : `เลือกทั้งหมด (${filtered.length})`}
+          </button>
           <button
             className="btn"
-            style={{ ...ghostBtn, color: "#ef4444", borderColor: "#ef4444", opacity: bulkDeleting ? 0.6 : 1, cursor: bulkDeleting ? "not-allowed" : "pointer" }}
+            style={{ ...ghostBtn, color: "#ef4444", borderColor: "#ef4444", opacity: bulkDeleting || selectedIds.size === 0 ? 0.6 : 1, cursor: bulkDeleting || selectedIds.size === 0 ? "not-allowed" : "pointer" }}
             onClick={handleBulkDeleteCompanies}
-            disabled={bulkDeleting}
+            disabled={bulkDeleting || selectedIds.size === 0}
           >
             🗑️ {bulkDeleting ? "กำลังลบ..." : `ลบที่เลือก (${selectedIds.size})`}
           </button>
           <button
             className="btn"
             style={{ ...ghostBtn, marginLeft: "auto" }}
-            onClick={() => setSelectedIds(new Set())}
+            onClick={exitSelectMode}
             disabled={bulkDeleting}
           >
-            ยกเลิกการเลือก
+            ปิดโหมดเลือก
           </button>
         </div>
       )}
@@ -363,15 +380,17 @@ export default function A_Companies() {
         <table className="tbl responsive-table" style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
             <tr>
-              <th style={{ width: 36 }}>
-                <input
-                  type="checkbox"
-                  checked={filtered.length > 0 && selectedIds.size === filtered.length}
-                  ref={el => { if (el) el.indeterminate = selectedIds.size > 0 && selectedIds.size < filtered.length; }}
-                  onChange={toggleSelectAll}
-                  aria-label="เลือกทั้งหมด"
-                />
-              </th>
+              {selectMode && (
+                <th style={{ width: 36 }}>
+                  <input
+                    type="checkbox"
+                    checked={filtered.length > 0 && selectedIds.size === filtered.length}
+                    ref={el => { if (el) el.indeterminate = selectedIds.size > 0 && selectedIds.size < filtered.length; }}
+                    onChange={toggleSelectAll}
+                    aria-label="เลือกทั้งหมด"
+                  />
+                </th>
+              )}
               <th>ชื่อบริษัท</th>
               <th>จังหวัด</th>
               <th>อีเมล</th>
@@ -383,7 +402,7 @@ export default function A_Companies() {
           <tbody>
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={7} style={{ textAlign: "center", padding: 16, color: "#6b7280" }}>
+                <td colSpan={selectMode ? 7 : 6} style={{ textAlign: "center", padding: 16, color: "#6b7280" }}>
                   — ไม่มีข้อมูล —
                 </td>
               </tr>
@@ -391,14 +410,16 @@ export default function A_Companies() {
 
             {filtered.map((c, idx) => (
               <tr key={c.id} className={idx % 2 ? "row-odd" : "row-even"} style={selectedIds.has(c.id) ? { background: "#fff7ed" } : undefined}>
-                <td>
-                  <input
-                    type="checkbox"
-                    checked={selectedIds.has(c.id)}
-                    onChange={() => toggleSelectOne(c.id)}
-                    aria-label={`เลือก ${c.name}`}
-                  />
-                </td>
+                {selectMode && (
+                  <td>
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(c.id)}
+                      onChange={() => toggleSelectOne(c.id)}
+                      aria-label={`เลือก ${c.name}`}
+                    />
+                  </td>
+                )}
                 <td style={{ fontWeight: 600, color: '#1e293b' }} data-label="ชื่อบริษัท">{c.name}</td>
                 <td data-label="จังหวัด">{c.province || "-"}</td>
                 <td data-label="อีเมล">{c.email || "-"}</td>
