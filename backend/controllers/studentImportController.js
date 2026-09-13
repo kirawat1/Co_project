@@ -1,5 +1,6 @@
 const XLSX = require('xlsx');
 const prisma = require('../config/prismaClient');
+const { hashDefaultStudentPassword } = require('../utils/studentPassword');
 
 const STUDY_PROGRAM_MAP = {
   'ปกติ': 'normal', 'normal': 'normal',
@@ -339,13 +340,21 @@ exports.importStudents = async (req, res) => {
         // Resolve Thai major name → code (e.g. "วิทยาการคอมพิวเตอร์" → "cs")
         const resolvedMajor = major ? (nameThToCode.get(major) ?? major) : null;
 
+        // รหัสผ่านเริ่มต้น (รหัสนักศึกษา) ให้บัญชีใหม่ และบัญชีเดิมที่ยังไม่มีรหัสผ่าน
+        // บัญชีที่มีรหัสผ่านแล้ว (นักศึกษาเปลี่ยนเอง) นำเข้าซ้ำจะไม่ทับ — hash นอก transaction
+        const defaultPasswordHash = (!existingUser || !existingUser.password)
+          ? await hashDefaultStudentPassword(studentId)
+          : null;
+
         await prisma.$transaction(async (tx) => {
           if (!existingUser) {
             user = await tx.user.upsert({
               where: { username: studentId },
               update: { email },
-              create: { username: studentId, email, password: null, role: 'student', provider: 'google' },
+              create: { username: studentId, email, password: defaultPasswordHash, role: 'student', provider: 'google' },
             });
+          } else if (defaultPasswordHash) {
+            await tx.user.update({ where: { id: existingUser.id }, data: { password: defaultPasswordHash } });
           }
           await tx.student.upsert({
             where: { studentId },

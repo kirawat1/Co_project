@@ -3,6 +3,7 @@ jest.mock('xlsx');
 
 const prisma = require('./__mocks__/prismaClient');
 const XLSX = require('xlsx');
+const bcrypt = require('bcryptjs');
 const { importStudents } = require('../controllers/studentImportController');
 
 function makeRes() {
@@ -396,5 +397,55 @@ describe('importStudents', () => {
     expect(call.create.generalAdvisorId).toBeNull();
     const body = res.json.mock.calls[0][0];
     expect(body.errorRows).toHaveLength(0);
+  });
+
+  // ── รหัสผ่านเริ่มต้น = รหัสนักศึกษาแบบมีขีด ─────────────────────────────────────
+
+  test('[password] บัญชีใหม่ได้รหัสผ่านเริ่มต้นเป็นรหัสนักศึกษา (เก็บแบบ hash)', async () => {
+    mockKkuSheet([{ STUDENTCODE: '663380007-9', STUDENTNAME: 'ก', STUDENTSURNAME: 'ข', KKUMAIL: 'new@kkumail.com' }]);
+    prisma.user.upsert.mockResolvedValue({ id: 11 });
+    prisma.student.upsert.mockResolvedValue({ id: 11 });
+    prisma.teacher.findMany.mockResolvedValue([]);
+
+    const res = makeRes();
+    await importStudents({ file: { buffer: Buffer.from('fake') } }, res);
+
+    const { password } = prisma.user.upsert.mock.calls[0][0].create;
+    expect(password).toMatch(/^\$2[ab]\$/);
+    expect(await bcrypt.compare('663380007-9', password)).toBe(true);
+    expect(prisma.user.update).not.toHaveBeenCalled();
+  });
+
+  test('[password] บัญชีเดิมที่ยังไม่มีรหัสผ่าน → ใส่รหัสผ่านเริ่มต้นให้', async () => {
+    mockKkuSheet([{ STUDENTCODE: '663380008-1', STUDENTNAME: 'ก', STUDENTSURNAME: 'ข', KKUMAIL: 'old@kkumail.com' }]);
+    const existing = { id: 12, username: '663380008-1', email: 'old@kkumail.com', password: null };
+    prisma.user.findMany.mockResolvedValueOnce([existing]).mockResolvedValueOnce([existing]);
+    prisma.student.upsert.mockResolvedValue({ id: 12 });
+    prisma.user.update.mockResolvedValue({});
+    prisma.teacher.findMany.mockResolvedValue([]);
+
+    const res = makeRes();
+    await importStudents({ file: { buffer: Buffer.from('fake') } }, res);
+
+    expect(res.json.mock.calls[0][0].summary.updated).toBe(1);
+    expect(prisma.user.update).toHaveBeenCalledTimes(1);
+    const arg = prisma.user.update.mock.calls[0][0];
+    expect(arg.where).toEqual({ id: 12 });
+    expect(await bcrypt.compare('663380008-1', arg.data.password)).toBe(true);
+  });
+
+  test('[password] บัญชีเดิมที่มีรหัสผ่านแล้ว (นักศึกษาเปลี่ยนเอง) → นำเข้าซ้ำไม่ทับ', async () => {
+    mockKkuSheet([{ STUDENTCODE: '663380009-2', STUDENTNAME: 'ก', STUDENTSURNAME: 'ข', KKUMAIL: 'changed@kkumail.com' }]);
+    const existing = { id: 13, username: '663380009-2', email: 'changed@kkumail.com', password: '$2a$10$alreadychangedhash' };
+    prisma.user.findMany.mockResolvedValueOnce([existing]).mockResolvedValueOnce([existing]);
+    prisma.student.upsert.mockResolvedValue({ id: 13 });
+    prisma.teacher.findMany.mockResolvedValue([]);
+
+    const res = makeRes();
+    await importStudents({ file: { buffer: Buffer.from('fake') } }, res);
+
+    expect(res.json.mock.calls[0][0].summary.updated).toBe(1);
+    expect(prisma.user.update).not.toHaveBeenCalled();
+    expect(prisma.user.upsert).not.toHaveBeenCalled();
   });
 });
