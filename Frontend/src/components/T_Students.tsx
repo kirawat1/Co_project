@@ -1,8 +1,10 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { apiFetch } from "../utils/apiFetch";
 import StatusBadge from "../components/StatusBadge";
 import StatusFilterChips, { STATUS_GROUPS } from "./StatusFilterChips";
 import { useDebounce } from "../hooks/useDebounce";
+import LoadMoreFooter from "./LoadMoreFooter";
+import { useInfinitePages } from "../utils/useInfinitePages";
 
 function safeHref(url: string | null | undefined): string | undefined {
   if (!url) return undefined;
@@ -126,7 +128,6 @@ function getFullAddress(c?: Company) {
 interface Props { isCoopTeacher?: boolean; }
 
 export default function T_Students({ isCoopTeacher = false }: Props) {
-  const [allStudents, setAllStudents] = useState<StudentProfile[]>([]);
   const [loading, setLoading] = useState(true);
 
   // ✅ States สำหรับค้นหาและตัวกรอง
@@ -136,22 +137,22 @@ export default function T_Students({ isCoopTeacher = false }: Props) {
   const [selectedPeriod, setSelectedPeriod] = useState<string>("all");
 
   const [filterCurriculum, setFilterCurriculum] = useState<string>("all");
-
-  // ✅ Pagination
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalCount, setTotalCount] = useState(0);
+  const [activeStatusGroup, setActiveStatusGroup] = useState<string>("ALL");
+  const [statusGroupFilter, setStatusGroupFilter] = useState<string[]>([]);
 
   // ✅ State สำหรับควบคุม Modal แบบ Admin
   const [modalStudent, setModalStudent] = useState<StudentProfile | null>(null);
 
   // --- 1. Fetch Data ---
-  const fetchStudents = async (periodId: string, search = "", pageNum = 1, statuses: string[] = [], curriculum = "") => {
+  // เปลี่ยนค่านี้เมื่อไหร่ (ค้นหา/ตัวกรอง/ปีการศึกษา) → useInfinitePages โหลดหน้า 1 ใหม่ให้เอง
+  const resetKey = `${selectedPeriod}|${debouncedQ}|${statusGroupFilter.join(",")}|${filterCurriculum}`;
+
+  const fetchStudentsPage = async (pageNum: number) => {
     const params = new URLSearchParams({ limit: "50", page: String(pageNum) });
-    if (periodId !== "all") params.set("coopPeriodId", periodId);
-    if (search.trim()) params.set("search", search.trim());
-    if (statuses.length > 0) params.set("statuses", statuses.join(','));
-    if (curriculum && curriculum !== "all") params.set("studyProgram", curriculum);
+    if (selectedPeriod !== "all") params.set("coopPeriodId", selectedPeriod);
+    if (debouncedQ.trim()) params.set("search", debouncedQ.trim());
+    if (statusGroupFilter.length > 0) params.set("statuses", statusGroupFilter.join(','));
+    if (filterCurriculum && filterCurriculum !== "all") params.set("studyProgram", filterCurriculum);
 
     // isCoopTeacher=true → all students; false → advisees only
     const endpoint = isCoopTeacher
@@ -160,18 +161,18 @@ export default function T_Students({ isCoopTeacher = false }: Props) {
 
     try {
       const resStd = await apiFetch(endpoint);
-      if (resStd.ok) {
-        const data = await resStd.json();
-        setAllStudents(data?.data ?? []);
-        if (data?.meta) {
-          setTotalPages(data.meta.totalPages ?? 1);
-          setTotalCount(data.meta.total ?? 0);
-        }
-      }
+      if (!resStd.ok) return null;
+      const data = await resStd.json();
+      return { items: data?.data ?? [], total: data?.meta?.total ?? 0, totalPages: data?.meta?.totalPages ?? 1 };
     } catch (err) {
       console.error("Error fetching students:", err);
+      return null;
     }
   };
+
+  const {
+    items: allStudents, reload: reloadStudents, loadMore, hasMore, sentinelRef, total: totalCount,
+  } = useInfinitePages<StudentProfile>(fetchStudentsPage, resetKey);
 
   const fetchData = async () => {
     setLoading(true);
@@ -182,7 +183,7 @@ export default function T_Students({ isCoopTeacher = false }: Props) {
         if (dataPeriods?.periods) setCoopPeriods(dataPeriods.periods);
       }
 
-      await fetchStudents(selectedPeriod, "", 1);
+      await reloadStudents();
     } catch (err) {
       console.error("Error fetching data:", err);
     } finally {
@@ -192,41 +193,17 @@ export default function T_Students({ isCoopTeacher = false }: Props) {
 
   useEffect(() => {
     fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  const initialMount = useRef(true);
-  useEffect(() => {
-    if (initialMount.current) {
-      initialMount.current = false;
-      return;
-    }
-    setPage(1);
-    fetchStudents(selectedPeriod, debouncedQ, 1, statusGroupFilter, filterCurriculum);
-  }, [selectedPeriod]);
-
-  const initialSearchMount = useRef(true);
-  useEffect(() => {
-    if (initialSearchMount.current) {
-      initialSearchMount.current = false;
-      return;
-    }
-    setPage(1);
-    fetchStudents(selectedPeriod, debouncedQ, 1, statusGroupFilter, filterCurriculum);
-  }, [debouncedQ]);
-
-  const [activeStatusGroup, setActiveStatusGroup] = useState<string>("ALL");
-  const [statusGroupFilter, setStatusGroupFilter] = useState<string[]>([]);
 
   const handleStatusGroupChange = (group: string) => {
     setActiveStatusGroup(group);
     const statuses = group === "ALL" ? [] : STATUS_GROUPS[group]?.statuses ?? [];
     setStatusGroupFilter(statuses);
-    setPage(1);
-    fetchStudents(selectedPeriod, debouncedQ, 1, statuses, filterCurriculum);
   };
 
   // --- 2. Filter Logic ---
-  // All filtering (status, curriculum, search) is now server-side; allStudents = already filtered page
+  // การกรอง/ค้นหาทำที่ server ทั้งหมด — allStudents คือรายการที่โหลดมาแสดงแล้ว (ต่อท้ายเรื่อยๆ เมื่อเลื่อน)
   const filteredStudents = allStudents;
 
   if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>กำลังโหลดข้อมูล...</div>;
@@ -274,7 +251,7 @@ export default function T_Students({ isCoopTeacher = false }: Props) {
             ))}
           </select>
 
-          <select className="input soft" style={{ width: 'auto' }} value={filterCurriculum} onChange={e => { const v = e.target.value; setFilterCurriculum(v); setPage(1); fetchStudents(selectedPeriod, debouncedQ, 1, statusGroupFilter, v); }}>
+          <select className="input soft" style={{ width: 'auto' }} value={filterCurriculum} onChange={e => setFilterCurriculum(e.target.value)}>
             <option value="all">📚 ทุกหลักสูตร</option>
             <option value="normal">ภาคปกติ</option>
             <option value="special">ภาคพิเศษ</option>
@@ -339,28 +316,7 @@ export default function T_Students({ isCoopTeacher = false }: Props) {
         </table>
       </section>
 
-      {/* ================= Pagination ================= */}
-      {totalPages > 1 && (
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8, marginTop: 24 }}>
-          <button
-            onClick={() => { const p = page - 1; setPage(p); fetchStudents(selectedPeriod, debouncedQ, p, statusGroupFilter, filterCurriculum); }}
-            disabled={page <= 1}
-            style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid #cbd5e1', background: page <= 1 ? '#f8fafc' : '#fff', color: page <= 1 ? '#94a3b8' : '#334155', cursor: page <= 1 ? 'default' : 'pointer', fontWeight: 600 }}
-          >
-            ← ก่อนหน้า
-          </button>
-          <span style={{ padding: '8px 16px', color: '#334155', fontWeight: 600, fontSize: 14 }}>
-            หน้า {page} / {totalPages}
-          </span>
-          <button
-            onClick={() => { const p = page + 1; setPage(p); fetchStudents(selectedPeriod, debouncedQ, p, statusGroupFilter, filterCurriculum); }}
-            disabled={page >= totalPages}
-            style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid #cbd5e1', background: page >= totalPages ? '#f8fafc' : '#fff', color: page >= totalPages ? '#94a3b8' : '#334155', cursor: page >= totalPages ? 'default' : 'pointer', fontWeight: 600 }}
-          >
-            ถัดไป →
-          </button>
-        </div>
-      )}
+      <LoadMoreFooter shownCount={filteredStudents.length} total={totalCount} hasMore={hasMore} onShowMore={loadMore} sentinelRef={sentinelRef} itemLabel="คน" />
 
       {/* ================= Modal (Popup) ================= */}
       {modalStudent && (

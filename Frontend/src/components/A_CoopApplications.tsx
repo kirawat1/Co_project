@@ -7,6 +7,8 @@ import { useToast } from "./Toast";
 import ConfirmDialog from "./ConfirmDialog";
 import Spinner from "./Spinner";
 import { useDebounce } from "../hooks/useDebounce";
+import LoadMoreFooter from "./LoadMoreFooter";
+import { useLoadMore } from "../utils/useLoadMore";
 
 function safeHref(url: string | null | undefined): string | undefined {
   if (!url) return undefined;
@@ -217,6 +219,9 @@ export default function A_CoopApplications() {
         return matchSearch && matchStatus && matchPeriod;
     });
 
+    // แสดงทีละ 30 รายการ เลื่อนถึงท้ายตารางแล้วแสดงเพิ่ม แทนโหลดทั้งหมดในตารางเดียว
+    const { shown: shownApps, hasMore, sentinelRef, showMore, total } = useLoadMore(filteredApps, `${debouncedSearch}|${filterStatus}|${filterPeriodId}`);
+
     return (
         <div className="page" style={{ padding: 4, margin: 28, marginLeft: 65 }}>
         <ConfirmDialog
@@ -290,7 +295,7 @@ export default function A_CoopApplications() {
                     <tbody>
                         {filteredApps.length === 0 ? (
                             <tr><td colSpan={4} style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>ไม่มีคำร้องในระบบ</td></tr>
-                        ) : filteredApps.map(app => (
+                        ) : shownApps.map(app => (
                             <tr key={app.id} style={tr}>
                                 <td style={td} data-label="รหัสนักศึกษา / ชื่อ">
                                     <div style={{ fontWeight: 700, color: '#0369a1' }}>{app.student.studentId}</div>
@@ -313,6 +318,7 @@ export default function A_CoopApplications() {
                         ))}
                     </tbody>
                 </table>
+                <LoadMoreFooter shownCount={shownApps.length} total={total} hasMore={hasMore} onShowMore={showMore} sentinelRef={sentinelRef} itemLabel="รายการ" />
             </section>
 
             {/* MODAL: SPLIT SCREEN */}

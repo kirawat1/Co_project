@@ -5,6 +5,8 @@ import React, { useMemo, useState, useEffect } from "react";
 import { apiFetch } from "../utils/apiFetch";
 import { applyAddressChange } from "../utils/addressAutofill";
 import A_CompanyImport from "./A_CompanyImport";
+import LoadMoreFooter from "./LoadMoreFooter";
+import { useLoadMore, toggleSelectAllShown, allShownSelected } from "../utils/useLoadMore";
 
 /* ----------------------------------------------------
    Types
@@ -128,6 +130,11 @@ export default function A_Companies() {
     );
   }, [items, q]);
 
+  // แสดงทีละ 30 แห่ง เลื่อนถึงท้ายตารางแล้วแสดงเพิ่มอีก 30 — ทำฝั่งหน้าจอ เพราะ /api/companies
+  // ถูกใช้ที่อื่นด้วย (dropdown เลือกบริษัทของนักศึกษาต้องได้ครบทุกแห่ง) และหลักร้อยแห่งโหลดทีเดียวได้สบาย
+  // เลือกแบบนี้แทนแบ่งหน้า เพราะแถวที่ติ๊กเลือกไว้ยังอยู่บนจอ ไม่ต้องล้างการเลือกตอนเปลี่ยนหน้า
+  const { shown: shownItems, hasMore, sentinelRef, showMore, total } = useLoadMore(filtered, q);
+
   /* ---------------- CRUD บริษัท ---------------- */
   async function saveAdd(e: React.FormEvent) {
     e.preventDefault();
@@ -146,7 +153,8 @@ export default function A_Companies() {
         return;
       }
 
-      setItems(prev => [...prev, data.company]);
+      // ใส่ไว้บนสุด ให้เห็นทันที (ถ้าต่อท้ายจะอยู่ท้ายรายการที่ยังไม่ได้แสดง)
+      setItems(prev => [data.company, ...prev]);
       setShowAdd(false);
       setJustCreatedCompany(data.company);
 
@@ -190,10 +198,10 @@ export default function A_Companies() {
     } catch (err) { alert("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้"); }
   }
 
+  // เลือกทั้งหมด = ทุกแห่งที่แสดงอยู่บนจอ ไม่เหมารวมแห่งที่ยังไม่ได้เลื่อนลงไปแสดง
+  const isAllShownSelected = allShownSelected(shownItems, selectedIds, c => c.id);
   function toggleSelectAll() {
-    setSelectedIds(prev =>
-      prev.size === filtered.length ? new Set() : new Set(filtered.map(c => c.id))
-    );
+    setSelectedIds(prev => toggleSelectAllShown(shownItems, prev, c => c.id));
   }
 
   function toggleSelectOne(id: string) {
@@ -354,8 +362,8 @@ export default function A_Companies() {
             เลือกแล้ว {selectedIds.size} แห่ง
           </span>
           {/* อยู่ในแถบนี้แทนหัวตาราง เพราะจอ ≤1024px ซ่อน thead ทั้งแถว (S_Theme.tsx) */}
-          <button className="btn" style={ghostBtn} onClick={toggleSelectAll} disabled={bulkDeleting || filtered.length === 0}>
-            {filtered.length > 0 && selectedIds.size === filtered.length ? "ยกเลิกเลือกทั้งหมด" : `เลือกทั้งหมด (${filtered.length})`}
+          <button className="btn" style={ghostBtn} onClick={toggleSelectAll} disabled={bulkDeleting || shownItems.length === 0}>
+            {isAllShownSelected ? "ยกเลิกเลือกทั้งหมด" : `เลือกทั้งหมด (${shownItems.length})`}
           </button>
           <button
             className="btn"
@@ -385,8 +393,8 @@ export default function A_Companies() {
                 <th style={{ width: 36 }}>
                   <input
                     type="checkbox"
-                    checked={filtered.length > 0 && selectedIds.size === filtered.length}
-                    ref={el => { if (el) el.indeterminate = selectedIds.size > 0 && selectedIds.size < filtered.length; }}
+                    checked={isAllShownSelected}
+                    ref={el => { if (el) el.indeterminate = !isAllShownSelected && shownItems.some(c => selectedIds.has(c.id)); }}
                     onChange={toggleSelectAll}
                     aria-label="เลือกทั้งหมด"
                   />
@@ -409,7 +417,7 @@ export default function A_Companies() {
               </tr>
             )}
 
-            {filtered.map((c, idx) => (
+            {shownItems.map((c, idx) => (
               <tr key={c.id} className={idx % 2 ? "row-odd" : "row-even"} style={selectedIds.has(c.id) ? { background: "#fff7ed" } : undefined}>
                 {selectMode && (
                   <td>
@@ -444,6 +452,8 @@ export default function A_Companies() {
           </tbody>
         </table>
       </section>
+
+      <LoadMoreFooter shownCount={shownItems.length} total={total} hasMore={hasMore} onShowMore={showMore} sentinelRef={sentinelRef} itemLabel="แห่ง" />
 
       {/* ---------------- Modals ---------------- */}
       {showImport && (

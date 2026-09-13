@@ -13,6 +13,8 @@ import ConfirmDialog from "./ConfirmDialog";
 import Spinner from "./Spinner";
 import T_GroupSupervision from "./T_GroupSupervision";
 import DateInput from './DateInput';
+import LoadMoreFooter from "./LoadMoreFooter";
+import { useLoadMore } from "../utils/useLoadMore";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -272,6 +274,9 @@ export default function T_SupervisionReview() {
         return f;
     }, [mySupervisions, selectedPeriod, searchTerm, sortKey, sortDir]);
 
+    // แสดงทีละ 30 รายการ เลื่อนถึงท้ายตารางแล้วแสดงเพิ่ม แทนโหลดทั้งหมดในตารางเดียว
+    const { shown: shownMine, hasMore: hasMoreMine, sentinelRef: sentinelMineRef, showMore: showMoreMine, total: totalMine } = useLoadMore(processedMine, `${searchTerm}|${selectedPeriod}`);
+
     const openReviewModal = (appt: SupervisionAppt) => { setSelectedAppt(appt); setRejectReason(appt.rejectReason || ""); };
     const closeModal = () => { setSelectedAppt(null); setRejectReason(""); };
 
@@ -351,6 +356,9 @@ export default function T_SupervisionReview() {
         });
         return f;
     }, [allSupervisions, allQ, allPeriodFilter, allSortKey, allSortDir]);
+
+    // แสดงทีละ 30 รายการ เลื่อนถึงท้ายตารางแล้วแสดงเพิ่ม แทนโหลดทั้งหมดในตารางเดียว
+    const { shown: shownAll, hasMore: hasMoreAll, sentinelRef: sentinelAllRef, showMore: showMoreAll, total: totalAll } = useLoadMore(processedAll, `${allQ}|${allPeriodFilter}`);
 
     const openAssignModal = (sup: SupervisionAppt) => {
         setAssignSup(sup);
@@ -432,7 +440,7 @@ export default function T_SupervisionReview() {
                             </select>
                             <button className="btn-ghost" style={{ padding: "10px 16px" }} onClick={fetchMine} disabled={myLoading}>{myLoading ? "⏳" : "🔄"} รีเฟรช</button>
                             <div style={{ background: "#ecfdf5", color: "#047857", padding: "10px 16px", borderRadius: 8, fontWeight: 700, border: "1px solid #a7f3d0" }}>
-                                ทั้งหมด: {processedMine.length} รายการ
+                                ทั้งหมด: {totalMine} รายการ
                             </div>
                         </div>
                     </section>
@@ -473,7 +481,7 @@ export default function T_SupervisionReview() {
                                     <tbody>
                                         {processedMine.length === 0 ? (
                                             <tr><td colSpan={7} style={{ textAlign: "center", padding: 40, color: "#94a3b8" }}>ไม่มีรายการนิเทศที่ตรงกับเงื่อนไข</td></tr>
-                                        ) : processedMine.map(sup => {
+                                        ) : shownMine.map(sup => {
                                             const isPrimary = sup.isPrimaryAdvisor !== false;
                                             return (
                                                 <tr key={sup.id} style={trStyle}>
@@ -502,6 +510,7 @@ export default function T_SupervisionReview() {
                                         })}
                                     </tbody>
                                 </table>
+                                <LoadMoreFooter shownCount={shownMine.length} total={totalMine} hasMore={hasMoreMine} onShowMore={showMoreMine} sentinelRef={sentinelMineRef} itemLabel="รายการ" />
                             </div>
                         </section>
                     )}
@@ -640,7 +649,7 @@ export default function T_SupervisionReview() {
                     {/* ── Table ── */}
                     <section style={card}>
                         <div style={{ display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
-                            <h3 style={{ margin: 0, color: '#0f172a', flex: 1 }}>รายการนัดหมายนิเทศทั้งหมด ({processedAll.length} รายการ)</h3>
+                            <h3 style={{ margin: 0, color: '#0f172a', flex: 1 }}>รายการนัดหมายนิเทศทั้งหมด ({totalAll} รายการ)</h3>
                             <input className="input" placeholder="ค้นหา รหัส / ชื่อ / บริษัท / อาจารย์..." value={allQ} onChange={e => setAllQ(e.target.value)} style={{ width: 280 }} />
                             <select className="input" style={{ width: 'auto' }} value={allPeriodFilter} onChange={e => setAllPeriodFilter(e.target.value)}>
                                 <option value="all">📚 ทุกปีการศึกษา</option>
@@ -663,7 +672,7 @@ export default function T_SupervisionReview() {
                                     <tbody>
                                         {processedAll.length === 0 ? (
                                             <tr><td colSpan={6} style={{ textAlign: 'center', padding: 30, color: '#94a3b8' }}>ไม่พบรายการ</td></tr>
-                                        ) : processedAll.map(sup => (
+                                        ) : shownAll.map(sup => (
                                             <tr key={sup.id} style={trStyle}>
                                                 <td style={td} data-label="รหัส / ชื่อ">
                                                     <div style={{ fontWeight: 700, color: '#0ea5e9' }}>{sup.student.studentId}</div>
@@ -711,6 +720,7 @@ export default function T_SupervisionReview() {
                                         ))}
                                     </tbody>
                                 </table>
+                                <LoadMoreFooter shownCount={shownAll.length} total={totalAll} hasMore={hasMoreAll} onShowMore={showMoreAll} sentinelRef={sentinelAllRef} itemLabel="รายการ" />
                             </div>
                         )}
                     </section>

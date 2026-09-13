@@ -6,6 +6,8 @@ import IssueLetterModal from "./IssueLetterModal";
 import IssuePlacementLetterModal from "./IssuePlacementLetterModal";
 import AutoTextarea from "./AutoTextarea";
 import DateInput from './DateInput';
+import LoadMoreFooter from "./LoadMoreFooter";
+import { useLoadMore } from "../utils/useLoadMore";
 
 // --- Interfaces ---
 interface StudentDocument {
@@ -382,6 +384,9 @@ export default function A_DocT000() {
         return filtered;
     }, [students, q, statusFilter, selectedPeriod, sortKey, sortDirection]);
 
+    // แสดงทีละ 30 รายการ เลื่อนถึงท้ายตารางแล้วแสดงเพิ่ม แทนโหลดทั้งหมดในตารางเดียว
+    const { shown: shownList, hasMore, sentinelRef, showMore, total } = useLoadMore(list, `${q}|${statusFilter.join(",")}|${selectedPeriod}`);
+
     const isSystemOpen = useMemo(() => {
         const now = new Date().getTime();
         const start = config.startDate ? new Date(config.startDate + "T00:00:00").getTime() : 0;
@@ -545,7 +550,7 @@ export default function A_DocT000() {
                             </tr>
                         </thead>
                         <tbody>
-                            {list.map(s => (
+                            {shownList.map(s => (
                                 <tr key={s.id} style={{ background: '#fff', borderBottom: '1px solid #eee' }}>
                                     <td style={td} data-label="รหัสนักศึกษา">{s.studentId}</td>
                                     <td style={td} data-label="ชื่อ-สกุล">
@@ -593,6 +598,7 @@ export default function A_DocT000() {
                         </tbody>
                     </table>
                 </div>
+                <LoadMoreFooter shownCount={shownList.length} total={total} hasMore={hasMore} onShowMore={showMore} sentinelRef={sentinelRef} itemLabel="รายการ" />
             </section>
 
             {/* 3. MODALS */}

@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from "react";
 import { IcSave, IcUser } from "./icons"; // อย่าลืมเช็ค path icons
 import { apiFetch } from "../utils/apiFetch";
+import LoadMoreFooter from "./LoadMoreFooter";
+import { useLoadMore } from "../utils/useLoadMore";
 
 /* =========================
    Types
@@ -116,6 +118,9 @@ export default function A_Mentors() {
     });
   }, [items, q]);
 
+  // แสดงทีละ 30 คน เลื่อนถึงท้ายตารางแล้วแสดงเพิ่ม แทนโหลดทั้งหมดในตารางเดียว
+  const { shown: shownItems, hasMore, sentinelRef, showMore, total } = useLoadMore(filtered, q);
+
   if (loading) return <div style={{ padding: 28, marginLeft: 35 }}>กำลังโหลดข้อมูลพี่เลี้ยง...</div>;
 
   return (
@@ -157,7 +162,7 @@ export default function A_Mentors() {
                   ไม่พบข้อมูลพี่เลี้ยง
                 </td>
               </tr>
-            ) : filtered.map((m) => (
+            ) : shownItems.map((m) => (
               <tr key={m.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                 <td style={td} data-label="ชื่อ-นามสกุล">
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -194,6 +199,8 @@ export default function A_Mentors() {
           </tbody>
         </table>
       </section>
+
+      <LoadMoreFooter shownCount={shownItems.length} total={total} hasMore={hasMore} onShowMore={showMore} sentinelRef={sentinelRef} itemLabel="คน" />
 
       {/* ================= Modal ================= */}
       {modalData && (

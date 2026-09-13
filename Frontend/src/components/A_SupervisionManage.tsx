@@ -10,6 +10,8 @@ import { useToast } from "./Toast";
 import ConfirmDialog from "./ConfirmDialog";
 import Spinner from "./Spinner";
 import DateInput from './DateInput';
+import LoadMoreFooter from "./LoadMoreFooter";
+import { useLoadMore } from "../utils/useLoadMore";
 
 // --- Types ---
 type SupervisionStatus = "PENDING_TEACHER" | "TEACHER_REJECTED" | "DATE_CONFIRMED" | "LETTER_UPLOADED" | "COMPLETED";
@@ -239,6 +241,9 @@ export default function A_SupervisionManage() {
 
         return filtered;
     }, [supervisions, q, filterPeriodId, filterCompany, sortKey, sortDirection]);
+
+    // แสดงทีละ 30 รายการ เลื่อนถึงท้ายตารางแล้วแสดงเพิ่ม แทนโหลดทั้งหมดในตารางเดียว
+    const { shown: shownSupervisions, hasMore, sentinelRef, showMore, total } = useLoadMore(processedSupervisions, `${q}|${filterPeriodId}|${filterCompany}`);
 
     // ─── handleEditDate ─────────────────────────────────────────
     const openEditDateModal = (sup: Supervision) => {
@@ -484,7 +489,7 @@ export default function A_SupervisionManage() {
                         <tbody>
                             {processedSupervisions.length === 0 ? (
                                 <tr><td colSpan={6} style={{ textAlign: 'center', padding: 30, color: '#94a3b8' }}>ไม่พบรายการนัดหมายนิเทศที่ตรงกับเงื่อนไข</td></tr>
-                            ) : processedSupervisions.map(sup => (
+                            ) : shownSupervisions.map(sup => (
                                 <tr key={sup.id} style={trStyle}>
                                     <td style={td} data-label="รหัส / ชื่อ นศ.">
                                         <div style={{ fontWeight: 700, color: '#0ea5e9' }}>{sup.student.studentId}</div>
@@ -568,6 +573,7 @@ export default function A_SupervisionManage() {
                         </tbody>
                     </table>
                 </div>
+                <LoadMoreFooter shownCount={shownSupervisions.length} total={total} hasMore={hasMore} onShowMore={showMore} sentinelRef={sentinelRef} itemLabel="รายการ" />
             </section>
 
             <style>{`
