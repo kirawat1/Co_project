@@ -155,6 +155,8 @@ export default function A_Students() {
   const [loading, setLoading] = useState(true);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [bulkDeleting, setBulkDeleting] = useState(false);
+  // ช่องติ๊กจะแสดงเฉพาะตอนเปิดโหมดเลือก — กันกดลบผิดคนตอนดูรายชื่อตามปกติ
+  const [selectMode, setSelectMode] = useState(false);
 
   // Filters
   const [q, setQ] = useState("");
@@ -315,6 +317,11 @@ export default function A_Students() {
     });
   }
 
+  function exitSelectMode() {
+    setSelectMode(false);
+    setSelectedIds(new Set());
+  }
+
   const handleBulkDeleteStudents = async () => {
     const ids = Array.from(selectedIds);
     if (ids.length === 0) return;
@@ -332,6 +339,7 @@ export default function A_Students() {
       if (failed > 0) {
         alert(`ย้ายไปถังขยะสำเร็จ ${ok} คน, ไม่สำเร็จ ${failed} คน`);
       }
+      exitSelectMode();
       fetchStudents(selectedPeriodId, currentPage, debouncedQ, filterStatuses, filterCurriculums);
     } finally {
       setBulkDeleting(false);
@@ -613,29 +621,39 @@ export default function A_Students() {
       </section>
 
       {/* ================= Bulk action bar ================= */}
-      {selectedIds.size > 0 && (
+      {!selectMode ? (
+        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 16 }}>
+          <button className="btn" style={ghostBtn} onClick={() => setSelectMode(true)}>
+            ☑️ เลือกหลายคน
+          </button>
+        </div>
+      ) : (
         <div style={{
-          display: "flex", alignItems: "center", gap: 12, marginTop: 16,
+          display: "flex", alignItems: "center", flexWrap: "wrap", gap: 12, marginTop: 16,
           padding: "10px 16px", background: "#fff7ed", border: "1px solid #fdba74", borderRadius: 10,
         }}>
           <span style={{ fontSize: 13, fontWeight: 700, color: "#9a3412" }}>
             เลือกแล้ว {selectedIds.size} คน
           </span>
+          {/* อยู่ในแถบนี้แทนหัวตาราง เพราะจอ ≤1024px ซ่อน thead ทั้งแถว (S_Theme.tsx) */}
+          <button className="btn" style={ghostBtn} onClick={toggleSelectAll} disabled={bulkDeleting || filtered.length === 0}>
+            {filtered.length > 0 && selectedIds.size === filtered.length ? "ยกเลิกเลือกทั้งหมด" : `เลือกทั้งหมดในหน้านี้ (${filtered.length})`}
+          </button>
           <button
             className="btn"
-            style={{ ...ghostBtn, color: "#ef4444", borderColor: "#ef4444", opacity: bulkDeleting ? 0.6 : 1, cursor: bulkDeleting ? "not-allowed" : "pointer" }}
+            style={{ ...ghostBtn, color: "#ef4444", borderColor: "#ef4444", opacity: bulkDeleting || selectedIds.size === 0 ? 0.6 : 1, cursor: bulkDeleting || selectedIds.size === 0 ? "not-allowed" : "pointer" }}
             onClick={handleBulkDeleteStudents}
-            disabled={bulkDeleting}
+            disabled={bulkDeleting || selectedIds.size === 0}
           >
             🗑️ {bulkDeleting ? "กำลังลบ..." : `ย้ายไปถังขยะ (${selectedIds.size})`}
           </button>
           <button
             className="btn"
             style={{ ...ghostBtn, marginLeft: "auto" }}
-            onClick={() => setSelectedIds(new Set())}
+            onClick={exitSelectMode}
             disabled={bulkDeleting}
           >
-            ยกเลิกการเลือก
+            ปิดโหมดเลือก
           </button>
         </div>
       )}
@@ -645,15 +663,17 @@ export default function A_Students() {
         <table width="100%" className="responsive-table" style={{ borderCollapse: 'collapse' }}>
           <thead>
             <tr>
-              <th style={{ ...th, width: 36 }}>
-                <input
-                  type="checkbox"
-                  checked={filtered.length > 0 && selectedIds.size === filtered.length}
-                  ref={el => { if (el) el.indeterminate = selectedIds.size > 0 && selectedIds.size < filtered.length; }}
-                  onChange={toggleSelectAll}
-                  aria-label="เลือกทั้งหมดในหน้านี้"
-                />
-              </th>
+              {selectMode && (
+                <th style={{ ...th, width: 36 }}>
+                  <input
+                    type="checkbox"
+                    checked={filtered.length > 0 && selectedIds.size === filtered.length}
+                    ref={el => { if (el) el.indeterminate = selectedIds.size > 0 && selectedIds.size < filtered.length; }}
+                    onChange={toggleSelectAll}
+                    aria-label="เลือกทั้งหมดในหน้านี้"
+                  />
+                </th>
+              )}
               {([
                 { label: "รหัส", key: "studentId" },
                 { label: "ชื่อ", key: "firstName" },
@@ -681,21 +701,23 @@ export default function A_Students() {
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={8} style={{ padding: 20, textAlign: 'center', color: "#64748b" }}>
+                <td colSpan={selectMode ? 8 : 7} style={{ padding: 20, textAlign: 'center', color: "#64748b" }}>
                   ไม่พบนักศึกษาตามเงื่อนไข
                 </td>
               </tr>
             ) : (
               filtered.map((s) => (
                 <tr key={s.id} style={{ borderBottom: '1px solid #f1f5f9', background: selectedIds.has(s.id) ? "#fff7ed" : undefined }}>
-                  <td style={td}>
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.has(s.id)}
-                      onChange={() => toggleSelectOne(s.id)}
-                      aria-label={`เลือก ${s.firstName} ${s.lastName}`}
-                    />
-                  </td>
+                  {selectMode && (
+                    <td style={td}>
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(s.id)}
+                        onChange={() => toggleSelectOne(s.id)}
+                        aria-label={`เลือก ${s.firstName} ${s.lastName}`}
+                      />
+                    </td>
+                  )}
                   <td style={td} data-label="รหัส">{s.studentId}</td>
                   <td style={td} data-label="ชื่อ">{getThaiPrefix(s.prefix)} {s.firstName}</td>
                   <td style={td} data-label="นามสกุล">{s.lastName}</td>
