@@ -1,6 +1,7 @@
 const prisma = require("../config/prismaClient");
 const { createNotifications } = require('../utils/notificationHelper');
 const { buildStudentExportWorkbook } = require('../utils/studentExport');
+const { changeUserEmail } = require('../utils/userEmail');
 
 // ✅ 1. getProfile: เลียนแบบ logic ของ Student
 exports.getProfile = async (req, res) => {
@@ -642,28 +643,24 @@ exports.adminUpdateTeacher = async (req, res) => {
 
     let updated;
     await prisma.$transaction(async (tx) => {
-      if (email && email !== teacher.email) {
-        const conflict = await tx.user.findFirst({
-          where: { OR: [{ email }, { username: email }], NOT: { id: teacher.userId } },
-        });
-        if (conflict) throw Object.assign(new Error(`อีเมล ${email} มีในระบบแล้ว`), { is409: true });
-      }
+      // อาจารย์ login ด้วยอีเมล (ไม่ได้เข้าผ่าน SSO) — เปลี่ยนอีเมลแล้ว username (= อีเมล) เปลี่ยนตาม
+      // ใช้ตัวกลางเดียวกับนักศึกษา: เปลี่ยนเฉพาะเมื่ออีเมลเปลี่ยนจริง และเช็คชนทั้งอีเมลและ username
+      const emailChange = await changeUserEmail(tx, teacher.userId, email);
       updated = await tx.teacher.update({
         where: { id: parsedId },
         data: {
-          firstName, lastName, email, phone, major,
+          firstName, lastName, phone, major,
+          ...(emailChange.changed && { email: emailChange.email }),
           prefix: prefix || null,
           ...(isCoopTeacher !== undefined && { isCoopTeacher: Boolean(isCoopTeacher) }),
         },
       });
-      if (email) {
-        await tx.user.update({ where: { id: teacher.userId }, data: { email, username: email } });
-      }
     });
 
     res.json({ ok: true, data: updated });
   } catch (err) {
     if (err.is409) return res.status(409).json({ ok: false, message: err.message });
+    if (err.is404) return res.status(404).json({ ok: false, message: err.message });
     if (err.code === 'P2025') return res.status(404).json({ ok: false, message: 'ไม่พบอาจารย์' });
     console.error("ADMIN UPDATE TEACHER ERROR:", err);
     res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดที่ Server" });

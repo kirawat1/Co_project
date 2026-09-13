@@ -3,6 +3,7 @@ const prisma = require('../config/prismaClient');
 const kkuReg = require('../services/kkuRegService');
 const { buildStudentExportWorkbook } = require('../utils/studentExport');
 const { defaultStudentPassword, hashDefaultStudentPassword } = require('../utils/studentPassword');
+const { changeUserEmail, normalizeEmail } = require('../utils/userEmail');
 const { removeUnreferencedUploads } = require('../utils/uploadCleanup');
 
 // GET /api/students/me
@@ -552,14 +553,12 @@ exports.updateStudentBasicInfo = async (req, res) => {
     }
 
     const updated = await prisma.$transaction(async (tx) => {
-      if (email && email !== student.user.email) {
-        const conflict = await tx.user.findFirst({
-          where: { email, NOT: { id: student.userId } },
-        });
-        if (conflict) {
-          throw Object.assign(new Error(`อีเมล ${email} มีในระบบแล้ว`), { is409: true });
-        }
-      }
+      // เปลี่ยนอีเมลบัญชี + username (= อีเมล) ตามกัน (ชนกับบัญชีอื่น → 409 และ rollback ทั้งหมด)
+      const emailChange = await changeUserEmail(tx, student.userId, email);
+      // อีเมลในข้อมูลนักศึกษาเปลี่ยนตามเฉพาะเมื่อเดิมเป็นอีเมลเดียวกับบัญชี (ไม่ทับอีเมลติดต่ออื่นที่กรอกไว้)
+      const studentEmailData = emailChange.changed && normalizeEmail(student.email) === normalizeEmail(emailChange.oldEmail)
+        ? { email: emailChange.email }
+        : {};
 
       // Advisor lookups inside transaction to prevent TOCTOU (concurrent teacher delete → P2003)
       const advisorData = {};
@@ -599,18 +598,16 @@ exports.updateStudentBasicInfo = async (req, res) => {
           studentId, major,
           studyProgram: studyProgram === '' ? null : studyProgram,
           year, phone,
-          jobPosition, ...advisorData,
+          jobPosition, ...advisorData, ...studentEmailData,
         },
       });
-      if (email && email !== student.user.email) {
-        await tx.user.update({ where: { id: student.userId }, data: { email } });
-      }
       return updatedStudent;
     });
 
     res.json({ ok: true, data: updated });
   } catch (err) {
     if (err.is400) return res.status(400).json({ ok: false, message: err.message });
+    if (err.is404) return res.status(404).json({ ok: false, message: err.message });
     if (err.is409) return res.status(409).json({ ok: false, message: err.message });
     if (err.code === 'P2025') return res.status(404).json({ ok: false, message: 'ไม่พบนักศึกษา' });
     if (err.code === 'P2002') {

@@ -1,6 +1,9 @@
 const XLSX = require('xlsx');
 const prisma = require('../config/prismaClient');
 const { hashDefaultStudentPassword } = require('../utils/studentPassword');
+const { normalizeEmail } = require('../utils/userEmail');
+
+const ROLE_TH = { teacher: 'อาจารย์', staff: 'เจ้าหน้าที่', student: 'นักศึกษา' };
 
 const STUDY_PROGRAM_MAP = {
   'ปกติ': 'normal', 'normal': 'normal',
@@ -125,7 +128,7 @@ exports.previewStudents = async (req, res) => {
       prisma.user.findMany({ where: { email: { in: allEmails } } }),
       prisma.student.findMany({ where: { studentId: { in: allStudentIds } }, select: { studentId: true, deletedAt: true } }),
     ]);
-    const userByEmail        = new Map(prefetchedUsers.map(u => [u.email, u]));
+    const userByEmail        = new Map(prefetchedUsers.map(u => [normalizeEmail(u.email), u]));
     const studentByStudentId = new Map(prefetchedStudents.map(s => [s.studentId, s]));
 
     const uniqueAdvisorPairs = [...new Map(
@@ -167,7 +170,7 @@ exports.previewStudents = async (req, res) => {
         return { rowNum, studentId, name, email, major: norm.major, studyProgram, advisorName, action: 'skip', advisorStatus: 'empty', error: `รหัส ${studentId} อยู่ในถังขยะ — กรุณากู้คืนก่อน` };
       }
 
-      const action = userByEmail.has(email) ? 'update' : 'create';
+      const action = userByEmail.has(normalizeEmail(email)) ? 'update' : 'create';
       if (action === 'create') willCreate++; else willUpdate++;
 
       let advisorStatus = 'empty';
@@ -221,15 +224,17 @@ exports.importStudents = async (req, res) => {
     const errorRows = [];
 
     // Pre-fetch users + students to avoid N+1 queries per row
+    // บัญชีนักศึกษาใช้อีเมลเป็น username (login ด้วยอีเมล + รหัสผ่านเริ่มต้น = รหัสนักศึกษา)
+    // จับคู่บัญชีเดิมด้วยอีเมล และตรวจความเป็นเจ้าของด้วยรหัสนักศึกษาที่ผูกกับบัญชีนั้น
     const allEmails     = [...new Set(normalizedRows.map(r => r.email).filter(Boolean))];
     const allStudentIds = [...new Set(normalizedRows.map(r => r.studentId).filter(Boolean))];
     const [prefetchedUsers, prefetchedByUsername, prefetchedStudents] = await Promise.all([
-      prisma.user.findMany({ where: { email: { in: allEmails } } }),
-      prisma.user.findMany({ where: { username: { in: allStudentIds } } }),
-      prisma.student.findMany({ where: { studentId: { in: allStudentIds } }, select: { studentId: true, deletedAt: true } }),
+      prisma.user.findMany({ where: { email: { in: allEmails } }, include: { student: { select: { studentId: true } } } }),
+      prisma.user.findMany({ where: { username: { in: allEmails } } }),
+      prisma.student.findMany({ where: { studentId: { in: allStudentIds } }, select: { studentId: true, deletedAt: true, userId: true, user: { select: { email: true } } } }),
     ]);
-    const userByEmail        = new Map(prefetchedUsers.map(u => [u.email, u]));
-    const userByUsername     = new Map(prefetchedByUsername.map(u => [u.username, u]));
+    const userByEmail        = new Map(prefetchedUsers.map(u => [normalizeEmail(u.email), u]));
+    const userByUsername     = new Map(prefetchedByUsername.map(u => [normalizeEmail(u.username), u]));
     const studentByStudentId = new Map(prefetchedStudents.map(s => [s.studentId, s]));
 
     // Pre-fetch all candidate advisor teachers (deduplicated) to avoid N+1
@@ -287,7 +292,8 @@ exports.importStudents = async (req, res) => {
 
     for (let i = 0; i < normalizedRows.length; i++) {
       const norm = normalizedRows[i];
-      const { email, studentId } = norm;
+      const { studentId } = norm;
+      const email = normalizeEmail(norm.email);
 
       if (!email || !studentId) {
         errors++;
@@ -299,14 +305,31 @@ exports.importStudents = async (req, res) => {
 
       try {
         const existingUser = userByEmail.get(email);
+        const existingStudentRow = studentByStudentId.get(studentId);
+        const usernameOwner = userByUsername.get(email);
         let user = existingUser || null;
-        if (!existingUser) {
-          const existingByUsername = userByUsername.get(studentId);
-          if (existingByUsername && existingByUsername.email !== email) {
-            throw new Error(`username '${studentId}' ถูกใช้โดยบัญชีอื่นแล้ว (email: ${existingByUsername.email})`);
+        if (existingUser) {
+          if (existingUser.role && existingUser.role !== 'student') {
+            throw new Error(`อีเมล '${email}' เป็นบัญชี${ROLE_TH[existingUser.role] || existingUser.role}อยู่แล้ว`);
           }
-        } else if (existingUser.username !== studentId) {
-          throw new Error(`อีเมล '${email}' ถูกใช้โดยรหัสนักศึกษา '${existingUser.username}' แล้ว`);
+          const linkedStudentId = existingUser.student?.studentId;
+          if (linkedStudentId && linkedStudentId !== studentId) {
+            throw new Error(`อีเมล '${email}' ถูกใช้โดยรหัสนักศึกษา '${linkedStudentId}' แล้ว`);
+          }
+          if (existingStudentRow?.userId != null && existingStudentRow.userId !== existingUser.id) {
+            throw new Error(`รหัสนักศึกษา '${studentId}' ผูกกับอีเมล '${existingStudentRow.user?.email}' อยู่แล้ว`);
+          }
+          if (usernameOwner && usernameOwner.id !== existingUser.id) {
+            throw new Error(`username '${email}' ถูกใช้โดยบัญชีอื่นแล้ว (email: ${usernameOwner.email})`);
+          }
+        } else {
+          // รหัสนักศึกษานี้มีบัญชีอยู่แล้วแต่อีเมลในไฟล์ไม่ตรง — ไม่สร้างบัญชีซ้ำ ให้แก้อีเมลที่หน้าแก้ไขนักศึกษา
+          if (existingStudentRow?.userId != null) {
+            throw new Error(`รหัสนักศึกษา '${studentId}' ผูกกับอีเมล '${existingStudentRow.user?.email}' อยู่แล้ว — ถ้าอีเมลเปลี่ยน ให้แก้ที่หน้าแก้ไขข้อมูลนักศึกษา`);
+          }
+          if (usernameOwner) {
+            throw new Error(`username '${email}' ถูกใช้โดยบัญชีอื่นแล้ว (email: ${usernameOwner.email})`);
+          }
         }
 
         // Resolve generalAdvisorId:
@@ -349,12 +372,18 @@ exports.importStudents = async (req, res) => {
         await prisma.$transaction(async (tx) => {
           if (!existingUser) {
             user = await tx.user.upsert({
-              where: { username: studentId },
-              update: { email },
-              create: { username: studentId, email, password: defaultPasswordHash, role: 'student', provider: 'google' },
+              where: { username: email },
+              update: {},
+              create: { username: email, email, password: defaultPasswordHash, role: 'student', provider: 'google' },
             });
-          } else if (defaultPasswordHash) {
-            await tx.user.update({ where: { id: existingUser.id }, data: { password: defaultPasswordHash } });
+          } else {
+            // บัญชีเก่าที่ username เป็นรหัสนักศึกษา → เปลี่ยนเป็นอีเมล · ยังไม่มีรหัสผ่าน → ใส่รหัสเริ่มต้น
+            const userData = {};
+            if (normalizeEmail(existingUser.username) !== email) userData.username = email;
+            if (defaultPasswordHash) userData.password = defaultPasswordHash;
+            if (Object.keys(userData).length > 0) {
+              await tx.user.update({ where: { id: existingUser.id }, data: userData });
+            }
           }
           await tx.student.upsert({
             where: { studentId },
@@ -374,8 +403,11 @@ exports.importStudents = async (req, res) => {
         });
 
         if (!existingUser) {
-          userByEmail.set(email, user);
-          userByUsername.set(studentId, user);
+          // จำบัญชีที่เพิ่งสร้าง — แถวซ้ำในไฟล์เดียวกันจะเป็น "อัปเดต" ไม่สร้างซ้ำ
+          const createdUser = { ...user, email, username: email, role: 'student', student: { studentId } };
+          userByEmail.set(email, createdUser);
+          userByUsername.set(email, createdUser);
+          studentByStudentId.set(studentId, { studentId, deletedAt: null, userId: user.id, user: { email } });
           created++;
           thisRowCountedAs = 'created';
         } else {
