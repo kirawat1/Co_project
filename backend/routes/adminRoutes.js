@@ -109,10 +109,11 @@ router.put('/students/:id', verifyToken, verifyRole(...STAFF_ONLY), studentContr
 // รีเซ็ตรหัสผ่านนักศึกษากลับเป็นรหัสนักศึกษา (ลืมรหัสผ่าน)
 router.patch('/students/:id/reset-password', verifyToken, verifyRole(...STAFF_ONLY), studentController.resetStudentPassword);
 
-// Students: Trash (soft delete / restore) — permanent delete removed; data preserved for history
+// Students: Trash — ย้ายไปถังขยะ / กู้คืน / ลบถาวร (ลบถาวรได้เฉพาะคนที่อยู่ในถังขยะแล้ว)
 router.delete('/students/:id', verifyToken, verifyRole(...STAFF_ONLY), studentController.softDeleteStudent);
 router.get('/students/trash', verifyToken, verifyRole(...STAFF_ONLY), studentController.getTrashedStudents);
 router.post('/students/:id/restore', verifyToken, verifyRole(...STAFF_ONLY), studentController.restoreStudent);
+router.delete('/students/:id/permanent', verifyToken, verifyRole(...STAFF_ONLY), studentController.permanentlyDeleteStudent);
 
 // Coop Applications
 router.get('/coop-applications', verifyToken, verifyRole(...ADMIN_ROLES), adminDocController.getCoopApplications);

@@ -271,9 +271,19 @@ describe('restoreStudent', () => {
 });
 
 describe('permanentlyDeleteStudent', () => {
+  const fs = require('fs');
+  let unlinkSpy;
+  beforeEach(() => {
+    prisma.$transaction.mockImplementation((fn) => fn(prisma));
+    unlinkSpy = jest.spyOn(fs, 'unlinkSync').mockImplementation(() => {});
+    prisma.document.count.mockResolvedValue(0);
+    prisma.studentCoop.count.mockResolvedValue(0);
+    prisma.supervisionAppointment.count.mockResolvedValue(0);
+  });
+  afterEach(() => unlinkSpy.mockRestore());
+
   test('200 — ลบจริงเมื่ออยู่ในถังขยะแล้ว และลบ User (บัญชี login) คู่กันด้วย', async () => {
-    prisma.student.findUnique.mockResolvedValue({ id: 1, userId: 10, deletedAt: new Date() });
-    prisma.company.count.mockResolvedValue(0);
+    prisma.student.findUnique.mockResolvedValue({ id: 1, userId: 10, deletedAt: new Date(), documents: [], coop: null, supervisionAppointment: null });
     prisma.student.delete.mockResolvedValue({ id: 1 });
     prisma.user.delete.mockResolvedValue({ id: 10 });
 
@@ -287,18 +297,49 @@ describe('permanentlyDeleteStudent', () => {
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: true }));
   });
 
-  test('409 — ปฏิเสธถ้านักศึกษายังเป็นเจ้าของบริษัท', async () => {
-    prisma.student.findUnique.mockResolvedValue({ id: 1, userId: 10, deletedAt: new Date() });
+  test('200 — นักศึกษาเคยเพิ่มบริษัทไว้ ก็ลบได้ (บริษัทคงอยู่ DB ตั้ง createdById = NULL เอง)', async () => {
+    prisma.student.findUnique.mockResolvedValue({ id: 1, userId: 10, deletedAt: new Date(), documents: [], coop: null, supervisionAppointment: null });
     prisma.company.count.mockResolvedValue(2);
+    prisma.student.delete.mockResolvedValue({ id: 1 });
+    prisma.user.delete.mockResolvedValue({ id: 10 });
 
-    const req = { params: { id: '1' } };
     const res = makeRes();
+    await permanentlyDeleteStudent({ params: { id: '1' } }, res);
 
-    await permanentlyDeleteStudent(req, res);
+    expect(res.status).not.toHaveBeenCalled();
+    expect(prisma.user.delete).toHaveBeenCalledWith({ where: { id: 10 } });
+  });
 
-    expect(res.status).toHaveBeenCalledWith(409);
-    expect(prisma.student.delete).not.toHaveBeenCalled();
-    expect(prisma.user.delete).not.toHaveBeenCalled();
+  test('200 — ลบไฟล์ที่อัปโหลดของนักศึกษาออกจาก disk ด้วย แต่ข้ามไฟล์ที่ยังมีข้อมูลอื่นอ้างถึง', async () => {
+    prisma.student.findUnique.mockResolvedValue({
+      id: 1, userId: 10, deletedAt: new Date(),
+      documents: [{ path: 'doc-a.pdf' }, { path: 'shared.pdf' }],
+      coop: { reqLetterUrl: 'req.pdf', acceptanceFileUrl: null, placeLetterUrl: 'place.pdf' },
+      supervisionAppointment: { officialLetterPath: '../../etc/sup.pdf' },
+    });
+    prisma.student.delete.mockResolvedValue({});
+    prisma.user.delete.mockResolvedValue({});
+    prisma.document.count.mockImplementation(({ where }) => Promise.resolve(where.path === 'shared.pdf' ? 1 : 0));
+
+    const res = makeRes();
+    await permanentlyDeleteStudent({ params: { id: '1' } }, res);
+
+    const removed = unlinkSpy.mock.calls.map(([p]) => require('path').basename(p)).sort();
+    expect(removed).toEqual(['doc-a.pdf', 'place.pdf', 'req.pdf', 'sup.pdf']);
+    // ชื่อไฟล์จาก DB ถูกตัดเหลือแค่ชื่อไฟล์ ไม่หลุดออกนอกโฟลเดอร์ uploads
+    unlinkSpy.mock.calls.forEach(([p]) => expect(require('path').dirname(p)).toMatch(/uploads$/));
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: true }));
+  });
+
+  test('500 — ลบใน DB ไม่สำเร็จ → ไม่ลบไฟล์', async () => {
+    prisma.student.findUnique.mockResolvedValue({ id: 1, userId: 10, deletedAt: new Date(), documents: [{ path: 'doc-a.pdf' }], coop: null, supervisionAppointment: null });
+    prisma.student.delete.mockRejectedValue(new Error('DB fail'));
+
+    const res = makeRes();
+    await permanentlyDeleteStudent({ params: { id: '1' } }, res);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(unlinkSpy).not.toHaveBeenCalled();
   });
 
   test('400 — ปฏิเสธถ้ายังไม่ได้ย้ายไปถังขยะ', async () => {
