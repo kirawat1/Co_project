@@ -331,6 +331,75 @@ describe('permanentlyDeleteStudent', () => {
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: true }));
   });
 
+  // บัญชีนักศึกษาที่มีข้อมูลอาจารย์ค้างอยู่ (เดิม 500 P2003 เพราะ Teacher.userId เป็น RESTRICT)
+  const strayTeacherStudent = () => ({
+    id: 1, userId: 3, deletedAt: new Date(), documents: [], coop: null, supervisionAppointment: null,
+    user: { role: 'student', teacher: { id: 7 }, staffProfile: null },
+  });
+
+  test('200 — บัญชีนักศึกษามีข้อมูลอาจารย์ค้างอยู่ ไม่มีใครใช้ → ลบข้อมูลอาจารย์ + บัญชีไปด้วย และล้างอาจารย์ที่ปรึกษาของนักศึกษาที่ชี้มา', async () => {
+    prisma.student.findUnique.mockResolvedValue(strayTeacherStudent());
+    prisma.student.delete.mockResolvedValue({});
+    prisma.supervisionAppointment.count.mockResolvedValue(0);
+    prisma.visit.count.mockResolvedValue(0);
+    prisma.student.updateMany.mockResolvedValue({ count: 2 });
+    prisma.teacher.delete.mockResolvedValue({});
+    prisma.user.delete.mockResolvedValue({});
+
+    const res = makeRes();
+    await permanentlyDeleteStudent({ params: { id: '1' } }, res);
+
+    expect(prisma.student.delete).toHaveBeenCalledWith({ where: { id: 1 } });
+    expect(prisma.supervisionAppointment.count).toHaveBeenCalledWith({ where: { teacherId: 7 } });
+    expect(prisma.student.updateMany).toHaveBeenCalledWith({ where: { generalAdvisorId: 7 }, data: { generalAdvisorId: null, advisorName: null } });
+    expect(prisma.student.updateMany).toHaveBeenCalledWith({ where: { coopAdvisorId: 7 }, data: { coopAdvisorId: null, advisorName: null } });
+    expect(prisma.teacher.delete).toHaveBeenCalledWith({ where: { id: 7 } });
+    expect(prisma.user.delete).toHaveBeenCalledWith({ where: { id: 3 } });
+    expect(res.json.mock.calls[0][0]).toMatchObject({ ok: true });
+  });
+
+  test('409 — ข้อมูลอาจารย์ที่ค้างอยู่ยังเป็นอาจารย์นิเทศของนักศึกษาคนอื่น → ไม่ลบอะไร และบอกจำนวนที่ติด', async () => {
+    prisma.student.findUnique.mockResolvedValue(strayTeacherStudent());
+    prisma.student.delete.mockResolvedValue({});
+    prisma.supervisionAppointment.count.mockResolvedValue(2);
+    prisma.visit.count.mockResolvedValue(0);
+
+    const res = makeRes();
+    await permanentlyDeleteStudent({ params: { id: '1' } }, res);
+
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(res.json.mock.calls[0][0].message).toMatch(/นัดหมายนิเทศ 2/);
+    expect(prisma.teacher.delete).not.toHaveBeenCalled();
+    expect(prisma.user.delete).not.toHaveBeenCalled();
+    expect(unlinkSpy).not.toHaveBeenCalled();
+  });
+
+  test('200 — บัญชีจริงเป็นอาจารย์ (role teacher) แต่มีข้อมูลนักศึกษา → ลบเฉพาะข้อมูลนักศึกษา เก็บบัญชีอาจารย์ไว้', async () => {
+    prisma.student.findUnique.mockResolvedValue({ ...strayTeacherStudent(), user: { role: 'teacher', teacher: { id: 7 }, staffProfile: null } });
+    prisma.student.delete.mockResolvedValue({});
+
+    const res = makeRes();
+    await permanentlyDeleteStudent({ params: { id: '1' } }, res);
+
+    expect(prisma.student.delete).toHaveBeenCalledWith({ where: { id: 1 } });
+    expect(prisma.teacher.delete).not.toHaveBeenCalled();
+    expect(prisma.user.delete).not.toHaveBeenCalled();
+    expect(res.json.mock.calls[0][0]).toMatchObject({ ok: true, accountKept: true });
+    expect(res.json.mock.calls[0][0].message).toMatch(/อาจารย์/);
+  });
+
+  test('409 — ติดข้อมูลอื่นที่อ้างถึง (P2003) → แจ้งชัดเจน ไม่ใช่ 500 กลางๆ', async () => {
+    prisma.student.findUnique.mockResolvedValue({ id: 1, userId: 10, deletedAt: new Date(), documents: [], coop: null, supervisionAppointment: null, user: { role: 'student', teacher: null, staffProfile: null } });
+    prisma.student.delete.mockResolvedValue({});
+    prisma.user.delete.mockRejectedValue(Object.assign(new Error('fk'), { code: 'P2003', meta: { field_name: 'userId' } }));
+
+    const res = makeRes();
+    await permanentlyDeleteStudent({ params: { id: '1' } }, res);
+
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(unlinkSpy).not.toHaveBeenCalled();
+  });
+
   test('500 — ลบใน DB ไม่สำเร็จ → ไม่ลบไฟล์', async () => {
     prisma.student.findUnique.mockResolvedValue({ id: 1, userId: 10, deletedAt: new Date(), documents: [{ path: 'doc-a.pdf' }], coop: null, supervisionAppointment: null });
     prisma.student.delete.mockRejectedValue(new Error('DB fail'));

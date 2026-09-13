@@ -150,6 +150,14 @@ describe('getAllTeachers', () => {
     expect(body[1].email).toBe('b@kku.ac.th');
     expect(body[1].firstName).toBe('ข');
   });
+
+  test('แสดงเฉพาะข้อมูลอาจารย์ที่บัญชีเป็นอาจารย์จริง (ไม่เอาข้อมูลอาจารย์ที่ค้างอยู่บนบัญชีนักศึกษา)', async () => {
+    prisma.teacher.findMany.mockResolvedValue([]);
+    await getAllTeachers({}, makeRes());
+    expect(prisma.teacher.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { user: { role: 'teacher' } },
+    }));
+  });
 });
 
 // =====================
