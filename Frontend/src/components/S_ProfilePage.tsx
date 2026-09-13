@@ -121,6 +121,7 @@ export default function S_ProfilePage() {
   const [companies, setCompanies] = useState<StudentCompany[]>([]);
   const [teachers, setTeachers] = useState<any[]>([]);
   const [deptMap, setDeptMap] = useState<Record<string, string>>({});
+  const [departments, setDepartments] = useState<{ major: string; nameTh: string | null }[]>([]);
   const [openStudentModal, setOpenStudentModal] = useState(false);
   const [openPasswordModal, setOpenPasswordModal] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -209,6 +210,7 @@ export default function S_ProfilePage() {
             if (d.nameTh) map[d.major] = d.nameTh;
           });
           setDeptMap(map);
+          setDepartments(deptResult.value.departments);
         }
       })
       .finally(() => setLoading(false));
@@ -224,11 +226,13 @@ export default function S_ProfilePage() {
   /* ================= SAVE ================= */
   async function saveStudentInfo(updatedProfile: StudentProfile) {
     try {
+      // gpa ไม่ให้แก้ในฟอร์มนี้ (ดึงอัตโนมัติจากสำนักทะเบียน มข.) — ตัดออกก่อนส่ง กันทับค่าที่ sync มาโดยไม่ตั้งใจ
+      const { gpa: _gpa, ...rest } = updatedProfile as any;
       const res = await apiFetch("/api/students/me", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...updatedProfile,
+          ...rest,
           prefix: prefixMapToPrisma[updatedProfile.prefix as keyof typeof prefixMapToPrisma] || updatedProfile.prefix,
           studyProgram: studyProgramMapToPrisma[updatedProfile.studyProgram as keyof typeof studyProgramMapToPrisma] || updatedProfile.studyProgram,
         }),
@@ -534,6 +538,7 @@ export default function S_ProfilePage() {
           teachers={teachers}
           saveStudentInfo={saveStudentInfo}
           closeModal={() => setOpenStudentModal(false)}
+          departments={departments}
         />
       )}
       {openPasswordModal && <S_ChangePasswordModal onClose={() => setOpenPasswordModal(false)} />}
@@ -543,7 +548,7 @@ export default function S_ProfilePage() {
 
 /* ================= MODAL COMPONENT ================= */
 /* ================= MODAL COMPONENT ================= */
-function StudentModal({ profile, teachers, saveStudentInfo, closeModal }: any) {
+function StudentModal({ profile, teachers, saveStudentInfo, closeModal, departments }: any) {
   // ✅ สร้าง Map สำหรับแปลงค่าจาก Database มาเป็นตัวเลือกใน UI ให้ตรงกัน
   const prefixMapToUI = { MR: "นาย", MS: "นางสาว", นาย: "นาย", นางสาว: "นางสาว" } as any;
   const studyProgramMapToUI = { normal: "ภาคปกติ", special: "ภาคพิเศษ", ภาคปกติ: "ภาคปกติ", ภาคพิเศษ: "ภาคพิเศษ" } as any;
@@ -628,6 +633,18 @@ function StudentModal({ profile, teachers, saveStudentInfo, closeModal }: any) {
           </div>
 
           <div><label className="label">ชั้นปี</label><input className="input" value={form.year ?? ""} onChange={(e) => setForm({ ...form, year: e.target.value })} /></div>
+
+          <div>
+            <label className="label">สาขาวิชา / หลักสูตร</label>
+            <select className="input" value={form.major ?? ""} onChange={(e) => setForm({ ...form, major: e.target.value })} disabled={departments === null}>
+              <option value="">{departments === null ? "กำลังโหลด..." : "-- เลือกสาขาวิชา --"}</option>
+              {(departments ?? []).map((d: { major: string; nameTh: string | null }) => (
+                <option key={d.major} value={d.major}>
+                  {d.nameTh && d.nameTh !== d.major ? `${d.nameTh} (${d.major})` : d.major}
+                </option>
+              ))}
+            </select>
+          </div>
 
           <div><label className="label">เบอร์โทรศัพท์</label><input className="input" value={form.phone ?? ""} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
           <div><label className="label">อีเมลติดต่อหลัก</label><input className="input" value={form.email ?? ""} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
