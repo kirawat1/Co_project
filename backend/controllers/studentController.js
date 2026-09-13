@@ -270,7 +270,9 @@ exports.getStudents = async (req, res) => {
       });
       if (!teacher) return res.status(404).json({ ok: false, message: 'ไม่พบข้อมูลอาจารย์' });
       if (!teacher.isCoopTeacher) {
-        conditions.push({ OR: [{ generalAdvisorId: teacher.id }, { coopAdvisorId: teacher.id }] });
+        // เห็นเฉพาะนักศึกษาที่ตนเป็นอาจารย์ที่ปรึกษาโครงงานสหกิจ (coopAdvisorId, นักศึกษาเลือกเอง)
+        // ที่ปรึกษาทั่วไป (generalAdvisorId) เป็นแค่ข้อมูลอ้างอิง ไม่มีสิทธิ์ในระบบสหกิจ
+        conditions.push({ coopAdvisorId: teacher.id });
       }
     }
 

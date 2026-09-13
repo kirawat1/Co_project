@@ -426,17 +426,18 @@ exports.updateCoopApplicationStatus = async (req, res) => {
     await prisma.$transaction(async (tx) => {
       const record = await tx.studentCoop.findUnique({
         where: { id: parsedId },
-        select: { status: true, student: { select: { deletedAt: true, id: true, generalAdvisorId: true, coopAdvisorId: true } } }
+        select: { status: true, student: { select: { deletedAt: true, id: true, coopAdvisorId: true } } }
       });
       if (!record || record.student.deletedAt) {
         throw Object.assign(new Error('ไม่พบข้อมูลคำร้อง'), { is404: true });
       }
 
       // Teacher callers must be an advisor of this student
+      // สิทธิ์ตรวจสอบ/อนุมัติผูกกับอาจารย์ที่ปรึกษาโครงงานสหกิจ (coopAdvisorId, นักศึกษาเลือกเอง) เท่านั้น
+      // ที่ปรึกษาทั่วไป (generalAdvisorId มาจากทะเบียน มข./Excel) เป็นแค่ข้อมูลอ้างอิง ไม่มีสิทธิ์ในระบบสหกิจ
       if (req.user.role === 'teacher') {
         const teacher = await tx.teacher.findUnique({ where: { userId: req.user.id }, select: { id: true } });
-        if (!teacher ||
-          (record.student.generalAdvisorId !== teacher.id && record.student.coopAdvisorId !== teacher.id)) {
+        if (!teacher || record.student.coopAdvisorId !== teacher.id) {
           throw Object.assign(new Error('คุณไม่ใช่อาจารย์ที่ปรึกษาของนักศึกษาคนนี้'), { is403: true });
         }
       }

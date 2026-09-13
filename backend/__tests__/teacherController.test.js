@@ -174,7 +174,7 @@ describe('reviewT002', () => {
 
   test('200 — success: upserts studentCoop and updates document', async () => {
     prisma.teacher.findUnique.mockResolvedValue({ id: 10 });
-    prisma.student.findUnique.mockResolvedValue({ id: 1, generalAdvisorId: 10, coopAdvisorId: null, deletedAt: null });
+    prisma.student.findUnique.mockResolvedValue({ id: 1, generalAdvisorId: null, coopAdvisorId: 10, deletedAt: null });
     // Controller re-fetches inside $transaction: TOCTOU check requires coop.status === 'T002_SUBMITTED'
     prisma.studentCoop.findUnique.mockResolvedValue({ status: 'T002_SUBMITTED' });
     prisma.studentCoop.update.mockResolvedValue({});
@@ -201,7 +201,7 @@ describe('reviewT002', () => {
 
   test('200 — no document found: skips document update', async () => {
     prisma.teacher.findUnique.mockResolvedValue({ id: 10 });
-    prisma.student.findUnique.mockResolvedValue({ id: 2, generalAdvisorId: 10, coopAdvisorId: null, deletedAt: null });
+    prisma.student.findUnique.mockResolvedValue({ id: 2, generalAdvisorId: null, coopAdvisorId: 10, deletedAt: null });
     // Controller re-fetches inside $transaction: TOCTOU check requires coop.status === 'T002_SUBMITTED'
     prisma.studentCoop.findUnique.mockResolvedValue({ status: 'T002_SUBMITTED' });
     prisma.studentCoop.update.mockResolvedValue({});
@@ -213,6 +213,18 @@ describe('reviewT002', () => {
 
     expect(prisma.document.update).not.toHaveBeenCalled();
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: true }));
+  });
+
+  test('403 — เป็นแค่ที่ปรึกษาทั่วไป (generalAdvisorId) ไม่ใช่ที่ปรึกษาโครงงานสหกิจ → ไม่มีสิทธิ์ตรวจ', async () => {
+    prisma.teacher.findUnique.mockResolvedValue({ id: 10 });
+    prisma.student.findUnique.mockResolvedValue({ id: 3, generalAdvisorId: 10, coopAdvisorId: 99, deletedAt: null });
+
+    const req = { body: { studentId: 3, status: 'T002_SUBMITTED' }, user: { id: 99 } };
+    const res = makeRes();
+    await reviewT002(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(prisma.studentCoop.update).not.toHaveBeenCalled();
   });
 });
 
@@ -363,7 +375,7 @@ describe('exportMyStudents', () => {
     expect(res.status).toHaveBeenCalledWith(404);
   });
 
-  test('200 — อาจารย์ปกติ: where filter เฉพาะ advisees ของตัวเอง', async () => {
+  test('200 — อาจารย์ปกติ: where filter เฉพาะ advisees ของตัวเอง (coopAdvisorId — ที่ปรึกษาทั่วไปไม่มีสิทธิ์)', async () => {
     prisma.teacher.findUnique.mockResolvedValue({ id: 7, isCoopTeacher: false });
     prisma.student.findMany.mockResolvedValue([]);
 
@@ -374,7 +386,7 @@ describe('exportMyStudents', () => {
 
     expect(prisma.student.findMany).toHaveBeenCalledWith(expect.objectContaining({
       where: {
-        AND: [{ deletedAt: null }, { OR: [{ generalAdvisorId: 7 }, { coopAdvisorId: 7 }] }],
+        AND: [{ deletedAt: null }, { coopAdvisorId: 7 }],
       },
     }));
     expect(res.setHeader).toHaveBeenCalledWith(

@@ -13,9 +13,11 @@ exports.getVisitsByStudent = async (req, res) => {
     if (!student || student.deletedAt) return res.status(404).json({ ok: false, message: "Student not found" });
 
     // Teacher callers may only view visits for their own advisees
+    // นิเทศผูกกับอาจารย์ที่ปรึกษาโครงงานสหกิจ (coopAdvisorId, นักศึกษาเลือกเอง) เท่านั้น
+    // ที่ปรึกษาทั่วไป (generalAdvisorId) เป็นแค่ข้อมูลอ้างอิง ไม่มีสิทธิ์ในระบบสหกิจ
     if (req.user.role === 'teacher') {
       const teacher = await prisma.teacher.findUnique({ where: { userId: req.user.id }, select: { id: true } });
-      if (!teacher || (student.generalAdvisorId !== teacher.id && student.coopAdvisorId !== teacher.id)) {
+      if (!teacher || student.coopAdvisorId !== teacher.id) {
         return res.status(403).json({ ok: false, message: "คุณไม่ใช่อาจารย์ที่ปรึกษาของนักศึกษาคนนี้" });
       }
     }
@@ -62,12 +64,12 @@ exports.createVisit = async (req, res) => {
       // ตรวจสอบ advisor ownership — อาจารย์ต้องเป็นที่ปรึกษาของนักศึกษา
       const freshStudent = await tx.student.findUnique({
         where: { id: student.id },
-        select: { generalAdvisorId: true, coopAdvisorId: true, deletedAt: true },
+        select: { coopAdvisorId: true, deletedAt: true },
       });
       if (!freshStudent || freshStudent.deletedAt) {
         throw Object.assign(new Error("Student not found"), { is404: true });
       }
-      if (freshStudent.generalAdvisorId !== teacher.id && freshStudent.coopAdvisorId !== teacher.id) {
+      if (freshStudent.coopAdvisorId !== teacher.id) {
         throw Object.assign(new Error("คุณไม่ใช่อาจารย์ที่ปรึกษาของนักศึกษาคนนี้"), { is403: true });
       }
 

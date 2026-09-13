@@ -156,13 +156,14 @@ const submitCoopApplication = async (req, res) => {
       })
     ).catch(console.error);
 
-    // Notify personal advisors (generalAdvisor, coopAdvisor) who may not be in coopTeachers
+    // Notify personal advisor (coopAdvisor) who may not be in coopTeachers
+    // ที่ปรึกษาทั่วไป (generalAdvisorId) ไม่มีสิทธิ์ตรวจ/อนุมัติในระบบสหกิจ จึงไม่ต้องแจ้งเตือน
     prisma.student.findUnique({
       where: { id: student.id },
-      select: { generalAdvisorId: true, coopAdvisorId: true },
+      select: { coopAdvisorId: true },
     }).then(async s => {
       if (!s) return;
-      const teacherIds = [...new Set([s.generalAdvisorId, s.coopAdvisorId].filter(Boolean))];
+      const teacherIds = [s.coopAdvisorId].filter(Boolean);
       if (!teacherIds.length) return;
       const teachers = await prisma.teacher.findMany({ where: { id: { in: teacherIds } }, select: { userId: true } });
       const advisorUserIds = teachers.map(t => t.userId);
@@ -209,15 +210,16 @@ const updateCoopStatus = async (req, res) => {
     await prisma.$transaction(async (tx) => {
       const studentCheck = await tx.student.findUnique({
         where: { id: parsedId },
-        select: { deletedAt: true, generalAdvisorId: true, coopAdvisorId: true }
+        select: { deletedAt: true, coopAdvisorId: true }
       });
       if (!studentCheck || studentCheck.deletedAt) {
         throw Object.assign(new Error('ไม่พบนักศึกษา'), { is404: true });
       }
-      // ถ้าผู้เรียกเป็นอาจารย์ (ไม่ใช่เจ้าหน้าที่) ต้องเป็นอาจารย์ที่ปรึกษาเท่านั้น
+      // ถ้าผู้เรียกเป็นอาจารย์ (ไม่ใช่เจ้าหน้าที่) ต้องเป็นอาจารย์ที่ปรึกษาโครงงานสหกิจ (coopAdvisorId) เท่านั้น
+      // ที่ปรึกษาทั่วไป (generalAdvisorId) เป็นแค่ข้อมูลอ้างอิง ไม่มีสิทธิ์ตรวจ/อนุมัติในระบบสหกิจ
       if (req.user.role === 'teacher') {
         const teacher = await tx.teacher.findUnique({ where: { userId: req.user.id }, select: { id: true } });
-        if (!teacher || (studentCheck.generalAdvisorId !== teacher.id && studentCheck.coopAdvisorId !== teacher.id)) {
+        if (!teacher || studentCheck.coopAdvisorId !== teacher.id) {
           throw Object.assign(new Error('คุณไม่ใช่อาจารย์ที่ปรึกษาของนักศึกษาคนนี้'), { is403: true });
         }
       }

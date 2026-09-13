@@ -156,6 +156,19 @@ describe('updateCoopStatus', () => {
       data: expect.objectContaining({ status: 'QUALIFICATION_FAILED' }),
     }));
   });
+
+  test('403 — teacher เป็นแค่ที่ปรึกษาทั่วไป (generalAdvisorId) ไม่ใช่ที่ปรึกษาโครงงานสหกิจ → ตรวจสอบคุณสมบัติไม่ได้', async () => {
+    prisma.student.findUnique.mockResolvedValue({ deletedAt: null, generalAdvisorId: 7, coopAdvisorId: 99 });
+    prisma.teacher.findUnique.mockResolvedValue({ id: 7 });
+
+    const req = { body: { studentId: '5', status: 'APPROVED' }, user: { id: 1, role: 'teacher' } };
+    const res = makeRes();
+
+    await updateCoopStatus(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(prisma.studentCoop.update).not.toHaveBeenCalled();
+  });
 });
 
 // =====================

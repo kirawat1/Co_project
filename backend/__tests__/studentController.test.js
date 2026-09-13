@@ -126,7 +126,7 @@ describe('getStudents', () => {
     );
   });
 
-  test('200 — teacher role (non-coop) เพิ่ม advisor filter', async () => {
+  test('200 — teacher role (non-coop) เพิ่ม advisor filter (เฉพาะ coopAdvisorId — ที่ปรึกษาทั่วไปไม่มีสิทธิ์)', async () => {
     prisma.teacher.findUnique.mockResolvedValue({ id: 7, isCoopTeacher: false });
     prisma.student.findMany.mockResolvedValue([]);
     prisma.student.count.mockResolvedValue(0);
@@ -141,7 +141,7 @@ describe('getStudents', () => {
         where: {
           AND: [
             { deletedAt: null },
-            { OR: [{ generalAdvisorId: 7 }, { coopAdvisorId: 7 }] },
+            { coopAdvisorId: 7 },
           ],
         },
       })
