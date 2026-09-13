@@ -106,6 +106,8 @@ exports.updateMyProfile = async (req, res) => {
       return res.status(400).json({ ok: false, message: 'activityUnit ไม่ถูกต้อง' });
     if (data.coopAdvisorId !== undefined && data.coopAdvisorId !== null && data.coopAdvisorId !== '' && isNaN(Number(data.coopAdvisorId)))
       return res.status(400).json({ ok: false, message: 'coopAdvisorId ไม่ถูกต้อง' });
+    if (data.generalAdvisorId !== undefined && data.generalAdvisorId !== null && data.generalAdvisorId !== '' && isNaN(Number(data.generalAdvisorId)))
+      return res.status(400).json({ ok: false, message: 'generalAdvisorId ไม่ถูกต้อง' });
 
     let student;
     let updatedCoop = null;
@@ -119,6 +121,33 @@ exports.updateMyProfile = async (req, res) => {
         });
         if (taken) throw Object.assign(new Error("รหัสนักศึกษานี้ถูกใช้งานแล้ว กรุณาตรวจสอบอีกครั้ง"), { is409: true });
       }
+
+      // generalAdvisorId/coopAdvisorId เป็น FK จริงที่ทั้งระบบใช้ (dashboard, advisee list, นัดนิเทศ) —
+      // advisorName เป็นแค่ข้อความที่ derive มาจาก generalAdvisorId เสมอ ห้ามรับ advisorName ดิบๆ จาก client
+      // (เดิม endpoint นี้รับ advisorName ตรงๆ จาก client แต่ไม่เคยอัปเดต generalAdvisorId เลย ทำให้ข้อความกับ FK ไม่ตรงกัน
+      //  — นักศึกษาเปลี่ยนที่ปรึกษาทั่วไปที่หน้าโปรไฟล์ตัวเอง ข้อความเปลี่ยนแต่ FK ไม่เปลี่ยนตาม)
+      const advisorData = {};
+      if (data.generalAdvisorId !== undefined) {
+        if (!data.generalAdvisorId) {
+          advisorData.generalAdvisorId = null;
+          advisorData.advisorName = null;
+        } else {
+          const advisor = await tx.teacher.findUnique({ where: { id: Number(data.generalAdvisorId) } });
+          if (!advisor) throw Object.assign(new Error("ไม่พบอาจารย์ที่ปรึกษาทั่วไปที่เลือก"), { is400: true });
+          advisorData.generalAdvisorId = advisor.id;
+          advisorData.advisorName = `${advisor.prefix || ""}${advisor.firstName} ${advisor.lastName}`.trim();
+        }
+      }
+      if (data.coopAdvisorId !== undefined) {
+        if (!data.coopAdvisorId) {
+          advisorData.coopAdvisorId = null;
+        } else {
+          const advisor = await tx.teacher.findUnique({ where: { id: Number(data.coopAdvisorId) } });
+          if (!advisor) throw Object.assign(new Error("ไม่พบอาจารย์ที่ปรึกษาโครงงานสหกิจที่เลือก"), { is400: true });
+          advisorData.coopAdvisorId = advisor.id;
+        }
+      }
+
       student = await tx.student.upsert({
         where: { userId: userId },
         update: {
@@ -133,9 +162,8 @@ exports.updateMyProfile = async (req, res) => {
           studyProgram: data.studyProgram === '' ? null : data.studyProgram,
           phone: data.phone,
           email: data.email,
-          advisorName: data.advisorName,
           jobPosition: data.jobPosition,
-          coopAdvisorId: data.coopAdvisorId !== undefined ? (data.coopAdvisorId ? Number(data.coopAdvisorId) : null) : undefined,
+          ...advisorData,
           gpa: gpaProvided ? gpa : undefined,
           activityUnit: activityUnitProvided ? activityUnit : undefined,
         },
@@ -149,9 +177,8 @@ exports.updateMyProfile = async (req, res) => {
           major: (data.major && data.major !== "") ? data.major : null,
           gpa: gpa,
           activityUnit: activityUnit,
-          advisorName: data.advisorName,
           jobPosition: data.jobPosition,
-          coopAdvisorId: data.coopAdvisorId ? Number(data.coopAdvisorId) : null,
+          ...advisorData,
         },
       });
 
@@ -213,6 +240,7 @@ exports.updateMyProfile = async (req, res) => {
     });
 
   } catch (err) {
+    if (err.is400) return res.status(400).json({ ok: false, message: err.message });
     if (err.is403) return res.status(403).json({ ok: false, message: err.message });
     if (err.is409) return res.status(409).json({ ok: false, message: err.message });
     console.error("Update Error:", err);

@@ -664,6 +664,58 @@ describe('updateMyProfile', () => {
     expect(res.status).not.toHaveBeenCalledWith(400);
     expect(prisma.student.upsert.mock.calls[0][0].update.activityUnit).toBeUndefined();
   });
+
+  // เดิม endpoint นี้รับ advisorName ดิบๆ จาก client แต่ไม่เคยอัปเดต generalAdvisorId เลย —
+  // นักศึกษาเปลี่ยนที่ปรึกษาทั่วไปที่หน้าโปรไฟล์ตัวเอง ข้อความเปลี่ยนแต่ FK ไม่เปลี่ยนตาม (บั๊กจริงที่เจอ)
+  test('200 — เปลี่ยนที่ปรึกษาทั่วไป → อัปเดต generalAdvisorId จริง และ derive advisorName จากอาจารย์ที่เลือก (ไม่เชื่อ advisorName ดิบจาก client)', async () => {
+    setupUpsert();
+    prisma.teacher.findUnique.mockResolvedValue({ id: 42, prefix: 'ผศ.ดร.', firstName: 'วชิราวุธ', lastName: 'ธรรมวิเศษ' });
+    const req = { userId: 1, body: { firstName: 'ก', generalAdvisorId: 42, advisorName: 'ชื่อปลอมที่ client ส่งมาเอง' } };
+    const res = makeRes();
+
+    await updateMyProfile(req, res);
+
+    expect(res.status).not.toHaveBeenCalledWith(400);
+    const update = prisma.student.upsert.mock.calls[0][0].update;
+    expect(update.generalAdvisorId).toBe(42);
+    expect(update.advisorName).toBe('ผศ.ดร.วชิราวุธ ธรรมวิเศษ');
+  });
+
+  test('200 — ล้างที่ปรึกษาทั่วไป (generalAdvisorId: null) → เคลียร์ทั้ง FK และ advisorName', async () => {
+    setupUpsert();
+    const req = { userId: 1, body: { firstName: 'ก', generalAdvisorId: null } };
+    const res = makeRes();
+
+    await updateMyProfile(req, res);
+
+    const update = prisma.student.upsert.mock.calls[0][0].update;
+    expect(update.generalAdvisorId).toBeNull();
+    expect(update.advisorName).toBeNull();
+  });
+
+  test('400 — เลือกอาจารย์ที่ปรึกษาทั่วไปที่ไม่มีอยู่จริง', async () => {
+    setupUpsert();
+    prisma.teacher.findUnique.mockResolvedValue(null);
+    const req = { userId: 1, body: { firstName: 'ก', generalAdvisorId: 999 } };
+    const res = makeRes();
+
+    await updateMyProfile(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(prisma.student.upsert).not.toHaveBeenCalled();
+  });
+
+  test('200 — เลือกอาจารย์ที่ปรึกษาโครงงานสหกิจ → ตรวจสอบว่ามีอาจารย์คนนี้จริงก่อนผูก FK', async () => {
+    setupUpsert();
+    prisma.teacher.findUnique.mockResolvedValue({ id: 7, firstName: 'บี', lastName: 'สหกิจ' });
+    const req = { userId: 1, body: { firstName: 'ก', coopAdvisorId: 7 } };
+    const res = makeRes();
+
+    await updateMyProfile(req, res);
+
+    expect(res.status).not.toHaveBeenCalledWith(400);
+    expect(prisma.student.upsert.mock.calls[0][0].update.coopAdvisorId).toBe(7);
+  });
 });
 
 // =====================
