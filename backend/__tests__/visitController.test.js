@@ -15,7 +15,7 @@ describe('visitController', () => {
       // Controller calls student.findUnique twice: once outside tx (by studentId), once inside tx (by id for advisor check)
       prisma.student.findUnique
         .mockResolvedValueOnce({ id: 1, studentId: '640001' })
-        .mockResolvedValueOnce({ id: 1, generalAdvisorId: 5, coopAdvisorId: null, deletedAt: null });
+        .mockResolvedValueOnce({ id: 1, generalAdvisorId: null, coopAdvisorId: 5, deletedAt: null });
       prisma.teacher.findUnique.mockResolvedValue({ id: 5, userId: 99 });
       prisma.visit.findFirst.mockResolvedValue({ id: 10 }); // มีนัดซ้ำ
 
@@ -31,7 +31,7 @@ describe('visitController', () => {
       // Controller calls student.findUnique twice: once outside tx (by studentId), once inside tx (by id for advisor check)
       prisma.student.findUnique
         .mockResolvedValueOnce({ id: 1, studentId: '640001' })
-        .mockResolvedValueOnce({ id: 1, generalAdvisorId: 5, coopAdvisorId: null, deletedAt: null });
+        .mockResolvedValueOnce({ id: 1, generalAdvisorId: null, coopAdvisorId: 5, deletedAt: null });
       prisma.teacher.findUnique.mockResolvedValue({ id: 5, userId: 99 });
       prisma.visit.findFirst.mockResolvedValue(null);
       prisma.visit.create.mockResolvedValue({ id: 11 });
@@ -42,6 +42,20 @@ describe('visitController', () => {
 
       expect(prisma.visit.create).toHaveBeenCalled();
       expect(res.json).toHaveBeenCalledWith({ ok: true, data: { id: 11 } });
+    });
+
+    test('403 — เป็นแค่ที่ปรึกษาทั่วไป (generalAdvisorId) ไม่ใช่ที่ปรึกษาโครงงานสหกิจ → ออกนิเทศไม่ได้', async () => {
+      prisma.student.findUnique
+        .mockResolvedValueOnce({ id: 1, studentId: '640001' })
+        .mockResolvedValueOnce({ id: 1, generalAdvisorId: 5, coopAdvisorId: 99, deletedAt: null });
+      prisma.teacher.findUnique.mockResolvedValue({ id: 5, userId: 99 });
+
+      const req = { body: { studentId: '640001', date: '2026-01-01', time: '10:00', location: 'A', note: '' }, user: { id: 99 } };
+      const res = makeRes();
+      await visitController.createVisit(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(prisma.visit.create).not.toHaveBeenCalled();
     });
   });
 

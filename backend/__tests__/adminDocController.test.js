@@ -12,6 +12,7 @@ const {
   getT000Config,
   getStudentsForT000,
   reviewStudentStatus,
+  updateCoopApplicationStatus,
 } = require('../controllers/adminDocController');
 
 function makeRes() {
@@ -243,5 +244,41 @@ describe('reviewStudentStatus', () => {
     const res = makeRes();
     await reviewStudentStatus(req, res);
     expect(res.status).toHaveBeenCalledWith(500);
+  });
+});
+
+// =====================
+// updateCoopApplicationStatus
+// =====================
+describe('updateCoopApplicationStatus', () => {
+  test('403 — teacher เป็นแค่ที่ปรึกษาทั่วไป (generalAdvisorId) ไม่ใช่ที่ปรึกษาโครงงานสหกิจ → อนุมัติคำร้องไม่ได้', async () => {
+    prisma.studentCoop.findUnique.mockResolvedValue({
+      status: 'WAITING_FOR_STAFF_CHECK',
+      student: { deletedAt: null, id: 1, coopAdvisorId: 99 },
+    });
+    prisma.teacher.findUnique.mockResolvedValue({ id: 7 });
+
+    const req = { params: { id: '1' }, body: { status: 'QUALIFIED' }, user: { id: 1, role: 'teacher' } };
+    const res = makeRes();
+    await updateCoopApplicationStatus(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(prisma.studentCoop.update).not.toHaveBeenCalled();
+  });
+
+  test('200 — teacher เป็นที่ปรึกษาโครงงานสหกิจ (coopAdvisorId) ตัวจริง → อนุมัติได้', async () => {
+    prisma.studentCoop.findUnique.mockResolvedValue({
+      status: 'WAITING_FOR_STAFF_CHECK',
+      student: { deletedAt: null, id: 1, coopAdvisorId: 7 },
+    });
+    prisma.teacher.findUnique.mockResolvedValue({ id: 7 });
+    prisma.studentCoop.update.mockResolvedValue({ id: 1, status: 'QUALIFIED' });
+
+    const req = { params: { id: '1' }, body: { status: 'QUALIFIED' }, user: { id: 1, role: 'teacher' } };
+    const res = makeRes();
+    await updateCoopApplicationStatus(req, res);
+
+    expect(res.status).not.toHaveBeenCalledWith(403);
+    expect(prisma.studentCoop.update).toHaveBeenCalled();
   });
 });

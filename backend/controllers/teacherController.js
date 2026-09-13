@@ -212,24 +212,25 @@ exports.reviewT003 = async (req, res) => {
             return res.status(400).json({ ok: false, message: 'status ไม่ถูกต้อง' });
         }
 
-        // Ownership: teacher must be the student's assigned advisor
+        // Ownership: teacher must be the student's assigned coop advisor (coopAdvisorId, นักศึกษาเลือกเอง)
+        // ที่ปรึกษาทั่วไป (generalAdvisorId) เป็นแค่ข้อมูลอ้างอิง ไม่มีสิทธิ์ตรวจในระบบสหกิจ
         const teacher = await prisma.teacher.findUnique({ where: { userId: req.user.id } });
         if (!teacher) return res.status(403).json({ ok: false, message: 'ไม่พบข้อมูลอาจารย์' });
         const student = await prisma.student.findUnique({ where: { id: parsedStudentId } });
         if (!student || student.deletedAt) return res.status(404).json({ ok: false, message: 'ไม่พบนักศึกษา' });
-        if (student.generalAdvisorId !== teacher.id && student.coopAdvisorId !== teacher.id) {
+        if (student.coopAdvisorId !== teacher.id) {
             return res.status(403).json({ ok: false, message: 'คุณไม่ใช่อาจารย์ที่ปรึกษาของนักศึกษาคนนี้' });
         }
 
         await prisma.$transaction(async (tx) => {
             const freshStudent = await tx.student.findUnique({
                 where: { id: parsedStudentId },
-                select: { generalAdvisorId: true, coopAdvisorId: true, deletedAt: true }
+                select: { coopAdvisorId: true, deletedAt: true }
             });
             if (!freshStudent || freshStudent.deletedAt) {
                 throw Object.assign(new Error('ไม่พบนักศึกษา'), { is404: true });
             }
-            if (freshStudent.generalAdvisorId !== teacher.id && freshStudent.coopAdvisorId !== teacher.id) {
+            if (freshStudent.coopAdvisorId !== teacher.id) {
                 throw Object.assign(new Error('คุณไม่ใช่อาจารย์ที่ปรึกษาของนักศึกษาคนนี้'), { is403: true });
             }
             const coop = await tx.studentCoop.findUnique({ where: { studentId: parsedStudentId }, select: { status: true } });
@@ -299,24 +300,25 @@ exports.reviewT002 = async (req, res) => {
             return res.status(400).json({ ok: false, message: 'status ไม่ถูกต้อง' });
         }
 
-        // Ownership: teacher must be the student's assigned advisor
+        // Ownership: teacher must be the student's assigned coop advisor (coopAdvisorId, นักศึกษาเลือกเอง)
+        // ที่ปรึกษาทั่วไป (generalAdvisorId) เป็นแค่ข้อมูลอ้างอิง ไม่มีสิทธิ์ตรวจในระบบสหกิจ
         const teacher = await prisma.teacher.findUnique({ where: { userId: req.user.id } });
         if (!teacher) return res.status(403).json({ ok: false, message: 'ไม่พบข้อมูลอาจารย์' });
         const student = await prisma.student.findUnique({ where: { id: parsedStudentId } });
         if (!student || student.deletedAt) return res.status(404).json({ ok: false, message: 'ไม่พบนักศึกษา' });
-        if (student.generalAdvisorId !== teacher.id && student.coopAdvisorId !== teacher.id) {
+        if (student.coopAdvisorId !== teacher.id) {
             return res.status(403).json({ ok: false, message: 'คุณไม่ใช่อาจารย์ที่ปรึกษาของนักศึกษาคนนี้' });
         }
 
         await prisma.$transaction(async (tx) => {
             const freshStudent = await tx.student.findUnique({
                 where: { id: parsedStudentId },
-                select: { generalAdvisorId: true, coopAdvisorId: true, deletedAt: true }
+                select: { coopAdvisorId: true, deletedAt: true }
             });
             if (!freshStudent || freshStudent.deletedAt) {
                 throw Object.assign(new Error('ไม่พบนักศึกษา'), { is404: true });
             }
-            if (freshStudent.generalAdvisorId !== teacher.id && freshStudent.coopAdvisorId !== teacher.id) {
+            if (freshStudent.coopAdvisorId !== teacher.id) {
                 throw Object.assign(new Error('คุณไม่ใช่อาจารย์ที่ปรึกษาของนักศึกษาคนนี้'), { is403: true });
             }
             const coop = await tx.studentCoop.findUnique({ where: { studentId: parsedStudentId }, select: { status: true } });
@@ -396,12 +398,12 @@ exports.getDashboardStats = async (req, res) => {
             return res.status(400).json({ ok: false, message: 'semester ไม่ถูกต้อง' });
         const yearStr = year ? String(year) : undefined;
 
-        // ใช้ FK (generalAdvisorId / coopAdvisorId) แบบเดียวกับ getMyStudents
+        // ใช้ FK coopAdvisorId แบบเดียวกับ getMyStudents (ที่ปรึกษาทั่วไป generalAdvisorId เป็นแค่ข้อมูลอ้างอิง ไม่มีสิทธิ์ในระบบสหกิจ)
         // เพื่อไม่ให้ตัวเลขในแดชบอร์ดไม่ตรงกับรายชื่อ นศ. ในดูแลจริง
         // (อาจารย์ผู้ประสานงานสหกิจ isCoopTeacher เห็นทุกคน เหมือน getMyStudents)
         const advisorFilter = teacher.isCoopTeacher
             ? { deletedAt: null }
-            : { deletedAt: null, OR: [{ generalAdvisorId: teacher.id }, { coopAdvisorId: teacher.id }] };
+            : { deletedAt: null, coopAdvisorId: teacher.id };
 
         // 1. นับนักศึกษาทั้งหมดในดูแล
         let myStudentsCount = 0;
@@ -469,9 +471,10 @@ exports.getLatestRequests = async (req, res) => {
             return res.status(400).json({ ok: false, message: 'semester ไม่ถูกต้อง' });
         const yearStr = year ? String(year) : undefined;
 
+        // ที่ปรึกษาทั่วไป (generalAdvisorId) เป็นแค่ข้อมูลอ้างอิง ไม่มีสิทธิ์ในระบบสหกิจ — ใช้ coopAdvisorId เท่านั้น
         const studentScope = teacher.isCoopTeacher
             ? { deletedAt: null }
-            : { deletedAt: null, OR: [{ generalAdvisorId: teacher.id }, { coopAdvisorId: teacher.id }] };
+            : { deletedAt: null, coopAdvisorId: teacher.id };
 
         // ดึงจากตาราง StudentCoop ตรงๆ จะได้ไม่ติด Error เรื่อง Relation
         const studentCoops = await prisma.studentCoop.findMany({
@@ -701,18 +704,14 @@ exports.getMyStudents = async (req, res) => {
 
     const baseWhere = { AND: baseConditions };
 
-    // อาจารย์ปกติ — เฉพาะ advisees ของตัวเอง
+    // อาจารย์ปกติ — เฉพาะ advisees ของตัวเอง (coopAdvisorId, นักศึกษาเลือกเอง)
+    // ที่ปรึกษาทั่วไป (generalAdvisorId มาจากทะเบียน มข./Excel) เป็นแค่ข้อมูลอ้างอิง ไม่มีสิทธิ์ในระบบสหกิจ
     const where = teacher.isCoopTeacher
       ? baseWhere
       : {
           AND: [
             baseWhere,
-            {
-              OR: [
-                { generalAdvisorId: teacher.id },
-                { coopAdvisorId: teacher.id },
-              ],
-            },
+            { coopAdvisorId: teacher.id },
           ],
         };
 
@@ -759,7 +758,8 @@ exports.exportMyStudents = async (req, res) => {
     if (coopPeriodId !== undefined && isNaN(coopPeriodId))
       return res.status(400).json({ ok: false, message: 'coopPeriodId ไม่ถูกต้อง' });
 
-    const advisorFilter = { OR: [{ generalAdvisorId: teacher.id }, { coopAdvisorId: teacher.id }] };
+    // ที่ปรึกษาทั่วไป (generalAdvisorId) เป็นแค่ข้อมูลอ้างอิง ไม่มีสิทธิ์ในระบบสหกิจ — export เฉพาะ advisees ของ coopAdvisorId
+    const advisorFilter = { coopAdvisorId: teacher.id };
     const periodFilter = coopPeriodId ? { coop: { coopPeriodId } } : null;
     const deletedFilter = { deletedAt: null };
 
