@@ -95,11 +95,14 @@ exports.updateMyProfile = async (req, res) => {
       return res.status(403).json({ ok: false, message: "บัญชีถูกระงับการใช้งาน" });
     }
 
-    const gpa = data.gpa !== undefined ? parseFloat(data.gpa) : (currentStudent?.gpa || 0);
-    if (data.gpa !== undefined && isNaN(gpa))
+    // ช่องว่าง ("" หรือ null) = ไม่กรอก ไม่ใช่ค่าที่ผิด — เดิมเช็คแค่ !== undefined ทำให้เว้นว่างแล้วขึ้น "gpa ไม่ถูกต้อง"
+    const gpaProvided = data.gpa !== undefined && data.gpa !== null && data.gpa !== '';
+    const gpa = gpaProvided ? parseFloat(data.gpa) : (currentStudent?.gpa || 0);
+    if (gpaProvided && isNaN(gpa))
       return res.status(400).json({ ok: false, message: 'gpa ไม่ถูกต้อง' });
-    const activityUnit = data.activityUnit !== undefined ? parseInt(data.activityUnit) : (currentStudent?.activityUnit || 0);
-    if (data.activityUnit !== undefined && isNaN(activityUnit))
+    const activityUnitProvided = data.activityUnit !== undefined && data.activityUnit !== null && data.activityUnit !== '';
+    const activityUnit = activityUnitProvided ? parseInt(data.activityUnit) : (currentStudent?.activityUnit || 0);
+    if (activityUnitProvided && isNaN(activityUnit))
       return res.status(400).json({ ok: false, message: 'activityUnit ไม่ถูกต้อง' });
     if (data.coopAdvisorId !== undefined && data.coopAdvisorId !== null && data.coopAdvisorId !== '' && isNaN(Number(data.coopAdvisorId)))
       return res.status(400).json({ ok: false, message: 'coopAdvisorId ไม่ถูกต้อง' });
@@ -133,8 +136,8 @@ exports.updateMyProfile = async (req, res) => {
           advisorName: data.advisorName,
           jobPosition: data.jobPosition,
           coopAdvisorId: data.coopAdvisorId !== undefined ? (data.coopAdvisorId ? Number(data.coopAdvisorId) : null) : undefined,
-          gpa: data.gpa !== undefined ? parseFloat(data.gpa) : undefined,
-          activityUnit: data.activityUnit !== undefined ? parseInt(data.activityUnit) : undefined,
+          gpa: gpaProvided ? gpa : undefined,
+          activityUnit: activityUnitProvided ? activityUnit : undefined,
         },
         create: {
           userId: userId,

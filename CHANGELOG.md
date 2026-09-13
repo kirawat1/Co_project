@@ -1,5 +1,16 @@
 # CHANGELOG — Co_project
 
+## [2026-09-14] fix: แก้ไขข้อมูลนักศึกษา (หน้าโปรไฟล์) ไม่กรอก GPA แล้วขึ้นเตือน "gpa ไม่ถูกต้อง"
+
+`PUT /api/students/me` ได้ 400 ตอนไม่กรอก GPA/หน่วยกิจกรรม — ฟอร์มส่งช่องว่าง `""` มา ไม่ใช่ `undefined` แต่โค้ดเช็คแค่ `data.gpa !== undefined` เลยเอา `""` ไป parseFloat ได้ `NaN` แล้วมองว่ากรอกผิด
+
+### Fixed
+- **`backend/controllers/studentController.js` (`updateMyProfile`)** — ถือว่า `""`/`null` เป็น "ไม่กรอก" เหมือน `undefined` ทั้ง `gpa` และ `activityUnit` (ไม่แตะค่าที่มีอยู่เดิม) ตรวจว่า "ผิดจริง" เฉพาะตอนกรอกแล้วแปลงเป็นตัวเลขไม่ได้
+
+### Verified
+- unit tests 396/396 (เพิ่ม 5 เคส `updateMyProfile`: ไม่กรอก/ไม่ส่ง/กรอกปกติ/กรอกผิด สำหรับ gpa และ activityUnit) · ยิงจริงกับ backend ผ่าน — เว้นว่าง gpa ได้ 200 ค่าที่มีอยู่ไม่เปลี่ยน
+- ระหว่างแก้ พบ mock `$transaction` รั่วข้าม describe (`updateStudentBasicInfo` ตั้ง reject ค้างไว้) แก้ด้วย `beforeEach` reset ใน describe ใหม่
+
 ## [2026-09-14] fix: เพิ่ม/แก้บริษัทไม่ได้ ถ้าเว็บไซต์ไม่มี http(s)://
 
 production: `POST /api/companies` ได้ 400 "เพิ่มบริษัทไม่ได้" — เกิดจากกรอกเว็บไซต์แบบ `www.abc.co.th` หรือ `abc.com` (ไม่มี `http://`/`https://` นำหน้า) แล้ว `safeUrl()` มองว่าไม่ใช่ URL ที่ถูกต้อง
