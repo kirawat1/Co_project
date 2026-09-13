@@ -3,6 +3,7 @@
 // Frontend/src/components/S_Company.tsx
 import React, { useEffect, useState, useMemo, useRef } from "react";
 import { apiFetch } from "../utils/apiFetch";
+import { applyAddressChange } from "../utils/addressAutofill";
 
 interface MentorRecord {
     id: string;
@@ -528,7 +529,7 @@ function CompanyNameSearch({ value, onChange, onSelect, onClear }: {
 // 🟢 3. รับค่า coopPeriods ใน CompanyForm และดึงไปสร้าง Dropdown
 function CompanyForm({ form, setForm, onSubmit, coopPeriods }: any) {
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-        setForm({ ...form, [e.target.name]: e.target.value });
+        setForm(applyAddressChange(form, e.target.name, e.target.value));
     };
 
     const handleSelectExisting = (c: any) => {
