@@ -4,9 +4,14 @@ const prisma = require('../config/prismaClient');
 const ALLOWED_URL_PROTOCOLS = ['https:', 'http:'];
 function safeUrl(raw) {
   if (typeof raw !== 'string' || !raw.trim()) return null;
+  let value = raw.trim();
+  // คนส่วนใหญ่พิมพ์ "www.abc.co.th" / "abc.com" ไม่มี http(s):// — เดิมได้ 400 เพิ่ม/แก้บริษัทไม่ได้ จึงเติม https:// ให้
+  // (มี scheme อื่นอยู่แล้ว เช่น javascript: / ftp: ยังไม่รับเหมือนเดิม)
+  if (!/^[a-z][a-z\d+.-]*:/i.test(value)) value = `https://${value}`;
   try {
-    const u = new URL(raw.trim());
-    return ALLOWED_URL_PROTOCOLS.includes(u.protocol) ? raw.trim() : null;
+    const u = new URL(value);
+    if (!ALLOWED_URL_PROTOCOLS.includes(u.protocol) || !u.hostname.includes('.')) return null;
+    return value;
   } catch { return null; }
 }
 
@@ -108,7 +113,7 @@ exports.addCompany = async (req, res) => {
     }
 
     if (website && !safeUrl(website)) {
-      return res.status(400).json({ ok: false, message: 'website ต้องเป็น URL แบบ http/https เท่านั้น' });
+      return res.status(400).json({ ok: false, message: 'เว็บไซต์ไม่ถูกต้อง — ใส่เป็นลิงก์เว็บ เช่น www.example.co.th' });
     }
 
     const company = await prisma.company.create({
@@ -146,7 +151,7 @@ exports.updateCompany = async (req, res) => {
       if (!company) throw Object.assign(new Error("ไม่พบบริษัท"), { is404: true });
 
       if (website && !safeUrl(website)) {
-        throw Object.assign(new Error('website ต้องเป็น URL แบบ http/https เท่านั้น'), { is400: true });
+        throw Object.assign(new Error('เว็บไซต์ไม่ถูกต้อง — ใส่เป็นลิงก์เว็บ เช่น www.example.co.th'), { is400: true });
       }
 
       updated = await tx.company.update({
