@@ -45,7 +45,8 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
 
     const uploadedT002 = profile?.documents?.find((d: any) => d.type === 'T002_FORM');
     const company = profile?.coop?.company || profile?.company || {};
-    const mentor = profile?.coop?.mentor || profile?.mentor || {};
+    // เดิมอ่าน profile.coop?.mentor (เอกพจน์) ซึ่งไม่มีอยู่จริง (เก็บเป็น mentors อาเรย์ เพราะเลือกพี่เลี้ยงได้หลายคน) — ใช้คนแรกมาเติมฟอร์ม
+    const mentor = profile?.coop?.mentors?.[0] || profile?.mentor || {};
     const appForm = profile?.coopApplicationForm || {};
     const savedT002 = profile?.t002Form || {};
 

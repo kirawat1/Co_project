@@ -62,7 +62,7 @@ interface StudentProfile {
   coop?: {
     status?: string;
     company?: Company;
-    mentor?: Mentor;
+    mentors?: Mentor[];
   };
   documents?: StudentDocument[];
 }
@@ -150,7 +150,8 @@ export default function T_StudentDetail() {
 
   // --- Helpers ---
   const companyData = student?.coop?.company || student?.company;
-  const mentorData = student?.coop?.mentor;
+  // เดิมอ่าน student.coop?.mentor (เอกพจน์) ซึ่งไม่มีอยู่จริง (เก็บเป็น mentors อาเรย์ เพราะเลือกพี่เลี้ยงได้หลายคน) — ทำให้ขึ้น "ยังไม่ได้ระบุ" เสมอ
+  const mentorList: any[] = student?.coop?.mentors || [];
 
   const handleViewFile = (doc: StudentDocument) => {
     const url = `/uploads/${doc.path}`;
@@ -333,14 +334,17 @@ export default function T_StudentDetail() {
             </Section>
 
             <Section title="ข้อมูลพี่เลี้ยง (Mentor)">
-              {mentorData ? (
-                <div style={{ display: 'grid', gap: 12 }}>
-                  <InfoRow label="ชื่อ-นามสกุล" value={`${mentorData.firstName || ""} ${mentorData.lastName || ""}`} />
-                  <InfoRow label="ตำแหน่ง" value={mentorData.position || "-"} />
-                  <InfoRow label="แผนก" value={mentorData.department || "-"} />
-                  <InfoRow label="อีเมล" value={mentorData.email || "-"} />
-                  <InfoRow label="เบอร์โทร" value={mentorData.phone || "-"} />
-                </div>
+              {mentorList.length > 0 ? (
+                mentorList.map((m, i) => (
+                  <div key={m.id || i} style={{ display: 'grid', gap: 12, marginTop: i > 0 ? 12 : 0, paddingTop: i > 0 ? 12 : 0, borderTop: i > 0 ? '1px dashed #e2e8f0' : undefined }}>
+                    {mentorList.length > 1 && <div style={{ fontSize: 12, fontWeight: 600, color: '#64748b' }}>คนที่ {i + 1}</div>}
+                    <InfoRow label="ชื่อ-นามสกุล" value={`${m.firstName || ""} ${m.lastName || ""}`} />
+                    <InfoRow label="ตำแหน่ง" value={m.position || "-"} />
+                    <InfoRow label="แผนก" value={m.department || "-"} />
+                    <InfoRow label="อีเมล" value={m.email || "-"} />
+                    <InfoRow label="เบอร์โทร" value={m.phone || "-"} />
+                  </div>
+                ))
               ) : (<div style={{ color: '#94a3b8', textAlign: 'center', padding: 20 }}>นักศึกษายังไม่ได้ระบุข้อมูลพี่เลี้ยง</div>)}
             </Section>
           </>

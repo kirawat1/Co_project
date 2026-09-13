@@ -105,7 +105,7 @@ export interface StudentProfile {
   coop?: {
     status: string;
     company?: Company;
-    mentor?: Mentor;
+    mentors?: Mentor[];
     teacherComment?: string;
   };
   documents?: StudentDocument[];
@@ -805,7 +805,8 @@ function StudentModal({
   }, []);
 
   const companyData = student.coop?.company || student.company;
-  const mentorData = student.coop?.mentor;
+  // เดิมอ่าน student.coop?.mentor (เอกพจน์) ซึ่งไม่มีอยู่จริง (เก็บเป็น mentors อาเรย์ เพราะเลือกพี่เลี้ยงได้หลายคน) — ทำให้ขึ้น "-" เสมอ
+  const mentorList: any[] = student.coop?.mentors || [];
 
   const fullName = `${getThaiPrefix(student.prefix)} ${student.firstName} ${student.lastName}`.trim();
 
@@ -853,14 +854,17 @@ function StudentModal({
                 ) : <div>-</div>}
               </Section>
               <Section title="ข้อมูลพี่เลี้ยง">
-                {mentorData ? (
-                  <>
-                    <InfoRow label="ชื่อ-สกุล" value={`${mentorData.firstName} ${mentorData.lastName}`} />
-                    <InfoRow label="ตำแหน่ง" value={mentorData.position} />
-                    <InfoRow label="แผนก" value={mentorData.department} />
-                    <InfoRow label="อีเมล" value={mentorData.email} />
-                    <InfoRow label="เบอร์โทร" value={mentorData.phone} />
-                  </>
+                {mentorList.length > 0 ? (
+                  mentorList.map((m, i) => (
+                    <div key={m.id || i} style={i > 0 ? { marginTop: 10, paddingTop: 10, borderTop: "1px dashed #e2e8f0" } : undefined}>
+                      {mentorList.length > 1 && <div style={{ fontSize: 12, fontWeight: 600, color: "#64748b", marginBottom: 2 }}>คนที่ {i + 1}</div>}
+                      <InfoRow label="ชื่อ-สกุล" value={`${m.firstName} ${m.lastName}`} />
+                      <InfoRow label="ตำแหน่ง" value={m.position} />
+                      <InfoRow label="แผนก" value={m.department} />
+                      <InfoRow label="อีเมล" value={m.email} />
+                      <InfoRow label="เบอร์โทร" value={m.phone} />
+                    </div>
+                  ))
                 ) : <div>-</div>}
               </Section>
             </>
