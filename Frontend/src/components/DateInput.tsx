@@ -38,6 +38,12 @@ export default function DateInput({ value, onChange, className = 'input', style,
         required={required}
         disabled={disabled}
         tabIndex={-1}
+        // ช่องนี้โปร่งใสและทับช่องแสดงผลอยู่ คลิกจึงมาโดนช่องนี้เสมอ แต่ Chrome เปิดปฏิทินเฉพาะตอนคลิก
+        // ไอคอนด้านขวา (ซึ่งมองไม่เห็น) — เรียก showPicker เองให้คลิกตรงไหนของช่องก็เปิดได้
+        onClick={(e) => {
+          if (disabled) return;
+          try { e.currentTarget.showPicker?.(); } catch { /* เปิดอยู่แล้ว หรือเบราว์เซอร์ไม่อนุญาต — ปล่อยพฤติกรรมเดิม */ }
+        }}
         style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer', zIndex: 1 }}
       />
     </div>

@@ -182,8 +182,29 @@ describe('updatePeriod', () => {
 // togglePeriod
 // ---------------------------------------------------------------------------
 describe('togglePeriod', () => {
+  test('400 – เปิดรอบที่เลยวันปิดรับสมัครแล้ว → ไม่เปิด (เดิมเปิดแล้วถูกปิดอัตโนมัติทันทีแบบเงียบๆ)', async () => {
+    prisma.coopPeriod.findUnique.mockResolvedValue({ id: 1, isActive: false, endDate: new Date('2020-01-31') });
+
+    const res = makeRes();
+    await togglePeriod({ params: { id: '1' }, body: { isActive: true } }, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json.mock.calls[0][0].message).toMatch(/วันปิดรับสมัคร/);
+    expect(prisma.coopPeriod.update).not.toHaveBeenCalled();
+    expect(prisma.coopPeriod.updateMany).not.toHaveBeenCalled();
+  });
+
+  test('404 – เปิดรอบที่ไม่มีอยู่', async () => {
+    prisma.coopPeriod.findUnique.mockResolvedValue(null);
+    const res = makeRes();
+    await togglePeriod({ params: { id: '99' }, body: { isActive: true } }, res);
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(prisma.coopPeriod.update).not.toHaveBeenCalled();
+  });
+
   test('200 – activating a period deactivates others first', async () => {
     const updated = { id: 1, isActive: true };
+    prisma.coopPeriod.findUnique.mockResolvedValue({ id: 1, isActive: false, endDate: new Date('2999-12-31') });
     prisma.coopPeriod.updateMany.mockResolvedValue({ count: 2 });
     prisma.coopPeriod.update.mockResolvedValue(updated);
 

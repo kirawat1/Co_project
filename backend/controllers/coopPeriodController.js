@@ -1,5 +1,5 @@
 const prisma = require('../config/prismaClient');
-const { autoCloseIfExpired } = require('../utils/coopPeriodHelper');
+const { autoCloseIfExpired, isPeriodExpired } = require('../utils/coopPeriodHelper');
 
 // ดึงข้อมูลรอบทั้งหมด
 exports.getPeriods = async (req, res) => {
@@ -98,6 +98,16 @@ exports.togglePeriod = async (req, res) => {
     if (!Number.isInteger(parsedId) || parsedId <= 0)
       return res.status(400).json({ ok: false, message: 'id ไม่ถูกต้อง' });
     const { isActive } = req.body;
+
+    // เปิดรอบที่เลยวันปิดรับสมัครแล้วไม่ได้ — ถ้าปล่อยเปิด autoCloseIfExpired จะปิดกลับทันที
+    // ตอนหน้าจอโหลดรายการใหม่ ผู้ใช้เห็นว่ากดแล้วไม่มีอะไรเกิดขึ้น
+    if (isActive === true) {
+      const period = await prisma.coopPeriod.findUnique({ where: { id: parsedId } });
+      if (!period) return res.status(404).json({ ok: false, message: 'ไม่พบรอบสหกิจ' });
+      if (isPeriodExpired(period)) {
+        return res.status(400).json({ ok: false, message: 'เปิดรับสมัครไม่ได้ เพราะเลยวันปิดรับสมัครแล้ว กรุณากด "แก้ไข" เพื่อเลื่อนวันปิดรับสมัครก่อน' });
+      }
+    }
 
     let updated;
     await prisma.$transaction(async (tx) => {
