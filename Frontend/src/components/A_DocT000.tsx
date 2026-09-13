@@ -69,6 +69,15 @@ type SortDirection = 'asc' | 'desc';
 
 const IOS_BLUE = "#0074B7";
 
+// สถานะตั้งแต่เริ่มฝึกงานเป็นต้นไป (ออกหนังสือส่งตัวแล้ว) — นักศึกษาผ่านทุกขั้นตอนเอกสาร T000 มาแล้ว
+// เดิมปุ่มพิมพ์ซ้ำ/ตรวจสอบย้อนหลังไม่ครอบคลุมสถานะกลุ่มนี้ ทำให้เจ้าหน้าที่กลับมาดู/พิมพ์เอกสารเก่าไม่ได้เลย
+// หลังนักศึกษาเข้าสู่ช่วงฝึกงาน (ส่ง T002/T003 เป็นต้นไป)
+const AFTER_PLACEMENT_STATUSES = [
+    'INTERNSHIP_STARTED',
+    'T002_SUBMITTED', 'T002_EDITS_REQUIRED',
+    'T003_SUBMITTED', 'T003_EDITS_REQUIRED', 'T003_APPROVED',
+];
+
 const CAN_ISSUE_REQUEST_LETTER_STATUSES = [
     'DOCS_APPROVED',
     'REQ_LETTER_ISSUED',
@@ -76,15 +85,19 @@ const CAN_ISSUE_REQUEST_LETTER_STATUSES = [
     'WAITING_FOR_PLACEMENT_LETTER',
     'ACCEPTANCE_CHECKED',
     'PLACEMENT_LETTER_ISSUED',
+    ...AFTER_PLACEMENT_STATUSES,
 ];
 
-// สถานะที่อยู่ในช่วง "ตรวจใบตอบรับ" (หลังออกหนังสือขอความอนุเคราะห์แล้ว)
+// สถานะที่อยู่ในช่วง "ตรวจใบตอบรับ" (หลังออกหนังสือขอความอนุเคราะห์แล้ว) — ใช้ซ่อนปุ่ม "ตรวจสอบ T000" (คนละปุ่มกับด้านล่าง) ไม่รวมช่วงฝึกงาน เพราะปุ่มนั้นยังต้องกลับมาดูย้อนหลังได้แม้ผ่านช่วงนี้ไปแล้ว
 const POST_LETTER_STATUSES = [
     'WAITING_FOR_PLACEMENT_LETTER',
     'WAITING_FOR_STAFF_CHECK_LETTER',
     'ACCEPTANCE_CHECKED',
     'PLACEMENT_LETTER_ISSUED',
 ];
+
+// ใช้แสดงปุ่ม "ตรวจสอบใบตอบรับ" (ดูย้อนหลังได้แม้เข้าสู่ช่วงฝึกงานแล้ว)
+const CAN_CHECK_ACCEPTANCE_STATUSES = [...POST_LETTER_STATUSES, ...AFTER_PLACEMENT_STATUSES];
 
 const isMatch = (docType: string, reqKey: string) => {
     if (docType === reqKey) return true;
@@ -577,14 +590,14 @@ export default function A_DocT000() {
                                         )}
                                     </td>
                                     <td style={td}>
-                                        {POST_LETTER_STATUSES.includes(s.docStatus || '') && (
+                                        {CAN_CHECK_ACCEPTANCE_STATUSES.includes(s.docStatus || '') && (
                                             <button className="btn" style={{ background: '#3b82f6', color: 'white', fontSize: 12 }} onClick={() => openCheckModal(s, 2)}>
                                                 🔍 ตรวจสอบใบตอบรับ
                                             </button>
                                         )}
                                     </td>
                                     <td style={td}>
-                                        {(s.docStatus === 'ACCEPTANCE_CHECKED' || s.docStatus === 'PLACEMENT_LETTER_ISSUED') && (
+                                        {(s.docStatus === 'ACCEPTANCE_CHECKED' || s.docStatus === 'PLACEMENT_LETTER_ISSUED' || AFTER_PLACEMENT_STATUSES.includes(s.docStatus || '')) && (
                                             <button className="btn" style={{ background: s.docStatus === 'ACCEPTANCE_CHECKED' ? '#0ea5e9' : '#64748b', color: 'white', fontSize: 12 }} onClick={() => setPlacementModalData(s)}>
                                                 {s.docStatus === 'ACCEPTANCE_CHECKED' ? '📄 ออกหนังสือส่งตัว' : '🖨️ พิมพ์ซ้ำ'}
                                             </button>
