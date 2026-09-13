@@ -111,9 +111,10 @@ export default function A_CoopPeriod() {
                 headers: { Authorization: `Bearer ${token}` }
             });
             fetchPeriods();
-        } catch (err) {
+        } catch (err: any) {
             console.error(err);
-            alert("ไม่สามารถเปลี่ยนสถานะได้");
+            // แสดงเหตุผลจาก server (เช่น เลยวันปิดรับสมัครแล้ว) แทนข้อความกลางๆ
+            alert(err?.response?.data?.message || err?.response?.data?.error || "ไม่สามารถเปลี่ยนสถานะได้");
         }
     };
 
