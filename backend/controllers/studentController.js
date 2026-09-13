@@ -63,7 +63,7 @@ exports.getMyProfile = async (req, res) => {
     res.json({
       ...student,
       company: (student.coop && student.coop.company)
-        ? { ...student.coop.company, mentor: student.coop.mentor }
+        ? { ...student.coop.company, mentors: student.coop.mentors } // เดิมใช้ mentor (เอกพจน์) ซึ่งไม่มีอยู่จริง — เป็น mentors อาเรย์ เพราะเลือกพี่เลี้ยงได้หลายคน
         : null, // ถ้าไม่มีบริษัทให้เป็น null ไปเลย
       userEmail: student.user?.email || "",
     });
@@ -206,8 +206,8 @@ exports.updateMyProfile = async (req, res) => {
       ok: true,
       student: student,
       emails: finalEmails,
-      company: updatedCoop && updatedCoop.company 
-                 ? { ...updatedCoop.company, mentor: updatedCoop.mentor } 
+      company: updatedCoop && updatedCoop.company
+                 ? { ...updatedCoop.company, mentors: updatedCoop.mentors } // เดิมใช้ mentor (เอกพจน์) ซึ่งไม่มีอยู่จริง — เป็น mentors อาเรย์ เพราะเลือกพี่เลี้ยงได้หลายคน
                  : null,
       userEmail: user ? user.email : "",
     });

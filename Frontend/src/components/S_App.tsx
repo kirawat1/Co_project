@@ -46,7 +46,8 @@ export default function StudentApp() {
         data.emails?.[0] ?? { email: "", primary: true },
         data.emails?.[1] ?? { email: "", primary: false },
       ];
-      const company = data.coop ? { ...data.coop.company, mentor: data.coop.mentor } : undefined;
+      // เดิมอ่าน data.coop.mentor (เอกพจน์) ซึ่งไม่มีอยู่จริง (เก็บเป็น mentors อาเรย์ เพราะเลือกพี่เลี้ยงได้หลายคน)
+      const company = data.coop ? { ...data.coop.company, mentors: data.coop.mentors } : undefined;
       setProfile({ ...data, studentId, emails, company });
     } catch (err) {
       console.error("Error fetching profile:", err);

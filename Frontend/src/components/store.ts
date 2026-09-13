@@ -131,7 +131,7 @@ export interface StudentProfile {
   company?: StudentCompany;
   coop?: {
     company: any;
-    mentor?: any;
+    mentors?: any[];
     status?: string;
   };
 

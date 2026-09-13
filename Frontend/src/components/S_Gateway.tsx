@@ -38,7 +38,7 @@ interface Company {
 
 interface CoopInfo {
   company: Company;
-  mentor?: Mentor;
+  mentors?: Mentor[];
   status?: string;
   teacherCheckComment?: string;
   t000Comment?: string;
@@ -275,7 +275,9 @@ export default function CoopRequestPage() {
   const canSubmit = canEdit && isTimeValid();
 
   const displayCompany = profile.coop?.company || profile.company;
-  const displayMentor = profile.coop?.mentor || profile.mentor;
+  // เดิมอ่าน profile.coop?.mentor (เอกพจน์) ซึ่งไม่มีอยู่จริงในข้อมูล (เป็น mentors อาเรย์ เพราะเลือกพี่เลี้ยงได้หลายคน)
+  // ทำให้หน้านี้ขึ้น "ยังไม่ได้ระบุพี่เลี้ยง" เสมอ ทั้งที่บันทึกพี่เลี้ยงไว้แล้วที่หน้าข้อมูลนักศึกษา
+  const displayMentors: any[] = profile.coop?.mentors || [];
   const hasCompany = !!displayCompany;
 
   return (
@@ -407,13 +409,16 @@ export default function CoopRequestPage() {
               <div className="divider" style={{ margin: '15px 0' }}></div>
               <h4 style={{ margin: '0 0 10px 0', color: '#1e293b', fontSize: 15 }}>👤 ข้อมูลพี่เลี้ยง (Mentor)</h4>
 
-              {displayMentor ? (
-                <>
-                  <div className="info-row"><span className="label">ชื่อพี่เลี้ยง:</span><span className="value">{displayMentor.firstName} {displayMentor.lastName}</span></div>
-                  <div className="info-row"><span className="label">ตำแหน่ง:</span><span className="value">{displayMentor.position || "-"}</span></div>
-                  <div className="info-row"><span className="label">เบอร์โทรศัพท์:</span><span className="value">{displayMentor.phone || "-"}</span></div>
-                  <div className="info-row"><span className="label">อีเมล:</span><span className="value">{displayMentor.email || "-"}</span></div>
-                </>
+              {displayMentors.length > 0 ? (
+                displayMentors.map((m, i) => (
+                  <div key={m.id || i} style={i > 0 ? { marginTop: 10, paddingTop: 10, borderTop: '1px dashed #e2e8f0' } : undefined}>
+                    {displayMentors.length > 1 && <div style={{ fontSize: 12, fontWeight: 600, color: '#64748b', marginBottom: 2 }}>คนที่ {i + 1}</div>}
+                    <div className="info-row"><span className="label">ชื่อพี่เลี้ยง:</span><span className="value">{m.firstName} {m.lastName}</span></div>
+                    <div className="info-row"><span className="label">ตำแหน่ง:</span><span className="value">{m.position || "-"}</span></div>
+                    <div className="info-row"><span className="label">เบอร์โทรศัพท์:</span><span className="value">{m.phone || "-"}</span></div>
+                    <div className="info-row"><span className="label">อีเมล:</span><span className="value">{m.email || "-"}</span></div>
+                  </div>
+                ))
               ) : (
                 <div style={{ padding: '10px', background: '#fff7ed', borderRadius: '8px', color: '#9a3412', fontSize: 14 }}>
                   ⚠️ ยังไม่ได้ระบุพี่เลี้ยง กรุณาเพิ่มที่หน้าข้อมูลนักศึกษา
