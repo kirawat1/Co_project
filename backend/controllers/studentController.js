@@ -3,6 +3,7 @@ const prisma = require('../config/prismaClient');
 const kkuReg = require('../services/kkuRegService');
 const { buildStudentExportWorkbook } = require('../utils/studentExport');
 const { defaultStudentPassword, hashDefaultStudentPassword } = require('../utils/studentPassword');
+const { removeUnreferencedUploads } = require('../utils/uploadCleanup');
 
 // GET /api/students/me
 exports.getMyProfile = async (req, res) => {
@@ -489,22 +490,35 @@ exports.permanentlyDeleteStudent = async (req, res) => {
     const id = parseInt(req.params.id, 10);
     if (isNaN(id)) return res.status(400).json({ ok: false, message: "id ไม่ถูกต้อง" });
     let statusErr = null;
+    let files = [];
     // ลบ Student และ User (บัญชี login) คู่กัน ป้องกัน User เหลือค้างเป็น "ผี" ที่บล็อก username เดิมไว้
     // Guard อยู่ใน transaction เพื่อกันเงื่อนไข TOCTOU (restore concurrently before delete)
+    // ข้อมูลที่ผูกกับนักศึกษา (สหกิจ, เอกสาร, T002/T003, นิเทศ, บันทึก, แจ้งเตือน) ลบตาม (onDelete: Cascade)
+    // บริษัท/พี่เลี้ยงที่นักศึกษาเคยเพิ่มไม่ถูกลบ — createdById เป็น ON DELETE SET NULL (migration 20260811140435)
+    // เดิมบล็อกไว้ถ้านักศึกษาเป็นเจ้าของบริษัท ซึ่งเป็นของจากสมัยที่ FK ยังห้ามลบ ตอนนี้ไม่จำเป็นแล้ว
     await prisma.$transaction(async (tx) => {
-      const s = await tx.student.findUnique({ where: { id } });
+      const s = await tx.student.findUnique({
+        where: { id },
+        include: {
+          documents: { select: { path: true } },
+          coop: { select: { reqLetterUrl: true, acceptanceFileUrl: true, placeLetterUrl: true } },
+          supervisionAppointment: { select: { officialLetterPath: true } },
+        },
+      });
       if (!s) { statusErr = { code: 404, msg: "ไม่พบนักศึกษา" }; throw new Error('not-found'); }
       if (!s.deletedAt) { statusErr = { code: 400, msg: "ต้องย้ายไปถังขยะก่อนจึงจะลบถาวรได้" }; throw new Error('not-in-trash'); }
-      const companyCount = await tx.company.count({ where: { createdById: s.userId } });
-      if (companyCount > 0) {
-        statusErr = { code: 409, msg: `ไม่สามารถลบได้ เนื่องจากนักศึกษาเป็นเจ้าของบริษัท ${companyCount} รายการ กรุณาลบบริษัทเหล่านั้นก่อน` };
-        throw new Error('has-companies');
-      }
+      files = [
+        ...(s.documents || []).map((d) => d.path),
+        s.coop?.reqLetterUrl, s.coop?.acceptanceFileUrl, s.coop?.placeLetterUrl,
+        s.supervisionAppointment?.officialLetterPath,
+      ];
       await tx.student.delete({ where: { id } });
       await tx.user.delete({ where: { id: s.userId } });
     }).catch((err) => { if (!statusErr) throw err; });
     if (statusErr) return res.status(statusErr.code).json({ ok: false, message: statusErr.msg });
-    res.json({ ok: true, message: "ลบถาวรเรียบร้อย" });
+    // ลบไฟล์หลัง commit แล้วเท่านั้น — ถ้าลบ DB ไม่สำเร็จ ไฟล์ต้องยังอยู่
+    const removedFiles = await removeUnreferencedUploads(files);
+    res.json({ ok: true, message: "ลบถาวรเรียบร้อย", removedFiles });
   } catch (err) {
     console.error("PERMANENTLY DELETE STUDENT ERROR:", err);
     res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดที่ Server" });
