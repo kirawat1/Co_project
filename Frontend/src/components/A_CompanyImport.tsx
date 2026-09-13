@@ -2,6 +2,7 @@
 import React, { useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
 import { apiFetch } from "../utils/apiFetch";
+import { provinceFromZipcode } from "../utils/zipcodeProvince";
 
 interface ParsedCompany {
   name: string;
@@ -40,6 +41,9 @@ function parseThaiAddress(raw: string): Partial<ParsedCompany> {
   const provM = s.match(new RegExp(B + "(?:จังหวัด|จ\\.)\\s*([^\\s\\d]+)"));
   if (provM) result.province = provM[1];
   else if (/กรุงเทพมหานคร|กรุงเทพฯ|กทม\.?/.test(s)) result.province = "กรุงเทพมหานคร";
+  // ที่อยู่ในไฟล์มักเขียนแค่ "... 40002" ไม่มีคำว่าจังหวัด — เติมจากรหัสไปรษณีย์ให้
+  // ถ้าในข้อความระบุจังหวัดไว้แล้ว ใช้ของที่เขียนมา ไม่เอารหัสไปทับ
+  else if (result.zipcode) result.province = provinceFromZipcode(result.zipcode);
 
   // district — ต่างจังหวัดใช้ "อำเภอ/อ." กรุงเทพใช้ "เขต"
   const distM = s.match(new RegExp(B + "(?:อำเภอ|อ\\.|เขต)\\s*([^\\s]+)"));

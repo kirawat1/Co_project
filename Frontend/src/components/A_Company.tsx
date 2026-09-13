@@ -3,6 +3,7 @@
 
 import React, { useMemo, useState, useEffect } from "react";
 import { apiFetch } from "../utils/apiFetch";
+import { applyAddressChange } from "../utils/addressAutofill";
 import A_CompanyImport from "./A_CompanyImport";
 
 /* ----------------------------------------------------
@@ -607,7 +608,7 @@ function Modal({ title, onClose, children }: any) {
 // 🟢 2. รับค่า coopPeriods เข้ามาใช้งาน
 function CompanyForm({ form, setForm, onSubmit, coopPeriods }: any) {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    setForm(applyAddressChange(form, e.target.name, e.target.value));
   };
 
   return (
