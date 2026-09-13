@@ -635,7 +635,7 @@ function StudentModal({ profile, teachers, saveStudentInfo, closeModal, departme
           <div><label className="label">ชั้นปี</label><input className="input" value={form.year ?? ""} onChange={(e) => setForm({ ...form, year: e.target.value })} /></div>
 
           <div>
-            <label className="label">สาขาวิชา / หลักสูตร</label>
+            <label className="label">สาขาวิชา</label>
             <select className="input" value={form.major ?? ""} onChange={(e) => setForm({ ...form, major: e.target.value })} disabled={departments === null}>
               <option value="">{departments === null ? "กำลังโหลด..." : "-- เลือกสาขาวิชา --"}</option>
               {(departments ?? []).map((d: { major: string; nameTh: string | null }) => (
