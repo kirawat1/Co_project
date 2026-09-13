@@ -37,13 +37,15 @@ interface StudentProfile {
     }
 }
 
+// เทียบเฉพาะ "ที่ปรึกษาทั่วไป" (advisorName ที่มาจากไฟล์นำเข้า Excel หรือซิงก์จากทะเบียน มข. เทียบกับ generalAdvisorId
+// ที่ผูกไว้จริงในระบบ) — ไม่เกี่ยวกับ "อาจารย์ที่ปรึกษาโครงงานสหกิจ" (coopAdvisorId) ซึ่งเป็นคนละคนกันได้
 function advisorMismatchWarning(student: StudentProfile): string | null {
     const linked = student.generalAdvisor;
     if (!linked || !student.advisorName) return null;
     const stored = student.advisorName.toLowerCase();
     if (!stored.includes(linked.firstName.toLowerCase()) && !stored.includes(linked.lastName.toLowerCase())) {
         const linkedFull = [linked.prefix, linked.firstName, linked.lastName].filter(Boolean).join(' ');
-        return `⚠️ ชื่ออาจารย์ไม่ตรง — นักศึกษากรอก "${student.advisorName}" / ระบบเชื่อมกับ "${linkedFull}"`;
+        return `⚠️ ชื่อที่ปรึกษาทั่วไปไม่ตรง — นักศึกษากรอก "${student.advisorName}" / ระบบเชื่อมกับ "${linkedFull}"`;
     }
     return null;
 }
