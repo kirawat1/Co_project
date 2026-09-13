@@ -11,12 +11,32 @@ interface ProfileData {
   year?: string;
   studyProgram?: string;
   company?: any;
-  mentor?: any;
   coop?: {
     company: any;
-    mentor?: any;
+    mentors?: any[];
   };
 }
+
+// ประกอบที่อยู่บริษัทจากฟิลด์แยก (addressNo/moo/soi/road/...) — บริษัทส่วนใหญ่กรอกผ่านฟอร์มนี้ ไม่ได้กรอกใน address ตรงๆ (เดิม PDF อ่านแค่ address เลยว่างเสมอ)
+// เหมือนกับ getFullAddress ใน S_ProfilePage.tsx / A_Students.tsx / T_Students.tsx
+const getCompanyFullAddress = (c?: any): string => {
+  if (!c) return "-";
+  if (c.address && !c.addressNo && !c.province) return c.address;
+
+  const isBKK = c.province === "กรุงเทพมหานคร" || c.province === "กรุงเทพฯ" || c.province === "กทม.";
+  const parts = [
+    c.addressNo && `${c.addressNo}`,
+    c.moo && `หมู่ ${c.moo}`,
+    c.soi && `ซอย${c.soi}`,
+    c.road && `ถนน${c.road}`,
+    c.subDistrict && (isBKK ? `แขวง${c.subDistrict}` : `ต.${c.subDistrict}`),
+    c.district && (isBKK ? `เขต${c.district}` : `อ.${c.district}`),
+    c.province && (isBKK ? c.province : `จ.${c.province}`),
+    c.zipcode,
+  ];
+  const fullAddress = parts.filter(Boolean).join(" ");
+  return fullAddress || c.address || "-";
+};
 
 // Helper: โหลด Font
 const getFontBase64 = async (url: string): Promise<string> => {
@@ -149,8 +169,9 @@ export const createCoopPDF = async (
   doc.text("โครงการสหกิจกับ", leftMargin, y);
 
   // Company Info
+  // เดิมอ่าน profile.mentor / profile.coop?.mentor (เอกพจน์) ซึ่งไม่มีอยู่จริง (เก็บเป็น mentors อาเรย์ เพราะเลือกได้หลายคน) → mentor เป็น undefined เสมอ
   const company = profile.company || profile.coop?.company;
-  const mentor = profile.mentor || profile.coop?.mentor;
+  const mentor = (profile.coop?.mentors || [])[0];
 
   // Line 6
   y += lineSpace;
@@ -177,7 +198,7 @@ export const createCoopPDF = async (
   // Line 8-9 (Address)
   y += lineSpace;
   doc.text("ที่อยู่หน่วยงาน", leftMargin, y);
-  const address = company?.address || "-";
+  const address = getCompanyFullAddress(company);
   doc.setFont("THSarabun", "bold");
   const addressLines = doc.splitTextToSize(address, 100);
   doc.text(addressLines[0], leftMargin + 32, y);
@@ -206,7 +227,7 @@ export const createCoopPDF = async (
   // Line 11
   y += lineSpace;
   doc.text("EMail address", leftMargin, y);
-  const email = mentor?.email || company?.hrEmail || "-";
+  const email = mentor?.email || company?.email || "-";
   doc.setFont("THSarabun", "bold");
   doc.text(email, leftMargin + 30, y);
   doc.setFont("THSarabun", "normal");
