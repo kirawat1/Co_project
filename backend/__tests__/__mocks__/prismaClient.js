@@ -133,6 +133,7 @@ const prismaMock = {
   coopCriteria: {
     findMany: jest.fn(),
     findUnique: jest.fn(),
+    findFirst: jest.fn(),
     upsert: jest.fn(),
     delete: jest.fn(),
     create: jest.fn(),

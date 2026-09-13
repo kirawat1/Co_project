@@ -540,3 +540,59 @@ describe('exportStudents', () => {
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: false }));
   });
 });
+
+// =====================
+// createStudentSingle — สาขาวิชาต้องมาจากหน้าจัดการสาขาวิชา (CoopCriteria)
+// =====================
+describe('createStudentSingle — major', () => {
+  const { createStudentSingle } = require('../controllers/studentController');
+  const baseBody = { studentId: '663380001-1', firstName: 'ก', lastName: 'ข', email: 'a@kkumail.com' };
+
+  beforeEach(() => {
+    // mockReset ล้างค่าที่ค้างจาก describe ก่อนหน้า (clearAllMocks ไม่ล้าง implementation) —
+    // เช่นเทสต์ updateStudentBasicInfo ตั้ง $transaction ให้ throw P2002 ไว้
+    [prisma.user.findFirst, prisma.student.findFirst, prisma.user.create, prisma.coopCriteria.findFirst].forEach(m => m.mockReset());
+    prisma.$transaction.mockImplementation((fn) => fn(prisma));
+    prisma.user.findFirst.mockResolvedValue(null);
+    prisma.student.findFirst.mockResolvedValue(null);
+    prisma.user.create.mockResolvedValue({ id: 5, email: 'a@kkumail.com', student: { studentId: '663380001-1' } });
+  });
+
+  test('เลือกรหัสสาขา (CS) → เก็บรหัสสาขา', async () => {
+    prisma.coopCriteria.findFirst.mockResolvedValue({ major: 'CS' });
+    const res = makeRes();
+    await createStudentSingle({ body: { ...baseBody, major: 'CS' } }, res);
+
+    expect(res.status).toHaveBeenCalledWith(201);
+    expect(prisma.user.create.mock.calls[0][0].data.student.create.major).toBe('CS');
+  });
+
+  test('ส่งชื่อไทย (วิทยาการคอมพิวเตอร์) → แปลงเป็นรหัสสาขาที่ตรงกัน', async () => {
+    prisma.coopCriteria.findFirst.mockResolvedValue({ major: 'CS' });
+    const res = makeRes();
+    await createStudentSingle({ body: { ...baseBody, major: ' วิทยาการคอมพิวเตอร์ ' } }, res);
+
+    expect(prisma.coopCriteria.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+      where: { OR: [{ major: 'วิทยาการคอมพิวเตอร์' }, { nameTh: 'วิทยาการคอมพิวเตอร์' }] },
+    }));
+    expect(prisma.user.create.mock.calls[0][0].data.student.create.major).toBe('CS');
+  });
+
+  test('400 — สาขาที่ไม่มีในหน้าจัดการสาขาวิชา ไม่สร้างนักศึกษา', async () => {
+    prisma.coopCriteria.findFirst.mockResolvedValue(null);
+    const res = makeRes();
+    await createStudentSingle({ body: { ...baseBody, major: 'สาขาพิมพ์ผิด' } }, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json.mock.calls[0][0].message).toMatch(/ไม่พบสาขาวิชา/);
+    expect(prisma.user.create).not.toHaveBeenCalled();
+  });
+
+  test('ไม่เลือกสาขา → major = null ไม่ต้องค้นหา', async () => {
+    const res = makeRes();
+    await createStudentSingle({ body: { ...baseBody, major: '' } }, res);
+
+    expect(prisma.coopCriteria.findFirst).not.toHaveBeenCalled();
+    expect(prisma.user.create.mock.calls[0][0].data.student.create.major).toBeNull();
+  });
+});
