@@ -101,8 +101,11 @@ export default function T_GroupSupervision() {
     setSubmitting(true);
     setConfirmError(null);
     try {
+      // tPart เป็นช่วงเวลา เช่น "08:00-10:30" (เหมือนที่ T_SupervisionReview.tsx ใช้) — ต้องตัดเอาแค่เวลาเริ่มก่อนสร้าง Date
+      // เดิมเอา tPart ทั้งช่วงไปต่อกับ Date string ตรงๆ ได้ Invalid Date → toISOString() throw → ยืนยันไม่ได้เลยสักครั้ง
       const [dPart, tPart = "00:00"] = selectedDateEntry.split("|");
-      const confirmedDate = new Date(`${dPart.slice(0, 10)}T${tPart}:00`).toISOString();
+      const startTime = tPart.split("-")[0];
+      const confirmedDate = new Date(`${dPart.slice(0, 10)}T${startTime}:00`).toISOString();
       const res = await axios.post(
         "/api/teacher/supervisions/confirm-group",
         { appointmentIds: [...checkedIds], confirmedDate },
