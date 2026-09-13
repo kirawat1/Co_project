@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { useRef, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
 import { apiFetch } from "../utils/apiFetch";
 
@@ -14,6 +14,13 @@ interface ParsedCompany {
   province?: string;
   zipcode?: string;
   pastYears?: string;
+}
+
+interface PreviewRow extends ParsedCompany {
+  sheet: string;
+  seq: number;
+  /** ชื่อเดียวกันพบในชีตก่อนหน้าแล้ว — ระบบจะข้ามแถวนี้ (pastYears = ปีแรกที่รับ) */
+  duplicateOf?: string;
 }
 
 function parseThaiAddress(raw: string): Partial<ParsedCompany> {
@@ -57,16 +64,63 @@ function parseThaiAddress(raw: string): Partial<ParsedCompany> {
   return result;
 }
 
+/** "ปี 2558" -> "2558" ให้ตรงกับรูปแบบปีที่ระบบใช้ ถ้าชื่อชีตไม่มีปีก็ใช้ชื่อชีตตามเดิม */
+function yearFromSheetName(sheetName: string): string {
+  const m = sheetName.match(/(\d{4})/);
+  return m ? m[1] : sheetName.trim();
+}
+
+/**
+ * backend รับ JSON ได้ไม่เกิน 100 KB ต่อคำขอ (express.json ค่าเริ่มต้น) — ไฟล์รวมหลายปี
+ * (~700 บริษัท ≈ 230 KB) จึงโดน 413 ถ้าส่งทีเดียว แบ่งส่งเป็นชุดตามขนาดจริงที่เข้ารหัสแล้ว
+ * แทนการนับจำนวนแถว เพราะที่อยู่ยาวไม่เท่ากัน และไม่ต้องไปขยายเพดานของ server
+ */
+const MAX_CHUNK_BYTES = 60 * 1024;
+function chunkByBytes<T>(items: T[]): T[][] {
+  const enc = new TextEncoder();
+  const chunks: T[][] = [];
+  let current: T[] = [];
+  let size = 0;
+  for (const item of items) {
+    const bytes = enc.encode(JSON.stringify(item)).length + 1;
+    if (current.length > 0 && size + bytes > MAX_CHUNK_BYTES) {
+      chunks.push(current);
+      current = [];
+      size = 0;
+    }
+    current.push(item);
+    size += bytes;
+  }
+  if (current.length > 0) chunks.push(current);
+  return chunks;
+}
+
+/** อ่าน body ให้ได้เสมอ — ถ้า server/proxy ตอบกลับเป็นหน้า HTML (เช่น 413/502) จะไม่ไปพังที่ JSON.parse */
+async function readJsonSafe(res: Response): Promise<any> {
+  const text = await res.text();
+  try {
+    return JSON.parse(text);
+  } catch {
+    if (res.status === 413) return { ok: false, message: "ข้อมูลที่ส่งมีขนาดใหญ่เกินกว่าที่เซิร์ฟเวอร์รับได้" };
+    return { ok: false, message: `เซิร์ฟเวอร์ตอบกลับผิดรูปแบบ (HTTP ${res.status})` };
+  }
+}
+
 interface Props {
   onClose: () => void;
   onImported: () => void;
 }
 
+const ALL = "__all__";
+
 export default function A_CompanyImport({ onClose, onImported }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
-  const [rows, setRows] = useState<ParsedCompany[]>([]);
+  const [rows, setRows] = useState<PreviewRow[]>([]);
   const [sheetSummary, setSheetSummary] = useState<{ sheet: string; count: number }[]>([]);
+  const [activeSheet, setActiveSheet] = useState<string>(ALL);
+  const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(false);
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [result, setResult] = useState<{ created: number; skipped: number } | null>(null);
   const [error, setError] = useState("");
 
@@ -75,48 +129,50 @@ export default function A_CompanyImport({ onClose, onImported }: Props) {
     if (!file) return;
     setError("");
     setResult(null);
+    setActiveSheet(ALL);
+    setSearch("");
     const reader = new FileReader();
     reader.onload = (ev) => {
       try {
         const wb = XLSX.read(ev.target?.result, { type: "array" });
-        const allRows: ParsedCompany[] = [];
+        const allRows: PreviewRow[] = [];
         const summary: { sheet: string; count: number }[] = [];
+        const firstSeen = new Map<string, string>(); // ชื่อบริษัท -> ชีตแรกที่พบ
 
         wb.SheetNames.forEach((sheetName) => {
           const ws = wb.Sheets[sheetName];
           const rawData: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
-
-          // skip header rows — find first row where col[1] looks like a company name (not header text)
-          let dataStart = 0;
-          for (let i = 0; i < Math.min(rawData.length, 5); i++) {
-            const col1 = String(rawData[i]?.[1] || "").trim();
-            // header rows usually say "ชื่อบริษัท" or "ชื่อสถาน" or are empty
-            if (col1 && !col1.includes("ชื่อ") && !col1.includes("บริษัท/หน่วย") && !col1.match(/^[ก-๙a-zA-Z\s]+$/)) {
-              dataStart = i;
-              break;
-            }
-            if (i > 0 && col1 && !col1.includes("ชื่อ") && !col1.includes("ที่อยู่") && !col1.match(/รายชื่อ/)) {
-              dataStart = i;
-              break;
-            }
-          }
+          const year = yearFromSheetName(sheetName);
 
           let sheetCount = 0;
-          rawData.slice(dataStart).forEach((row) => {
-            const nameRaw = String(row[1] || "").trim();
-            const addrRaw = String(row[2] || "").trim();
-            if (!nameRaw || nameRaw.includes("ชื่อ") || nameRaw.includes("บริษัท/หน่วย")) return;
-            // skip rows that are just numbers (sequence col)
-            if (/^\d+$/.test(nameRaw)) return;
+          rawData.forEach((row) => {
+            const seqRaw = String(row[0] ?? "").trim();
+            const nameRaw = String(row[1] ?? "").trim();
+            const addrRaw = String(row[2] ?? "").trim();
 
-            const parsed = parseThaiAddress(addrRaw);
+            // รูปแบบไฟล์: A=ลำดับ, B=ชื่อบริษัท, C=ที่อยู่
+            // แถวที่คอลัมน์ A มีข้อความแต่ไม่ใช่ตัวเลข คือหัวเรื่อง/หัวคอลัมน์ ("ลำดับที่", "ปี", ชื่อรายงาน)
+            // เดิมตรวจแค่คำว่า "ชื่อ" ในคอลัมน์ B ทำให้ชีตสรุปที่หัวคอลัมน์เป็น
+            // "จำนวนสถานประกอบการ (แห่ง)" หลุดมาเป็นบริษัท 1 แห่ง
+            if (seqRaw && !/^\d+(\.\d+)?$/.test(seqRaw)) return;
+            if (!nameRaw) return;
+            // ชื่อที่เป็นตัวเลขล้วน เช่นจำนวนแห่งในชีตสรุป ไม่ใช่บริษัท
+            if (/^\d+(\.\d+)?$/.test(nameRaw)) return;
+
+            const key = nameRaw.replace(/\s+/g, " ");
+            const dupSheet = firstSeen.get(key);
+            if (!dupSheet) firstSeen.set(key, sheetName);
+
+            sheetCount++;
             allRows.push({
               name: nameRaw,
               address: addrRaw,
-              ...parsed,
-              pastYears: sheetName,
+              ...parseThaiAddress(addrRaw),
+              pastYears: year,
+              sheet: sheetName,
+              seq: sheetCount,
+              duplicateOf: dupSheet,
             });
-            sheetCount++;
           });
 
           if (sheetCount > 0) summary.push({ sheet: sheetName, count: sheetCount });
@@ -124,6 +180,7 @@ export default function A_CompanyImport({ onClose, onImported }: Props) {
 
         setRows(allRows);
         setSheetSummary(summary);
+        if (allRows.length === 0) setError("ไม่พบรายชื่อบริษัทในไฟล์ — ตรวจสอบว่าคอลัมน์ A=ลำดับ, B=ชื่อบริษัท, C=ที่อยู่");
       } catch {
         setError("อ่านไฟล์ไม่ได้ — ตรวจสอบว่าไฟล์เป็น .xlsx หรือ .xls");
       }
@@ -131,24 +188,54 @@ export default function A_CompanyImport({ onClose, onImported }: Props) {
     reader.readAsArrayBuffer(file);
   }
 
+  const duplicateCount = useMemo(() => rows.filter((r) => r.duplicateOf).length, [rows]);
+
+  const visibleRows = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return rows.filter((r) =>
+      (activeSheet === ALL || r.sheet === activeSheet) &&
+      (!q || r.name.toLowerCase().includes(q) || (r.address || "").toLowerCase().includes(q))
+    );
+  }, [rows, activeSheet, search]);
+
   async function handleImport() {
     if (rows.length === 0) return;
     setLoading(true);
     setError("");
+    // ส่งเฉพาะฟิลด์ของบริษัท ไม่ต้องส่งข้อมูลที่ใช้แสดงผลในหน้าตัวอย่าง
+    const payload: ParsedCompany[] = rows.map(({ sheet: _s, seq: _q, duplicateOf: _d, ...company }) => company);
+    const chunks = chunkByBytes(payload);
+    let created = 0;
+    let skipped = 0;
+    let done = 0;
+    setProgress({ done: 0, total: payload.length });
     try {
-      const httpRes = await apiFetch("/api/companies/bulk", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ companies: rows }),
-      });
-      const res = await httpRes.json();
-      if (!res.ok) throw new Error(res.message || "นำเข้าไม่สำเร็จ");
-      setResult({ created: res.created, skipped: res.skipped });
+      // ส่งทีละชุดตามลำดับ (ไม่ขนาน) — backend เช็คชื่อซ้ำกับ DB ตอนบันทึก
+      // ชุดหลังจึงเห็นบริษัทที่ชุดก่อนเพิ่งสร้าง และปีแรกที่พบยังคงเป็นปีที่ถูกเก็บ
+      for (const chunk of chunks) {
+        const httpRes = await apiFetch("/api/companies/bulk", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ companies: chunk }),
+        });
+        const res = await readJsonSafe(httpRes);
+        if (!httpRes.ok || !res.ok) {
+          const partial = created + skipped > 0 ? ` (นำเข้าไปแล้ว ${done} จาก ${payload.length} รายการก่อนเกิดข้อผิดพลาด)` : "";
+          throw new Error((res.message || "นำเข้าไม่สำเร็จ") + partial);
+        }
+        created += res.created ?? 0;
+        skipped += res.skipped ?? 0;
+        done += chunk.length;
+        setProgress({ done, total: payload.length });
+      }
+      setResult({ created, skipped });
       onImported();
     } catch (err: any) {
       setError(err.message || "เกิดข้อผิดพลาด");
+      if (created > 0) onImported();
     } finally {
       setLoading(false);
+      setProgress(null);
     }
   }
 
@@ -158,57 +245,102 @@ export default function A_CompanyImport({ onClose, onImported }: Props) {
         position: "fixed", inset: 0, background: "rgba(0,0,0,.5)",
         display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000,
       }}
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      onClick={(e) => { if (e.target === e.currentTarget && !loading) onClose(); }}
     >
       <div style={{
         background: "var(--card-bg, #fff)", borderRadius: 12, padding: 28,
-        width: "min(680px, 95vw)", maxHeight: "85vh", overflowY: "auto",
+        width: "min(1000px, 95vw)", maxHeight: "90vh", overflowY: "auto",
         boxShadow: "0 8px 32px rgba(0,0,0,.18)",
       }}>
         <h2 style={{ margin: "0 0 16px", fontSize: 18 }}>📥 นำเข้าบริษัทจาก Excel</h2>
 
         <p style={{ margin: "0 0 12px", fontSize: 13, opacity: .7 }}>
-          รูปแบบที่รองรับ: คอลัมน์ A=ลำดับ, B=ชื่อบริษัท, C=ที่อยู่ | แต่ละ sheet = ปีการศึกษา
+          รูปแบบที่รองรับ: คอลัมน์ A=ลำดับ, B=ชื่อบริษัท, C=ที่อยู่ | แต่ละ sheet = ปีการศึกษา (เช่น "ปี 2558")
         </p>
 
-        <input ref={fileRef} type="file" accept=".xlsx,.xls" onChange={handleFile} style={{ marginBottom: 16 }} />
-
-        {sheetSummary.length > 0 && (
-          <div style={{ marginBottom: 16 }}>
-            <b>พบข้อมูล ({rows.length} รายการ) จาก {sheetSummary.length} sheet:</b>
-            <ul style={{ margin: "6px 0", paddingLeft: 20, fontSize: 13 }}>
-              {sheetSummary.map((s) => (
-                <li key={s.sheet}>{s.sheet}: {s.count} รายการ</li>
-              ))}
-            </ul>
-          </div>
-        )}
+        <input ref={fileRef} type="file" accept=".xlsx,.xls" onChange={handleFile} style={{ marginBottom: 16 }} disabled={loading} />
 
         {rows.length > 0 && !result && (
-          <div style={{ overflowX: "auto", marginBottom: 16 }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-              <thead>
-                <tr style={{ background: "var(--table-head-bg, #f0f4ff)" }}>
-                  <th style={th}>ชื่อบริษัท</th>
-                  <th style={th}>ที่อยู่</th>
-                  <th style={th}>จังหวัด</th>
-                  <th style={th}>รหัสไปรษณีย์</th>
-                  <th style={th}>ปี</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.slice(0, 20).map((r, i) => (
-                  <tr key={i} style={{ borderBottom: "1px solid var(--border-color, #e5e7eb)" }}>
-                    <td style={td}>{r.name}</td>
-                    <td style={{ ...td, maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={r.address}>{r.address || "-"}</td>
-                    <td style={td}>{r.province || "-"}</td>
-                    <td style={td}>{r.zipcode || "-"}</td>
-                    <td style={td}>{r.pastYears}</td>
+          <>
+            <div style={{ marginBottom: 10, fontSize: 14 }}>
+              <b>พบข้อมูล {rows.length} รายการ จาก {sheetSummary.length} sheet</b>
+              {duplicateCount > 0 && (
+                <span style={{ marginLeft: 8, fontSize: 13, color: "#92400e" }}>
+                  · ชื่อซ้ำกับปีก่อนหน้าในไฟล์ {duplicateCount} รายการ (ระบบเก็บปีแรกที่พบ แถวซ้ำจะถูกข้าม)
+                </span>
+              )}
+            </div>
+
+            {/* เลือกดูทีละชีต */}
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
+              <button type="button" style={chip(activeSheet === ALL)} onClick={() => setActiveSheet(ALL)}>
+                ทั้งหมด ({rows.length})
+              </button>
+              {sheetSummary.map((s) => (
+                <button type="button" key={s.sheet} style={chip(activeSheet === s.sheet)} onClick={() => setActiveSheet(s.sheet)}>
+                  {s.sheet} ({s.count})
+                </button>
+              ))}
+            </div>
+
+            <input
+              className="input"
+              placeholder="ค้นหาชื่อบริษัท / ที่อยู่ ในรายการที่จะนำเข้า"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              style={{ width: "100%", maxWidth: 380, padding: "8px 10px", borderRadius: 8, border: "1px solid #e5e7eb", marginBottom: 8 }}
+            />
+            <div style={{ fontSize: 12, opacity: .7, marginBottom: 6 }}>
+              แสดง {visibleRows.length} รายการ
+            </div>
+
+            <div style={{ maxHeight: "48vh", overflow: "auto", border: "1px solid var(--border-color, #e5e7eb)", borderRadius: 8, marginBottom: 16 }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                <thead>
+                  <tr>
+                    <th style={{ ...th, width: 44 }}>ลำดับ</th>
+                    <th style={th}>ชื่อบริษัท</th>
+                    <th style={th}>ที่อยู่</th>
+                    <th style={th}>จังหวัด</th>
+                    <th style={th}>รหัสไปรษณีย์</th>
+                    <th style={th}>ปี</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-            {rows.length > 20 && <p style={{ fontSize: 12, opacity: .6, margin: "4px 0 0" }}>แสดง 20 จาก {rows.length} รายการ</p>}
+                </thead>
+                <tbody>
+                  {visibleRows.length === 0 ? (
+                    <tr><td colSpan={6} style={{ ...td, textAlign: "center", padding: 16, opacity: .6 }}>ไม่พบรายการตามที่ค้นหา</td></tr>
+                  ) : visibleRows.map((r) => (
+                    <tr
+                      key={`${r.sheet}-${r.seq}`}
+                      style={{ borderBottom: "1px solid var(--border-color, #e5e7eb)", background: r.duplicateOf ? "#fffbeb" : undefined }}
+                    >
+                      <td style={{ ...td, opacity: .6 }}>{r.seq}</td>
+                      <td style={td}>
+                        {r.name}
+                        {r.duplicateOf && (
+                          <span style={{ marginLeft: 6, fontSize: 11, color: "#92400e", background: "#fef3c7", padding: "1px 6px", borderRadius: 6, whiteSpace: "nowrap" }}>
+                            ซ้ำกับ {r.duplicateOf} — จะข้าม
+                          </span>
+                        )}
+                      </td>
+                      <td style={{ ...td, maxWidth: 260 }}>{r.address || "-"}</td>
+                      <td style={td}>{r.province || "-"}</td>
+                      <td style={td}>{r.zipcode || "-"}</td>
+                      <td style={td}>{r.pastYears}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+
+        {progress && (
+          <div style={{ marginBottom: 16, fontSize: 13 }}>
+            กำลังนำเข้า {progress.done} / {progress.total} รายการ...
+            <div style={{ height: 6, background: "#e5e7eb", borderRadius: 3, marginTop: 6, overflow: "hidden" }}>
+              <div style={{ width: `${Math.round((progress.done / progress.total) * 100)}%`, height: "100%", background: "#2563eb", transition: "width .2s" }} />
+            </div>
           </div>
         )}
 
@@ -226,8 +358,9 @@ export default function A_CompanyImport({ onClose, onImported }: Props) {
 
         <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
           <button
-            style={{ padding: "8px 18px", borderRadius: 8, border: "1px solid #d1d5db", background: "transparent", cursor: "pointer" }}
+            style={{ padding: "8px 18px", borderRadius: 8, border: "1px solid #d1d5db", background: "transparent", cursor: loading ? "not-allowed" : "pointer" }}
             onClick={onClose}
+            disabled={loading}
           >
             ปิด
           </button>
@@ -246,5 +379,14 @@ export default function A_CompanyImport({ onClose, onImported }: Props) {
   );
 }
 
-const th: React.CSSProperties = { padding: "6px 10px", textAlign: "left", fontWeight: 600, whiteSpace: "nowrap" };
-const td: React.CSSProperties = { padding: "5px 10px" };
+const th: React.CSSProperties = {
+  padding: "6px 10px", textAlign: "left", fontWeight: 600, whiteSpace: "nowrap",
+  position: "sticky", top: 0, background: "var(--table-head-bg, #f0f4ff)", zIndex: 1,
+};
+const td: React.CSSProperties = { padding: "5px 10px", verticalAlign: "top" };
+const chip = (active: boolean): React.CSSProperties => ({
+  padding: "4px 12px", borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: "pointer",
+  border: active ? "1px solid #2563eb" : "1px solid #d1d5db",
+  background: active ? "#2563eb" : "transparent",
+  color: active ? "#fff" : "inherit",
+});
