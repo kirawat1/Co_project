@@ -219,7 +219,17 @@ export default function A_DocT003Review() {
         return file ? `/uploads/${file.path}` : null;
     };
 
+    // รีวิวได้เฉพาะตอนสถานะเป็น T003_SUBMITTED เท่านั้น (ตรงกับที่ backend ยอมรับ)
+    // รายชื่อในตารางแสดงนักศึกษาที่เคยส่ง T003 ด้วย แม้สถานะจะเลยจุดพิจารณาไปแล้ว (เช่น พิจารณาผ่านไปแล้ว)
+    // เดิมปุ่ม "อนุมัติ"/"ตีกลับ" ขึ้นให้กดได้เสมอ กดแล้วได้ 400 เพราะสถานะไม่ใช่ T003_SUBMITTED แล้ว
+    const isSelectedT003Reviewable = (student: Student | null) =>
+        !!student && (student.coop?.status || student.docStatus) === 'T003_SUBMITTED';
+
     const submitReview = (action: 'APPROVE' | 'REJECT') => {
+        if (!isSelectedT003Reviewable(selectedStudent)) {
+            toast.error("โครงร่างนี้ไม่อยู่ในสถานะที่พิจารณาได้แล้ว (อาจถูกพิจารณาไปแล้ว หรือนักศึกษายังไม่ได้ส่ง) กรุณาปิดหน้าต่างแล้วรีเฟรชรายชื่อ");
+            return;
+        }
         if (action === 'REJECT' && !comment.trim()) {
             toast.warning("กรุณาระบุเหตุผลที่ตีกลับ เพื่อให้นักศึกษาแก้ไข");
             return;
@@ -428,12 +438,20 @@ export default function A_DocT003Review() {
                                 </div>
 
                                 <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
-                                    <button className="btn-danger" style={{ padding: 14 }} onClick={() => submitReview('REJECT')} disabled={loading}>
-                                        ❌ ตีกลับให้แก้ไข
-                                    </button>
-                                    <button className="btn-success" style={{ padding: 14 }} onClick={() => submitReview('APPROVE')} disabled={loading}>
-                                        ✅ อนุมัติโครงร่างรายงาน
-                                    </button>
+                                    {isSelectedT003Reviewable(selectedStudent) ? (
+                                        <>
+                                            <button className="btn-danger" style={{ padding: 14 }} onClick={() => submitReview('REJECT')} disabled={loading}>
+                                                ❌ ตีกลับให้แก้ไข
+                                            </button>
+                                            <button className="btn-success" style={{ padding: 14 }} onClick={() => submitReview('APPROVE')} disabled={loading}>
+                                                ✅ อนุมัติโครงร่างรายงาน
+                                            </button>
+                                        </>
+                                    ) : (
+                                        <div style={{ padding: 14, borderRadius: 8, background: getT003Status(selectedStudent).bg, color: getT003Status(selectedStudent).color, fontSize: 13, textAlign: 'center' }}>
+                                            {getT003Status(selectedStudent).label} — ไม่สามารถพิจารณาซ้ำได้ในสถานะนี้
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>

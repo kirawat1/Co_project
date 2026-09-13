@@ -216,8 +216,18 @@ export default function A_T002Review() {
         } catch (err) { alert("เกิดข้อผิดพลาดในการบันทึก"); }
     };
 
+    // รีวิวได้เฉพาะตอนสถานะเป็น T002_SUBMITTED/T002_EDITS_REQUIRED เท่านั้น (ตรงกับที่ backend ยอมรับ)
+    // รายชื่อในตารางแสดงนักศึกษาที่เคยมีไฟล์ T002 ด้วย แม้สถานะจะเลยจุดตรวจไปแล้ว (เช่น ตรวจผ่านไปแล้ว)
+    // เดิมปุ่ม "อนุมัติ"/"ตีกลับ" ขึ้นให้กดได้เสมอ กดแล้วได้ 400 "status ไม่ถูกต้อง" เพราะสถานะไม่อยู่ในช่วงที่ตรวจได้แล้ว
+    const T002_REVIEWABLE_STATUSES = ['T002_SUBMITTED', 'T002_EDITS_REQUIRED'];
+    const isSelectedReviewable = (student: Student | null) =>
+        !!student && T002_REVIEWABLE_STATUSES.includes(student.coop?.status || student.docStatus || '');
+
     // 4. บันทึกผลการตรวจ
     const submitReview = async (action: 'APPROVE' | 'REJECT') => {
+        if (!isSelectedReviewable(selectedStudent)) {
+            return alert("เอกสารนี้ไม่อยู่ในสถานะที่ตรวจสอบได้แล้ว (อาจถูกตรวจไปแล้ว หรือนักศึกษายังไม่ได้ส่ง) กรุณาปิดหน้าต่างแล้วรีเฟรชรายชื่อ");
+        }
         if (action === 'REJECT' && !comment.trim()) {
             return alert("กรุณาระบุเหตุผลที่ตีกลับ เพื่อให้นักศึกษาแก้ไข");
         }
@@ -413,12 +423,20 @@ export default function A_T002Review() {
                                 </div>
 
                                 <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
-                                    <button className="btn-danger" style={{ padding: 14 }} onClick={() => submitReview('REJECT')} disabled={loading}>
-                                        ❌ ตีกลับให้แก้ไข
-                                    </button>
-                                    <button className="btn-success" style={{ padding: 14 }} onClick={() => submitReview('APPROVE')} disabled={loading}>
-                                        ✅ อนุมัติเอกสาร T002
-                                    </button>
+                                    {isSelectedReviewable(selectedStudent) ? (
+                                        <>
+                                            <button className="btn-danger" style={{ padding: 14 }} onClick={() => submitReview('REJECT')} disabled={loading}>
+                                                ❌ ตีกลับให้แก้ไข
+                                            </button>
+                                            <button className="btn-success" style={{ padding: 14 }} onClick={() => submitReview('APPROVE')} disabled={loading}>
+                                                ✅ อนุมัติเอกสาร T002
+                                            </button>
+                                        </>
+                                    ) : (
+                                        <div style={{ padding: 14, borderRadius: 8, background: getT002Status(selectedStudent).bg, color: getT002Status(selectedStudent).color, fontSize: 13, textAlign: 'center' }}>
+                                            {getT002Status(selectedStudent).label} — ไม่สามารถตรวจสอบซ้ำได้ในสถานะนี้
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>
