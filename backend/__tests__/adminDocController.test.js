@@ -13,6 +13,7 @@ const {
   getStudentsForT000,
   reviewStudentStatus,
   updateCoopApplicationStatus,
+  markAcceptanceReceived,
 } = require('../controllers/adminDocController');
 
 function makeRes() {
@@ -343,5 +344,80 @@ describe('updateCoopApplicationStatus', () => {
 
     expect(res.status).not.toHaveBeenCalledWith(403);
     expect(prisma.studentCoop.update).toHaveBeenCalled();
+  });
+});
+
+// =====================
+// markAcceptanceReceived — บริษัทส่งใบตอบรับมาที่เจ้าหน้าที่โดยตรง
+// =====================
+describe('markAcceptanceReceived', () => {
+  const file = { filename: 'acc-from-company.pdf', originalname: 'acceptance.pdf', path: '/nonexistent/acc-from-company.pdf' };
+  beforeEach(() => {
+    prisma.$transaction.mockImplementation((arg) => Array.isArray(arg) ? Promise.all(arg) : arg(prisma));
+    prisma.student.findUnique.mockResolvedValue({ id: 1, userId: 10, deletedAt: null });
+    prisma.studentCoop.findUnique.mockResolvedValue({ status: 'WAITING_FOR_PLACEMENT_LETTER', acceptanceFileUrl: null });
+    prisma.studentCoop.update.mockResolvedValue({});
+    prisma.document.findFirst.mockResolvedValue(null);
+    prisma.document.create.mockResolvedValue({ id: 5 });
+    prisma.document.update.mockResolvedValue({ id: 5 });
+    prisma.notification.createMany.mockResolvedValue({ count: 1 });
+  });
+
+  test('200 — ไม่แนบไฟล์ → สถานะเป็น "ตรวจใบตอบรับแล้ว" พร้อมข้อความว่าได้รับจากบริษัท', async () => {
+    const res = makeRes();
+    await markAcceptanceReceived({ body: { studentId: '1' }, file: undefined }, res);
+
+    expect(res.status).not.toHaveBeenCalled();
+    const { data } = prisma.studentCoop.update.mock.calls[0][0];
+    expect(data.status).toBe('ACCEPTANCE_CHECKED');
+    expect(data.t000Comment).toMatch(/ได้รับใบตอบรับจากบริษัท/);
+    expect(data.acceptanceFileUrl).toBeUndefined();
+    expect(prisma.document.create).not.toHaveBeenCalled();
+  });
+
+  test('200 — แนบไฟล์ → เก็บเป็นเอกสารใบตอบรับของนักศึกษา (ผ่านแล้ว) + หมายเหตุจากเจ้าหน้าที่', async () => {
+    prisma.studentCoop.findUnique.mockResolvedValue({ status: 'REQ_LETTER_ISSUED', acceptanceFileUrl: null });
+    const res = makeRes();
+    await markAcceptanceReceived({ body: { studentId: '1', note: 'บริษัทส่งทางอีเมล' }, file }, res);
+
+    expect(prisma.document.create).toHaveBeenCalledWith({ data: expect.objectContaining({
+      studentId: 1, type: 'CP-ACCEPTANCE', path: 'acc-from-company.pdf', name: 'acceptance.pdf', status: 'APPROVED',
+    }) });
+    const { data } = prisma.studentCoop.update.mock.calls[0][0];
+    expect(data).toMatchObject({ status: 'ACCEPTANCE_CHECKED', acceptanceFileUrl: 'acc-from-company.pdf' });
+    expect(data.t000Comment).toMatch(/บริษัทส่งทางอีเมล/);
+  });
+
+  test('200 — มีเอกสารใบตอบรับเดิมอยู่แล้ว → แทนที่ไฟล์เดิม ไม่สร้างซ้ำ', async () => {
+    prisma.document.findFirst.mockResolvedValue({ id: 5, path: 'old.pdf' });
+    const res = makeRes();
+    await markAcceptanceReceived({ body: { studentId: '1' }, file }, res);
+
+    expect(prisma.document.create).not.toHaveBeenCalled();
+    expect(prisma.document.update).toHaveBeenCalledWith({ where: { id: 5 }, data: expect.objectContaining({ path: 'acc-from-company.pdf', status: 'APPROVED' }) });
+  });
+
+  test.each(['WAITING_FOR_STAFF_CHECK_LETTER', 'ACCEPTANCE_CHECKED', 'DOCS_APPROVED', 'INTERNSHIP_STARTED'])(
+    '400 — สถานะ %s ไม่ใช่ช่วงรอใบตอบรับ → ไม่บันทึก',
+    async (status) => {
+      prisma.studentCoop.findUnique.mockResolvedValue({ status });
+      const res = makeRes();
+      await markAcceptanceReceived({ body: { studentId: '1' }, file: undefined }, res);
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(prisma.studentCoop.update).not.toHaveBeenCalled();
+    },
+  );
+
+  test('404 — ไม่พบนักศึกษา / อยู่ในถังขยะ', async () => {
+    prisma.student.findUnique.mockResolvedValue({ id: 1, deletedAt: new Date() });
+    const res = makeRes();
+    await markAcceptanceReceived({ body: { studentId: '1' } }, res);
+    expect(res.status).toHaveBeenCalledWith(404);
+  });
+
+  test('400 — studentId ไม่ถูกต้อง', async () => {
+    const res = makeRes();
+    await markAcceptanceReceived({ body: { studentId: 'abc' } }, res);
+    expect(res.status).toHaveBeenCalledWith(400);
   });
 });

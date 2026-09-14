@@ -199,7 +199,12 @@ const DispatchManagementCard = ({ profile, onUpload, onRefresh }: { profile: any
           )}
 
           <div style={{ marginTop: 15 }}>
-            {uploadedAcceptance && !selectedFile ? (
+            {!uploadedAcceptance && !selectedFile && ['ACCEPTANCE_CHECKED', 'PLACEMENT_LETTER_ISSUED'].includes(currentStatus) ? (
+              // บริษัทส่งใบตอบรับให้เจ้าหน้าที่โดยตรง (ไม่มีไฟล์จากนักศึกษา) — ไม่ต้องให้อัปโหลดอีก
+              <div style={{ padding: 16, background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, fontSize: 14, color: '#166534' }}>
+                ✅ <strong>เจ้าหน้าที่ได้รับใบตอบรับจากบริษัทแล้ว</strong> ไม่ต้องอัปโหลดใบตอบรับ
+              </div>
+            ) : uploadedAcceptance && !selectedFile ? (
               <div style={{ padding: 16, background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8 }}>
                 <div style={{ fontSize: 14, color: '#166534', marginBottom: 12 }}>✅ <strong>อัปโหลดสำเร็จ:</strong> {uploadedAcceptance.name}</div>
                 <div style={{ display: 'flex', gap: 10 }}>
