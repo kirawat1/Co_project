@@ -35,7 +35,27 @@ interface StudentProfile {
     coop?: {
         coopPeriodId?: number;
         company?: { name: string };
+        // ป้าย "รอลงนาม" — ตั้งตอนเจ้าหน้าที่ดาวน์โหลดร่างหนังสือ ล้างตอนอัปโหลดฉบับลงนาม
+        reqLetterPendingAt?: string | null;
+        reqLetterDraftNumber?: string | null;
+        placeLetterPendingAt?: string | null;
+        placeLetterDraftNumber?: string | null;
     }
+}
+
+// ตัวกรองป้ายรอลงนาม (ไม่ใช่สถานะใน enum — ดูจาก coop.*PendingAt)
+const PENDING_SIGN_FILTERS: Record<string, (s: StudentProfile) => boolean> = {
+    PENDING_SIGN_REQ: s => !!s.coop?.reqLetterPendingAt,
+    PENDING_SIGN_PLACE: s => !!s.coop?.placeLetterPendingAt,
+};
+
+function PendingSignBadge({ label, at, draftNumber }: { label: string; at: string; draftNumber?: string | null }) {
+    return (
+        <div title={draftNumber ? `เลขที่ร่าง ${draftNumber}` : 'ร่างยังไม่ได้กรอกเลขที่'}
+            style={{ fontSize: 11, color: '#92400e', background: '#fef3c7', border: '1px solid #f59e0b', borderRadius: 6, padding: '2px 8px', marginTop: 4, whiteSpace: 'nowrap', width: 'fit-content' }}>
+            ✍️ {label} · {fmtDate(at)}
+        </div>
+    );
 }
 
 // เทียบเฉพาะ "ที่ปรึกษาทั่วไป" (advisorName ที่มาจากไฟล์นำเข้า Excel หรือซิงก์จากทะเบียน มข. เทียบกับ generalAdvisorId
@@ -196,6 +216,12 @@ export default function A_DocT000() {
 
         } catch (err) { console.error(err); }
         finally { setLoading(false); }
+    };
+
+    // ปิดหน้าออกหนังสือ → รีเฟรชเฉพาะรายชื่อ (ดาวน์โหลดร่างทำให้ป้าย "รอลงนาม" เปลี่ยน) ไม่ทับค่าตั้งค่าที่อาจกำลังแก้อยู่
+    const refreshStudents = async () => {
+        const res = await apiFetch("/api/admin/t000/students").catch(() => null);
+        if (res?.ok) setStudents(await res.json());
     };
 
     const openCheckModal = (s: StudentProfile, phase: 1 | 2) => {
@@ -398,9 +424,9 @@ export default function A_DocT000() {
             // ถ้าไม่มีไฟล์เลย จะไม่โชว์ ยกเว้นว่ามีสถานะ QUALIFIED (ผ่านคุณสมบัติแล้วรอเอกสาร)
             const shouldShow = hasDoc || st === "QUALIFIED";
 
-            return txt.includes(q.toLowerCase()) &&
-                (statusFilter.length === 0 || statusFilter.includes(st)) &&
-                shouldShow && matchPeriod;
+            const matchStatus = statusFilter.length === 0 || statusFilter.some(f => PENDING_SIGN_FILTERS[f] ? PENDING_SIGN_FILTERS[f](s) : f === st);
+
+            return txt.includes(q.toLowerCase()) && matchStatus && shouldShow && matchPeriod;
         });
 
         // 2. เรียงลำดับข้อมูล (Sort)
@@ -560,7 +586,7 @@ export default function A_DocT000() {
                         ขั้นตอนที่ 1 — ตรวจเอกสาร T000
                     </div>
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
-                        {["QUALIFIED", "WAITING_FOR_STAFF_CHECK", "EDITS_REQUIRED", "DOCS_APPROVED", "REQ_LETTER_ISSUED"].map(st => (
+                        {["QUALIFIED", "WAITING_FOR_STAFF_CHECK", "EDITS_REQUIRED", "DOCS_APPROVED", "PENDING_SIGN_REQ", "REQ_LETTER_ISSUED"].map(st => (
                             <label key={st} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 13, cursor: 'pointer' }}>
                                 <input type="checkbox" checked={statusFilter.includes(st)} onChange={e => setStatusFilter(p => e.target.checked ? [...p, st] : p.filter(x => x !== st))} />
                                 {statusChip(st)}
@@ -571,7 +597,7 @@ export default function A_DocT000() {
                         ขั้นตอนที่ 2 — ตรวจใบตอบรับ / ออกหนังสือส่งตัว
                     </div>
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                        {["WAITING_FOR_PLACEMENT_LETTER", "WAITING_FOR_STAFF_CHECK_LETTER", "ACCEPTANCE_CHECKED", "PLACEMENT_LETTER_ISSUED"].map(st => (
+                        {["WAITING_FOR_PLACEMENT_LETTER", "WAITING_FOR_STAFF_CHECK_LETTER", "ACCEPTANCE_CHECKED", "PENDING_SIGN_PLACE", "PLACEMENT_LETTER_ISSUED"].map(st => (
                             <label key={st} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 13, cursor: 'pointer' }}>
                                 <input type="checkbox" checked={statusFilter.includes(st)} onChange={e => setStatusFilter(p => e.target.checked ? [...p, st] : p.filter(x => x !== st))} />
                                 {statusChip(st)}
@@ -606,7 +632,11 @@ export default function A_DocT000() {
                                     </td>
                                     <td style={td} data-label="ไฟล์">{s.documents?.length || 0}</td>
                                     <td style={td} data-label="วันที่ส่ง">{s.submittedAt ? fmtDate(s.submittedAt) : "-"}</td>
-                                    <td style={td} data-label="สถานะ"><StatusBadge status={s.docStatus} /></td>
+                                    <td style={td} data-label="สถานะ">
+                                        <StatusBadge status={s.docStatus} />
+                                        {s.coop?.reqLetterPendingAt && <PendingSignBadge label="รอลงนามหนังสือขอความอนุเคราะห์" at={s.coop.reqLetterPendingAt} draftNumber={s.coop.reqLetterDraftNumber} />}
+                                        {s.coop?.placeLetterPendingAt && <PendingSignBadge label="รอลงนามหนังสือส่งตัว" at={s.coop.placeLetterPendingAt} draftNumber={s.coop.placeLetterDraftNumber} />}
+                                    </td>
                                     <td style={td}>
                                         {(s.documents?.length || 0) > 0 && !POST_LETTER_STATUSES.includes(s.docStatus || '') && (
                                             <button className="btn" style={{ background: IOS_BLUE, color: 'white', fontSize: 12 }} onClick={() => openCheckModal(s, 1)}>
@@ -616,8 +646,8 @@ export default function A_DocT000() {
                                     </td>
                                     <td style={td}>
                                         {CAN_ISSUE_REQUEST_LETTER_STATUSES.includes(s.docStatus || '') && (
-                                            <button className="btn" style={{ background: s.docStatus === 'DOCS_APPROVED' ? '#16a34a' : '#64748b', color: 'white', fontSize: 12 }} onClick={() => setIssueModalData(s)}>
-                                                {s.docStatus === 'DOCS_APPROVED' ? '📄 ออกหนังสือขอความอนุเคราะห์' : '🖨️ พิมพ์ซ้ำ'}
+                                            <button className="btn" style={{ background: s.coop?.reqLetterPendingAt ? '#d97706' : s.docStatus === 'DOCS_APPROVED' ? '#16a34a' : '#64748b', color: 'white', fontSize: 12 }} onClick={() => setIssueModalData(s)}>
+                                                {s.coop?.reqLetterPendingAt ? '✍️ อัปโหลดฉบับลงนาม' : s.docStatus === 'DOCS_APPROVED' ? '📄 ออกหนังสือขอความอนุเคราะห์' : '🖨️ พิมพ์ซ้ำ'}
                                             </button>
                                         )}
                                     </td>
@@ -637,8 +667,8 @@ export default function A_DocT000() {
                                     </td>
                                     <td style={td}>
                                         {(s.docStatus === 'ACCEPTANCE_CHECKED' || s.docStatus === 'PLACEMENT_LETTER_ISSUED' || AFTER_PLACEMENT_STATUSES.includes(s.docStatus || '')) && (
-                                            <button className="btn" style={{ background: s.docStatus === 'ACCEPTANCE_CHECKED' ? '#0ea5e9' : '#64748b', color: 'white', fontSize: 12 }} onClick={() => setPlacementModalData(s)}>
-                                                {s.docStatus === 'ACCEPTANCE_CHECKED' ? '📄 ออกหนังสือส่งตัว' : '🖨️ พิมพ์ซ้ำ'}
+                                            <button className="btn" style={{ background: s.coop?.placeLetterPendingAt ? '#d97706' : s.docStatus === 'ACCEPTANCE_CHECKED' ? '#0ea5e9' : '#64748b', color: 'white', fontSize: 12 }} onClick={() => setPlacementModalData(s)}>
+                                                {s.coop?.placeLetterPendingAt ? '✍️ อัปโหลดฉบับลงนาม' : s.docStatus === 'ACCEPTANCE_CHECKED' ? '📄 ออกหนังสือส่งตัว' : '🖨️ พิมพ์ซ้ำ'}
                                             </button>
                                         )}
                                     </td>
@@ -657,11 +687,11 @@ export default function A_DocT000() {
 
             {/* 3. MODALS */}
             {issueModalData && (
-                <IssueLetterModal student={issueModalData} onClose={() => setIssueModalData(null)} onSuccess={() => { setIssueModalData(null); fetchAllData(); }} />
+                <IssueLetterModal student={issueModalData} onClose={() => { setIssueModalData(null); refreshStudents(); }} onSuccess={() => { setIssueModalData(null); fetchAllData(); }} />
             )}
 
             {placementModalData && (
-                <IssuePlacementLetterModal student={placementModalData} onClose={() => setPlacementModalData(null)} onSuccess={() => { setPlacementModalData(null); fetchAllData(); }} />
+                <IssuePlacementLetterModal student={placementModalData} onClose={() => { setPlacementModalData(null); refreshStudents(); }} onSuccess={() => { setPlacementModalData(null); fetchAllData(); }} />
             )}
 
             {acceptanceReceivedFor && (
@@ -768,7 +798,8 @@ export default function A_DocT000() {
                 .chip.ACCEPTANCE_CHECKED { background: #d1fae5; color: #059669; border: 1px solid #059669; } 
                 .chip.place { background: #d1fae5; color: #047857; border: 1px solid #047857; } 
                 .chip.rej { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; } 
-                .chip.QUALIFIED { background: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; } 
+                .chip.QUALIFIED { background: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; }
+                .chip.sign { background: #fef3c7; color: #92400e; border: 1px solid #f59e0b; }
 
                 .action-btn { flex: 1; }
                 .action-btn.edit.active { background: #fff7ed; color: #c2410c; border-color: #fed7aa; }
@@ -854,6 +885,8 @@ function statusChip(status?: string) {
     else if (s === "WAITING_FOR_STAFF_CHECK_LETTER") { cls = "WAITING_FOR_STAFF_CHECK_LETTER"; label = "🕵️รอตรวจตอบรับ"; }
     else if (s === "ACCEPTANCE_CHECKED") { cls = "ACCEPTANCE_CHECKED"; label = "✨ ตอบรับผ่าน"; }
     else if (s === "PLACEMENT_LETTER_ISSUED") { cls = "place"; label = "🏁 ออกส่งตัวแล้ว"; }
+    else if (s === "PENDING_SIGN_REQ") { cls = "sign"; label = "✍️ รอลงนามหนังสือขอความอนุเคราะห์"; }
+    else if (s === "PENDING_SIGN_PLACE") { cls = "sign"; label = "✍️ รอลงนามหนังสือส่งตัว"; }
 
     return <span className={`chip ${cls}`}>{label}</span>;
 }

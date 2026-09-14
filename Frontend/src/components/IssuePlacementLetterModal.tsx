@@ -3,19 +3,20 @@ import React, { useState } from "react";
 import { apiFetch } from "../utils/apiFetch";
 import { createPlacementPDF } from "../utils/pdfGeneratorPlacement";
 import { createWordBlob, createPreviewBlob, buildPlacementLetterHtml, thaiPrefix, normalizeDocNumber } from "../utils/docGeneratorUtils";
-import { FileReady, DeliveryPicker, CompanyAddressBox, MODAL_CSS } from "./LetterModalShared";
+import { FileReady, DeliveryPicker, CompanyAddressBox, MODAL_CSS, useLetterPending, LetterPendingBanner, confirmMatchesDraft, type LetterDraft } from "./LetterModalShared";
 import DateInput from './DateInput';
 
 interface Props { student: any; onClose: () => void; onSuccess: () => void; }
 
 export default function IssuePlacementLetterModal({ student, onClose, onSuccess }: Props) {
-    // เก็บเฉพาะตัวเลข — คำนำหน้า "ที่ อว" ถูกเติมในเทมเพลตหนังสือแล้ว
-    const [placeDocNumber, setPlaceDocNumber] = useState("660301.26.6.2/");
-    const [placeDocDate, setPlaceDocDate] = useState(new Date().toISOString().split("T")[0]);
+    const pending = useLetterPending(student, "PLACEMENT");
+    // เก็บเฉพาะตัวเลข — คำนำหน้า "ที่ อว" ถูกเติมในเทมเพลตหนังสือแล้ว · มีร่างที่รอลงนามอยู่ → เติมเลขที่/วันที่ของร่างนั้น
+    const [placeDocNumber, setPlaceDocNumber] = useState(pending.draftNumber || "660301.26.6.2/");
+    const [placeDocDate, setPlaceDocDate] = useState(pending.draftDate || new Date().toISOString().split("T")[0]);
     const [loadingPdf, setLoadingPdf] = useState(false);
     const [loadingDoc, setLoadingDoc] = useState(false);
-    const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
-    const [docBlob, setDocBlob] = useState<Blob | null>(null);
+    const [pdfDraft, setPdfDraft] = useState<LetterDraft | null>(null);
+    const [docDraft, setDocDraft] = useState<LetterDraft | null>(null);
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
     const [deliveryMethod, setDeliveryMethod] = useState<"STUDENT" | "STAFF">("STUDENT");
     const [signedFile, setSignedFile] = useState<File | null>(null);
@@ -47,7 +48,7 @@ export default function IssuePlacementLetterModal({ student, onClose, onSuccess 
                 "", krutUrl, deanName, deanPosition
             );
             const blob = doc.output("blob");
-            setPdfBlob(blob);
+            setPdfDraft({ blob, docNumber: placeDocNumber, docDate: placeDocDate });
             setPreviewUrl(URL.createObjectURL(blob));
         } catch (err) { alert("สร้าง PDF ไม่สำเร็จ: " + err); }
         finally { setLoadingPdf(false); }
@@ -65,7 +66,7 @@ export default function IssuePlacementLetterModal({ student, onClose, onSuccess 
                 companyRecipient: student.coop?.company?.contactPerson || undefined,
                 startDate, endDate, deanName, deanPosition,
             });
-            setDocBlob(createWordBlob(html));
+            setDocDraft({ blob: createWordBlob(html), docNumber: placeDocNumber, docDate: placeDocDate });
             setPreviewUrl(URL.createObjectURL(createPreviewBlob(html)));
         } catch (err) { alert("สร้าง Word ไม่สำเร็จ: " + err); }
         finally { setLoadingDoc(false); }
@@ -77,6 +78,11 @@ export default function IssuePlacementLetterModal({ student, onClose, onSuccess 
         document.body.appendChild(link); link.click(); document.body.removeChild(link);
     };
 
+    // ดาวน์โหลดร่างไปเสนอลงนาม → ขึ้นป้าย "รอลงนาม" ก่อน (เลขที่ซ้ำกับคนอื่นจะไม่ให้ดาวน์โหลด)
+    const downloadDraft = async (draft: LetterDraft, name: string) => {
+        if (await pending.markPending(draft)) download(draft.blob, name);
+    };
+
     const handleConfirm = async () => {
         // เลขที่หนังสือราชการห้ามซ้ำ — เทมเพลตที่ยังไม่กรอกเลขท้าย "/" จะกลายเป็นเลขซ้ำทันที
         const docNo = normalizeDocNumber(placeDocNumber);
@@ -84,6 +90,7 @@ export default function IssuePlacementLetterModal({ student, onClose, onSuccess 
             return alert("กรุณากรอกเลขที่หนังสือส่งตัวให้ครบก่อนบันทึก (ใส่เลขต่อท้าย / เช่น 660301.26.6.2/1234)");
         }
         if (!signedFile) return alert("กรุณาอัปโหลดไฟล์ที่ลงนามแล้วก่อนบันทึกเข้าระบบ");
+        if (!confirmMatchesDraft(pending.draftNumber, docNo)) return;
         if (!confirm("ยืนยันการบันทึกข้อมูล และอัปเดตสถานะให้นักศึกษา?")) return;
         try {
             const formData = new FormData();
@@ -123,6 +130,7 @@ export default function IssuePlacementLetterModal({ student, onClose, onSuccess 
                         )}
                     </div>
                     <div className="letter-sidebar" style={{ width: 300, display: 'flex', flexDirection: 'column', gap: 14, flexShrink: 0, overflowY: 'auto' }}>
+                        <LetterPendingBanner {...pending} onCancel={pending.cancelPending} />
                         <div>
                             <div style={sec}>1. ข้อมูลหนังสือ</div>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
@@ -143,13 +151,13 @@ export default function IssuePlacementLetterModal({ student, onClose, onSuccess 
                                 <button className="btn btn-secondary" style={{ flex: 1 }} onClick={handleCreatePdf} disabled={loadingPdf || loadingDoc}>{loadingPdf ? '⏳...' : '📄 PDF'}</button>
                                 <button className="btn btn-outline" style={{ flex: 1 }} onClick={handleCreateDoc} disabled={loadingPdf || loadingDoc}>{loadingDoc ? '⏳...' : '📝 Word'}</button>
                             </div>
-                            {(pdfBlob || docBlob) && (
+                            {(pdfDraft || docDraft) && (
                                 <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                                    {pdfBlob && <FileReady label="PDF" onDownload={() => download(pdfBlob, `Placement_${student.studentId}.pdf`)} />}
-                                    {docBlob && <FileReady label="Word (.doc)" onDownload={() => download(docBlob, `Placement_${student.studentId}.doc`)} />}
+                                    {pdfDraft && <FileReady label="PDF" onDownload={() => downloadDraft(pdfDraft, `Placement_${student.studentId}.pdf`)} />}
+                                    {docDraft && <FileReady label="Word (.doc)" onDownload={() => downloadDraft(docDraft, `Placement_${student.studentId}.doc`)} />}
                                 </div>
                             )}
-                            <p style={{ fontSize: 11, color: '#94a3b8', margin: '6px 0 0' }}>ตัวอย่างแสดงด้านซ้าย · ลงนามจริงก่อนส่ง</p>
+                            <p style={{ fontSize: 11, color: '#94a3b8', margin: '6px 0 0' }}>ตัวอย่างแสดงด้านซ้าย · กดโหลดร่างไปเสนอลงนาม → ขึ้นสถานะ "รอลงนาม"</p>
                         </div>
                         <div>
                             <div style={{ ...sec, borderColor: '#ef4444' }}>3. แนบไฟล์ที่ลงนามแล้ว <span style={{ color: '#ef4444' }}>*</span></div>

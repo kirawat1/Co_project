@@ -2,7 +2,7 @@
 import { apiFetch } from "../utils/apiFetch";
 import { createDispatchPDF } from "../utils/pdfDispatchGenerator";
 import { createWordBlob, createPreviewBlob, buildDispatchLetterHtml, thaiPrefix, normalizeDocNumber } from "../utils/docGeneratorUtils";
-import { FileReady, DeliveryPicker, CompanyAddressBox, MODAL_CSS } from "./LetterModalShared";
+import { FileReady, DeliveryPicker, CompanyAddressBox, MODAL_CSS, useLetterPending, LetterPendingBanner, confirmMatchesDraft, type LetterDraft } from "./LetterModalShared";
 import DateInput from './DateInput';
 
 interface Props {
@@ -12,13 +12,14 @@ interface Props {
 }
 
 export default function IssueLetterModal({ student, onClose, onSuccess }: Props) {
-    // เก็บเฉพาะตัวเลข — คำนำหน้า "ที่ อว" ถูกเติมในเทมเพลตหนังสือแล้ว
-    const [docNumber, setDocNumber] = useState("660301.26.6.2/");
-    const [docDate, setDocDate] = useState(new Date().toISOString().split('T')[0]);
+    const pending = useLetterPending(student, "REQUEST");
+    // เก็บเฉพาะตัวเลข — คำนำหน้า "ที่ อว" ถูกเติมในเทมเพลตหนังสือแล้ว · มีร่างที่รอลงนามอยู่ → เติมเลขที่/วันที่ของร่างนั้น
+    const [docNumber, setDocNumber] = useState(pending.draftNumber || "660301.26.6.2/");
+    const [docDate, setDocDate] = useState(pending.draftDate || new Date().toISOString().split('T')[0]);
     const [loadingPdf, setLoadingPdf] = useState(false);
     const [loadingDoc, setLoadingDoc] = useState(false);
-    const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
-    const [docBlob, setDocBlob] = useState<Blob | null>(null);
+    const [pdfDraft, setPdfDraft] = useState<LetterDraft | null>(null);
+    const [docDraft, setDocDraft] = useState<LetterDraft | null>(null);
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
     const [deliveryMethod, setDeliveryMethod] = useState<"STUDENT" | "STAFF">("STUDENT");
     const [signedFile, setSignedFile] = useState<File | null>(null);
@@ -82,7 +83,7 @@ export default function IssueLetterModal({ student, onClose, onSuccess }: Props)
                 projectUrl || "", acceptUrl || "",
                 studentFiles, deanName, deanPosition
             );
-            setPdfBlob(blob);
+            setPdfDraft({ blob, docNumber, docDate });
             const url = URL.createObjectURL(blob);
             setPreviewUrl(url);
                     } catch (err) { alert("สร้าง PDF ไม่สำเร็จ: " + err); }
@@ -103,8 +104,7 @@ export default function IssueLetterModal({ student, onClose, onSuccess }: Props)
                 companyContact: student.coop?.company?.contactPerson || undefined,
                 startDate, endDate, deanName, deanPosition,
             });
-            const blob = createWordBlob(html);
-            setDocBlob(blob);
+            setDocDraft({ blob: createWordBlob(html), docNumber, docDate });
             // preview doc ใน iframe ด้วย HTML blob
             setPreviewUrl(URL.createObjectURL(createPreviewBlob(html)));
                     } catch (err) { alert("สร้าง Word ไม่สำเร็จ: " + err); }
@@ -118,6 +118,11 @@ export default function IssueLetterModal({ student, onClose, onSuccess }: Props)
         document.body.appendChild(link); link.click(); document.body.removeChild(link);
     };
 
+    // ดาวน์โหลดร่างไปเสนอลงนาม → ขึ้นป้าย "รอลงนาม" ก่อน (เลขที่ซ้ำกับคนอื่นจะไม่ให้ดาวน์โหลด)
+    const downloadDraft = async (draft: LetterDraft, name: string) => {
+        if (await pending.markPending(draft)) download(draft.blob, name);
+    };
+
     const handleConfirm = async () => {
         // เลขที่หนังสือราชการห้ามซ้ำ — เทมเพลตที่ยังไม่กรอกเลขท้าย "/" จะกลายเป็นเลขซ้ำทันที
         const docNo = normalizeDocNumber(docNumber);
@@ -125,6 +130,7 @@ export default function IssueLetterModal({ student, onClose, onSuccess }: Props)
             return alert("กรุณากรอกเลขที่หนังสือให้ครบก่อนบันทึก (ใส่เลขต่อท้าย / เช่น 660301.26.6.2/1234)");
         }
         if (!signedFile) return alert("กรุณาอัปโหลดไฟล์ที่ลงนามแล้วก่อนบันทึกเข้าระบบ");
+        if (!confirmMatchesDraft(pending.draftNumber, docNo)) return;
         if (!confirm("ยืนยันการบันทึกข้อมูล และอัปเดตสถานะให้นักศึกษา?")) return;
         try {
             const formData = new FormData();
@@ -168,6 +174,7 @@ export default function IssueLetterModal({ student, onClose, onSuccess }: Props)
 
                     {/* RIGHT: Controls */}
                     <div className="letter-sidebar" style={{ width: 300, display: 'flex', flexDirection: 'column', gap: 14, flexShrink: 0, overflowY: 'auto' }}>
+                        <LetterPendingBanner {...pending} onCancel={pending.cancelPending} />
                         {!startDate && (
                             <div style={{ padding: '10px 14px', background: '#fee2e2', borderRadius: 8, border: '1px solid #fca5a5', fontSize: 13, color: '#991b1b', fontWeight: 600 }}>
                                 ⚠️ ไม่พบวันที่ฝึกงานในระบบ — นักศึกษาต้องกรอกที่หน้าเอกสารก่อนออกหนังสือได้
@@ -199,13 +206,13 @@ export default function IssueLetterModal({ student, onClose, onSuccess }: Props)
                                     {loadingDoc ? '⏳...' : '📝 Word'}
                                 </button>
                             </div>
-                            {(pdfBlob || docBlob) && (
+                            {(pdfDraft || docDraft) && (
                                 <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                                    {pdfBlob && <FileReady label="PDF" onDownload={() => download(pdfBlob, `Dispatch_${student.studentId}.pdf`)} />}
-                                    {docBlob && <FileReady label="Word (.doc)" onDownload={() => download(docBlob, `Dispatch_${student.studentId}.doc`)} />}
+                                    {pdfDraft && <FileReady label="PDF" onDownload={() => downloadDraft(pdfDraft, `Dispatch_${student.studentId}.pdf`)} />}
+                                    {docDraft && <FileReady label="Word (.doc)" onDownload={() => downloadDraft(docDraft, `Dispatch_${student.studentId}.doc`)} />}
                                 </div>
                             )}
-                            <p style={{ fontSize: 11, color: '#94a3b8', margin: '6px 0 0' }}>ตัวอย่างแสดงด้านซ้าย · ลงนามจริงก่อนส่ง</p>
+                            <p style={{ fontSize: 11, color: '#94a3b8', margin: '6px 0 0' }}>ตัวอย่างแสดงด้านซ้าย · กดโหลดร่างไปเสนอลงนาม → ขึ้นสถานะ "รอลงนาม"</p>
                         </div>
 
                         <div>
