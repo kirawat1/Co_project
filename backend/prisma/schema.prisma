@@ -433,6 +433,8 @@ model CoopT002Form {
   supervisorPhone    String?
   supervisorFax      String?
   supervisorEmail    String?
+  // พี่เลี้ยงคนที่ 2 เป็นต้นไป — JSON array ของ { name, position, dept, phone, fax, email } (คนแรกอยู่ในช่องด้านบน)
+  extraSupervisors   String? @db.Text
 
   jobPosition    String?
   jobDescription String? @db.Text

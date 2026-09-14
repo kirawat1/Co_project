@@ -3,6 +3,7 @@ const prisma = require('../config/prismaClient');
 const fs = require('fs');
 const path = require('path');
 const { createNotifications, getStaffAndCoopTeacherIds } = require('../utils/notificationHelper');
+const { normalizeExtraSupervisors, syncT002SupervisorsToMentors } = require('../utils/t002Supervisors');
 
 // ------------------------------------------------------------------
 // ✅ 1. Helper Function: เช็คว่าระบบเปิดรับเอกสารหรือไม่ (แก้ให้เช็คแยก T000, T002, T003)
@@ -199,6 +200,7 @@ exports.uploadDocument = async (req, res) => {
     let newDoc;
     let oldDoc;
     let t000Resubmitted = false;
+    let mentorSync = null;
     try {
         await prisma.$transaction(async (tx) => {
             if (dbType !== 'CP-ACCEPTANCE') {
@@ -259,6 +261,8 @@ exports.uploadDocument = async (req, res) => {
                     where: { studentId: student.id },
                     data: { status: 'T002_SUBMITTED' }
                 });
+                // ส่ง T002 จริง → พี่เลี้ยงที่กรอกในข้อ 3 กลายเป็นพี่เลี้ยงของบริษัท/นักศึกษา (ขึ้นทุกหน้าเหมือนเลือกจากหน้าข้อมูลนักศึกษา)
+                mentorSync = await syncT002SupervisorsToMentors(tx, { studentId: student.id, userId: student.userId });
             } else if (dbType === 'T003_FORM') {
                 const coop = await tx.studentCoop.findUnique({ where: { studentId: student.id } });
                 const T003_VALID = ['T002_SUBMITTED', 'T003_EDITS_REQUIRED'];
@@ -297,7 +301,7 @@ exports.uploadDocument = async (req, res) => {
         if (fs.existsSync(oldPath)) { try { fs.unlinkSync(oldPath); } catch(e){} }
     }
 
-    res.json({ ok: true, message: "อัปโหลดสำเร็จ", data: newDoc });
+    res.json({ ok: true, message: "อัปโหลดสำเร็จ", data: newDoc, ...(mentorSync ? { mentorSync } : {}) });
 
     // Notify staff + isCoopTeacher เมื่อนักศึกษาส่งเอกสาร
     const notifyTypes = {
@@ -501,6 +505,11 @@ exports.saveT002Form = async (req, res) => {
             accommodationAddress, accommodationPhone,
             emergencyName, emergencyAddress, emergencyPhone, emergencyFax, emergencyEmail
         };
+
+        // พี่เลี้ยงคนที่ 2 เป็นต้นไป (ข้อ 3) — ไม่ได้ส่งมา = ไม่แตะค่าเดิม
+        if (req.body.extraSupervisors !== undefined) {
+            data.extraSupervisors = JSON.stringify(normalizeExtraSupervisors(req.body.extraSupervisors));
+        }
 
         const T002_DRAFT_ALLOWED = ['INTERNSHIP_STARTED', 'T002_SUBMITTED', 'T002_EDITS_REQUIRED'];
         let t002;
