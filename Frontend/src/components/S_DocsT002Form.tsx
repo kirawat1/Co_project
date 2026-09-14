@@ -386,6 +386,11 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
                 </Section>
 
                 <Section title="3. พนักงานที่ปรึกษา (Job Supervisor / พี่เลี้ยง)">
+                    {!profile?.coop?.mentors?.length && (
+                        <div style={{ marginBottom: 12, padding: '8px 12px', borderRadius: 8, background: '#f1f5f9', color: '#475569', fontSize: 13 }}>
+                            ตอนเลือกบริษัทยังไม่มีพี่เลี้ยง — กรอกข้อมูลพี่เลี้ยงที่บริษัทมอบหมายให้ในช่องด้านล่างได้เลย
+                        </div>
+                    )}
                     <div style={grid3} className="grid3">
                         <Input label="ชื่อ-สกุล" name="supervisorName" value={formData.supervisorName} onChange={handleChange} required />
                         <Input label="ตำแหน่ง" name="supervisorPosition" value={formData.supervisorPosition} onChange={handleChange} required />

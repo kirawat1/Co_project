@@ -206,7 +206,8 @@ export default function CoopRequestPage() {
     }
     const hasCompany = profile?.coop?.company || profile?.company;
     if (!hasCompany) {
-      toast.warning("กรุณาเลือกบริษัทและพี่เลี้ยงก่อนยื่นคำร้อง");
+      // ยื่นได้แม้ยังไม่มีพี่เลี้ยง (กรอกทีหลังใน T002 ข้อ 3) — บังคับแค่บริษัท
+      toast.warning("กรุณาเลือกบริษัทก่อนยื่นคำร้อง");
       return;
     }
     const hasExistingDocs = gatewayDocs.length > 0;
@@ -420,15 +421,15 @@ export default function CoopRequestPage() {
                   </div>
                 ))
               ) : (
-                <div style={{ padding: '10px', background: '#fff7ed', borderRadius: '8px', color: '#9a3412', fontSize: 14 }}>
-                  ⚠️ ยังไม่ได้ระบุพี่เลี้ยง กรุณาเพิ่มที่หน้าข้อมูลนักศึกษา
+                <div style={{ padding: '10px', background: '#f1f5f9', borderRadius: '8px', color: '#475569', fontSize: 14 }}>
+                  ➖ ยังไม่มีพี่เลี้ยง — ยื่นคำร้องได้ตามปกติ กรอกข้อมูลพี่เลี้ยงภายหลังได้ในแบบฟอร์ม T002 ข้อ 3 (พนักงานที่ปรึกษา) หรือเพิ่มที่หน้าข้อมูลนักศึกษา
                 </div>
               )}
             </>
           ) : (
             <div style={{ textAlign: 'center', padding: '30px 10px', background: '#fee2e2', borderRadius: '12px', border: '1px dashed #fca5a5' }}>
               <div style={{ fontSize: 40, marginBottom: 10 }}>🏢</div>
-              <p style={{ color: '#b91c1c', fontWeight: 'bold', fontSize: 16, margin: '0 0 15px 0' }}>ท่านยังไม่ได้เลือกบริษัทหรือพี่เลี้ยงฝึกงาน</p>
+              <p style={{ color: '#b91c1c', fontWeight: 'bold', fontSize: 16, margin: '0 0 15px 0' }}>ท่านยังไม่ได้เลือกบริษัทฝึกงาน</p>
               <button className="btn-danger" style={{ margin: '0 auto' }} onClick={() => navigate('/student/profile')}>
                 ไปหน้าโปรไฟล์ เพื่อเลือกหน่วยงาน
               </button>
