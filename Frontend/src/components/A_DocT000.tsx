@@ -110,6 +110,9 @@ const PHASE1_EDITABLE_STATUSES = [
 ];
 const PHASE2_EDITABLE_STATUSES = ['WAITING_FOR_PLACEMENT_LETTER', 'WAITING_FOR_STAFF_CHECK_LETTER', 'ACCEPTANCE_CHECKED'];
 
+// ยังรอใบตอบรับ (นักศึกษายังไม่อัปโหลด) — บริษัทส่งมาที่เจ้าหน้าที่โดยตรงได้ ตรงกับ backend markAcceptanceReceived
+const ACCEPTANCE_RECEIVABLE_STATUSES = ['REQ_LETTER_ISSUED', 'WAITING_FOR_PLACEMENT_LETTER'];
+
 const isMatch = (docType: string, reqKey: string) => {
     if (docType === reqKey) return true;
     if (reqKey === 'CP-T000' && docType === 'T000_SIGNED') return true;
@@ -138,6 +141,8 @@ export default function A_DocT000() {
     const [q, setQ] = useState("");
     const [statusFilter, setStatusFilter] = useState<string[]>([]);
     const [placementModalData, setPlacementModalData] = useState<StudentProfile | null>(null);
+    // บริษัทส่งใบตอบรับมาที่เจ้าหน้าที่โดยตรง
+    const [acceptanceReceivedFor, setAcceptanceReceivedFor] = useState<StudentProfile | null>(null);
 
     const [showModal, setShowModal] = useState(false);
     const [selectedStudent, setSelectedStudent] = useState<StudentProfile | null>(null);
@@ -617,11 +622,18 @@ export default function A_DocT000() {
                                         )}
                                     </td>
                                     <td style={td}>
-                                        {CAN_CHECK_ACCEPTANCE_STATUSES.includes(s.docStatus || '') && (
-                                            <button className="btn" style={{ background: '#3b82f6', color: 'white', fontSize: 12 }} onClick={() => openCheckModal(s, 2)}>
-                                                🔍 ตรวจสอบใบตอบรับ
-                                            </button>
-                                        )}
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-start' }}>
+                                            {CAN_CHECK_ACCEPTANCE_STATUSES.includes(s.docStatus || '') && (
+                                                <button className="btn" style={{ background: '#3b82f6', color: 'white', fontSize: 12 }} onClick={() => openCheckModal(s, 2)}>
+                                                    🔍 ตรวจสอบใบตอบรับ
+                                                </button>
+                                            )}
+                                            {ACCEPTANCE_RECEIVABLE_STATUSES.includes(s.docStatus || '') && (
+                                                <button className="btn" style={{ background: '#fff', color: '#0f766e', border: '1px solid #14b8a6', fontSize: 12 }} onClick={() => setAcceptanceReceivedFor(s)}>
+                                                    📥 ได้รับจากบริษัทแล้ว
+                                                </button>
+                                            )}
+                                        </div>
                                     </td>
                                     <td style={td}>
                                         {(s.docStatus === 'ACCEPTANCE_CHECKED' || s.docStatus === 'PLACEMENT_LETTER_ISSUED' || AFTER_PLACEMENT_STATUSES.includes(s.docStatus || '')) && (
@@ -650,6 +662,14 @@ export default function A_DocT000() {
 
             {placementModalData && (
                 <IssuePlacementLetterModal student={placementModalData} onClose={() => setPlacementModalData(null)} onSuccess={() => { setPlacementModalData(null); fetchAllData(); }} />
+            )}
+
+            {acceptanceReceivedFor && (
+                <AcceptanceReceivedModal
+                    student={acceptanceReceivedFor}
+                    onClose={() => setAcceptanceReceivedFor(null)}
+                    onSuccess={() => { setAcceptanceReceivedFor(null); fetchAllData(); }}
+                />
             )}
 
             {showModal && selectedStudent && (
@@ -762,6 +782,62 @@ export default function A_DocT000() {
 const td: React.CSSProperties = { padding: "12px 10px", borderTop: "1px solid #f3f4f6", fontSize: 14 };
 const th: React.CSSProperties = { padding: "10px", userSelect: 'none' };
 const lbl: React.CSSProperties = { fontSize: 12, display: 'block', color: '#64748b', marginBottom: 4 };
+
+// บริษัทส่งใบตอบรับมาที่เจ้าหน้าที่โดยตรง — แนบไฟล์ (ถ้ามี) แล้วเปลี่ยนเป็น "ตรวจใบตอบรับแล้ว" ออกหนังสือส่งตัวต่อได้เลย
+function AcceptanceReceivedModal({ student, onClose, onSuccess }: { student: StudentProfile; onClose: () => void; onSuccess: () => void }) {
+    const [file, setFile] = useState<File | null>(null);
+    const [note, setNote] = useState("");
+    const [saving, setSaving] = useState(false);
+
+    const submit = async () => {
+        if (!confirm(`ยืนยันว่าได้รับใบตอบรับของ ${student.firstName} ${student.lastName} จากบริษัทแล้ว?`)) return;
+        setSaving(true);
+        try {
+            const fd = new FormData();
+            fd.append("studentId", String(student.id));
+            if (note.trim()) fd.append("note", note.trim());
+            if (file) fd.append("file", file);
+            const res = await apiFetch("/api/admin/t000/acceptance-received", { method: "POST", body: fd });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || !data.ok) {
+                alert(`❌ บันทึกไม่สำเร็จ${data.message ? `: ${data.message}` : ""}`);
+                return;
+            }
+            alert("✅ บันทึกแล้ว — ออกหนังสือส่งตัวต่อได้เลย");
+            onSuccess();
+        } catch {
+            alert("❌ เชื่อมต่อเซิร์ฟเวอร์ไม่ได้");
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    return (
+        <div className="modal-backdrop" style={{ zIndex: 10000, alignItems: 'center' }}>
+            <div style={{ background: '#fff', borderRadius: 12, padding: 24, width: 'min(480px, 92vw)', boxShadow: '0 20px 40px rgba(0,0,0,.3)' }}>
+                <h3 style={{ margin: '0 0 4px', fontSize: 18, color: '#1e293b' }}>📥 ได้รับใบตอบรับจากบริษัทโดยตรง</h3>
+                <div style={{ fontSize: 13, color: '#64748b', marginBottom: 16 }}>{student.studentId} - {student.firstName} {student.lastName}</div>
+
+                <label style={lbl}>ไฟล์ใบตอบรับ (ถ้ามี)</label>
+                <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={e => setFile(e.target.files?.[0] || null)} style={{ marginBottom: 12, fontSize: 13 }} />
+
+                <label style={lbl}>หมายเหตุ (ถ้ามี)</label>
+                <input className="input" style={{ width: '100%', marginBottom: 12 }} placeholder="เช่น บริษัทส่งทางอีเมล / ไปรษณีย์" value={note} onChange={e => setNote(e.target.value)} maxLength={500} />
+
+                <div style={{ fontSize: 12, color: '#475569', background: '#f0fdfa', border: '1px solid #99f6e4', borderRadius: 8, padding: '8px 10px', marginBottom: 16, lineHeight: 1.6 }}>
+                    สถานะนักศึกษาจะเปลี่ยนเป็น "ตรวจใบตอบรับแล้ว" และแจ้งนักศึกษาว่าไม่ต้องอัปโหลดใบตอบรับ
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+                    <button className="btn" style={{ background: '#f1f5f9', color: '#475569' }} onClick={onClose} disabled={saving}>ยกเลิก</button>
+                    <button className="btn" style={{ background: '#0f766e', color: '#fff' }} onClick={submit} disabled={saving}>
+                        {saving ? 'กำลังบันทึก...' : 'บันทึก'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
 
 function statusChip(status?: string) {
     let s = (status || "WAITING");

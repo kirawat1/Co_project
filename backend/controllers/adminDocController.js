@@ -1,5 +1,6 @@
 const prisma = require('../config/prismaClient');
 const { createNotifications } = require('../utils/notificationHelper');
+const { removeUnreferencedUploads } = require('../utils/uploadCleanup');
 const path = require('path');
 const fs = require('fs');
 
@@ -359,6 +360,75 @@ exports.reviewStudentStatus = async (req, res) => {
 };
 
 // 6. อนุมัติทั้งหมด
+// 5.1 บริษัทส่งใบตอบรับมาที่เจ้าหน้าที่โดยตรง (ไม่ผ่านนักศึกษา) — แนบไฟล์หรือไม่ก็ได้
+// ใช้ได้เฉพาะช่วงที่ยังรอใบตอบรับ: ออกหนังสือขอความอนุเคราะห์แล้ว / รอใบตอบรับ
+// ถ้านักศึกษาอัปโหลดมาแล้ว (รอตรวจใบตอบรับ) ให้ตรวจตามปกติ
+const ACCEPTANCE_RECEIVABLE_STATUSES = ['REQ_LETTER_ISSUED', 'WAITING_FOR_PLACEMENT_LETTER'];
+
+exports.markAcceptanceReceived = async (req, res) => {
+  const discardUpload = () => {
+    if (req.file?.path && fs.existsSync(req.file.path)) { try { fs.unlinkSync(req.file.path); } catch (_) {} }
+  };
+  try {
+    const studentId = parseInt(req.body?.studentId, 10);
+    if (isNaN(studentId) || studentId <= 0) {
+      discardUpload();
+      return res.status(400).json({ ok: false, message: 'studentId ต้องเป็นตัวเลขที่ถูกต้อง' });
+    }
+    const note = typeof req.body?.note === 'string' ? req.body.note.trim().slice(0, 500) : '';
+    const comment = `เจ้าหน้าที่ได้รับใบตอบรับจากบริษัทโดยตรงแล้ว นักศึกษาไม่ต้องอัปโหลดใบตอบรับ${note ? ` (${note})` : ''}`;
+
+    let student;
+    let replacedFiles = [];
+    await prisma.$transaction(async (tx) => {
+      student = await tx.student.findUnique({ where: { id: studentId }, select: { id: true, userId: true, deletedAt: true } });
+      if (!student || student.deletedAt) throw Object.assign(new Error('ไม่พบนักศึกษา'), { is404: true });
+
+      const coop = await tx.studentCoop.findUnique({ where: { studentId }, select: { status: true, acceptanceFileUrl: true } });
+      if (!coop || !ACCEPTANCE_RECEIVABLE_STATUSES.includes(coop.status)) {
+        throw Object.assign(new Error('บันทึกได้เฉพาะนักศึกษาที่ออกหนังสือขอความอนุเคราะห์แล้วและยังรอใบตอบรับ'), { is400: true });
+      }
+
+      const data = { status: 'ACCEPTANCE_CHECKED', t000Comment: comment };
+      if (req.file) {
+        const name = Buffer.from(req.file.originalname, 'latin1').toString('utf8');
+        const existingDoc = await tx.document.findFirst({ where: { studentId, type: 'CP-ACCEPTANCE' } });
+        if (existingDoc) {
+          await tx.document.update({ where: { id: existingDoc.id }, data: { path: req.file.filename, name, status: 'APPROVED', rejectReason: null } });
+          replacedFiles.push(existingDoc.path);
+        } else {
+          await tx.document.create({ data: { studentId, type: 'CP-ACCEPTANCE', path: req.file.filename, name, status: 'APPROVED' } });
+        }
+        data.acceptanceFileUrl = req.file.filename;
+        if (coop.acceptanceFileUrl) replacedFiles.push(coop.acceptanceFileUrl);
+      }
+      await tx.studentCoop.update({ where: { studentId }, data });
+    });
+
+    res.json({ ok: true });
+
+    // ไฟล์เดิมที่ถูกแทนที่ — ลบหลัง commit เฉพาะที่ไม่มีข้อมูลไหนอ้างถึงแล้ว
+    replacedFiles = replacedFiles.filter((f) => f && f !== req.file?.filename);
+    if (replacedFiles.length) removeUnreferencedUploads(replacedFiles).catch(console.error);
+
+    if (student?.userId) {
+      createNotifications([student.userId], {
+        type: 'STATUS_UPDATED',
+        title: 'สถานะสหกิจศึกษาอัปเดต',
+        message: 'เจ้าหน้าที่ได้รับใบตอบรับจากบริษัทแล้ว ไม่ต้องอัปโหลดใบตอบรับ ✅',
+        link: '/student/docs',
+        relatedId: String(studentId),
+      }).catch(console.error);
+    }
+  } catch (err) {
+    discardUpload();
+    if (err.is404) return res.status(404).json({ ok: false, message: err.message });
+    if (err.is400) return res.status(400).json({ ok: false, message: err.message });
+    console.error('Mark Acceptance Received Error:', err);
+    res.status(500).json({ ok: false, message: 'บันทึกไม่สำเร็จ' });
+  }
+};
+
 exports.approveAllDocs = async (req, res) => {
   try {
     const { studentId } = req.body;
