@@ -3,6 +3,15 @@ const { createNotifications } = require('../utils/notificationHelper');
 const path = require('path');
 const fs = require('fs');
 
+// ลำดับขั้นตอนตาม enum CoopStatus (schema.prisma) — ใช้กันสถานะย้อนกลับใน reviewStudentStatus
+const COOP_STATUS_ORDER = [
+  'NOT_SUBMITTED', 'APPLYING', 'QUALIFICATION_FAILED', 'APPLICATION_EDITS_REQUIRED', 'QUALIFIED',
+  'WAITING_FOR_STAFF_CHECK', 'EDITS_REQUIRED', 'DOCS_APPROVED', 'REQ_LETTER_ISSUED',
+  'WAITING_FOR_PLACEMENT_LETTER', 'WAITING_FOR_STAFF_CHECK_LETTER', 'ACCEPTANCE_CHECKED', 'PLACEMENT_LETTER_ISSUED',
+  'INTERNSHIP_STARTED', 'T002_SUBMITTED', 'T002_EDITS_REQUIRED', 'T003_SUBMITTED', 'T003_EDITS_REQUIRED', 'T003_APPROVED',
+];
+const LETTER_ISSUE_STATUSES = new Set(['REQ_LETTER_ISSUED', 'PLACEMENT_LETTER_ISSUED']);
+
 // เลขที่หนังสือเก็บเป็นตัวเลขล้วน เช่น "660301.26.6.2/1234"
 // คำนำหน้า "ที่ อว" อยู่ในเทมเพลตหนังสือ — ตัดออกเพื่อไม่ให้เลขเดียวกันถูกเก็บสองรูปแบบจนเลี่ยง unique index ได้
 function normalizeDocNumber(value) {
@@ -219,22 +228,36 @@ exports.reviewStudentStatus = async (req, res) => {
     }
 
     let staleLetterFile = null;
+    let statusKept = false;
 
     await prisma.$transaction(async (tx) => {
       const studentCheck = await tx.student.findUnique({ where: { id: parsedStudentId }, select: { deletedAt: true } });
-      // ดึง letter URL เก่าภายใน transaction เพื่อหลีกเลี่ยง TOCTOU race
-      if (updateData.reqLetterUrl || updateData.placeLetterUrl) {
-        const prevCoop = await tx.studentCoop.findUnique({
-          where: { studentId: parsedStudentId },
-          select: { reqLetterUrl: true, placeLetterUrl: true }
-        });
-        if (prevCoop) {
-          const oldUrl = updateData.reqLetterUrl ? prevCoop.reqLetterUrl : prevCoop.placeLetterUrl;
-          if (oldUrl && oldUrl !== req.file.filename) staleLetterFile = oldUrl;
-        }
+      // ดึงสถานะ + letter URL เก่าภายใน transaction เพื่อหลีกเลี่ยง TOCTOU race
+      const prevCoop = await tx.studentCoop.findUnique({
+        where: { studentId: parsedStudentId },
+        select: { status: true, reqLetterUrl: true, placeLetterUrl: true }
+      });
+      if ((updateData.reqLetterUrl || updateData.placeLetterUrl) && prevCoop) {
+        const oldUrl = updateData.reqLetterUrl ? prevCoop.reqLetterUrl : prevCoop.placeLetterUrl;
+        if (oldUrl && oldUrl !== req.file.filename) staleLetterFile = oldUrl;
       }
       if (!studentCheck || studentCheck.deletedAt) {
         throw Object.assign(new Error('ไม่พบนักศึกษา'), { is404: true });
+      }
+
+      // ห้ามสถานะย้อนกลับ — หน้า admin/doct000 ให้กลับมาตรวจเอกสาร/พิมพ์หนังสือซ้ำได้หลังผ่านขั้นนั้นไปแล้ว
+      // แต่ปุ่มเหล่านั้นส่งสถานะของขั้นตอนนั้นมาเสมอ (เช่น พิมพ์หนังสือขอความอนุเคราะห์ซ้ำ → REQ_LETTER_ISSUED)
+      // เดิมบันทึกทับตรงๆ นักศึกษาที่ฝึกงาน/ส่ง T002 แล้วเลยถูกดึงสถานะกลับไปขั้นก่อนหน้า
+      const currentRank = prevCoop ? COOP_STATUS_ORDER.indexOf(prevCoop.status) : -1;
+      const targetRank = COOP_STATUS_ORDER.indexOf(status);
+      if (currentRank > targetRank) {
+        if (LETTER_ISSUE_STATUSES.has(status)) {
+          // พิมพ์ซ้ำ: เก็บเลขที่/ไฟล์หนังสือใหม่ แต่คงสถานะปัจจุบันไว้
+          delete updateData.status;
+          statusKept = true;
+        } else if (currentRank >= COOP_STATUS_ORDER.indexOf('INTERNSHIP_STARTED')) {
+          throw Object.assign(new Error('นักศึกษาเข้าสู่ช่วงฝึกงานแล้ว ไม่สามารถเปลี่ยนสถานะย้อนกลับไปขั้นตอนก่อนหน้าได้'), { is409: true });
+        }
       }
 
       // เลขที่หนังสือราชการห้ามซ้ำข้ามนักศึกษา (เช็คในทรานแซกชันเพื่อกันแข่งกันบันทึก)
@@ -280,7 +303,8 @@ exports.reviewStudentStatus = async (req, res) => {
       });
     });
 
-    res.json({ ok: true });
+    // statusKept = พิมพ์หนังสือซ้ำให้นักศึกษาที่ผ่านขั้นนั้นไปแล้ว (บันทึกหนังสือใหม่ แต่คงสถานะเดิม)
+    res.json({ ok: true, statusKept });
 
     // ลบ letter file เก่าออกจาก disk หลัง commit สำเร็จ
     if (staleLetterFile) {

@@ -245,6 +245,69 @@ describe('reviewStudentStatus', () => {
     await reviewStudentStatus(req, res);
     expect(res.status).toHaveBeenCalledWith(500);
   });
+
+  // ห้ามสถานะย้อนกลับ — ปุ่ม "พิมพ์ซ้ำ" หนังสือ และปุ่มตรวจเอกสารย้อนหลัง ส่งสถานะของขั้นตอนนั้นมาเสมอ
+  describe('ไม่ให้สถานะย้อนกลับ', () => {
+    const letterFile = { filename: 'new-letter.pdf', originalname: 'letter.pdf' };
+    const withCurrent = (status) => prisma.studentCoop.findUnique.mockResolvedValue({ status, reqLetterUrl: null, placeLetterUrl: null });
+    beforeEach(() => {
+      prisma.studentCoop.findUnique.mockReset();
+      prisma.studentCoop.findFirst.mockResolvedValue(null);
+      prisma.document.findFirst.mockResolvedValue(null);
+      prisma.document.create.mockResolvedValue({ id: 1 });
+    });
+
+    test.each([
+      ['REQ_LETTER_ISSUED', 'INTERNSHIP_STARTED', 'reqDocNumber'],
+      ['REQ_LETTER_ISSUED', 'WAITING_FOR_PLACEMENT_LETTER', 'reqDocNumber'],
+      ['PLACEMENT_LETTER_ISSUED', 'T002_SUBMITTED', 'placeDocNumber'],
+    ])('พิมพ์ซ้ำ %s ให้นักศึกษาที่อยู่ %s แล้ว → บันทึกหนังสือใหม่ แต่คงสถานะเดิม', async (target, current, numberField) => {
+      withCurrent(current);
+      const req = {
+        body: { studentId: '1', status: target, comment: 'ออกใหม่', [numberField]: '660301.26.6.2/99', docType: 'DISPATCH_LETTER' },
+        file: letterFile,
+      };
+      const res = makeRes();
+      await reviewStudentStatus(req, res);
+
+      expect(res.status).not.toHaveBeenCalled();
+      const update = prisma.studentCoop.upsert.mock.calls[0][0].update;
+      expect(update.status).toBeUndefined();
+      expect(update[numberField]).toBe('660301.26.6.2/99');
+    });
+
+    test('ออกหนังสือขอความอนุเคราะห์ครั้งแรก (DOCS_APPROVED) → เปลี่ยนเป็น REQ_LETTER_ISSUED ตามปกติ', async () => {
+      withCurrent('DOCS_APPROVED');
+      const req = {
+        body: { studentId: '1', status: 'REQ_LETTER_ISSUED', comment: 'ออก', reqDocNumber: '660301.26.6.2/100', docType: 'DISPATCH_LETTER' },
+        file: letterFile,
+      };
+      const res = makeRes();
+      await reviewStudentStatus(req, res);
+      expect(prisma.studentCoop.upsert.mock.calls[0][0].update.status).toBe('REQ_LETTER_ISSUED');
+    });
+
+    test.each(['DOCS_APPROVED', 'EDITS_REQUIRED', 'ACCEPTANCE_CHECKED', 'INTERNSHIP_STARTED'])(
+      '409 — นักศึกษาส่ง T003 แล้ว ตั้งสถานะย้อนเป็น %s ไม่ได้ และไม่บันทึกอะไร',
+      async (target) => {
+        withCurrent('T003_SUBMITTED');
+        const req = { body: { studentId: '1', status: target, comment: 'x' }, file: null };
+        const res = makeRes();
+        await reviewStudentStatus(req, res);
+        expect(res.status).toHaveBeenCalledWith(409);
+        expect(prisma.studentCoop.upsert).not.toHaveBeenCalled();
+      },
+    );
+
+    test('ช่วงก่อนฝึกงาน ตีกลับเอกสารจาก DOCS_APPROVED เป็น EDITS_REQUIRED ได้เหมือนเดิม', async () => {
+      withCurrent('DOCS_APPROVED');
+      const req = { body: { studentId: '1', status: 'EDITS_REQUIRED', comment: 'แก้ลายเซ็น' }, file: null };
+      const res = makeRes();
+      await reviewStudentStatus(req, res);
+      expect(res.status).not.toHaveBeenCalled();
+      expect(prisma.studentCoop.upsert.mock.calls[0][0].update.status).toBe('EDITS_REQUIRED');
+    });
+  });
 });
 
 // =====================
