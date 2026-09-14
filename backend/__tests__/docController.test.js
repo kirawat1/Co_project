@@ -285,5 +285,59 @@ describe('docController', () => {
       expect(res.status).toHaveBeenCalledWith(403);
       expect(prisma.document.create).not.toHaveBeenCalled();
     });
+
+    test('200 — ส่ง T002 แล้วสร้าง/ผูกพี่เลี้ยงจากข้อ 3 ของแบบฟอร์ม (ทุกคน)', async () => {
+      prisma.$transaction.mockImplementation((arg) => Array.isArray(arg) ? Promise.all(arg) : arg(prisma));
+      prisma.systemConfig.findUnique.mockResolvedValue(null);
+      prisma.student.findUnique.mockResolvedValue({ id: 10, userId: 1, deletedAt: null });
+      prisma.document.findFirst.mockResolvedValue(null);
+      prisma.document.create.mockResolvedValue({ id: 99 });
+      prisma.studentCoop.findUnique.mockResolvedValue({ status: 'INTERNSHIP_STARTED', companyId: 'c1' });
+      prisma.studentCoop.update.mockResolvedValue({});
+      prisma.coopT002Form.findUnique.mockResolvedValue({
+        supervisorName: 'สมชาย ดูแลดี', supervisorPosition: 'หัวหน้าทีม',
+        extraSupervisors: JSON.stringify([{ name: 'สมหญิง รักงาน' }]),
+      });
+      prisma.mentor.findMany.mockResolvedValue([]);
+      prisma.mentor.create
+        .mockResolvedValueOnce({ id: 'm1', firstName: 'สมชาย', lastName: 'ดูแลดี' })
+        .mockResolvedValueOnce({ id: 'm2', firstName: 'สมหญิง', lastName: 'รักงาน' });
+
+      const res = makeRes();
+      await docController.uploadDocument(makeUploadReq('T002_FORM'), res);
+
+      expect(res.status).not.toHaveBeenCalled();
+      expect(prisma.studentCoop.update).toHaveBeenCalledWith({ where: { studentId: 10 }, data: { status: 'T002_SUBMITTED' } });
+      expect(prisma.studentCoop.update).toHaveBeenCalledWith({ where: { studentId: 10 }, data: { mentors: { connect: [{ id: 'm1' }, { id: 'm2' }] } } });
+      expect(res.json.mock.calls[0][0]).toMatchObject({ ok: true, mentorSync: { linked: 2, created: 2 } });
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────
+  // saveT002Form — พี่เลี้ยงหลายคน
+  // ─────────────────────────────────────────────────────────
+  describe('saveT002Form', () => {
+    beforeEach(() => {
+      prisma.$transaction.mockImplementation((arg) => Array.isArray(arg) ? Promise.all(arg) : arg(prisma));
+      prisma.student.findUnique.mockResolvedValue({ id: 10, deletedAt: null });
+      prisma.studentCoop.findUnique.mockResolvedValue({ status: 'INTERNSHIP_STARTED' });
+      prisma.coopT002Form.upsert.mockResolvedValue({ id: 1 });
+    });
+
+    test('บันทึกพี่เลี้ยงคนที่ 2 เป็นต้นไปเป็น JSON (บันทึกอัตโนมัติ ไม่สร้างพี่เลี้ยงในระบบ)', async () => {
+      const req = { user: { id: 1 }, body: { supervisorName: 'สมชาย ดูแลดี', extraSupervisors: [{ name: ' สมหญิง รักงาน ', phone: '081' }] } };
+      const res = makeRes();
+      await docController.saveT002Form(req, res);
+
+      const { update } = prisma.coopT002Form.upsert.mock.calls[0][0];
+      expect(JSON.parse(update.extraSupervisors)).toEqual([{ name: 'สมหญิง รักงาน', position: '', dept: '', phone: '081', fax: '', email: '' }]);
+      expect(prisma.mentor.create).not.toHaveBeenCalled();
+    });
+
+    test('ไม่ได้ส่ง extraSupervisors มา (หน้าเว็บเวอร์ชันเก่า) → ไม่แตะค่าที่บันทึกไว้', async () => {
+      const res = makeRes();
+      await docController.saveT002Form({ user: { id: 1 }, body: { supervisorName: 'สมชาย ดูแลดี' } }, res);
+      expect(prisma.coopT002Form.upsert.mock.calls[0][0].update.extraSupervisors).toBeUndefined();
+    });
   });
 });

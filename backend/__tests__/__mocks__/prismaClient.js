@@ -98,6 +98,10 @@ const prismaMock = {
     delete: jest.fn(),
     count: jest.fn(),
   },
+  coopT002Form: {
+    findUnique: jest.fn(),
+    upsert: jest.fn(),
+  },
   mentor: {
     findMany: jest.fn(),
     findUnique: jest.fn(),

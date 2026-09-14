@@ -271,24 +271,39 @@ export const createT002PDF = async (
   y = 15;
   drawText("KKU CP-T002", 190, y, "right", false, 12);
 
-  // --- Box 3 (Content) ---
+  // --- Box 3 (Content) — พี่เลี้ยงทุกคน กล่องละ 25mm เรียงลงมา (คนแรก = ช่อง supervisor* เดิม) ---
+  const supervisors = [
+    {
+      name: formData.supervisorName, position: formData.supervisorPosition, dept: formData.supervisorDept,
+      phone: formData.supervisorPhone, fax: formData.supervisorFax, email: formData.supervisorEmail,
+    },
+    ...(Array.isArray(formData.extraSupervisors)
+      ? formData.extraSupervisors.filter((s: any) => s && String(s.name || "").trim())
+      : []),
+  ];
+  const multipleSupervisors = supervisors.length > 1;
   y = 20;
-  doc.rect(leftX, y, contentWidth, 25);
-  inY = y + 8;
-  drawDataLine("ชื่อ-นามสกุล", formData.supervisorName, leftX + 5, inY, 135);
-  inY += 8;
-  drawDataLine("ตำแหน่ง", formData.supervisorPosition, leftX + 5, inY, 60);
-  drawDataLine("แผนก", formData.supervisorDept, leftX + 85, inY, 60);
-  inY += 8;
-  drawDataLine("โทรศัพท์", formData.supervisorPhone, leftX + 5, inY, 35);
-  drawDataLine("โทรสาร", formData.supervisorFax, leftX + 60, inY, 35);
-  drawDataLine(
-    "E-Mail address",
-    formData.supervisorEmail,
-    leftX + 115,
-    inY,
-    40,
-  );
+  supervisors.forEach((s: any, i: number) => {
+    doc.rect(leftX, y, contentWidth, 25);
+    inY = y + 8;
+    drawDataLine(multipleSupervisors ? `ชื่อ-นามสกุล (คนที่ ${i + 1})` : "ชื่อ-นามสกุล", s.name, leftX + 5, inY, multipleSupervisors ? 118 : 135);
+    inY += 8;
+    drawDataLine("ตำแหน่ง", s.position, leftX + 5, inY, 60);
+    drawDataLine("แผนก", s.dept, leftX + 85, inY, 60);
+    inY += 8;
+    drawDataLine("โทรศัพท์", s.phone, leftX + 5, inY, 35);
+    drawDataLine("โทรสาร", s.fax, leftX + 60, inY, 35);
+    drawDataLine("E-Mail address", s.email, leftX + 115, inY, 40);
+    y += 25;
+  });
+
+  // เนื้อหาหน้า 2 ต้องไม่เกินเส้น footer (250) — พี่เลี้ยงหลายคนดันข้อ 4-5 ลงมา ส่วนที่ไม่พอจะย้ายไปหน้าถัดไป
+  const PAGE_CONTENT_BOTTOM = 245;
+  const addContinuationPage = () => {
+    drawFooter(250);
+    doc.addPage();
+    drawText("KKU CP-T002", 190, 15, "right", false, 12);
+  };
 
   // --- Box 4 ---
   y = inY + 5;
@@ -326,6 +341,10 @@ export const createT002PDF = async (
 
   // --- Box 5 ---
   y = inY + 50;
+  if (y + 85 > PAGE_CONTENT_BOTTOM) {
+    addContinuationPage();
+    y = 20;
+  }
   doc.rect(leftX, y, contentWidth, 85);
   inY = y + 7;
   drawText("5. ข้อมูลที่พัก", leftX + 2, inY, "left", true, 14);
@@ -369,22 +388,25 @@ export const createT002PDF = async (
   drawDataLine("EMail address", formData.emergencyEmail, leftX + 75, inY, 60);
 
   // --- แผนที่ Intro ---
-  y = inY + 15;
-  drawText(
-    "แผนที่แสดงตำแหน่งที่นักศึกษาไปปฏิบัติงาน",
-    leftX,
-    y,
-    "left",
-    true,
-    14,
-  );
-  doc.line(leftX, y + 1, leftX + 58, y + 1);
-  y += 6;
-  drawText(
-    "เพื่อความสะดวกในการนิเทศงานของคณาจารย์ โปรดระบุชื่อถนนและสถานที่สำคัญใกล้เคียงที่สามารถเข้าใจโดยง่าย",
-    leftX,
-    y,
-  );
+  const drawMapIntro = (introY: number) => {
+    drawText(
+      "แผนที่แสดงตำแหน่งที่นักศึกษาไปปฏิบัติงาน",
+      leftX,
+      introY,
+      "left",
+      true,
+      14,
+    );
+    doc.line(leftX, introY + 1, leftX + 58, introY + 1);
+    drawText(
+      "เพื่อความสะดวกในการนิเทศงานของคณาจารย์ โปรดระบุชื่อถนนและสถานที่สำคัญใกล้เคียงที่สามารถเข้าใจโดยง่าย",
+      leftX,
+      introY + 6,
+    );
+  };
+  // ไม่พอที่หน้านี้ → ไปอยู่หัวหน้าแผนที่แทน (ไม่เปิดหน้าใหม่แค่สำหรับ 2 บรรทัด)
+  const mapIntroOnMapPage = inY + 15 + 6 > PAGE_CONTENT_BOTTOM;
+  if (!mapIntroOnMapPage) drawMapIntro(inY + 15);
 
   drawFooter(250);
 
@@ -395,6 +417,10 @@ export const createT002PDF = async (
 
   // กล่องแผนที่
   y = 20;
+  if (mapIntroOnMapPage) {
+    drawMapIntro(y);
+    y += 12;
+  }
   doc.rect(leftX, y, contentWidth, 100);
 
   // Signatures

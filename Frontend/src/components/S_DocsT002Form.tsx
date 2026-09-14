@@ -10,6 +10,25 @@ interface Props {
     onRefresh: () => void;
 }
 
+// พี่เลี้ยงคนที่ 2 เป็นต้นไปในข้อ 3 (คนแรกใช้ช่อง supervisorName/... เดิม) — backend เก็บเป็น JSON ใน CoopT002Form.extraSupervisors
+type ExtraSupervisor = { name: string; position: string; dept: string; phone: string; fax: string; email: string };
+const MAX_EXTRA_SUPERVISORS = 4; // รวมคนแรกไม่เกิน 5 คน (ตรงกับ backend และที่ PDF วางได้)
+const emptySupervisor = (): ExtraSupervisor => ({ name: "", position: "", dept: "", phone: "", fax: "", email: "" });
+
+function initialExtraSupervisors(savedT002: any, mentors: any[]): ExtraSupervisor[] {
+    // บันทึกไว้แล้ว (แม้เป็น []) → ใช้ค่าที่บันทึก · ยังไม่เคยบันทึก → เติมจากพี่เลี้ยงที่เลือกไว้คนที่ 2 เป็นต้นไป
+    if (savedT002?.extraSupervisors != null) {
+        try {
+            const parsed = JSON.parse(savedT002.extraSupervisors);
+            if (Array.isArray(parsed)) return parsed.slice(0, MAX_EXTRA_SUPERVISORS).map((s: any) => ({ ...emptySupervisor(), ...s }));
+        } catch { /* JSON เสีย → เริ่มใหม่จากพี่เลี้ยงที่เลือกไว้ */ }
+    }
+    return (mentors || []).slice(1, MAX_EXTRA_SUPERVISORS + 1).map((m: any) => ({
+        name: `${m.firstName || ""} ${m.lastName || ""}`.trim(),
+        position: m.position || "", dept: m.department || "", phone: m.phone || "", fax: "", email: m.email || "",
+    }));
+}
+
 // T002 ปลดล็อกได้ต่อเมื่อเจ้าหน้าที่ออกหนังสือขอความอนุเคราะห์แล้ว (REQ_LETTER_ISSUED) เป็นต้นไป
 const T002_UNLOCK_STATUSES = [
     'REQ_LETTER_ISSUED',
@@ -93,6 +112,7 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
         supervisorPhone: savedT002.supervisorPhone || mentor.phone || "",
         supervisorFax: savedT002.supervisorFax || "",
         supervisorEmail: savedT002.supervisorEmail || mentor.email || "",
+        extraSupervisors: initialExtraSupervisors(savedT002, profile?.coop?.mentors),
 
         jobPosition: savedT002.jobPosition || profile?.coop?.jobPosition || profile?.jobPosition || "",
         jobDescription: savedT002.jobDescription || "",
@@ -111,6 +131,18 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
     };
+
+    const updateExtraSupervisor = (index: number, field: keyof ExtraSupervisor, value: string) =>
+        setFormData(prev => ({
+            ...prev,
+            extraSupervisors: prev.extraSupervisors.map((s, i) => (i === index ? { ...s, [field]: value } : s)),
+        }));
+    const addExtraSupervisor = () =>
+        setFormData(prev => prev.extraSupervisors.length >= MAX_EXTRA_SUPERVISORS
+            ? prev
+            : { ...prev, extraSupervisors: [...prev.extraSupervisors, emptySupervisor()] });
+    const removeExtraSupervisor = (index: number) =>
+        setFormData(prev => ({ ...prev, extraSupervisors: prev.extraSupervisors.filter((_, i) => i !== index) }));
 
     // 🟢 Fetch Config จาก Backend ตอนโหลดหน้า
     useEffect(() => {
@@ -238,6 +270,8 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
         if (!selectedUploadFile) return;
         setLoading(true);
         try {
+            // ตอนอัปโหลด ระบบสร้างพี่เลี้ยงจากข้อ 3 ที่บันทึกไว้ — บันทึกฟอร์มล่าสุดก่อน (ฟอร์มบันทึกอัตโนมัติหลังหยุดพิมพ์ 1.5 วิ อาจยังไม่ทัน)
+            if (canEditRef.current) await saveForm(true);
             const uploadData = new FormData();
             uploadData.append("files", selectedUploadFile);
             uploadData.append("docType", "T002_FORM");
@@ -250,7 +284,9 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
             });
 
             if (res.ok) {
-                alert("✅ อัปโหลดแบบฟอร์ม T002 สำเร็จ!");
+                const result = await res.json().catch(() => ({}));
+                const linked = result?.mentorSync?.linked || 0;
+                alert(`✅ อัปโหลดแบบฟอร์ม T002 สำเร็จ!${linked > 0 ? `\nบันทึกพี่เลี้ยง ${linked} คนจากข้อ 3 เข้าระบบแล้ว` : ""}`);
                 setSelectedUploadFile(null);
                 if (typeof onRefresh === 'function') {
                     onRefresh();
@@ -391,12 +427,43 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
                             ตอนเลือกบริษัทยังไม่มีพี่เลี้ยง — กรอกข้อมูลพี่เลี้ยงที่บริษัทมอบหมายให้ในช่องด้านล่างได้เลย
                         </div>
                     )}
+                    {formData.extraSupervisors.length > 0 && <div style={supervisorHeading}>พี่เลี้ยงคนที่ 1</div>}
                     <div style={grid3} className="grid3">
                         <Input label="ชื่อ-สกุล" name="supervisorName" value={formData.supervisorName} onChange={handleChange} required />
                         <Input label="ตำแหน่ง" name="supervisorPosition" value={formData.supervisorPosition} onChange={handleChange} required />
                         <Input label="แผนก" name="supervisorDept" value={formData.supervisorDept} onChange={handleChange} required />
                         <Input label="โทรศัพท์" name="supervisorPhone" value={formData.supervisorPhone} onChange={handleChange} required />
                         <Input label="อีเมล" name="supervisorEmail" value={formData.supervisorEmail} onChange={handleChange} required />
+                    </div>
+
+                    {formData.extraSupervisors.map((s, i) => (
+                        <div key={i} style={{ marginTop: 16, paddingTop: 12, borderTop: '1px dashed #cbd5e1' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <div style={supervisorHeading}>พี่เลี้ยงคนที่ {i + 2}</div>
+                                <button type="button" onClick={() => removeExtraSupervisor(i)}
+                                    style={{ border: 'none', background: 'none', color: '#dc2626', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
+                                    ✕ ลบคนนี้
+                                </button>
+                            </div>
+                            <div style={grid3} className="grid3">
+                                <Input label="ชื่อ-สกุล" value={s.name} onChange={(e: any) => updateExtraSupervisor(i, 'name', e.target.value)} required />
+                                <Input label="ตำแหน่ง" value={s.position} onChange={(e: any) => updateExtraSupervisor(i, 'position', e.target.value)} />
+                                <Input label="แผนก" value={s.dept} onChange={(e: any) => updateExtraSupervisor(i, 'dept', e.target.value)} />
+                                <Input label="โทรศัพท์" value={s.phone} onChange={(e: any) => updateExtraSupervisor(i, 'phone', e.target.value)} />
+                                <Input label="อีเมล" value={s.email} onChange={(e: any) => updateExtraSupervisor(i, 'email', e.target.value)} />
+                            </div>
+                        </div>
+                    ))}
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginTop: 14 }}>
+                        <div style={{ fontSize: 12, color: '#64748b' }}>
+                            เมื่ออัปโหลดไฟล์ T002 ระบบจะบันทึกพี่เลี้ยงทุกคนในข้อนี้เป็นพี่เลี้ยงของบริษัทและของคุณให้อัตโนมัติ
+                        </div>
+                        {formData.extraSupervisors.length < MAX_EXTRA_SUPERVISORS && (
+                            <button type="button" onClick={addExtraSupervisor} style={{ ...btnOutline, padding: '6px 12px', fontSize: 13 }}>
+                                + เพิ่มพี่เลี้ยงอีกคน
+                            </button>
+                        )}
                     </div>
                 </Section>
 
@@ -547,6 +614,7 @@ const Input = ({ label, ...props }: any) => (
 // --- Styles ---
 const grid2 = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 15 };
 const grid3 = { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 15 };
+const supervisorHeading: React.CSSProperties = { fontSize: 13, fontWeight: 700, color: '#334155', marginBottom: 8 };
 const grid4 = { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 15 };
 const lblStyle: React.CSSProperties = { display: 'block', fontSize: 13, fontWeight: 600, color: '#475569', marginBottom: 4 };
 const inputStyle: React.CSSProperties = { width: '100%', padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: 6, boxSizing: 'border-box', fontFamily: 'inherit', fontSize: 14 };
