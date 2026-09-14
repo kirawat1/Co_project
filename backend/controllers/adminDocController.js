@@ -27,6 +27,38 @@ function parseDateOr400(value, label) {
   return d;
 }
 
+// เทมเพลตที่ยังไม่แก้ (จุดไข่ปลา/xxxx) หรือไม่มีเลขต่อท้าย "/" ถือว่ายังไม่ได้กรอกเลขที่จริง
+const isPlaceholderDocNo = (v) => /[.]{3,}|x{3,}/i.test(v) || !/\/\s*\S/.test(v);
+
+// หนังสือสองฉบับที่ออกจากหน้า doct000 — ช่องใน StudentCoop ของแต่ละฉบับ
+const LETTERS = {
+  reqLetter: { numberField: 'reqDocNumber', label: 'เลขที่หนังสือขอความอนุเคราะห์', minStatus: 'DOCS_APPROVED' },
+  placeLetter: { numberField: 'placeDocNumber', label: 'เลขที่หนังสือส่งตัว', minStatus: 'ACCEPTANCE_CHECKED' },
+};
+
+function clearedLetterPending(key) {
+  return { [`${key}PendingAt`]: null, [`${key}DraftNumber`]: null, [`${key}DraftDate`]: null };
+}
+
+// เลขที่ห้ามซ้ำกับหนังสือที่ออกให้คนอื่นแล้ว หรือร่างที่รอลงนามของคนอื่น (หนังสือชนิดเดียวกัน)
+async function assertDocNumberFree(tx, key, value, studentId) {
+  if (!value) return;
+  const { numberField, label } = LETTERS[key];
+  const draftField = `${key}DraftNumber`;
+  const clash = await tx.studentCoop.findFirst({
+    where: { OR: [{ [numberField]: value }, { [draftField]: value }], studentId: { not: studentId } },
+    select: { [numberField]: true, [draftField]: true, student: { select: { studentId: true, firstName: true, lastName: true } } },
+  });
+  if (!clash) return;
+  const who = clash.student
+    ? `${clash.student.studentId} ${clash.student.firstName} ${clash.student.lastName}`
+    : 'นักศึกษารายอื่น';
+  const message = clash[numberField] === value
+    ? `${label} "${value}" ถูกใช้กับ ${who} แล้ว`
+    : `${label} "${value}" อยู่ในร่างหนังสือที่รอลงนามของ ${who} — ถ้าไม่ใช้ร่างนั้นแล้ว ให้กด "ยกเลิกรอลงนาม" ของคนนั้นก่อน`;
+  throw Object.assign(new Error(message), { is409: true });
+}
+
 // 1. ดึงค่า Config
 exports.getT000Config = async (req, res) => {
   try {
@@ -183,8 +215,7 @@ exports.reviewStudentStatus = async (req, res) => {
     const reqDocNo = normalizeDocNumber(reqDocNumber);
     const placeDocNo = normalizeDocNumber(placeDocNumber);
 
-    // ต้องกรอกจริง — เทมเพลตที่ยังไม่แก้ (จุดไข่ปลา/xxxx) หรือไม่มีเลขต่อท้าย "/" ถือว่าไม่ผ่าน
-    const isPlaceholderDocNo = (v) => /[.]{3,}|x{3,}/i.test(v) || !/\/\s*\S/.test(v);
+    // ต้องกรอกจริง — เทมเพลตที่ยังไม่แก้ไม่ผ่าน
     for (const [label, value] of [['เลขที่หนังสือขอความอนุเคราะห์', reqDocNo], ['เลขที่หนังสือส่งตัว', placeDocNo]]) {
       if (value && isPlaceholderDocNo(value)) {
         if (req.file) try { fs.unlinkSync(path.join(__dirname, '../uploads', req.file.filename)); } catch (_) {}
@@ -210,14 +241,16 @@ exports.reviewStudentStatus = async (req, res) => {
       return res.status(400).json({ ok: false, message: 'วันสิ้นสุดการฝึกงานต้องไม่มาก่อนวันเริ่มฝึกงาน' });
     }
 
-    // ไฟล์ (แยกตาม status)
+    // ไฟล์ (แยกตาม status) — อัปโหลดฉบับลงนามแล้ว ป้าย "รอลงนาม" ของหนังสือนั้นหมดหน้าที่
     if (req.file) {
       if (status === 'REQ_LETTER_ISSUED') {
         updateData.reqLetterUrl = req.file.filename;
+        Object.assign(updateData, clearedLetterPending('reqLetter'));
       }
 
       if (status === 'PLACEMENT_LETTER_ISSUED') {
         updateData.placeLetterUrl = req.file.filename;
+        Object.assign(updateData, clearedLetterPending('placeLetter'));
       }
 
       // ถ้าไฟล์ถูกอัปโหลดมาแต่ไม่ได้ใช้ (status ไม่ใช่ letter และไม่มี docType) → ลบไฟล์ทิ้งแล้วคืน error
@@ -262,21 +295,9 @@ exports.reviewStudentStatus = async (req, res) => {
       }
 
       // เลขที่หนังสือราชการห้ามซ้ำข้ามนักศึกษา (เช็คในทรานแซกชันเพื่อกันแข่งกันบันทึก)
-      for (const [field, value, label] of [
-        ['reqDocNumber', updateData.reqDocNumber, 'เลขที่หนังสือขอความอนุเคราะห์'],
-        ['placeDocNumber', updateData.placeDocNumber, 'เลขที่หนังสือส่งตัว'],
-      ]) {
-        if (!value) continue;
-        const clash = await tx.studentCoop.findFirst({
-          where: { [field]: value, studentId: { not: parsedStudentId } },
-          select: { student: { select: { studentId: true, firstName: true, lastName: true } } },
-        });
-        if (clash) {
-          const who = clash.student
-            ? `${clash.student.studentId} ${clash.student.firstName} ${clash.student.lastName}`
-            : 'นักศึกษารายอื่น';
-          throw Object.assign(new Error(`${label} "${value}" ถูกใช้กับ ${who} แล้ว`), { is409: true });
-        }
+      // รวมเลขที่ของร่างที่รอลงนามของคนอื่นด้วย — กันเลขเดียวกันอยู่บนกระดาษสองฉบับ
+      for (const [key, value] of [['reqLetter', updateData.reqDocNumber], ['placeLetter', updateData.placeDocNumber]]) {
+        await assertDocNumberFree(tx, key, value, parsedStudentId);
       }
 
       if (req.file && docType) {
@@ -426,6 +447,63 @@ exports.markAcceptanceReceived = async (req, res) => {
     if (err.is400) return res.status(400).json({ ok: false, message: err.message });
     console.error('Mark Acceptance Received Error:', err);
     res.status(500).json({ ok: false, message: 'บันทึกไม่สำเร็จ' });
+  }
+};
+
+// 5.2 เจ้าหน้าที่ดาวน์โหลดร่างหนังสือ (PDF/Word) ไปเสนอลงนาม → ป้าย "รอลงนาม" บน doct000
+// ไม่เปลี่ยนสถานะหลักของนักศึกษา · จำเลขที่/วันที่ของร่างไว้ให้ตอนกลับมาอัปโหลดฉบับลงนามตรงกัน
+// body: { studentId, letter: 'REQUEST' | 'PLACEMENT', docNumber?, docDate?, cancel? }
+const LETTER_KEY_BY_TYPE = { REQUEST: 'reqLetter', PLACEMENT: 'placeLetter' };
+
+exports.markLetterPending = async (req, res) => {
+  try {
+    const studentId = parseInt(req.body?.studentId, 10);
+    if (isNaN(studentId) || studentId <= 0) {
+      return res.status(400).json({ ok: false, message: 'studentId ต้องเป็นตัวเลขที่ถูกต้อง' });
+    }
+    const key = LETTER_KEY_BY_TYPE[req.body?.letter];
+    if (!key) return res.status(400).json({ ok: false, message: 'letter ต้องเป็น REQUEST หรือ PLACEMENT' });
+    const cancel = req.body.cancel === true || req.body.cancel === 'true';
+
+    let data;
+    if (cancel) {
+      data = clearedLetterPending(key);
+    } else {
+      const docNo = normalizeDocNumber(req.body.docNumber);
+      data = {
+        [`${key}PendingAt`]: new Date(),
+        [`${key}DraftNumber`]: docNo && !isPlaceholderDocNo(docNo) ? docNo : null,
+        [`${key}DraftDate`]: req.body.docDate ? parseDateOr400(req.body.docDate, 'วันที่ของร่างหนังสือ') : null,
+      };
+    }
+
+    await prisma.$transaction(async (tx) => {
+      const student = await tx.student.findUnique({ where: { id: studentId }, select: { deletedAt: true } });
+      const coop = await tx.studentCoop.findUnique({ where: { studentId }, select: { status: true } });
+      if (!student || student.deletedAt || !coop) throw Object.assign(new Error('ไม่พบนักศึกษา'), { is404: true });
+
+      if (!cancel) {
+        const { minStatus } = LETTERS[key];
+        if (COOP_STATUS_ORDER.indexOf(coop.status) < COOP_STATUS_ORDER.indexOf(minStatus)) {
+          throw Object.assign(new Error('นักศึกษายังไม่ถึงขั้นออกหนังสือนี้'), { is400: true });
+        }
+        await assertDocNumberFree(tx, key, data[`${key}DraftNumber`], studentId);
+      }
+      await tx.studentCoop.update({ where: { studentId }, data });
+    });
+
+    res.json({
+      ok: true,
+      pendingAt: data[`${key}PendingAt`],
+      draftNumber: data[`${key}DraftNumber`],
+      draftDate: data[`${key}DraftDate`],
+    });
+  } catch (err) {
+    if (err.is404) return res.status(404).json({ ok: false, message: err.message });
+    if (err.is409) return res.status(409).json({ ok: false, message: err.message });
+    if (err.is400) return res.status(400).json({ ok: false, message: err.message });
+    console.error('Mark Letter Pending Error:', err);
+    res.status(500).json({ ok: false, message: 'บันทึกสถานะรอลงนามไม่สำเร็จ' });
   }
 };
 

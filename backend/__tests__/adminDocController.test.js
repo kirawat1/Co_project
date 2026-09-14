@@ -14,6 +14,7 @@ const {
   reviewStudentStatus,
   updateCoopApplicationStatus,
   markAcceptanceReceived,
+  markLetterPending,
 } = require('../controllers/adminDocController');
 
 function makeRes() {
@@ -300,6 +301,49 @@ describe('reviewStudentStatus', () => {
       },
     );
 
+    test.each([
+      ['REQ_LETTER_ISSUED', 'DOCS_APPROVED', 'reqDocNumber', 'reqLetter'],
+      ['PLACEMENT_LETTER_ISSUED', 'ACCEPTANCE_CHECKED', 'placeDocNumber', 'placeLetter'],
+    ])('อัปโหลดฉบับลงนาม %s → ล้างป้าย "รอลงนาม" ของหนังสือนั้น', async (target, current, numberField, prefix) => {
+      withCurrent(current);
+      const req = {
+        body: { studentId: '1', status: target, comment: 'ออก', [numberField]: '660301.26.6.2/101', docType: 'X_LETTER' },
+        file: letterFile,
+      };
+      const res = makeRes();
+      await reviewStudentStatus(req, res);
+      const update = prisma.studentCoop.upsert.mock.calls[0][0].update;
+      expect(update).toMatchObject({ [`${prefix}PendingAt`]: null, [`${prefix}DraftNumber`]: null, [`${prefix}DraftDate`]: null });
+      const other = prefix === 'reqLetter' ? 'placeLetter' : 'reqLetter';
+      expect(update).not.toHaveProperty(`${other}PendingAt`);
+    });
+
+    test('ไม่มีไฟล์ (ตรวจเอกสารธรรมดา) → ไม่แตะป้าย "รอลงนาม"', async () => {
+      withCurrent('WAITING_FOR_STAFF_CHECK');
+      const res = makeRes();
+      await reviewStudentStatus({ body: { studentId: '1', status: 'DOCS_APPROVED', comment: 'ok' }, file: null }, res);
+      const update = prisma.studentCoop.upsert.mock.calls[0][0].update;
+      expect(update).not.toHaveProperty('reqLetterPendingAt');
+      expect(update).not.toHaveProperty('placeLetterPendingAt');
+    });
+
+    test('409 — เลขที่หนังสือซ้ำกับร่างที่รอลงนามของนักศึกษาคนอื่น', async () => {
+      withCurrent('DOCS_APPROVED');
+      prisma.studentCoop.findFirst.mockResolvedValue({
+        reqDocNumber: null, reqLetterDraftNumber: '660301.26.6.2/102',
+        student: { studentId: '663380999-9', firstName: 'ข', lastName: 'ค' },
+      });
+      const req = {
+        body: { studentId: '1', status: 'REQ_LETTER_ISSUED', comment: 'ออก', reqDocNumber: '660301.26.6.2/102', docType: 'DISPATCH_LETTER' },
+        file: letterFile,
+      };
+      const res = makeRes();
+      await reviewStudentStatus(req, res);
+      expect(res.status).toHaveBeenCalledWith(409);
+      expect(res.json.mock.calls[0][0].message).toMatch(/รอลงนาม/);
+      expect(prisma.studentCoop.upsert).not.toHaveBeenCalled();
+    });
+
     test('ช่วงก่อนฝึกงาน ตีกลับเอกสารจาก DOCS_APPROVED เป็น EDITS_REQUIRED ได้เหมือนเดิม', async () => {
       withCurrent('DOCS_APPROVED');
       const req = { body: { studentId: '1', status: 'EDITS_REQUIRED', comment: 'แก้ลายเซ็น' }, file: null };
@@ -419,5 +463,131 @@ describe('markAcceptanceReceived', () => {
     const res = makeRes();
     await markAcceptanceReceived({ body: { studentId: 'abc' } }, res);
     expect(res.status).toHaveBeenCalledWith(400);
+  });
+});
+
+// =====================
+// markLetterPending — ดาวน์โหลดร่างหนังสือไปเซ็น → ป้าย "รอลงนาม" สำหรับเจ้าหน้าที่
+// =====================
+describe('markLetterPending', () => {
+  beforeEach(() => {
+    prisma.$transaction.mockImplementation((arg) => Array.isArray(arg) ? Promise.all(arg) : arg(prisma));
+    prisma.student.findUnique.mockResolvedValue({ id: 1, deletedAt: null });
+    prisma.studentCoop.findUnique.mockResolvedValue({ status: 'DOCS_APPROVED' });
+    prisma.studentCoop.findFirst.mockResolvedValue(null);
+    prisma.studentCoop.update.mockResolvedValue({});
+  });
+
+  test('200 — หนังสือขอความอนุเคราะห์: บันทึกเวลา + เลขที่/วันที่ร่าง (ตัด "ที่ อว" ออก)', async () => {
+    const res = makeRes();
+    await markLetterPending({ body: { studentId: '1', letter: 'REQUEST', docNumber: 'ที่ อว 660301.26.6.2/150', docDate: '2026-09-14' } }, res);
+
+    expect(res.status).not.toHaveBeenCalled();
+    const { where, data } = prisma.studentCoop.update.mock.calls[0][0];
+    expect(where).toEqual({ studentId: 1 });
+    expect(data.reqLetterPendingAt).toBeInstanceOf(Date);
+    expect(data.reqLetterDraftNumber).toBe('660301.26.6.2/150');
+    expect(data.reqLetterDraftDate.toISOString().slice(0, 10)).toBe('2026-09-14');
+    expect(data).not.toHaveProperty('placeLetterPendingAt');
+    expect(res.json.mock.calls[0][0]).toMatchObject({ ok: true, draftNumber: '660301.26.6.2/150' });
+  });
+
+  test('200 — หนังสือส่งตัว ใช้ช่อง placeLetter*', async () => {
+    prisma.studentCoop.findUnique.mockResolvedValue({ status: 'ACCEPTANCE_CHECKED' });
+    const res = makeRes();
+    await markLetterPending({ body: { studentId: '1', letter: 'PLACEMENT', docNumber: '660301.26.6.2/151' } }, res);
+
+    const { data } = prisma.studentCoop.update.mock.calls[0][0];
+    expect(data.placeLetterPendingAt).toBeInstanceOf(Date);
+    expect(data.placeLetterDraftNumber).toBe('660301.26.6.2/151');
+    expect(data.placeLetterDraftDate).toBeNull();
+    expect(data).not.toHaveProperty('reqLetterPendingAt');
+  });
+
+  test('200 — เลขที่ยังเป็นเทมเพลต (ไม่มีเลขหลัง "/") → ยังขึ้นรอลงนาม แต่ไม่เก็บเลขที่ และไม่เช็คซ้ำ', async () => {
+    const res = makeRes();
+    await markLetterPending({ body: { studentId: '1', letter: 'REQUEST', docNumber: '660301.26.6.2/' } }, res);
+
+    const { data } = prisma.studentCoop.update.mock.calls[0][0];
+    expect(data.reqLetterPendingAt).toBeInstanceOf(Date);
+    expect(data.reqLetterDraftNumber).toBeNull();
+    expect(prisma.studentCoop.findFirst).not.toHaveBeenCalled();
+  });
+
+  test('200 — พิมพ์ซ้ำให้คนที่ฝึกงานแล้วก็ขึ้นรอลงนามได้', async () => {
+    prisma.studentCoop.findUnique.mockResolvedValue({ status: 'T002_SUBMITTED' });
+    const res = makeRes();
+    await markLetterPending({ body: { studentId: '1', letter: 'PLACEMENT' } }, res);
+    expect(res.status).not.toHaveBeenCalled();
+    expect(prisma.studentCoop.update).toHaveBeenCalled();
+  });
+
+  test('409 — เลขที่ซ้ำกับหนังสือที่ออกให้คนอื่นไปแล้ว', async () => {
+    prisma.studentCoop.findFirst.mockResolvedValue({
+      reqDocNumber: '660301.26.6.2/150', reqLetterDraftNumber: null,
+      student: { studentId: '663380111-1', firstName: 'ก', lastName: 'ข' },
+    });
+    const res = makeRes();
+    await markLetterPending({ body: { studentId: '1', letter: 'REQUEST', docNumber: '660301.26.6.2/150' } }, res);
+
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(res.json.mock.calls[0][0].message).toMatch(/663380111-1/);
+    expect(prisma.studentCoop.findFirst.mock.calls[0][0].where).toMatchObject({ studentId: { not: 1 } });
+    expect(prisma.studentCoop.update).not.toHaveBeenCalled();
+  });
+
+  test('409 — เลขที่ซ้ำกับร่างที่รอลงนามของคนอื่น → บอกให้ยกเลิกรอลงนามคนนั้นก่อน', async () => {
+    prisma.studentCoop.findFirst.mockResolvedValue({
+      reqDocNumber: null, reqLetterDraftNumber: '660301.26.6.2/150',
+      student: { studentId: '663380111-1', firstName: 'ก', lastName: 'ข' },
+    });
+    const res = makeRes();
+    await markLetterPending({ body: { studentId: '1', letter: 'REQUEST', docNumber: '660301.26.6.2/150' } }, res);
+
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(res.json.mock.calls[0][0].message).toMatch(/รอลงนาม/);
+    expect(prisma.studentCoop.update).not.toHaveBeenCalled();
+  });
+
+  test.each([
+    ['REQUEST', 'WAITING_FOR_STAFF_CHECK'],
+    ['REQUEST', 'EDITS_REQUIRED'],
+    ['PLACEMENT', 'REQ_LETTER_ISSUED'],
+    ['PLACEMENT', 'WAITING_FOR_STAFF_CHECK_LETTER'],
+  ])('400 — %s ตอนสถานะ %s ยังไม่ถึงขั้นออกหนังสือ', async (letter, status) => {
+    prisma.studentCoop.findUnique.mockResolvedValue({ status });
+    const res = makeRes();
+    await markLetterPending({ body: { studentId: '1', letter } }, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(prisma.studentCoop.update).not.toHaveBeenCalled();
+  });
+
+  test('200 — cancel ล้างป้ายรอลงนามของหนังสือนั้น (ไม่ต้องเช็คสถานะ)', async () => {
+    prisma.studentCoop.findUnique.mockResolvedValue({ status: 'WAITING_FOR_STAFF_CHECK' });
+    const res = makeRes();
+    await markLetterPending({ body: { studentId: '1', letter: 'PLACEMENT', cancel: true } }, res);
+
+    expect(res.status).not.toHaveBeenCalled();
+    expect(prisma.studentCoop.update.mock.calls[0][0].data).toEqual({
+      placeLetterPendingAt: null, placeLetterDraftNumber: null, placeLetterDraftDate: null,
+    });
+  });
+
+  test.each([
+    [{ studentId: '1', letter: 'OTHER' }],
+    [{ studentId: 'abc', letter: 'REQUEST' }],
+    [{ studentId: '1', letter: 'REQUEST', docDate: 'not-a-date' }],
+  ])('400 — ข้อมูลไม่ถูกต้อง %o', async (body) => {
+    const res = makeRes();
+    await markLetterPending({ body }, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(prisma.studentCoop.update).not.toHaveBeenCalled();
+  });
+
+  test('404 — ไม่พบนักศึกษา / ยังไม่มีข้อมูลสหกิจ', async () => {
+    prisma.studentCoop.findUnique.mockResolvedValue(null);
+    const res = makeRes();
+    await markLetterPending({ body: { studentId: '1', letter: 'REQUEST' } }, res);
+    expect(res.status).toHaveBeenCalledWith(404);
   });
 });

@@ -111,7 +111,11 @@ model StudentCoop {
   staffCheckComment String?   @db.Text // เหตุผลที่ให้แก้เอกสาร (EDITS_REQUIRED)
   reqDocNumber      String? @unique // เลขที่หนังสือ "ที่ อว 660301..." — หนังสือราชการ ห้ามซ้ำ (NULL ซ้ำได้)
   reqDocDate        DateTime? // วันที่ออกหนังสือ
-  reqLetterUrl      String? // ไฟล์ PDF ออกเอกสารยื่นสหกิจ 
+  reqLetterUrl      String? // ไฟล์ PDF ออกเอกสารยื่นสหกิจ
+  // รอลงนาม (ป้ายสำหรับเจ้าหน้าที่) — ตั้งตอนดาวน์โหลดฉบับร่าง ล้างตอนอัปโหลดฉบับลงนาม · เลขที่/วันที่ร่างใช้เติมตอนกลับมาอัปโหลด
+  reqLetterPendingAt   DateTime?
+  reqLetterDraftNumber String?
+  reqLetterDraftDate   DateTime?
 
   // --- Step 7-9: ยื่นบริษัท & รอหนังสือส่งตัว (ใบสอง) ---
   acceptanceFileUrl String? // ไฟล์ใบตอบรับจากบริษัท (หน้า 13)
@@ -122,7 +126,11 @@ model StudentCoop {
 
   placeDocNumber String? @unique // เลขที่หนังสือส่งตัว "ที่ อว..." — หนังสือราชการ ห้ามซ้ำ (NULL ซ้ำได้)
   placeDocDate   DateTime? // วันที่ออกหนังสือส่งตัว
-  placeLetterUrl String? // ไฟล์ PDF ส่งตัว 
+  placeLetterUrl String? // ไฟล์ PDF ส่งตัว
+  // รอลงนามหนังสือส่งตัว (เหมือน reqLetter* ด้านบน)
+  placeLetterPendingAt   DateTime?
+  placeLetterDraftNumber String?
+  placeLetterDraftDate   DateTime?
 
   // Mentor (พี่เลี้ยง) อาจจะมาใส่ทีหลังตอนเริ่มฝึกงานแล้ว (many-to-many)
   mentors Mentor[]
