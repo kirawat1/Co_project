@@ -27,7 +27,8 @@ interface StudentProfile {
     advisorName?: string | null;
     generalAdvisor?: { id: number; prefix?: string; firstName: string; lastName: string } | null;
     documents?: StudentDocument[];
-    docStatus?: "WAITING" | "WAITING_FOR_STAFF_CHECK" | "EDITS_REQUIRED" | "REQ_LETTER_ISSUED" | "DOCS_APPROVED" | "WAITING_FOR_PLACEMENT_LETTER" | "WAITING_FOR_STAFF_CHECK_LETTER" | "ACCEPTANCE_CHECKED" | "PLACEMENT_LETTER_ISSUED" | "QUALIFIED";
+    // มาจาก coop.status ตรงๆ (ทุกค่าใน enum CoopStatus เช่น NOT_SUBMITTED, INTERNSHIP_STARTED, T002_SUBMITTED) — WAITING = ยังไม่มีข้อมูลสหกิจ
+    docStatus?: string;
     teacherComment?: string;
     submittedAt?: string;
     coopPeriodId?: number;
@@ -98,6 +99,16 @@ const POST_LETTER_STATUSES = [
 
 // ใช้แสดงปุ่ม "ตรวจสอบใบตอบรับ" (ดูย้อนหลังได้แม้เข้าสู่ช่วงฝึกงานแล้ว)
 const CAN_CHECK_ACCEPTANCE_STATUSES = [...POST_LETTER_STATUSES, ...AFTER_PLACEMENT_STATUSES];
+
+// ช่วงที่ยังกดผ่าน/แก้ไข/อนุมัติทั้งหมดในหน้าต่างตรวจเอกสารได้ — นอกช่วงนี้เปิดดูย้อนหลังได้อย่างเดียว
+// ขั้นที่ 1 ตรงกับ APPROVABLE ของ approveAllDocs ฝั่ง backend (+ WAITING = ยังไม่มีข้อมูลสหกิจ)
+// เดิมปุ่มกดได้ทุกสถานะ: นักศึกษาที่ออกหนังสือแล้ว/ฝึกงานแล้วกด "อนุมัติทั้งหมด" ได้ 400 (ขึ้นว่าไม่สำเร็จเป็นบางคน)
+// และกดผ่าน/แก้ไขรายไฟล์จะดึงสถานะนักศึกษาย้อนกลับไปขั้นตรวจเอกสาร
+const PHASE1_EDITABLE_STATUSES = [
+    'WAITING', 'APPLYING', 'QUALIFICATION_FAILED', 'APPLICATION_EDITS_REQUIRED', 'QUALIFIED',
+    'WAITING_FOR_STAFF_CHECK', 'EDITS_REQUIRED', 'DOCS_APPROVED',
+];
+const PHASE2_EDITABLE_STATUSES = ['WAITING_FOR_PLACEMENT_LETTER', 'WAITING_FOR_STAFF_CHECK_LETTER', 'ACCEPTANCE_CHECKED'];
 
 const isMatch = (docType: string, reqKey: string) => {
     if (docType === reqKey) return true;
@@ -218,8 +229,11 @@ export default function A_DocT000() {
         }
     };
 
+    const canEditInModal = (s: StudentProfile | null, phase: 1 | 2) =>
+        !!s && (phase === 1 ? PHASE1_EDITABLE_STATUSES : PHASE2_EDITABLE_STATUSES).includes(s.docStatus || 'WAITING');
+
     const handleDocStatus = async (docId: number, status: "APPROVED" | "REJECTED" | "EDITS_REQUIRED") => {
-        if (!selectedStudent) return;
+        if (!selectedStudent || !canEditInModal(selectedStudent, checkPhase)) return;
 
         const previousDocs = selectedStudent.documents;
         const updatedDocs = selectedStudent.documents?.map(d =>
@@ -245,7 +259,9 @@ export default function A_DocT000() {
                         const found = updatedDocs.find(d => isMatch(d.type || '', key));
                         return found && found.status === 'APPROVED';
                     });
-                    if (isAllPassed) handleSubmitReview("REQ_LETTER_ISSUED", "เอกสารครบถ้วน ผ่านการตรวจสอบอัตโนมัติ");
+                    // DOCS_APPROVED (รอออกหนังสือ) เหมือน "อนุมัติทั้งหมด" — เดิมข้ามไป REQ_LETTER_ISSUED ทั้งที่ยังไม่ได้ออกหนังสือ
+                    // นักศึกษาได้แจ้งเตือนว่าออกหนังสือแล้ว ปุ่มออกหนังสือกลายเป็น "พิมพ์ซ้ำ" และกดอนุมัติทั้งหมดต่อไม่ได้
+                    if (isAllPassed) handleSubmitReview("DOCS_APPROVED", "เอกสารครบถ้วน (รอออกหนังสือ)");
                 }
             }
 
@@ -270,7 +286,7 @@ export default function A_DocT000() {
     };
 
     const handleApproveAll = async () => {
-        if (!selectedStudent) return;
+        if (!selectedStudent || !canEditInModal(selectedStudent, 1)) return;
         if (!confirm("ยืนยัน 'อนุมัติทั้งหมด' ?")) return;
 
         const studentId = selectedStudent.id;
@@ -291,16 +307,20 @@ export default function A_DocT000() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ studentId })
             });
-            if (!res.ok) throw new Error("approve-all failed");
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                throw new Error(data.message || "");
+            }
             fetchAllData();
-        } catch (err) {
+        } catch (err: any) {
             console.error("Error", err);
             updateStudentState(studentId, {
                 documents: previousDocuments,
                 docStatus: previousDocStatus
             });
             setAdminComment(previousComment);
-            alert("❌ อนุมัติทั้งหมดไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+            // บอกเหตุผลจาก server (เช่น สถานะไม่อยู่ในช่วงที่อนุมัติได้) — เดิมขึ้นแค่ "ลองใหม่" กดซ้ำก็ไม่ผ่าน
+            alert(`❌ อนุมัติทั้งหมดไม่สำเร็จ${err?.message ? `: ${err.message}` : " กรุณาลองใหม่อีกครั้ง"}`);
         }
     };
 
@@ -316,7 +336,7 @@ export default function A_DocT000() {
         if (autoComment) setAdminComment(autoComment);
 
         try {
-            await apiFetch("/api/admin/t000/review", {
+            const res = await apiFetch("/api/admin/t000/review", {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -325,6 +345,13 @@ export default function A_DocT000() {
                     comment: finalComment
                 })
             });
+            if (!res.ok) {
+                // เดิมไม่เช็คผล — ถ้า server ปฏิเสธ หน้าจอยังโชว์สถานะใหม่ทั้งที่ข้อมูลจริงไม่เปลี่ยน
+                const data = await res.json().catch(() => ({}));
+                alert(`❌ บันทึกสถานะไม่สำเร็จ${data.message ? `: ${data.message}` : ""}`);
+                fetchAllData();
+                return;
+            }
             if (!autoComment) {
                 alert("บันทึกผลเรียบร้อย");
                 setShowModal(false);
@@ -455,7 +482,7 @@ export default function A_DocT000() {
                                 <span>{doc.name.endsWith('.pdf') ? '🔴' : '🔵'}</span>
                                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '220px' }}>{doc.name}</span>
                             </div>
-                            <div style={{ display: 'flex', gap: 5 }}>
+                            {canEditInModal(selectedStudent, checkPhase) && <div style={{ display: 'flex', gap: 5 }}>
                                 <button className={`action-btn edit ${doc.status === 'EDITS_REQUIRED' ? 'active' : ''}`}
                                     onClick={(e) => { e.stopPropagation(); handleDocStatus(doc.id, "EDITS_REQUIRED"); }}>
                                     🛠️ แก้ไข
@@ -468,7 +495,7 @@ export default function A_DocT000() {
                                     onClick={(e) => { e.stopPropagation(); handleDocStatus(doc.id, "APPROVED"); }}>
                                     ✅ ผ่าน
                                 </button>
-                            </div>
+                            </div>}
                         </div>
                     );
                 })}
@@ -657,7 +684,7 @@ export default function A_DocT000() {
                             <div className="control-pane" style={{ flex: '1', display: 'flex', flexDirection: 'column', background: '#fff', borderLeft: '1px solid #e2e8f0', minWidth: 320, overflow: 'hidden' }}>
                                 <div style={{ padding: '12px 16px', borderBottom: '1px solid #eee', background: '#f8fafc', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
                                     <div style={{ fontWeight: 600, color: '#334155', fontSize: 14 }}>รายการเอกสาร</div>
-                                    {checkPhase === 1 && (
+                                    {checkPhase === 1 && canEditInModal(selectedStudent, 1) && (
                                         <button onClick={handleApproveAll} style={{ fontSize: 12, background: '#10b981', color: 'white', border: 'none', padding: '6px 12px', borderRadius: 6, cursor: 'pointer', fontWeight: 600, boxShadow: '0 2px 4px rgba(16, 185, 129, 0.2)' }}>
                                             ✅ อนุมัติทั้งหมด
                                         </button>
@@ -665,6 +692,16 @@ export default function A_DocT000() {
                                 </div>
 
                                 <div style={{ flex: 1, overflowY: 'auto', padding: '16px', background: '#f8fafc' }}>
+                                    {!canEditInModal(selectedStudent, checkPhase) && (
+                                        <div style={{ marginBottom: 12, padding: '10px 12px', borderRadius: 8, background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1e40af', fontSize: 13, lineHeight: 1.6 }}>
+                                            👁️ เปิดดูย้อนหลังได้อย่างเดียว — สถานะปัจจุบัน <StatusBadge status={selectedStudent.docStatus} />
+                                            <div style={{ fontSize: 12, color: '#475569' }}>
+                                                {selectedStudent.docStatus === 'NOT_SUBMITTED'
+                                                    ? 'นักศึกษายังไม่ได้ยื่นคำร้องสหกิจ จึงยังตรวจเอกสารไม่ได้'
+                                                    : 'ผ่านขั้นตอนนี้ไปแล้ว การกดผ่าน/แก้ไขจะทำให้สถานะนักศึกษาย้อนกลับ'}
+                                            </div>
+                                        </div>
+                                    )}
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                                         {activeDocs.map((req) => {
                                             const docs = selectedStudent.documents?.filter(d => isMatch(d.type || '', req.key)) || [];
@@ -677,6 +714,7 @@ export default function A_DocT000() {
                                     <AutoTextarea className="input" rows={2} style={{ width: '100%', marginBottom: 8, fontSize: 13 }}
                                         placeholder="ระบุเหตุผล (กรณีแก้ไข/ไม่ผ่าน)"
                                         value={adminComment} onChange={e => setAdminComment(e.target.value)}
+                                        disabled={!canEditInModal(selectedStudent, checkPhase)}
                                     />
                                     <div style={{ fontSize: 11, color: '#64748b', textAlign: 'center' }}>
                                         * หากเอกสารบังคับครบถ้วน ระบบจะเปลี่ยนสถานะเป็น "รอออกหนังสือ" อัตโนมัติ
