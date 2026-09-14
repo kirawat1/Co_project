@@ -125,6 +125,9 @@ export default function S_ProfilePage() {
   const [openStudentModal, setOpenStudentModal] = useState(false);
   const [openPasswordModal, setOpenPasswordModal] = useState(false);
   const [loading, setLoading] = useState(true);
+  // นักศึกษาเลือก "ยังไม่มีพี่เลี้ยง" — บริษัทยังไม่ระบุพี่เลี้ยง กรอกทีหลังได้ในแบบฟอร์ม T002 ข้อ 3
+  // ไม่ได้เก็บเป็นฟิลด์แยก: บันทึกบริษัทไว้แล้วแต่ไม่มีพี่เลี้ยง = ยังไม่มีพี่เลี้ยง
+  const [noMentorYet, setNoMentorYet] = useState(false);
   // ── KKU REG Sync ──────────────────────────────
   const [kkuModalOpen, setKkuModalOpen] = useState(false);
   const [kkuUser, setKkuUser] = useState("");
@@ -192,6 +195,7 @@ export default function S_ProfilePage() {
           // ต้องเช็ค coop.company ด้วย — ถ้า companyId เป็น null การ spread จะได้ object ว่างที่ truthy
           const company = profileData.coop?.company ? { ...profileData.coop.company, selectedMentors: profileData.coop.mentors || [] } : profileData.company;
           setProfile({ ...profileData, emails, company });
+          setNoMentorYet(!!profileData.coop?.company && (profileData.coop.mentors || []).length === 0);
         } else {
           console.error("Error fetching profile:", profileResult.reason);
         }
@@ -251,6 +255,7 @@ export default function S_ProfilePage() {
         const emails = data.emails?.length > 0 ? data.emails : [{ email: "", primary: false }];
         const company = data.coop?.company ? { ...data.coop.company, selectedMentors: data.coop.mentors || [] } : data.company;
         setProfile({ ...data, emails, company });
+        setNoMentorYet(!!data.coop?.company && (data.coop.mentors || []).length === 0);
       }
 
       alert("บันทึกข้อมูลเรียบร้อย");
@@ -320,6 +325,8 @@ export default function S_ProfilePage() {
 
   const selectedMentorIds = new Set((profile.company?.selectedMentors || []).map((m: any) => m.id));
   const mentorOptions = profile.company ? [
+    // ตัวเลือกนี้แสดงเสมอ (pinned) แม้พิมพ์ค้นหา — บริษัทที่ยังไม่มีพี่เลี้ยงในระบบจะได้มีอะไรให้กด
+    ...(!noMentorYet ? [{ id: "none", label: "➖ ยังไม่มีพี่เลี้ยง (กรอกทีหลังในแบบฟอร์ม T002 ข้อ 3)", rawData: null, pinned: true }] : []),
     ...(profile.company.mentors?.filter(m => !selectedMentorIds.has(m.id)).map(m => ({
       id: m.id,
       label: `${m.firstName} ${m.lastName} ${m.position ? `(${m.position})` : ''}`,
@@ -454,6 +461,7 @@ export default function S_ProfilePage() {
                 noOptionText="ไม่พบบริษัทที่ค้นหา"
                 onAddClick={() => navigate("/student/company")}
                 onChange={(id: string, rawData: any) => {
+                  setNoMentorYet(false);
                   if (id === "clear") {
                     setProfile({ ...profile, company: undefined });
                   } else {
@@ -477,19 +485,37 @@ export default function S_ProfilePage() {
                 ))}
               </div>
             )}
+            {profile.company && noMentorYet && (
+              <div style={{ marginBottom: 8, marginTop: 4 }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#f1f5f9', color: '#475569', borderRadius: 16, padding: '3px 10px', fontSize: 13 }}>
+                  ➖ ยังไม่มีพี่เลี้ยง
+                  <button type="button" onClick={() => setNoMentorYet(false)} title="ยกเลิก" style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#475569', fontWeight: 700, fontSize: 14, padding: 0, lineHeight: 1 }}>×</button>
+                </span>
+                <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>
+                  กรอกข้อมูลพี่เลี้ยงภายหลังได้ในแบบฟอร์ม T002 ข้อ 3 (พนักงานที่ปรึกษา) หรือกลับมาเลือกที่นี่เมื่อบริษัทแจ้งแล้ว
+                </div>
+              </div>
+            )}
             <div style={{ marginTop: 4 }}>
               <SearchableDropdown
                 options={mentorOptions}
                 value=""
                 placeholder={
                   !profile.company ? "กรุณาเลือกบริษัทก่อน"
-                    : mentorOptions.length > 0 ? "พิมพ์ค้นหาเพื่อเพิ่มพี่เลี้ยง..."
-                    : (profile.company.mentors?.length ?? 0) > 0 ? "เลือกครบแล้ว"
-                    : "บริษัทนี้ยังไม่มีพี่เลี้ยงในระบบ"
+                    : (profile.company.mentors?.length ?? 0) === 0
+                      ? (noMentorYet ? "บริษัทนี้ยังไม่มีพี่เลี้ยงในระบบ" : "บริษัทนี้ยังไม่มีพี่เลี้ยงในระบบ — กดเพื่อเลือก \"ยังไม่มีพี่เลี้ยง\"")
+                    : mentorOptions.some(o => o.id !== "none") ? "พิมพ์ค้นหาเพื่อเพิ่มพี่เลี้ยง..."
+                    : "เลือกครบแล้ว"
                 }
                 noOptionText="ไม่พบพี่เลี้ยงในบริษัทนี้"
-                onChange={(_id: string, rawData: any) => {
+                onChange={(id: string, rawData: any) => {
+                  if (id === "none") {
+                    setNoMentorYet(true);
+                    setProfile({ ...profile, company: { ...profile.company!, selectedMentors: [] } });
+                    return;
+                  }
                   if (!rawData) return;
+                  setNoMentorYet(false);
                   setProfile({ ...profile, company: { ...profile.company!, selectedMentors: [...(profile.company!.selectedMentors as Mentor[] || []), rawData] } });
                 }}
               />
@@ -665,7 +691,10 @@ function SearchableDropdown({ options, value, onChange, placeholder, noOptionTex
   const [isOpen, setIsOpen] = useState(false);
 
   const selectedLabel = options.find((o: any) => o.id === value)?.label || "";
-  const filtered = options.filter((o: any) => o.label.toLowerCase().includes(search.toLowerCase()));
+  // ตัวเลือก pinned (เช่น "ยังไม่มีพี่เลี้ยง") แสดงเสมอไม่ขึ้นกับคำค้น
+  const pinned = options.filter((o: any) => o.pinned);
+  const matches = options.filter((o: any) => !o.pinned && o.label.toLowerCase().includes(search.toLowerCase()));
+  const filtered = [...pinned, ...matches];
 
   return (
     <div style={{ position: "relative" }}>
@@ -690,8 +719,8 @@ function SearchableDropdown({ options, value, onChange, placeholder, noOptionTex
                 key={o.id}
                 style={{
                   padding: "10px 14px", cursor: "pointer", borderBottom: "1px solid #f1f5f9",
-                  fontSize: 14, color: o.id === "clear" ? "#dc2626" : "#1e293b",
-                  fontWeight: o.id === "clear" ? "bold" : "normal"
+                  fontSize: 14, color: o.id === "clear" ? "#dc2626" : o.pinned ? "#475569" : "#1e293b",
+                  fontWeight: o.id === "clear" || o.pinned ? "bold" : "normal"
                 }}
                 onMouseDown={() => { onChange(o.id, o.rawData); setSearch(o.label); setIsOpen(false); }}
                 onMouseEnter={(e) => e.currentTarget.style.background = o.id === "clear" ? "#fee2e2" : "#f8fafc"}
@@ -699,7 +728,9 @@ function SearchableDropdown({ options, value, onChange, placeholder, noOptionTex
               >
                 {o.label}
               </div>
-            ))
+            )).concat(pinned.length > 0 && matches.length === 0 && search.trim()
+              ? [<div key="__no-match" style={{ padding: "10px 14px", textAlign: "center", color: "#94a3b8", fontSize: 13 }}>{noOptionText}</div>]
+              : [])
           ) : (
             <div style={{ padding: "14px", textAlign: "center", color: "#64748b", fontSize: 14 }}>
               {noOptionText}
