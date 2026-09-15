@@ -30,6 +30,26 @@ exports.getCounts = async (req, res) => {
   }
 };
 
+// POST /api/notifications/mark-read { types: [...] } — กดเมนูไหน อ่านเฉพาะแจ้งเตือนของเมนูนั้น
+// (เดิมกดเมนูใดก็ markAllRead ป้ายเมนูอื่นหายไปด้วย)
+exports.markRead = async (req, res) => {
+  try {
+    const { types } = req.body || {};
+    const valid = Array.isArray(types) && types.length > 0 && types.length <= 20
+      && types.every((t) => typeof t === 'string' && /^[A-Z0-9_]{1,50}$/.test(t));
+    if (!valid) return res.status(400).json({ ok: false, message: 'types ไม่ถูกต้อง' });
+
+    const result = await prisma.notification.updateMany({
+      where: { userId: req.userId, isRead: false, type: { in: types } },
+      data: { isRead: true },
+    });
+    res.json({ ok: true, count: result.count });
+  } catch (err) {
+    console.error('[markRead]', err);
+    res.status(500).json({ ok: false });
+  }
+};
+
 exports.markAllRead = async (req, res) => {
   try {
     await prisma.notification.updateMany({

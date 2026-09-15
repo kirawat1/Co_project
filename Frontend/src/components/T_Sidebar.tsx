@@ -41,8 +41,9 @@ function NavItem({ to, label, icon, count, onClick, end }: {
 
 export default function T_Sidebar({ isOpen = false, onClose = () => {}, isCoopTeacher = false }: SidebarProps) {
   const nav = () => onClose();
-  const { counts, markAllRead } = useNotifCounts();
-  const navAndRead = () => { onClose(); markAllRead(); };
+  const { markRead, sum } = useNotifCounts();
+  // ป้ายแจ้งเตือนของเมนู = ชนิดที่ต้องไปทำที่หน้านั้น · กดแล้วอ่านเฉพาะชนิดของเมนูนั้น
+  const badge = (types: string[]) => ({ count: sum(types), onClick: () => { onClose(); markRead(types); } });
   return (
     <aside className={`sidebar${isOpen ? " open" : ""}`}>
       {/* BRAND HEADER */}
@@ -61,9 +62,8 @@ export default function T_Sidebar({ isOpen = false, onClose = () => {}, isCoopTe
 
         <div className="sec-label">ข้อมูลบุคคล</div>
 
-        <NavItem to="/teacher/students" label="นักศึกษาที่ดูแล" icon={<IcUsers />}
-          count={(counts.T002_SUBMITTED ?? 0) + (counts.T003_SUBMITTED ?? 0) + (counts.SUPERVISION_PROPOSED ?? 0) + (counts.COOP_APPLICATION_SUBMITTED ?? 0)}
-          onClick={navAndRead} />
+        {/* เดิมรวมป้ายของเมนูอื่นมาไว้ด้วย (ซ้ำ) กดแล้วป้ายเมนูอื่นหาย — แต่ละชนิดขึ้นที่เมนูของตัวเองแทน */}
+        <NavItem to="/teacher/students" label="นักศึกษาที่ดูแล" icon={<IcUsers />} onClick={nav} />
         <NavItem to="/teacher/profile" label="ข้อมูลอาจารย์" icon={<IcUser />} onClick={nav} />
 
         {isCoopTeacher && (
@@ -72,15 +72,15 @@ export default function T_Sidebar({ isOpen = false, onClose = () => {}, isCoopTe
 
         <div className="sec-label">เอกสารและบันทึก</div>
 
+        {/* ใบตอบรับอาจารย์ไม่ได้ตรวจ (เจ้าหน้าที่ตรวจที่หน้า T000) — ไม่นับในป้าย */}
         <NavItem to="/teacher/requests" label="ตรวจสอบคำร้องสหกิจ" icon={<IcInbox />}
-          count={(counts.COOP_APPLICATION_SUBMITTED ?? 0) + (counts.ACCEPTANCE_UPLOADED ?? 0)}
-          onClick={navAndRead} />
+          {...badge(["COOP_APPLICATION_SUBMITTED"])} />
         <NavItem to="/teacher/review-t002" label="T002 เอกสารรายละเอียด" icon={<IcList />}
-          count={counts.T002_SUBMITTED ?? 0} onClick={navAndRead} />
+          {...badge(["T002_SUBMITTED"])} />
         <NavItem to="/teacher/review-t003" label="T003 โครงร่างรายงาน" icon={<IcRoute />}
-          count={counts.T003_SUBMITTED ?? 0} onClick={navAndRead} />
+          {...badge(["T003_SUBMITTED"])} />
         <NavItem to="/teacher/review-supervision" label="นัดหมายนิเทศ" icon={<IcCalendar />}
-          count={counts.SUPERVISION_PROPOSED ?? 0} onClick={navAndRead} />
+          {...badge(["SUPERVISION_PROPOSED"])} />
 
         <NavLink
           to="/teacher/doc-t005-006"

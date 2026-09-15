@@ -15,6 +15,11 @@ const COOP_STATUS_ORDER = [
 ];
 const LETTER_ISSUE_STATUSES = new Set(['REQ_LETTER_ISSUED', 'PLACEMENT_LETTER_ISSUED']);
 
+// สถานะที่นักศึกษาต้องไปดู/ทำต่อที่หน้าเอกสารสหกิจ (/student/docs) — แจ้งเตือนชนิด DOCS_UPDATED
+const STUDENT_DOCS_STATUSES = new Set([
+  'DOCS_APPROVED', 'EDITS_REQUIRED', 'REQ_LETTER_ISSUED', 'WAITING_FOR_PLACEMENT_LETTER', 'ACCEPTANCE_CHECKED', 'PLACEMENT_LETTER_ISSUED',
+]);
+
 // วิธีจัดส่งหนังสือ (เลือกในหน้าต่างออกหนังสือ) + ข้อความต่อท้ายแจ้งเตือนนักศึกษา
 const DELIVERY_METHODS = new Set(['STUDENT', 'STAFF']);
 const LETTER_DELIVERY_NOTES = {
@@ -368,12 +373,13 @@ exports.reviewStudentStatus = async (req, res) => {
       prisma.student.findUnique({ where: { id: parsedStudentId }, select: { userId: true } })
         .then(student => {
           if (student?.userId) {
+            // เอกสาร T000 / หนังสือ / ใบตอบรับ อยู่หน้าเอกสารสหกิจ → ชนิด DOCS_UPDATED (ป้ายที่เมนูเอกสาร) · ผลคุณสมบัติ → Dashboard
+            const isDocsStatus = STUDENT_DOCS_STATUSES.has(status);
             return createNotifications([student.userId], {
-              type: 'STATUS_UPDATED',
+              type: isDocsStatus ? 'DOCS_UPDATED' : 'STATUS_UPDATED',
               title: 'สถานะสหกิจศึกษาอัปเดต',
               message: msg,
-              // หนังสือ/ใบตอบรับอยู่หน้าเอกสาร
-              link: LETTER_ISSUE_STATUSES.has(status) || ['ACCEPTANCE_CHECKED', 'WAITING_FOR_PLACEMENT_LETTER'].includes(status) ? '/student/docs' : '/student/dashboard',
+              link: isDocsStatus ? '/student/docs' : '/student/dashboard',
               relatedId: String(parsedStudentId),
             });
           }
@@ -453,7 +459,7 @@ exports.markAcceptanceReceived = async (req, res) => {
 
     if (student?.userId) {
       createNotifications([student.userId], {
-        type: 'STATUS_UPDATED',
+        type: 'DOCS_UPDATED',
         title: 'สถานะสหกิจศึกษาอัปเดต',
         message: 'เจ้าหน้าที่ได้รับใบตอบรับจากบริษัทแล้ว ไม่ต้องอัปโหลดใบตอบรับ ✅',
         link: '/student/docs',
