@@ -248,7 +248,10 @@ exports.uploadDocument = async (req, res) => {
                 if (coop && ['PLACEMENT_LETTER_ISSUED', 'INTERNSHIP_STARTED'].includes(coop.status)) {
                     throw Object.assign(new Error('ออกหนังสือส่งตัวแล้ว เปลี่ยนใบตอบรับไม่ได้ — ถ้าต้องแก้ไข กรุณาติดต่อเจ้าหน้าที่'), { is400: true });
                 }
-                if (!coop || !CP_VALID.includes(coop.status)) {
+                // ข้อมูลเก่า: เดิมตีกลับใบตอบรับเป็น EDITS_REQUIRED (สถานะของขั้นเอกสาร T000) นักศึกษาเลยส่งใหม่ไม่ได้ —
+                // ถ้าออกหนังสือขอความอนุเคราะห์แล้ว (มี reqLetterUrl) ถือว่าเป็นการแก้ใบตอบรับ ให้ส่งได้
+                const rejectedAcceptance = coop?.status === 'EDITS_REQUIRED' && !!coop.reqLetterUrl;
+                if (!coop || (!CP_VALID.includes(coop.status) && !rejectedAcceptance)) {
                     throw Object.assign(new Error('ไม่สามารถส่งใบตอบรับในสถานะปัจจุบัน'), { is400: true });
                 }
                 await tx.studentCoop.update({

@@ -305,7 +305,9 @@ export default function A_DocT000() {
             }
 
             if (status === 'REJECTED' || status === 'EDITS_REQUIRED') {
-                handleSubmitReview("EDITS_REQUIRED", "");
+                // ใบตอบรับไม่ผ่าน → กลับไป "รอใบตอบรับ" ให้นักศึกษาอัปโหลดใหม่ได้
+                // (เดิมตั้งเป็น EDITS_REQUIRED ของขั้นเอกสาร T000 — ระบบไม่รับใบตอบรับในสถานะนั้น นักศึกษาติดค้าง)
+                handleSubmitReview(checkPhase === 2 ? "WAITING_FOR_PLACEMENT_LETTER" : "EDITS_REQUIRED", "", true);
             }
         } catch (err) {
             updateStudentState(selectedStudent.id, { documents: previousDocs });
@@ -352,10 +354,10 @@ export default function A_DocT000() {
         }
     };
 
-    const handleSubmitReview = async (status: string, autoComment = "") => {
+    const handleSubmitReview = async (status: string, autoComment = "", requireReason = false) => {
         if (!selectedStudent) return;
 
-        if (!autoComment && (status === "REJECTED" || status === "EDITS_REQUIRED") && !adminComment.trim()) {
+        if (!autoComment && (requireReason || status === "REJECTED" || status === "EDITS_REQUIRED") && !adminComment.trim()) {
             return alert("กรุณาระบุเหตุผลในช่องความเห็น");
         }
 

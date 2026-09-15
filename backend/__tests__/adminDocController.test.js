@@ -410,6 +410,23 @@ describe('reviewStudentStatus', () => {
       expect(prisma.studentCoop.upsert).not.toHaveBeenCalled();
     });
 
+    test.each(['WAITING_FOR_STAFF_CHECK_LETTER', 'ACCEPTANCE_CHECKED'])(
+      'ตีกลับใบตอบรับจาก %s → WAITING_FOR_PLACEMENT_LETTER (รอใบตอบรับ) + แจ้งเตือนให้อัปโหลดใหม่',
+      async (current) => {
+        withCurrent(current);
+        prisma.notification.findMany.mockResolvedValue([]);
+        const res = makeRes();
+        await reviewStudentStatus({ body: { studentId: '1', status: 'WAITING_FOR_PLACEMENT_LETTER', comment: 'ใบตอบรับไม่มีลายเซ็น' }, file: null }, res);
+        await new Promise((r) => setImmediate(r)); await new Promise((r) => setImmediate(r));
+
+        expect(res.status).not.toHaveBeenCalled();
+        expect(prisma.studentCoop.upsert.mock.calls[0][0].update).toMatchObject({ status: 'WAITING_FOR_PLACEMENT_LETTER', t000Comment: 'ใบตอบรับไม่มีลายเซ็น' });
+        const note = prisma.notification.createMany.mock.calls[0]?.[0]?.data?.[0];
+        expect(note?.message).toMatch(/ใบตอบรับต้องแก้ไข/);
+        expect(note?.link).toBe('/student/docs');
+      },
+    );
+
     test('ช่วงก่อนฝึกงาน ตีกลับเอกสารจาก DOCS_APPROVED เป็น EDITS_REQUIRED ได้เหมือนเดิม', async () => {
       withCurrent('DOCS_APPROVED');
       const req = { body: { studentId: '1', status: 'EDITS_REQUIRED', comment: 'แก้ลายเซ็น' }, file: null };
