@@ -29,6 +29,9 @@ function initialExtraSupervisors(savedT002: any, mentors: any[]): ExtraSuperviso
     }));
 }
 
+// ส่งไฟล์ T002 ได้เมื่อเริ่มฝึกงานแล้ว หรือถูกขอให้แก้ไข (ตรงกับ backend uploadDocument)
+const T002_SUBMIT_STATUSES = ['INTERNSHIP_STARTED', 'T002_EDITS_REQUIRED'];
+
 // T002 ปลดล็อกได้ต่อเมื่อเจ้าหน้าที่ออกหนังสือขอความอนุเคราะห์แล้ว (REQ_LETTER_ISSUED) เป็นต้นไป
 const T002_UNLOCK_STATUSES = [
     'REQ_LETTER_ISSUED',
@@ -308,6 +311,8 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
 
     const isUnlocked = T002_UNLOCK_STATUSES.includes(profile?.coop?.status);
     const canEdit = isSystemOpen && isUnlocked;
+    // ส่งไฟล์ได้เฉพาะสถานะที่ backend รับ (uploadDocument T002_FORM) — ก่อนหน้านั้นกรอก/บันทึกฟอร์มไว้ก่อนได้
+    const canSubmit = canEdit && T002_SUBMIT_STATUSES.includes(profile?.coop?.status);
     const canEditRef = useRef(canEdit);
     useEffect(() => { canEditRef.current = canEdit; }, [canEdit]);
 
@@ -537,8 +542,8 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
                         <div style={{ display: 'flex', gap: 10 }}>
                             <button className="btn-outline" onClick={() => window.open(`/uploads/${uploadedT002.path}`, '_blank')} style={{ ...btnOutline, borderColor: '#10b981', color: '#10b981' }}>👁️ ดูไฟล์ที่ส่ง</button>
 
-                            {/* ปิดปุ่มส่งใหม่ถ้าระบบปิด */}
-                            {canEdit && (
+                            {/* ส่งใหม่ได้เฉพาะตอนถูกขอให้แก้ (ระหว่างรอตรวจ backend ไม่รับไฟล์ใหม่) */}
+                            {canSubmit && (
                                 <>
                                     <label htmlFor="upload-t002-change" style={{ ...btnOutline, cursor: 'pointer', textAlign: 'center', borderColor: currentStatusToShow === 'T002_EDITS_REQUIRED' ? '#ef4444' : '#f59e0b', color: currentStatusToShow === 'T002_EDITS_REQUIRED' ? '#dc2626' : '#d97706' }}>
                                         {currentStatusToShow === 'T002_EDITS_REQUIRED' ? '🔄 ส่งไฟล์ใหม่' : '🔄 เปลี่ยนไฟล์'}
@@ -561,12 +566,20 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
                                 </div>
                             </div>
                         ) : (
-                            <div style={{ textAlign: 'center', opacity: canEdit ? 1 : 0.5 }}>
-                                <input type="file" id="upload-t002" style={{ display: 'none' }} accept=".pdf,.jpg,.png" onChange={(e) => e.target.files?.[0] && setSelectedUploadFile(e.target.files[0])} disabled={!canEdit} />
-                                <label htmlFor="upload-t002" style={{ ...btnSubmit, background: canEdit ? '#10b981' : '#9ca3af', display: 'inline-block', cursor: canEdit ? 'pointer' : 'not-allowed' }}>
-                                    {canEdit ? '📂 เลือกไฟล์ T002 เพื่ออัปโหลด' : '🔒 ระบบปิดรับเอกสาร'}
+                            <div style={{ textAlign: 'center', opacity: canSubmit ? 1 : 0.5 }}>
+                                <input type="file" id="upload-t002" style={{ display: 'none' }} accept=".pdf,.jpg,.png" onChange={(e) => e.target.files?.[0] && setSelectedUploadFile(e.target.files[0])} disabled={!canSubmit} />
+                                <label htmlFor="upload-t002" style={{ ...btnSubmit, background: canSubmit ? '#10b981' : '#9ca3af', display: 'inline-block', cursor: canSubmit ? 'pointer' : 'not-allowed' }}>
+                                    {canSubmit ? '📂 เลือกไฟล์ T002 เพื่ออัปโหลด' : !canEdit ? '🔒 ระบบปิดรับเอกสาร' : '🔒 ยังส่ง T002 ไม่ได้'}
                                 </label>
-                                <div style={{ fontSize: 12, color: '#6b7280', marginTop: 8 }}>(รองรับไฟล์ .pdf, .jpg, .png)</div>
+                                {canEdit && !canSubmit ? (
+                                    <div style={{ fontSize: 12, color: '#b45309', marginTop: 8 }}>
+                                        ส่ง T002 ได้เมื่อสถานะเป็น "ออกฝึกสหกิจ"
+                                        {profile?.coop?.status === 'PLACEMENT_LETTER_ISSUED' && ' (กดดาวน์โหลดหนังสือส่งตัวที่หน้าเอกสารสหกิจก่อน)'}
+                                        {' '}— ตอนนี้กรอกและบันทึกแบบฟอร์มไว้ก่อนได้
+                                    </div>
+                                ) : (
+                                    <div style={{ fontSize: 12, color: '#6b7280', marginTop: 8 }}>(รองรับไฟล์ .pdf, .jpg, .png)</div>
+                                )}
                             </div>
                         )}
                     </div>
