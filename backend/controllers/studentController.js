@@ -5,6 +5,7 @@ const { buildStudentExportWorkbook, STUDENT_EXPORT_INCLUDE } = require('../utils
 const { defaultStudentPassword, hashDefaultStudentPassword } = require('../utils/studentPassword');
 const { changeUserEmail, normalizeEmail } = require('../utils/userEmail');
 const { removeUnreferencedUploads } = require('../utils/uploadCleanup');
+const { resolveMajorNameTh } = require('../utils/majorName');
 
 // GET /api/students/me
 exports.getMyProfile = async (req, res) => {
@@ -59,9 +60,15 @@ exports.getMyProfile = async (req, res) => {
       });
     }
 
+    // major เป็นรหัสสาขา (CS) — เอกสาร PDF ของนักศึกษา (T000/T003/หนังสือยินยอมผู้ปกครอง) ต้องพิมพ์ชื่อไทย
+    const criteria = student.major
+      ? await prisma.coopCriteria.findMany({ select: { major: true, nameTh: true } })
+      : [];
+
     // ✅ แก้ไข: เช็คให้ชัวร์ว่า student.coop.company มีค่าจริง ป้องกัน Error กระจายค่า null
     res.json({
       ...student,
+      majorNameTh: resolveMajorNameTh(student.major, criteria),
       company: (student.coop && student.coop.company)
         ? { ...student.coop.company, mentors: student.coop.mentors } // เดิมใช้ mentor (เอกพจน์) ซึ่งไม่มีอยู่จริง — เป็น mentors อาเรย์ เพราะเลือกพี่เลี้ยงได้หลายคน
         : null, // ถ้าไม่มีบริษัทให้เป็น null ไปเลย

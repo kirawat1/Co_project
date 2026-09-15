@@ -1,4 +1,5 @@
 import { jsPDF } from "jspdf";
+import { formMajorName } from "./docGeneratorUtils";
 
 // ================= HELPERS =================
 const getFontBase64 = async (url: string): Promise<string> => {
@@ -66,7 +67,8 @@ export const createParentalConsentPDF = async (
   const studentPrefix = getThaiPrefix(profile.prefix);
   const studentName = `${studentPrefix}${profile.firstName} ${profile.lastName}`;
   const studentId = profile.studentId || "...................................";
-  const major = profile.major || "...................................";
+  // major เป็นรหัสสาขา (CS) — พิมพ์ชื่อไทย
+  const major = formMajorName(profile, "...................................");
   const curriculum = "วิทยาลัยการคอมพิวเตอร์";
   const companyName =
     profile.company?.name ||

@@ -1,5 +1,6 @@
 // Frontend/src/utils/pdfGeneratorT003.ts
 import { jsPDF } from "jspdf";
+import { formMajorName } from "./docGeneratorUtils";
 
 // ================= HELPERS =================
 const getFontBase64 = async (url: string): Promise<string> => {
@@ -201,7 +202,7 @@ export const createT003PDF = async (
   );
   drawDataLine("รหัสประจำตัว", profile.studentId || "", leftX + 115, y, 35);
   y += 8;
-  drawDataLine("สาขาวิชา", profile.major || "", leftX, y, 70);
+  drawDataLine("สาขาวิชา", formMajorName(profile, ""), leftX, y, 70); // major เป็นรหัสสาขา (CS) — พิมพ์ชื่อไทย
   drawText("วิทยาลัยการคอมพิวเตอร์ มหาวิทยาลัยขอนแก่น", leftX + 90, y);
   y += 8;
   drawText("ปฏิบัติงานสหกิจศึกษา ณ", leftX, y);

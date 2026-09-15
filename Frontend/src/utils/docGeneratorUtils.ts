@@ -68,6 +68,14 @@ export function letterMajorName(student: any, fallback = "วิทยากา�
   return /[฀-๿]/.test(raw) ? raw : fallback;
 }
 
+/**
+ * ชื่อสาขาภาษาไทยในแบบฟอร์มของนักศึกษา (T000/T003/หนังสือยินยอมผู้ปกครอง) — majorNameTh มาจาก /api/students/me
+ * ไม่มีชื่อไทยใน criteria → ใช้ค่าที่เก็บไว้ (ดีกว่าเว้นว่างในแบบฟอร์ม)
+ */
+export function formMajorName(profile: any, fallback: string): string {
+  return profile?.majorNameTh || String(profile?.major || "").trim() || fallback;
+}
+
 export function studyProgramLabel(sp?: string | null): string {
   const v = (sp || "").toLowerCase();
   if (v === "normal") return "ภาคปกติ";
