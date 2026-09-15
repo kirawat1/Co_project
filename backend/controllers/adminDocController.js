@@ -15,6 +15,19 @@ const COOP_STATUS_ORDER = [
 ];
 const LETTER_ISSUE_STATUSES = new Set(['REQ_LETTER_ISSUED', 'PLACEMENT_LETTER_ISSUED']);
 
+// วิธีจัดส่งหนังสือ (เลือกในหน้าต่างออกหนังสือ) + ข้อความต่อท้ายแจ้งเตือนนักศึกษา
+const DELIVERY_METHODS = new Set(['STUDENT', 'STAFF']);
+const LETTER_DELIVERY_NOTES = {
+  REQ_LETTER_ISSUED: {
+    STUDENT: 'ดาวน์โหลดหนังสือที่หน้าเอกสาร แล้วนำไปยื่นบริษัทด้วยตนเอง',
+    STAFF: 'เจ้าหน้าที่จัดส่งให้บริษัทเรียบร้อยแล้ว ไม่ต้องนำไปยื่นเอง',
+  },
+  PLACEMENT_LETTER_ISSUED: {
+    STUDENT: 'ดาวน์โหลดหนังสือส่งตัวที่หน้าเอกสาร แล้วนำไปยื่นบริษัทในวันรายงานตัว',
+    STAFF: 'เจ้าหน้าที่จัดส่งให้บริษัทล่วงหน้าเรียบร้อยแล้ว ไม่ต้องนำไปยื่นเอง',
+  },
+};
+
 // หนังสือสองฉบับที่ออกจากหน้า doct000 — ช่องใน StudentCoop ของแต่ละฉบับ
 const LETTERS = {
   reqLetter: { numberField: 'reqDocNumber', label: 'เลขที่หนังสือขอความอนุเคราะห์', minStatus: 'DOCS_APPROVED' },
@@ -229,16 +242,21 @@ exports.reviewStudentStatus = async (req, res) => {
       return res.status(400).json({ ok: false, message: 'วันสิ้นสุดการฝึกงานต้องไม่มาก่อนวันเริ่มฝึกงาน' });
     }
 
+    // วิธีจัดส่งหนังสือที่เจ้าหน้าที่เลือก — STUDENT = นักศึกษาดาวน์โหลดไปยื่นเอง · STAFF = เจ้าหน้าที่ส่งให้บริษัทแล้ว
+    const deliveryMethod = DELIVERY_METHODS.has(req.body.deliveryMethod) ? req.body.deliveryMethod : null;
+
     // ไฟล์ (แยกตาม status) — อัปโหลดฉบับลงนามแล้ว ป้าย "รอลงนาม" ของหนังสือนั้นหมดหน้าที่
     if (req.file) {
       if (status === 'REQ_LETTER_ISSUED') {
         updateData.reqLetterUrl = req.file.filename;
         Object.assign(updateData, clearedLetterPending('reqLetter'));
+        if (deliveryMethod) updateData.reqLetterDelivery = deliveryMethod;
       }
 
       if (status === 'PLACEMENT_LETTER_ISSUED') {
         updateData.placeLetterUrl = req.file.filename;
         Object.assign(updateData, clearedLetterPending('placeLetter'));
+        if (deliveryMethod) updateData.placeLetterDelivery = deliveryMethod;
       }
 
       // ถ้าไฟล์ถูกอัปโหลดมาแต่ไม่ได้ใช้ (status ไม่ใช่ letter และไม่มี docType) → ลบไฟล์ทิ้งแล้วคืน error
@@ -333,7 +351,10 @@ exports.reviewStudentStatus = async (req, res) => {
       PLACEMENT_LETTER_ISSUED: 'ออกหนังสือส่งตัวแล้ว 🎉',
       APPLICATION_EDITS_REQUIRED: 'คำร้องของคุณต้องแก้ไข กรุณาตรวจสอบ',
     };
-    const msg = statusMessages[status];
+    // ออกหนังสือพร้อมไฟล์ → บอกนักศึกษาด้วยว่าต้องนำไปยื่นเอง หรือเจ้าหน้าที่ส่งให้บริษัทแล้ว
+    const letterIssued = req.file && LETTER_ISSUE_STATUSES.has(status);
+    const deliveryNote = letterIssued && deliveryMethod ? LETTER_DELIVERY_NOTES[status][deliveryMethod] : '';
+    const msg = statusMessages[status] && `${statusMessages[status]}${deliveryNote ? ` — ${deliveryNote}` : ''}`;
     if (msg) {
       prisma.student.findUnique({ where: { id: parsedStudentId }, select: { userId: true } })
         .then(student => {
@@ -342,7 +363,8 @@ exports.reviewStudentStatus = async (req, res) => {
               type: 'STATUS_UPDATED',
               title: 'สถานะสหกิจศึกษาอัปเดต',
               message: msg,
-              link: '/student/dashboard',
+              // หนังสือ/ใบตอบรับอยู่หน้าเอกสาร
+              link: LETTER_ISSUE_STATUSES.has(status) || status === 'ACCEPTANCE_CHECKED' ? '/student/docs' : '/student/dashboard',
               relatedId: String(parsedStudentId),
             });
           }

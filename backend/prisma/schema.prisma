@@ -116,6 +116,7 @@ model StudentCoop {
   reqLetterPendingAt   DateTime?
   reqLetterDraftNumber String?
   reqLetterDraftDate   DateTime?
+  reqLetterDelivery    String? // วิธีส่งหนังสือให้บริษัท: STUDENT = นักศึกษานำไปยื่นเอง · STAFF = เจ้าหน้าที่จัดส่งให้แล้ว
 
   // --- Step 7-9: ยื่นบริษัท & รอหนังสือส่งตัว (ใบสอง) ---
   acceptanceFileUrl String? // ไฟล์ใบตอบรับจากบริษัท (หน้า 13)
@@ -131,6 +132,7 @@ model StudentCoop {
   placeLetterPendingAt   DateTime?
   placeLetterDraftNumber String?
   placeLetterDraftDate   DateTime?
+  placeLetterDelivery    String? // STUDENT | STAFF (เหมือน reqLetterDelivery)
 
   // Mentor (พี่เลี้ยง) อาจจะมาใส่ทีหลังตอนเริ่มฝึกงานแล้ว (many-to-many)
   mentors Mentor[]

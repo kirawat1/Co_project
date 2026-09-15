@@ -21,7 +21,8 @@ export default function IssueLetterModal({ student, onClose, onSuccess }: Props)
     const [pdfDraft, setPdfDraft] = useState<LetterDraft | null>(null);
     const [docDraft, setDocDraft] = useState<LetterDraft | null>(null);
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-    const [deliveryMethod, setDeliveryMethod] = useState<"STUDENT" | "STAFF">("STUDENT");
+    // พิมพ์ซ้ำ → ใช้วิธีจัดส่งที่เลือกไว้ครั้งก่อน
+    const [deliveryMethod, setDeliveryMethod] = useState<"STUDENT" | "STAFF">(student.coop?.reqLetterDelivery === "STAFF" ? "STAFF" : "STUDENT");
     const [signedFile, setSignedFile] = useState<File | null>(null);
 
     const startDate = student.coop?.actualStartDate || student.coopApplicationForm?.startDate || "";
@@ -141,6 +142,7 @@ export default function IssueLetterModal({ student, onClose, onSuccess }: Props)
                 ? `เจ้าหน้าที่ออกหนังสือแล้ว ให้นักศึกษามารับเอกสารตัวจริงที่คณะ หรือดาวน์โหลดไฟล์เพื่อนำไปยื่นบริษัทด้วยตนเอง`
                 : `เจ้าหน้าที่ออกหนังสือและได้จัดส่งให้บริษัททางไปรษณีย์/อีเมลเรียบร้อยแล้ว`;
             formData.append("comment", msg);
+            formData.append("deliveryMethod", deliveryMethod);
             formData.append("reqDocNumber", docNo);
             formData.append("reqDocDate", docDate);
             formData.append("file", signedFile);

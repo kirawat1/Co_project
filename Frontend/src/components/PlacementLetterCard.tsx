@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { apiFetch } from "../utils/apiFetch";
 import { fmtDate } from '../utils/dateFormat';
+import LetterDeliveryNotice, { type LetterDelivery } from "./LetterDeliveryNotice";
 
 interface Props {
     placeLetterUrl?: string;
@@ -8,6 +9,10 @@ interface Props {
     placeDocDate?: string;
     docStatus?: string;
     onRefresh?: () => void;
+    // วิธีจัดส่งที่เจ้าหน้าที่เลือก (StudentCoop.placeLetterDelivery)
+    delivery?: LetterDelivery | null;
+    // ข้อความจากเจ้าหน้าที่ของข้อมูลเก่าที่ยังไม่มี delivery
+    staffNote?: string;
 }
 
 export default function PlacementLetterCard({
@@ -15,7 +20,9 @@ export default function PlacementLetterCard({
     placeDocNumber,
     placeDocDate,
     docStatus,
-    onRefresh
+    onRefresh,
+    delivery,
+    staffNote,
 }: Props) {
     const baseUrl = "/uploads";
     const fileUrl = placeLetterUrl ? `${baseUrl}/${placeLetterUrl}` : null;
@@ -71,6 +78,14 @@ export default function PlacementLetterCard({
                             : "อยู่ระหว่างการออกหนังสือ"}
                     </div>
                 </div>
+
+                {/* ===== วิธีจัดส่ง ===== */}
+                {canDownload && delivery && <div style={{ marginBottom: 10 }}><LetterDeliveryNotice delivery={delivery} letter="PLACEMENT" /></div>}
+                {canDownload && !delivery && staffNote && (
+                    <div style={{ margin: "0 0 10px", padding: "10px 12px", background: "#fffbeb", borderLeft: "4px solid #f59e0b", borderRadius: 4, fontSize: 13, color: "#b45309" }}>
+                        <strong>💬 ข้อความจากเจ้าหน้าที่:</strong><br />{staffNote}
+                    </div>
+                )}
 
                 {/* ===== Info ===== */}
                 {canDownload && (

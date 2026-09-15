@@ -259,6 +259,61 @@ describe('reviewStudentStatus', () => {
     expect(res.status).toHaveBeenCalledWith(500);
   });
 
+  // เจ้าหน้าที่เลือกวิธีจัดส่งหนังสือตอนออกหนังสือ — เก็บไว้ให้หน้านักศึกษา + ใส่ในแจ้งเตือน
+  describe('วิธีจัดส่งหนังสือ (deliveryMethod)', () => {
+    const letterFile = { filename: 'signed.pdf', originalname: 'signed.pdf' };
+    const flush = () => new Promise((r) => setImmediate(r));
+    const notifiedMessage = () => prisma.notification.createMany.mock.calls[0]?.[0]?.data?.[0]?.message;
+    beforeEach(() => {
+      prisma.$transaction.mockImplementation((arg) => Array.isArray(arg) ? Promise.all(arg) : arg(prisma));
+      prisma.studentCoop.findFirst.mockResolvedValue(null);
+      prisma.document.findFirst.mockResolvedValue(null);
+      prisma.document.create.mockResolvedValue({ id: 1 });
+      prisma.notification.findMany.mockResolvedValue([]);
+    });
+
+    test.each([
+      ['REQ_LETTER_ISSUED', 'DOCS_APPROVED', 'reqDocNumber', 'reqLetterDelivery', 'STAFF', /ออกหนังสือขอความอนุเคราะห์แล้ว.*เจ้าหน้าที่จัดส่งให้บริษัท.*ไม่ต้องนำไปยื่นเอง/],
+      ['REQ_LETTER_ISSUED', 'DOCS_APPROVED', 'reqDocNumber', 'reqLetterDelivery', 'STUDENT', /ออกหนังสือขอความอนุเคราะห์แล้ว.*ดาวน์โหลด.*ยื่นบริษัท/],
+      ['PLACEMENT_LETTER_ISSUED', 'ACCEPTANCE_CHECKED', 'placeDocNumber', 'placeLetterDelivery', 'STAFF', /ออกหนังสือส่งตัวแล้ว.*เจ้าหน้าที่จัดส่งให้บริษัท/],
+      ['PLACEMENT_LETTER_ISSUED', 'ACCEPTANCE_CHECKED', 'placeDocNumber', 'placeLetterDelivery', 'STUDENT', /ออกหนังสือส่งตัวแล้ว.*ดาวน์โหลด/],
+    ])('%s ส่ง %s→ เก็บ %s และแจ้งเตือนบอกวิธีจัดส่ง (%s)', async (status, current, numberField, deliveryField, method, messagePattern) => {
+      prisma.studentCoop.findUnique.mockResolvedValue({ status: current, reqLetterUrl: null, placeLetterUrl: null });
+      const res = makeRes();
+      await reviewStudentStatus({
+        body: { studentId: '1', status, comment: 'x', [numberField]: '660301.26.6.2/55', docType: 'X', deliveryMethod: method },
+        file: letterFile,
+      }, res);
+      await flush(); await flush();
+
+      expect(prisma.studentCoop.upsert.mock.calls[0][0].update[deliveryField]).toBe(method);
+      expect(notifiedMessage()).toMatch(messagePattern);
+      expect(prisma.notification.createMany.mock.calls[0][0].data[0].link).toBe('/student/docs');
+    });
+
+    test('deliveryMethod ไม่ถูกต้อง / ไม่ส่งมา → ไม่บันทึก และแจ้งเตือนข้อความเดิม', async () => {
+      prisma.studentCoop.findUnique.mockResolvedValue({ status: 'DOCS_APPROVED', reqLetterUrl: null, placeLetterUrl: null });
+      const res = makeRes();
+      await reviewStudentStatus({
+        body: { studentId: '1', status: 'REQ_LETTER_ISSUED', comment: 'x', reqDocNumber: '660301.26.6.2/56', docType: 'X', deliveryMethod: 'POST' },
+        file: letterFile,
+      }, res);
+      await flush(); await flush();
+
+      expect(prisma.studentCoop.upsert.mock.calls[0][0].update).not.toHaveProperty('reqLetterDelivery');
+      expect(notifiedMessage()).toBe('ออกหนังสือขอความอนุเคราะห์แล้ว');
+    });
+
+    test('ไม่มีไฟล์หนังสือ (ไม่ใช่การออกหนังสือ) → ไม่แตะวิธีจัดส่ง', async () => {
+      prisma.studentCoop.findUnique.mockResolvedValue({ status: 'WAITING_FOR_STAFF_CHECK', reqLetterUrl: null, placeLetterUrl: null });
+      const res = makeRes();
+      await reviewStudentStatus({ body: { studentId: '1', status: 'DOCS_APPROVED', comment: 'ok', deliveryMethod: 'STAFF' }, file: null }, res);
+      const update = prisma.studentCoop.upsert.mock.calls[0][0].update;
+      expect(update).not.toHaveProperty('reqLetterDelivery');
+      expect(update).not.toHaveProperty('placeLetterDelivery');
+    });
+  });
+
   // ห้ามสถานะย้อนกลับ — ปุ่ม "พิมพ์ซ้ำ" หนังสือ และปุ่มตรวจเอกสารย้อนหลัง ส่งสถานะของขั้นตอนนั้นมาเสมอ
   describe('ไม่ให้สถานะย้อนกลับ', () => {
     const letterFile = { filename: 'new-letter.pdf', originalname: 'letter.pdf' };

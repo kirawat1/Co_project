@@ -18,7 +18,8 @@ export default function IssuePlacementLetterModal({ student, onClose, onSuccess 
     const [pdfDraft, setPdfDraft] = useState<LetterDraft | null>(null);
     const [docDraft, setDocDraft] = useState<LetterDraft | null>(null);
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-    const [deliveryMethod, setDeliveryMethod] = useState<"STUDENT" | "STAFF">("STUDENT");
+    // พิมพ์ซ้ำ → ใช้วิธีจัดส่งที่เลือกไว้ครั้งก่อน
+    const [deliveryMethod, setDeliveryMethod] = useState<"STUDENT" | "STAFF">(student.coop?.placeLetterDelivery === "STAFF" ? "STAFF" : "STUDENT");
     const [signedFile, setSignedFile] = useState<File | null>(null);
 
     const startDate = student.coop?.actualStartDate || student.coopApplicationForm?.startDate || "";
@@ -101,6 +102,7 @@ export default function IssuePlacementLetterModal({ student, onClose, onSuccess 
                 ? `เจ้าหน้าที่ออกหนังสือส่งตัวแล้ว ให้นักศึกษามารับเอกสารตัวจริงที่คณะ หรือดาวน์โหลดไปยื่นบริษัทในวันรายงานตัว`
                 : `เจ้าหน้าที่ออกหนังสือส่งตัวและจัดส่งให้บริษัทล่วงหน้าเรียบร้อยแล้ว`;
             formData.append("comment", msg);
+            formData.append("deliveryMethod", deliveryMethod);
             formData.append("placeDocNumber", docNo);
             formData.append("placeDocDate", placeDocDate);
             formData.append("file", signedFile);

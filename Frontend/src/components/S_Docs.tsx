@@ -2,6 +2,7 @@
 import DocTable from "./S_DocTable";
 import { createT000PDF, type T000FormData } from "../utils/pdfGeneratorT000";
 import PlacementLetterCard from "./PlacementLetterCard";
+import LetterDeliveryNotice from "./LetterDeliveryNotice";
 import { createParentalConsentPDF } from "../utils/pdfGeneratorParentalConsent";
 import StatusBadge from "../components/StatusBadge";
 import AutoTextarea from "./AutoTextarea";
@@ -41,6 +42,8 @@ export interface LocalStudentProfile {
     reqDocDate?: string;
     reqDocNumber?: string;
     reqLetterUrl?: string;
+    reqLetterDelivery?: "STUDENT" | "STAFF" | null;
+    placeLetterDelivery?: "STUDENT" | "STAFF" | null;
     t000Comment?: string;
     teacherCheckComment?: string;
   };
@@ -101,11 +104,16 @@ const DispatchManagementCard = ({ profile, onUpload, onRefresh }: { profile: any
   let adminMessagePhase1 = null;
   let adminMessagePhase2 = null;
 
-  if (['REQ_LETTER_ISSUED', 'WAITING_FOR_STAFF_CHECK_LETTER', 'WAITING_FOR_PLACEMENT_LETTER'].includes(currentStatus)) {
+  // วิธีจัดส่งหนังสือขอความอนุเคราะห์ที่เจ้าหน้าที่เลือก (ข้อความเดิมใน t000Comment ถูกทับตอนตรวจใบตอบรับ จึงเก็บแยก)
+  const reqDelivery: "STUDENT" | "STAFF" | null = profile.coop?.reqLetterDelivery ?? null;
+
+  // ข้อมูลเก่าที่ไม่มี reqLetterDelivery — ข้อความจัดส่งอยู่ใน comment
+  if (!reqDelivery && ['REQ_LETTER_ISSUED', 'WAITING_FOR_STAFF_CHECK_LETTER', 'WAITING_FOR_PLACEMENT_LETTER'].includes(currentStatus)) {
     adminMessagePhase1 = rawComment;
   }
 
-  if (['ACCEPTANCE_CHECKED', 'PLACEMENT_LETTER_ISSUED'].includes(currentStatus) || (currentStatus === 'EDITS_REQUIRED' && uploadedAcceptance)) {
+  // PLACEMENT_LETTER_ISSUED: comment เป็นเรื่องหนังสือส่งตัว — แสดงที่การ์ดหนังสือส่งตัว ไม่ใช่กล่องใบตอบรับ
+  if (currentStatus === 'ACCEPTANCE_CHECKED' || (currentStatus === 'EDITS_REQUIRED' && uploadedAcceptance)) {
     adminMessagePhase2 = rawComment;
   }
 
@@ -150,10 +158,14 @@ const DispatchManagementCard = ({ profile, onUpload, onRefresh }: { profile: any
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div>
               <h4 style={{ margin: '0 0 5px 0', color: '#4c1d95', fontSize: 16 }}>1. หนังสือขอความอนุเคราะห์</h4>
-              <p style={{ fontSize: 13, color: '#64748b', margin: 0 }}>ดาวน์โหลดเอกสารไปยื่นสถานประกอบการ</p>
+              <p style={{ fontSize: 13, color: '#64748b', margin: 0 }}>
+                {reqDelivery === 'STAFF' ? 'เจ้าหน้าที่ส่งให้บริษัทแล้ว ดาวน์โหลดเก็บไว้ได้' : 'ดาวน์โหลดเอกสารไปยื่นสถานประกอบการ'}
+              </p>
             </div>
             <div style={{ fontSize: 24 }}>📄</div>
           </div>
+
+          {reqDelivery && <LetterDeliveryNotice delivery={reqDelivery} letter="REQUEST" />}
 
           {adminMessagePhase1 && (
             <div style={{ marginTop: 12, padding: '10px', background: '#fffbeb', borderLeft: '4px solid #f59e0b', borderRadius: 4, fontSize: 13, color: '#b45309' }}>
@@ -170,7 +182,11 @@ const DispatchManagementCard = ({ profile, onUpload, onRefresh }: { profile: any
                   <button className="btn-secondary" onClick={() => handlePreview(dispatchUrl, "ตัวอย่างหนังสืออนุเคราะห์")} style={{ flex: 1, fontSize: 13, padding: '10px' }}>👁️ ดูตัวอย่าง</button>
                   <button className="btn-primary" onClick={handleDownloadAndAck} style={{ flex: 1, background: '#7c3aed', border: 'none' }}>⬇️ ดาวน์โหลด</button>
                 </div>
-                <div style={{ fontSize: 11, color: '#6b7280', marginTop: 10, textAlign: 'center' }}>* เมื่อกดดาวน์โหลด สถานะจะเปลี่ยนเป็น "รอใบตอบรับจากบริษัท" อัตโนมัติ</div>
+                <div style={{ fontSize: 11, color: '#6b7280', marginTop: 10, textAlign: 'center' }}>
+                  {reqDelivery === 'STAFF'
+                    ? '* ไม่ต้องดาวน์โหลดก็ได้ — เมื่อบริษัทตอบรับ อัปโหลดใบตอบรับในช่องที่ 2 ได้เลย'
+                    : '* เมื่อกดดาวน์โหลด สถานะจะเปลี่ยนเป็น "รอใบตอบรับจากบริษัท" อัตโนมัติ'}
+                </div>
               </div>
             ) : (<div style={{ color: '#ef4444', fontSize: 13, textAlign: 'center' }}>⚠️ ไม่พบไฟล์ (โปรดติดต่อเจ้าหน้าที่)</div>)}
           </div>
@@ -627,7 +643,10 @@ export default function S_Docs({ profile, setProfile }: { profile: LocalStudentP
 
         {/* STEP 5: หนังสือส่งตัว */}
         {(profile.docStatus === "PLACEMENT_LETTER_ISSUED" || profile.docStatus === "INTERNSHIP_STARTED") && (
-          <PlacementLetterCard placeLetterUrl={profile.coop?.placeLetterUrl} placeDocNumber={profile.coop?.placeDocNumber} placeDocDate={profile.coop?.placeDocDate} docStatus={profile.docStatus} onRefresh={refreshProfile} />
+          <PlacementLetterCard
+            delivery={(profile.coop as any)?.placeLetterDelivery ?? null}
+            staffNote={profile.docStatus === "PLACEMENT_LETTER_ISSUED" ? (profile.teacherComment || profile.coop?.t000Comment) : undefined}
+            placeLetterUrl={profile.coop?.placeLetterUrl} placeDocNumber={profile.coop?.placeDocNumber} placeDocDate={profile.coop?.placeDocDate} docStatus={profile.docStatus} onRefresh={refreshProfile} />
         )}
       </section>
 
