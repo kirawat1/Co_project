@@ -20,6 +20,35 @@ export function thaiPrefix(prefix?: string): string {
 }
 
 /**
+ * อาจารย์ผู้นิเทศในหนังสือขอนิเทศ: อาจารย์หลัก + อาจารย์นิเทศร่วม
+ * coTeacherName เก็บเป็นข้อความคั่นจุลภาค (มีคำนำหน้าแล้ว) เช่น "ผศ.ดร.ก ข, อ.ค ง"
+ */
+export function supervisionSupervisorNames(appt: any): string[] {
+  const names: string[] = [];
+  const t = appt?.teacher;
+  if (t?.firstName) names.push(`${thaiPrefix(t.prefix)}${t.firstName} ${t.lastName || ""}`.trim());
+  for (const n of String(appt?.coTeacherName || "").split(",").map(s => s.trim()).filter(Boolean)) {
+    if (!names.includes(n)) names.push(n);
+  }
+  return names;
+}
+
+/** "A", "A และ B", "A, B และ C" (ชื่อมีช่องว่างอยู่แล้ว คั่นด้วยจุลภาคให้แยกคนออก) */
+export function joinThaiNames(names: string[], fallback = "อาจารย์ผู้นิเทศ"): string {
+  if (names.length === 0) return fallback;
+  if (names.length === 1) return names[0];
+  return `${names.slice(0, -1).join(", ")} และ ${names[names.length - 1]}`;
+}
+
+/** เวลานิเทศจากวันที่ยืนยัน (มีเวลาอยู่ในตัว) → "13.30 น." ตามเวลาท้องถิ่น */
+export function supervisionTimeText(dateValue?: string | Date | null): string | undefined {
+  if (!dateValue) return undefined;
+  const d = new Date(dateValue);
+  if (isNaN(d.getTime())) return undefined;
+  return `${String(d.getHours()).padStart(2, "0")}.${String(d.getMinutes()).padStart(2, "0")} น.`;
+}
+
+/**
  * เลขที่หนังสือเก็บเป็นตัวเลขล้วน เช่น "660301.26.6.2/1234"
  * คำนำหน้า "ที่ อว" อยู่ในเทมเพลตหนังสือ — ตัดออกเผื่อข้อมูลเก่าหรือผู้ใช้พิมพ์ซ้ำมา
  * ไม่งั้นจะได้ "ที่ อว อว 660301..."
@@ -272,9 +301,7 @@ export function buildSupervisionLetterHtml(opts: {
   const recipient = companyRecipient || "เจ้าหน้าที่ฝ่ายทรัพยากรบุคคล";
   const timeStr = visitTime || "13.30 น.";
   const modeStr = visitMode || "ณ สถานประกอบการ";
-  const supervisorStr = supervisorNames.length > 1
-    ? supervisorNames.slice(0, -1).join(" และ") + " และ" + supervisorNames.slice(-1)[0]
-    : (supervisorNames[0] || "อาจารย์ผู้นิเทศ");
+  const supervisorStr = joinThaiNames(supervisorNames);
 
   return `
 <table style="width:100%;margin-bottom:4pt">

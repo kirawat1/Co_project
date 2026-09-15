@@ -557,7 +557,7 @@ export default function A_SupervisionManage() {
                                                 </button>
                                             )}
                                             {(sup.status === "LETTER_UPLOADED" || sup.status === "COMPLETED") && sup.officialLetterPath && (
-                                                <button className="btn-ghost" style={{ fontSize: 12, color: '#10b981', borderColor: '#10b981', padding: '6px 10px' }} onClick={() => setSelectedSupForModal(sup)}>
+                                                <button className="btn-ghost" style={{ fontSize: 12, color: '#10b981', borderColor: '#10b981', padding: '6px 10px' }} onClick={() => window.open(`/uploads/supervision/${encodeURIComponent(sup.officialLetterPath!)}`, '_blank', 'noopener')}>
                                                     👁️ ดูเอกสาร
                                                 </button>
                                             )}
