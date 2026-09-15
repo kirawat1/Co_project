@@ -1,7 +1,7 @@
 ﻿import React, { useState } from "react";
 import { apiFetch } from "../utils/apiFetch";
 import { createSupervisionLetterPDF } from "../utils/pdfSupervisionLetterGenerator";
-import { createWordBlob, createPreviewBlob, buildSupervisionLetterHtml, thaiPrefix } from "../utils/docGeneratorUtils";
+import { createWordBlob, createPreviewBlob, buildSupervisionLetterHtml, thaiPrefix, supervisionSupervisorNames, supervisionTimeText } from "../utils/docGeneratorUtils";
 import { FileReady, DeliveryPicker, CompanyAddressBox, MODAL_CSS } from "./LetterModalShared";
 import DateInput from './DateInput';
 
@@ -19,7 +19,6 @@ export default function IssueSupervisionLetterModal({ supervision, onClose, onSu
     const [signedFile, setSignedFile] = useState<File | null>(null);
 
     const student = supervision.student || {};
-    const teacher = supervision.teacher || supervision.coTeacher || {};
 
     const loadCommonData = async () => {
         const [resAssets, resDean] = await Promise.all([
@@ -37,15 +36,14 @@ export default function IssueSupervisionLetterModal({ supervision, onClose, onSu
     const getDocData = async () => {
         const { getAsset, deanName, deanPosition } = await loadCommonData();
         const studentName = `${thaiPrefix(student.prefix)}${student.firstName || ""} ${student.lastName || ""}`.trim();
-        const supervisorNames: string[] = [];
-        if (teacher.firstName) supervisorNames.push(`${thaiPrefix(teacher.prefix)}${teacher.firstName} ${teacher.lastName}`);
-        if (supervision.coTeacher?.firstName) supervisorNames.push(`อาจารย์${supervision.coTeacher.firstName} ${supervision.coTeacher.lastName}`);
-        if (supervisorNames.length === 0) supervisorNames.push("อาจารย์นิเทศ");
         return {
-            getAsset, deanName, deanPosition, studentName, supervisorNames,
+            getAsset, deanName, deanPosition, studentName,
+            // อาจารย์หลัก + อาจารย์นิเทศร่วม (เดิมอ่าน supervision.coTeacher ซึ่งไม่มีในข้อมูล อาจารย์ร่วมเลยไม่ขึ้น)
+            supervisorNames: supervisionSupervisorNames(supervision),
             companyName: student.coop?.company?.name || supervision.companyName || "....",
-            visitDate: supervision.proposedDate || supervision.confirmedDate || docDate,
-            visitTime: supervision.visitTime || "13.30 น.",
+            visitDate: supervision.confirmedDate || docDate,
+            // เวลาอยู่ใน confirmedDate (เดิมอ่าน supervision.visitTime ซึ่งไม่มี เลยขึ้น 13.30 น. ทุกฉบับ)
+            visitTime: supervisionTimeText(supervision.confirmedDate),
             visitMode: supervision.supervisionType === "ONLINE" ? "รูปแบบออนไลน์" : "ณ สถานประกอบการ",
         };
     };
@@ -96,10 +94,10 @@ export default function IssueSupervisionLetterModal({ supervision, onClose, onSu
                 method: 'POST',
                 body: formData,
             });
-            if (!res.ok) throw new Error('upload failed');
+            if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.message || `Server error ${res.status}`); }
             alert("✅ บันทึกและจัดเก็บไฟล์หนังสือนิเทศเรียบร้อยแล้ว");
             onSuccess();
-        } catch (err) { alert("เกิดข้อผิดพลาดในการอัปเดตข้อมูล"); }
+        } catch (err: any) { alert(`❌ เกิดข้อผิดพลาด: ${err.message || err}`); }
         finally { setLoadingPdf(false); }
     };
 

@@ -1,4 +1,5 @@
 import { jsPDF } from "jspdf";
+import { thaiPrefix, supervisionSupervisorNames, joinThaiNames } from "./docGeneratorUtils";
 
 // --- Helpers ---
 const getFontBase64 = async (url: string): Promise<string> => {
@@ -146,11 +147,12 @@ export const createSupervisionLetterPDF = async (
 
   // เตรียมตัวแปรข้อความ
   const student = appt.student || {};
-  const studentName = `${student.prefix || "นาย/นางสาว"}${student.firstName || ""} ${student.lastName || ""}`;
+  // prefix เก็บเป็น MR/MS ได้ — แปลงเป็นไทยก่อน ไม่งั้นขึ้น "MRสมชาย"
+  const studentName = `${thaiPrefix(student.prefix) || "นาย/นางสาว"}${student.firstName || ""} ${student.lastName || ""}`;
   const studentId = student.studentId || "...................";
 
-  const teacher = appt.teacher || {};
-  const teacherName = `${teacher.prefix || "อาจารย์"}${teacher.firstName || ""} ${teacher.lastName || ""}`;
+  // อาจารย์หลัก + อาจารย์นิเทศร่วม (coTeacherName)
+  const teacherName = joinThaiNames(supervisionSupervisorNames(appt));
 
   const isOnline = appt.supervisionType === "ONLINE";
   const supFormat = isOnline ? "ออนไลน์" : "ออนไซต์";

@@ -709,7 +709,7 @@ export default function T_SupervisionReview() {
                                                             <button className="btn" style={{ background: '#2563eb', color: 'white', padding: '6px 10px', fontSize: 12 }} onClick={() => setLetterSup(sup)}>📄 ออกหนังสือ</button>
                                                         )}
                                                         {(sup.status === "LETTER_UPLOADED" || sup.status === "COMPLETED") && sup.officialLetterPath && (
-                                                            <button className="btn-ghost" style={{ fontSize: 12, color: '#10b981', borderColor: '#10b981', padding: '6px 10px' }} onClick={() => setLetterSup(sup)}>👁️ ดูเอกสาร</button>
+                                                            <button className="btn-ghost" style={{ fontSize: 12, color: '#10b981', borderColor: '#10b981', padding: '6px 10px' }} onClick={() => window.open(`/uploads/supervision/${encodeURIComponent(sup.officialLetterPath!)}`, '_blank', 'noopener')}>👁️ ดูเอกสาร</button>
                                                         )}
                                                         {sup.status === "LETTER_UPLOADED" && (
                                                             <button className="btn" style={{ background: '#7c3aed', color: 'white', padding: '6px 10px', fontSize: 12 }} onClick={() => handleAllComplete(sup)}>🏁 จบนิเทศ</button>
