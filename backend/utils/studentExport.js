@@ -39,8 +39,8 @@ const COLUMNS = [
   ['เบอร์โทร', 13],
   ['รอบสหกิจ', 10],
   ['สถานะสหกิจ', 26],
-  ['บริษัท', 32],
-  ['จังหวัด', 14],
+  ['บริษัทที่ไปฝึกงาน', 32],
+  ['ที่อยู่บริษัท', 50],
   ['พี่เลี้ยง', 32],
   ['วันเริ่มฝึกงาน', 14],
   ['วันสิ้นสุดฝึกงาน', 14],
@@ -80,6 +80,37 @@ function thaiDateTime(value) {
   return `${date} ${time} น.`;
 }
 
+// ช่องที่ผู้กรอกใส่ "-" / "ไม่มี" แทนการเว้นว่าง
+function addressPart(value) {
+  const text = String(value || '').trim();
+  return /^([-–—.\s]*|ไม่มี)$/.test(text) ? '' : text;
+}
+
+// เติมคำนำหน้า (ถนน/ตำบล/...) เฉพาะเมื่อผู้กรอกยังไม่ได้พิมพ์มาเอง
+function withPrefix(value, prefix, existing) {
+  const text = addressPart(value);
+  if (!text) return '';
+  return existing.test(text) ? text : `${prefix}${text}`;
+}
+
+// ที่อยู่บริษัทเต็มจากช่องแยก · กรุงเทพฯ ใช้แขวง/เขต · ไม่มีช่องแยกใช้ address (ข้อความเดิม)
+function companyAddress(company) {
+  if (!company) return '-';
+  const bangkok = /กรุงเทพ|bangkok/i.test(company.province || '');
+  const parts = [
+    addressPart(company.addressNo),
+    withPrefix(company.moo, 'หมู่ ', /^(หมู่|ม\.)/),
+    withPrefix(company.soi, 'ซอย', /^(ซอย|ซ\.)/),
+    withPrefix(company.road, 'ถนน', /^(ถนน|ถ\.)/),
+    withPrefix(company.subDistrict, bangkok ? 'แขวง' : 'ตำบล', /^(ตำบล|ต\.|แขวง)/),
+    withPrefix(company.district, bangkok ? 'เขต' : 'อำเภอ', /^(อำเภอ|อ\.|เขต)/),
+    bangkok ? addressPart(company.province) : withPrefix(company.province, 'จังหวัด', /^(จังหวัด|จ\.)/),
+    addressPart(company.zipcode),
+  ].filter(Boolean);
+  if (parts.length > 0) return parts.join(' ');
+  return dash(String(company.address || '').replace(/\s+/g, ' '));
+}
+
 function mentorsText(mentors) {
   if (!Array.isArray(mentors) || mentors.length === 0) return '-';
   return mentors
@@ -105,8 +136,8 @@ function studentToExportRow(student, criteria) {
     'เบอร์โทร': dash(student.phone),
     'รอบสหกิจ': period ? `${period.semester}/${period.academicYear}` : '-',
     'สถานะสหกิจ': getStatusLabelTh(coop?.status),
-    'บริษัท': dash(coop?.company?.name),
-    'จังหวัด': dash(coop?.company?.province),
+    'บริษัทที่ไปฝึกงาน': dash(coop?.company?.name),
+    'ที่อยู่บริษัท': companyAddress(coop?.company),
     'พี่เลี้ยง': mentorsText(coop?.mentors),
     'วันเริ่มฝึกงาน': thaiDate(coop?.actualStartDate),
     'วันสิ้นสุดฝึกงาน': thaiDate(coop?.actualEndDate),

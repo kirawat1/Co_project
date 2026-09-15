@@ -41,7 +41,11 @@ describe('buildStudentExportWorkbook', () => {
       user: { email: 'somchai@kkumail.com' },
       coop: {
         status: 'INTERNSHIP_STARTED',
-        company: { name: 'บริษัท ทดสอบ จำกัด', province: 'ขอนแก่น' },
+        company: {
+          name: 'บริษัท ทดสอบ จำกัด', addressNo: '123/4', moo: '5', soi: 'สุขใจ', road: 'มิตรภาพ',
+          subDistrict: 'ในเมือง', district: 'เมืองขอนแก่น', province: 'ขอนแก่น', zipcode: '40000',
+          address: 'ข้อความเก่า ไม่ควรใช้เมื่อมีช่องแยก',
+        },
         coopPeriod: { semester: 1, academicYear: '2569' },
         actualStartDate: new Date('2026-11-01T00:00:00+07:00'),
         actualEndDate: new Date('2027-02-28T00:00:00+07:00'),
@@ -74,8 +78,8 @@ describe('buildStudentExportWorkbook', () => {
       'เบอร์โทร': '0812345678',
       'รอบสหกิจ': '1/2569',
       'สถานะสหกิจ': 'ออกฝึกสหกิจ',
-      'บริษัท': 'บริษัท ทดสอบ จำกัด',
-      'จังหวัด': 'ขอนแก่น',
+      'บริษัทที่ไปฝึกงาน': 'บริษัท ทดสอบ จำกัด',
+      'ที่อยู่บริษัท': '123/4 หมู่ 5 ซอยสุขใจ ถนนมิตรภาพ ตำบลในเมือง อำเภอเมืองขอนแก่น จังหวัดขอนแก่น 40000',
       'พี่เลี้ยง': 'พี่เลี้ยง หนึ่ง (0899999999), พี่เลี้ยง สอง',
       'วันเริ่มฝึกงาน': '1 พ.ย. 2569',
       'วันสิ้นสุดฝึกงาน': '28 ก.พ. 2570',
@@ -116,8 +120,8 @@ describe('buildStudentExportWorkbook', () => {
       'เบอร์โทร': '-',
       'รอบสหกิจ': '-',
       'สถานะสหกิจ': 'ยังไม่ยื่นสหกิจ',
-      'บริษัท': '-',
-      'จังหวัด': '-',
+      'บริษัทที่ไปฝึกงาน': '-',
+      'ที่อยู่บริษัท': '-',
       'พี่เลี้ยง': '-',
       'วันเริ่มฝึกงาน': '-',
       'วันสิ้นสุดฝึกงาน': '-',
@@ -141,6 +145,8 @@ describe('buildStudentExportWorkbook', () => {
     }], { criteria }));
 
     expect(rows[0]).toMatchObject({
+      'บริษัทที่ไปฝึกงาน': '-',
+      'ที่อยู่บริษัท': '-',
       'สาขา': 'AI',
       'ระบบการศึกษา': 'ภาคปกติ',
       'อีเมล': 'student@kku.ac.th',
@@ -149,5 +155,18 @@ describe('buildStudentExportWorkbook', () => {
       'รูปแบบนิเทศ': 'ออนไลน์',
       'สถานะนิเทศ': 'รออาจารย์เลือกวันนิเทศ',
     });
+  });
+
+  test.each([
+    [{ name: 'A', addressNo: '99', road: 'พระราม 9', subDistrict: 'ห้วยขวาง', district: 'ห้วยขวาง', province: 'กรุงเทพมหานคร', zipcode: '10310' },
+      '99 ถนนพระราม 9 แขวงห้วยขวาง เขตห้วยขวาง กรุงเทพมหานคร 10310'],
+    [{ name: 'B', address: '  88 ถนนศรีจันทร์ ขอนแก่น  ' }, '88 ถนนศรีจันทร์ ขอนแก่น'],
+    [{ name: 'C', soi: 'ซอยรุ่งเรือง', road: 'ถนนหน้าเมือง', subDistrict: 'ต.ในเมือง', province: 'จ.ขอนแก่น' },
+      'ซอยรุ่งเรือง ถนนหน้าเมือง ต.ในเมือง จ.ขอนแก่น'],
+    [{ name: 'D', addressNo: '11', moo: '-', soi: '-', road: ' – ', subDistrict: 'ในเมือง', district: 'เมือง', province: 'ขอนแก่น', zipcode: 'ไม่มี' },
+      '11 ตำบลในเมือง อำเภอเมือง จังหวัดขอนแก่น'],
+  ])('ที่อยู่บริษัท: กรุงเทพฯ ใช้แขวง/เขต · ไม่มีช่องแยกใช้ address เดิม · ไม่เติมคำนำหน้าซ้ำ (%#)', (company, expected) => {
+    const rows = sheetToRows(buildStudentExportWorkbook([{ studentId: '1', firstName: 'ก', lastName: 'ข', coop: { status: 'INTERNSHIP_STARTED', company } }]));
+    expect(rows[0]['ที่อยู่บริษัท']).toBe(expected);
   });
 });
