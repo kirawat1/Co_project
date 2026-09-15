@@ -288,7 +288,20 @@ describe('reviewStudentStatus', () => {
 
       expect(prisma.studentCoop.upsert.mock.calls[0][0].update[deliveryField]).toBe(method);
       expect(notifiedMessage()).toMatch(messagePattern);
-      expect(prisma.notification.createMany.mock.calls[0][0].data[0].link).toBe('/student/docs');
+      // ขึ้นป้ายที่เมนู "เอกสารสหกิจ" ของนักศึกษา (ไม่ใช่ Dashboard)
+      expect(prisma.notification.createMany.mock.calls[0][0].data[0]).toMatchObject({ link: '/student/docs', type: 'DOCS_UPDATED' });
+    });
+
+    test.each([
+      ['QUALIFIED', 'APPLYING', 'STATUS_UPDATED', '/student/dashboard'],
+      ['DOCS_APPROVED', 'WAITING_FOR_STAFF_CHECK', 'DOCS_UPDATED', '/student/docs'],
+      ['EDITS_REQUIRED', 'WAITING_FOR_STAFF_CHECK', 'DOCS_UPDATED', '/student/docs'],
+    ])('แจ้งเตือน %s → ชนิด %s (ป้ายเมนูที่ต้องไปทำ)', async (status, current, type, link) => {
+      prisma.studentCoop.findUnique.mockResolvedValue({ status: current, reqLetterUrl: null, placeLetterUrl: null });
+      const res = makeRes();
+      await reviewStudentStatus({ body: { studentId: '1', status, comment: 'x' }, file: null }, res);
+      await flush(); await flush();
+      expect(prisma.notification.createMany.mock.calls[0][0].data[0]).toMatchObject({ type, link });
     });
 
     // เจ้าหน้าที่ส่งหนังสือส่งตัวให้บริษัทเอง → นักศึกษาไม่ต้องกดดาวน์โหลด สถานะเป็น "ออกฝึกสหกิจ" ทันที (ส่ง T002/นัดนิเทศได้)
@@ -527,6 +540,9 @@ describe('markAcceptanceReceived', () => {
     expect(data.t000Comment).toMatch(/ได้รับใบตอบรับจากบริษัท/);
     expect(data.acceptanceFileUrl).toBeUndefined();
     expect(prisma.document.create).not.toHaveBeenCalled();
+    prisma.notification.findMany.mockResolvedValue([]);
+    await new Promise((r) => setImmediate(r)); await new Promise((r) => setImmediate(r));
+    expect(prisma.notification.createMany.mock.calls[0]?.[0]?.data?.[0]).toMatchObject({ type: 'DOCS_UPDATED', link: '/student/docs' });
   });
 
   test('200 — แนบไฟล์ → เก็บเป็นเอกสารใบตอบรับของนักศึกษา (ผ่านแล้ว) + หมายเหตุจากเจ้าหน้าที่', async () => {

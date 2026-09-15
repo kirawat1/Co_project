@@ -37,8 +37,9 @@ export default function S_Sidebar({ profile, isOpen = false, onClose = () => {} 
   const handleNav = () => onClose();
   // ดึงข้อมูลคำร้องสหกิจ
   const coop = profile.coopRequest || profile.coop;
-  const { counts, markAllRead } = useNotifCounts();
-  const navAndRead = () => { handleNav(); markAllRead(); };
+  const { markRead, sum } = useNotifCounts();
+  // ป้ายแจ้งเตือนของเมนู = ชนิดที่ต้องไปทำที่หน้านั้น · กดแล้วอ่านเฉพาะชนิดของเมนูนั้น
+  const badge = (types: string[]) => ({ count: sum(types), onClick: () => { handleNav(); markRead(types); } });
 
   // ✅ แก้ไขเงื่อนไข: เปิดเมนูเมื่อสถานะเป็น "QUALIFIED" (หรือขั้นตอนถัดๆ ไป)
   // เราต้องรวมสถานะหลังจาก QUALIFIED ด้วย ไม่อย่างนั้นพอไปขั้นตอนถัดไปเมนูจะหาย
@@ -75,8 +76,7 @@ export default function S_Sidebar({ profile, isOpen = false, onClose = () => {} 
       {/* NAVIGATION */}
       <nav className="nav" aria-label="Student Navigation">
 
-        <NavItem to="/student/dashboard" label="Dashboard" icon={<IcDashboard />} end onClick={navAndRead}
-          count={(counts.STATUS_UPDATED ?? 0) + (counts.REQ_LETTER_ISSUED ?? 0) + (counts.PLACEMENT_LETTER_ISSUED ?? 0)} />
+        <NavItem to="/student/dashboard" label="Dashboard" icon={<IcDashboard />} end {...badge(["STATUS_UPDATED"])} />
 
         <NavItem to="/student/profile" label="ข้อมูลนักศึกษา" icon={<IcUser />} onClick={handleNav} />
         <NavItem to="/student/company" label="ข้อมูลบริษัท" icon={<IcUser />} onClick={handleNav} />
@@ -92,17 +92,18 @@ export default function S_Sidebar({ profile, isOpen = false, onClose = () => {} 
           <>
             <div className="sec-label">COOP PROCESS</div>
 
-            <NavItem to="/student/docs" label="เอกสารสหกิจ (CP-T000)" icon={<IcClipboard />} onClick={handleNav} />
+            {/* ผลตรวจ T000 / หนังสือขอความอนุเคราะห์ / ใบตอบรับ / หนังสือส่งตัว (REQ/PLACEMENT_LETTER_ISSUED = ชนิดเก่า) */}
+            <NavItem to="/student/docs" label="เอกสารสหกิจ (CP-T000)" icon={<IcClipboard />}
+              {...badge(["DOCS_UPDATED", "REQ_LETTER_ISSUED", "PLACEMENT_LETTER_ISSUED"])} />
 
             <NavItem to="/student/docs-t002" label="T002 รายละเอียดงาน" icon={<IcList />}
-              count={counts.T002_REVIEWED ?? 0} onClick={navAndRead} />
+              {...badge(["T002_REVIEWED"])} />
 
             <NavItem to="/student/docs-t003" label="T003 โครงร่างรายงาน" icon={<IcRoute />}
-              count={counts.T003_REVIEWED ?? 0} onClick={navAndRead} />
+              {...badge(["T003_REVIEWED"])} />
 
             <NavItem to="/student/supervision" label="นัดหมายนิเทศ" icon={<IcCalendar />}
-              count={(counts.SUPERVISION_DATE_UPDATED ?? 0) + (counts.SUPERVISION_LETTER_UPLOADED ?? 0)}
-              onClick={navAndRead} />
+              {...badge(["SUPERVISION_DATE_UPDATED", "SUPERVISION_LETTER_UPLOADED", "SUPERVISION_COMPLETED"])} />
 
             <NavLink
               to="/student/doc-t005-006"

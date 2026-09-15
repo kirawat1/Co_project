@@ -46,8 +46,9 @@ function NavItem({ to, label, icon, count, onClick }: {
 
 export default function A_Sidebar({ isOpen = false, onClose = () => {} }: SidebarProps) {
   const nav = () => onClose();
-  const { counts, markAllRead } = useNotifCounts();
-  const navAndRead = () => { onClose(); markAllRead(); };
+  const { markRead, sum } = useNotifCounts();
+  // ป้ายแจ้งเตือนของเมนู = ชนิดที่ต้องไปทำที่หน้านั้น · กดแล้วอ่านเฉพาะชนิดของเมนูนั้น
+  const badge = (types: string[]) => ({ count: sum(types), onClick: () => { onClose(); markRead(types); } });
   return (
     <aside className={`sidebar${isOpen ? " open" : ""}`}>
       {/* BRAND BLOCK */}
@@ -70,9 +71,7 @@ export default function A_Sidebar({ isOpen = false, onClose = () => {} }: Sideba
 
         <div className="sec-label">ข้อมูลบุคคล</div>
 
-        <NavItem to="/admin/students" label="นักศึกษา" icon={<IcUsers />}
-          count={(counts.COOP_APPLICATION_SUBMITTED ?? 0) + (counts.ACCEPTANCE_UPLOADED ?? 0)}
-          onClick={navAndRead} />
+        <NavItem to="/admin/students" label="นักศึกษา" icon={<IcUsers />} onClick={nav} />
         <NavItem to="/admin/teachers" label="อาจารย์" icon={<IcTeacher />} onClick={nav} />
         <NavItem to="/admin/mentors" label="พี่เลี้ยง" icon={<IcUser />} onClick={nav} />
 
@@ -83,16 +82,16 @@ export default function A_Sidebar({ isOpen = false, onClose = () => {} }: Sideba
         <div className="sec-label">เอกสารและบันทึก</div>
 
         <NavItem to="/admin/coop-applications" label="ตรวจสอบคำร้องสหกิจ" icon={<IcInbox />}
-          count={(counts.COOP_APPLICATION_SUBMITTED ?? 0) + (counts.ACCEPTANCE_UPLOADED ?? 0)}
-          onClick={navAndRead} />
+          {...badge(["COOP_APPLICATION_SUBMITTED"])} />
+        {/* ใบตอบรับที่นักศึกษาอัปโหลดตรวจที่หน้า T000 (ตรวจสอบใบตอบรับ) */}
         <NavItem to="/admin/doct000" label="T000 เอกสารใบสมัคร" icon={<IcClipboard />}
-          count={counts.T000_SUBMITTED ?? 0} onClick={navAndRead} />
+          {...badge(["T000_SUBMITTED", "ACCEPTANCE_UPLOADED"])} />
         <NavItem to="/admin/doct002" label="T002 เอกสารรายละเอียด" icon={<IcList />}
-          count={counts.T002_SUBMITTED ?? 0} onClick={navAndRead} />
+          {...badge(["T002_SUBMITTED"])} />
         <NavItem to="/admin/doct003" label="T003 โครงร่างรายงาน" icon={<IcRoute />}
-          count={counts.T003_SUBMITTED ?? 0} onClick={navAndRead} />
+          {...badge(["T003_SUBMITTED"])} />
         <NavItem to="/admin/supervision-manager" label="จัดการการนิเทศ" icon={<IcCalendar />}
-          count={counts.SUPERVISION_PROPOSED ?? 0} onClick={navAndRead} />
+          {...badge(["SUPERVISION_PROPOSED"])} />
 
         <NavLink
           to="/admin/doc-t005-006"
