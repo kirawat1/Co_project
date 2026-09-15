@@ -5,30 +5,31 @@ import { apiFetch } from "../utils/apiFetch";
 import { fmtDate, fmtDateTime } from "../utils/dateFormat";
 
 // ================= รอลงนาม =================
-// ดาวน์โหลดร่างหนังสือไปเสนอลงนาม → ป้าย "รอลงนาม" บน doct000 (เห็นเฉพาะเจ้าหน้าที่ สถานะหลักนักศึกษาไม่เปลี่ยน)
+// ดาวน์โหลดร่างหนังสือไปเสนอลงนาม → ป้าย "รอลงนาม" (เห็นเฉพาะเจ้าหน้าที่/อาจารย์ สถานะหลักไม่เปลี่ยน)
 // จำเลขที่/วันที่ของร่างไว้ ตอนกลับมาอัปโหลดฉบับลงนามจะเติมให้ตรงกับที่ส่งไปเซ็น
-export type LetterKind = "REQUEST" | "PLACEMENT";
-const PENDING_PREFIX: Record<LetterKind, "reqLetter" | "placeLetter"> = { REQUEST: "reqLetter", PLACEMENT: "placeLetter" };
 
 // ร่างที่สร้างแล้ว + เลขที่/วันที่ตอนกดสร้าง (แก้ช่องเลขที่ทีหลังไม่ทำให้ร่างเดิมเปลี่ยน)
 export type LetterDraft = { blob: Blob; docNumber: string; docDate: string };
 
-export function letterPendingInfo(coop: any, letter: LetterKind) {
-    const p = PENDING_PREFIX[letter];
+// record = แถวที่เก็บป้าย · prefix = ชื่อช่อง <prefix>PendingAt/DraftNumber/DraftDate
+//   หนังสือขอความอนุเคราะห์: student.coop + "reqLetter" · หนังสือส่งตัว: student.coop + "placeLetter" · หนังสือขอนิเทศ: supervision + "letter"
+export type LetterPendingTarget = { record: any; prefix: string; endpoint: string; body?: object };
+
+export function letterPendingInfo(record: any, prefix: string) {
     return {
-        pendingAt: (coop?.[`${p}PendingAt`] as string | null) || null,
-        draftNumber: (coop?.[`${p}DraftNumber`] as string | null) || null,
-        draftDate: coop?.[`${p}DraftDate`] ? String(coop[`${p}DraftDate`]).slice(0, 10) : null,
+        pendingAt: (record?.[`${prefix}PendingAt`] as string | null) || null,
+        draftNumber: (record?.[`${prefix}DraftNumber`] as string | null) || null,
+        draftDate: record?.[`${prefix}DraftDate`] ? String(record[`${prefix}DraftDate`]).slice(0, 10) : null,
     };
 }
 
-export function useLetterPending(student: any, letter: LetterKind) {
-    const [info, setInfo] = useState(() => letterPendingInfo(student.coop, letter));
+export function useLetterPending({ record, prefix, endpoint, body: baseBody }: LetterPendingTarget) {
+    const [info, setInfo] = useState(() => letterPendingInfo(record, prefix));
 
-    const request = (body: object) => apiFetch("/api/admin/t000/letter-pending", {
+    const request = (body: object) => apiFetch(endpoint, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ studentId: student.id, letter, ...body }),
+        body: JSON.stringify({ ...baseBody, ...body }),
     });
 
     // คืน false = ไม่ควรดาวน์โหลด (เลขที่ซ้ำ) · ถ้าบันทึกป้ายไม่สำเร็จด้วยเหตุอื่นยังให้ดาวน์โหลดได้
@@ -68,6 +69,16 @@ export function LetterPendingBanner({ pendingAt, draftNumber, draftDate, onCance
                 <span style={{ opacity: .8 }}>ได้ฉบับลงนามแล้ว แนบไฟล์ในข้อ 3</span>
                 <button type="button" onClick={onCancel} style={{ fontSize: 11, color: '#b45309', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline', whiteSpace: 'nowrap' }}>ยกเลิกรอลงนาม</button>
             </div>
+        </div>
+    );
+}
+
+// ป้ายในตารางรายชื่อ เช่น "✍️ รอลงนามหนังสือส่งตัว · 14 ก.ย. 2569" (ชี้ดูเลขที่ร่าง)
+export function PendingSignBadge({ label, at, draftNumber }: { label: string; at: string; draftNumber?: string | null }) {
+    return (
+        <div title={draftNumber ? `เลขที่ร่าง ${draftNumber}` : 'ร่างยังไม่ได้กรอกเลขที่'}
+            style={{ fontSize: 11, color: '#92400e', background: '#fef3c7', border: '1px solid #f59e0b', borderRadius: 6, padding: '2px 8px', marginTop: 4, whiteSpace: 'nowrap', width: 'fit-content' }}>
+            ✍️ {label} · {fmtDate(at)}
         </div>
     );
 }

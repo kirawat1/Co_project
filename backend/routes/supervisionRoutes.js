@@ -29,6 +29,7 @@ router.post('/admin/supervision-periods', verifyToken, verifyCoopTeacherOrStaff,
 router.get('/admin/supervisions', verifyToken, verifyCoopTeacherOrStaff, supervisionController.getAllSupervisions);
 router.put('/admin/supervisions/:id/confirmed-date', verifyToken, verifyCoopTeacherOrStaff, supervisionController.updateConfirmedDate);
 router.post('/admin/supervisions/:id/upload-letter', verifyToken, verifyCoopTeacherOrStaff, upload.single('file'), supervisionController.uploadOfficialLetter);
+router.put('/admin/supervisions/:id/letter-pending', verifyToken, verifyCoopTeacherOrStaff, supervisionController.markSupervisionLetterPending);
 router.put('/admin/supervisions/:id/complete', verifyToken, verifyCoopTeacherOrStaff, supervisionController.completeSupervision);
 
 

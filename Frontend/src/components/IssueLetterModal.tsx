@@ -12,7 +12,7 @@ interface Props {
 }
 
 export default function IssueLetterModal({ student, onClose, onSuccess }: Props) {
-    const pending = useLetterPending(student, "REQUEST");
+    const pending = useLetterPending({ record: student.coop, prefix: "reqLetter", endpoint: "/api/admin/t000/letter-pending", body: { studentId: student.id, letter: "REQUEST" } });
     // เก็บเฉพาะตัวเลข — คำนำหน้า "ที่ อว" ถูกเติมในเทมเพลตหนังสือแล้ว · มีร่างที่รอลงนามอยู่ → เติมเลขที่/วันที่ของร่างนั้น
     const [docNumber, setDocNumber] = useState(pending.draftNumber || "660301.26.6.2/");
     const [docDate, setDocDate] = useState(pending.draftDate || new Date().toISOString().split('T')[0]);

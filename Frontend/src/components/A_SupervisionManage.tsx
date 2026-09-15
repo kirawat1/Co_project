@@ -3,6 +3,7 @@ import type { CSSProperties } from "react";
 import axios from "axios";
 import { fmtDate, fmtDateTime } from '../utils/dateFormat';
 import IssueSupervisionLetterModal from "./IssueSupervisionLetterModal";
+import { PendingSignBadge } from "./LetterModalShared";
 import StatusBadge from "./StatusBadge";
 import SupervisionCalendar from "./SupervisionCalendar";
 import type { CalendarEvent } from "./SupervisionCalendar";
@@ -58,6 +59,9 @@ interface Supervision {
     coTeacherName?: string | null;
     status: SupervisionStatus;
     officialLetterPath: string | null;
+    // ป้าย "รอลงนาม" — ตั้งตอนดาวน์โหลดร่างหนังสือขอนิเทศ ล้างตอนอัปโหลดฉบับลงนาม
+    letterPendingAt?: string | null;
+    letterDraftNumber?: string | null;
     onlineLink?: string | null;
     student: {
         studentId: string;
@@ -109,6 +113,8 @@ export default function A_SupervisionManage() {
     const [q, setQ] = useState("");
     const [filterPeriodId, setFilterPeriodId] = useState<string>("all");
     const [filterCompany, setFilterCompany] = useState<string>("all");
+    // หนังสือขอนิเทศ: TO_ISSUE = ยืนยันวันแล้วยังไม่ได้โหลดร่าง · PENDING_SIGN = โหลดร่างไปรอลงนามแล้ว
+    const [filterLetter, setFilterLetter] = useState<"all" | "TO_ISSUE" | "PENDING_SIGN">("all");
 
     // State สำหรับการเรียงลำดับ (Sorting)
     const [sortKey, setSortKey] = useState<SortKey>('student');
@@ -213,7 +219,11 @@ export default function A_SupervisionManage() {
 
             const matchesCompany = filterCompany === "all" || sup.student.coop?.company?.name === filterCompany;
 
-            return matchesQ && matchesPeriod && matchesCompany;
+            const matchesLetter = filterLetter === "all"
+                || (filterLetter === "PENDING_SIGN" && !!sup.letterPendingAt)
+                || (filterLetter === "TO_ISSUE" && sup.status === "DATE_CONFIRMED" && !sup.letterPendingAt);
+
+            return matchesQ && matchesPeriod && matchesCompany && matchesLetter;
         });
 
         // 2. Sort
@@ -240,10 +250,18 @@ export default function A_SupervisionManage() {
         });
 
         return filtered;
-    }, [supervisions, q, filterPeriodId, filterCompany, sortKey, sortDirection]);
+    }, [supervisions, q, filterPeriodId, filterCompany, filterLetter, sortKey, sortDirection]);
 
     // แสดงทีละ 30 รายการ เลื่อนถึงท้ายตารางแล้วแสดงเพิ่ม แทนโหลดทั้งหมดในตารางเดียว
-    const { shown: shownSupervisions, hasMore, sentinelRef, showMore, total } = useLoadMore(processedSupervisions, `${q}|${filterPeriodId}|${filterCompany}`);
+    const { shown: shownSupervisions, hasMore, sentinelRef, showMore, total } = useLoadMore(processedSupervisions, `${q}|${filterPeriodId}|${filterCompany}|${filterLetter}`);
+
+    // ปิดหน้าต่างออกหนังสือ → รีเฟรชเฉพาะรายการนิเทศ (ป้าย "รอลงนาม" เปลี่ยนตอนโหลดร่าง/ยกเลิก) ไม่ทับค่าตั้งค่าช่วงนิเทศที่อาจกำลังแก้
+    const refreshSupervisions = async () => {
+        try {
+            const supRes = await axios.get("/api/admin/supervisions", { headers: { Authorization: `Bearer ${token}` } });
+            if (supRes.data?.supervisions) setSupervisions(supRes.data.supervisions);
+        } catch (err) { console.error(err); }
+    };
 
     // ─── handleEditDate ─────────────────────────────────────────
     const openEditDateModal = (sup: Supervision) => {
@@ -462,6 +480,11 @@ export default function A_SupervisionManage() {
                         <option value="all">🏢 ทุกบริษัท</option>
                         {companyList.map(c => <option key={c} value={c}>{c}</option>)}
                     </select>
+                    <select className="input" style={{ width: 'auto' }} value={filterLetter} onChange={e => setFilterLetter(e.target.value as typeof filterLetter)}>
+                        <option value="all">📄 หนังสือขอนิเทศ: ทั้งหมด</option>
+                        <option value="TO_ISSUE">📄 รอออกหนังสือ</option>
+                        <option value="PENDING_SIGN">✍️ รอลงนาม</option>
+                    </select>
                 </div>
 
                 <div style={{ overflowX: 'auto' }}>
@@ -533,6 +556,7 @@ export default function A_SupervisionManage() {
                                     </td>
                                     <td style={td} data-label="สถานะ">
                                         <StatusBadge status={sup.status} />
+                                        {sup.letterPendingAt && <PendingSignBadge label="รอลงนามหนังสือขอนิเทศ" at={sup.letterPendingAt} draftNumber={sup.letterDraftNumber} />}
                                     </td>
                                     <td style={{ ...td, textAlign: 'center' }}>
                                         <div style={{ display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap' }}>
@@ -552,8 +576,8 @@ export default function A_SupervisionManage() {
                                                 </button>
                                             )}
                                             {sup.status === "DATE_CONFIRMED" && (
-                                                <button className="btn" style={{ background: '#2563eb', color: 'white', padding: '6px 10px', fontSize: 12 }} onClick={() => setSelectedSupForModal(sup)}>
-                                                    📄 ออกหนังสือ
+                                                <button className="btn" style={{ background: sup.letterPendingAt ? '#d97706' : '#2563eb', color: 'white', padding: '6px 10px', fontSize: 12 }} onClick={() => setSelectedSupForModal(sup)}>
+                                                    {sup.letterPendingAt ? '✍️ อัปโหลดฉบับลงนาม' : '📄 ออกหนังสือ'}
                                                 </button>
                                             )}
                                             {(sup.status === "LETTER_UPLOADED" || sup.status === "COMPLETED") && sup.officialLetterPath && (
@@ -643,7 +667,7 @@ export default function A_SupervisionManage() {
             {selectedSupForModal && !assignTeacherModalOpen && (
                 <IssueSupervisionLetterModal
                     supervision={selectedSupForModal}
-                    onClose={() => setSelectedSupForModal(null)}
+                    onClose={() => { setSelectedSupForModal(null); refreshSupervisions(); }}
                     onSuccess={() => {
                         setSelectedSupForModal(null);
                         fetchData();

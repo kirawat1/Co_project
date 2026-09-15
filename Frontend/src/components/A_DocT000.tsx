@@ -4,6 +4,7 @@ import { fmtDate } from '../utils/dateFormat';
 import StatusBadge from "../components/StatusBadge";
 import IssueLetterModal from "./IssueLetterModal";
 import IssuePlacementLetterModal from "./IssuePlacementLetterModal";
+import { PendingSignBadge } from "./LetterModalShared";
 import AutoTextarea from "./AutoTextarea";
 import DateInput from './DateInput';
 import LoadMoreFooter from "./LoadMoreFooter";
@@ -48,15 +49,6 @@ const PENDING_SIGN_FILTERS: Record<string, (s: StudentProfile) => boolean> = {
     PENDING_SIGN_REQ: s => !!s.coop?.reqLetterPendingAt,
     PENDING_SIGN_PLACE: s => !!s.coop?.placeLetterPendingAt,
 };
-
-function PendingSignBadge({ label, at, draftNumber }: { label: string; at: string; draftNumber?: string | null }) {
-    return (
-        <div title={draftNumber ? `เลขที่ร่าง ${draftNumber}` : 'ร่างยังไม่ได้กรอกเลขที่'}
-            style={{ fontSize: 11, color: '#92400e', background: '#fef3c7', border: '1px solid #f59e0b', borderRadius: 6, padding: '2px 8px', marginTop: 4, whiteSpace: 'nowrap', width: 'fit-content' }}>
-            ✍️ {label} · {fmtDate(at)}
-        </div>
-    );
-}
 
 // เทียบเฉพาะ "ที่ปรึกษาทั่วไป" (advisorName ที่มาจากไฟล์นำเข้า Excel หรือซิงก์จากทะเบียน มข. เทียบกับ generalAdvisorId
 // ที่ผูกไว้จริงในระบบ) — ไม่เกี่ยวกับ "อาจารย์ที่ปรึกษาโครงงานสหกิจ" (coopAdvisorId) ซึ่งเป็นคนละคนกันได้
