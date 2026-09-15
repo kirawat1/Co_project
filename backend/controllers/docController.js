@@ -243,7 +243,11 @@ exports.uploadDocument = async (req, res) => {
 
             if (dbType === 'CP-ACCEPTANCE') {
                 const coop = await tx.studentCoop.findUnique({ where: { studentId: student.id } });
-                const CP_VALID = ['REQ_LETTER_ISSUED', 'WAITING_FOR_PLACEMENT_LETTER', 'WAITING_FOR_STAFF_CHECK_LETTER', 'ACCEPTANCE_CHECKED', 'PLACEMENT_LETTER_ISSUED'];
+                // ส่ง/เปลี่ยนใบตอบรับได้จนถึงก่อนออกหนังสือส่งตัว — หลังจากนั้นเปลี่ยนไฟล์แล้วสถานะจะถอยกลับไปรอตรวจ
+                const CP_VALID = ['REQ_LETTER_ISSUED', 'WAITING_FOR_PLACEMENT_LETTER', 'WAITING_FOR_STAFF_CHECK_LETTER', 'ACCEPTANCE_CHECKED'];
+                if (coop && ['PLACEMENT_LETTER_ISSUED', 'INTERNSHIP_STARTED'].includes(coop.status)) {
+                    throw Object.assign(new Error('ออกหนังสือส่งตัวแล้ว เปลี่ยนใบตอบรับไม่ได้ — ถ้าต้องแก้ไข กรุณาติดต่อเจ้าหน้าที่'), { is400: true });
+                }
                 if (!coop || !CP_VALID.includes(coop.status)) {
                     throw Object.assign(new Error('ไม่สามารถส่งใบตอบรับในสถานะปัจจุบัน'), { is400: true });
                 }

@@ -271,6 +271,22 @@ describe('docController', () => {
       expect(res.status).toHaveBeenCalledWith(400);
     });
 
+    // เดิมเปลี่ยนไฟล์ใบตอบรับหลังออกหนังสือส่งตัวแล้วได้ → สถานะเด้งกลับไป "รอตรวจใบตอบรับ" การ์ดหนังสือส่งตัวหาย
+    test.each(['PLACEMENT_LETTER_ISSUED', 'INTERNSHIP_STARTED'])(
+      '400 — ออกหนังสือส่งตัวแล้ว (%s) เปลี่ยนใบตอบรับไม่ได้ และสถานะไม่ถอยกลับ',
+      async (status) => {
+        prisma.systemConfig.findUnique.mockResolvedValue(null);
+        prisma.student.findUnique.mockResolvedValue({ id: 10, deletedAt: null });
+        prisma.studentCoop.findUnique.mockResolvedValue({ status });
+
+        const res = makeRes();
+        await docController.uploadDocument(makeUploadReq('CP-ACCEPTANCE'), res);
+        expect(res.status).toHaveBeenCalledWith(400);
+        expect(res.json.mock.calls[0][0].message).toMatch(/ออกหนังสือส่งตัวแล้ว/);
+        expect(prisma.studentCoop.update).not.toHaveBeenCalled();
+      },
+    );
+
     test('403 — ระบบปิดรับเอกสาร T000 (isOpen = false)', async () => {
       prisma.documentRequirement.findFirst.mockResolvedValue({ id: 1 }); // valid docKey
       prisma.systemConfig.findUnique.mockResolvedValue({

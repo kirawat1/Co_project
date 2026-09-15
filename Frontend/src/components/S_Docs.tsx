@@ -100,6 +100,8 @@ const DispatchManagementCard = ({ profile, onUpload, onRefresh }: { profile: any
 
   const currentStatus = profile.docStatus;
   const rawComment = profile.teacherComment || (profile.coop as any)?.t000Comment;
+  // ตรงกับ backend uploadDocument (CP-ACCEPTANCE) — หลังออกหนังสือส่งตัวเปลี่ยนใบตอบรับไม่ได้
+  const acceptanceLocked = ['PLACEMENT_LETTER_ISSUED', 'INTERNSHIP_STARTED'].includes(currentStatus);
 
   let adminMessagePhase1 = null;
   let adminMessagePhase2 = null;
@@ -225,9 +227,15 @@ const DispatchManagementCard = ({ profile, onUpload, onRefresh }: { profile: any
                 <div style={{ fontSize: 14, color: '#166534', marginBottom: 12 }}>✅ <strong>อัปโหลดสำเร็จ:</strong> {uploadedAcceptance.name}</div>
                 <div style={{ display: 'flex', gap: 10 }}>
                   <button className="btn-secondary" style={{ flex: 1, fontSize: 13, padding: '10px' }} onClick={() => handlePreview(`/uploads/${uploadedAcceptance.path}`, "ใบตอบรับที่ส่งแล้ว")}>👁️ ดูไฟล์ที่ส่ง</button>
-                  <label htmlFor="upload-acceptance-change" className="btn-secondary" style={{ flex: 1, cursor: 'pointer', textAlign: 'center', fontSize: 13, padding: '10px' }}>🔄 เปลี่ยนไฟล์</label>
-                  <input type="file" id="upload-acceptance-change" style={{ display: 'none' }} accept=".pdf,.jpg,.png" onChange={(e) => e.target.files?.[0] && setSelectedFile(e.target.files[0])} />
+                  {/* ออกหนังสือส่งตัวแล้ว เปลี่ยนไฟล์ไม่ได้ (เดิมเปลี่ยนแล้วสถานะถอยกลับไปรอตรวจใบตอบรับ) */}
+                  {!acceptanceLocked && <>
+                    <label htmlFor="upload-acceptance-change" className="btn-secondary" style={{ flex: 1, cursor: 'pointer', textAlign: 'center', fontSize: 13, padding: '10px' }}>🔄 เปลี่ยนไฟล์</label>
+                    <input type="file" id="upload-acceptance-change" style={{ display: 'none' }} accept=".pdf,.jpg,.png" onChange={(e) => e.target.files?.[0] && setSelectedFile(e.target.files[0])} />
+                  </>}
                 </div>
+                {acceptanceLocked && (
+                  <div style={{ fontSize: 11, color: '#6b7280', marginTop: 8 }}>ออกหนังสือส่งตัวแล้ว — ถ้าต้องแก้ใบตอบรับ กรุณาติดต่อเจ้าหน้าที่</div>
+                )}
               </div>
             ) : (
               <div style={{ padding: 16, background: selectedFile ? '#fff7ed' : '#f8fafc', border: `1px dashed ${selectedFile ? '#f97316' : '#cbd5e1'}`, borderRadius: 8 }}>
