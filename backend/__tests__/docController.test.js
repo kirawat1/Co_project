@@ -326,6 +326,28 @@ describe('docController', () => {
       });
     });
 
+    // ใบตอบรับ/เอกสาร T000 เจ้าหน้าที่เป็นคนตรวจ (หน้า doct000) — อาจารย์ไม่มีเมนูรองรับ ไม่ต้องแจ้งอาจารย์
+    test('แจ้งเตือนใบตอบรับที่นักศึกษาอัปโหลด → เฉพาะเจ้าหน้าที่', async () => {
+      prisma.$transaction.mockImplementation((arg) => Array.isArray(arg) ? Promise.all(arg) : arg(prisma));
+      prisma.systemConfig.findUnique.mockResolvedValue(null);
+      prisma.student.findUnique.mockResolvedValue({ id: 10, userId: 1, deletedAt: null });
+      prisma.document.findFirst.mockResolvedValue(null);
+      prisma.document.create.mockResolvedValue({ id: 6 });
+      prisma.studentCoop.findUnique.mockResolvedValue({ status: 'REQ_LETTER_ISSUED' });
+      prisma.studentCoop.update.mockResolvedValue({});
+      prisma.user.findMany.mockResolvedValue([{ id: 50 }]);
+      prisma.notification.findMany.mockResolvedValue([]);
+      prisma.notification.createMany.mockResolvedValue({ count: 1 });
+
+      await docController.uploadDocument(makeUploadReq('CP-ACCEPTANCE'), makeRes());
+      for (let i = 0; i < 4; i++) await new Promise((r) => setImmediate(r));
+
+      expect(prisma.user.findMany).toHaveBeenCalledWith({ where: { role: 'staff' }, select: { id: true } });
+      expect(prisma.notification.createMany.mock.calls[0][0].data).toEqual([
+        expect.objectContaining({ userId: 50, type: 'ACCEPTANCE_UPLOADED', link: '/admin/doct000' }),
+      ]);
+    });
+
     test('400 — EDITS_REQUIRED ของขั้นเอกสาร T000 (ยังไม่ออกหนังสือ) ส่งใบตอบรับไม่ได้', async () => {
       prisma.systemConfig.findUnique.mockResolvedValue(null);
       prisma.student.findUnique.mockResolvedValue({ id: 10, deletedAt: null });
@@ -361,6 +383,12 @@ describe('docController', () => {
       expect(prisma.studentCoop.update).toHaveBeenCalledWith({ where: { studentId: 10 }, data: { status: 'T002_SUBMITTED' } });
       expect(prisma.studentCoop.update).toHaveBeenCalledWith({ where: { studentId: 10 }, data: { mentors: { connect: [{ id: 'm1' }, { id: 'm2' }] } } });
       expect(res.json.mock.calls[0][0]).toMatchObject({ ok: true, mentorSync: { linked: 2, created: 2 } });
+
+      // T002 อาจารย์ประจำวิชาสหกิจตรวจได้ (มีเมนู T002) → แจ้งทั้งเจ้าหน้าที่และอาจารย์ประจำวิชา
+      for (let i = 0; i < 4; i++) await new Promise((r) => setImmediate(r));
+      expect(prisma.user.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: { OR: [{ role: 'staff' }, { role: 'teacher', teacher: { isCoopTeacher: true } }] },
+      }));
     });
   });
 

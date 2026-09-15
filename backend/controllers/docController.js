@@ -2,7 +2,7 @@
 const prisma = require('../config/prismaClient');
 const fs = require('fs');
 const path = require('path');
-const { createNotifications, getStaffAndCoopTeacherIds } = require('../utils/notificationHelper');
+const { createNotifications, getStaffAndCoopTeacherIds, getStaffIds } = require('../utils/notificationHelper');
 const { normalizeExtraSupervisors, syncT002SupervisorsToMentors } = require('../utils/t002Supervisors');
 
 // ------------------------------------------------------------------
@@ -310,15 +310,17 @@ exports.uploadDocument = async (req, res) => {
 
     res.json({ ok: true, message: "อัปโหลดสำเร็จ", data: newDoc, ...(mentorSync ? { mentorSync } : {}) });
 
-    // Notify staff + isCoopTeacher เมื่อนักศึกษาส่งเอกสาร
+    // แจ้งเตือนเมื่อนักศึกษาส่งเอกสาร — ป้ายขึ้นที่เมนูของชนิดนั้น (sidebar)
+    // T002/T003: เจ้าหน้าที่ + อาจารย์ประจำวิชาสหกิจ (มีเมนูตรวจ) · T000/ใบตอบรับ: เจ้าหน้าที่เท่านั้น (ตรวจที่ doct000 อาจารย์ไม่มีเมนู — เดิมแจ้งอาจารย์ด้วย ค้างเป็นแจ้งเตือนที่มองไม่เห็น)
     const notifyTypes = {
-      'T002_FORM': { type: 'T002_SUBMITTED', title: 'นักศึกษาส่ง T002', message: 'มีนักศึกษาส่งเอกสาร T002 แบบแจ้งรายละเอียดงาน กรุณาตรวจสอบ', link: '/admin/students' },
-      'T003_FORM': { type: 'T003_SUBMITTED', title: 'นักศึกษาส่ง T003', message: 'มีนักศึกษาส่งเอกสาร T003 โครงร่างรายงาน กรุณาตรวจสอบ', link: '/admin/students' },
-      'CP-ACCEPTANCE': { type: 'ACCEPTANCE_UPLOADED', title: 'นักศึกษาอัปโหลดใบตอบรับ', message: 'มีนักศึกษาอัปโหลดใบตอบรับจากบริษัท กรุณาตรวจสอบ', link: '/admin/students' },
+      'T002_FORM': { type: 'T002_SUBMITTED', title: 'นักศึกษาส่ง T002', message: 'มีนักศึกษาส่งเอกสาร T002 แบบแจ้งรายละเอียดงาน กรุณาตรวจสอบ', link: '/admin/doct002', staffOnly: false },
+      'T003_FORM': { type: 'T003_SUBMITTED', title: 'นักศึกษาส่ง T003', message: 'มีนักศึกษาส่งเอกสาร T003 โครงร่างรายงาน กรุณาตรวจสอบ', link: '/admin/doct003', staffOnly: false },
+      'CP-ACCEPTANCE': { type: 'ACCEPTANCE_UPLOADED', title: 'นักศึกษาอัปโหลดใบตอบรับ', message: 'มีนักศึกษาอัปโหลดใบตอบรับจากบริษัท กรุณาตรวจสอบ', link: '/admin/doct000', staffOnly: true },
     };
-    const notif = notifyTypes[dbType] || (t000Resubmitted ? { type: 'T000_SUBMITTED', title: 'นักศึกษาส่งเอกสาร T000', message: 'มีนักศึกษาส่งเอกสาร T000 กรุณาตรวจสอบ', link: '/admin/students' } : null);
-    if (notif) {
-      getStaffAndCoopTeacherIds().then(ids =>
+    const notifDef = notifyTypes[dbType] || (t000Resubmitted ? { type: 'T000_SUBMITTED', title: 'นักศึกษาส่งเอกสาร T000', message: 'มีนักศึกษาส่งเอกสาร T000 กรุณาตรวจสอบ', link: '/admin/doct000', staffOnly: true } : null);
+    if (notifDef) {
+      const { staffOnly, ...notif } = notifDef;
+      (staffOnly ? getStaffIds() : getStaffAndCoopTeacherIds()).then(ids =>
         // relatedId = Student.id (PK) เพื่อ dedup ต่อนักศึกษา ไม่ใช่ userId
         createNotifications(ids, { ...notif, relatedId: String(student.id) })
       ).catch(console.error);
