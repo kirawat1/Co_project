@@ -131,6 +131,9 @@ export interface StudentProfile {
 /* =========================
    Mapping Helpers
 ========================= */
+// ค่าในตัวกรองสาขาสำหรับนักศึกษาที่ยังไม่ระบุสาขา — ตรงกับ backend getStudents (majors=__NONE__)
+const NO_MAJOR = "__NONE__";
+
 const CURRICULUM_TH: Record<string, string> = {
   normal: "ภาคปกติ",
   special: "ภาคพิเศษ",
@@ -185,6 +188,10 @@ export default function A_Students() {
   const [q, setQ] = useState("");
   const debouncedQ = useDebounce(q, 300);
   const [filterCurriculums, setFilterCurriculums] = useState<string[]>([]);
+  // สาขา: "all" · รหัสสาขา (CS) · NO_MAJOR = ยังไม่ระบุสาขา
+  const [filterMajor, setFilterMajor] = useState<string>("all");
+  const [departments, setDepartments] = useState<{ major: string; nameTh: string | null }[]>([]);
+  const deptMap = Object.fromEntries(departments.filter(d => d.nameTh).map(d => [d.major, d.nameTh as string]));
   const [filterStatuses, setFilterStatuses] = useState<string[]>([]);
   const [filterStatusGroups, setFilterStatusGroups] = useState<string[]>([]);
 
@@ -211,7 +218,7 @@ export default function A_Students() {
   // --- Fetch Data ---
   // เปลี่ยนค่านี้เมื่อไหร่ (ค้นหา/ตัวกรอง/เรียงลำดับ/ปีการศึกษา) → useInfinitePages ละทิ้งรายการเดิม
   // แล้วโหลดหน้า 1 ใหม่ให้เอง แทนการเรียก fetchStudents(...) มือเองแบบเดิม
-  const resetKey = `${selectedPeriodId}|${debouncedQ}|${filterStatuses.join(",")}|${filterCurriculums.join(",")}|${sortBy}|${sortDir}`;
+  const resetKey = `${selectedPeriodId}|${debouncedQ}|${filterStatuses.join(",")}|${filterCurriculums.join(",")}|${filterMajor}|${sortBy}|${sortDir}`;
 
   const fetchStudentsPage = async (page: number) => {
     try {
@@ -220,6 +227,7 @@ export default function A_Students() {
       if (debouncedQ.trim()) params.set("search", debouncedQ.trim());
       if (filterStatuses.length > 0) params.set("statuses", filterStatuses.join(','));
       if (filterCurriculums.length > 0) params.set("studyProgram", filterCurriculums.join(','));
+      if (filterMajor !== "all") params.set("majors", filterMajor);
       const res = await apiFetch(`/api/students?${params}`);
       if (!res.ok) return null;
       const data = await res.json();
@@ -242,6 +250,13 @@ export default function A_Students() {
       if (resPeriods.ok) {
         const data = await resPeriods.json();
         if (data?.periods) setCoopPeriods(data.periods);
+      }
+
+      // สาขาวิชาจากหน้าจัดการสาขา (admin/criteria) — ใช้ในตัวกรอง คอลัมน์สาขา และหน้าต่างดูข้อมูล
+      const resDept = await apiFetch("/api/coop/departments").catch(() => null);
+      if (resDept?.ok) {
+        const d = await resDept.json();
+        if (d.ok && Array.isArray(d.departments)) setDepartments(d.departments);
       }
 
       await reloadStudents();
@@ -272,6 +287,7 @@ export default function A_Students() {
   function resetFilters() {
     setQ("");
     setFilterCurriculums([]);
+    setFilterMajor("all");
     setFilterStatuses([]);
     setFilterStatusGroups([]);
     // debouncedQ ยังไม่ทันเปลี่ยนตาม q ทันที (มี debounce 300ms) แต่ตัวกรองอื่นเปลี่ยนทันที
@@ -613,8 +629,24 @@ export default function A_Students() {
             onChange={handleStatusGroupsChange}
           />
 
+          <div>
+            <div style={{ fontSize: 13, color: "#475569", marginBottom: 4 }}>สาขาวิชา</div>
+            <select
+              className="input"
+              style={{ padding: '6px 8px', borderRadius: 8, border: '1px solid #e5e7eb' }}
+              value={filterMajor}
+              onChange={e => setFilterMajor(e.target.value)}
+            >
+              <option value="all">🎓 ทุกสาขา</option>
+              {departments.map(d => (
+                <option key={d.major} value={d.major}>{d.nameTh && d.nameTh !== d.major ? `${d.nameTh} (${d.major})` : d.major}</option>
+              ))}
+              <option value={NO_MAJOR}>— ยังไม่ระบุสาขา —</option>
+            </select>
+          </div>
+
           <FilterBox
-            title="หลักสูตร"
+            title="ระบบการศึกษา"
             items={CURRICULUM_TH}
             values={filterCurriculums}
             onChange={setFilterCurriculums}
@@ -685,7 +717,8 @@ export default function A_Students() {
                 { label: "ชื่อ", key: "firstName" },
                 { label: "นามสกุล", key: "lastName" },
                 { label: "อีเมล", key: null },
-                { label: "หลักสูตร", key: "studyProgram" },
+                { label: "สาขา", key: null },
+                { label: "ระบบการศึกษา", key: "studyProgram" },
                 { label: "สถานะ", key: null },
                 { label: "รายละเอียด", key: null },
               ] as { label: string; key: string | null }[]).map(({ label, key }) => (
@@ -706,7 +739,7 @@ export default function A_Students() {
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={selectMode ? 8 : 7} style={{ padding: 20, textAlign: 'center', color: "#64748b" }}>
+                <td colSpan={selectMode ? 9 : 8} style={{ padding: 20, textAlign: 'center', color: "#64748b" }}>
                   ไม่พบนักศึกษาตามเงื่อนไข
                 </td>
               </tr>
@@ -727,7 +760,8 @@ export default function A_Students() {
                   <td style={td} data-label="ชื่อ">{getThaiPrefix(s.prefix)} {s.firstName}</td>
                   <td style={td} data-label="นามสกุล">{s.lastName}</td>
                   <td style={td} data-label="อีเมล">{s.user?.email || "-"}</td>
-                  <td style={td} data-label="หลักสูตร">{CURRICULUM_TH[s.studyProgram ?? ""] ?? s.studyProgram ?? "-"}</td>
+                  <td style={td} data-label="สาขา">{s.major ? (deptMap[s.major] || s.major) : <span style={{ color: "#94a3b8" }}>-</span>}</td>
+                  <td style={td} data-label="ระบบการศึกษา">{CURRICULUM_TH[s.studyProgram ?? ""] ?? s.studyProgram ?? "-"}</td>
                   <td style={td} data-label="สถานะ"><StatusBadge status={s.coop?.status || s.docStatus} /></td>
                   <td style={td} data-label="รายละเอียด">
                     <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
@@ -780,6 +814,7 @@ export default function A_Students() {
       {modalStudent && (
         <StudentModal
           student={modalStudent}
+          deptMap={deptMap}
           onClose={() => setModalStudent(null)}
         />
       )}
@@ -805,25 +840,14 @@ export default function A_Students() {
 ========================= */
 function StudentModal({
   student,
+  deptMap,
   onClose,
 }: {
   student: StudentProfile;
+  deptMap: Record<string, string>; // รหัสสาขา → ชื่อไทย (โหลดครั้งเดียวที่หน้ารายชื่อ)
   onClose: () => void;
 }) {
   const [tab, setTab] = useState<"profile" | "company" | "docs">("profile");
-  const [deptMap, setDeptMap] = useState<Record<string, string>>({});
-
-  useEffect(() => {
-    apiFetch("/api/coop/departments").then(r => r.json()).then(d => {
-      if (d.ok && Array.isArray(d.departments)) {
-        const map: Record<string, string> = {};
-        d.departments.forEach((dep: { major: string; nameTh: string | null }) => {
-          if (dep.nameTh) map[dep.major] = dep.nameTh;
-        });
-        setDeptMap(map);
-      }
-    }).catch(() => {});
-  }, []);
 
   const companyData = student.coop?.company || student.company;
   // เดิมอ่าน student.coop?.mentor (เอกพจน์) ซึ่งไม่มีอยู่จริง (เก็บเป็น mentors อาเรย์ เพราะเลือกพี่เลี้ยงได้หลายคน) — ทำให้ขึ้น "-" เสมอ

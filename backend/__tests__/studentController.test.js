@@ -82,6 +82,41 @@ describe('getStudents', () => {
     });
   });
 
+  test('200 — กรองตามสาขา (majors=AI)', async () => {
+    prisma.student.findMany.mockResolvedValue([]);
+    prisma.student.count.mockResolvedValue(0);
+
+    prisma.coopCriteria.findMany.mockResolvedValue([]);
+
+    await getStudents({ query: { majors: 'AI' } }, makeRes());
+
+    const { where } = prisma.student.findMany.mock.calls[0][0];
+    expect(where.AND).toContainEqual({ OR: [{ major: { in: ['AI'] } }] });
+  });
+
+  test('200 — กรองตามสาขา รวมข้อมูลเก่าที่เก็บเป็นชื่อไทยของสาขานั้นด้วย', async () => {
+    prisma.student.findMany.mockResolvedValue([]);
+    prisma.student.count.mockResolvedValue(0);
+    prisma.coopCriteria.findMany.mockResolvedValue([{ major: 'CS', nameTh: 'วิทยาการคอมพิวเตอร์' }]);
+
+    await getStudents({ query: { majors: 'CS' } }, makeRes());
+
+    const { where } = prisma.student.findMany.mock.calls[0][0];
+    expect(where.AND).toContainEqual({ OR: [{ major: { in: ['CS', 'วิทยาการคอมพิวเตอร์'] } }] });
+  });
+
+  test('200 — กรอง "ยังไม่ระบุสาขา" (__NONE__) รวมกับสาขาอื่นได้', async () => {
+    prisma.student.findMany.mockResolvedValue([]);
+    prisma.student.count.mockResolvedValue(0);
+
+    prisma.coopCriteria.findMany.mockResolvedValue([]);
+
+    await getStudents({ query: { majors: 'CS,__NONE__' } }, makeRes());
+
+    const { where } = prisma.student.findMany.mock.calls[0][0];
+    expect(where.AND).toContainEqual({ OR: [{ major: { in: ['CS'] } }, { major: null }, { major: '' }] });
+  });
+
   test('200 — limit ไม่เกิน 100', async () => {
     prisma.student.findMany.mockResolvedValue([]);
     prisma.student.count.mockResolvedValue(0);
