@@ -176,6 +176,14 @@ describe('getStudentsForT000', () => {
     expect(data[0].generalAdvisor.firstName).toBe('เขียว');
   });
 
+  test('200 — ไม่ส่ง gpa กลับ (ระบบไม่ใช้ GPA แล้ว) แม้ใน DB ยังมีค่า', async () => {
+    prisma.student.findMany.mockResolvedValue([mockStudent]);
+    const res = makeRes();
+    await getStudentsForT000({}, res);
+    const data = res.json.mock.calls[0][0];
+    expect(data[0]).not.toHaveProperty('gpa');
+  });
+
   test('200 — majorNameTh แปลงรหัสสาขา (CS) เป็นชื่อไทยจาก criteria สำหรับหนังสือส่งตัว', async () => {
     prisma.student.findMany.mockResolvedValue([mockStudent, { ...mockStudent, id: 2, major: 'ZZ' }]);
     prisma.coopCriteria.findMany.mockResolvedValue([{ major: 'CS', nameTh: 'วิทยาการคอมพิวเตอร์' }]);

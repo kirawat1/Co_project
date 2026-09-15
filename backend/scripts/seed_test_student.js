@@ -63,7 +63,6 @@ async function main() {
             year: '4',
             phone: '0812345678',
             email: 'teststudent01@kku.ac.th',
-            gpa: 3.25,
             userId: user.id,
         },
     });

@@ -49,7 +49,6 @@ exports.getMyProfile = async (req, res) => {
         major: null,
         studyProgram: null,
         phone: "",
-        gpa: 0.0,
         activityUnit: 0,
         advisorName: "",
         jobPosition: "",
@@ -102,11 +101,8 @@ exports.updateMyProfile = async (req, res) => {
       return res.status(403).json({ ok: false, message: "บัญชีถูกระงับการใช้งาน" });
     }
 
-    // ช่องว่าง ("" หรือ null) = ไม่กรอก ไม่ใช่ค่าที่ผิด — เดิมเช็คแค่ !== undefined ทำให้เว้นว่างแล้วขึ้น "gpa ไม่ถูกต้อง"
-    const gpaProvided = data.gpa !== undefined && data.gpa !== null && data.gpa !== '';
-    const gpa = gpaProvided ? parseFloat(data.gpa) : (currentStudent?.gpa || 0);
-    if (gpaProvided && isNaN(gpa))
-      return res.status(400).json({ ok: false, message: 'gpa ไม่ถูกต้อง' });
+    // ระบบไม่ใช้ GPA แล้ว — ไม่รับ/ไม่บันทึก gpa (คอลัมน์ยังอยู่ใน DB แต่ไม่มีที่ใช้)
+    // ช่องว่าง ("" หรือ null) = ไม่กรอก ไม่ใช่ค่าที่ผิด
     const activityUnitProvided = data.activityUnit !== undefined && data.activityUnit !== null && data.activityUnit !== '';
     const activityUnit = activityUnitProvided ? parseInt(data.activityUnit) : (currentStudent?.activityUnit || 0);
     if (activityUnitProvided && isNaN(activityUnit))
@@ -171,7 +167,6 @@ exports.updateMyProfile = async (req, res) => {
           email: data.email,
           jobPosition: data.jobPosition,
           ...advisorData,
-          gpa: gpaProvided ? gpa : undefined,
           activityUnit: activityUnitProvided ? activityUnit : undefined,
         },
         create: {
@@ -182,7 +177,6 @@ exports.updateMyProfile = async (req, res) => {
           firstName: data.firstName || "",
           lastName: data.lastName || "",
           major: (data.major && data.major !== "") ? data.major : null,
-          gpa: gpa,
           activityUnit: activityUnit,
           jobPosition: data.jobPosition,
           ...advisorData,
@@ -455,12 +449,6 @@ exports.syncFromReg = async (req, res) => {
       if (info.activity_credit != null) updateData.activityUnit = parseFloat(info.activity_credit) || 0;
     }
 
-    if (result.grades) {
-      const g = result.grades;
-      // คืนแค่ gpax รวมจาก KKU API
-      if (g.gpax != null) updateData.gpa = parseFloat(g.gpax) || 0;
-    }
-
     if (result.advisor) {
       const adv = result.advisor;
       const name = [adv.prefix_th, adv.first_name_th, adv.last_name_th].filter(Boolean).join(" ");
@@ -725,7 +713,7 @@ exports.createStudentSingle = async (req, res) => {
   try {
     const {
       studentId, prefix, firstName, lastName, firstNameEn, lastNameEn,
-      email, phone, major, studyProgram, year, gpa, advisorName,
+      email, phone, major, studyProgram, year, advisorName,
     } = req.body;
 
     const missing = ["studentId", "firstName", "lastName", "email"].filter(f => !req.body[f]?.toString().trim());
@@ -740,7 +728,6 @@ exports.createStudentSingle = async (req, res) => {
     const prefixEnum = prefix ? (prefixMap[prefix.toLowerCase()] || (["MR", "MS"].includes(prefix.toUpperCase()) ? prefix.toUpperCase() : undefined)) : undefined;
 
     const studyProgramEnum = studyProgram === "special" ? "special" : studyProgram === "normal" ? "normal" : undefined;
-    const gpaFloat = gpa ? parseFloat(gpa) : undefined;
 
     // สาขาวิชาต้องเป็นสาขาที่มีในหน้าจัดการสาขาวิชา (CoopCriteria) และเก็บเป็นรหัสสาขา (เช่น CS)
     // ให้ตรงกันทั้งระบบ — รับชื่อไทยได้ด้วย แล้วแปลงเป็นรหัส แบบเดียวกับตอนนำเข้า Excel
@@ -784,7 +771,6 @@ exports.createStudentSingle = async (req, res) => {
               major: majorCode,
               studyProgram: studyProgramEnum,
               year: year?.toString().trim() || null,
-              gpa: gpaFloat && !isNaN(gpaFloat) ? gpaFloat : 0,
               advisorName: advisorName?.trim() || null,
             },
           },

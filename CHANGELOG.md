@@ -1,5 +1,23 @@
 # CHANGELOG — Co_project
 
+## [2026-09-16] refactor: เลิกใช้ GPA ทั้งระบบ
+
+ระบบไม่ใช้ GPA แล้ว — เอาออกจากทุกจุดที่ยังรับ/บันทึก/แสดงอยู่ (หน้าจอเจ้าหน้าที่/อาจารย์เอาออกไปแล้วรอบก่อน)
+
+### Changed
+- **`studentController.updateMyProfile`** — ไม่รับ/ไม่บันทึก `gpa` (เดิม gpa ไม่ใช่ตัวเลข → 400) · `getMyProfile` (ยังไม่มีโปรไฟล์) ไม่คืน gpa · `createStudentSingle` ไม่บันทึก gpa
+- **`studentController.syncFromReg` + `kkuRegService.syncStudentAll`** — ซิงก์จาก KKU REG ไม่ดึงผลการเรียน (`get_grade_summary`) และไม่อัปเดต GPA แล้ว (ลดการเรียก API ภายนอก 1 ครั้ง)
+- **`studentImportController`** — นำเข้า Excel ไม่นำเข้า GPA (ไฟล์เก่าที่มีคอลัมน์ GPA ยังนำเข้าได้ คอลัมน์นั้นถูกข้าม)
+- **`authController`** — login SSO ไม่เขียน gpa · `getProfile` ไม่คืน gpa
+- **`adminDocController.getStudentsForT000`** — ไม่คืน gpa
+- **Frontend** — PDF T000 ไม่มีแถว "เกรดเฉลี่ยรวม / GPA" · หน้าข้อมูลนักศึกษาไม่ส่ง gpa และข้อความซิงก์ KKU ไม่พูดถึง GPA · ลบ `gpa`/`gpaOk`/`coreGpaOk` ออกจาก type (`store.ts`, `S_Docs.tsx`) · `scripts/seed_test_student.js` ไม่ใส่ gpa
+- คอลัมน์ `Student.gpa` ยังอยู่ในฐานข้อมูล (ไม่ drop — ไม่ต้อง migrate) แต่ไม่มีโค้ดอ่าน/เขียนแล้ว
+
+### Verified
+- unit tests 536/536 (+ ส่ง gpa มาไม่บันทึก, เพิ่มนักศึกษาทีละคน/นำเข้า Excel ไม่บันทึก gpa, getProfile/T000 ไม่คืน gpa)
+- vite build ผ่าน · tsc ไม่มี error ใหม่ในไฟล์ที่แก้
+- Playwright regression 64/64 — เพิ่ม PDF T000 ไม่มี GPA/เกรดเฉลี่ย, บันทึกโปรไฟล์ที่แนบ gpa → 200 และ gpa ใน DB ไม่เปลี่ยน (ข้อมูลอื่นบันทึกปกติ), หน้าข้อมูลนักศึกษาไม่มี GPA
+
 ## [2026-09-16] fix: แจ้งเตือนเอกสาร T000 / ใบตอบรับ ไม่ส่งให้อาจารย์แล้ว
 
 ### Fixed

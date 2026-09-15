@@ -19,7 +19,6 @@ export interface LocalStudentProfile {
   lastName?: string;
   email?: string;
   phone?: string;
-  gpa?: number;
   year?: string;
   major?: string;
   advisorName?: string;

@@ -192,7 +192,6 @@ exports.loginWithSSO = async (req, res) => {
              lastNameEn: kkuUser.lastname,
              email: kkuUser.mail,
              year: extraInfo.student_year ? extraInfo.student_year.toString() : undefined,
-             gpa: extraInfo.gpa ? parseFloat(extraInfo.gpa) : undefined,
              major: majorEnum || undefined,
              apiSyncedAt: new Date()
           },
@@ -206,7 +205,6 @@ exports.loginWithSSO = async (req, res) => {
              lastNameEn: kkuUser.lastname,
              email: kkuUser.mail,
              year: extraInfo.student_year ? extraInfo.student_year.toString() : null,
-             gpa: extraInfo.gpa ? parseFloat(extraInfo.gpa) : 0.00,
              major: majorEnum,
              activityUnit: 0,
              apiSyncedAt: new Date()
@@ -308,7 +306,6 @@ exports.getProfile = async (req, res) => {
         phone: user.student.phone,          // 0123456789
         email: user.student.email || user.email, // zabatayew@gmail.com
         year: user.student.year,            // 4
-        gpa: user.student.gpa,              // 4
         major: user.student.major,          // CS
         studyProgram: user.student.studyProgram // normal
       };
