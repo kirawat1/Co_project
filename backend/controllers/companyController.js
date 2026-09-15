@@ -188,10 +188,20 @@ exports.deleteCompany = async (req, res) => {
       const company = await tx.company.findUnique({ where: { id } });
       if (!company) throw Object.assign(new Error("ไม่พบบริษัท"), { is404: true });
 
+      // ใครก็ลบได้ (นักศึกษารุ่นใหม่มาอัปเดตข้อมูลบริษัทต่อจากรุ่นก่อน) — ยกเว้นมีนักศึกษาคนอื่นเลือกบริษัทนี้อยู่
+      // ลบบริษัท = companyId ของนักศึกษาเหล่านั้นกลายเป็นว่าง (ON DELETE SET NULL) + พี่เลี้ยงหายตาม — ให้แก้ไขแทน
       const currentUser = await tx.user.findUnique({ where: { id: Number(currentUserId) } });
       const isStaff = currentUser && currentUser.role === "staff";
-      if (!isStaff && company.createdById !== Number(currentUserId)) {
-        throw Object.assign(new Error("ไม่มีสิทธิ์ลบบริษัทนี้"), { is403: true });
+      if (!isStaff) {
+        const usedByOthers = await tx.studentCoop.count({
+          where: { companyId: id, student: { userId: { not: Number(currentUserId) } } },
+        });
+        if (usedByOthers > 0) {
+          throw Object.assign(
+            new Error(`ลบไม่ได้ — มีนักศึกษาคนอื่นเลือกบริษัทนี้อยู่ ${usedByOthers} คน ถ้าข้อมูลเปลี่ยนให้กด "แก้ไข" แทน`),
+            { is409: true },
+          );
+        }
       }
 
       await tx.company.delete({ where: { id } });
@@ -200,7 +210,7 @@ exports.deleteCompany = async (req, res) => {
     res.json({ ok: true, message: "ลบบริษัทและพี่เลี้ยงสำเร็จ" });
   } catch (err) {
     if (err.is404) return res.status(404).json({ ok: false, message: err.message });
-    if (err.is403) return res.status(403).json({ ok: false, message: err.message });
+    if (err.is409) return res.status(409).json({ ok: false, message: err.message });
     if (err.code === 'P2025') return res.status(404).json({ ok: false, message: 'ไม่พบบริษัท' });
     if (err.code === 'P2003') return res.status(409).json({ ok: false, message: "ไม่สามารถลบบริษัทได้เพราะมีข้อมูลนักศึกษาอ้างอิงอยู่" });
     console.error("Delete Company Error:", err);
@@ -221,13 +231,9 @@ exports.addMentor = async (req, res) => {
 
     let mentor;
     await prisma.$transaction(async (tx) => {
-      const currentUser = await tx.user.findUnique({ where: { id: Number(userId) }, select: { role: true } });
-      if (!currentUser || currentUser.role !== 'staff') {
-        const company = await tx.company.findUnique({ where: { id: companyId }, select: { createdById: true } });
-        if (!company || company.createdById !== Number(userId)) {
-          throw Object.assign(new Error("ไม่มีสิทธิ์เพิ่มพี่เลี้ยงของบริษัทนี้"), { is403: true });
-        }
-      }
+      // ใครก็เพิ่มพี่เลี้ยงให้บริษัทได้ (อัปเดตข้อมูลต่อจากคนที่เพิ่มบริษัทไว้)
+      const company = await tx.company.findUnique({ where: { id: companyId }, select: { id: true } });
+      if (!company) throw Object.assign(new Error("ไม่พบบริษัท"), { is404: true });
       mentor = await tx.mentor.create({
         data: {
           firstName, lastName, department, position, email, phone,
@@ -239,7 +245,7 @@ exports.addMentor = async (req, res) => {
 
     res.json({ ok: true, mentor });
   } catch (err) {
-    if (err.is403) return res.status(403).json({ ok: false, message: err.message });
+    if (err.is404) return res.status(404).json({ ok: false, message: err.message });
     console.error("Add Mentor Error:", err);
     res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดในการเพิ่มพี่เลี้ยง" });
   }
@@ -249,20 +255,12 @@ exports.updateMentor = async (req, res) => {
   try {
     const { id } = req.params;
     const { firstName, lastName, department, position, email, phone } = req.body;
-    const currentUserId = req.userId || (req.user && req.user.id);
 
     let updatedMentor;
     await prisma.$transaction(async (tx) => {
+      // ใครก็แก้ข้อมูลพี่เลี้ยงได้ (อัปเดตต่อจากรุ่นก่อน)
       const mentor = await tx.mentor.findUnique({ where: { id: String(id) } });
       if (!mentor) throw Object.assign(new Error("ไม่พบพี่เลี้ยง"), { is404: true });
-
-      const currentUser = await tx.user.findUnique({ where: { id: Number(currentUserId) }, select: { role: true } });
-      if (!currentUser || currentUser.role !== 'staff') {
-        const company = await tx.company.findUnique({ where: { id: mentor.companyId }, select: { createdById: true } });
-        if (!company || company.createdById !== Number(currentUserId)) {
-          throw Object.assign(new Error("ไม่มีสิทธิ์แก้ไขพี่เลี้ยงคนนี้"), { is403: true });
-        }
-      }
 
       updatedMentor = await tx.mentor.update({
         where: { id: String(id) },
@@ -282,19 +280,10 @@ exports.updateMentor = async (req, res) => {
 
 exports.deleteMentor = async (req, res) => {
   try {
-    const currentUserId = req.userId || (req.user && req.user.id);
-
     await prisma.$transaction(async (tx) => {
+      // ใครก็ลบพี่เลี้ยงได้ (เช่น พี่เลี้ยงเดิมลาออกแล้ว) — ถอดออกจากนักศึกษาที่เคยเลือกไว้ด้วย (ตาราง M:N ลบตาม)
       const mentor = await tx.mentor.findUnique({ where: { id: req.params.id } });
       if (!mentor) throw Object.assign(new Error("ไม่พบพี่เลี้ยง"), { is404: true });
-
-      const currentUser = await tx.user.findUnique({ where: { id: Number(currentUserId) }, select: { role: true } });
-      if (!currentUser || currentUser.role !== 'staff') {
-        const company = await tx.company.findUnique({ where: { id: mentor.companyId }, select: { createdById: true } });
-        if (!company || company.createdById !== Number(currentUserId)) {
-          throw Object.assign(new Error("ไม่มีสิทธิ์ลบพี่เลี้ยงคนนี้"), { is403: true });
-        }
-      }
 
       await tx.mentor.delete({ where: { id: req.params.id } });
     });
