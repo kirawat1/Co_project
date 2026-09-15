@@ -745,17 +745,23 @@ describe('exportStudents', () => {
       json: jest.fn().mockReturnThis(),
     };
 
+    prisma.coopCriteria.findMany.mockResolvedValue([{ major: 'CS', nameTh: 'วิทยาการคอมพิวเตอร์' }]);
+
     const { exportStudents } = require('../controllers/studentController');
+    const { STUDENT_EXPORT_INCLUDE } = require('../utils/studentExport');
     await exportStudents(req, res);
 
+    // ข้อมูลเพิ่ม: ระบบการศึกษา, อาจารย์นิเทศ/นัดนิเทศ, รอบสหกิจ, พี่เลี้ยง, ชื่อรายงาน, อีเมล · ชื่อสาขาไทยจาก criteria
     expect(prisma.student.findMany).toHaveBeenCalledWith(expect.objectContaining({
       where: { deletedAt: null },
-      include: {
-        coop: { include: { company: true } },
-        generalAdvisor: { select: { firstName: true, lastName: true, prefix: true } },
-        coopAdvisor: { select: { firstName: true, lastName: true, prefix: true } },
-      },
+      include: STUDENT_EXPORT_INCLUDE,
     }));
+    expect(STUDENT_EXPORT_INCLUDE).toMatchObject({
+      coop: { include: { company: true, coopPeriod: true, mentors: true } },
+      supervisionAppointment: expect.any(Object),
+      t003Form: expect.any(Object),
+    });
+    expect(prisma.coopCriteria.findMany).toHaveBeenCalled();
     expect(res.setHeader).toHaveBeenCalledWith(
       'Content-Type',
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'

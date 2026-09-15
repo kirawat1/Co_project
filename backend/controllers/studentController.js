@@ -1,7 +1,7 @@
 // backend/controllers/studentController.js
 const prisma = require('../config/prismaClient');
 const kkuReg = require('../services/kkuRegService');
-const { buildStudentExportWorkbook } = require('../utils/studentExport');
+const { buildStudentExportWorkbook, STUDENT_EXPORT_INCLUDE } = require('../utils/studentExport');
 const { defaultStudentPassword, hashDefaultStudentPassword } = require('../utils/studentPassword');
 const { changeUserEmail, normalizeEmail } = require('../utils/userEmail');
 const { removeUnreferencedUploads } = require('../utils/uploadCleanup');
@@ -345,17 +345,12 @@ exports.exportStudents = async (req, res) => {
       ? { deletedAt: null, coop: { coopPeriodId } }
       : { deletedAt: null };
 
-    const students = await prisma.student.findMany({
-      where,
-      include: {
-        coop: { include: { company: true } },
-        generalAdvisor: { select: { prefix: true, firstName: true, lastName: true } },
-        coopAdvisor: { select: { prefix: true, firstName: true, lastName: true } },
-      },
-      orderBy: { studentId: 'asc' },
-    });
+    const [students, criteria] = await Promise.all([
+      prisma.student.findMany({ where, include: STUDENT_EXPORT_INCLUDE, orderBy: { studentId: 'asc' } }),
+      prisma.coopCriteria.findMany({ select: { major: true, nameTh: true } }),
+    ]);
 
-    const buffer = buildStudentExportWorkbook(students);
+    const buffer = buildStudentExportWorkbook(students, { criteria });
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename="students_${coopPeriodId || 'all'}.xlsx"`);
