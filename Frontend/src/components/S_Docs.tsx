@@ -109,13 +109,18 @@ const DispatchManagementCard = ({ profile, onUpload, onRefresh }: { profile: any
   // วิธีจัดส่งหนังสือขอความอนุเคราะห์ที่เจ้าหน้าที่เลือก (ข้อความเดิมใน t000Comment ถูกทับตอนตรวจใบตอบรับ จึงเก็บแยก)
   const reqDelivery: "STUDENT" | "STAFF" | null = profile.coop?.reqLetterDelivery ?? null;
 
-  // ข้อมูลเก่าที่ไม่มี reqLetterDelivery — ข้อความจัดส่งอยู่ใน comment
-  if (!reqDelivery && ['REQ_LETTER_ISSUED', 'WAITING_FOR_STAFF_CHECK_LETTER', 'WAITING_FOR_PLACEMENT_LETTER'].includes(currentStatus)) {
+  // เจ้าหน้าที่ตีกลับใบตอบรับ: สถานะกลับเป็น "รอใบตอบรับ" + ไฟล์เดิมไม่ผ่าน (ข้อมูลเก่าเป็น EDITS_REQUIRED)
+  const acceptanceRejected = !!uploadedAcceptance
+    && ['REJECTED', 'EDITS_REQUIRED'].includes(uploadedAcceptance.status)
+    && ['WAITING_FOR_PLACEMENT_LETTER', 'EDITS_REQUIRED'].includes(currentStatus);
+
+  // ข้อมูลเก่าที่ไม่มี reqLetterDelivery — ข้อความจัดส่งอยู่ใน comment (ยกเว้น comment เป็นเหตุผลตีกลับใบตอบรับ)
+  if (!reqDelivery && !acceptanceRejected && ['REQ_LETTER_ISSUED', 'WAITING_FOR_STAFF_CHECK_LETTER', 'WAITING_FOR_PLACEMENT_LETTER'].includes(currentStatus)) {
     adminMessagePhase1 = rawComment;
   }
 
   // PLACEMENT_LETTER_ISSUED: comment เป็นเรื่องหนังสือส่งตัว — แสดงที่การ์ดหนังสือส่งตัว ไม่ใช่กล่องใบตอบรับ
-  if (currentStatus === 'ACCEPTANCE_CHECKED' || (currentStatus === 'EDITS_REQUIRED' && uploadedAcceptance)) {
+  if (currentStatus === 'ACCEPTANCE_CHECKED' || acceptanceRejected) {
     adminMessagePhase2 = rawComment;
   }
 
@@ -207,11 +212,11 @@ const DispatchManagementCard = ({ profile, onUpload, onRefresh }: { profile: any
           {adminMessagePhase2 && (
             <div style={{
               marginTop: 12, padding: '10px', borderRadius: 4, fontSize: 13,
-              background: currentStatus === 'EDITS_REQUIRED' ? '#fef2f2' : '#f0fdf4',
-              borderLeft: `4px solid ${currentStatus === 'EDITS_REQUIRED' ? '#ef4444' : '#22c55e'}`,
-              color: currentStatus === 'EDITS_REQUIRED' ? '#991b1b' : '#166534'
+              background: acceptanceRejected ? '#fef2f2' : '#f0fdf4',
+              borderLeft: `4px solid ${acceptanceRejected ? '#ef4444' : '#22c55e'}`,
+              color: acceptanceRejected ? '#991b1b' : '#166534'
             }}>
-              <strong>{currentStatus === 'EDITS_REQUIRED' ? '❌ แจ้งแก้ไขใบตอบรับ:' : '💬 ข้อความจากเจ้าหน้าที่:'}</strong> <br />
+              <strong>{acceptanceRejected ? '❌ แจ้งแก้ไขใบตอบรับ — กรุณาอัปโหลดไฟล์ใหม่:' : '💬 ข้อความจากเจ้าหน้าที่:'}</strong> <br />
               {adminMessagePhase2}
             </div>
           )}
@@ -223,8 +228,12 @@ const DispatchManagementCard = ({ profile, onUpload, onRefresh }: { profile: any
                 ✅ <strong>เจ้าหน้าที่ได้รับใบตอบรับจากบริษัทแล้ว</strong> ไม่ต้องอัปโหลดใบตอบรับ
               </div>
             ) : uploadedAcceptance && !selectedFile ? (
-              <div style={{ padding: 16, background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8 }}>
-                <div style={{ fontSize: 14, color: '#166534', marginBottom: 12 }}>✅ <strong>อัปโหลดสำเร็จ:</strong> {uploadedAcceptance.name}</div>
+              <div style={{ padding: 16, background: acceptanceRejected ? '#fef2f2' : '#f0fdf4', border: `1px solid ${acceptanceRejected ? '#fecaca' : '#bbf7d0'}`, borderRadius: 8 }}>
+                <div style={{ fontSize: 14, color: acceptanceRejected ? '#991b1b' : '#166534', marginBottom: 12 }}>
+                  {acceptanceRejected
+                    ? <>❌ <strong>ไฟล์เดิมไม่ผ่าน:</strong> {uploadedAcceptance.name} — กด "เปลี่ยนไฟล์" เพื่อส่งใหม่</>
+                    : <>✅ <strong>อัปโหลดสำเร็จ:</strong> {uploadedAcceptance.name}</>}
+                </div>
                 <div style={{ display: 'flex', gap: 10 }}>
                   <button className="btn-secondary" style={{ flex: 1, fontSize: 13, padding: '10px' }} onClick={() => handlePreview(`/uploads/${uploadedAcceptance.path}`, "ใบตอบรับที่ส่งแล้ว")}>👁️ ดูไฟล์ที่ส่ง</button>
                   {/* ออกหนังสือส่งตัวแล้ว เปลี่ยนไฟล์ไม่ได้ (เดิมเปลี่ยนแล้วสถานะถอยกลับไปรอตรวจใบตอบรับ) */}

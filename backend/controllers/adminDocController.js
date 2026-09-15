@@ -347,6 +347,8 @@ exports.reviewStudentStatus = async (req, res) => {
       DOCS_APPROVED: 'เอกสาร T000 ผ่านการตรวจสอบ ✅',
       EDITS_REQUIRED: 'เอกสาร T000 ต้องแก้ไข กรุณาตรวจสอบความคิดเห็น',
       REQ_LETTER_ISSUED: 'ออกหนังสือขอความอนุเคราะห์แล้ว',
+      // เจ้าหน้าที่ตรวจใบตอบรับแล้วไม่ผ่าน/ต้องแก้ → กลับไปรอใบตอบรับ (นักศึกษาไม่ได้ตั้งสถานะนี้ผ่านหน้านี้)
+      WAITING_FOR_PLACEMENT_LETTER: 'ใบตอบรับต้องแก้ไข กรุณาดูความเห็นเจ้าหน้าที่แล้วอัปโหลดใหม่',
       ACCEPTANCE_CHECKED: 'ตรวจสอบใบตอบรับแล้ว',
       PLACEMENT_LETTER_ISSUED: 'ออกหนังสือส่งตัวแล้ว 🎉',
       APPLICATION_EDITS_REQUIRED: 'คำร้องของคุณต้องแก้ไข กรุณาตรวจสอบ',
@@ -364,7 +366,7 @@ exports.reviewStudentStatus = async (req, res) => {
               title: 'สถานะสหกิจศึกษาอัปเดต',
               message: msg,
               // หนังสือ/ใบตอบรับอยู่หน้าเอกสาร
-              link: LETTER_ISSUE_STATUSES.has(status) || status === 'ACCEPTANCE_CHECKED' ? '/student/docs' : '/student/dashboard',
+              link: LETTER_ISSUE_STATUSES.has(status) || ['ACCEPTANCE_CHECKED', 'WAITING_FOR_PLACEMENT_LETTER'].includes(status) ? '/student/docs' : '/student/dashboard',
               relatedId: String(parsedStudentId),
             });
           }

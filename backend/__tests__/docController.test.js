@@ -302,6 +302,41 @@ describe('docController', () => {
       expect(prisma.document.create).not.toHaveBeenCalled();
     });
 
+    // เจ้าหน้าที่ตีกลับใบตอบรับ → "รอใบตอบรับ" (WAITING_FOR_PLACEMENT_LETTER) นักศึกษาอัปโหลดใหม่ได้
+    // ข้อมูลเก่าที่ถูกตีกลับเป็น EDITS_REQUIRED ไปแล้ว (มีหนังสือขอความอนุเคราะห์แล้ว) ก็อัปโหลดใหม่ได้ ไม่ติดค้าง
+    test.each([
+      ['WAITING_FOR_PLACEMENT_LETTER', null],
+      ['EDITS_REQUIRED', 'req-letter.pdf'],
+    ])('200 — อัปโหลดใบตอบรับใหม่ในสถานะ %s → รอตรวจใบตอบรับ', async (status, reqLetterUrl) => {
+      prisma.$transaction.mockImplementation((arg) => Array.isArray(arg) ? Promise.all(arg) : arg(prisma));
+      prisma.systemConfig.findUnique.mockResolvedValue(null);
+      prisma.student.findUnique.mockResolvedValue({ id: 10, userId: 1, deletedAt: null });
+      prisma.document.findFirst.mockResolvedValue({ id: 5, path: 'old-acc.pdf', status: 'REJECTED' });
+      prisma.document.update.mockResolvedValue({ id: 5 });
+      prisma.studentCoop.findUnique.mockResolvedValue({ status, reqLetterUrl });
+      prisma.studentCoop.update.mockResolvedValue({});
+
+      const res = makeRes();
+      await docController.uploadDocument(makeUploadReq('CP-ACCEPTANCE'), res);
+
+      expect(res.status).not.toHaveBeenCalled();
+      expect(prisma.studentCoop.update).toHaveBeenCalledWith({
+        where: { studentId: 10 },
+        data: { acceptanceFileUrl: 'test.pdf', status: 'WAITING_FOR_STAFF_CHECK_LETTER' },
+      });
+    });
+
+    test('400 — EDITS_REQUIRED ของขั้นเอกสาร T000 (ยังไม่ออกหนังสือ) ส่งใบตอบรับไม่ได้', async () => {
+      prisma.systemConfig.findUnique.mockResolvedValue(null);
+      prisma.student.findUnique.mockResolvedValue({ id: 10, deletedAt: null });
+      prisma.studentCoop.findUnique.mockResolvedValue({ status: 'EDITS_REQUIRED', reqLetterUrl: null });
+
+      const res = makeRes();
+      await docController.uploadDocument(makeUploadReq('CP-ACCEPTANCE'), res);
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(prisma.studentCoop.update).not.toHaveBeenCalled();
+    });
+
     test('200 — ส่ง T002 แล้วสร้าง/ผูกพี่เลี้ยงจากข้อ 3 ของแบบฟอร์ม (ทุกคน)', async () => {
       prisma.$transaction.mockImplementation((arg) => Array.isArray(arg) ? Promise.all(arg) : arg(prisma));
       prisma.systemConfig.findUnique.mockResolvedValue(null);
