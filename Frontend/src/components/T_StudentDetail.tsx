@@ -53,7 +53,6 @@ interface StudentProfile {
   faculty?: string;
   major?: string;
   studyProgram?: string;
-  gpa?: number;
   phone?: string;
   user?: { email: string };
   nationality?: string;
@@ -312,7 +311,6 @@ export default function T_StudentDetail() {
               <InfoRow label="หลักสูตร" value={CURRICULUM_TH[student.studyProgram || ""] || student.studyProgram || "-"} />
               <InfoRow label="เบอร์โทรศัพท์" value={student.phone || "-"} />
               <InfoRow label="อีเมลมหาวิทยาลัย" value={student.user?.email || "-"} highlight />
-              <InfoRow label="GPA" value={student.gpa?.toFixed(2) || "-"} />
               <InfoRow label="สัญชาติ" value={student.nationality || "ไทย"} />
             </div>
           </Section>

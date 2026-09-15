@@ -13,7 +13,6 @@ interface StudentDocument { id: number; name: string; path: string; type?: strin
 interface StudentProfile {
   id: number; studentId: string; prefix?: string; firstName: string; lastName: string;
   major?: string; year?: string; phone?: string; email?: string;
-  gpa: number;
   coopPeriodId?: number; // ✅
   coop?: {
     coopPeriodId?: number; // ✅ เผื่อ Backend ส่งมาซ้อนในนี้
@@ -342,7 +341,7 @@ export default function T_Requests() {
                   <div style={{ fontSize: 14, fontWeight: 800, borderBottom: '1px solid #f1f5f9', paddingBottom: 8, marginBottom: 12 }}>👤 ข้อมูลผู้สมัคร</div>
                   <div style={{ display: 'grid', gridTemplateColumns: '100px 1fr', gap: '6px 8px', fontSize: 13 }}>
                     <span style={{ fontWeight: 700, color: '#64748b' }}>ชื่อ-สกุล:</span> <span>{selectedStudent.prefix}{selectedStudent.firstName} {selectedStudent.lastName}</span>
-                    <span style={{ fontWeight: 700, color: '#64748b' }}>GPA:</span> <span style={{ fontWeight: 700 }}>{selectedStudent.gpa?.toFixed(2) ?? "-"}</span>
+                    <span style={{ fontWeight: 700, color: '#64748b' }}>รหัสนักศึกษา:</span> <span>{selectedStudent.studentId}</span>
                   </div>
                 </div>
 
