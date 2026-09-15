@@ -88,8 +88,6 @@ export type CoopRequestState = {
     passedPrepCourse?: boolean;
     prepCourseTerm?: string;
     prepCourseYear?: string;
-    gpaOk?: boolean;
-    coreGpaOk?: boolean;
     activityCredits60?: boolean;
     englishTestPassed?: boolean;
     computerTestPassed?: boolean;
@@ -122,7 +120,6 @@ export interface StudentProfile {
   lastNameEn?: string;
   email?: string; // เพิ่ม email (string)
   phone?: string;
-  gpa?: number; // เพิ่ม GPA
   year?: string;
   major?: string;
   studyProgram?: "normal" | "special";

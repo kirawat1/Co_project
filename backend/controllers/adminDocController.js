@@ -129,7 +129,6 @@ exports.getStudentsForT000 = async (req, res) => {
       major: s.major,
       // major เป็นรหัสสาขา (CS) — หนังสือส่งตัวต้องใช้ชื่อหลักสูตรภาษาไทย
       majorNameTh: resolveMajorNameTh(s.major, criteria),
-      gpa: s.gpa,
       company: s.coop?.company,
       
       docStatus: s.coop?.status || 'WAITING',

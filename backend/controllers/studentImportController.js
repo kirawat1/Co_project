@@ -64,7 +64,6 @@ function normalizeRow(row, isKkuFormat) {
       email:            String(row['KKUMAIL']           || '').trim(),
       phone:            null,
       year:             null,
-      gpa:              null,
       major:            programName || null,
       studyProgram,
       advisorName,
@@ -80,7 +79,7 @@ function normalizeRow(row, isKkuFormat) {
   const advisorName = advisorRaw || null;
   const { firstName: advisorFirstName, lastName: advisorLastName } = splitFullName(advisorRaw);
   const rawProgram = String(row['ภาคการศึกษา (ปกติ/พิเศษ)'] || '').trim();
-  const rawGpa     = String(row['เกรดเฉลี่ยสะสม (GPA)']       || '').trim();
+  // ไฟล์เก่าอาจยังมีคอลัมน์ "เกรดเฉลี่ยสะสม (GPA)" — ระบบไม่ใช้ GPA แล้ว ไม่นำเข้า
   return {
     studentId:        String(row['รหัสนักศึกษา'] || '').trim(),
     prefix:           mapPrefix(row['คำนำหน้าชื่อ']),
@@ -91,7 +90,6 @@ function normalizeRow(row, isKkuFormat) {
     email:            String(row['อีเมล'] || '').trim(),
     phone:            String(row['เบอร์โทรศัพท์'] || '').trim() || null,
     year:             String(row['ชั้นปี'] || '').trim(),
-    gpa:              rawGpa && !Number.isNaN(parseFloat(rawGpa)) ? parseFloat(rawGpa) : null,
     major:            String(row['สาขาวิชา/แผนกการศึกษา'] || row['สาขาวิชา'] || '').trim() || null,
     studyProgram:     STUDY_PROGRAM_MAP[rawProgram] ?? null,
     advisorName,
@@ -358,7 +356,7 @@ exports.importStudents = async (req, res) => {
         }
 
         const { prefix, firstName, lastName, firstNameEn, lastNameEn,
-                year, phone, gpa, major, studyProgram, advisorName } = norm;
+                year, phone, major, studyProgram, advisorName } = norm;
 
         // Resolve Thai major name → code (e.g. "วิทยาการคอมพิวเตอร์" → "cs")
         const resolvedMajor = major ? (nameThToCode.get(major) ?? major) : null;
@@ -389,13 +387,13 @@ exports.importStudents = async (req, res) => {
             where: { studentId },
             update: {
               prefix, firstName, lastName, firstNameEn, lastNameEn,
-              year, phone, email, gpa, major: resolvedMajor ?? undefined, studyProgram,
+              year, phone, email, major: resolvedMajor ?? undefined, studyProgram,
               advisorName:     generalAdvisorId !== undefined ? advisorName : undefined,
               generalAdvisorId,
             },
             create: {
               studentId, prefix, firstName, lastName, firstNameEn, lastNameEn,
-              year, phone, email, gpa, major: resolvedMajor ?? null,
+              year, phone, email, major: resolvedMajor ?? null,
               advisorName, generalAdvisorId: generalAdvisorId ?? null, studyProgram,
               userId: user.id,
             },

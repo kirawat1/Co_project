@@ -671,52 +671,21 @@ describe('updateMyProfile', () => {
   });
 
   const setupUpsert = () => {
-    prisma.student.findUnique.mockResolvedValue({ deletedAt: null, gpa: 3.2, activityUnit: 5 });
+    prisma.student.findUnique.mockResolvedValue({ deletedAt: null, activityUnit: 5 });
     prisma.student.upsert.mockResolvedValue({ id: 1 });
   };
 
-  test('200 — ไม่กรอก gpa (ส่งค่าว่าง) → ไม่ใช่ error ไม่แตะ gpa เดิม (เดิม 400 "gpa ไม่ถูกต้อง")', async () => {
+  // ระบบไม่ใช้ GPA แล้ว — ส่งมาก็ไม่บันทึก และค่าที่ไม่ใช่ตัวเลขก็ไม่ทำให้บันทึกโปรไฟล์ไม่ได้
+  test.each(['3.75', 'abc', ''])('200 — ส่ง gpa (%p) มาก็ไม่บันทึก gpa', async (gpa) => {
     setupUpsert();
-    const req = { userId: 1, body: { firstName: 'ก', gpa: '' } };
     const res = makeRes();
 
-    await updateMyProfile(req, res);
+    await updateMyProfile({ userId: 1, body: { firstName: 'ก', gpa } }, res);
 
     expect(res.status).not.toHaveBeenCalledWith(400);
-    expect(prisma.student.upsert.mock.calls[0][0].update.gpa).toBeUndefined();
-  });
-
-  test('200 — ไม่ส่ง gpa มาเลย → ไม่แตะ gpa เดิม', async () => {
-    setupUpsert();
-    const req = { userId: 1, body: { firstName: 'ก' } };
-    const res = makeRes();
-
-    await updateMyProfile(req, res);
-
-    expect(res.status).not.toHaveBeenCalledWith(400);
-    expect(prisma.student.upsert.mock.calls[0][0].update.gpa).toBeUndefined();
-  });
-
-  test('200 — กรอก gpa ปกติ → บันทึกค่าใหม่', async () => {
-    setupUpsert();
-    const req = { userId: 1, body: { firstName: 'ก', gpa: '3.75' } };
-    const res = makeRes();
-
-    await updateMyProfile(req, res);
-
-    expect(res.status).not.toHaveBeenCalledWith(400);
-    expect(prisma.student.upsert.mock.calls[0][0].update.gpa).toBe(3.75);
-  });
-
-  test('400 — กรอก gpa เป็นตัวอักษรที่แปลงเป็นตัวเลขไม่ได้', async () => {
-    setupUpsert();
-    const req = { userId: 1, body: { firstName: 'ก', gpa: 'abc' } };
-    const res = makeRes();
-
-    await updateMyProfile(req, res);
-
-    expect(res.status).toHaveBeenCalledWith(400);
-    expect(prisma.student.upsert).not.toHaveBeenCalled();
+    const { update, create } = prisma.student.upsert.mock.calls[0][0];
+    expect(update).not.toHaveProperty('gpa');
+    expect(create).not.toHaveProperty('gpa');
   });
 
   test('200 — ไม่กรอก activityUnit (ส่งค่าว่าง) → ไม่ใช่ error', async () => {
@@ -890,6 +859,15 @@ describe('createStudentSingle — major', () => {
 
     expect(res.status).toHaveBeenCalledWith(201);
     expect(prisma.user.create.mock.calls[0][0].data.student.create.major).toBe('CS');
+  });
+
+  test('ระบบไม่ใช้ GPA แล้ว — ส่ง gpa มาก็ไม่บันทึก', async () => {
+    prisma.coopCriteria.findFirst.mockResolvedValue({ major: 'CS' });
+    const res = makeRes();
+    await createStudentSingle({ body: { ...baseBody, major: 'CS', gpa: '3.5' } }, res);
+
+    expect(res.status).toHaveBeenCalledWith(201);
+    expect(prisma.user.create.mock.calls[0][0].data.student.create).not.toHaveProperty('gpa');
   });
 
   test('ส่งชื่อไทย (วิทยาการคอมพิวเตอร์) → แปลงเป็นรหัสสาขาที่ตรงกัน', async () => {

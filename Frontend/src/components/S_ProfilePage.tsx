@@ -230,13 +230,12 @@ export default function S_ProfilePage() {
   /* ================= SAVE ================= */
   async function saveStudentInfo(updatedProfile: StudentProfile) {
     try {
-      // gpa ไม่ให้แก้ในฟอร์มนี้ (ดึงอัตโนมัติจากสำนักทะเบียน มข.) — ตัดออกก่อนส่ง กันทับค่าที่ sync มาโดยไม่ตั้งใจ
-      const { gpa: _gpa, ...rest } = updatedProfile as any;
+      // ระบบไม่ใช้ GPA แล้ว (backend ไม่รับค่า gpa)
       const res = await apiFetch("/api/students/me", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...rest,
+          ...updatedProfile,
           prefix: prefixMapToPrisma[updatedProfile.prefix as keyof typeof prefixMapToPrisma] || updatedProfile.prefix,
           studyProgram: studyProgramMapToPrisma[updatedProfile.studyProgram as keyof typeof studyProgramMapToPrisma] || updatedProfile.studyProgram,
         }),
@@ -378,7 +377,7 @@ export default function S_ProfilePage() {
                   <button onClick={() => setKkuModalOpen(false)} style={{ background: "none", border: "none", fontSize: 22, cursor: "pointer", color: "#94a3b8" }}>✕</button>
                 </div>
                 <p style={{ margin: "0 0 20px", fontSize: 14, color: "#64748b", lineHeight: 1.6 }}>
-                  ระบบจะดึงข้อมูล ชื่อ-นามสกุล, สาขา, คณะ, ชั้นปี, GPA และอาจารย์ที่ปรึกษา จากสำนักทะเบียน มข. มาเติมให้อัตโนมัติ
+                  ระบบจะดึงข้อมูล ชื่อ-นามสกุล, สาขา, คณะ, ชั้นปี และอาจารย์ที่ปรึกษา จากสำนักทะเบียน มข. มาเติมให้อัตโนมัติ
                 </p>
                 <div style={{ marginBottom: 14 }}>
                   <label style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#64748b", marginBottom: 6 }}>KKU Username (อีเมล @kkumail.com)</label>

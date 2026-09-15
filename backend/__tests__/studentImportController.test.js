@@ -130,13 +130,16 @@ describe('importStudents', () => {
         year: '3',
         phone: '0812345678',
         email: 'stu1@kkumail.com',
-        gpa: 3.45,
         studyProgram: 'normal',
         advisorName: 'สมหญิง รักเรียน',
         generalAdvisorId: 10,
         userId: 1,
       }),
     }));
+    // ระบบไม่ใช้ GPA แล้ว — ไฟล์เก่าที่ยังมีคอลัมน์ GPA ก็ไม่นำเข้า
+    const { create, update } = prisma.student.upsert.mock.calls[0][0];
+    expect(create).not.toHaveProperty('gpa');
+    expect(update).not.toHaveProperty('gpa');
   });
 
   test('[old] skips row with missing email, counts as error', async () => {
@@ -314,7 +317,6 @@ describe('importStudents', () => {
         email:       'kittayot.m@kkumail.com',
         phone:       null,
         year:        null,
-        gpa:         null,
         studyProgram:    'normal',
         advisorName:     'วิชาญ ธรรมวิเศษ',
         generalAdvisorId: 42,

@@ -58,7 +58,6 @@ export interface ProfileData {
   lastName?: string;
   firstNameEn?: string;
   lastNameEn?: string;
-  gpa?: number;
   year?: string;
   phone?: string;
   email?: string;
@@ -320,23 +319,7 @@ export const createT000PDF = async (
   // ✅ แก้ไข: ให้ดึงจาก profile.advisorName เป็นหลัก
   doc.text(profile.advisorName || formData.advisorName || "-", leftX + 100, y);
 
-  // Row 5: GPA
-  y += 8;
-  drawDataLine(
-    "เกรดเฉลี่ยรวม",
-    profile.gpa?.toFixed(2) || "-",
-    leftX + 2,
-    y,
-    50,
-  );
-  drawText(
-    "GPA for all courses completed to date",
-    leftX + 2,
-    y + 3.5,
-    "left",
-    false,
-    9,
-  );
+  // (เดิมมีแถว "เกรดเฉลี่ยรวม / GPA" — ระบบไม่ใช้ GPA แล้ว)
 
   // ... (ส่วนที่เหลือเหมือนเดิม) ...
 

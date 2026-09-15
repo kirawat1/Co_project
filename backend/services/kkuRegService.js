@@ -224,7 +224,8 @@ async function searchCourses(query) {
 
 // ──────────────────────────────────────────
 // Composite: ดึงทุกอย่างในครั้งเดียว
-// คืน { info, grades, advisor, image } หรือ field ที่ได้
+// คืน { info, advisor, image } หรือ field ที่ได้
+// (ไม่ดึงผลการเรียน/GPA แล้ว — ระบบไม่ใช้ GPA)
 // ──────────────────────────────────────────
 async function syncStudentAll(username, password) {
   const token = await getStudentToken(username, password);
@@ -232,9 +233,8 @@ async function syncStudentAll(username, password) {
     return { ok: false, message: token?.error || "ไม่สามารถเชื่อมต่อ KKU REG ได้ — ตรวจสอบ username/password" };
   }
 
-  const [info, grades, advisor, image] = await Promise.allSettled([
+  const [info, advisor, image] = await Promise.allSettled([
     getStudentInfo(token),
-    getGradeSummary(token),
     getAdvisor(token),
     getStudentImage(token),
   ]);
@@ -243,7 +243,6 @@ async function syncStudentAll(username, password) {
     ok: true,
     _token:  token,
     info:    info.status    === "fulfilled" ? info.value    : null,
-    grades:  grades.status  === "fulfilled" ? grades.value  : null,
     advisor: advisor.status === "fulfilled" ? advisor.value : null,
     image:   image.status   === "fulfilled" ? image.value   : null,
   };

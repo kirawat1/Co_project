@@ -184,6 +184,8 @@ describe('getProfile', () => {
     expect(body.ok).toBe(true);
     expect(body.user.studentId).toBe('u640001');
     expect(body.user).not.toHaveProperty('password');
+    // ระบบไม่ใช้ GPA แล้ว — ไม่ส่งออกไปหน้าเว็บ
+    expect(body.user).not.toHaveProperty('gpa');
   });
 });
 
