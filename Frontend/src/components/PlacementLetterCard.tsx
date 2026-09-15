@@ -43,6 +43,10 @@ export default function PlacementLetterCard({
 
         window.open(fileUrl, "_blank");
 
+        // เปลี่ยนสถานะเฉพาะครั้งแรก (ออกหนังสือส่งตัวแล้ว → ออกฝึกสหกิจ) — เดิมกดดาวน์โหลดซ้ำตอนออกฝึกแล้วขึ้น error
+        // (เจ้าหน้าที่ส่งหนังสือให้บริษัทเอง ระบบเปลี่ยนเป็นออกฝึกสหกิจให้แล้วตั้งแต่ออกหนังสือ)
+        if (docStatus !== "PLACEMENT_LETTER_ISSUED") return;
+
         try {
             const res = await apiFetch(
                 "/api/students/download-placement-letter",
@@ -130,7 +134,7 @@ export default function PlacementLetterCard({
                     </div>
                 )}
 
-                {canDownload && docStatus !== "ACCEPTANCE_CHECKED" && (
+                {canDownload && docStatus === "PLACEMENT_LETTER_ISSUED" && (
                     <div style={hintStyle}>
                         * เมื่อกดดาวน์โหลด สถานะจะเปลี่ยนเป็น “เริ่มออกฝึกสหกิจ”
                     </div>

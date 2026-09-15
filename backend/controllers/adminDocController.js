@@ -24,7 +24,7 @@ const LETTER_DELIVERY_NOTES = {
   },
   PLACEMENT_LETTER_ISSUED: {
     STUDENT: 'ดาวน์โหลดหนังสือส่งตัวที่หน้าเอกสาร แล้วนำไปยื่นบริษัทในวันรายงานตัว',
-    STAFF: 'เจ้าหน้าที่จัดส่งให้บริษัทล่วงหน้าเรียบร้อยแล้ว ไม่ต้องนำไปยื่นเอง',
+    STAFF: 'เจ้าหน้าที่จัดส่งให้บริษัทล่วงหน้าเรียบร้อยแล้ว ไม่ต้องนำไปยื่นเอง สถานะเป็น "ออกฝึกสหกิจ" ส่ง T002 ได้เลย',
   },
 };
 
@@ -300,6 +300,12 @@ exports.reviewStudentStatus = async (req, res) => {
         }
       }
 
+      // เจ้าหน้าที่ส่งหนังสือส่งตัวให้บริษัทเอง → ไม่ต้องรอนักศึกษากดดาวน์โหลด (ปกติดาวน์โหลดแล้วถึงเป็น INTERNSHIP_STARTED)
+      // ไม่งั้นนักศึกษาที่ไม่กดดาวน์โหลดค้างอยู่ "ออกหนังสือส่งตัวแล้ว" ส่ง T002/นัดนิเทศไม่ได้
+      if (req.file && updateData.status === 'PLACEMENT_LETTER_ISSUED' && deliveryMethod === 'STAFF') {
+        updateData.status = 'INTERNSHIP_STARTED';
+      }
+
       // เลขที่หนังสือราชการห้ามซ้ำข้ามนักศึกษา (เช็คในทรานแซกชันเพื่อกันแข่งกันบันทึก)
       // รวมเลขที่ของร่างที่รอลงนามของคนอื่นด้วย — กันเลขเดียวกันอยู่บนกระดาษสองฉบับ
       for (const [key, value] of [['reqLetter', updateData.reqDocNumber], ['placeLetter', updateData.placeDocNumber]]) {
@@ -355,7 +361,8 @@ exports.reviewStudentStatus = async (req, res) => {
     };
     // ออกหนังสือพร้อมไฟล์ → บอกนักศึกษาด้วยว่าต้องนำไปยื่นเอง หรือเจ้าหน้าที่ส่งให้บริษัทแล้ว
     const letterIssued = req.file && LETTER_ISSUE_STATUSES.has(status);
-    const deliveryNote = letterIssued && deliveryMethod ? LETTER_DELIVERY_NOTES[status][deliveryMethod] : '';
+    // พิมพ์ซ้ำให้คนที่ผ่านขั้นนั้นไปแล้ว (statusKept) ไม่ต้องบอกวิธีจัดส่ง/ขั้นตอนถัดไปซ้ำ
+    const deliveryNote = letterIssued && deliveryMethod && !statusKept ? LETTER_DELIVERY_NOTES[status][deliveryMethod] : '';
     const msg = statusMessages[status] && `${statusMessages[status]}${deliveryNote ? ` — ${deliveryNote}` : ''}`;
     if (msg) {
       prisma.student.findUnique({ where: { id: parsedStudentId }, select: { userId: true } })

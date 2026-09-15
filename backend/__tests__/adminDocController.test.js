@@ -291,6 +291,33 @@ describe('reviewStudentStatus', () => {
       expect(prisma.notification.createMany.mock.calls[0][0].data[0].link).toBe('/student/docs');
     });
 
+    // เจ้าหน้าที่ส่งหนังสือส่งตัวให้บริษัทเอง → นักศึกษาไม่ต้องกดดาวน์โหลด สถานะเป็น "ออกฝึกสหกิจ" ทันที (ส่ง T002/นัดนิเทศได้)
+    test.each([
+      ['ACCEPTANCE_CHECKED', 'STAFF', 'INTERNSHIP_STARTED'],
+      ['PLACEMENT_LETTER_ISSUED', 'STAFF', 'INTERNSHIP_STARTED'], // ค้างอยู่ก่อน → พิมพ์ซ้ำแบบเจ้าหน้าที่ส่งเองแล้วเดินต่อ
+      ['ACCEPTANCE_CHECKED', 'STUDENT', 'PLACEMENT_LETTER_ISSUED'],
+    ])('หนังสือส่งตัว จาก %s ส่งแบบ %s → สถานะ %s', async (current, method, expected) => {
+      prisma.studentCoop.findUnique.mockResolvedValue({ status: current, reqLetterUrl: null, placeLetterUrl: null });
+      const res = makeRes();
+      await reviewStudentStatus({
+        body: { studentId: '1', status: 'PLACEMENT_LETTER_ISSUED', comment: 'x', placeDocNumber: '660301.26.6.2/60', docType: 'PLACEMENT_LETTER', deliveryMethod: method },
+        file: letterFile,
+      }, res);
+      expect(res.status).not.toHaveBeenCalled();
+      expect(prisma.studentCoop.upsert.mock.calls[0][0].update.status).toBe(expected);
+    });
+
+    test('หนังสือส่งตัว STAFF แต่นักศึกษาส่ง T002 ไปแล้ว → คงสถานะเดิม (พิมพ์ซ้ำ)', async () => {
+      prisma.studentCoop.findUnique.mockResolvedValue({ status: 'T002_SUBMITTED', reqLetterUrl: null, placeLetterUrl: 'old.pdf' });
+      const res = makeRes();
+      await reviewStudentStatus({
+        body: { studentId: '1', status: 'PLACEMENT_LETTER_ISSUED', comment: 'x', placeDocNumber: '660301.26.6.2/61', docType: 'PLACEMENT_LETTER', deliveryMethod: 'STAFF' },
+        file: letterFile,
+      }, res);
+      expect(prisma.studentCoop.upsert.mock.calls[0][0].update).not.toHaveProperty('status');
+      expect(res.json.mock.calls[0][0]).toMatchObject({ ok: true, statusKept: true });
+    });
+
     test('deliveryMethod ไม่ถูกต้อง / ไม่ส่งมา → ไม่บันทึก และแจ้งเตือนข้อความเดิม', async () => {
       prisma.studentCoop.findUnique.mockResolvedValue({ status: 'DOCS_APPROVED', reqLetterUrl: null, placeLetterUrl: null });
       const res = makeRes();
