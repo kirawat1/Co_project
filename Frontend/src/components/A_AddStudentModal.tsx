@@ -23,7 +23,7 @@ export default function A_AddStudentModal({ onClose, onSuccess }: Props) {
   const [form, setForm] = useState({
     studentId: "", prefix: "MS", firstName: "", lastName: "",
     firstNameEn: "", lastNameEn: "", email: "", phone: "",
-    major: "", studyProgram: "normal", year: "", gpa: "", advisorName: "",
+    major: "", studyProgram: "normal", year: "", advisorName: "",
   });
   const [loading, setLoading] = useState(false);
   // สาขาวิชาจากหน้าจัดการสาขาวิชา (admin/criteria) — เลือกแทนพิมพ์เอง ให้เก็บเป็นรหัสสาขาเดียวกันทั้งระบบ
@@ -142,14 +142,10 @@ export default function A_AddStudentModal({ onClose, onSuccess }: Props) {
             </select>
           </div>
 
-          {/* ชั้นปี + GPA */}
+          {/* ชั้นปี (ไม่เก็บ GPA แล้ว) */}
           <div>
             <label style={LBL}>ชั้นปี</label>
             <input style={FIELD_STYLE} value={form.year} onChange={set("year")} placeholder="3 หรือ 4" />
-          </div>
-          <div>
-            <label style={LBL}>เกรดเฉลี่ยสะสม (GPA)</label>
-            <input style={FIELD_STYLE} type="number" step="0.01" min="0" max="4" value={form.gpa} onChange={set("gpa")} placeholder="3.50" />
           </div>
 
           {/* อาจารย์ที่ปรึกษา */}

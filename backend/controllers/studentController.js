@@ -313,9 +313,18 @@ exports.getStudents = async (req, res) => {
         where,
         include: {
           user: { select: { email: true, username: true } },
-          coop: { include: { company: true, mentors: true } },
+          coop: { include: { company: true, mentors: true, coopPeriod: { select: { semester: true, academicYear: true } } } },
           documents: true,
           coopApplicationForm: { select: { gradeSheetUrl: true } },
+          // หน้าดูข้อมูลนักศึกษา (admin/students) — ที่ปรึกษา + การนิเทศ
+          generalAdvisor: { select: { id: true, prefix: true, firstName: true, lastName: true } },
+          coopAdvisor: { select: { id: true, prefix: true, firstName: true, lastName: true } },
+          supervisionAppointment: {
+            select: {
+              status: true, supervisionType: true, confirmedDate: true, coTeacherName: true,
+              teacher: { select: { id: true, prefix: true, firstName: true, lastName: true } },
+            },
+          },
         },
         orderBy: { [sortBy]: sortDir },
       }),

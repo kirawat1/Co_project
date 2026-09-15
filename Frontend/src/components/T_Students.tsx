@@ -55,7 +55,6 @@ interface StudentProfile {
   faculty?: string;
   major?: string;
   studyProgram?: string;
-  gpa?: number;
   phone?: string;
   user?: { email: string };
   nationality?: string;
@@ -448,7 +447,6 @@ function StudentViewModal({
                   <InfoRow label="ชั้นปี" value={student.year || "-"} />
                   <InfoRow label="คณะ" value={student.faculty || "วิทยาลัยการคอมพิวเตอร์"} />
                   <InfoRow label="หลักสูตร" value={displayCurriculum} />
-                  <InfoRow label="เกรดเฉลี่ย (GPA)" value={student.gpa?.toFixed(2) || "-"} />
                 </div>
               </div>
               <div style={{ background: '#f8fafc', padding: 20, borderRadius: 16, border: '1px solid #e2e8f0' }}>

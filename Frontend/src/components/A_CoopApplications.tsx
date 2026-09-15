@@ -23,7 +23,7 @@ type Company = { id: string; name: string; address?: string; phone?: string; con
 type Student = {
     id: number; studentId: string; prefix?: string; firstName: string; lastName: string;
     firstNameEn?: string; lastNameEn?: string; year?: string; major: string;
-    advisorName?: string; phone?: string; email?: string; gpa: number;
+    advisorName?: string; phone?: string; email?: string;
     coopPeriodId?: number;
     documents: Document[];
     coopApplicationForm?: { gradeSheetUrl?: string | null } | null;
@@ -378,7 +378,7 @@ export default function A_CoopApplications() {
                                     <div style={{ fontWeight: 800, marginBottom: 10, borderBottom: '1px solid #eee', paddingBottom: 8, color: '#334155' }}>👤 ข้อมูลผู้สมัคร</div>
                                     <div style={{ fontSize: 13, lineHeight: 2, color: '#475569' }}>
                                         <b>ชื่อ:</b> {selectedApp.student.firstName} {selectedApp.student.lastName}<br />
-                                        <b>GPA:</b> {selectedApp.student.gpa?.toFixed(2) ?? "-"}
+                                        <b>รหัสนักศึกษา:</b> {selectedApp.student.studentId}
                                     </div>
                                 </div>
 

@@ -66,6 +66,22 @@ describe('getStudents', () => {
     expect(body.meta.totalPages).toBe(6);
   });
 
+  test('200 — ดึงข้อมูลที่หน้าดูข้อมูลนักศึกษาใช้: ที่ปรึกษาทั่วไป/โครงงาน, รอบสหกิจ, การนิเทศ', async () => {
+    prisma.student.findMany.mockResolvedValue([]);
+    prisma.student.count.mockResolvedValue(0);
+
+    await getStudents({ query: {} }, makeRes());
+
+    const { include } = prisma.student.findMany.mock.calls[0][0];
+    const teacherSelect = { select: expect.objectContaining({ prefix: true, firstName: true, lastName: true }) };
+    expect(include).toMatchObject({
+      generalAdvisor: teacherSelect,
+      coopAdvisor: teacherSelect,
+      coop: { include: expect.objectContaining({ company: true, mentors: true, coopPeriod: expect.any(Object) }) },
+      supervisionAppointment: { select: expect.objectContaining({ status: true, confirmedDate: true, coTeacherName: true, teacher: teacherSelect }) },
+    });
+  });
+
   test('200 — limit ไม่เกิน 100', async () => {
     prisma.student.findMany.mockResolvedValue([]);
     prisma.student.count.mockResolvedValue(0);

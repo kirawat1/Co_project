@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { apiFetch } from "../utils/apiFetch";
+import { fmtDate, fmtDateTime } from "../utils/dateFormat";
 import StatusBadge from "../components/StatusBadge";
 import { STATUS_GROUPS } from "./StatusFilterChips";
 import { useDebounce } from "../hooks/useDebounce";
@@ -76,7 +77,11 @@ interface Company {
   phone?: string;
   email?: string;
   website?: string;
+  contactPerson?: string;
+  contactPosition?: string;
 }
+
+interface TeacherName { id: number; prefix?: string | null; firstName: string; lastName: string }
 
 export interface StudentProfile {
   id: number;
@@ -90,13 +95,20 @@ export interface StudentProfile {
   faculty?: string;
   major?: string;
   studyProgram?: string;
-  gpa?: number;
   phone?: string;
+  email?: string | null;
   advisorName?: string;
   generalAdvisorId?: number | null;
   coopAdvisorId?: number | null;
-  generalAdvisor?: { id: number; firstName: string; lastName: string } | null;
-  coopAdvisor?: { id: number; firstName: string; lastName: string } | null;
+  generalAdvisor?: TeacherName | null;
+  coopAdvisor?: TeacherName | null;
+  supervisionAppointment?: {
+    status: string;
+    supervisionType?: "ONLINE" | "ONSITE";
+    confirmedDate?: string | null;
+    coTeacherName?: string | null;
+    teacher?: TeacherName | null;
+  } | null;
   jobPosition?: string;
   user?: { email: string };
   nationality?: string;
@@ -107,6 +119,10 @@ export interface StudentProfile {
     company?: Company;
     mentors?: Mentor[];
     teacherComment?: string;
+    jobPosition?: string | null;
+    actualStartDate?: string | null;
+    actualEndDate?: string | null;
+    coopPeriod?: { semester: number; academicYear: string } | null;
   };
   documents?: StudentDocument[];
   coopApplicationForm?: { gradeSheetUrl?: string | null } | null;
@@ -126,6 +142,11 @@ function getThaiPrefix(prefix?: string) {
   if (['miss', 'ms', 'ms.', 'นางสาว'].includes(p)) return "นางสาว";
   if (['mrs', 'mrs.', 'นาง'].includes(p)) return "นาง";
   return prefix || "";
+}
+
+function teacherFullName(t?: TeacherName | null): string {
+  if (!t?.firstName) return "";
+  return `${t.prefix || ""}${t.firstName} ${t.lastName || ""}`.trim();
 }
 
 function getFullAddress(c?: Company) {
@@ -829,16 +850,41 @@ function StudentModal({
         {/* Content */}
         <div style={{ maxHeight: '50vh', overflowY: 'auto' }}>
           {tab === "profile" && (
-            <Section title="ข้อมูลส่วนตัว">
-              <InfoRow label="รหัสนักศึกษา" value={student.studentId} />
-              <InfoRow label="ชื่อ-สกุล" value={fullName} />
-              <InfoRow label="ชั้นปี" value={student.year} />
-              <InfoRow label="สาขาวิชา" value={student.major ? (deptMap[student.major] ? `${deptMap[student.major]} (${student.major})` : student.major) : "-"} />
-              <InfoRow label="หลักสูตร" value={CURRICULUM_TH[student.studyProgram || ""] || student.studyProgram} />
-              <InfoRow label="เบอร์โทร" value={student.phone} />
-              <InfoRow label="อีเมล" value={student.user?.email} />
-              <InfoRow label="GPA" value={student.gpa?.toFixed(2)} />
-            </Section>
+            <>
+              <Section title="ข้อมูลส่วนตัว">
+                <InfoRow label="รหัสนักศึกษา" value={student.studentId} />
+                <InfoRow label="ชื่อ-สกุล" value={fullName} />
+                <InfoRow label="ชื่อ-สกุล (EN)" value={[student.firstNameEn, student.lastNameEn].filter(Boolean).join(" ")} />
+                <InfoRow label="ชั้นปี" value={student.year} />
+                <InfoRow label="สาขาวิชา" value={student.major ? (deptMap[student.major] ? `${deptMap[student.major]} (${student.major})` : student.major) : "-"} />
+                <InfoRow label="ระบบการศึกษา" value={CURRICULUM_TH[student.studyProgram || ""] || student.studyProgram} />
+                <InfoRow label="เบอร์โทร" value={student.phone} />
+                {/* อีเมลติดต่อที่นักศึกษากรอกเอง กับอีเมลบัญชีเข้าระบบ อาจเป็นคนละอัน */}
+                <InfoRow label="อีเมลติดต่อ" value={student.email || student.user?.email} />
+                {student.email && student.user?.email && student.email !== student.user.email && (
+                  <InfoRow label="อีเมลเข้าระบบ" value={student.user.email} />
+                )}
+              </Section>
+              <Section title="ข้อมูลสหกิจ">
+                <InfoRow label="สถานะ" value={<StatusBadge status={student.coop?.status || "NOT_SUBMITTED"} />} />
+                <InfoRow label="รอบสหกิจ" value={student.coop?.coopPeriod ? `เทอม ${student.coop.coopPeriod.semester}/${student.coop.coopPeriod.academicYear}` : undefined} />
+                <InfoRow label="ตำแหน่งงาน" value={student.coop?.jobPosition || student.jobPosition} />
+                <InfoRow label="ช่วงฝึกงาน" value={student.coop?.actualStartDate ? `${fmtDate(student.coop.actualStartDate)} – ${fmtDate(student.coop.actualEndDate)}` : undefined} />
+                <InfoRow label="ที่ปรึกษาทั่วไป" value={teacherFullName(student.generalAdvisor) || student.advisorName} />
+                <InfoRow label="ที่ปรึกษาโครงงาน" value={teacherFullName(student.coopAdvisor)} />
+              </Section>
+              <Section title="การนิเทศ">
+                {student.supervisionAppointment ? (
+                  <>
+                    <InfoRow label="สถานะ" value={<StatusBadge status={student.supervisionAppointment.status} />} />
+                    <InfoRow label="อาจารย์นิเทศ" value={teacherFullName(student.supervisionAppointment.teacher)} />
+                    <InfoRow label="อาจารย์นิเทศร่วม" value={student.supervisionAppointment.coTeacherName} />
+                    <InfoRow label="วันนิเทศ" value={student.supervisionAppointment.confirmedDate ? fmtDateTime(student.supervisionAppointment.confirmedDate) : "รอยืนยันวัน"} />
+                    <InfoRow label="รูปแบบ" value={student.supervisionAppointment.supervisionType === "ONLINE" ? "ออนไลน์" : student.supervisionAppointment.supervisionType === "ONSITE" ? "ออนไซต์" : undefined} />
+                  </>
+                ) : <div style={{ color: "#94a3b8" }}>ยังไม่นัดนิเทศ</div>}
+              </Section>
+            </>
           )}
 
           {tab === "company" && (
@@ -848,8 +894,10 @@ function StudentModal({
                   <>
                     <InfoRow label="ชื่อบริษัท" value={companyData.name} />
                     <InfoRow label="ที่อยู่" value={getFullAddress(companyData)} />
+                    <InfoRow label="ผู้ติดต่อ" value={[companyData.contactPerson, companyData.contactPosition].filter(Boolean).join(" · ")} />
                     <InfoRow label="อีเมล" value={companyData.email} />
                     <InfoRow label="เบอร์โทร" value={companyData.phone} />
+                    <InfoRow label="เว็บไซต์" value={safeHref(companyData.website) ? <a href={safeHref(companyData.website)} target="_blank" rel="noreferrer" style={{ color: "#0074B7" }}>{companyData.website}</a> : companyData.website} />
                   </>
                 ) : <div>-</div>}
               </Section>
