@@ -537,6 +537,12 @@ model SupervisionAppointment {
 
   // ไฟล์หนังสือขอความอนุเคราะห์นิเทศ (ที่คณบดีเซ็นแล้ว)
   officialLetterPath String?
+  letterDocNumber    String?   @unique // เลขที่หนังสือขอนิเทศ เช่น "660301.26.6.2/1234" (บันทึกตอนอัปโหลดฉบับลงนาม)
+  letterDocDate      DateTime?
+  // รอลงนาม (ป้ายสำหรับเจ้าหน้าที่) — ตั้งตอนดาวน์โหลดร่าง ล้างตอนอัปโหลดฉบับลงนาม · เลขที่/วันที่ร่างใช้เติมตอนกลับมาอัปโหลด
+  letterPendingAt    DateTime?
+  letterDraftNumber  String?
+  letterDraftDate    DateTime?
   onlineLink         String?  @db.Text
   groupId            String? // UUID เชื่อม appointment ที่นัดพร้อมกัน (null = นัดเดี่ยว)
   createdAt          DateTime @default(now())

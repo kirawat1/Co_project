@@ -2,6 +2,26 @@ const prisma = require('../config/prismaClient');
 const fs = require('fs');
 const path = require('path');
 const { createNotifications, getStaffAndCoopTeacherIds } = require('../utils/notificationHelper');
+const { normalizeDocNumber, isPlaceholderDocNo, parseDateOr400 } = require('../utils/docNumber');
+
+const CLEARED_LETTER_PENDING = { letterPendingAt: null, letterDraftNumber: null, letterDraftDate: null };
+
+// เลขที่หนังสือขอนิเทศห้ามซ้ำกับฉบับที่ออกให้คนอื่นแล้ว หรือร่างที่รอลงนามของคนอื่น
+async function assertSupervisionDocNumberFree(tx, value, appointmentId) {
+    if (!value) return;
+    const clash = await tx.supervisionAppointment.findFirst({
+        where: { OR: [{ letterDocNumber: value }, { letterDraftNumber: value }], id: { not: appointmentId } },
+        select: { letterDocNumber: true, letterDraftNumber: true, student: { select: { studentId: true, firstName: true, lastName: true } } },
+    });
+    if (!clash) return;
+    const who = clash.student
+        ? `${clash.student.studentId} ${clash.student.firstName} ${clash.student.lastName}`
+        : 'นักศึกษารายอื่น';
+    const message = clash.letterDocNumber === value
+        ? `เลขที่หนังสือขอนิเทศ "${value}" ถูกใช้กับ ${who} แล้ว`
+        : `เลขที่หนังสือขอนิเทศ "${value}" อยู่ในร่างหนังสือที่รอลงนามของ ${who} — ถ้าไม่ใช้ร่างนั้นแล้ว ให้กด "ยกเลิกรอลงนาม" ของคนนั้นก่อน`;
+    throw Object.assign(new Error(message), { is409: true });
+}
 
 // ==========================================
 // ⚙️ [ADMIN] จัดการ Config ช่วงเวลานิเทศ (ผูกกับ CoopPeriod)
@@ -83,15 +103,24 @@ exports.uploadOfficialLetter = async (req, res) => {
 
         let appointment;
         try {
+            // เลขที่/วันที่หนังสือ (ไม่ส่งมา = ไม่บันทึก) · อัปโหลดฉบับลงนามแล้ว ป้าย "รอลงนาม" หมดหน้าที่
+            const data = { officialLetterPath: req.file.filename, status: 'LETTER_UPLOADED', ...CLEARED_LETTER_PENDING };
+            const docNo = normalizeDocNumber(req.body?.docNumber);
+            if (docNo) {
+                if (isPlaceholderDocNo(docNo)) {
+                    throw Object.assign(new Error('เลขที่หนังสือขอนิเทศยังไม่ได้กรอก กรุณาระบุเลขที่จริง เช่น 660301.26.6.2/1234'), { is400: true });
+                }
+                data.letterDocNumber = docNo;
+            }
+            if (req.body?.docDate) data.letterDocDate = parseDateOr400(req.body.docDate, 'วันที่ออกหนังสือขอนิเทศ');
+
             await prisma.$transaction(async (tx) => {
                 const current = await tx.supervisionAppointment.findUnique({ where: { id: parsedId } });
                 if (!current || current.status !== 'DATE_CONFIRMED') {
                     throw Object.assign(new Error('สามารถออกหนังสือนิเทศได้เฉพาะเมื่อยืนยันวันแล้ว'), { is400: true });
                 }
-                appointment = await tx.supervisionAppointment.update({
-                    where: { id: parsedId },
-                    data: { officialLetterPath: req.file.filename, status: 'LETTER_UPLOADED' }
-                });
+                await assertSupervisionDocNumberFree(tx, data.letterDocNumber, parsedId);
+                appointment = await tx.supervisionAppointment.update({ where: { id: parsedId }, data });
             });
         } catch (txErr) {
             if (req.file) {
@@ -99,6 +128,9 @@ exports.uploadOfficialLetter = async (req, res) => {
                 if (fs.existsSync(fp)) try { fs.unlinkSync(fp); } catch (_) {}
             }
             if (txErr.is400) return res.status(400).json({ ok: false, message: txErr.message });
+            if (txErr.is409) return res.status(409).json({ ok: false, message: txErr.message });
+            // unique index — สองคำขอใช้เลขเดียวกันพร้อมกันจนรอดด่านเช็ค
+            if (txErr.code === 'P2002') return res.status(409).json({ ok: false, message: 'เลขที่หนังสือขอนิเทศนี้ถูกใช้ไปแล้ว กรุณาใช้เลขอื่น' });
             throw txErr;
         }
 
@@ -125,6 +157,49 @@ exports.uploadOfficialLetter = async (req, res) => {
             try { fs.unlinkSync(filePath); } catch (_) {}
         }
         res.status(500).json({ ok: false, message: 'Upload error' });
+    }
+};
+
+// ดาวน์โหลดร่างหนังสือขอนิเทศไปเสนอลงนาม → ป้าย "รอลงนาม" (ไม่เปลี่ยนสถานะนัดหมาย)
+// body: { docNumber?, docDate?, cancel? }
+exports.markSupervisionLetterPending = async (req, res) => {
+    try {
+        const id = parseInt(req.params.id, 10);
+        if (isNaN(id) || id <= 0) return res.status(400).json({ ok: false, message: 'id ไม่ถูกต้อง' });
+        const cancel = req.body?.cancel === true || req.body?.cancel === 'true';
+
+        let data = CLEARED_LETTER_PENDING;
+        if (!cancel) {
+            const docNo = normalizeDocNumber(req.body?.docNumber);
+            data = {
+                letterPendingAt: new Date(),
+                letterDraftNumber: docNo && !isPlaceholderDocNo(docNo) ? docNo : null,
+                letterDraftDate: req.body?.docDate ? parseDateOr400(req.body.docDate, 'วันที่ของร่างหนังสือ') : null,
+            };
+        }
+
+        await prisma.$transaction(async (tx) => {
+            const current = await tx.supervisionAppointment.findUnique({
+                where: { id },
+                select: { status: true, student: { select: { deletedAt: true } } },
+            });
+            if (!current || current.student?.deletedAt) throw Object.assign(new Error('ไม่พบข้อมูลการนัดหมาย'), { is404: true });
+            if (!cancel) {
+                if (current.status !== 'DATE_CONFIRMED') {
+                    throw Object.assign(new Error('ออกหนังสือนิเทศได้เฉพาะนัดหมายที่ยืนยันวันแล้ว'), { is400: true });
+                }
+                await assertSupervisionDocNumberFree(tx, data.letterDraftNumber, id);
+            }
+            await tx.supervisionAppointment.update({ where: { id }, data });
+        });
+
+        res.json({ ok: true, pendingAt: data.letterPendingAt, draftNumber: data.letterDraftNumber, draftDate: data.letterDraftDate });
+    } catch (err) {
+        if (err.is404) return res.status(404).json({ ok: false, message: err.message });
+        if (err.is409) return res.status(409).json({ ok: false, message: err.message });
+        if (err.is400) return res.status(400).json({ ok: false, message: err.message });
+        console.error('Mark Supervision Letter Pending Error:', err);
+        res.status(500).json({ ok: false, message: 'บันทึกสถานะรอลงนามไม่สำเร็จ' });
     }
 };
 

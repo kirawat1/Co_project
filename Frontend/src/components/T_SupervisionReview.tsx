@@ -8,6 +8,7 @@ import SupervisionCalendar from "./SupervisionCalendar";
 import type { CalendarEvent } from "./SupervisionCalendar";
 import AutoTextarea from "./AutoTextarea";
 import IssueSupervisionLetterModal from "./IssueSupervisionLetterModal";
+import { PendingSignBadge } from "./LetterModalShared";
 import { useToast } from "./Toast";
 import ConfirmDialog from "./ConfirmDialog";
 import Spinner from "./Spinner";
@@ -28,6 +29,9 @@ interface SupervisionAppt {
     rejectReason: string | null;
     status: string;
     officialLetterPath: string | null;
+    // ป้าย "รอลงนาม" — ตั้งตอนดาวน์โหลดร่างหนังสือขอนิเทศ ล้างตอนอัปโหลดฉบับลงนาม
+    letterPendingAt?: string | null;
+    letterDraftNumber?: string | null;
     isPrimaryAdvisor?: boolean;
     coopPeriodId?: number;
     coTeacherName?: string | null;
@@ -213,6 +217,14 @@ export default function T_SupervisionReview() {
             setTeachersList(td?.teachers ?? td?.data ?? (Array.isArray(td) ? td : []));
         } catch (err) { console.error(err); }
         finally { setAllLoading(false); }
+    };
+
+    // ปิดหน้าต่างออกหนังสือ → รีเฟรชเฉพาะรายการ (ป้าย "รอลงนาม" เปลี่ยนตอนโหลดร่าง/ยกเลิก) ไม่ทับค่าตั้งค่าช่วงนิเทศ
+    const refreshAllSupervisions = async () => {
+        try {
+            const supRes = await axios.get("/api/admin/supervisions", { headers: { Authorization: `Bearer ${token}` } });
+            if (supRes.data?.supervisions) setAllSupervisions(supRes.data.supervisions);
+        } catch (err) { console.error(err); }
     };
 
     useEffect(() => { fetchMine(); }, []);
@@ -698,7 +710,10 @@ export default function T_SupervisionReview() {
                                                         </>
                                                     ) : <span style={{ color: '#94a3b8', fontSize: 13 }}>ยังไม่เสนอวัน</span>}
                                                 </td>
-                                                <td style={td}><StatusBadge status={sup.status} /></td>
+                                                <td style={td}>
+                                                    <StatusBadge status={sup.status} />
+                                                    {sup.letterPendingAt && <PendingSignBadge label="รอลงนามหนังสือขอนิเทศ" at={sup.letterPendingAt} draftNumber={sup.letterDraftNumber} />}
+                                                </td>
                                                 <td style={{ ...td, textAlign: 'center' }}>
                                                     <div style={{ display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap' }}>
                                                         <button className="btn-ghost" style={{ fontSize: 12, padding: '6px 10px', ...(sup.coTeacherName ? {} : { background: 'rgba(234,179,8,.15)', borderColor: '#d97706', color: '#b45309', fontWeight: 700 }) }} onClick={() => openAssignModal(sup)}>👥 {sup.coTeacherName ? 'อาจารย์ร่วม' : 'มอบหมายอาจารย์ร่วม'}</button>
@@ -706,7 +721,7 @@ export default function T_SupervisionReview() {
                                                             <button className="btn-ghost" style={{ fontSize: 12, padding: '6px 10px', color: '#d97706', borderColor: '#d97706' }} onClick={() => openEditDateModal(sup)}>✏️ แก้ไขวัน</button>
                                                         )}
                                                         {sup.status === "DATE_CONFIRMED" && (
-                                                            <button className="btn" style={{ background: '#2563eb', color: 'white', padding: '6px 10px', fontSize: 12 }} onClick={() => setLetterSup(sup)}>📄 ออกหนังสือ</button>
+                                                            <button className="btn" style={{ background: sup.letterPendingAt ? '#d97706' : '#2563eb', color: 'white', padding: '6px 10px', fontSize: 12 }} onClick={() => setLetterSup(sup)}>{sup.letterPendingAt ? '✍️ อัปโหลดฉบับลงนาม' : '📄 ออกหนังสือ'}</button>
                                                         )}
                                                         {(sup.status === "LETTER_UPLOADED" || sup.status === "COMPLETED") && sup.officialLetterPath && (
                                                             <button className="btn-ghost" style={{ fontSize: 12, color: '#10b981', borderColor: '#10b981', padding: '6px 10px' }} onClick={() => window.open(`/uploads/supervision/${encodeURIComponent(sup.officialLetterPath!)}`, '_blank', 'noopener')}>👁️ ดูเอกสาร</button>
@@ -814,7 +829,7 @@ export default function T_SupervisionReview() {
             {letterSup && !assignSup && (
                 <IssueSupervisionLetterModal
                     supervision={letterSup as any}
-                    onClose={() => setLetterSup(null)}
+                    onClose={() => { setLetterSup(null); refreshAllSupervisions(); }}
                     onSuccess={() => { setLetterSup(null); fetchAll(); }}
                 />
             )}

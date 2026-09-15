@@ -11,6 +11,7 @@ const {
   saveSupervisionPeriod,
   getAllSupervisions,
   uploadOfficialLetter,
+  markSupervisionLetterPending,
   getStudentSupervision,
   proposeSupervisionDate,
   reviewSupervision,
@@ -170,6 +171,141 @@ describe('uploadOfficialLetter', () => {
       })
     );
     expect(res.json).toHaveBeenCalledWith({ ok: true, appointment });
+  });
+
+  describe('เลขที่/วันที่หนังสือ + ป้ายรอลงนาม', () => {
+    const file = { filename: 'SUPERVISION_LETTER_zz.pdf' };
+    beforeEach(() => {
+      prisma.$transaction.mockImplementation((arg) => Array.isArray(arg) ? Promise.all(arg) : arg(prisma));
+      prisma.supervisionAppointment.findUnique.mockResolvedValue({ id: 1, status: 'DATE_CONFIRMED' });
+      prisma.supervisionAppointment.findFirst.mockResolvedValue(null);
+      prisma.supervisionAppointment.update.mockResolvedValue({ id: 1, studentId: 10 });
+      prisma.student.findUnique.mockResolvedValue(null);
+    });
+
+    test('200 — เก็บเลขที่ (ตัด "ที่ อว") + วันที่ และล้างป้ายรอลงนาม', async () => {
+      const res = makeRes();
+      await uploadOfficialLetter({ params: { id: '1' }, file, body: { docNumber: 'ที่ อว 660301.26.6.2/777', docDate: '2026-09-15' } }, res);
+
+      expect(res.status).not.toHaveBeenCalled();
+      const { data } = prisma.supervisionAppointment.update.mock.calls[0][0];
+      expect(data).toMatchObject({
+        officialLetterPath: file.filename, status: 'LETTER_UPLOADED', letterDocNumber: '660301.26.6.2/777',
+        letterPendingAt: null, letterDraftNumber: null, letterDraftDate: null,
+      });
+      expect(data.letterDocDate.toISOString().slice(0, 10)).toBe('2026-09-15');
+      expect(prisma.supervisionAppointment.findFirst.mock.calls[0][0].where).toMatchObject({ id: { not: 1 } });
+    });
+
+    test('400 — เลขที่ยังเป็นเทมเพลต → ไม่บันทึก', async () => {
+      const res = makeRes();
+      await uploadOfficialLetter({ params: { id: '1' }, file, body: { docNumber: '660301.26.6.2/' } }, res);
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(prisma.supervisionAppointment.update).not.toHaveBeenCalled();
+    });
+
+    test('400 — วันที่ผิดรูปแบบ → ไม่บันทึก', async () => {
+      const res = makeRes();
+      await uploadOfficialLetter({ params: { id: '1' }, file, body: { docNumber: '660301.26.6.2/778', docDate: 'nope' } }, res);
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(prisma.supervisionAppointment.update).not.toHaveBeenCalled();
+    });
+
+    test('409 — เลขที่ซ้ำกับหนังสือขอนิเทศของนักศึกษาคนอื่น', async () => {
+      prisma.supervisionAppointment.findFirst.mockResolvedValue({
+        letterDocNumber: '660301.26.6.2/777', letterDraftNumber: null,
+        student: { studentId: '663380222-2', firstName: 'ก', lastName: 'ข' },
+      });
+      const res = makeRes();
+      await uploadOfficialLetter({ params: { id: '1' }, file, body: { docNumber: '660301.26.6.2/777' } }, res);
+      expect(res.status).toHaveBeenCalledWith(409);
+      expect(res.json.mock.calls[0][0].message).toMatch(/663380222-2/);
+      expect(prisma.supervisionAppointment.update).not.toHaveBeenCalled();
+    });
+  });
+});
+
+// ===========================
+// markSupervisionLetterPending — ดาวน์โหลดร่างหนังสือขอนิเทศไปเสนอลงนาม
+// ===========================
+describe('markSupervisionLetterPending', () => {
+  beforeEach(() => {
+    prisma.$transaction.mockImplementation((arg) => Array.isArray(arg) ? Promise.all(arg) : arg(prisma));
+    prisma.supervisionAppointment.findUnique.mockResolvedValue({ status: 'DATE_CONFIRMED', student: { deletedAt: null } });
+    prisma.supervisionAppointment.findFirst.mockResolvedValue(null);
+    prisma.supervisionAppointment.update.mockResolvedValue({});
+  });
+
+  test('200 — บันทึกเวลา + เลขที่/วันที่ร่าง', async () => {
+    const res = makeRes();
+    await markSupervisionLetterPending({ params: { id: '5' }, body: { docNumber: 'อว 660301.26.6.2/900', docDate: '2026-09-20' } }, res);
+
+    expect(res.status).not.toHaveBeenCalled();
+    const { where, data } = prisma.supervisionAppointment.update.mock.calls[0][0];
+    expect(where).toEqual({ id: 5 });
+    expect(data.letterPendingAt).toBeInstanceOf(Date);
+    expect(data.letterDraftNumber).toBe('660301.26.6.2/900');
+    expect(data.letterDraftDate.toISOString().slice(0, 10)).toBe('2026-09-20');
+    expect(res.json.mock.calls[0][0]).toMatchObject({ ok: true, draftNumber: '660301.26.6.2/900' });
+  });
+
+  test('200 — เลขที่ยังเป็นเทมเพลต → ขึ้นรอลงนาม ไม่เก็บเลขที่ ไม่เช็คซ้ำ', async () => {
+    const res = makeRes();
+    await markSupervisionLetterPending({ params: { id: '5' }, body: { docNumber: '660301.26.6.2/' } }, res);
+    const { data } = prisma.supervisionAppointment.update.mock.calls[0][0];
+    expect(data.letterPendingAt).toBeInstanceOf(Date);
+    expect(data.letterDraftNumber).toBeNull();
+    expect(data.letterDraftDate).toBeNull();
+    expect(prisma.supervisionAppointment.findFirst).not.toHaveBeenCalled();
+  });
+
+  test('409 — เลขที่ซ้ำกับร่างที่รอลงนามของคนอื่น', async () => {
+    prisma.supervisionAppointment.findFirst.mockResolvedValue({
+      letterDocNumber: null, letterDraftNumber: '660301.26.6.2/900',
+      student: { studentId: '663380333-3', firstName: 'ค', lastName: 'ง' },
+    });
+    const res = makeRes();
+    await markSupervisionLetterPending({ params: { id: '5' }, body: { docNumber: '660301.26.6.2/900' } }, res);
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(res.json.mock.calls[0][0].message).toMatch(/รอลงนาม/);
+    expect(prisma.supervisionAppointment.findFirst.mock.calls[0][0].where).toMatchObject({ id: { not: 5 } });
+    expect(prisma.supervisionAppointment.update).not.toHaveBeenCalled();
+  });
+
+  test.each(['PENDING_TEACHER', 'TEACHER_REJECTED', 'LETTER_UPLOADED', 'COMPLETED'])(
+    '400 — สถานะ %s ไม่ใช่ช่วงออกหนังสือ',
+    async (status) => {
+      prisma.supervisionAppointment.findUnique.mockResolvedValue({ status, student: { deletedAt: null } });
+      const res = makeRes();
+      await markSupervisionLetterPending({ params: { id: '5' }, body: {} }, res);
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(prisma.supervisionAppointment.update).not.toHaveBeenCalled();
+    },
+  );
+
+  test('200 — cancel ล้างป้าย (ไม่ต้องเช็คสถานะ)', async () => {
+    prisma.supervisionAppointment.findUnique.mockResolvedValue({ status: 'LETTER_UPLOADED', student: { deletedAt: null } });
+    const res = makeRes();
+    await markSupervisionLetterPending({ params: { id: '5' }, body: { cancel: true } }, res);
+    expect(res.status).not.toHaveBeenCalled();
+    expect(prisma.supervisionAppointment.update.mock.calls[0][0].data).toEqual({ letterPendingAt: null, letterDraftNumber: null, letterDraftDate: null });
+  });
+
+  test.each([
+    [{ params: { id: 'abc' }, body: {} }, 400],
+    [{ params: { id: '5' }, body: { docDate: 'not-a-date' } }, 400],
+  ])('400 — ข้อมูลไม่ถูกต้อง %#', async (req, code) => {
+    const res = makeRes();
+    await markSupervisionLetterPending(req, res);
+    expect(res.status).toHaveBeenCalledWith(code);
+    expect(prisma.supervisionAppointment.update).not.toHaveBeenCalled();
+  });
+
+  test.each([null, { status: 'DATE_CONFIRMED', student: { deletedAt: new Date() } }])('404 — ไม่พบนัดหมาย / นักศึกษาอยู่ในถังขยะ', async (found) => {
+    prisma.supervisionAppointment.findUnique.mockResolvedValue(found);
+    const res = makeRes();
+    await markSupervisionLetterPending({ params: { id: '5' }, body: {} }, res);
+    expect(res.status).toHaveBeenCalledWith(404);
   });
 });
 

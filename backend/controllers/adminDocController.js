@@ -1,6 +1,7 @@
 const prisma = require('../config/prismaClient');
 const { createNotifications } = require('../utils/notificationHelper');
 const { removeUnreferencedUploads } = require('../utils/uploadCleanup');
+const { normalizeDocNumber, isPlaceholderDocNo, parseDateOr400 } = require('../utils/docNumber');
 const path = require('path');
 const fs = require('fs');
 
@@ -12,23 +13,6 @@ const COOP_STATUS_ORDER = [
   'INTERNSHIP_STARTED', 'T002_SUBMITTED', 'T002_EDITS_REQUIRED', 'T003_SUBMITTED', 'T003_EDITS_REQUIRED', 'T003_APPROVED',
 ];
 const LETTER_ISSUE_STATUSES = new Set(['REQ_LETTER_ISSUED', 'PLACEMENT_LETTER_ISSUED']);
-
-// เลขที่หนังสือเก็บเป็นตัวเลขล้วน เช่น "660301.26.6.2/1234"
-// คำนำหน้า "ที่ อว" อยู่ในเทมเพลตหนังสือ — ตัดออกเพื่อไม่ให้เลขเดียวกันถูกเก็บสองรูปแบบจนเลี่ยง unique index ได้
-function normalizeDocNumber(value) {
-  if (!value) return '';
-  return String(value).trim().replace(/^(?:ที่\s*)?(?:อว\.?\s*)/, '').trim();
-}
-
-// แปลงวันที่จาก request — วันที่ผิดรูปแบบต้องเป็น 400 พร้อมบอกช่อง ไม่ใช่ Invalid Date ที่ทำให้ Prisma โยน 500
-function parseDateOr400(value, label) {
-  const d = new Date(value);
-  if (isNaN(d.getTime())) throw Object.assign(new Error(`${label}ไม่ถูกต้อง`), { is400: true });
-  return d;
-}
-
-// เทมเพลตที่ยังไม่แก้ (จุดไข่ปลา/xxxx) หรือไม่มีเลขต่อท้าย "/" ถือว่ายังไม่ได้กรอกเลขที่จริง
-const isPlaceholderDocNo = (v) => /[.]{3,}|x{3,}/i.test(v) || !/\/\s*\S/.test(v);
 
 // หนังสือสองฉบับที่ออกจากหน้า doct000 — ช่องใน StudentCoop ของแต่ละฉบับ
 const LETTERS = {

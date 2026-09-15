@@ -9,7 +9,7 @@ import DateInput from './DateInput';
 interface Props { student: any; onClose: () => void; onSuccess: () => void; }
 
 export default function IssuePlacementLetterModal({ student, onClose, onSuccess }: Props) {
-    const pending = useLetterPending(student, "PLACEMENT");
+    const pending = useLetterPending({ record: student.coop, prefix: "placeLetter", endpoint: "/api/admin/t000/letter-pending", body: { studentId: student.id, letter: "PLACEMENT" } });
     // เก็บเฉพาะตัวเลข — คำนำหน้า "ที่ อว" ถูกเติมในเทมเพลตหนังสือแล้ว · มีร่างที่รอลงนามอยู่ → เติมเลขที่/วันที่ของร่างนั้น
     const [placeDocNumber, setPlaceDocNumber] = useState(pending.draftNumber || "660301.26.6.2/");
     const [placeDocDate, setPlaceDocDate] = useState(pending.draftDate || new Date().toISOString().split("T")[0]);
