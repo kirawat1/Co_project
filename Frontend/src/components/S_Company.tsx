@@ -156,12 +156,8 @@ export default function Company({ profile }: { profile: any }) {
     }
 
     async function removeCompany(id: string) {
-        if (!confirm("ลบบริษัทนี้หรือไม่?")) return;
-        const c = items.find(c => c.id === id);
-        if (!c) return;
-        if (String(c.createdById) !== String(userId)) {
-            return alert("ลบได้เฉพาะบริษัทที่ตัวเองเพิ่ม");
-        }
+        // ใครก็ลบได้ — ถ้ามีนักศึกษาคนอื่นเลือกบริษัทนี้อยู่ ระบบจะไม่ให้ลบ (ให้กดแก้ไขแทน)
+        if (!confirm("ลบบริษัทนี้หรือไม่? (พี่เลี้ยงของบริษัทนี้จะถูกลบด้วย)")) return;
         if (!token) return alert("กรุณาเข้าสู่ระบบ");
 
         try {
@@ -290,9 +286,7 @@ export default function Company({ profile }: { profile: any }) {
                                         <button className="btn-secondary small" onClick={() => setViewCompany(c)}>ดูรายละเอียด</button>
 
                                         <button className="btn-secondary small" onClick={() => { setForm(c); setShowEdit(true); }} style={{ marginLeft: 6 }}>แก้ไข</button>
-                                        {String(c.createdById) === String(userId) && (
-                                            <button className="btn-danger small" onClick={() => removeCompany(c.id)} style={{ marginLeft: 6 }}>ลบ</button>
-                                        )}
+                                        <button className="btn-danger small" onClick={() => removeCompany(c.id)} style={{ marginLeft: 6 }}>ลบ</button>
                                     </td>
                                 </tr>
                             )}
