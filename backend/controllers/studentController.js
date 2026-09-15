@@ -277,6 +277,8 @@ exports.getStudents = async (req, res) => {
     const search = (req.query.search || "").trim();
     const statuses = req.query.statuses ? req.query.statuses.split(',').filter(Boolean) : [];
     const studyPrograms = req.query.studyProgram ? req.query.studyProgram.split(',').filter(Boolean) : [];
+    // สาขา: รหัสสาขา (CS,AI) · __NONE__ = นักศึกษาที่ยังไม่ระบุสาขา
+    const majors = req.query.majors ? String(req.query.majors).split(',').map(s => s.trim()).filter(Boolean) : [];
 
     const ALLOWED_SORT = ['studentId', 'firstName', 'lastName', 'studyProgram'];
     const sortBy = ALLOWED_SORT.includes(req.query.sortBy) ? req.query.sortBy : 'studentId';
@@ -286,6 +288,17 @@ exports.getStudents = async (req, res) => {
     if (coopPeriodId) conditions.push({ coop: { coopPeriodId } });
     if (statuses.length > 0) conditions.push({ coop: { status: { in: statuses } } });
     if (studyPrograms.length > 0) conditions.push({ studyProgram: { in: studyPrograms } });
+    if (majors.length > 0) {
+      const codes = majors.filter(m => m !== '__NONE__');
+      // ข้อมูลเก่าบางคนเก็บเป็นชื่อไทยของสาขา (เช่น "วิทยาการคอมพิวเตอร์") แทนรหัส — นับรวมด้วย
+      if (codes.length > 0) {
+        const criteria = await prisma.coopCriteria.findMany({ where: { major: { in: codes } }, select: { nameTh: true } });
+        for (const c of criteria || []) if (c.nameTh && !codes.includes(c.nameTh)) codes.push(c.nameTh);
+      }
+      const majorOr = codes.length > 0 ? [{ major: { in: codes } }] : [];
+      if (majors.includes('__NONE__')) majorOr.push({ major: null }, { major: '' });
+      conditions.push({ OR: majorOr });
+    }
     if (search) {
       conditions.push({
         OR: [
