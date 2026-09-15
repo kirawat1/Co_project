@@ -597,6 +597,20 @@ describe('getMyProfile', () => {
     expect(body.company).toBeDefined();
   });
 
+  test('200 — majorNameTh ชื่อสาขาภาษาไทยจาก criteria (ใช้พิมพ์ในเอกสาร T000/T003/หนังสือยินยอมผู้ปกครอง)', async () => {
+    prisma.student.findUnique.mockResolvedValue({
+      id: 1, studentId: 'u640001', major: 'CS', coop: null, documents: [], emails: [], user: { email: 'a@kku.ac.th' },
+    });
+    prisma.coopCriteria.findMany.mockResolvedValue([{ major: 'CS', nameTh: 'วิทยาการคอมพิวเตอร์' }]);
+
+    const res = makeRes();
+    await getMyProfile({ userId: 1 }, res);
+
+    const body = res.json.mock.calls[0][0];
+    expect(body.major).toBe('CS');
+    expect(body.majorNameTh).toBe('วิทยาการคอมพิวเตอร์');
+  });
+
   test('200 — คืน default profile เมื่อไม่มีข้อมูลนักศึกษา', async () => {
     prisma.student.findUnique.mockResolvedValue(null);
     prisma.user.findUnique.mockResolvedValue({ id: 1, email: 'user@kku.ac.th' });

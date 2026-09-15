@@ -1,6 +1,7 @@
 // Frontend/src/utils/pdfGeneratorT000.ts
 // PDF Generator สำหรับใบสมัครงานสหกิจศึกษา (T000)
 import { jsPDF } from "jspdf";
+import { formMajorName } from "./docGeneratorUtils";
 
 // ================= HELPERS =================
 const getThaiPrefix = (prefix?: string | null) => {
@@ -62,6 +63,7 @@ export interface ProfileData {
   phone?: string;
   email?: string;
   major?: string;
+  majorNameTh?: string | null;
 
   // ✅ เพิ่ม jobPosition ใน ProfileData ด้วย
   jobPosition?: string;
@@ -296,7 +298,7 @@ export const createT000PDF = async (
   drawText("Department", leftX + 2, y + 3.5, "left", false, 9);
   doc.line(leftX + 18, y + 1, leftX + 90, y + 1);
   doc.setFont("THSarabun", "bold");
-  doc.text(profile.major || "-", leftX + 20, y);
+  doc.text(formMajorName(profile, "-"), leftX + 20, y); // major เป็นรหัสสาขา (CS) — พิมพ์ชื่อไทย
 
   drawText("คณะ", leftX + 95, y);
   drawText("Faculty", leftX + 95, y + 3.5, "left", false, 9);
