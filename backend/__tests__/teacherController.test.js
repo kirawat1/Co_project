@@ -384,11 +384,14 @@ describe('exportMyStudents', () => {
 
     await exportMyStudents(req, res);
 
+    const { STUDENT_EXPORT_INCLUDE } = require('../utils/studentExport');
     expect(prisma.student.findMany).toHaveBeenCalledWith(expect.objectContaining({
       where: {
         AND: [{ deletedAt: null }, { coopAdvisorId: 7 }],
       },
+      include: STUDENT_EXPORT_INCLUDE,
     }));
+    expect(prisma.coopCriteria.findMany).toHaveBeenCalled();
     expect(res.setHeader).toHaveBeenCalledWith(
       'Content-Type',
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'

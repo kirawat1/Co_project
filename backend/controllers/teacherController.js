@@ -1,6 +1,6 @@
 const prisma = require("../config/prismaClient");
 const { createNotifications } = require('../utils/notificationHelper');
-const { buildStudentExportWorkbook } = require('../utils/studentExport');
+const { buildStudentExportWorkbook, STUDENT_EXPORT_INCLUDE } = require('../utils/studentExport');
 const { changeUserEmail } = require('../utils/userEmail');
 
 // ✅ 1. getProfile: เลียนแบบ logic ของ Student
@@ -772,17 +772,12 @@ exports.exportMyStudents = async (req, res) => {
         : { AND: [deletedFilter, advisorFilter] };
     }
 
-    const students = await prisma.student.findMany({
-      where,
-      include: {
-        coop: { include: { company: true } },
-        generalAdvisor: { select: { prefix: true, firstName: true, lastName: true } },
-        coopAdvisor: { select: { prefix: true, firstName: true, lastName: true } },
-      },
-      orderBy: { studentId: 'asc' },
-    });
+    const [students, criteria] = await Promise.all([
+      prisma.student.findMany({ where, include: STUDENT_EXPORT_INCLUDE, orderBy: { studentId: 'asc' } }),
+      prisma.coopCriteria.findMany({ select: { major: true, nameTh: true } }),
+    ]);
 
-    const buffer = buildStudentExportWorkbook(students);
+    const buffer = buildStudentExportWorkbook(students, { criteria });
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename="students_${coopPeriodId || 'all'}.xlsx"`);
