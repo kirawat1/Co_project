@@ -34,4 +34,10 @@ async function getStaffAndCoopTeacherIds() {
   return users.map(u => u.id);
 }
 
-module.exports = { createNotifications, getStaffAndCoopTeacherIds };
+// เฉพาะเจ้าหน้าที่ — งานที่อาจารย์ไม่มีหน้าจัดการ (ตรวจเอกสาร T000 / ใบตอบรับ)
+async function getStaffIds() {
+  const users = await prisma.user.findMany({ where: { role: 'staff' }, select: { id: true } });
+  return users.map(u => u.id);
+}
+
+module.exports = { createNotifications, getStaffAndCoopTeacherIds, getStaffIds };
