@@ -1,5 +1,6 @@
 // utils/pdfGeneratorPlacement.ts
 import { jsPDF } from "jspdf";
+import { letterMajorName } from "./docGeneratorUtils";
 
 // Helper: โหลด Font
 const getFontBase64 = async (url: string): Promise<string> => {
@@ -93,7 +94,8 @@ export const createPlacementPDF = async (
         : student.prefix || "";
   const studentName = `${prefix}${student.firstName} ${student.lastName}`;
   const studentId = student.studentId;
-  const majorName = student.major || "วิทยาการคอมพิวเตอร์";
+  // ชื่อหลักสูตรภาษาไทย — student.major เป็นรหัสสาขา (CS) เดิมพิมพ์ "หลักสูตรCS"
+  const majorName = letterMajorName(student);
 
   // --- เริ่มวาด PDF ---
   const pageWidth = 210;

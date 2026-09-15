@@ -58,6 +58,16 @@ export function normalizeDocNumber(docNumber?: string): string {
   return docNumber.trim().replace(/^(?:ที่\s*)?(?:อว\.?\s*)/, "").trim();
 }
 
+/**
+ * ชื่อหลักสูตรภาษาไทยในหนังสือ — student.major เป็นรหัสสาขา (CS/AI) ห้ามพิมพ์ลงหนังสือตรงๆ
+ * majorNameTh มาจาก backend (CoopCriteria.nameTh) · ไม่มี → ใช้ major ถ้าเป็นภาษาไทย · ไม่งั้นค่าเริ่มต้นเดิม
+ */
+export function letterMajorName(student: any, fallback = "วิทยาการคอมพิวเตอร์"): string {
+  if (student?.majorNameTh) return student.majorNameTh;
+  const raw = String(student?.major || "").trim();
+  return /[฀-๿]/.test(raw) ? raw : fallback;
+}
+
 export function studyProgramLabel(sp?: string | null): string {
   const v = (sp || "").toLowerCase();
   if (v === "normal") return "ภาคปกติ";
