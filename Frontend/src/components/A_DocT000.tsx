@@ -44,6 +44,9 @@ interface StudentProfile {
     }
 }
 
+// ค่าในตัวกรองบริษัทสำหรับนักศึกษาที่ยังไม่ได้เลือกบริษัท (ไม่ชนกับชื่อบริษัทจริง)
+const NO_COMPANY = "__NO_COMPANY__";
+
 // ตัวกรองป้ายรอลงนาม (ไม่ใช่สถานะใน enum — ดูจาก coop.*PendingAt)
 const PENDING_SIGN_FILTERS: Record<string, (s: StudentProfile) => boolean> = {
     PENDING_SIGN_REQ: s => !!s.coop?.reqLetterPendingAt,
@@ -151,6 +154,8 @@ export default function A_DocT000() {
     const [issueModalData, setIssueModalData] = useState<StudentProfile | null>(null);
     const [checkPhase, setCheckPhase] = useState<1 | 2>(1);
     const [q, setQ] = useState("");
+    // กรองตามบริษัท: "all" = ทุกบริษัท · NO_COMPANY = ยังไม่ได้เลือกบริษัท · อื่นๆ = ชื่อบริษัท
+    const [companyFilter, setCompanyFilter] = useState<string>("all");
     const [statusFilter, setStatusFilter] = useState<string[]>([]);
     const [placementModalData, setPlacementModalData] = useState<StudentProfile | null>(null);
     // บริษัทส่งใบตอบรับมาที่เจ้าหน้าที่โดยตรง
@@ -405,7 +410,10 @@ export default function A_DocT000() {
     const list = useMemo(() => {
         // 1. กรองข้อมูล (Filter)
         let filtered = students.filter(s => {
-            const txt = `${s.studentId} ${s.firstName} ${s.lastName}`.toLowerCase();
+            const companyName = s.coop?.company?.name?.trim() || "";
+            const txt = `${s.studentId} ${s.firstName} ${s.lastName} ${companyName}`.toLowerCase();
+            const matchCompany = companyFilter === "all"
+                || (companyFilter === NO_COMPANY ? !companyName : companyName === companyFilter);
             const st = s.docStatus || (s.documents && s.documents.length > 0 ? "WAITING_FOR_STAFF_CHECK" : "WAITING");
             const hasDoc = s.documents && s.documents.length > 0;
 
@@ -418,7 +426,7 @@ export default function A_DocT000() {
 
             const matchStatus = statusFilter.length === 0 || statusFilter.some(f => PENDING_SIGN_FILTERS[f] ? PENDING_SIGN_FILTERS[f](s) : f === st);
 
-            return txt.includes(q.toLowerCase()) && matchStatus && shouldShow && matchPeriod;
+            return txt.includes(q.trim().toLowerCase()) && matchStatus && matchCompany && shouldShow && matchPeriod;
         });
 
         // 2. เรียงลำดับข้อมูล (Sort)
@@ -447,10 +455,20 @@ export default function A_DocT000() {
         });
 
         return filtered;
-    }, [students, q, statusFilter, selectedPeriod, sortKey, sortDirection]);
+    }, [students, q, statusFilter, companyFilter, selectedPeriod, sortKey, sortDirection]);
+
+    // รายชื่อบริษัทสำหรับตัวกรอง (เฉพาะที่มีนักศึกษาในหน้านี้) + จำนวนนักศึกษา
+    const companyOptions = useMemo(() => {
+        const counts = new Map<string, number>();
+        students.forEach(s => {
+            const name = s.coop?.company?.name?.trim();
+            if (name) counts.set(name, (counts.get(name) || 0) + 1);
+        });
+        return [...counts.entries()].sort((a, b) => a[0].localeCompare(b[0], 'th'));
+    }, [students]);
 
     // แสดงทีละ 30 รายการ เลื่อนถึงท้ายตารางแล้วแสดงเพิ่ม แทนโหลดทั้งหมดในตารางเดียว
-    const { shown: shownList, hasMore, sentinelRef, showMore, total } = useLoadMore(list, `${q}|${statusFilter.join(",")}|${selectedPeriod}`);
+    const { shown: shownList, hasMore, sentinelRef, showMore, total } = useLoadMore(list, `${q}|${statusFilter.join(",")}|${companyFilter}|${selectedPeriod}`);
 
     const isSystemOpen = useMemo(() => {
         const now = new Date().getTime();
@@ -562,7 +580,16 @@ export default function A_DocT000() {
                 </div>
 
                 <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
-                    <input className="input" placeholder="ค้นหา รหัสนักศึกษา / ชื่อ..." value={q} onChange={e => setQ(e.target.value)} style={{ width: 250 }} />
+                    <input className="input" placeholder="ค้นหา รหัสนักศึกษา / ชื่อ / บริษัท..." value={q} onChange={e => setQ(e.target.value)} style={{ width: 280 }} />
+
+                    {/* Dropdown เลือกบริษัท */}
+                    <select className="input" style={{ width: 'auto', maxWidth: 320, background: '#f8fafc' }} value={companyFilter} onChange={e => setCompanyFilter(e.target.value)}>
+                        <option value="all">🏢 ทุกบริษัท</option>
+                        <option value={NO_COMPANY}>— ยังไม่ระบุบริษัท —</option>
+                        {companyOptions.map(([name, count]) => (
+                            <option key={name} value={name}>{name} ({count})</option>
+                        ))}
+                    </select>
 
                     {/* Dropdown เลือกปีการศึกษา */}
                     <select className="input" style={{ width: 'auto', background: '#f8fafc' }} value={selectedPeriod} onChange={e => setSelectedPeriod(e.target.value)}>
@@ -620,6 +647,7 @@ export default function A_DocT000() {
                                     <td style={td} data-label="รหัสนักศึกษา">{s.studentId}</td>
                                     <td style={td} data-label="ชื่อ-สกุล">
                                         <div>{s.firstName} {s.lastName}</div>
+                                        {s.coop?.company?.name && <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>🏢 {s.coop.company.name}</div>}
                                         {(() => { const w = advisorMismatchWarning(s); return w && <div style={{ fontSize: 11, color: '#b45309', background: '#fef3c7', border: '1px solid #fcd34d', borderRadius: 6, padding: '3px 8px', marginTop: 4 }}>{w}</div>; })()}
                                     </td>
                                     <td style={td} data-label="ไฟล์">{s.documents?.length || 0}</td>
