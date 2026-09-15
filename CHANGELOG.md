@@ -1,5 +1,18 @@
 # CHANGELOG — Co_project
 
+## [2026-09-15] fix: หนังสือส่งตัว — ชื่อหลักสูตรขึ้นเป็นตัวย่อสาขา ("หลักสูตรCS")
+
+`Student.major` เก็บเป็นรหัสสาขา (CS, AI) ตาม `CoopCriteria.major` — หน้าโปรไฟล์นักศึกษาและนำเข้า Excel แปลงชื่อไทยเป็นรหัสก่อนบันทึก แต่หนังสือส่งตัว (PDF/Word) พิมพ์ `student.major` ตรงๆ
+
+### Fixed
+- **`backend/utils/majorName.js` `resolveMajorNameTh`** — รหัสสาขา → `CoopCriteria.nameTh` (ไม่สนตัวพิมพ์) · ชื่อไทยล้วนใช้ได้เลย · ข้อมูลเก่าแบบ "วิทยาการคอมพิวเตอร์ (CS)" / "CS - วิทยาการคอมพิวเตอร์" → ชื่อไทยล้วน · ไม่รู้ชื่อไทย → null
+- **`getStudentsForT000`** — ส่ง `majorNameTh` เพิ่ม (ดึง criteria ครั้งเดียวต่อคำขอ)
+- **`letterMajorName`** (`docGeneratorUtils.ts`) — ใช้ใน `pdfGeneratorPlacement.ts` และ Word ของ `IssuePlacementLetterModal.tsx`: `majorNameTh` → `major` ถ้าเป็นภาษาไทย → "วิทยาการคอมพิวเตอร์" (ค่าเริ่มต้นเดิม)
+
+### Verified
+- unit tests 495/495 (เพิ่ม 14 เคส `resolveMajorNameTh` + 1 เคส `getStudentsForT000.majorNameTh`)
+- Playwright (dev, นักศึกษา major = "CS"): Word และ PDF (อ่านด้วย pdf.js) ขึ้น "ยินดีรับนักศึกษาหลักสูตรวิทยาการคอมพิวเตอร์ วิทยาลัยการคอมพิวเตอร์" · tsc ไม่มี error ในไฟล์ที่แก้
+
 ## [2026-09-15] feat: หนังสือขอนิเทศ — ป้าย "รอลงนาม" + บันทึกเลขที่/วันที่หนังสือ
 
 ต่อจากป้ายรอลงนามของหนังสือขอความอนุเคราะห์/ส่งตัว (doct000) — หนังสือขอนิเทศใช้ขั้นตอนเดียวกัน (โหลดร่าง → คณบดีลงนาม → อัปโหลด) แต่เดิมไม่มีอะไรบอกว่าใครโหลดร่างไปแล้ว และไม่เคยบันทึกเลขที่/วันที่หนังสือเลย

@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 import { apiFetch } from "../utils/apiFetch";
 import { createPlacementPDF } from "../utils/pdfGeneratorPlacement";
-import { createWordBlob, createPreviewBlob, buildPlacementLetterHtml, thaiPrefix, normalizeDocNumber } from "../utils/docGeneratorUtils";
+import { createWordBlob, createPreviewBlob, buildPlacementLetterHtml, thaiPrefix, normalizeDocNumber, letterMajorName } from "../utils/docGeneratorUtils";
 import { FileReady, DeliveryPicker, CompanyAddressBox, MODAL_CSS, useLetterPending, LetterPendingBanner, confirmMatchesDraft, type LetterDraft } from "./LetterModalShared";
 import DateInput from './DateInput';
 
@@ -61,7 +61,7 @@ export default function IssuePlacementLetterModal({ student, onClose, onSuccess 
             const studentName = `${thaiPrefix(student.prefix)}${student.firstName} ${student.lastName}`;
             const html = buildPlacementLetterHtml({
                 docNumber: placeDocNumber, docDate: placeDocDate, studentName,
-                studentId: student.studentId, major: student.major || "วิทยาการคอมพิวเตอร์",
+                studentId: student.studentId, major: letterMajorName(student),
                 companyName: student.coop?.company?.name || "....",
                 companyRecipient: student.coop?.company?.contactPerson || undefined,
                 startDate, endDate, deanName, deanPosition,

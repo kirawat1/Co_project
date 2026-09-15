@@ -176,6 +176,17 @@ describe('getStudentsForT000', () => {
     expect(data[0].generalAdvisor.firstName).toBe('เขียว');
   });
 
+  test('200 — majorNameTh แปลงรหัสสาขา (CS) เป็นชื่อไทยจาก criteria สำหรับหนังสือส่งตัว', async () => {
+    prisma.student.findMany.mockResolvedValue([mockStudent, { ...mockStudent, id: 2, major: 'ZZ' }]);
+    prisma.coopCriteria.findMany.mockResolvedValue([{ major: 'CS', nameTh: 'วิทยาการคอมพิวเตอร์' }]);
+    const res = makeRes();
+    await getStudentsForT000({}, res);
+    const data = res.json.mock.calls[0][0];
+    expect(data[0].major).toBe('CS');
+    expect(data[0].majorNameTh).toBe('วิทยาการคอมพิวเตอร์');
+    expect(data[1].majorNameTh).toBeNull();
+  });
+
   test('200 — student ที่ไม่มี coop record ให้ docStatus = WAITING', async () => {
     prisma.student.findMany.mockResolvedValue([{ ...mockStudent, coop: null, documents: [] }]);
     const req = {};

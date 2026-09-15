@@ -2,6 +2,7 @@ const prisma = require('../config/prismaClient');
 const { createNotifications } = require('../utils/notificationHelper');
 const { removeUnreferencedUploads } = require('../utils/uploadCleanup');
 const { normalizeDocNumber, isPlaceholderDocNo, parseDateOr400 } = require('../utils/docNumber');
+const { resolveMajorNameTh } = require('../utils/majorName');
 const path = require('path');
 const fs = require('fs');
 
@@ -99,6 +100,7 @@ exports.getStudentsForT000 = async (req, res) => {
       },
       orderBy: { studentId: 'asc' }
     });
+    const criteria = await prisma.coopCriteria.findMany({ select: { major: true, nameTh: true } });
 
     // Map ข้อมูลส่งกลับ
     const data = students.map(s => ({
@@ -107,6 +109,8 @@ exports.getStudentsForT000 = async (req, res) => {
       firstName: s.firstName,
       lastName: s.lastName,
       major: s.major,
+      // major เป็นรหัสสาขา (CS) — หนังสือส่งตัวต้องใช้ชื่อหลักสูตรภาษาไทย
+      majorNameTh: resolveMajorNameTh(s.major, criteria),
       gpa: s.gpa,
       company: s.coop?.company,
       
