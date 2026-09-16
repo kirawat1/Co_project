@@ -35,6 +35,7 @@ router.put('/doc/:id/status', verifyToken, verifyRole(...ADMIN_ROLES), adminDocC
 router.post('/t000/approve-all', verifyToken, verifyRole(...STAFF_ONLY), adminDocController.approveAllDocs);
 router.put('/t000/review', verifyToken, verifyRole(...STAFF_ONLY), upload.single('file'), adminDocController.reviewStudentStatus);
 router.post('/t000/acceptance-received', verifyToken, verifyRole(...STAFF_ONLY), upload.single('file'), adminDocController.markAcceptanceReceived);
+router.post('/t000/acceptance-replace', verifyToken, verifyRole(...STAFF_ONLY), upload.single('file'), adminDocController.replaceAcceptanceFile);
 router.put('/t000/letter-pending', verifyToken, verifyRole(...STAFF_ONLY), adminDocController.markLetterPending);
 
 // System Assets (ไม่ต้องการ auth — เป็นข้อมูล public เช่น โลโก้)
