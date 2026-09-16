@@ -6,6 +6,7 @@ import IssueSupervisionLetterModal from "./IssueSupervisionLetterModal";
 import { PendingSignBadge } from "./LetterModalShared";
 import StatusBadge from "./StatusBadge";
 import SupervisionCalendar from "./SupervisionCalendar";
+import SupervisionScheduleTable from "./SupervisionScheduleTable";
 import type { CalendarEvent } from "./SupervisionCalendar";
 import { useToast } from "./Toast";
 import ConfirmDialog from "./ConfirmDialog";
@@ -453,6 +454,11 @@ export default function A_SupervisionManage() {
             {/* ================= ปฏิทินนิเทศ ================= */}
             <div style={{ marginBottom: 24 }}>
                 <SupervisionCalendar events={calendarEvents} title="📅 ปฏิทินนิเทศสหกิจ (วันที่ยืนยันแล้ว)" />
+                <SupervisionScheduleTable
+                    events={calendarEvents}
+                    canExport
+                    exportUrl={`/api/admin/supervisions/export${selectedPeriodId ? `?coopPeriodId=${selectedPeriodId}` : ''}`}
+                />
             </div>
 
             {/* ================= SECTION 2: รายการนิเทศ ================= */}

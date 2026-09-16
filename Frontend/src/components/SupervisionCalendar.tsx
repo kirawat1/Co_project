@@ -9,9 +9,18 @@ export interface CalendarEvent {
     studentId?: string;
     type: "ONLINE" | "ONSITE";
     status?: string;
+    statusLabel?: string;
     companyName?: string | null;
+    companyProvince?: string | null;
     onlineLink?: string | null;
     groupId?: string | null;
+    // ตารางนิเทศ — ใครนิเทศ เมื่อไหร่ ถึงกี่โมง
+    teacherName?: string;
+    coTeacherName?: string | null;
+    date?: string;    // YYYY-MM-DD
+    start?: string;   // HH:mm
+    end?: string;     // HH:mm
+    session?: string; // เช้า / บ่าย
 }
 
 function mergeGroupEvents(events: CalendarEvent[]): CalendarEvent[] {
@@ -32,6 +41,9 @@ function mergeGroupEvents(events: CalendarEvent[]): CalendarEvent[] {
         merged.push({
             ...rep,
             studentName: `นิเทศกลุ่ม (${members.length} คน)`,
+            // กลุ่มไล่คิวต่อกัน — โชว์ช่วงเวลารวมของทั้งกลุ่ม
+            start: members.map(m => m.start).filter(Boolean).sort()[0] || rep.start,
+            end: members.map(m => m.end).filter(Boolean).sort().slice(-1)[0] || rep.end,
         });
     }
     return merged;
@@ -69,6 +81,11 @@ function AgendaItem({ ev }: { ev: CalendarEvent }) {
             <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={agendaNameStyle}>{ev.studentName}</div>
                 <div style={agendaCompanyStyle}>{ev.companyName || "-"}</div>
+                {ev.teacherName && (
+                    <div style={agendaTeacherStyle}>
+                        👨‍🏫 {ev.teacherName}{ev.coTeacherName ? ` · ร่วม: ${ev.coTeacherName}` : ''}
+                    </div>
+                )}
                 {isOnline && (
                     ev.onlineLink ? (
                         <a href={safeHref(ev.onlineLink)} target="_blank" rel="noopener noreferrer" style={agendaLinkStyle}>
@@ -81,7 +98,7 @@ function AgendaItem({ ev }: { ev: CalendarEvent }) {
             </div>
             <div style={{ textAlign: "right", flexShrink: 0 }}>
                 <div style={agendaDateStyle}>{fmtDate(ev.confirmedDate)}</div>
-                <div style={agendaTimeStyle}>{fmtTime(ev.confirmedDate)}</div>
+                <div style={agendaTimeStyle}>{ev.start && ev.end ? `${ev.start}-${ev.end} น.` : fmtTime(ev.confirmedDate)}</div>
             </div>
         </div>
     );
@@ -387,6 +404,8 @@ const agendaNameStyle: CSSProperties = {
     fontWeight:700, color:"#0f172a", fontSize:12,
     overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap"
 };
+const agendaTeacherStyle: CSSProperties = { fontSize: 12, color: "#0f766e", marginTop: 2 };
+
 const agendaCompanyStyle: CSSProperties = {
     fontSize:10, color:"#64748b", marginTop:1,
     overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap"

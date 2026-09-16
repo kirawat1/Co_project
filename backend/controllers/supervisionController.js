@@ -4,6 +4,7 @@ const path = require('path');
 const { createNotifications, getStaffAndCoopTeacherIds } = require('../utils/notificationHelper');
 const { normalizeDocNumber, isPlaceholderDocNo, parseDateOr400 } = require('../utils/docNumber');
 const { resolveSlotEnd, assertNoTeacherClash, findTeacherClash, dateKey, timeKey } = require('../utils/supervisionClash');
+const { SUPERVISION_SCHEDULE_SELECT, toScheduleRow, sortSchedule, buildSupervisionScheduleWorkbook } = require('../utils/supervisionExport');
 
 const CLEARED_LETTER_PENDING = { letterPendingAt: null, letterDraftNumber: null, letterDraftDate: null };
 
@@ -986,6 +987,48 @@ exports.confirmGroupSupervision = async (req, res) => {
 };
 
 // ==========================================
+// ตารางนิเทศ (Excel) — เจ้าหน้าที่ + อาจารย์ประจำวิชาสหกิจ
+// GET /api/admin/supervisions/export?coopPeriodId=&from=&to=
+// ==========================================
+exports.exportSupervisionSchedule = async (req, res) => {
+    try {
+        const coopPeriodId = req.query.coopPeriodId ? parseInt(req.query.coopPeriodId, 10) : null;
+        if (req.query.coopPeriodId && (isNaN(coopPeriodId) || coopPeriodId <= 0)) {
+            return res.status(400).json({ ok: false, message: 'coopPeriodId ไม่ถูกต้อง' });
+        }
+        const range = {};
+        if (req.query.from) range.gte = parseDateOr400(req.query.from, 'วันที่เริ่ม');
+        if (req.query.to) {
+            const to = parseDateOr400(req.query.to, 'วันที่สิ้นสุด');
+            to.setHours(23, 59, 59, 999);
+            range.lte = to;
+        }
+
+        const appointments = await prisma.supervisionAppointment.findMany({
+            where: {
+                confirmedDate: Object.keys(range).length ? { not: null, ...range } : { not: null },
+                status: { in: ['DATE_CONFIRMED', 'LETTER_UPLOADED', 'COMPLETED'] },
+                student: {
+                    deletedAt: null,
+                    ...(coopPeriodId ? { coop: { coopPeriodId } } : {}),
+                },
+            },
+            select: SUPERVISION_SCHEDULE_SELECT,
+            orderBy: { confirmedDate: 'asc' },
+        });
+
+        const buffer = buildSupervisionScheduleWorkbook(appointments);
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename="supervision_schedule_${coopPeriodId || 'all'}.xlsx"`);
+        res.send(buffer);
+    } catch (err) {
+        if (err.is400) return res.status(400).json({ ok: false, message: err.message });
+        console.error('exportSupervisionSchedule error:', err);
+        res.status(500).json({ ok: false, message: 'ไม่สามารถสร้างไฟล์ตารางนิเทศได้' });
+    }
+};
+
+// ==========================================
 // คิวนิเทศของเพื่อนที่บริษัทเดียวกัน (สำหรับนักศึกษา)
 // GET /api/coop/supervision/company-queue
 // ใช้ให้นักศึกษาขอนัดวันเดียวกับเพื่อนได้ แต่ต้องต่อคิวเวลา — นิเทศเป็นคิวเดี่ยว
@@ -1059,26 +1102,29 @@ exports.getSupervisionCalendar = async (_req, res) => {
                 status: { in: ['DATE_CONFIRMED', 'LETTER_UPLOADED', 'COMPLETED'] },
                 student: { deletedAt: null }
             },
-            include: {
-                student: {
-                    select: {
-                        studentId: true, firstName: true, lastName: true,
-                        coop: { select: { company: { select: { name: true } } } }
-                    }
-                }
-            },
+            select: SUPERVISION_SCHEDULE_SELECT,
             orderBy: { confirmedDate: 'asc' }
         });
 
-        const events = appointments.map(a => ({
-            id: a.id,
-            confirmedDate: a.confirmedDate,
-            studentId: a.student.studentId,
-            studentName: `${a.student.firstName} ${a.student.lastName}`,
-            type: a.supervisionType,
-            status: a.status,
-            companyName: a.student.coop?.company?.name ?? null,
-            groupId: a.groupId,
+        // ตารางเรียงวัน-เวลา ใช้ได้ทั้งปฏิทินและมุมมองตาราง — ทุก role ดูได้ว่านิเทศใคร เมื่อไหร่ ใครนิเทศ
+        const rows = sortSchedule(appointments.map(toScheduleRow));
+        const events = rows.map(r => ({
+            id: r.id,
+            confirmedDate: appointments.find(a => a.id === r.id)?.confirmedDate ?? null,
+            date: r.date,
+            start: r.start,
+            end: r.end,
+            session: r.session,
+            studentId: r.studentCode,
+            studentName: r.studentName,
+            teacherName: r.teacherName,
+            coTeacherName: r.coTeacherName || null,
+            type: r.supervisionType,
+            status: r.status,
+            statusLabel: r.statusLabel,
+            companyName: r.companyName || null,
+            companyProvince: r.companyProvince || null,
+            groupId: r.groupId,
         }));
 
         res.json({ ok: true, events });

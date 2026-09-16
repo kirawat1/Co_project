@@ -4,6 +4,7 @@ import axios from "axios";
 import { fmtDate, fmtDateTime } from '../utils/dateFormat';
 import StatusBadge from "./StatusBadge";
 import SupervisionCalendar from "./SupervisionCalendar";
+import SupervisionScheduleTable from "./SupervisionScheduleTable";
 import type { CalendarEvent } from "./SupervisionCalendar";
 
 function safeHref(url: string | null | undefined): string | undefined {
@@ -641,6 +642,7 @@ export default function S_Supervision() {
                     events={calendarEvents}
                     title="📅 ปฏิทินนิเทศสหกิจ (วันที่ยืนยันแล้วทั้งหมด)"
                 />
+                <SupervisionScheduleTable events={calendarEvents} title="🗓️ ตารางนิเทศทั้งหมด (เรียงตามวัน)" />
             </div>
         </div>
     );

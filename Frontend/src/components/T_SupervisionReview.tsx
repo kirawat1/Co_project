@@ -5,6 +5,7 @@ import { apiFetch } from "../utils/apiFetch";
 import { fmtDate, fmtDateTime } from '../utils/dateFormat';
 import StatusBadge from "./StatusBadge";
 import SupervisionCalendar from "./SupervisionCalendar";
+import SupervisionScheduleTable from "./SupervisionScheduleTable";
 import type { CalendarEvent } from "./SupervisionCalendar";
 import AutoTextarea from "./AutoTextarea";
 import { PendingSignBadge } from "./LetterModalShared";
@@ -646,6 +647,11 @@ export default function T_SupervisionReview() {
                     {/* ── Calendar ── */}
                     <div style={{ marginBottom: 24 }}>
                         <SupervisionCalendar events={allCalendarEvents} title="📅 ปฏิทินนิเทศสหกิจ (ทั้งหมด)" />
+                        <SupervisionScheduleTable
+                            events={allCalendarEvents}
+                            canExport={isCoopTeacher}
+                            exportUrl="/api/admin/supervisions/export"
+                        />
                     </div>
 
                     {/* ── Table ── */}
