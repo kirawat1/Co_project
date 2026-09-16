@@ -178,6 +178,14 @@ const prismaMock = {
     delete: jest.fn(),
     count: jest.fn(),
   },
+  auditLog: {
+    create: jest.fn(),
+    findMany: jest.fn(),
+    findFirst: jest.fn(),
+    count: jest.fn(),
+    deleteMany: jest.fn(),
+    groupBy: jest.fn(),
+  },
   // รองรับทั้ง interactive form ($transaction(async (tx) => {...})) และ array form ($transaction([promise1, promise2]))
   $transaction: jest.fn((arg) => Array.isArray(arg) ? Promise.all(arg) : arg(prismaMock)),
 };

@@ -39,6 +39,10 @@ const globalLimiter = rateLimit({
 });
 app.use('/api', globalLimiter);
 
+// บันทึกการใช้งาน — ใครทำอะไร (ทุก request ที่เปลี่ยนข้อมูล + การเข้าสู่ระบบ)
+const { auditLogger, startLogRetentionJob } = require('./middlewares/auditLogger');
+app.use('/api', auditLogger);
+
 // -----------------------------
 // Routes import
 // -----------------------------
@@ -100,6 +104,7 @@ app.use('/api', supervisionRoutes); //
 app.get("/", (_req, res) => res.send("API Server is running OK"));
 
 // -----------------------------
+startLogRetentionJob(); // ลบบันทึกการใช้งานที่เกิน 1 ปี
 app.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}`);
 });

@@ -570,3 +570,25 @@ model Notification {
 
   @@index([userId, isRead])
 }
+
+// บันทึกการใช้งาน — ใครทำอะไรกับระบบ (ทุก request ที่เปลี่ยนข้อมูล + การเข้าสู่ระบบ)
+// ไม่ผูก relation กับ User เพื่อให้ log ยังอยู่ครบแม้ผู้ใช้ถูกลบ (เก็บชื่อไว้เป็นสำเนาใน actorName)
+model AuditLog {
+  id         Int      @id @default(autoincrement())
+  createdAt  DateTime @default(now())
+  userId     Int? // null = ยังไม่ได้ล็อกอิน เช่น พยายามเข้าสู่ระบบแล้วไม่ผ่าน
+  role       String?  @db.VarChar(20)
+  actorName  String?  @db.VarChar(200) // ชื่อผู้ทำ ณ เวลานั้น
+  action     String   @db.VarChar(200) // ชื่อการกระทำภาษาไทย
+  method     String   @db.VarChar(10)
+  path       String   @db.VarChar(300)
+  targetType String?  @db.VarChar(50) // นักศึกษา / นัดนิเทศ / บริษัท ...
+  targetId   String?  @db.VarChar(50)
+  statusCode Int
+  ip         String?  @db.VarChar(64)
+  detail     String?  @db.Text // ข้อมูลที่ส่งมาแบบย่อ (ตัดรหัสผ่าน/โทเคน/ไฟล์ออก)
+
+  @@index([createdAt])
+  @@index([userId])
+  @@index([action])
+}
