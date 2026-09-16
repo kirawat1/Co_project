@@ -27,6 +27,7 @@ router.get("/supervision/me", verifyToken, verifyRole('student'), supervisionCon
 router.post("/supervision/propose", verifyToken, verifyRole('student'), supervisionController.proposeSupervisionDate);
 // ปฏิทินนิเทศ (ทุก role เข้าถึงได้)
 router.get("/supervision/calendar", verifyToken, supervisionController.getSupervisionCalendar);
+router.get("/supervision/company-queue", verifyToken, verifyRole("student"), supervisionController.getCompanySupervisionQueue);
 
 // Gateway display config — readable by all authenticated users (students included)
 router.get("/config/gateway", verifyToken, configController.getGatewaySettings);

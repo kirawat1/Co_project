@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const { createNotifications, getStaffAndCoopTeacherIds } = require('../utils/notificationHelper');
 const { normalizeDocNumber, isPlaceholderDocNo, parseDateOr400 } = require('../utils/docNumber');
-const { resolveSlotEnd, assertNoTeacherClash, findTeacherClash } = require('../utils/supervisionClash');
+const { resolveSlotEnd, assertNoTeacherClash, findTeacherClash, dateKey, timeKey } = require('../utils/supervisionClash');
 
 const CLEARED_LETTER_PENDING = { letterPendingAt: null, letterDraftNumber: null, letterDraftDate: null };
 
@@ -983,6 +983,68 @@ exports.confirmGroupSupervision = async (req, res) => {
     console.error(err);
     res.status(500).json({ ok: false, message: 'ไม่สามารถยืนยันการนัดหมายได้' });
   }
+};
+
+// ==========================================
+// คิวนิเทศของเพื่อนที่บริษัทเดียวกัน (สำหรับนักศึกษา)
+// GET /api/coop/supervision/company-queue
+// ใช้ให้นักศึกษาขอนัดวันเดียวกับเพื่อนได้ แต่ต้องต่อคิวเวลา — นิเทศเป็นคิวเดี่ยว
+// ==========================================
+exports.getCompanySupervisionQueue = async (req, res) => {
+    try {
+        const student = await prisma.student.findUnique({
+            where: { userId: parseInt(req.user.id) },
+            select: {
+                id: true, coopAdvisorId: true,
+                coop: { select: { company: { select: { id: true, name: true } } } },
+            },
+        });
+        if (!student) return res.status(404).json({ ok: false, message: 'ไม่พบข้อมูลนักศึกษา' });
+
+        const company = student.coop?.company || null;
+        if (!company) return res.json({ ok: true, company: null, queue: [] });
+
+        const appts = await prisma.supervisionAppointment.findMany({
+            where: {
+                studentId: { not: student.id },
+                confirmedDate: { not: null },
+                status: { in: ['DATE_CONFIRMED', 'LETTER_UPLOADED', 'COMPLETED'] },
+                student: { deletedAt: null, coop: { companyId: company.id } },
+            },
+            select: {
+                id: true, confirmedDate: true, confirmedEndDate: true, proposedDates: true,
+                supervisionType: true, status: true, teacherId: true, coTeacherName: true,
+                teacher: { select: { prefix: true, firstName: true, lastName: true } },
+                student: { select: { studentId: true, firstName: true, lastName: true } },
+            },
+            orderBy: { confirmedDate: 'asc' },
+        });
+
+        const queue = appts.map((a) => {
+            const start = new Date(a.confirmedDate);
+            const end = resolveSlotEnd(start, a);
+            return {
+                id: a.id,
+                date: dateKey(start),
+                start: timeKey(start),
+                end: timeKey(end),
+                studentName: `${a.student.firstName} ${a.student.lastName}`,
+                studentCode: a.student.studentId,
+                teacherId: a.teacherId,
+                teacherName: `${a.teacher?.prefix || ''}${a.teacher?.firstName || ''} ${a.teacher?.lastName || ''}`.trim(),
+                coTeacherName: a.coTeacherName || null,
+                supervisionType: a.supervisionType,
+                status: a.status,
+                // คิวของอาจารย์คนเดียวกับเรา = ห้ามเวลาทับ (อาจารย์คนอื่นแค่ใช้ดูว่าไปพร้อมกันวันไหน)
+                sameTeacher: !!student.coopAdvisorId && a.teacherId === student.coopAdvisorId,
+            };
+        });
+
+        res.json({ ok: true, company, queue });
+    } catch (err) {
+        console.error('getCompanySupervisionQueue error:', err);
+        res.status(500).json({ ok: false, message: 'ไม่สามารถดึงคิวนิเทศของบริษัทได้' });
+    }
 };
 
 // ==========================================

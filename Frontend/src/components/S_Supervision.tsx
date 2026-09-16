@@ -54,6 +54,29 @@ interface CoopPeriod {
     isSupervisionOpen: boolean;
 }
 
+type CompanyQueueItem = {
+    id: number;
+    date: string;          // YYYY-MM-DD
+    start: string;         // HH:mm
+    end: string;           // HH:mm
+    studentName: string;
+    teacherName: string;
+    supervisionType: "ONLINE" | "ONSITE";
+    sameTeacher: boolean;  // อาจารย์คนเดียวกับเรา = ห้ามเวลาทับ
+};
+
+// เวลาที่ว่างถัดไปของวันนั้น = เวลาจบล่าสุดในคิว (นัดต่อกันได้ ห้ามทับ)
+const toMinutes = (t: string) => {
+    const [h, m] = t.split(':').map(Number);
+    return (h || 0) * 60 + (m || 0);
+};
+const toHHMM = (mins: number) => {
+    const capped = Math.min(mins, 23 * 60 + 30);
+    return `${String(Math.floor(capped / 60)).padStart(2, '0')}:${String(capped % 60).padStart(2, '0')}`;
+};
+const overlaps = (aStart: string, aEnd: string, bStart: string, bEnd: string) =>
+    toMinutes(aStart) < toMinutes(bEnd) && toMinutes(bStart) < toMinutes(aEnd);
+
 export default function S_Supervision() {
     const [loading, setLoading] = useState(true);
     const [coopStatus, setCoopStatus] = useState<string>("NOT_SUBMITTED");
@@ -70,6 +93,9 @@ export default function S_Supervision() {
 
     const [isEditing, setIsEditing] = useState(false);
     const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
+    // คิวนิเทศของเพื่อนที่บริษัทเดียวกัน — ใช้ขอนัดวันเดียวกันแล้วต่อคิวเวลา
+    const [companyQueue, setCompanyQueue] = useState<CompanyQueueItem[]>([]);
+    const [companyName, setCompanyName] = useState<string | null>(null);
 
     const token = localStorage.getItem("coop.token");
 
@@ -120,6 +146,17 @@ export default function S_Supervision() {
                     }
                 }
             }
+            // 2.1 คิวนิเทศของเพื่อนที่บริษัทเดียวกัน
+            try {
+                const qRes = await axios.get("/api/coop/supervision/company-queue", {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                if (qRes.data?.ok) {
+                    setCompanyQueue(qRes.data.queue || []);
+                    setCompanyName(qRes.data.company?.name || null);
+                }
+            } catch { /* ไม่ร้าย ถ้าดึงไม่ได้ */ }
+
             // 3. ปฏิทินนิเทศ — วันที่จองทั้งหมดของทุกคน
             try {
                 const calRes = await axios.get("/api/coop/supervision/calendar", {
@@ -144,6 +181,31 @@ export default function S_Supervision() {
     };
 
     const handleRemoveDate = (index: number) => setDates(dates.filter((_, i) => i !== index));
+
+    // ขอนัดวันเดียวกับเพื่อนที่บริษัทเดียวกัน — ระบบเติมวันให้ แล้วต่อคิวจากเวลาจบล่าสุดของวันนั้น
+    const handleJoinCompanyDate = (date: string) => {
+        const sameDay = companyQueue.filter(q => q.date === date);
+        const lastEnd = sameDay.reduce((max, q) => Math.max(max, toMinutes(q.end)), 0);
+        const target = dates.findIndex(d => !d || !d.split('|')[0]);
+        const idx = target >= 0 ? target : 0;
+        const current = dates[idx] || "|08:00-10:30|ONSITE";
+        const [, tPart = '08:00-10:30', type = 'ONSITE'] = current.split('|');
+        const [curStart = '08:00', curEnd = '10:30'] = tPart.split('-');
+        const duration = Math.max(30, toMinutes(curEnd) - toMinutes(curStart));
+        const start = toHHMM(lastEnd);
+        const next = [...dates];
+        next[idx] = `${date}|${start}-${toHHMM(lastEnd + duration)}|${sameDay[0]?.supervisionType || type}`;
+        setDates(next);
+    };
+
+    // เตือนเมื่อเวลาที่เลือกทับคิวของอาจารย์คนเดียวกัน (backend จะปฏิเสธตอนอาจารย์ยืนยัน)
+    const slotClashWarning = (value: string): string | null => {
+        const [d = '', t = ''] = (value || '').split('|');
+        const [st, en] = t.split('-');
+        if (!d || !st || !en) return null;
+        const hit = companyQueue.find(q => q.sameTeacher && q.date === d && overlaps(st, en, q.start, q.end));
+        return hit ? `เวลานี้ทับคิวของ ${hit.studentName} (${hit.start}-${hit.end}) ที่อาจารย์คนเดียวกัน — เลื่อนไปต่อคิวหลัง ${hit.end} น.` : null;
+    };
 
     const handleDateChange = (index: number, value: string) => {
         const newDates = [...dates];
@@ -367,6 +429,35 @@ export default function S_Supervision() {
                                         <label style={lblStyle}>ช่วงเวลาที่เสนอ (สูงสุด 3 ตัวเลือก) <span style={{ color: 'red' }}>*</span></label>
                                         <p style={{ fontSize: 13, color: '#64748b', marginTop: 4, marginBottom: 12 }}>แนะนำให้ปรึกษาพี่เลี้ยงก่อนกำหนดวัน เพื่อไม่ให้กระทบตารางงาน — เลือกรูปแบบ (ออนไลน์/ออนไซต์) แยกแต่ละตัวเลือกได้</p>
 
+                                        {companyQueue.length > 0 && (
+                                            <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 10, padding: '12px 14px', marginBottom: 14 }}>
+                                                <div style={{ fontWeight: 700, color: '#0369a1', fontSize: 14, marginBottom: 2 }}>
+                                                    👥 เพื่อนที่{companyName ? ` ${companyName}` : 'บริษัทเดียวกัน'} นัดไว้แล้ว
+                                                </div>
+                                                <div style={{ fontSize: 12, color: '#075985', marginBottom: 8 }}>
+                                                    ขอนัดวันเดียวกันได้ แต่ต้องต่อคิวเวลา — นิเทศทีละคน ห้ามเวลาทับกัน
+                                                </div>
+                                                {Array.from(new Set(companyQueue.map(q => q.date))).sort().map(date => {
+                                                    const items = companyQueue.filter(q => q.date === date);
+                                                    return (
+                                                        <div key={date} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '6px 0', borderTop: '1px solid #e0f2fe', flexWrap: 'wrap' }}>
+                                                            <div style={{ flex: 1, minWidth: 220 }}>
+                                                                <div style={{ fontWeight: 700, color: '#0c4a6e', fontSize: 13 }}>{fmtDate(date)}</div>
+                                                                {items.map(q => (
+                                                                    <div key={q.id} style={{ fontSize: 12, color: '#334155' }}>
+                                                                        {q.start}-{q.end} น. · {q.studentName} · {q.teacherName}{q.sameTeacher ? ' (อาจารย์คนเดียวกับคุณ)' : ''}
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                            <button className="btn-secondary" style={{ fontSize: 12, padding: '6px 10px' }} onClick={() => handleJoinCompanyDate(date)}>
+                                                                ➕ ขอนัดวันนี้ (ต่อคิว)
+                                                            </button>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+
                                         {dates.map((dateStr, idx) => {
                                             const currentVal = dateStr || "|08:00-10:30|ONLINE";
                                             const [dPart, tPart] = currentVal.includes('|') ? currentVal.split('|') : [currentVal, '08:00-10:30'];
@@ -419,6 +510,12 @@ export default function S_Supervision() {
                                                         {dates.length > 1 && (
                                                             <button onClick={() => handleRemoveDate(idx)} style={{ background: '#fee2e2', color: '#dc2626', border: 'none', padding: '10px 14px', borderRadius: 8, cursor: 'pointer' }}>✕</button>
                                                         )}
+                                                        {(() => {
+                                                            const warn = slotClashWarning(currentVal);
+                                                            return warn ? (
+                                                                <div style={{ width: '100%', fontSize: 12, color: '#b91c1c', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '6px 10px' }}>⚠️ {warn}</div>
+                                                            ) : null;
+                                                        })()}
                                                     </div>
                                                 </div>
                                             );
