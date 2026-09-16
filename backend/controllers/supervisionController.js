@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const { createNotifications, getStaffAndCoopTeacherIds } = require('../utils/notificationHelper');
 const { normalizeDocNumber, isPlaceholderDocNo, parseDateOr400 } = require('../utils/docNumber');
+const { resolveSlotEnd, assertNoTeacherClash, findTeacherClash } = require('../utils/supervisionClash');
 
 const CLEARED_LETTER_PENDING = { letterPendingAt: null, letterDraftNumber: null, letterDraftDate: null };
 
@@ -382,6 +383,21 @@ exports.assignCoTeachers = async (req, res) => {
         if (!appt) {
             return res.status(404).json({ ok: false, message: 'ไม่พบข้อมูลการนัดหมาย' });
         }
+
+        // อาจารย์ร่วมที่เพิ่มเข้ามาต้องว่างในเวลานั้น — เช็คเมื่อรายการนี้ยืนยันวันแล้วเท่านั้น
+        if (coTeacherName && appt.confirmedDate && ['DATE_CONFIRMED', 'LETTER_UPLOADED'].includes(appt.status)) {
+            const start = new Date(appt.confirmedDate);
+            const end = resolveSlotEnd(start, appt);
+            const clash = await findTeacherClash(prisma, {
+                start,
+                end,
+                teacher: null,
+                coTeacherName,
+                excludeIds: [parsedId],
+            });
+            if (clash) return res.status(409).json({ ok: false, message: clash.message });
+        }
+
         await prisma.supervisionAppointment.update({
             where: { id: parsedId },
             data: { coTeacherName: coTeacherName } // บันทึกลงฐานข้อมูล
@@ -501,10 +517,8 @@ exports.reviewSupervision = async (req, res) => {
             }
 
             const chosenDate = new Date(confirmedDate);
-            const startOfDay = new Date(chosenDate);
-            startOfDay.setHours(0, 0, 0, 0);
-            const endOfDay = new Date(chosenDate);
-            endOfDay.setHours(23, 59, 59, 999);
+            // คิวนิเทศเป็นช่วงเวลา — เวลาสิ้นสุดเอาจากช่วงที่นักศึกษาเสนอ (เช่น 10:00-12:00)
+            const slotEnd = resolveSlotEnd(chosenDate, { proposedDates: supervision.proposedDates });
 
             // Auto-extract type from matching proposedDates entry (3rd pipe segment)
             // when the teacher frontend doesn't send supervisionType explicitly
@@ -531,6 +545,7 @@ exports.reviewSupervision = async (req, res) => {
             const approveData = {
                 status: 'DATE_CONFIRMED',
                 confirmedDate: chosenDate,
+                confirmedEndDate: slotEnd,
                 rejectReason: null,
                 ...(resolvedType ? { supervisionType: resolvedType } : {}),
             };
@@ -554,23 +569,14 @@ exports.reviewSupervision = async (req, res) => {
                     );
                 }
 
-                const conflict = await tx.supervisionAppointment.findFirst({
-                    where: {
-                        teacherId: teacher.id,
-                        id: { not: parsedId },
-                        status: { in: ['DATE_CONFIRMED', 'LETTER_UPLOADED'] },
-                        confirmedDate: { gte: startOfDay, lte: endOfDay }
-                    },
-                    include: { student: { select: { firstName: true, lastName: true } } }
+                // อาจารย์คนเดียวกัน (นับอาจารย์ร่วมด้วย) ห้ามมีนิเทศเวลาทับกัน — นัดต่อกันพอดีได้
+                await assertNoTeacherClash(tx, {
+                    start: chosenDate,
+                    end: slotEnd,
+                    teacher: { id: teacher.id, prefix: teacher.prefix, firstName: teacher.firstName, lastName: teacher.lastName },
+                    coTeacherName: supervision.coTeacherName,
+                    excludeIds: [parsedId],
                 });
-
-                if (conflict) {
-                    const conflictName = `${conflict.student.firstName} ${conflict.student.lastName}`;
-                    throw Object.assign(
-                        new Error(`วันนี้มีการนิเทศของ ${conflictName} อยู่แล้ว กรุณาเลือกวันอื่น`),
-                        { is409: true }
-                    );
-                }
 
                 await tx.supervisionAppointment.update({
                     where: { id: parsedId },
@@ -716,8 +722,6 @@ exports.updateConfirmedDate = async (req, res) => {
         }
 
         const chosenDate = new Date(confirmedDate);
-        const startOfDay = new Date(chosenDate); startOfDay.setHours(0, 0, 0, 0);
-        const endOfDay = new Date(chosenDate); endOfDay.setHours(23, 59, 59, 999);
 
         let updated;
         await prisma.$transaction(async (tx) => {
@@ -732,26 +736,22 @@ exports.updateConfirmedDate = async (req, res) => {
                 throw Object.assign(new Error('สามารถแก้ไขวันนิเทศได้เฉพาะเมื่อสถานะเป็น DATE_CONFIRMED เท่านั้น'), { is400: true });
             }
 
-            const conflict = await tx.supervisionAppointment.findFirst({
-                where: {
-                    teacherId: fresh.teacherId,
-                    id: { not: parsedId },
-                    status: { in: ['DATE_CONFIRMED', 'LETTER_UPLOADED'] },
-                    confirmedDate: { gte: startOfDay, lte: endOfDay }
-                },
-                include: { student: { select: { firstName: true, lastName: true } } }
+            const slotEnd = resolveSlotEnd(chosenDate, { proposedDates: fresh.proposedDates });
+            const apptTeacher = await tx.teacher.findUnique({
+                where: { id: fresh.teacherId },
+                select: { id: true, prefix: true, firstName: true, lastName: true },
             });
-
-            if (conflict) {
-                throw Object.assign(
-                    new Error(`วันนี้มีการนิเทศของ ${conflict.student.firstName} ${conflict.student.lastName} อยู่แล้ว`),
-                    { is409: true }
-                );
-            }
+            await assertNoTeacherClash(tx, {
+                start: chosenDate,
+                end: slotEnd,
+                teacher: apptTeacher,
+                coTeacherName: fresh.coTeacherName,
+                excludeIds: [parsedId],
+            });
 
             updated = await tx.supervisionAppointment.update({
                 where: { id: parsedId },
-                data: { confirmedDate: chosenDate }
+                data: { confirmedDate: chosenDate, confirmedEndDate: slotEnd }
             });
         });
 
@@ -911,22 +911,54 @@ exports.confirmGroupSupervision = async (req, res) => {
     }
 
     const groupId = appts.length > 1 ? require('crypto').randomUUID() : null;
-    const confirmedDateObj = new Date(confirmedDate);
 
-    // Fix 5: Use individual updates in $transaction to set supervisionType per appointment
-    await prisma.$transaction(
-      appts.map(a => {
-        let dates = [];
-        try { dates = JSON.parse(a.proposedDates || '[]'); } catch {}
-        const matchedEntry = dates.find(e => e.split('|')[0].slice(0, 10) === confirmKey);
-        const parts = (matchedEntry || '').split('|');
-        const sType = parts[2] === 'ONLINE' ? 'ONLINE' : 'ONSITE';
-        return prisma.supervisionAppointment.update({
-          where: { id: a.id },
-          data: { confirmedDate: confirmedDateObj, status: 'DATE_CONFIRMED', groupId, supervisionType: sType },
+    // นิเทศเป็นคิวเดี่ยว — คนแรกเริ่มตามเวลาที่เลือก คนถัดไปต่อจากคนก่อนหน้าทันที (ห้ามเวลาทับกัน)
+    let cursor = new Date(confirmedDate);
+    const plan = appts.map(a => {
+      let dates = [];
+      try { dates = JSON.parse(a.proposedDates || '[]'); } catch {}
+      const matchedEntry = dates.find(e => e.split('|')[0].slice(0, 10) === confirmKey);
+      const parts = (matchedEntry || '').split('|');
+      const sType = parts[2] === 'ONLINE' ? 'ONLINE' : 'ONSITE';
+      const start = new Date(cursor);
+      const end = resolveSlotEnd(start, { proposedDates: a.proposedDates });
+      cursor = end;
+      return { id: a.id, coTeacherName: a.coTeacherName, start, end, sType };
+    });
+
+    const groupIds = appts.map(a => a.id);
+    try {
+      await prisma.$transaction(async (tx) => {
+        const teacherRec = await tx.teacher.findUnique({
+          where: { id: teacher.id },
+          select: { id: true, prefix: true, firstName: true, lastName: true },
         });
-      })
-    );
+        for (const slot of plan) {
+          await assertNoTeacherClash(tx, {
+            start: slot.start,
+            end: slot.end,
+            teacher: teacherRec,
+            coTeacherName: slot.coTeacherName,
+            excludeIds: groupIds,
+          });
+        }
+        for (const slot of plan) {
+          await tx.supervisionAppointment.update({
+            where: { id: slot.id },
+            data: {
+              confirmedDate: slot.start,
+              confirmedEndDate: slot.end,
+              status: 'DATE_CONFIRMED',
+              groupId,
+              supervisionType: slot.sType,
+            },
+          });
+        }
+      });
+    } catch (txErr) {
+      if (txErr.is409) return res.status(409).json({ ok: false, message: txErr.message });
+      throw txErr;
+    }
 
     res.json({ ok: true, groupId, updatedCount: appts.length });
 

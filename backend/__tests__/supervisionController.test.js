@@ -494,8 +494,23 @@ describe('proposeSupervisionDate', () => {
 // reviewSupervision
 // ===========================
 describe('reviewSupervision', () => {
-  const teacherRecord = { id: 5, userId: 2 };
-  const supervision = { id: 1, teacherId: 5, status: 'PENDING_TEACHER' };
+  const teacherRecord = { id: 5, userId: 2, prefix: 'ผศ.', firstName: 'ก', lastName: 'ข' };
+  // นักศึกษาเสนอ 15 มี.ค. 2024 ช่วง 10:00-12:00 — คิวนิเทศเป็นช่วงเวลา
+  const supervision = {
+    id: 1, teacherId: 5, status: 'PENDING_TEACHER', coTeacherName: null,
+    proposedDates: JSON.stringify(['2024-03-15|10:00-12:00|ONSITE']),
+  };
+  // รายการที่อาจารย์คนเดียวกันจองไว้แล้ว ใช้จำลองการชนเวลา
+  const bookedSameTeacher = {
+    id: 99,
+    confirmedDate: new Date('2024-03-15T11:00:00'),
+    confirmedEndDate: new Date('2024-03-15T13:00:00'),
+    proposedDates: null,
+    teacherId: 5,
+    coTeacherName: null,
+    teacher: teacherRecord,
+    student: { studentId: 'u640099', firstName: 'จ', lastName: 'ฉ' },
+  };
 
   test('403 — teacher mismatch (not primary advisor)', async () => {
     prisma.teacher.findUnique.mockResolvedValue({ id: 99, userId: 2 }); // different teacher id
@@ -516,15 +531,11 @@ describe('reviewSupervision', () => {
   test('409 — date conflict on APPROVE', async () => {
     prisma.teacher.findUnique.mockResolvedValue(teacherRecord);
     prisma.supervisionAppointment.findUnique.mockResolvedValue(supervision);
-    prisma.supervisionAppointment.findFirst.mockResolvedValue({
-      id: 99,
-      teacherId: 5,
-      student: { firstName: 'จ', lastName: 'ฉ' },
-    });
+    prisma.supervisionAppointment.findMany.mockResolvedValue([bookedSameTeacher]);
 
     const req = {
       params: { id: '1' },
-      body: { action: 'APPROVE', confirmedDate: '2024-03-15' },
+      body: { action: 'APPROVE', confirmedDate: '2024-03-15T10:00:00' },
       user: { id: 2 },
     };
     const res = makeRes();
@@ -537,16 +548,16 @@ describe('reviewSupervision', () => {
   test('200 — APPROVE success (no conflict)', async () => {
     prisma.teacher.findUnique.mockResolvedValue(teacherRecord);
     prisma.supervisionAppointment.findUnique.mockResolvedValue(supervision);
-    prisma.supervisionAppointment.findFirst.mockResolvedValue(null); // no conflict
+    prisma.supervisionAppointment.findMany.mockResolvedValue([]); // ไม่มีคิวชน
     prisma.supervisionAppointment.update.mockResolvedValue({
       ...supervision,
       status: 'DATE_CONFIRMED',
-      confirmedDate: new Date('2024-03-15'),
+      confirmedDate: new Date('2024-03-15T10:00:00'),
     });
 
     const req = {
       params: { id: '1' },
-      body: { action: 'APPROVE', confirmedDate: '2024-03-15' },
+      body: { action: 'APPROVE', confirmedDate: '2024-03-15T10:00:00' },
       user: { id: 2 },
     };
     const res = makeRes();
