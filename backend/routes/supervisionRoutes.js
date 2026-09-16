@@ -28,8 +28,9 @@ router.get('/admin/supervision-periods', verifyToken, verifyCoopTeacherOrStaff, 
 router.post('/admin/supervision-periods', verifyToken, verifyCoopTeacherOrStaff, supervisionController.saveSupervisionPeriod);
 router.get('/admin/supervisions', verifyToken, verifyCoopTeacherOrStaff, supervisionController.getAllSupervisions);
 router.put('/admin/supervisions/:id/confirmed-date', verifyToken, verifyCoopTeacherOrStaff, supervisionController.updateConfirmedDate);
-router.post('/admin/supervisions/:id/upload-letter', verifyToken, verifyCoopTeacherOrStaff, upload.single('file'), supervisionController.uploadOfficialLetter);
-router.put('/admin/supervisions/:id/letter-pending', verifyToken, verifyCoopTeacherOrStaff, supervisionController.markSupervisionLetterPending);
+// ออกหนังสือขอนิเทศ (ร่าง/ฉบับลงนาม) — เจ้าหน้าที่เท่านั้น อาจารย์ประจำวิชาสหกิจออกหนังสือไม่ได้ (ยังดูไฟล์/จัดการอาจารย์ร่วมได้)
+router.post('/admin/supervisions/:id/upload-letter', verifyToken, verifyRole('staff'), upload.single('file'), supervisionController.uploadOfficialLetter);
+router.put('/admin/supervisions/:id/letter-pending', verifyToken, verifyRole('staff'), supervisionController.markSupervisionLetterPending);
 router.put('/admin/supervisions/:id/complete', verifyToken, verifyCoopTeacherOrStaff, supervisionController.completeSupervision);
 
 

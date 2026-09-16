@@ -7,7 +7,6 @@ import StatusBadge from "./StatusBadge";
 import SupervisionCalendar from "./SupervisionCalendar";
 import type { CalendarEvent } from "./SupervisionCalendar";
 import AutoTextarea from "./AutoTextarea";
-import IssueSupervisionLetterModal from "./IssueSupervisionLetterModal";
 import { PendingSignBadge } from "./LetterModalShared";
 import { useToast } from "./Toast";
 import ConfirmDialog from "./ConfirmDialog";
@@ -169,7 +168,6 @@ export default function T_SupervisionReview() {
     const [editDateTime, setEditDateTime] = useState("09:00");
     const [savingDate, setSavingDate] = useState(false);
     const [confirmEditOpen, setConfirmEditOpen] = useState(false);
-    const [letterSup, setLetterSup] = useState<SupervisionAppt | null>(null);
 
     // ── Badges
     const myPendingCount = mySupervisions.filter(s => s.status === 'PENDING_TEACHER' && s.isPrimaryAdvisor !== false).length;
@@ -217,14 +215,6 @@ export default function T_SupervisionReview() {
             setTeachersList(td?.teachers ?? td?.data ?? (Array.isArray(td) ? td : []));
         } catch (err) { console.error(err); }
         finally { setAllLoading(false); }
-    };
-
-    // ปิดหน้าต่างออกหนังสือ → รีเฟรชเฉพาะรายการ (ป้าย "รอลงนาม" เปลี่ยนตอนโหลดร่าง/ยกเลิก) ไม่ทับค่าตั้งค่าช่วงนิเทศ
-    const refreshAllSupervisions = async () => {
-        try {
-            const supRes = await axios.get("/api/admin/supervisions", { headers: { Authorization: `Bearer ${token}` } });
-            if (supRes.data?.supervisions) setAllSupervisions(supRes.data.supervisions);
-        } catch (err) { console.error(err); }
     };
 
     useEffect(() => { fetchMine(); }, []);
@@ -618,7 +608,7 @@ export default function T_SupervisionReview() {
                     <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div>
                             <h2 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: '#1e293b' }}>🗂️ จัดการนิเทศสหกิจ (ทั้งหมด)</h2>
-                            <div style={{ color: "#64748b", fontSize: 14, marginTop: 4 }}>ตั้งค่าช่วงเวลา จัดการอาจารย์ร่วม และออกหนังสือนิเทศ</div>
+                            <div style={{ color: "#64748b", fontSize: 14, marginTop: 4 }}>ตั้งค่าช่วงเวลา และจัดการอาจารย์ร่วม (หนังสือขอนิเทศออกโดยเจ้าหน้าที่)</div>
                         </div>
                         <button className="btn-ghost" onClick={fetchAll} disabled={allLoading}>{allLoading ? "⏳" : "🔄"} รีเฟรช</button>
                     </div>
@@ -719,9 +709,6 @@ export default function T_SupervisionReview() {
                                                         <button className="btn-ghost" style={{ fontSize: 12, padding: '6px 10px', ...(sup.coTeacherName ? {} : { background: 'rgba(234,179,8,.15)', borderColor: '#d97706', color: '#b45309', fontWeight: 700 }) }} onClick={() => openAssignModal(sup)}>👥 {sup.coTeacherName ? 'อาจารย์ร่วม' : 'มอบหมายอาจารย์ร่วม'}</button>
                                                         {sup.status === "DATE_CONFIRMED" && !sup.officialLetterPath && (
                                                             <button className="btn-ghost" style={{ fontSize: 12, padding: '6px 10px', color: '#d97706', borderColor: '#d97706' }} onClick={() => openEditDateModal(sup)}>✏️ แก้ไขวัน</button>
-                                                        )}
-                                                        {sup.status === "DATE_CONFIRMED" && (
-                                                            <button className="btn" style={{ background: sup.letterPendingAt ? '#d97706' : '#2563eb', color: 'white', padding: '6px 10px', fontSize: 12 }} onClick={() => setLetterSup(sup)}>{sup.letterPendingAt ? '✍️ อัปโหลดฉบับลงนาม' : '📄 ออกหนังสือ'}</button>
                                                         )}
                                                         {(sup.status === "LETTER_UPLOADED" || sup.status === "COMPLETED") && sup.officialLetterPath && (
                                                             <button className="btn-ghost" style={{ fontSize: 12, color: '#10b981', borderColor: '#10b981', padding: '6px 10px' }} onClick={() => window.open(`/uploads/supervision/${encodeURIComponent(sup.officialLetterPath!)}`, '_blank', 'noopener')}>👁️ ดูเอกสาร</button>
@@ -825,14 +812,6 @@ export default function T_SupervisionReview() {
             {/* ══════════════════ TAB: นิเทศตามบริษัท ══════════════════ */}
             {activeTab === 'group' && <T_GroupSupervision />}
 
-            {/* ── Modal: Issue Letter ── */}
-            {letterSup && !assignSup && (
-                <IssueSupervisionLetterModal
-                    supervision={letterSup as any}
-                    onClose={() => { setLetterSup(null); refreshAllSupervisions(); }}
-                    onSuccess={() => { setLetterSup(null); fetchAll(); }}
-                />
-            )}
         </div>
     );
 }
