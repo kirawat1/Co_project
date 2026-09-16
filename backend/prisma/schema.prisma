@@ -533,6 +533,8 @@ model SupervisionAppointment {
 
   // อาจารย์ตอบกลับ
   confirmedDate DateTime? // วันที่อาจารย์เลือก (ถ้ามี)
+  // เวลาสิ้นสุดของคิวนิเทศ (มาจากช่วงเวลาที่นักศึกษาเสนอ เช่น 10:00-12:00) — ใช้กันเวลานิเทศทับกันของอาจารย์คนเดียวกัน
+  confirmedEndDate DateTime?
   rejectReason  String?   @db.Text // เหตุผลที่ให้ นศ. เลือกใหม่
 
   status SupervisionStatus @default(PENDING_TEACHER)
