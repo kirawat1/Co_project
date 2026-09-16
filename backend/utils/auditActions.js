@@ -1,0 +1,129 @@
+/**
+ * auditActions.js — แปลง request เป็น "ใครทำอะไร" ภาษาคน สำหรับบันทึกการใช้งาน
+ *
+ * ทุก request ที่เปลี่ยนข้อมูลถูกบันทึกหมด (ดู middlewares/auditLogger.js)
+ * ตารางด้านล่างมีไว้ตั้งชื่อไทยให้งานสำคัญ — เส้นทางที่ไม่อยู่ในตารางจะใช้ "METHOD /path" แทน
+ */
+
+// ฟิลด์ที่ห้ามเก็บลง log เด็ดขาด
+const SECRET_FIELDS = new Set([
+  'password', 'newPassword', 'oldPassword', 'confirmPassword', 'currentPassword',
+  'token', 'accessToken', 'refreshToken', 'idToken', 'credential', 'clientSecret',
+  'image', 'base64', 'file', 'files',
+]);
+
+const DETAIL_MAX = 800;
+
+// [method, รูปแบบ path, ชื่อการกระทำ, ประเภทเป้าหมาย, ฟิลด์ที่ใช้เป็น id เป้าหมาย]
+// ':x' = ส่วนไหนก็ได้ 1 ชั้น
+const RULES = [
+  ['POST', '/api/auth/signin', 'เข้าสู่ระบบ', null, null],
+  ['POST', '/api/auth/login/sso', 'เข้าสู่ระบบด้วย SSO', null, null],
+  ['POST', '/api/auth/login/google', 'เข้าสู่ระบบด้วย Google', null, null],
+  ['POST', '/api/auth/register', 'เพิ่มนักศึกษาใหม่', 'นักศึกษา', 'studentId'],
+  ['POST', '/api/auth/change-password', 'เปลี่ยนรหัสผ่าน', null, null],
+
+  ['PUT', '/api/students/me', 'แก้ไขข้อมูลส่วนตัว', 'นักศึกษา', null],
+  ['POST', '/api/students/sync-reg', 'ซิงก์ข้อมูลจากทะเบียน KKU', 'นักศึกษา', null],
+  ['POST', '/api/students/import', 'นำเข้านักศึกษาจาก Excel', 'นักศึกษา', null],
+  ['POST', '/api/students', 'เพิ่มนักศึกษา', 'นักศึกษา', 'studentId'],
+  ['PUT', '/api/students/:x', 'แก้ไขข้อมูลนักศึกษา', 'นักศึกษา', ':1'],
+  ['DELETE', '/api/students/:x', 'ลบนักศึกษา', 'นักศึกษา', ':1'],
+
+  ['POST', '/api/docs/upload', 'อัปโหลดเอกสาร', 'เอกสาร', 'docType'],
+  ['DELETE', '/api/coop/documents/:x', 'ลบเอกสาร', 'เอกสาร', ':1'],
+  ['POST', '/api/coop/apply', 'ยื่นคำร้องสหกิจ', 'นักศึกษา', null],
+  ['PUT', '/api/coop/status', 'เปลี่ยนสถานะสหกิจ', 'นักศึกษา', 'studentId'],
+
+  ['PUT', '/api/admin/t000/review', 'ตรวจเอกสาร / เปลี่ยนสถานะนักศึกษา', 'นักศึกษา', 'studentId'],
+  ['POST', '/api/admin/t000/approve-all', 'อนุมัติเอกสารทั้งหมด', 'นักศึกษา', 'studentId'],
+  ['POST', '/api/admin/t000/acceptance-received', 'บันทึกรับใบตอบรับจากบริษัท', 'นักศึกษา', 'studentId'],
+  ['POST', '/api/admin/t000/acceptance-replace', 'เปลี่ยนไฟล์ใบตอบรับแทนนักศึกษา', 'นักศึกษา', 'studentId'],
+  ['PUT', '/api/admin/t000/letter-pending', 'โหลดร่างหนังสือ (รอลงนาม)', 'นักศึกษา', 'studentId'],
+  ['PUT', '/api/admin/doc/:x/status', 'เปลี่ยนสถานะเอกสาร', 'เอกสาร', ':1'],
+
+  ['PUT', '/api/admin/supervisions/:x/confirmed-date', 'แก้วันนิเทศ', 'นัดนิเทศ', ':1'],
+  ['POST', '/api/admin/supervisions/:x/upload-letter', 'ออกหนังสือขอนิเทศ', 'นัดนิเทศ', ':1'],
+  ['PUT', '/api/admin/supervisions/:x/letter-pending', 'โหลดร่างหนังสือขอนิเทศ (รอลงนาม)', 'นัดนิเทศ', ':1'],
+  ['PUT', '/api/admin/supervisions/:x/complete', 'ปิดงานนิเทศ', 'นัดนิเทศ', ':1'],
+  ['PUT', '/api/admin/supervisions/:x/co-teachers', 'จัดการอาจารย์นิเทศร่วม', 'นัดนิเทศ', ':1'],
+  ['POST', '/api/admin/supervision-periods', 'ตั้งค่าช่วงเวลานิเทศ', 'รอบสหกิจ', 'periodId'],
+  ['POST', '/api/coop/supervision/propose', 'เสนอวันนิเทศ', 'นัดนิเทศ', null],
+  ['PUT', '/api/teacher/supervisions/:x/review', 'อาจารย์พิจารณาวันนิเทศ', 'นัดนิเทศ', ':1'],
+  ['POST', '/api/teacher/supervisions/confirm-group', 'ยืนยันวันนิเทศแบบกลุ่ม', 'นัดนิเทศ', null],
+
+  ['POST', '/api/companies', 'เพิ่มบริษัท', 'บริษัท', null],
+  ['PUT', '/api/companies/:x', 'แก้ไขบริษัท', 'บริษัท', ':1'],
+  ['DELETE', '/api/companies/:x', 'ลบบริษัท', 'บริษัท', ':1'],
+  ['POST', '/api/companies/:x/mentors', 'เพิ่มพี่เลี้ยง', 'บริษัท', ':1'],
+  ['PUT', '/api/companies/mentors/:x', 'แก้ไขพี่เลี้ยง', 'พี่เลี้ยง', ':1'],
+  ['DELETE', '/api/companies/mentors/:x', 'ลบพี่เลี้ยง', 'พี่เลี้ยง', ':1'],
+
+  ['POST', '/api/admin/staff', 'เพิ่มบัญชีเจ้าหน้าที่', 'ผู้ใช้', null],
+  ['PUT', '/api/admin/staff/:x', 'แก้ไขบัญชีเจ้าหน้าที่', 'ผู้ใช้', ':1'],
+  ['DELETE', '/api/admin/staff/:x', 'ลบบัญชีเจ้าหน้าที่', 'ผู้ใช้', ':1'],
+  ['POST', '/api/admin/teachers', 'เพิ่มอาจารย์', 'อาจารย์', null],
+  ['PUT', '/api/admin/teachers/:x', 'แก้ไขข้อมูลอาจารย์', 'อาจารย์', ':1'],
+  ['DELETE', '/api/admin/teachers/:x', 'ลบอาจารย์', 'อาจารย์', ':1'],
+  ['POST', '/api/admin/coop-periods', 'เพิ่มรอบสหกิจ', 'รอบสหกิจ', null],
+  ['PUT', '/api/admin/coop-periods/:x', 'แก้ไขรอบสหกิจ', 'รอบสหกิจ', ':1'],
+  ['POST', '/api/admin/config/t000', 'ตั้งค่าระบบรับเอกสาร', 'ตั้งค่า', null],
+  ['POST', '/api/admin/criteria', 'ตั้งค่าเกณฑ์สหกิจ', 'ตั้งค่า', null],
+  ['POST', '/api/admin/doc-requirements', 'ตั้งค่าเอกสารที่ต้องส่ง', 'ตั้งค่า', null],
+  ['POST', '/api/notifications/mark-read', 'อ่านการแจ้งเตือน', null, null],
+];
+
+// เทียบ path กับรูปแบบที่มี :x — คืน array ของส่วนที่ match (สำหรับดึง id)
+function matchPath(pattern, path) {
+  const a = pattern.split('/').filter(Boolean);
+  const b = path.split('?')[0].split('/').filter(Boolean);
+  if (a.length !== b.length) return null;
+  const params = [];
+  for (let i = 0; i < a.length; i += 1) {
+    if (a[i] === ':x') { params.push(b[i]); continue; }
+    if (a[i] !== b[i]) return null;
+  }
+  return params;
+}
+
+function pickTargetId(spec, params, body) {
+  if (!spec) return null;
+  if (spec.startsWith(':')) {
+    const idx = parseInt(spec.slice(1), 10) - 1;
+    return params[idx] != null ? String(params[idx]) : null;
+  }
+  const v = body?.[spec];
+  return v == null || v === '' ? null : String(v).slice(0, 50);
+}
+
+// คืน { action, targetType, targetId } ของ request หนึ่ง
+function describeRequest({ method, path, body }) {
+  const upper = String(method || '').toUpperCase();
+  const clean = String(path || '').split('?')[0];
+  for (const [m, pattern, action, targetType, idSpec] of RULES) {
+    if (m !== upper) continue;
+    const params = matchPath(pattern, clean);
+    if (!params) continue;
+    return { action, targetType: targetType || null, targetId: pickTargetId(idSpec, params, body) };
+  }
+  return { action: `${upper} ${clean}`, targetType: null, targetId: null };
+}
+
+// ข้อมูลที่ส่งมาแบบย่อ — ตัดความลับและของใหญ่ออก
+function sanitizeBody(body) {
+  if (!body || typeof body !== 'object') return null;
+  const out = {};
+  for (const [k, v] of Object.entries(body)) {
+    if (SECRET_FIELDS.has(k)) { out[k] = '[ซ่อน]'; continue; }
+    if (v == null) continue;
+    if (typeof v === 'string') { out[k] = v.length > 200 ? `${v.slice(0, 200)}…` : v; continue; }
+    if (typeof v === 'number' || typeof v === 'boolean') { out[k] = v; continue; }
+    if (Array.isArray(v)) { out[k] = `[${v.length} รายการ]`; continue; }
+    out[k] = '[object]';
+  }
+  const text = JSON.stringify(out);
+  if (text === '{}') return null;
+  return text.length > DETAIL_MAX ? `${text.slice(0, DETAIL_MAX)}…` : text;
+}
+
+module.exports = { describeRequest, sanitizeBody, matchPath, RULES, SECRET_FIELDS, DETAIL_MAX };

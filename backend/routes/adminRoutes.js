@@ -8,6 +8,7 @@ const upload = require('../middlewares/uploadMiddleware');
 const systemUpload = require('../middlewares/systemUploadMiddleware');
 
 const adminDocController = require('../controllers/adminDocController');
+const auditLogController = require('../controllers/auditLogController');
 const systemAssetController = require('../controllers/systemAssetController');
 const coopPeriodController = require("../controllers/coopPeriodController");
 const adminDashboardController = require('../controllers/adminDashboardController');
@@ -31,6 +32,11 @@ const STAFF_ONLY = ['staff'];
 router.get('/config/t000', verifyToken, verifyRole(...ADMIN_ROLES), adminDocController.getT000Config);
 router.post('/config/t000', verifyToken, verifyRole(...ADMIN_ROLES), adminDocController.saveT000Config);
 router.get('/t000/students', verifyToken, verifyRole(...ADMIN_ROLES), adminDocController.getStudentsForT000);
+
+// บันทึกการใช้งาน (ใครทำอะไร) — เจ้าหน้าที่เท่านั้น
+router.get('/logs/export', verifyToken, verifyRole(...STAFF_ONLY), auditLogController.exportAuditLogs);
+router.get('/logs/actors', verifyToken, verifyRole(...STAFF_ONLY), auditLogController.getAuditActors);
+router.get('/logs', verifyToken, verifyRole(...STAFF_ONLY), auditLogController.getAuditLogs);
 router.put('/doc/:id/status', verifyToken, verifyRole(...ADMIN_ROLES), adminDocController.updateDocStatus);
 router.post('/t000/approve-all', verifyToken, verifyRole(...STAFF_ONLY), adminDocController.approveAllDocs);
 router.put('/t000/review', verifyToken, verifyRole(...STAFF_ONLY), upload.single('file'), adminDocController.reviewStudentStatus);
