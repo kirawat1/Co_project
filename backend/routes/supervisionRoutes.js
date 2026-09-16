@@ -27,6 +27,7 @@ const upload = multer({ storage, fileFilter: pdfOrImageFileFilter, limits: { fil
 router.get('/admin/supervision-periods', verifyToken, verifyCoopTeacherOrStaff, supervisionController.getSupervisionPeriods);
 router.post('/admin/supervision-periods', verifyToken, verifyCoopTeacherOrStaff, supervisionController.saveSupervisionPeriod);
 router.get('/admin/supervisions', verifyToken, verifyCoopTeacherOrStaff, supervisionController.getAllSupervisions);
+router.get('/admin/supervisions/export', verifyToken, verifyCoopTeacherOrStaff, supervisionController.exportSupervisionSchedule);
 router.put('/admin/supervisions/:id/confirmed-date', verifyToken, verifyCoopTeacherOrStaff, supervisionController.updateConfirmedDate);
 // ออกหนังสือขอนิเทศ (ร่าง/ฉบับลงนาม) — เจ้าหน้าที่เท่านั้น อาจารย์ประจำวิชาสหกิจออกหนังสือไม่ได้ (ยังดูไฟล์/จัดการอาจารย์ร่วมได้)
 router.post('/admin/supervisions/:id/upload-letter', verifyToken, verifyRole('staff'), upload.single('file'), supervisionController.uploadOfficialLetter);

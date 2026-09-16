@@ -609,20 +609,28 @@ describe('getSupervisionCalendar', () => {
       {
         id: 7,
         confirmedDate,
+        confirmedEndDate: new Date('2024-04-10T10:00:00'),
+        proposedDates: null,
         supervisionType: 'ONSITE',
         status: 'DATE_CONFIRMED',
         onlineLink: null,
+        coTeacherName: 'อ.ร่วม นิเทศ',
+        teacher: { prefix: 'ผศ.', firstName: 'ครู', lastName: 'หนึ่ง' },
         student: {
           studentId: 'CS001', firstName: 'ก', lastName: 'ข',
-          coop: { company: { name: 'บริษัท เอบีซี จำกัด' } },
+          coop: { company: { name: 'บริษัท เอบีซี จำกัด', province: 'ขอนแก่น' } },
         },
       },
       {
         id: 8,
         confirmedDate: new Date('2024-04-15'),
+        confirmedEndDate: null,
+        proposedDates: null,
         supervisionType: 'ONLINE',
         status: 'LETTER_UPLOADED',
         onlineLink: 'https://meet.google.com/abc-defg',
+        coTeacherName: null,
+        teacher: { prefix: 'รศ.', firstName: 'ครู', lastName: 'สอง' },
         student: {
           studentId: 'CS002', firstName: 'จ', lastName: 'ฉ',
           coop: null,
@@ -634,28 +642,34 @@ describe('getSupervisionCalendar', () => {
     const res = makeRes();
     await getSupervisionCalendar({}, res);
 
-    expect(res.json).toHaveBeenCalledWith({
-      ok: true,
-      events: [
-        {
-          id: 7,
-          confirmedDate,
-          studentId: 'CS001',
-          studentName: 'ก ข',
-          type: 'ONSITE',
-          status: 'DATE_CONFIRMED',
-          companyName: 'บริษัท เอบีซี จำกัด',
-        },
-        {
-          id: 8,
-          confirmedDate: new Date('2024-04-15'),
-          studentId: 'CS002',
-          studentName: 'จ ฉ',
-          type: 'ONLINE',
-          status: 'LETTER_UPLOADED',
-          companyName: null,
-        },
-      ],
+    const { events } = res.json.mock.calls[0][0];
+    expect(events).toHaveLength(2);
+    expect(events[0]).toMatchObject({
+      id: 7,
+      studentId: 'CS001',
+      studentName: 'ก ข',
+      type: 'ONSITE',
+      status: 'DATE_CONFIRMED',
+      companyName: 'บริษัท เอบีซี จำกัด',
+      companyProvince: 'ขอนแก่น',
+      // ตารางนิเทศ: ใครนิเทศ เมื่อไหร่ ถึงกี่โมง
+      teacherName: 'ผศ.ครู หนึ่ง',
+      coTeacherName: 'อ.ร่วม นิเทศ',
+      date: '2024-04-10',
+      // new Date('2024-04-10') = UTC เที่ยงคืน = 07:00 ตามเวลาไทย
+      start: '07:00',
+      end: '10:00',
+      session: 'เช้า',
+    });
+    expect(events[1]).toMatchObject({
+      id: 8,
+      studentName: 'จ ฉ',
+      teacherName: 'รศ.ครู สอง',
+      coTeacherName: null,
+      companyName: null,
+      // ไม่มีเวลาสิ้นสุดที่บันทึกไว้ → ถือว่ายาว 1 ชม.
+      start: '07:00',
+      end: '08:00',
     });
 
     expect(prisma.supervisionAppointment.findMany).toHaveBeenCalledWith(
