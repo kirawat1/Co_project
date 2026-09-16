@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useMemo } from "react";
+﻿import React, { useState, useEffect, useMemo, useRef } from "react";
 import { apiFetch } from "../utils/apiFetch";
 import { fmtDate } from '../utils/dateFormat';
 import StatusBadge from "../components/StatusBadge";
@@ -128,6 +128,9 @@ const PHASE2_EDITABLE_STATUSES = ['WAITING_FOR_PLACEMENT_LETTER', 'WAITING_FOR_S
 // ยังรอใบตอบรับ (นักศึกษายังไม่อัปโหลด) — บริษัทส่งมาที่เจ้าหน้าที่โดยตรงได้ ตรงกับ backend markAcceptanceReceived
 const ACCEPTANCE_RECEIVABLE_STATUSES = ['REQ_LETTER_ISSUED', 'WAITING_FOR_PLACEMENT_LETTER'];
 
+// เจ้าหน้าที่เปลี่ยน/อัปโหลดไฟล์ใบตอบรับแทนนักศึกษาได้ถึงก่อนออกหนังสือส่งตัว — ตรงกับ backend replaceAcceptanceFile
+const ACCEPTANCE_REPLACEABLE_STATUSES = ['REQ_LETTER_ISSUED', 'WAITING_FOR_PLACEMENT_LETTER', 'WAITING_FOR_STAFF_CHECK_LETTER', 'ACCEPTANCE_CHECKED'];
+
 const isMatch = (docType: string, reqKey: string) => {
     if (docType === reqKey) return true;
     if (reqKey === 'CP-T000' && docType === 'T000_SIGNED') return true;
@@ -160,6 +163,9 @@ export default function A_DocT000() {
     const [placementModalData, setPlacementModalData] = useState<StudentProfile | null>(null);
     // บริษัทส่งใบตอบรับมาที่เจ้าหน้าที่โดยตรง
     const [acceptanceReceivedFor, setAcceptanceReceivedFor] = useState<StudentProfile | null>(null);
+    // เจ้าหน้าที่เปลี่ยนไฟล์ใบตอบรับแทนนักศึกษา (บริษัทส่งฉบับแก้มาทีหลัง) — ทำในหน้าต่างตรวจสอบใบตอบรับ
+    const [replacingAcceptance, setReplacingAcceptance] = useState(false);
+    const acceptanceFileRef = useRef<HTMLInputElement | null>(null);
 
     const [showModal, setShowModal] = useState(false);
     const [selectedStudent, setSelectedStudent] = useState<StudentProfile | null>(null);
@@ -259,6 +265,31 @@ export default function A_DocT000() {
 
     const canEditInModal = (s: StudentProfile | null, phase: 1 | 2) =>
         !!s && (phase === 1 ? PHASE1_EDITABLE_STATUSES : PHASE2_EDITABLE_STATUSES).includes(s.docStatus || 'WAITING');
+
+    // เปลี่ยน/อัปโหลดไฟล์ใบตอบรับแทนนักศึกษา — สถานะถอยกลับไป "รอตรวจใบตอบรับ" ให้ตรวจไฟล์ใหม่อีกครั้ง
+    const handleReplaceAcceptance = async (file: File) => {
+        if (!selectedStudent) return;
+        if (!confirm(`เปลี่ยนไฟล์ใบตอบรับของ ${selectedStudent.firstName} ${selectedStudent.lastName} เป็น "${file.name}" ?\nสถานะจะกลับไป "รอตรวจใบตอบรับ" ให้ตรวจอีกครั้ง`)) return;
+        setReplacingAcceptance(true);
+        try {
+            const fd = new FormData();
+            fd.append('studentId', String(selectedStudent.id));
+            fd.append('file', file);
+            const res = await apiFetch('/api/admin/t000/acceptance-replace', { method: 'POST', body: fd });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || !data.ok) {
+                alert(`❌ เปลี่ยนไฟล์ไม่สำเร็จ${data.message ? `: ${data.message}` : ''}`);
+                return;
+            }
+            setShowModal(false);
+            await fetchAllData();
+            alert('✅ เปลี่ยนไฟล์ใบตอบรับแล้ว — สถานะกลับไป "รอตรวจใบตอบรับ" กด "ตรวจสอบใบตอบรับ" เพื่อตรวจไฟล์ใหม่ได้เลย');
+        } catch {
+            alert('❌ เชื่อมต่อเซิร์ฟเวอร์ไม่ได้');
+        } finally {
+            setReplacingAcceptance(false);
+        }
+    };
 
     const handleDocStatus = async (docId: number, status: "APPROVED" | "REJECTED" | "EDITS_REQUIRED") => {
         if (!selectedStudent || !canEditInModal(selectedStudent, checkPhase)) return;
@@ -756,6 +787,20 @@ export default function A_DocT000() {
                             <div className="control-pane" style={{ flex: '1', display: 'flex', flexDirection: 'column', background: '#fff', borderLeft: '1px solid #e2e8f0', minWidth: 320, overflow: 'hidden' }}>
                                 <div style={{ padding: '12px 16px', borderBottom: '1px solid #eee', background: '#f8fafc', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
                                     <div style={{ fontWeight: 600, color: '#334155', fontSize: 14 }}>รายการเอกสาร</div>
+                                    {checkPhase === 2 && ACCEPTANCE_REPLACEABLE_STATUSES.includes(selectedStudent.docStatus || '') && (() => {
+                                        // บริษัทส่งใบตอบรับฉบับแก้ไขมาทีหลัง — เจ้าหน้าที่เปลี่ยนไฟล์ให้ได้ถึงก่อนออกหนังสือส่งตัว
+                                        const hasFile = (selectedStudent.documents || []).some(d => isMatch(d.type || '', 'CP-ACCEPTANCE'));
+                                        return (
+                                            <>
+                                                <input ref={acceptanceFileRef} type="file" accept=".pdf,.jpg,.jpeg,.png" style={{ display: 'none' }}
+                                                    onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) handleReplaceAcceptance(f); }} />
+                                                <button onClick={() => acceptanceFileRef.current?.click()} disabled={replacingAcceptance}
+                                                    style={{ fontSize: 12, background: '#0f766e', color: 'white', border: 'none', padding: '6px 12px', borderRadius: 6, cursor: replacingAcceptance ? 'wait' : 'pointer', fontWeight: 600, boxShadow: '0 2px 4px rgba(15, 118, 110, 0.2)' }}>
+                                                    {replacingAcceptance ? 'กำลังอัปโหลด...' : hasFile ? '🔄 เปลี่ยนไฟล์ใบตอบรับ' : '📤 อัปโหลดใบตอบรับแทน'}
+                                                </button>
+                                            </>
+                                        );
+                                    })()}
                                     {checkPhase === 1 && canEditInModal(selectedStudent, 1) && (
                                         <button onClick={handleApproveAll} style={{ fontSize: 12, background: '#10b981', color: 'white', border: 'none', padding: '6px 12px', borderRadius: 6, cursor: 'pointer', fontWeight: 600, boxShadow: '0 2px 4px rgba(16, 185, 129, 0.2)' }}>
                                             ✅ อนุมัติทั้งหมด

@@ -474,6 +474,92 @@ exports.markAcceptanceReceived = async (req, res) => {
   }
 };
 
+// 5.1b เจ้าหน้าที่เปลี่ยน/อัปโหลดไฟล์ใบตอบรับแทนนักศึกษา (บริษัทส่งฉบับแก้ไขมาทีหลัง นักศึกษาเปลี่ยนเองไม่ทันแล้ว)
+// ใช้ได้ถึงก่อนออกหนังสือส่งตัวเท่านั้น — เปลี่ยนแล้วสถานะถอยกลับไป "รอตรวจใบตอบรับ" ให้ตรวจอีกครั้งตาม flow เดิม
+const ACCEPTANCE_REPLACEABLE_STATUSES = [
+  'REQ_LETTER_ISSUED', 'WAITING_FOR_PLACEMENT_LETTER', 'WAITING_FOR_STAFF_CHECK_LETTER', 'ACCEPTANCE_CHECKED',
+];
+// ข้อมูลเก่าเคยเก็บใบตอบรับเป็น type ACCEPTANCE_FORM — หาเจอทั้งสองแบบ จะได้ไม่สร้างซ้ำ
+const ACCEPTANCE_DOC_TYPES = ['CP-ACCEPTANCE', 'ACCEPTANCE_FORM'];
+
+exports.replaceAcceptanceFile = async (req, res) => {
+  const discardUpload = () => {
+    if (req.file?.path && fs.existsSync(req.file.path)) { try { fs.unlinkSync(req.file.path); } catch (_) {} }
+  };
+  try {
+    const studentId = parseInt(req.body?.studentId, 10);
+    if (isNaN(studentId) || studentId <= 0) {
+      discardUpload();
+      return res.status(400).json({ ok: false, message: 'studentId ต้องเป็นตัวเลขที่ถูกต้อง' });
+    }
+    if (!req.file) {
+      return res.status(400).json({ ok: false, message: 'กรุณาเลือกไฟล์ใบตอบรับ' });
+    }
+    const note = typeof req.body?.note === 'string' ? req.body.note.trim().slice(0, 500) : '';
+    const comment = `เจ้าหน้าที่เปลี่ยนไฟล์ใบตอบรับให้ รอตรวจสอบอีกครั้ง${note ? ` (${note})` : ''}`;
+
+    let student;
+    let replacedFiles = [];
+    await prisma.$transaction(async (tx) => {
+      student = await tx.student.findUnique({ where: { id: studentId }, select: { id: true, userId: true, deletedAt: true } });
+      if (!student || student.deletedAt) throw Object.assign(new Error('ไม่พบนักศึกษา'), { is404: true });
+
+      const coop = await tx.studentCoop.findUnique({ where: { studentId }, select: { status: true, acceptanceFileUrl: true, reqLetterUrl: true } });
+      if (!coop) throw Object.assign(new Error('นักศึกษายังไม่มีข้อมูลสหกิจ'), { is400: true });
+
+      // ข้อมูลเก่า: ตีกลับใบตอบรับเคยตั้งเป็น EDITS_REQUIRED ของขั้นเอกสาร T000 — ถ้าออกหนังสือขอความอนุเคราะห์แล้วถือว่าอยู่ขั้นใบตอบรับ
+      const rejectedAcceptance = coop.status === 'EDITS_REQUIRED' && !!coop.reqLetterUrl;
+      if (!ACCEPTANCE_REPLACEABLE_STATUSES.includes(coop.status) && !rejectedAcceptance) {
+        const afterPlacement = COOP_STATUS_ORDER.indexOf(coop.status) >= COOP_STATUS_ORDER.indexOf('PLACEMENT_LETTER_ISSUED');
+        const message = afterPlacement
+          ? 'ออกหนังสือส่งตัวแล้ว เปลี่ยนใบตอบรับไม่ได้'
+          : 'เปลี่ยนใบตอบรับได้เฉพาะช่วงที่ออกหนังสือขอความอนุเคราะห์แล้วและยังไม่ออกหนังสือส่งตัว';
+        throw Object.assign(new Error(message), { is400: true });
+      }
+
+      const name = Buffer.from(req.file.originalname, 'latin1').toString('utf8');
+      const existingDoc = await tx.document.findFirst({ where: { studentId, type: { in: ACCEPTANCE_DOC_TYPES } } });
+      if (existingDoc) {
+        await tx.document.update({
+          where: { id: existingDoc.id },
+          data: { type: 'CP-ACCEPTANCE', path: req.file.filename, name, status: 'WAITING', rejectReason: null },
+        });
+        replacedFiles.push(existingDoc.path);
+      } else {
+        await tx.document.create({ data: { studentId, type: 'CP-ACCEPTANCE', path: req.file.filename, name, status: 'WAITING' } });
+      }
+      if (coop.acceptanceFileUrl) replacedFiles.push(coop.acceptanceFileUrl);
+
+      await tx.studentCoop.update({
+        where: { studentId },
+        data: { acceptanceFileUrl: req.file.filename, status: 'WAITING_FOR_STAFF_CHECK_LETTER', t000Comment: comment },
+      });
+    });
+
+    res.json({ ok: true });
+
+    replacedFiles = replacedFiles.filter((f) => f && f !== req.file?.filename);
+    if (replacedFiles.length) removeUnreferencedUploads(replacedFiles).catch(console.error);
+
+    if (student?.userId) {
+      createNotifications([student.userId], {
+        type: 'DOCS_UPDATED',
+        title: 'สถานะสหกิจศึกษาอัปเดต',
+        message: 'เจ้าหน้าที่เปลี่ยนไฟล์ใบตอบรับให้แล้ว รอตรวจสอบอีกครั้ง 📄',
+        link: '/student/docs',
+        relatedId: String(studentId),
+      }).catch(console.error);
+    }
+  } catch (err) {
+    discardUpload();
+    if (err.is404) return res.status(404).json({ ok: false, message: err.message });
+    if (err.is400) return res.status(400).json({ ok: false, message: err.message });
+    console.error('Replace Acceptance File Error:', err);
+    res.status(500).json({ ok: false, message: 'บันทึกไม่สำเร็จ' });
+  }
+};
+
+
 // 5.2 เจ้าหน้าที่ดาวน์โหลดร่างหนังสือ (PDF/Word) ไปเสนอลงนาม → ป้าย "รอลงนาม" บน doct000
 // ไม่เปลี่ยนสถานะหลักของนักศึกษา · จำเลขที่/วันที่ของร่างไว้ให้ตอนกลับมาอัปโหลดฉบับลงนามตรงกัน
 // body: { studentId, letter: 'REQUEST' | 'PLACEMENT', docNumber?, docDate?, cancel? }
