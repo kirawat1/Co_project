@@ -93,9 +93,6 @@ export default function A_Sidebar({ isOpen = false, onClose = () => {} }: Sideba
         <NavItem to="/admin/supervision-manager" label="จัดการการนิเทศ" icon={<IcCalendar />}
           {...badge(["SUPERVISION_PROPOSED"])} />
 
-        {/* บันทึกการใช้งาน — ใครทำอะไรกับระบบ (เจ้าหน้าที่เท่านั้น) */}
-        <NavItem to="/admin/logs" label="บันทึกการใช้งาน" icon={<IcClipboard />} onClick={nav} />
-
         <NavLink
           to="/admin/doc-t005-006"
           className={({ isActive }) => "item" + (isActive ? " active" : "")}
@@ -160,6 +157,9 @@ export default function A_Sidebar({ isOpen = false, onClose = () => {} }: Sideba
           <span className="ico"><IcUser /></span>
           <span className="text">จัดการบัญชีเจ้าหน้าที่</span>
         </NavLink>
+
+        {/* บันทึกการใช้งาน — ใครทำอะไรกับระบบ (เจ้าหน้าที่เท่านั้น) */}
+        <NavItem to="/admin/logs" label="บันทึกการใช้งาน" icon={<IcClipboard />} onClick={nav} />
 
 
 
