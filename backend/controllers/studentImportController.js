@@ -1,6 +1,7 @@
 const XLSX = require('xlsx');
 const prisma = require('../config/prismaClient');
-const { hashDefaultStudentPassword } = require('../utils/studentPassword');
+const { defaultStudentPassword, hashDefaultStudentPassword } = require('../utils/studentPassword');
+const { encryptPassword } = require('../utils/passwordVault');
 const { normalizeEmail } = require('../utils/userEmail');
 
 const ROLE_TH = { teacher: 'อาจารย์', staff: 'เจ้าหน้าที่', student: 'นักศึกษา' };
@@ -366,19 +367,20 @@ exports.importStudents = async (req, res) => {
         const defaultPasswordHash = (!existingUser || !existingUser.password)
           ? await hashDefaultStudentPassword(studentId)
           : null;
+        const defaultPasswordEnc = defaultPasswordHash ? encryptPassword(defaultStudentPassword(studentId)) : null;
 
         await prisma.$transaction(async (tx) => {
           if (!existingUser) {
             user = await tx.user.upsert({
               where: { username: email },
               update: {},
-              create: { username: email, email, password: defaultPasswordHash, role: 'student', provider: 'google' },
+              create: { username: email, email, password: defaultPasswordHash, passwordEnc: defaultPasswordEnc, role: 'student', provider: 'google' },
             });
           } else {
             // บัญชีเก่าที่ username เป็นรหัสนักศึกษา → เปลี่ยนเป็นอีเมล · ยังไม่มีรหัสผ่าน → ใส่รหัสเริ่มต้น
             const userData = {};
             if (normalizeEmail(existingUser.username) !== email) userData.username = email;
-            if (defaultPasswordHash) userData.password = defaultPasswordHash;
+            if (defaultPasswordHash) { userData.password = defaultPasswordHash; userData.passwordEnc = defaultPasswordEnc; }
             if (Object.keys(userData).length > 0) {
               await tx.user.update({ where: { id: existingUser.id }, data: userData });
             }

@@ -3,6 +3,7 @@ const prisma = require('../config/prismaClient');
 const kkuReg = require('../services/kkuRegService');
 const { buildStudentExportWorkbook, STUDENT_EXPORT_INCLUDE } = require('../utils/studentExport');
 const { defaultStudentPassword, hashDefaultStudentPassword } = require('../utils/studentPassword');
+const { encryptPassword, revealPassword } = require('../utils/passwordVault');
 const { changeUserEmail, normalizeEmail } = require('../utils/userEmail');
 const { removeUnreferencedUploads } = require('../utils/uploadCleanup');
 const { resolveMajorNameTh } = require('../utils/majorName');
@@ -758,6 +759,7 @@ exports.createStudentSingle = async (req, res) => {
       user = await tx.user.create({
         data: {
           username: emailLower, email: emailLower, password: defaultPasswordHash, role: "student", provider: "google",
+          passwordEnc: defaultPasswordHash ? encryptPassword(defaultStudentPassword(studentId)) : null,
           student: {
             create: {
               studentId: studentId.trim(),
@@ -790,6 +792,34 @@ exports.createStudentSingle = async (req, res) => {
 
 // PATCH /api/admin/students/:id/reset-password — ตั้งรหัสผ่านกลับเป็นรหัสนักศึกษา (staff only)
 // ใช้เมื่อนักศึกษาลืมรหัสผ่าน หรือเจ้าหน้าที่แก้รหัสนักศึกษาแล้วอยากให้รหัสผ่านตามรหัสใหม่
+// POST /api/admin/students/:id/password/reveal — เจ้าหน้าที่กดดูรหัสผ่านนักศึกษา (นักศึกษาลืมแล้วมาถาม)
+// เป็น POST ไม่ใช่ GET เพื่อให้ทุกครั้งที่ดูถูกบันทึกลง audit log (ใครดูรหัสของใคร เมื่อไหร่)
+exports.revealStudentPassword = async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id) || id <= 0) return res.status(400).json({ ok: false, message: 'id ไม่ถูกต้อง' });
+
+    const student = await prisma.student.findUnique({
+      where: { id },
+      select: {
+        studentId: true, deletedAt: true,
+        user: { select: { id: true, role: true, password: true, passwordEnc: true } },
+      },
+    });
+    if (!student || student.deletedAt || !student.user) return res.status(404).json({ ok: false, message: 'ไม่พบนักศึกษา' });
+
+    const result = await revealPassword(student.user, { studentId: student.studentId });
+    if (result.backfill) {
+      await prisma.user.update({ where: { id: student.user.id }, data: { passwordEnc: result.backfill } });
+    }
+    res.set('Cache-Control', 'no-store');
+    res.json({ ok: true, data: { password: result.password, source: result.source } });
+  } catch (err) {
+    console.error("REVEAL STUDENT PASSWORD ERROR:", err);
+    res.status(500).json({ ok: false, message: "ดูรหัสผ่านไม่สำเร็จ" });
+  }
+};
+
 exports.resetStudentPassword = async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
@@ -804,7 +834,10 @@ exports.resetStudentPassword = async (req, res) => {
     const password = await hashDefaultStudentPassword(student.studentId);
     if (!password) return res.status(400).json({ ok: false, message: 'นักศึกษาคนนี้ยังไม่มีรหัสนักศึกษา' });
 
-    await prisma.user.update({ where: { id: student.userId }, data: { password } });
+    await prisma.user.update({
+      where: { id: student.userId },
+      data: { password, passwordEnc: encryptPassword(defaultStudentPassword(student.studentId)) },
+    });
     res.json({ ok: true, message: `รีเซ็ตรหัสผ่านเป็น ${defaultStudentPassword(student.studentId)} เรียบร้อย` });
   } catch (err) {
     if (err.code === 'P2025') return res.status(404).json({ ok: false, message: 'ไม่พบบัญชีผู้ใช้ของนักศึกษา' });

@@ -3,6 +3,7 @@ const jwt = require("jsonwebtoken");
 const prisma = require("../config/prismaClient");
 const axios = require("axios"); // ✅ ต้องลง npm install axios เพิ่ม
 const { OAuth2Client } = require('google-auth-library');
+const { VAULT_ROLES, decryptPassword, passwordEncFor } = require("../utils/passwordVault");
 require("dotenv").config();
 
 if (!process.env.GOOGLE_CLIENT_ID) {
@@ -68,6 +69,16 @@ exports.signIn = async (req, res) => {
 
     if (user.role === 'student' && user.student?.deletedAt) {
       return res.status(401).json({ ok: false, message: "บัญชีนี้ถูกระงับการใช้งาน" });
+    }
+
+    // เก็บสำเนารหัสผ่าน (ถอดได้) ให้เจ้าหน้าที่กดดูได้ — บัญชีที่ตั้งรหัสไว้ก่อนมีระบบนี้จะถูกเก็บตอน login
+    // เก็บไม่สำเร็จไม่ขวางการเข้าสู่ระบบ
+    if (VAULT_ROLES.has(user.role) && decryptPassword(user.passwordEnc) !== password) {
+      try {
+        await prisma.user.update({ where: { id: user.id }, data: { passwordEnc: passwordEncFor(user.role, password) } });
+      } catch (e) {
+        console.error("[signIn] passwordEnc:", e.message);
+      }
     }
 
     let profile = {
@@ -549,6 +560,7 @@ exports.registerStudent = async (req, res) => {
       user = await tx.user.create({
         data: {
           username: emailLower, email: emailLower, password: hashed, role: "student",
+          passwordEnc: passwordEncFor("student", password.trim()),
           student: {
             create: {
               studentId: studentId.trim(),
@@ -617,7 +629,7 @@ exports.changeMyPassword = async (req, res) => {
     if (pwError) return res.status(400).json({ ok: false, message: pwError });
 
     const hashed = await bcrypt.hash(newPassword, 10);
-    await prisma.user.update({ where: { id: user.id }, data: { password: hashed } });
+    await prisma.user.update({ where: { id: user.id }, data: { password: hashed, passwordEnc: passwordEncFor(user.role, newPassword) } });
     res.json({ ok: true, message: "เปลี่ยนรหัสผ่านเรียบร้อย" });
   } catch (err) {
     console.error("[changeMyPassword]", err);

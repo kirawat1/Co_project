@@ -117,6 +117,7 @@ router.post('/students/create', verifyToken, verifyRole(...STAFF_ONLY), studentC
 router.put('/students/:id', verifyToken, verifyRole(...STAFF_ONLY), studentController.updateStudentBasicInfo);
 // รีเซ็ตรหัสผ่านนักศึกษากลับเป็นรหัสนักศึกษา (ลืมรหัสผ่าน)
 router.patch('/students/:id/reset-password', verifyToken, verifyRole(...STAFF_ONLY), studentController.resetStudentPassword);
+router.post('/students/:id/password/reveal', verifyToken, verifyRole(...STAFF_ONLY), studentController.revealStudentPassword);
 
 // Students: Trash — ย้ายไปถังขยะ / กู้คืน / ลบถาวร (ลบถาวรได้เฉพาะคนที่อยู่ในถังขยะแล้ว)
 router.delete('/students/:id', verifyToken, verifyRole(...STAFF_ONLY), studentController.softDeleteStudent);
@@ -180,5 +181,6 @@ router.post('/teachers', verifyToken, verifyRole(...STAFF_ONLY), teacherControll
 router.put('/teachers/:id', verifyToken, verifyRole(...STAFF_ONLY), teacherController.adminUpdateTeacher);
 router.delete('/teachers/:id', verifyToken, verifyRole(...STAFF_ONLY), teacherController.deleteTeacher);
 router.put('/teachers/:id/password', verifyToken, verifyRole(...STAFF_ONLY), teacherController.resetTeacherPassword);
+router.post('/teachers/:id/password/reveal', verifyToken, verifyRole(...STAFF_ONLY), teacherController.revealTeacherPassword);
 
 module.exports = router;
