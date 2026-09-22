@@ -75,6 +75,10 @@ const toHHMM = (mins: number) => {
     const capped = Math.min(mins, 23 * 60 + 30);
     return `${String(Math.floor(capped / 60)).padStart(2, '0')}:${String(capped % 60).padStart(2, '0')}`;
 };
+// ช่วงเวลาที่เลือกได้ในหน้าขอนัด (ตรงกับ timeOptions) — นาทีนับจากเที่ยงคืน
+const DAY_START = 8 * 60;
+const DAY_END = 17 * 60;
+const SLOT_STEP = 30;
 const overlaps = (aStart: string, aEnd: string, bStart: string, bEnd: string) =>
     toMinutes(aStart) < toMinutes(bEnd) && toMinutes(bStart) < toMinutes(aEnd);
 
@@ -192,10 +196,17 @@ export default function S_Supervision() {
         const current = dates[idx] || "|08:00-10:30|ONSITE";
         const [, tPart = '08:00-10:30', type = 'ONSITE'] = current.split('|');
         const [curStart = '08:00', curEnd = '10:30'] = tPart.split('-');
-        const duration = Math.max(30, toMinutes(curEnd) - toMinutes(curStart));
-        const start = toHHMM(lastEnd);
+        const duration = Math.max(SLOT_STEP, toMinutes(curEnd) - toMinutes(curStart));
+        // เวลาต้องอยู่ในตัวเลือกจริง (08:00-17:00 ทีละ 30 นาที) — เดิมต่อคิวแล้วได้ 18:30
+        // ช่องเวลาไม่มีตัวเลือกนั้น หน้าจอโชว์ 08.00 แต่ค่าที่จะส่งเป็น 18:30
+        const startMin = Math.max(DAY_START, Math.ceil(lastEnd / SLOT_STEP) * SLOT_STEP);
+        if (startMin >= DAY_END) {
+            alert(`คิวนิเทศวันที่ ${fmtDate(date)} เต็มถึง ${toHHMM(lastEnd)} น. แล้ว (เลือกเวลาได้ถึง 17.00 น.) — กรุณาเลือกวันอื่น`);
+            return;
+        }
+        const endMin = Math.min(DAY_END, startMin + duration);
         const next = [...dates];
-        next[idx] = `${date}|${start}-${toHHMM(lastEnd + duration)}|${sameDay[0]?.supervisionType || type}`;
+        next[idx] = `${date}|${toHHMM(startMin)}-${toHHMM(endMin)}|${sameDay[0]?.supervisionType || type}`;
         setDates(next);
     };
 
