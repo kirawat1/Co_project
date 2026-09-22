@@ -374,7 +374,7 @@ export default function T_SupervisionReview() {
         try {
             await axios.put(`/api/admin/supervisions/${assignSup.id}/co-teachers`, { coTeacherName: coTeachers.length > 0 ? coTeachers.join(', ') : null }, { headers: { Authorization: `Bearer ${token}` } });
             toast.success("บันทึกรายชื่ออาจารย์นิเทศเรียบร้อย"); setAssignSup(null); fetchAll();
-        } catch { toast.error("เกิดข้อผิดพลาดในการบันทึก"); }
+        } catch (err: any) { toast.error(err?.response?.data?.message || "เกิดข้อผิดพลาดในการบันทึก"); } // เช่น อาจารย์ร่วมติดนิเทศเวลานั้น (409)
     };
 
     const openEditDateModal = (sup: SupervisionAppt) => {

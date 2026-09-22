@@ -191,9 +191,20 @@ export default function S_Supervision() {
     const handleJoinCompanyDate = (date: string) => {
         const sameDay = companyQueue.filter(q => q.date === date);
         const lastEnd = sameDay.reduce((max, q) => Math.max(max, toMinutes(q.end)), 0);
-        const target = dates.findIndex(d => !d || !d.split('|')[0]);
-        const idx = target >= 0 ? target : 0;
-        const current = dates[idx] || "|08:00-10:30|ONSITE";
+        // เลือกช่องที่จะใส่: ตัวเลือกวันเดียวกันที่มีอยู่แล้ว → ช่องที่ยังว่าง → เพิ่มตัวเลือกใหม่ถ้ายังไม่ครบ 3
+        // (เดิมถ้าไม่มีช่องว่างจะเขียนทับตัวเลือกที่ 1 — วันที่นักศึกษาเสนอไว้หายโดยไม่รู้ตัว)
+        const next = [...dates];
+        let idx = next.findIndex(d => (d || '').split('|')[0] === date);
+        if (idx < 0) idx = next.findIndex(d => !d || !d.split('|')[0]);
+        if (idx < 0) {
+            if (next.length >= 3) {
+                alert('เสนอวันได้สูงสุด 3 ตัวเลือก — ลบตัวเลือกที่ไม่ต้องการก่อน แล้วกด "ขอนัดวันนี้" อีกครั้ง');
+                return;
+            }
+            next.push('');
+            idx = next.length - 1;
+        }
+        const current = next[idx] || "|08:00-10:30|ONSITE";
         const [, tPart = '08:00-10:30', type = 'ONSITE'] = current.split('|');
         const [curStart = '08:00', curEnd = '10:30'] = tPart.split('-');
         const duration = Math.max(SLOT_STEP, toMinutes(curEnd) - toMinutes(curStart));
@@ -205,8 +216,7 @@ export default function S_Supervision() {
             return;
         }
         const endMin = Math.min(DAY_END, startMin + duration);
-        const next = [...dates];
-        next[idx] = `${date}|${toHHMM(startMin)}-${toHHMM(endMin)}|${sameDay[0]?.supervisionType || type}`;
+        next[idx] =`${date}|${toHHMM(startMin)}-${toHHMM(endMin)}|${sameDay[0]?.supervisionType || type}`;
         setDates(next);
     };
 
@@ -246,7 +256,12 @@ export default function S_Supervision() {
 
         if (validDates.length === 0) return alert("กรุณาระบุวันที่ต้องการเสนออย่างน้อย 1 วัน");
 
+        const now = new Date();
+        const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
         for (let i = 0; i < validDates.length; i++) {
+            if (validDates[i].split('|')[0].slice(0, 10) < todayKey) {
+                return alert(`ตัวเลือก ${i + 1}: วันที่ผ่านมาแล้ว กรุณาเลือกตั้งแต่วันนี้เป็นต้นไป`);
+            }
             const timePart = validDates[i].split('|')[1];
             if (timePart) {
                 const [start, end] = timePart.split('-');
