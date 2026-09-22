@@ -918,3 +918,65 @@ describe('updateConfirmedDate — สมาชิกนัดกลุ่ม', (
     expect(data).not.toHaveProperty('groupId');
   });
 });
+
+// ===========================
+// ตรวจซ้ำ 2026-09-22 (รอบ 2)
+// ===========================
+describe('proposeSupervisionDate — ห้ามเสนอวันที่ผ่านมาแล้ว', () => {
+  const student = { id: 10, userId: 1, deletedAt: null, coopAdvisorId: 5, coop: { coopPeriodId: 2, status: 'INTERNSHIP_STARTED' } };
+  const req = (dates) => ({ user: { id: 1 }, body: { proposedDates: JSON.stringify(dates), supervisionType: 'ONSITE' } });
+  beforeEach(() => {
+    prisma.student.findUnique.mockResolvedValue(student);
+    prisma.coopPeriod.findUnique.mockResolvedValue({ id: 2, isSupervisionOpen: true });
+    prisma.teacher.findUnique.mockResolvedValue({ id: 5, userId: 2 });
+    prisma.supervisionAppointment.findUnique.mockResolvedValue(null);
+    prisma.supervisionAppointment.upsert.mockResolvedValue({ id: 1, status: 'PENDING_TEACHER' });
+  });
+
+  test('400 — มีตัวเลือกเป็นวันในอดีต', async () => {
+    const res = makeRes();
+    await proposeSupervisionDate(req(['2020-01-15|10:00-12:00|ONSITE']), res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(prisma.supervisionAppointment.upsert).not.toHaveBeenCalled();
+  });
+
+  test('200 — วันนี้หรืออนาคตเสนอได้', async () => {
+    const d = new Date(); const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const res = makeRes();
+    await proposeSupervisionDate(req([`${today}|16:00-17:00|ONSITE`, '2099-12-01|10:00-11:00|ONSITE']), res);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: true }));
+  });
+});
+
+describe('getCompanySupervisionQueue — เฉพาะคิวที่ยังไม่ถึง', () => {
+  const { getCompanySupervisionQueue } = require('../controllers/supervisionController');
+  test('ไม่ดึงนัดที่นิเทศเสร็จแล้ว หรือวันที่ผ่านไปแล้ว', async () => {
+    prisma.student.findUnique.mockResolvedValue({ id: 10, coopAdvisorId: 5, coop: { company: { id: 'c1', name: 'บริษัท ก' } } });
+    prisma.supervisionAppointment.findMany.mockResolvedValue([]);
+    const res = makeRes();
+    await getCompanySupervisionQueue({ user: { id: 1 } }, res);
+    const where = prisma.supervisionAppointment.findMany.mock.calls[0][0].where;
+    expect(where.status.in).not.toContain('COMPLETED');
+    const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
+    expect(where.confirmedDate.gte.getTime()).toBe(startOfToday.getTime());
+  });
+});
+
+describe('updateConfirmedDate — ย้ายวันแล้วความยาวคิวต้องเท่าเดิม', () => {
+  const { updateConfirmedDate } = require('../controllers/supervisionController');
+  test('นัด 10:00-12:00 ย้ายไปวันที่ไม่อยู่ในรายการเสนอ → ยังยาว 2 ชม.', async () => {
+    prisma.supervisionAppointment.findUnique.mockResolvedValue({
+      id: 31, studentId: 7, teacherId: 5, status: 'DATE_CONFIRMED', officialLetterPath: null, groupId: null, coTeacherName: null,
+      confirmedDate: new Date('2026-12-18T10:00:00'), confirmedEndDate: new Date('2026-12-18T12:00:00'),
+      proposedDates: JSON.stringify(['2026-12-18|10:00-12:00|ONSITE']),
+    });
+    prisma.teacher.findUnique.mockResolvedValue({ id: 5, prefix: 'อ.', firstName: 'ก', lastName: 'ข' });
+    prisma.supervisionAppointment.findMany.mockResolvedValue([]);
+    prisma.supervisionAppointment.update.mockResolvedValue({ id: 31, studentId: 7 });
+    prisma.student.findUnique.mockResolvedValue({ userId: 70 });
+    const res = makeRes();
+    await updateConfirmedDate({ params: { id: '31' }, body: { confirmedDate: '2026-12-19T10:00:00' } }, res);
+    const { data } = prisma.supervisionAppointment.update.mock.calls[0][0];
+    expect((data.confirmedEndDate - data.confirmedDate) / 60000).toBe(120);
+  });
+});
