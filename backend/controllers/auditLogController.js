@@ -12,10 +12,8 @@ function thaiDateTime(d) {
   return `${date.getDate()} ${THAI_MONTHS[date.getMonth()]} ${date.getFullYear() + 543} ${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
 }
 const ROLE_LABEL_TH = { staff: 'เจ้าหน้าที่', teacher: 'อาจารย์', student: 'นักศึกษา' };
-const DOC_ACTION_PREFIXES = [
-  'ออกหนังสือ', 'โหลดร่าง', 'ยกเลิกรอลงนาม', 'อนุมัติเอกสาร', 'ให้แก้ไขเอกสาร', 'ตรวจเอกสาร',
-  'ตีกลับใบตอบรับ', 'ตรวจใบตอบรับ', 'บันทึกรับใบตอบรับ', 'เปลี่ยนไฟล์ใบตอบรับ', 'ยืนยันออกฝึก',
-];
+// ตัวกรองเรื่องเอกสาร — รายการอยู่ที่ utils/auditActions.js ที่เดียวกับชื่อการกระทำ
+const { DOC_ACTION_PREFIXES } = require('../utils/auditActions');
 
 // เงื่อนไขค้นหาร่วมของทั้งหน้ารายการและไฟล์ export
 function buildWhere(query) {

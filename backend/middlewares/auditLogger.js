@@ -68,18 +68,20 @@ const studentLabel = (s) => (s
   : null);
 const STUDENT_NAME_SELECT = { studentId: true, prefix: true, firstName: true, lastName: true };
 
-async function resolveTargetName(targetType, targetId) {
+// targetKey: 'id' = id ในฐานข้อมูล · 'code' = รหัสนักศึกษา — กำหนดในตารางกฎ (idSpec "code:...")
+// เดิมเดาจากความยาวตัวเลข (≤ 7 หลัก = id) ซึ่งผิดได้ถ้ารหัสนักศึกษาสั้นหรือ id ยาวขึ้น
+async function resolveTargetName(targetType, targetId, targetKey = 'id') {
   if (!targetType || targetId == null || targetId === '') return null;
   const raw = String(targetId);
   const id = /^\d{1,9}$/.test(raw) ? parseInt(raw, 10) : null;
   try {
     switch (targetType) {
       case 'นักศึกษา': {
-        // id สั้น = id ในระบบ · ยาว (เช่น 6430212186) = รหัสนักศึกษา
-        const s = id != null && raw.length <= 7
-          ? await prisma.student.findUnique({ where: { id }, select: STUDENT_NAME_SELECT })
-          : await prisma.student.findFirst({ where: { studentId: raw }, select: STUDENT_NAME_SELECT });
-        return studentLabel(s);
+        if (targetKey === 'code') {
+          return studentLabel(await prisma.student.findFirst({ where: { studentId: raw }, select: STUDENT_NAME_SELECT }));
+        }
+        if (id == null) return null;
+        return studentLabel(await prisma.student.findUnique({ where: { id }, select: STUDENT_NAME_SELECT }));
       }
       case 'นัดนิเทศ': {
         if (id == null) return null;
@@ -125,9 +127,15 @@ async function resolveTargetName(targetType, targetId) {
 async function writeLog(req, res) {
   const path = (req.originalUrl || req.url || '').split('?')[0];
   const isLogin = LOGIN_PATHS.includes(path);
-  const { action, targetType, targetId } = describeRequest({ method: req.method, path, body: req.body });
+  const described = describeRequest({ method: req.method, path, body: req.body });
+  // controller แนบรายละเอียดจากผลที่ทำจริงได้ (setAuditDetail) — ใช้ก่อนค่าที่เดาจาก request
+  const audit = res.locals?.audit || {};
+  const action = audit.action || described.action;
+  const targetType = audit.targetType || described.targetType;
+  const targetId = audit.targetId != null ? String(audit.targetId) : described.targetId;
+  const targetKey = audit.targetKey || described.targetKey;
   // ลบข้อมูลแล้ว (DELETE) หาชื่อไม่เจอเป็นปกติ — ใช้ค่าที่ถูกเก็บไว้ก่อนลบถ้ามี
-  const targetName = res.locals?.auditTargetName || await resolveTargetName(targetType, targetId);
+  const targetName = audit.targetName || res.locals?.auditTargetName || await resolveTargetName(targetType, targetId, targetKey);
 
   // ผู้ทำ: จาก token · ถ้าเป็นการเข้าสู่ระบบให้ใช้ id จาก response (สำเร็จ) หรือชื่อผู้ใช้ที่กรอกมา (ไม่สำเร็จ)
   const userId = req.user?.id ?? res.locals?.auditUserId ?? null;
@@ -175,14 +183,27 @@ function auditLogger(req, res, next) {
     };
   }
 
-  res.on('finish', () => {
+  // บันทึกตอน handler จบงาน (เรียก res.end) ไม่ใช่ตอนส่งถึงผู้ใช้ (finish)
+  // — เดิมผูกกับ finish: ผู้ใช้ปิดแท็บ/เน็ตหลุดก่อนได้คำตอบ ข้อมูลถูกแก้แล้วแต่ไม่มี log
+  //   (ทดลองตัดการเชื่อมต่อ 10 ครั้ง สร้างบริษัทจริง 10 แต่ log แค่ 8)
+  let logged = false;
+  const logOnce = () => {
+    if (logged) return;
+    logged = true;
     writeLog(req, res).catch((err) => console.error('[auditLog] เขียน log ไม่สำเร็จ:', err.message));
-  });
+  };
+  const originalEnd = res.end;
+  res.end = function auditedEnd(...args) {
+    const result = originalEnd.apply(this, args);
+    logOnce();
+    return result;
+  };
+  res.on('finish', logOnce); // กันไว้เผื่อมีทางส่งคำตอบที่ไม่ผ่าน res.end ตัวนี้
 
   // ลบข้อมูล: หลังลบเสร็จจะหาชื่อเป้าหมายไม่เจอแล้ว — หาชื่อไว้ก่อนส่งต่อ (DELETE ใช้ id จาก path ไม่ต้องรอ body)
   if (req.method === 'DELETE') {
-    const { targetType, targetId } = describeRequest({ method: req.method, path, body: {} });
-    resolveTargetName(targetType, targetId)
+    const { targetType, targetId, targetKey } = describeRequest({ method: req.method, path, body: {} });
+    resolveTargetName(targetType, targetId, targetKey)
       .then((name) => { if (name) res.locals.auditTargetName = name; })
       .catch(() => {})
       .finally(() => next());

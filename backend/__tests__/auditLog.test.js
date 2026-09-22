@@ -4,16 +4,21 @@ const prisma = require('../config/prismaClient');
 const { describeRequest, sanitizeBody } = require('../utils/auditActions');
 const { auditLogger, purgeOldLogs } = require('../middlewares/auditLogger');
 
-// res จำลองที่จับ event 'finish' ได้เหมือน express
+// res จำลองแบบ express: handler จบด้วย res.end() แล้วค่อยเกิด event 'finish' เมื่อส่งถึงผู้ใช้
 function makeRes(statusCode = 200) {
   const handlers = {};
-  return {
+  const res = {
     statusCode,
     locals: {},
     json: jest.fn(function (payload) { this._json = payload; return this; }),
+    end: jest.fn(),
     on: (ev, fn) => { handlers[ev] = fn; },
-    finish: async () => { await handlers.finish?.(); await new Promise((r) => setImmediate(r)); },
+    // จบปกติ: handler เรียก end แล้วส่งถึงผู้ใช้ (finish)
+    finish: async () => { res.end(); await handlers.finish?.(); await new Promise((r) => setImmediate(r)); },
+    // ผู้ใช้หลุดการเชื่อมต่อ: handler ยังทำงานจนจบ (เรียก end) แต่ไม่มี finish
+    endWithoutFinish: async () => { res.end(); await new Promise((r) => setImmediate(r)); },
   };
+  return res;
 }
 const makeReq = (over = {}) => ({
   method: 'POST',
@@ -399,5 +404,96 @@ describe('ชื่อเป้าหมาย — ตารางที่ใ�
     expect(next).toHaveBeenCalled();
     await res.finish();
     expect(prisma.auditLog.create.mock.calls[0][0].data).toMatchObject({ action: 'ลบบริษัท', targetName: 'บริษัทที่จะถูกลบ' });
+  });
+});
+
+describe('log ต้องครบแม้ผู้ใช้หลุดการเชื่อมต่อ (ตรวจ scrutinize 2026-09-22)', () => {
+  // เดิมเขียน log ตอน event finish อย่างเดียว — ผู้ใช้ปิดแท็บ/เน็ตหลุดก่อนได้คำตอบ ข้อมูลถูกแก้แล้วแต่ไม่มี log (ทดลองจริง 10 ครั้ง log แค่ 8)
+  test('handler จบงานแล้ว (end) แม้ไม่มี finish → ยังบันทึก log', async () => {
+    const req = makeReq({ user: { id: 3, role: 'staff' }, body: { name: 'บริษัท ก' } });
+    const res = makeRes(200);
+    auditLogger(req, res, () => {});
+    await res.endWithoutFinish();
+    expect(prisma.auditLog.create).toHaveBeenCalledTimes(1);
+    expect(prisma.auditLog.create.mock.calls[0][0].data).toMatchObject({ action: 'เพิ่มบริษัท', statusCode: 200 });
+  });
+
+  test('จบปกติ (end แล้ว finish) → บันทึกครั้งเดียว ไม่ซ้ำ', async () => {
+    const req = makeReq({ user: { id: 3, role: 'staff' } });
+    const res = makeRes(200);
+    auditLogger(req, res, () => {});
+    await res.finish();
+    res.end();
+    await new Promise((r) => setImmediate(r));
+    expect(prisma.auditLog.create).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('รายละเอียดจาก controller (ตรวจ scrutinize): ใช้ผลที่ทำจริงก่อนค่าที่เดาจาก request', () => {
+  const { setAuditDetail, reviewActionText } = require('../utils/auditActions');
+
+  test('middleware ใช้ action/เป้าหมายที่ controller แนบมา', async () => {
+    prisma.student.findUnique.mockResolvedValue({ studentId: '6430212186', prefix: 'MR', firstName: 'ดำ', lastName: 'แดง' });
+    const req = makeReq({
+      method: 'PUT', originalUrl: '/api/admin/t000/review', user: { id: 3, role: 'staff' },
+      body: { studentId: '42', status: 'PLACEMENT_LETTER_ISSUED', placeDocNumber: 'ค่าดิบจาก request' },
+    });
+    const res = makeRes(200);
+    auditLogger(req, res, () => {});
+    setAuditDetail(res, { action: 'ออกหนังสือส่งตัว เลขที่ 660301.26.6.2/5 (พิมพ์ซ้ำ)', targetType: 'นักศึกษา', targetId: 42 });
+    await res.finish();
+    expect(prisma.auditLog.create.mock.calls[0][0].data).toMatchObject({
+      action: 'ออกหนังสือส่งตัว เลขที่ 660301.26.6.2/5 (พิมพ์ซ้ำ)', targetId: '42', targetName: '6430212186 นายดำ แดง',
+    });
+  });
+
+  test('คำขอล้มเหลว (controller ไม่ได้แนบ) → ใช้ตัวสำรองจาก request + (ไม่สำเร็จ)', async () => {
+    const req = makeReq({ method: 'PUT', originalUrl: '/api/admin/t000/review', user: { id: 3, role: 'staff' }, body: { studentId: '42', status: 'REQ_LETTER_ISSUED', reqDocNumber: '660301.26.6.2/9' } });
+    const res = makeRes(409);
+    auditLogger(req, res, () => {});
+    await res.finish();
+    expect(prisma.auditLog.create.mock.calls[0][0].data.action).toBe('ออกหนังสือขอความอนุเคราะห์ เลขที่ 660301.26.6.2/9 (ไม่สำเร็จ)');
+  });
+
+  test('ข้อความพิมพ์ซ้ำไม่บอกวิธีจัดส่งซ้ำ', () => {
+    expect(reviewActionText({ status: 'REQ_LETTER_ISSUED', docNumber: 'X/1', deliveryMethod: 'STAFF', reprint: true })).toBe('ออกหนังสือขอความอนุเคราะห์ เลขที่ X/1 (พิมพ์ซ้ำ)');
+  });
+
+  test('เพิ่มนักศึกษา: studentId เป็นรหัสนักศึกษา → หาด้วยรหัส ไม่เดาจากความยาว', async () => {
+    prisma.student.findFirst.mockResolvedValue({ studentId: '640001', prefix: 'MS', firstName: 'สั้น', lastName: 'รหัส' });
+    const req = makeReq({ method: 'POST', originalUrl: '/api/admin/students/create', user: { id: 3, role: 'staff' }, body: { studentId: '640001' } });
+    const res = makeRes(200);
+    auditLogger(req, res, () => {});
+    await res.finish();
+    expect(prisma.student.findFirst.mock.calls[0][0].where).toEqual({ studentId: '640001' });
+    expect(prisma.student.findUnique).not.toHaveBeenCalled();
+    expect(prisma.auditLog.create.mock.calls[0][0].data.targetName).toBe('640001 นางสาวสั้น รหัส');
+  });
+});
+
+describe('ตัวกรอง "เรื่องเอกสาร" ไม่เพี้ยนจากชื่อการกระทำ (ตรวจ scrutinize)', () => {
+  const { RULES, DOC_ACTION_PREFIXES, reviewActionText, letterPendingActionText, supervisionLetterActionText } = require('../utils/auditActions');
+  // ชื่อการกระทำทั้งหมดที่ระบบสร้างได้
+  const labels = new Set(RULES.map((r) => r[2]));
+  ['REQ_LETTER_ISSUED', 'PLACEMENT_LETTER_ISSUED', 'DOCS_APPROVED', 'EDITS_REQUIRED', 'WAITING_FOR_PLACEMENT_LETTER',
+    'ACCEPTANCE_CHECKED', 'INTERNSHIP_STARTED', 'QUALIFIED', 'QUALIFICATION_FAILED', 'APPLICATION_EDITS_REQUIRED']
+    .forEach((status) => { labels.add(reviewActionText({ status })); labels.add(reviewActionText({ status, reprint: true })); });
+  ['REQUEST', 'PLACEMENT', 'SUPERVISION'].forEach((letter) => [true, false].forEach((cancel) => labels.add(letterPendingActionText({ letter, cancel }))));
+  labels.add(supervisionLetterActionText({ docNumber: 'X/1' }));
+  ['ตรวจเอกสารผ่าน', 'ตรวจเอกสารไม่ผ่าน', 'ให้แก้ไขเอกสาร'].forEach((l) => labels.add(l));
+  const isDocPrefixed = (l) => DOC_ACTION_PREFIXES.some((p) => l.startsWith(p));
+
+  test('ชื่อที่เกี่ยวกับเอกสาร/หนังสือ/ใบตอบรับทุกตัวถูกตัวกรองจับ (ยกเว้นการตั้งค่า)', () => {
+    const docish = [...labels].filter((l) => /หนังสือ|เอกสาร|ใบตอบรับ|T000|รอลงนาม|ออกฝึก/.test(l) && !l.startsWith('ตั้งค่า'));
+    expect(docish.filter((l) => !isDocPrefixed(l))).toEqual([]);
+  });
+
+  test('ทุกคำขึ้นต้นตรงกับชื่อที่มีจริงอย่างน้อยหนึ่งชื่อ', () => {
+    expect(DOC_ACTION_PREFIXES.filter((p) => ![...labels].some((l) => l.startsWith(p)))).toEqual([]);
+  });
+
+  test('คำร้องสหกิจ / การตั้งค่า ไม่ปนเข้ามา', () => {
+    expect(isDocPrefixed(reviewActionText({ status: 'QUALIFIED' }))).toBe(false);
+    expect(isDocPrefixed('ตั้งค่าเอกสารที่ต้องส่ง')).toBe(false);
   });
 });

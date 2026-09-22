@@ -339,6 +339,25 @@ describe('reviewStudentStatus', () => {
       expect(res.json.mock.calls[0][0]).toMatchObject({ ok: true, statusKept: true });
     });
 
+    // บันทึกการใช้งาน: controller บอกจากผลที่ทำจริง — พิมพ์ซ้ำต้องแยกจากการออกครั้งแรก (ตรวจ scrutinize)
+    test('audit log: พิมพ์ซ้ำ → "ออกหนังสือส่งตัว เลขที่ … (พิมพ์ซ้ำ)" · ออกครั้งแรก → บอกวิธีจัดส่ง', async () => {
+      prisma.studentCoop.findUnique.mockResolvedValue({ status: 'T002_SUBMITTED', reqLetterUrl: null, placeLetterUrl: 'old.pdf' });
+      const res1 = makeRes();
+      await reviewStudentStatus({
+        body: { studentId: '7', status: 'PLACEMENT_LETTER_ISSUED', comment: 'x', placeDocNumber: '660301.26.6.2/61', docType: 'PLACEMENT_LETTER', deliveryMethod: 'STAFF' },
+        file: letterFile,
+      }, res1);
+      expect(res1.locals.audit).toMatchObject({ action: 'ออกหนังสือส่งตัว เลขที่ 660301.26.6.2/61 (พิมพ์ซ้ำ)', targetType: 'นักศึกษา', targetId: 7 });
+
+      prisma.studentCoop.findUnique.mockResolvedValue({ status: 'ACCEPTANCE_CHECKED', reqLetterUrl: null, placeLetterUrl: null });
+      const res2 = makeRes();
+      await reviewStudentStatus({
+        body: { studentId: '7', status: 'PLACEMENT_LETTER_ISSUED', comment: 'x', placeDocNumber: ' 660301.26.6.2/62 ', docType: 'PLACEMENT_LETTER', deliveryMethod: 'STUDENT' },
+        file: letterFile,
+      }, res2);
+      expect(res2.locals.audit.action).toBe('ออกหนังสือส่งตัว เลขที่ 660301.26.6.2/62 (นักศึกษานำไปยื่นเอง)');
+    });
+
     test('deliveryMethod ไม่ถูกต้อง / ไม่ส่งมา → ไม่บันทึก และแจ้งเตือนข้อความเดิม', async () => {
       prisma.studentCoop.findUnique.mockResolvedValue({ status: 'DOCS_APPROVED', reqLetterUrl: null, placeLetterUrl: null });
       const res = makeRes();

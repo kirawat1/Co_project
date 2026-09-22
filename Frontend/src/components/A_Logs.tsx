@@ -80,7 +80,10 @@ export default function A_Logs() {
         return p.toString();
     }, [q, role, userId, from, to, onlyFailed, docsOnly]);
 
+    // กันคำตอบเก่ามาทับคำตอบใหม่ (พิมพ์ค้นหาเร็ว/เปลี่ยนตัวกรองระหว่างโหลด)
+    const requestSeq = useRef(0);
     const fetchLogs = async (targetPage: number, append: boolean) => {
+        const mySeq = ++requestSeq.current;
         setLoading(true);
         try {
             const p = new URLSearchParams(queryString);
@@ -88,6 +91,7 @@ export default function A_Logs() {
             p.set("limit", String(PAGE_SIZE));
             const res = await apiFetch(`/api/admin/logs?${p.toString()}`);
             const data = await res.json().catch(() => ({}));
+            if (mySeq !== requestSeq.current) return; // มีคำขอใหม่กว่าแล้ว ทิ้งผลนี้
             if (!res.ok || !data.ok) {
                 alert(`โหลดบันทึกไม่สำเร็จ${data.message ? `: ${data.message}` : ""}`);
                 return;
@@ -98,9 +102,9 @@ export default function A_Logs() {
             if (data.meta?.roleCounts) setRoleCounts(data.meta.roleCounts);
             setPage(targetPage);
         } catch {
-            alert("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้");
+            if (mySeq === requestSeq.current) alert("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้");
         } finally {
-            setLoading(false);
+            if (mySeq === requestSeq.current) setLoading(false);
         }
     };
 

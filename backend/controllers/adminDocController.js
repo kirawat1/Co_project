@@ -3,6 +3,7 @@ const { createNotifications } = require('../utils/notificationHelper');
 const { removeUnreferencedUploads } = require('../utils/uploadCleanup');
 const { normalizeDocNumber, isPlaceholderDocNo, parseDateOr400 } = require('../utils/docNumber');
 const { resolveMajorNameTh } = require('../utils/majorName');
+const { setAuditDetail, reviewActionText, letterPendingActionText } = require('../utils/auditActions');
 const path = require('path');
 const fs = require('fs');
 
@@ -341,6 +342,18 @@ exports.reviewStudentStatus = async (req, res) => {
       });
     });
 
+    // บันทึกการใช้งาน: บอกจากผลที่บันทึกจริง (เลขที่ที่จัดรูปแบบแล้ว, พิมพ์ซ้ำหรือไม่) ไม่ใช่เดาจาก request
+    setAuditDetail(res, {
+      action: reviewActionText({
+        status,
+        docNumber: status === 'REQ_LETTER_ISSUED' ? updateData.reqDocNumber : status === 'PLACEMENT_LETTER_ISSUED' ? updateData.placeDocNumber : null,
+        deliveryMethod,
+        reprint: statusKept,
+      }),
+      targetType: 'นักศึกษา',
+      targetId: parsedStudentId,
+    });
+
     // statusKept = พิมพ์หนังสือซ้ำให้นักศึกษาที่ผ่านขั้นนั้นไปแล้ว (บันทึกหนังสือใหม่ แต่คงสถานะเดิม)
     res.json({ ok: true, statusKept });
 
@@ -602,6 +615,11 @@ exports.markLetterPending = async (req, res) => {
       await tx.studentCoop.update({ where: { studentId }, data });
     });
 
+    setAuditDetail(res, {
+      action: letterPendingActionText({ letter: req.body.letter, cancel, docNumber: data[`${key}DraftNumber`] }),
+      targetType: 'นักศึกษา',
+      targetId: studentId,
+    });
     res.json({
       ok: true,
       pendingAt: data[`${key}PendingAt`],
