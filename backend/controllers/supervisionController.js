@@ -8,6 +8,12 @@ const { SUPERVISION_SCHEDULE_SELECT, toScheduleRow, sortSchedule, buildSupervisi
 
 const CLEARED_LETTER_PENDING = { letterPendingAt: null, letterDraftNumber: null, letterDraftDate: null };
 
+// สถานะสหกิจที่ขอนัดนิเทศได้ (ออกฝึกแล้ว) — ต้องตรงกับ isInternshipPhase ใน Frontend/src/components/S_Supervision.tsx
+const SUPERVISION_PROPOSE_STATUSES = [
+    'INTERNSHIP_STARTED', 'T002_SUBMITTED', 'T002_EDITS_REQUIRED',
+    'T003_SUBMITTED', 'T003_EDITS_REQUIRED', 'T003_APPROVED',
+];
+
 // เลขที่หนังสือขอนิเทศห้ามซ้ำกับฉบับที่ออกให้คนอื่นแล้ว หรือร่างที่รอลงนามของคนอื่น
 async function assertSupervisionDocNumberFree(tx, value, appointmentId) {
     if (!value) return;
@@ -250,10 +256,16 @@ exports.proposeSupervisionDate = async (req, res) => {
         }
         const student = await prisma.student.findUnique({
             where: { userId: req.user.id },
-            include: { coop: { select: { coopPeriodId: true } } },
+            include: { coop: { select: { coopPeriodId: true, status: true } } },
         });
 
         if (!student || student.deletedAt) return res.status(404).json({ ok: false, message: 'Student not found' });
+
+        // ขอนัดนิเทศได้เฉพาะช่วงออกฝึกแล้ว — ตรงกับ isInternshipPhase ใน S_Supervision.tsx
+        // (เดิมหน้าจอซ่อนฟอร์มแต่ API ไม่เช็ค นักศึกษาที่ยังไม่ออกฝึกเรียก API ตรงแล้วสร้างนัดได้)
+        if (!SUPERVISION_PROPOSE_STATUSES.includes(student.coop?.status)) {
+            return res.status(403).json({ ok: false, message: 'ขอนัดนิเทศได้เมื่อออกฝึกสหกิจแล้วเท่านั้น' });
+        }
 
         // เดิม frontend ปิดปุ่มเองตาม isSupervisionOpen (S_Supervision.tsx) แต่ backend ไม่เคยเช็คซ้ำเลย
         // — เรียก endpoint ตรงผ่านปุ่มที่ถูกปิดได้เสมอ ต้องดูรอบสหกิจของ นศ. คนนี้เอง ไม่ใช่ "รอบรับสมัคร
