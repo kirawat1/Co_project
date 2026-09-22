@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const { createNotifications, getStaffAndCoopTeacherIds } = require('../utils/notificationHelper');
 const { normalizeDocNumber, isPlaceholderDocNo, parseDateOr400 } = require('../utils/docNumber');
-const { resolveSlotEnd, assertNoTeacherClash, findTeacherClash, dateKey, timeKey } = require('../utils/supervisionClash');
+const { resolveSlotEnd, assertNoTeacherClash, findTeacherClash, dateKey, timeKey, parseProposedList } = require('../utils/supervisionClash');
 const { SUPERVISION_SCHEDULE_SELECT, toScheduleRow, sortSchedule, buildSupervisionScheduleWorkbook } = require('../utils/supervisionExport');
 
 const CLEARED_LETTER_PENDING = { letterPendingAt: null, letterDraftNumber: null, letterDraftDate: null };
@@ -265,6 +265,13 @@ exports.proposeSupervisionDate = async (req, res) => {
         // (เดิมหน้าจอซ่อนฟอร์มแต่ API ไม่เช็ค นักศึกษาที่ยังไม่ออกฝึกเรียก API ตรงแล้วสร้างนัดได้)
         if (!SUPERVISION_PROPOSE_STATUSES.includes(student.coop?.status)) {
             return res.status(403).json({ ok: false, message: 'ขอนัดนิเทศได้เมื่อออกฝึกสหกิจแล้วเท่านั้น' });
+        }
+
+        // ห้ามเสนอวันที่ผ่านมาแล้ว (เดิมไม่เช็คเลย ทั้งหน้าจอและ API)
+        const todayKey = dateKey(new Date());
+        const pastEntry = parseProposedList(proposedDates).find((e) => e.date < todayKey);
+        if (pastEntry) {
+            return res.status(400).json({ ok: false, message: `วันที่เสนอ ${pastEntry.date} ผ่านมาแล้ว กรุณาเลือกตั้งแต่วันนี้เป็นต้นไป` });
         }
 
         // เดิม frontend ปิดปุ่มเองตาม isSupervisionOpen (S_Supervision.tsx) แต่ backend ไม่เคยเช็คซ้ำเลย
@@ -749,7 +756,13 @@ exports.updateConfirmedDate = async (req, res) => {
                 throw Object.assign(new Error('สามารถแก้ไขวันนิเทศได้เฉพาะเมื่อสถานะเป็น DATE_CONFIRMED เท่านั้น'), { is400: true });
             }
 
-            const slotEnd = resolveSlotEnd(chosenDate, { proposedDates: fresh.proposedDates });
+            // ย้ายวัน/เวลา = นัดเดิมที่เลื่อน → คงความยาวคิวเดิมไว้ (เดิมคำนวณใหม่จากช่วงที่นักศึกษาเสนอ
+            // ถ้าย้ายไปวันที่ไม่อยู่ในรายการเสนอ ความยาว 2 ชม. หดเหลือค่าตั้งต้น 1 ชม. การตรวจเวลาชนเลยมองไม่เห็นชั่วโมงที่หาย)
+            const prevStart = fresh.confirmedDate ? new Date(fresh.confirmedDate) : null;
+            const prevEnd = prevStart ? resolveSlotEnd(prevStart, fresh) : null;
+            const slotEnd = prevStart && prevEnd > prevStart
+                ? new Date(chosenDate.getTime() + (prevEnd.getTime() - prevStart.getTime()))
+                : resolveSlotEnd(chosenDate, { proposedDates: fresh.proposedDates });
             const apptTeacher = await tx.teacher.findUnique({
                 where: { id: fresh.teacherId },
                 select: { id: true, prefix: true, firstName: true, lastName: true },
@@ -1066,13 +1079,15 @@ exports.getCompanySupervisionQueue = async (req, res) => {
         if (!student) return res.status(404).json({ ok: false, message: 'ไม่พบข้อมูลนักศึกษา' });
 
         const company = student.coop?.company || null;
+        const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
         if (!company) return res.json({ ok: true, company: null, queue: [] });
 
         const appts = await prisma.supervisionAppointment.findMany({
             where: {
                 studentId: { not: student.id },
-                confirmedDate: { not: null },
-                status: { in: ['DATE_CONFIRMED', 'LETTER_UPLOADED', 'COMPLETED'] },
+                // เฉพาะคิวที่ยังไม่ถึง — เดิมดึงนัดที่นิเทศเสร็จแล้ว/วันในอดีตมาด้วย ปุ่มต่อคิวเลยชวนให้เสนอวันที่ผ่านไปแล้ว
+                confirmedDate: { gte: startOfToday },
+                status: { in: ['DATE_CONFIRMED', 'LETTER_UPLOADED'] },
                 student: { deletedAt: null, coop: { companyId: company.id } },
             },
             select: {
