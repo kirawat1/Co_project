@@ -809,8 +809,9 @@ exports.revealStudentPassword = async (req, res) => {
     if (!student || student.deletedAt || !student.user) return res.status(404).json({ ok: false, message: 'ไม่พบนักศึกษา' });
 
     const result = await revealPassword(student.user, { studentId: student.studentId });
+    // เก็บสำเนารหัสเริ่มต้นเฉพาะเมื่อ hash ยังไม่ถูกเปลี่ยนระหว่างนี้ (เจ้าของเปลี่ยนรหัสพร้อมกันพอดี → ไม่ทับสำเนาใหม่)
     if (result.backfill) {
-      await prisma.user.update({ where: { id: student.user.id }, data: { passwordEnc: result.backfill } });
+      await prisma.user.updateMany({ where: { id: student.user.id, password: student.user.password }, data: { passwordEnc: result.backfill } });
     }
     res.set('Cache-Control', 'no-store');
     res.json({ ok: true, data: { password: result.password, source: result.source } });

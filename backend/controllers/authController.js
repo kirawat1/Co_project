@@ -73,9 +73,10 @@ exports.signIn = async (req, res) => {
 
     // เก็บสำเนารหัสผ่าน (ถอดได้) ให้เจ้าหน้าที่กดดูได้ — บัญชีที่ตั้งรหัสไว้ก่อนมีระบบนี้จะถูกเก็บตอน login
     // เก็บไม่สำเร็จไม่ขวางการเข้าสู่ระบบ
+    // เขียนเฉพาะเมื่อ hash ยังเป็นตัวที่เพิ่งตรวจผ่าน — ถ้าเจ้าหน้าที่รีเซ็ตรหัสระหว่างนี้ จะไม่เอารหัสเก่าไปทับสำเนาของรหัสใหม่
     if (VAULT_ROLES.has(user.role) && decryptPassword(user.passwordEnc) !== password) {
       try {
-        await prisma.user.update({ where: { id: user.id }, data: { passwordEnc: passwordEncFor(user.role, password) } });
+        await prisma.user.updateMany({ where: { id: user.id, password: user.password }, data: { passwordEnc: passwordEncFor(user.role, password) } });
       } catch (e) {
         console.error("[signIn] passwordEnc:", e.message);
       }
