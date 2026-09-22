@@ -584,6 +584,7 @@ model AuditLog {
   path       String   @db.VarChar(300)
   targetType String?  @db.VarChar(50) // นักศึกษา / นัดนิเทศ / บริษัท ...
   targetId   String?  @db.VarChar(50)
+  targetName String?  @db.VarChar(200) // ชื่อเป้าหมายที่คนอ่านออก เช่น "6430212186 นายดำ แดง" (ให้ใคร)
   statusCode Int
   ip         String?  @db.VarChar(64)
   detail     String?  @db.Text // ข้อมูลที่ส่งมาแบบย่อ (ตัดรหัสผ่าน/โทเคน/ไฟล์ออก)

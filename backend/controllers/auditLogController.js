@@ -12,6 +12,10 @@ function thaiDateTime(d) {
   return `${date.getDate()} ${THAI_MONTHS[date.getMonth()]} ${date.getFullYear() + 543} ${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
 }
 const ROLE_LABEL_TH = { staff: 'เจ้าหน้าที่', teacher: 'อาจารย์', student: 'นักศึกษา' };
+const DOC_ACTION_PREFIXES = [
+  'ออกหนังสือ', 'โหลดร่าง', 'ยกเลิกรอลงนาม', 'อนุมัติเอกสาร', 'ให้แก้ไขเอกสาร', 'ตรวจเอกสาร',
+  'ตีกลับใบตอบรับ', 'ตรวจใบตอบรับ', 'บันทึกรับใบตอบรับ', 'เปลี่ยนไฟล์ใบตอบรับ', 'ยืนยันออกฝึก',
+];
 
 // เงื่อนไขค้นหาร่วมของทั้งหน้ารายการและไฟล์ export
 function buildWhere(query) {
@@ -42,6 +46,10 @@ function buildWhere(query) {
     }
   }
   if (onlyFailed === 'true' || onlyFailed === true) where.statusCode = { gte: 400 };
+  // เฉพาะเรื่องเอกสาร — ใครออกเอกสารอะไร ให้ใคร (ชื่อการกระทำขึ้นต้นตามตารางใน utils/auditActions.js)
+  if (query.docsOnly === 'true' || query.docsOnly === true) {
+    where.AND = [...(where.AND || []), { OR: DOC_ACTION_PREFIXES.map((p) => ({ action: { startsWith: p } })) }];
+  }
   const keyword = String(q || '').trim();
   if (keyword) {
     where.OR = [
@@ -49,6 +57,7 @@ function buildWhere(query) {
       { action: { contains: keyword } },
       { path: { contains: keyword } },
       { targetId: { contains: keyword } },
+      { targetName: { contains: keyword } },
     ];
   }
   return where;
@@ -106,7 +115,7 @@ exports.exportAuditLogs = async (req, res) => {
       'ผู้ทำ': l.actorName || '-',
       'สิทธิ์': ROLE_LABEL_TH[l.role] || l.role || 'ไม่ได้ล็อกอิน',
       'การกระทำ': l.action,
-      'เป้าหมาย': [l.targetType, l.targetId].filter(Boolean).join(' ') || '-',
+      'ให้ใคร / เป้าหมาย': l.targetName || [l.targetType, l.targetId].filter(Boolean).join(' ') || '-',
       'ผลลัพธ์': l.statusCode < 400 ? 'สำเร็จ' : `ไม่สำเร็จ (${l.statusCode})`,
       'เส้นทาง': `${l.method} ${l.path}`,
       'IP': l.ip || '-',
@@ -114,9 +123,9 @@ exports.exportAuditLogs = async (req, res) => {
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(rows, {
-      header: ['เวลา', 'ผู้ทำ', 'สิทธิ์', 'การกระทำ', 'เป้าหมาย', 'ผลลัพธ์', 'เส้นทาง', 'IP', 'ข้อมูลที่ส่ง'],
+      header: ['เวลา', 'ผู้ทำ', 'สิทธิ์', 'การกระทำ', 'ให้ใคร / เป้าหมาย', 'ผลลัพธ์', 'เส้นทาง', 'IP', 'ข้อมูลที่ส่ง'],
     });
-    worksheet['!cols'] = [22, 30, 12, 34, 20, 16, 40, 16, 50].map((wch) => ({ wch }));
+    worksheet['!cols'] = [22, 30, 12, 44, 34, 16, 40, 16, 50].map((wch) => ({ wch }));
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'บันทึกการใช้งาน');
     const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
