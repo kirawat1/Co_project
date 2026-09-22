@@ -4,6 +4,7 @@ import { IcSave, IcUser } from "./icons";
 import { useToast } from "./Toast";
 import ConfirmDialog from "./ConfirmDialog";
 import Spinner from "./Spinner";
+import PasswordReveal from "./PasswordReveal";
 import LoadMoreFooter from "./LoadMoreFooter";
 import { useLoadMore, toggleSelectAllShown, allShownSelected } from "../utils/useLoadMore";
 
@@ -473,7 +474,11 @@ export default function A_Teacher() {
             </div>
             <div style={{ marginBottom: 16, padding: 12, background: "#f8fafc", borderRadius: 8, fontSize: 14, color: "#475569" }}>
               อาจารย์: <strong>{pwModal.firstName} {pwModal.lastName}</strong><br />
-              อีเมล: <strong>{pwModal.email}</strong>
+              อีเมล: <strong>{pwModal.email}</strong><br />
+              {/* อาจารย์ลืมรหัสผ่าน — ดูรหัสปัจจุบันได้ ไม่ต้องรีเซ็ต (ถูกบันทึกใน log) */}
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 6, marginTop: 6 }}>
+                รหัสผ่านปัจจุบัน: <PasswordReveal key={pwModal.id} endpoint={`/api/admin/teachers/${pwModal.id}/password/reveal`} />
+              </span>
             </div>
             {/* ฟอร์มเปลี่ยนรหัสผ่านของ "อีกคน": ครอบด้วย form ของตัวเอง + ช่อง username (ซ่อน) = อีเมลอาจารย์คนนี้
                 + new-password — ไม่งั้น password manager มองเป็นฟอร์ม login แล้วเติมบัญชีของคนที่กดลงช่องค้นหา */}

@@ -7,6 +7,7 @@ import { useDebounce } from "../hooks/useDebounce";
 import A_StudentEditModal from "./A_StudentEditModal";
 import A_StudentTrash from "./A_StudentTrash";
 import A_AddStudentModal from "./A_AddStudentModal";
+import PasswordReveal from "./PasswordReveal";
 import LoadMoreFooter from "./LoadMoreFooter";
 import { useInfinitePages } from "../utils/useInfinitePages";
 import { toggleSelectAllShown, allShownSelected } from "../utils/useLoadMore";
@@ -888,6 +889,8 @@ function StudentModal({
                 {student.email && student.user?.email && student.email !== student.user.email && (
                   <InfoRow label="อีเมลเข้าระบบ" value={student.user.email} />
                 )}
+                {/* นักศึกษาลืมรหัสผ่านแล้วมาถาม — ปกติซ่อน กดแสดงเมื่อจำเป็น (ถูกบันทึกใน log) */}
+                <InfoRow label="รหัสผ่าน" value={<PasswordReveal endpoint={`/api/admin/students/${student.id}/password/reveal`} />} />
               </Section>
               <Section title="ข้อมูลสหกิจ">
                 <InfoRow label="สถานะ" value={<StatusBadge status={student.coop?.status || "NOT_SUBMITTED"} />} />
