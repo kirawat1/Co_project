@@ -284,7 +284,9 @@ export default function A_Teacher() {
         </div>
 
         <div style={filterRow}>
-          <input className="input" placeholder="ค้นหา: ชื่อ / อีเมล / เบอร์โทร"
+          {/* type=search + ปิด autocomplete: เดิมกด "🔑 รหัสผ่าน" แล้ว password manager ของเบราว์เซอร์
+              เอาอีเมลของคนที่ login มาเติมช่องนี้ (มองว่าเป็นช่อง username) รายชื่อเลยถูกกรอง */}
+          <input className="input" type="search" name="teacher-search" autoComplete="off" placeholder="ค้นหา: ชื่อ / อีเมล / เบอร์โทร"
             value={q} onChange={(e) => setQ(e.target.value)}
             style={{ width: 280, padding: "8px", borderRadius: 8, border: "1px solid #e5e7eb" }}
           />
@@ -435,23 +437,28 @@ export default function A_Teacher() {
               <h2 style={{ margin: 0, fontSize: 20 }}>➕ เพิ่มอาจารย์ใหม่</h2>
               <button onClick={() => { setCreateModal(false); setCreatePassword(""); }} style={closeBtn}>✕</button>
             </div>
-            <TeacherFields form={createForm} setForm={setCreateForm} prefixOptions={prefixOptions} departments={departments} allowEmailEdit />
-            <div style={{ marginTop: 16 }}>
-              <label style={labelStyle}>รหัสผ่าน <span style={{ color: "red" }}>*</span></label>
-              <input
-                type="password"
-                style={inputStyle}
-                value={createPassword}
-                onChange={e => setCreatePassword(e.target.value)}
-                placeholder="อย่างน้อย 8 ตัว มีตัวใหญ่ ตัวเล็ก ตัวเลข อักขระพิเศษ"
-              />
-            </div>
-            <div style={modalFooter}>
-              <button style={ghostBtn} onClick={() => { setCreateModal(false); setCreatePassword(""); }}>ยกเลิก</button>
-              <button style={{ ...saveBtn, display: "flex", alignItems: "center", gap: 8 }} onClick={handleCreate} disabled={saving}>
-                {saving ? <><Spinner size={16} color="#fff" /> กำลังบันทึก...</> : "✅ เพิ่มอาจารย์"}
-              </button>
-            </div>
+            {/* form แยก + new-password: บัญชีของอาจารย์คนใหม่ ไม่ให้ password manager เติมบัญชีของเจ้าหน้าที่ที่ login อยู่ */}
+            <form autoComplete="off" onSubmit={e => { e.preventDefault(); handleCreate(); }}>
+              <TeacherFields form={createForm} setForm={setCreateForm} prefixOptions={prefixOptions} departments={departments} allowEmailEdit />
+              <div style={{ marginTop: 16 }}>
+                <label style={labelStyle}>รหัสผ่าน <span style={{ color: "red" }}>*</span></label>
+                <input
+                  type="password"
+                  name="new-password"
+                  autoComplete="new-password"
+                  style={inputStyle}
+                  value={createPassword}
+                  onChange={e => setCreatePassword(e.target.value)}
+                  placeholder="อย่างน้อย 8 ตัว มีตัวใหญ่ ตัวเล็ก ตัวเลข อักขระพิเศษ"
+                />
+              </div>
+              <div style={modalFooter}>
+                <button type="button" style={ghostBtn} onClick={() => { setCreateModal(false); setCreatePassword(""); }}>ยกเลิก</button>
+                <button type="submit" style={{ ...saveBtn, display: "flex", alignItems: "center", gap: 8 }} disabled={saving}>
+                  {saving ? <><Spinner size={16} color="#fff" /> กำลังบันทึก...</> : "✅ เพิ่มอาจารย์"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
@@ -468,24 +475,31 @@ export default function A_Teacher() {
               อาจารย์: <strong>{pwModal.firstName} {pwModal.lastName}</strong><br />
               อีเมล: <strong>{pwModal.email}</strong>
             </div>
-            <label style={labelStyle}>รหัสผ่านใหม่ <span style={{ color: "red" }}>*</span></label>
-            <input
-              type="password"
-              style={inputStyle}
-              value={newPassword}
-              onChange={e => setNewPassword(e.target.value)}
-              placeholder="ขั้นต่ำ 8 ตัว มีตัวใหญ่ ตัวเล็ก ตัวเลข อักขระพิเศษ"
-              autoFocus
-            />
-            <div style={{ marginTop: 8, fontSize: 12, color: "#94a3b8" }}>
-              💡 ต้องมีตัวอักษรพิมพ์ใหญ่ พิมพ์เล็ก ตัวเลข และอักขระพิเศษ เช่น !@#$%
-            </div>
-            <div style={modalFooter}>
-              <button style={ghostBtn} onClick={() => setPwModal(null)}>ยกเลิก</button>
-              <button style={{ ...saveBtn, background: "#7c3aed", display: "flex", alignItems: "center", gap: 8 }} onClick={handleResetPassword} disabled={saving}>
-                {saving ? <><Spinner size={16} color="#fff" /> กำลังบันทึก...</> : "🔑 บันทึกรหัสผ่าน"}
-              </button>
-            </div>
+            {/* ฟอร์มเปลี่ยนรหัสผ่านของ "อีกคน": ครอบด้วย form ของตัวเอง + ช่อง username (ซ่อน) = อีเมลอาจารย์คนนี้
+                + new-password — ไม่งั้น password manager มองเป็นฟอร์ม login แล้วเติมบัญชีของคนที่กดลงช่องค้นหา */}
+            <form autoComplete="off" onSubmit={e => { e.preventDefault(); handleResetPassword(); }}>
+              <input type="text" name="username" autoComplete="username" value={pwModal.email || ""} readOnly hidden />
+              <label style={labelStyle}>รหัสผ่านใหม่ <span style={{ color: "red" }}>*</span></label>
+              <input
+                type="password"
+                name="new-password"
+                autoComplete="new-password"
+                style={inputStyle}
+                value={newPassword}
+                onChange={e => setNewPassword(e.target.value)}
+                placeholder="ขั้นต่ำ 8 ตัว มีตัวใหญ่ ตัวเล็ก ตัวเลข อักขระพิเศษ"
+                autoFocus
+              />
+              <div style={{ marginTop: 8, fontSize: 12, color: "#94a3b8" }}>
+                💡 ต้องมีตัวอักษรพิมพ์ใหญ่ พิมพ์เล็ก ตัวเลข และอักขระพิเศษ เช่น !@#$%
+              </div>
+              <div style={modalFooter}>
+                <button type="button" style={ghostBtn} onClick={() => setPwModal(null)}>ยกเลิก</button>
+                <button type="submit" style={{ ...saveBtn, background: "#7c3aed", display: "flex", alignItems: "center", gap: 8 }} disabled={saving}>
+                  {saving ? <><Spinner size={16} color="#fff" /> กำลังบันทึก...</> : "🔑 บันทึกรหัสผ่าน"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
@@ -556,6 +570,8 @@ function TeacherFields({ form, setForm, prefixOptions, departments, allowEmailEd
           onChange={e => setForm({ ...form, email: e.target.value })}
           placeholder="example@kku.ac.th"
           type="email"
+          name="teacher-email"
+          autoComplete="off"
         />
       </div>
       <div>
