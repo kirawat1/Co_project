@@ -35,6 +35,9 @@ export default function A_StaffManage() {
   // Delete confirm
   const [deleteTarget, setDeleteTarget] = useState<StaffUser | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [deleteErr, setDeleteErr] = useState("");
+  // บัญชีที่ล็อกอินอยู่ — ลบตัวเองไม่ได้ (backend ปฏิเสธ 400) จึงไม่แสดงปุ่มลบให้กด
+  const myUserId = Number(localStorage.getItem("coop.userId") || 0);
 
   const fetchStaff = async () => {
     try {
@@ -74,11 +77,15 @@ export default function A_StaffManage() {
   const handleDelete = async () => {
     if (!deleteTarget) return;
     setDeleting(true);
+    setDeleteErr("");
     try {
       await axios.delete(`/api/admin/staff/${deleteTarget.id}`, { headers: authH() });
       setDeleteTarget(null);
       fetchStaff();
-    } catch { }
+    } catch (e: any) {
+      // เดิม catch ว่าง — ลบไม่สำเร็จ (เช่น เจ้าหน้าที่คนสุดท้าย) หน้าจอเงียบและหน้าต่างค้าง
+      setDeleteErr(e.response?.data?.message || "ลบไม่สำเร็จ กรุณาลองใหม่");
+    }
     finally { setDeleting(false); }
   };
 
@@ -117,7 +124,9 @@ export default function A_StaffManage() {
                   <td style={td}>{fmtDate(s.createdAt)}</td>
                   <td style={{ ...td, whiteSpace: "nowrap" }}>
                     <button className="btn-ghost" style={{ marginRight: 8, fontSize: 13 }} onClick={() => { setResetTarget(s); setNewPw(""); setResetErr(""); }}>🔑 Reset รหัสผ่าน</button>
-                    <button className="btn-ghost" style={{ color: "#ef4444", fontSize: 13 }} onClick={() => setDeleteTarget(s)}>ลบ</button>
+                    {s.id === myUserId
+                      ? <span style={{ fontSize: 12, color: "#94a3b8" }}>(บัญชีของคุณ)</span>
+                      : <button className="btn-ghost" style={{ color: "#ef4444", fontSize: 13 }} onClick={() => { setDeleteTarget(s); setDeleteErr(""); }}>ลบ</button>}
                   </td>
                 </tr>
               ))}
@@ -179,6 +188,11 @@ export default function A_StaffManage() {
               ยืนยันลบบัญชี <b>{deleteTarget.staffProfile?.firstName} {deleteTarget.staffProfile?.lastName}</b> ({deleteTarget.username})?
               <br /><span style={{ fontSize: 13, color: "#6b7280" }}>การดำเนินการนี้ไม่สามารถย้อนกลับได้</span>
             </p>
+            {deleteErr && (
+              <div role="alert" style={{ margin: "-8px 0 16px", padding: "8px 12px", borderRadius: 8, background: "#fef2f2", border: "1px solid #fecaca", color: "#b91c1c", fontSize: 13 }}>
+                ❌ {deleteErr}
+              </div>
+            )}
             <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
               <button className="btn-ghost" onClick={() => setDeleteTarget(null)}>ยกเลิก</button>
               <button className="btn" style={{ background: "#dc2626" }} onClick={handleDelete} disabled={deleting}>{deleting ? "กำลังลบ..." : "ลบบัญชี"}</button>
