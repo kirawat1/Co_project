@@ -6,6 +6,7 @@ import { fmtDate, fmtDateTime } from '../utils/dateFormat';
 import StatusBadge from "./StatusBadge";
 import SupervisionCalendar from "./SupervisionCalendar";
 import SupervisionScheduleTable from "./SupervisionScheduleTable";
+import { useSupervisionSchedule } from "../hooks/useSupervisionSchedule";
 import type { CalendarEvent } from "./SupervisionCalendar";
 import AutoTextarea from "./AutoTextarea";
 import { PendingSignBadge } from "./LetterModalShared";
@@ -403,10 +404,8 @@ export default function T_SupervisionReview() {
         } catch (err: any) { toast.error(err?.response?.data?.message || "เกิดข้อผิดพลาด"); }
     };
 
-    const allCalendarEvents = useMemo<CalendarEvent[]>(() =>
-        allSupervisions.filter(s => s.confirmedDate && ["DATE_CONFIRMED","LETTER_UPLOADED","COMPLETED"].includes(s.status))
-            .map(s => ({ id: s.id, confirmedDate: s.confirmedDate!, studentId: s.student.studentId, studentName: `${s.student.firstName} ${s.student.lastName}`, type: s.supervisionType, status: s.status, companyName: s.student.coop?.company?.name, onlineLink: s.onlineLink ?? null, groupId: (s as any).groupId ?? null })),
-        [allSupervisions]);
+    // ปฏิทิน + ตารางนิเทศ (ทั้งหมด) ใช้ข้อมูลจาก API ปฏิทิน (มีผู้นิเทศ/ช่วงเวลา) — โหลดเมื่อเป็นอาจารย์ประจำวิชา
+    const allCalendarEvents = useSupervisionSchedule(allSupervisions, isCoopTeacher);
 
     const SortIcon = ({ col }: { col: SortKey }) => col === sortKey ? <span style={{ color: "#2563eb", marginLeft: 4 }}>{sortDir === "asc" ? "↑" : "↓"}</span> : <span style={{ color: "#cbd5e1", marginLeft: 4 }}>↕</span>;
     const AllSortIcon = ({ col }: { col: AllSortKey }) => col === allSortKey ? <span style={{ color: "#0ea5e9", marginLeft: 4 }}>{allSortDir === 'asc' ? '↑' : '↓'}</span> : <span style={{ color: '#cbd5e1', marginLeft: 4 }}>↕</span>;

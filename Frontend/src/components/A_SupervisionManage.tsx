@@ -7,7 +7,7 @@ import { PendingSignBadge } from "./LetterModalShared";
 import StatusBadge from "./StatusBadge";
 import SupervisionCalendar from "./SupervisionCalendar";
 import SupervisionScheduleTable from "./SupervisionScheduleTable";
-import type { CalendarEvent } from "./SupervisionCalendar";
+import { useSupervisionSchedule } from "../hooks/useSupervisionSchedule";
 import { useToast } from "./Toast";
 import ConfirmDialog from "./ConfirmDialog";
 import Spinner from "./Spinner";
@@ -366,22 +366,8 @@ export default function A_SupervisionManage() {
     };
 
     // แปลง supervisions → CalendarEvent (เฉพาะที่ยืนยันวันแล้ว)
-    const calendarEvents = useMemo<CalendarEvent[]>(() =>
-        supervisions
-            .filter(s => s.confirmedDate && ["DATE_CONFIRMED","LETTER_UPLOADED","COMPLETED"].includes(s.status))
-            .map(s => ({
-                id: s.id,
-                confirmedDate: s.confirmedDate!,
-                studentId: s.student.studentId,
-                studentName: `${s.student.firstName} ${s.student.lastName}`,
-                type: s.supervisionType,
-                status: s.status,
-                companyName: s.student.coop?.company?.name,
-                onlineLink: s.onlineLink ?? null,
-                groupId: (s as any).groupId ?? null,
-            })),
-        [supervisions]
-    );
+    // ปฏิทิน + ตารางนิเทศใช้ข้อมูลจาก API ปฏิทิน (มีผู้นิเทศ/ช่วงเวลา) — โหลดใหม่ทุกครั้งที่รายการนิเทศรีเฟรช
+    const calendarEvents = useSupervisionSchedule(supervisions);
 
     if (loading) return <div style={{ padding: 40, textAlign: 'center' }}>กำลังโหลดข้อมูล...</div>;
 
