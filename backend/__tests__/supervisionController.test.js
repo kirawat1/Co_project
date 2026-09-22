@@ -879,3 +879,42 @@ describe('getSupervisionsForTeacher', () => {
     );
   });
 });
+
+// ===========================
+// updateConfirmedDate — เจ้าหน้าที่แก้วันนิเทศ
+// บั๊กที่พบตอนตรวจระบบ 2026-09-22: ย้ายวันของสมาชิก 1 คนในนัดกลุ่มแล้ว groupId ยังอยู่
+// ปฏิทินรวมกลุ่มตาม groupId เลยโชว์คนนั้นที่วันเดิม และหายจากวันใหม่
+// ===========================
+describe('updateConfirmedDate — สมาชิกนัดกลุ่ม', () => {
+  const { updateConfirmedDate } = require('../controllers/supervisionController');
+  const grouped = {
+    id: 21, studentId: 7, teacherId: 5, status: 'DATE_CONFIRMED', officialLetterPath: null,
+    groupId: 'group-uuid-1', coTeacherName: null,
+    confirmedDate: new Date('2026-12-10T09:00:00'),
+    proposedDates: JSON.stringify(['2026-12-10|09:00-10:00|ONSITE']),
+  };
+  const req = (confirmedDate) => ({ params: { id: '21' }, body: { confirmedDate } });
+
+  beforeEach(() => {
+    prisma.supervisionAppointment.findUnique.mockResolvedValue(grouped);
+    prisma.teacher.findUnique.mockResolvedValue({ id: 5, prefix: 'อ.', firstName: 'ก', lastName: 'ข' });
+    prisma.supervisionAppointment.findMany.mockResolvedValue([]); // ไม่มีคิวชน
+    prisma.supervisionAppointment.update.mockResolvedValue({ ...grouped, studentId: 7 });
+    prisma.student.findUnique.mockResolvedValue({ userId: 70 });
+  });
+
+  test('ย้ายไปวันอื่น → ถอดออกจากกลุ่ม (groupId เป็น null)', async () => {
+    const res = makeRes();
+    await updateConfirmedDate(req('2026-12-11T10:00:00'), res);
+    const { data } = prisma.supervisionAppointment.update.mock.calls[0][0];
+    expect(data.groupId).toBeNull();
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: true }));
+  });
+
+  test('เลื่อนเวลาในวันเดิม → ยังอยู่กลุ่มเดิม', async () => {
+    const res = makeRes();
+    await updateConfirmedDate(req('2026-12-10T11:00:00'), res);
+    const { data } = prisma.supervisionAppointment.update.mock.calls[0][0];
+    expect(data).not.toHaveProperty('groupId');
+  });
+});
