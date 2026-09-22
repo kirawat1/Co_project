@@ -639,10 +639,17 @@ exports.loginWithGoogle = async (req, res) => {
     }
 
     const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
-    const ticket = await googleClient.verifyIdToken({
-      idToken: id_token,
-      audience: process.env.GOOGLE_CLIENT_ID,
-    });
+    // โทเคนเสีย/หมดอายุ/ไม่ใช่ของแอปนี้ = ยืนยันตัวตนไม่ผ่าน (401) ไม่ใช่ server พัง (เดิมตกไป catch ล่างได้ 500)
+    let ticket;
+    try {
+      ticket = await googleClient.verifyIdToken({
+        idToken: id_token,
+        audience: process.env.GOOGLE_CLIENT_ID,
+      });
+    } catch (verifyErr) {
+      console.warn('[loginWithGoogle] verifyIdToken failed:', verifyErr.message);
+      return res.status(401).json({ ok: false, message: "การยืนยันตัวตนด้วย Google ไม่ผ่านหรือหมดเวลา กรุณาเข้าสู่ระบบใหม่อีกครั้ง" });
+    }
     const payload = ticket.getPayload();
     const email = payload.email;
 
