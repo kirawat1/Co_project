@@ -211,6 +211,30 @@ describe('loginWithGoogle', () => {
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: true, token: expect.any(String) }));
   });
 
+  // บั๊กที่พบตอนตรวจระบบ 2026-09-22: โทเคนเสีย/หมดอายุ → verifyIdToken โยน error → ตอบ 500 (ควรเป็น 401)
+  test('401 – โทเคน Google ไม่ถูกต้องหรือหมดอายุ', async () => {
+    const mockVerify = jest.fn().mockRejectedValue(new Error('Token used too late'));
+    OAuth2Client.mockImplementation(() => ({ verifyIdToken: mockVerify }));
+    const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const req = { body: { id_token: 'expired-token' } };
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() };
+    await loginWithGoogle(req, res);
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(prisma.user.findFirst).not.toHaveBeenCalled();
+    spy.mockRestore();
+  });
+
+  test('500 – ฐานข้อมูลล่มหลังยืนยันโทเคนผ่าน ยังเป็น 500', async () => {
+    const mockVerify = jest.fn().mockResolvedValue({ getPayload: () => ({ email: 'test@kkumail.com', email_verified: true }) });
+    OAuth2Client.mockImplementation(() => ({ verifyIdToken: mockVerify }));
+    prisma.user.findFirst.mockRejectedValue(new Error('DB down'));
+    const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() };
+    await loginWithGoogle({ body: { id_token: 'valid' } }, res);
+    expect(res.status).toHaveBeenCalledWith(500);
+    spy.mockRestore();
+  });
+
   test('403 – non-KKU email rejected', async () => {
     const mockVerify = jest.fn().mockResolvedValue({
       getPayload: () => ({ email: 'user@gmail.com', email_verified: true }),
