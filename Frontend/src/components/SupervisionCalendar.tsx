@@ -24,13 +24,16 @@ export interface CalendarEvent {
 }
 
 function mergeGroupEvents(events: CalendarEvent[]): CalendarEvent[] {
+    // รวมตามกลุ่ม "และวัน" — สมาชิกที่ถูกย้ายไปวันอื่น (ข้อมูลเก่าที่ groupId ยังค้าง) ต้องไปโผล่ที่วันใหม่
+    // ไม่ถูกรวบไปแสดงที่วันของกลุ่มเดิม
     const groups = new Map<string, CalendarEvent[]>();
     const singles: CalendarEvent[] = [];
     for (const ev of events) {
-        if (ev.groupId) {
-            const bucket = groups.get(ev.groupId) ?? [];
+        if (ev.groupId && ev.confirmedDate) {
+            const key = `${ev.groupId}|${dayKeyOf(ev.confirmedDate)}`;
+            const bucket = groups.get(key) ?? [];
             bucket.push(ev);
-            groups.set(ev.groupId, bucket);
+            groups.set(key, bucket);
         } else {
             singles.push(ev);
         }
@@ -38,6 +41,7 @@ function mergeGroupEvents(events: CalendarEvent[]): CalendarEvent[] {
     const merged: CalendarEvent[] = [...singles];
     for (const [, members] of groups) {
         const rep = members[0];
+        if (members.length === 1) { merged.push(rep); continue; } // เหลือคนเดียวในวันนั้น แสดงชื่อจริง
         merged.push({
             ...rep,
             studentName: `นิเทศกลุ่ม (${members.length} คน)`,

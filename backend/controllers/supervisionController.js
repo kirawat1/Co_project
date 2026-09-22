@@ -762,9 +762,18 @@ exports.updateConfirmedDate = async (req, res) => {
                 excludeIds: [parsedId],
             });
 
+            // ย้ายสมาชิกนัดกลุ่มไปวันอื่น = ไม่ได้ไปพร้อมกลุ่มแล้ว → ถอดออกจากกลุ่ม
+            // (เดิม groupId ค้าง ปฏิทินรวมกลุ่มตาม groupId เลยโชว์คนนั้นที่วันเดิม และหายจากวันใหม่)
+            const movedToAnotherDay = !!fresh.groupId && !!fresh.confirmedDate
+                && dateKey(new Date(fresh.confirmedDate)) !== dateKey(chosenDate);
+
             updated = await tx.supervisionAppointment.update({
                 where: { id: parsedId },
-                data: { confirmedDate: chosenDate, confirmedEndDate: slotEnd }
+                data: {
+                    confirmedDate: chosenDate,
+                    confirmedEndDate: slotEnd,
+                    ...(movedToAnotherDay ? { groupId: null } : {}),
+                }
             });
         });
 
