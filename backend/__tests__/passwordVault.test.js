@@ -109,19 +109,22 @@ describe('revealStudentPassword / revealTeacherPassword', () => {
     expect(res.set).toHaveBeenCalledWith('Cache-Control', 'no-store');
     expect(res.json).toHaveBeenCalledWith({ ok: true, data: { password: 'Mine#999', source: 'stored' } });
     expect(prisma.user.update).not.toHaveBeenCalled();
+    expect(prisma.user.updateMany).not.toHaveBeenCalled();
   });
 
-  test('นักศึกษา: รหัสเริ่มต้นที่ยังไม่มีสำเนา → เก็บสำเนาให้ครั้งเดียว', async () => {
+  test('นักศึกษา: รหัสเริ่มต้นที่ยังไม่มีสำเนา → เก็บสำเนาให้ เฉพาะเมื่อ hash ยังไม่ถูกเปลี่ยน', async () => {
+    const h = await hash('653380123-4');
     prisma.student.findUnique.mockResolvedValueOnce({
       studentId: '653380123-4', deletedAt: null,
-      user: { id: 7, role: 'student', password: await hash('653380123-4'), passwordEnc: null },
+      user: { id: 7, role: 'student', password: h, passwordEnc: null },
     });
-    prisma.user.update.mockResolvedValueOnce({});
+    prisma.user.updateMany.mockResolvedValueOnce({ count: 1 });
     const res = makeRes();
     await revealStudentPassword({ params: { id: '3' } }, res);
     expect(res.json).toHaveBeenCalledWith({ ok: true, data: { password: '653380123-4', source: 'default' } });
-    const saved = prisma.user.update.mock.calls[0][0];
-    expect(saved.where).toEqual({ id: 7 });
+    const saved = prisma.user.updateMany.mock.calls[0][0];
+    // กันชนกับเจ้าของเปลี่ยนรหัสพร้อมกัน: เขียนเฉพาะแถวที่ hash ยังเป็นตัวที่ตรวจ
+    expect(saved.where).toEqual({ id: 7, password: h });
     expect(decryptPassword(saved.data.passwordEnc)).toBe('653380123-4');
   });
 
@@ -162,30 +165,33 @@ describe('ทุกทางที่ตั้งรหัสผ่านเก�
     const h = await hash(pw);
 
     prisma.user.findFirst.mockResolvedValueOnce({ id: 1, email: 's@kku.ac.th', role: 'student', password: h, passwordEnc: null, student: { deletedAt: null } });
-    prisma.user.update.mockResolvedValueOnce({});
+    prisma.user.updateMany.mockResolvedValueOnce({ count: 1 });
     let res = makeRes();
     await signIn({ body: { email: 's@kku.ac.th', password: pw, role: 'student' } }, res);
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: true }));
-    expect(decryptPassword(prisma.user.update.mock.calls[0][0].data.passwordEnc)).toBe(pw);
+    const saved = prisma.user.updateMany.mock.calls[0][0];
+    // กันชนกับเจ้าหน้าที่รีเซ็ตรหัสพร้อมกัน: เขียนเฉพาะเมื่อ hash ยังเป็นตัวที่เพิ่งตรวจผ่าน
+    expect(saved.where).toEqual({ id: 1, password: h });
+    expect(decryptPassword(saved.data.passwordEnc)).toBe(pw);
 
-    prisma.user.update.mockClear();
+    prisma.user.updateMany.mockClear();
     prisma.user.findFirst.mockResolvedValueOnce({ id: 1, email: 's@kku.ac.th', role: 'student', password: h, passwordEnc: encryptPassword(pw), student: { deletedAt: null } });
     res = makeRes();
     await signIn({ body: { email: 's@kku.ac.th', password: pw, role: 'student' } }, res);
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: true }));
-    expect(prisma.user.update).not.toHaveBeenCalled();
+    expect(prisma.user.updateMany).not.toHaveBeenCalled();
 
     prisma.user.findFirst.mockResolvedValueOnce({ id: 2, email: 'a@kku.ac.th', role: 'staff', password: h, passwordEnc: null });
     res = makeRes();
     await signIn({ body: { email: 'a@kku.ac.th', password: pw, role: 'staff' } }, res);
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: true }));
-    expect(prisma.user.update).not.toHaveBeenCalled();
+    expect(prisma.user.updateMany).not.toHaveBeenCalled();
   });
 
   test('login: เก็บสำเนาไม่สำเร็จ ไม่ขวางการเข้าสู่ระบบ', async () => {
     const pw = 'Login#123';
     prisma.user.findFirst.mockResolvedValueOnce({ id: 1, email: 's@kku.ac.th', role: 'teacher', password: await hash(pw), passwordEnc: null });
-    prisma.user.update.mockRejectedValueOnce(new Error('db down'));
+    prisma.user.updateMany.mockRejectedValueOnce(new Error('db down'));
     const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
     const res = makeRes();
     await signIn({ body: { email: 's@kku.ac.th', password: pw, role: 'teacher' } }, res);
@@ -199,6 +205,7 @@ describe('ทุกทางที่ตั้งรหัสผ่านเก�
     await signIn({ body: { email: 's@kku.ac.th', password: 'Wrong#123', role: 'student' } }, res);
     expect(res.status).toHaveBeenCalledWith(401);
     expect(prisma.user.update).not.toHaveBeenCalled();
+    expect(prisma.user.updateMany).not.toHaveBeenCalled();
   });
 
   test('เปลี่ยนรหัสเอง: นักศึกษาเก็บ · เจ้าหน้าที่ล้างเป็น null', async () => {

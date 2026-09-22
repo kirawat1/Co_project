@@ -623,8 +623,9 @@ exports.revealTeacherPassword = async (req, res) => {
     if (!teacher || !teacher.user) return res.status(404).json({ ok: false, message: 'ไม่พบอาจารย์' });
 
     const result = await revealPassword(teacher.user);
+    // เก็บสำเนารหัสเริ่มต้นเฉพาะเมื่อ hash ยังไม่ถูกเปลี่ยนระหว่างนี้ (เจ้าของเปลี่ยนรหัสพร้อมกันพอดี → ไม่ทับสำเนาใหม่)
     if (result.backfill) {
-      await prisma.user.update({ where: { id: teacher.user.id }, data: { passwordEnc: result.backfill } });
+      await prisma.user.updateMany({ where: { id: teacher.user.id, password: teacher.user.password }, data: { passwordEnc: result.backfill } });
     }
     res.set('Cache-Control', 'no-store');
     res.json({ ok: true, data: { password: result.password, source: result.source } });
