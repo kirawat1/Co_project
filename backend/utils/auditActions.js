@@ -22,7 +22,7 @@ const RULES = [
   ['POST', '/api/auth/signin', 'เข้าสู่ระบบ', null, null],
   ['POST', '/api/auth/login/sso', 'เข้าสู่ระบบด้วย SSO', null, null],
   ['POST', '/api/auth/login/google', 'เข้าสู่ระบบด้วย Google', null, null],
-  ['POST', '/api/auth/register', 'เพิ่มนักศึกษาใหม่', 'นักศึกษา', 'studentId'],
+  ['POST', '/api/auth/register', 'เพิ่มนักศึกษาใหม่', 'นักศึกษา', 'code:studentId'],
   ['PUT', '/api/auth/me/password', 'เปลี่ยนรหัสผ่าน', null, null],
 
   ['PUT', '/api/students/me', 'แก้ไขข้อมูลส่วนตัว', 'นักศึกษา', null],
@@ -31,7 +31,7 @@ const RULES = [
   ['POST', '/api/students/download-placement-letter', 'ดาวน์โหลดหนังสือส่งตัว', 'นักศึกษา', null],
   ['POST', '/api/admin/students/import-preview', 'ตรวจไฟล์นำเข้านักศึกษา (ยังไม่บันทึก)', 'นักศึกษา', null],
   ['POST', '/api/admin/students/import-excel', 'นำเข้านักศึกษาจาก Excel', 'นักศึกษา', null],
-  ['POST', '/api/admin/students/create', 'เพิ่มนักศึกษา', 'นักศึกษา', 'studentId'],
+  ['POST', '/api/admin/students/create', 'เพิ่มนักศึกษา', 'นักศึกษา', 'code:studentId'],
   ['PUT', '/api/admin/students/:x', 'แก้ไขข้อมูลนักศึกษา', 'นักศึกษา', ':1'],
   ['PATCH', '/api/admin/students/:x/reset-password', 'รีเซ็ตรหัสผ่านนักศึกษา', 'นักศึกษา', ':1'],
   ['DELETE', '/api/admin/students/:x', 'ลบนักศึกษา (ย้ายไปถังขยะ)', 'นักศึกษา', ':1'],
@@ -78,7 +78,6 @@ const RULES = [
   ['POST', '/api/admin/config/t000', 'ตั้งค่าระบบรับเอกสาร', 'ตั้งค่า', null],
   ['POST', '/api/admin/criteria', 'ตั้งค่าเกณฑ์สหกิจ', 'ตั้งค่า', null],
   ['POST', '/api/admin/doc-requirements', 'ตั้งค่าเอกสารที่ต้องส่ง', 'ตั้งค่า', null],
-  ['POST', '/api/notifications/mark-read', 'อ่านการแจ้งเตือน', null, null],
 ];
 
 // เทียบ path กับรูปแบบที่มี :x — คืน array ของส่วนที่ match (สำหรับดึง id)
@@ -113,7 +112,21 @@ const REVIEW_STATUS_ACTION = {
   WAITING_FOR_PLACEMENT_LETTER: 'ตีกลับใบตอบรับ',
   ACCEPTANCE_CHECKED: 'ตรวจใบตอบรับผ่าน',
   INTERNSHIP_STARTED: 'ยืนยันออกฝึกสหกิจ',
+  // คำร้องสหกิจ (ใช้ API เดียวกัน) — ตั้งชื่อชัดๆ ไม่ให้ไปปนกับตัวกรอง "เรื่องเอกสาร"
+  QUALIFIED: 'อนุมัติคำร้องสหกิจ (ผ่านคุณสมบัติ)',
+  QUALIFICATION_FAILED: 'คำร้องสหกิจไม่ผ่านคุณสมบัติ',
+  APPLICATION_EDITS_REQUIRED: 'ให้แก้ไขคำร้องสหกิจ',
 };
+
+// ตัวกรอง "📄 เฉพาะเรื่องเอกสาร" ในหน้า /admin/logs — ชื่อการกระทำที่ขึ้นต้นด้วยคำเหล่านี้
+// อยู่ที่เดียวกับชื่อการกระทำ (เดิมเขียนซ้ำไว้ใน controller เปลี่ยนชื่อแล้วตัวกรองพังเงียบ) · มีเทสต์กันเพี้ยน
+const DOC_ACTION_PREFIXES = [
+  // เจ้าหน้าที่ออก/ตรวจเอกสาร
+  'ออกหนังสือ', 'โหลดร่าง', 'ยกเลิกรอลงนาม', 'อนุมัติเอกสาร', 'ให้แก้ไขเอกสาร', 'ตรวจเอกสาร', 'เปลี่ยนสถานะเอกสาร',
+  'ตีกลับใบตอบรับ', 'ตรวจใบตอบรับ', 'บันทึกรับใบตอบรับ', 'เปลี่ยนไฟล์ใบตอบรับ', 'ยืนยันออกฝึก',
+  // นักศึกษาส่ง/รับเอกสาร
+  'อัปโหลดเอกสาร', 'ลบเอกสาร', 'ดาวน์โหลดหนังสือ', 'รับทราบหนังสือ',
+];
 const LETTER_NAME = { REQUEST: 'หนังสือขอความอนุเคราะห์', PLACEMENT: 'หนังสือส่งตัว' };
 const DELIVERY_TEXT = { STAFF: 'เจ้าหน้าที่จัดส่งให้บริษัท', STUDENT: 'นักศึกษานำไปยื่นเอง' };
 const DOC_STATUS_ACTION = { APPROVED: 'ตรวจเอกสารผ่าน', REJECTED: 'ตรวจเอกสารไม่ผ่าน', EDITS_REQUIRED: 'ให้แก้ไขเอกสาร' };
@@ -122,29 +135,45 @@ const clean = (v) => (v == null ? '' : String(v).trim());
 const withNo = (text, no) => (clean(no) ? `${text} เลขที่ ${clean(no)}` : text);
 const isTrue = (v) => v === true || v === 'true';
 
+// ── ข้อความของการกระทำด้านเอกสาร (ที่เดียว) — controller เรียกด้วย "ค่าที่บันทึกจริง" ─────────────
+// ตาราง ACTION_DETAIL ด้านล่างเรียกด้วยค่าจาก body ใช้เป็นตัวสำรองเฉพาะเมื่อ controller ไม่ได้แนบรายละเอียด
+// (เช่น คำขอล้มเหลวกลางทาง) — ถ้าชื่อฟิลด์ใน API เปลี่ยน ตัวสำรองอาจขาดเลขที่ แต่ log ของคำขอที่สำเร็จยังถูก
+function reviewActionText({ status, docNumber, deliveryMethod, reprint = false }, base = 'ตรวจเอกสาร / เปลี่ยนสถานะนักศึกษา') {
+  const name = REVIEW_STATUS_ACTION[status];
+  if (!name) return status ? `${base} → ${status}` : base;
+  let text = /LETTER_ISSUED$/.test(status) ? withNo(name, docNumber) : name;
+  if (reprint) text += ' (พิมพ์ซ้ำ)';
+  else if (DELIVERY_TEXT[deliveryMethod] && /LETTER_ISSUED$/.test(status)) text += ` (${DELIVERY_TEXT[deliveryMethod]})`;
+  return text;
+}
+function letterPendingActionText({ letter, cancel, docNumber }) {
+  const name = letter === 'SUPERVISION' ? 'หนังสือขอนิเทศ' : LETTER_NAME[letter];
+  if (!name) return null;
+  return isTrue(cancel) ? `ยกเลิกรอลงนาม${name}` : withNo(`โหลดร่าง${name} (รอลงนาม)`, docNumber);
+}
+const supervisionLetterActionText = ({ docNumber }) => withNo('ออกหนังสือขอนิเทศ', docNumber);
+
 const ACTION_DETAIL = {
-  'PUT /api/admin/t000/review': (b, base) => {
-    const name = REVIEW_STATUS_ACTION[b.status];
-    if (!name) return b.status ? `${base} → ${b.status}` : base;
-    let text = name;
-    if (b.status === 'REQ_LETTER_ISSUED') text = withNo(text, b.reqDocNumber);
-    if (b.status === 'PLACEMENT_LETTER_ISSUED') text = withNo(text, b.placeDocNumber);
-    if (DELIVERY_TEXT[b.deliveryMethod] && /LETTER_ISSUED$/.test(b.status)) text += ` (${DELIVERY_TEXT[b.deliveryMethod]})`;
-    return text;
-  },
-  'PUT /api/admin/t000/letter-pending': (b, base) => {
-    const letter = LETTER_NAME[b.letter];
-    if (!letter) return base;
-    return isTrue(b.cancel) ? `ยกเลิกรอลงนาม${letter}` : withNo(`โหลดร่าง${letter} (รอลงนาม)`, b.docNumber);
-  },
-  'POST /api/admin/supervisions/:x/upload-letter': (b, base) => withNo(base, b.docNumber),
-  'PUT /api/admin/supervisions/:x/letter-pending': (b) => (isTrue(b.cancel)
-    ? 'ยกเลิกรอลงนามหนังสือขอนิเทศ'
-    : withNo('โหลดร่างหนังสือขอนิเทศ (รอลงนาม)', b.docNumber)),
+  'PUT /api/admin/t000/review': (b, base) => reviewActionText({
+    status: b.status,
+    docNumber: b.status === 'REQ_LETTER_ISSUED' ? b.reqDocNumber : b.placeDocNumber,
+    deliveryMethod: b.deliveryMethod,
+  }, base),
+  'PUT /api/admin/t000/letter-pending': (b, base) => letterPendingActionText(b) || base,
+  'POST /api/admin/supervisions/:x/upload-letter': (b) => supervisionLetterActionText(b),
+  'PUT /api/admin/supervisions/:x/letter-pending': (b) => letterPendingActionText({ ...b, letter: 'SUPERVISION' }),
   'PUT /api/admin/doc/:x/status': (b, base) => DOC_STATUS_ACTION[b.status] || base,
 };
 
-// คืน { action, targetType, targetId } ของ request หนึ่ง
+// controller แนบรายละเอียดจากผลที่ทำจริง (เลขที่ที่บันทึก, พิมพ์ซ้ำ, นักศึกษาเป้าหมาย) — middleware ใช้แทนค่าที่เดาจาก request
+function setAuditDetail(res, detail) {
+  if (!res) return;
+  if (!res.locals) res.locals = {};
+  res.locals.audit = { ...(res.locals.audit || {}), ...detail };
+}
+
+// คืน { action, targetType, targetId, targetKey } ของ request หนึ่ง
+// targetKey: 'id' = id ในฐานข้อมูล · 'code' = รหัสนักศึกษา (idSpec ขึ้นต้น "code:")
 function describeRequest({ method, path, body }) {
   const upper = String(method || '').toUpperCase();
   const cleanPath = String(path || '').split('?')[0];
@@ -154,9 +183,15 @@ function describeRequest({ method, path, body }) {
     if (!params) continue;
     const detail = ACTION_DETAIL[`${m} ${pattern}`];
     const fullAction = detail ? detail(body || {}, action) : action;
-    return { action: fullAction, targetType: targetType || null, targetId: pickTargetId(idSpec, params, body) };
+    const isCode = typeof idSpec === 'string' && idSpec.startsWith('code:');
+    return {
+      action: fullAction,
+      targetType: targetType || null,
+      targetId: pickTargetId(isCode ? idSpec.slice(5) : idSpec, params, body),
+      targetKey: isCode ? 'code' : 'id',
+    };
   }
-  return { action: `${upper} ${cleanPath}`, targetType: null, targetId: null };
+  return { action: `${upper} ${cleanPath}`, targetType: null, targetId: null, targetKey: 'id' };
 }
 
 // ข้อมูลที่ส่งมาแบบย่อ — ตัดความลับและของใหญ่ออก
@@ -176,4 +211,8 @@ function sanitizeBody(body) {
   return text.length > DETAIL_MAX ? `${text.slice(0, DETAIL_MAX)}…` : text;
 }
 
-module.exports = { describeRequest, sanitizeBody, matchPath, RULES, SECRET_FIELDS, DETAIL_MAX };
+module.exports = {
+  describeRequest, sanitizeBody, matchPath, RULES, SECRET_FIELDS, DETAIL_MAX,
+  setAuditDetail, reviewActionText, letterPendingActionText, supervisionLetterActionText,
+  DOC_ACTION_PREFIXES,
+};
