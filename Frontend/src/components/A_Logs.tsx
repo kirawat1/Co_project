@@ -18,6 +18,7 @@ type LogRow = {
     method: string;
     path: string;
     targetType: string | null;
+    targetName: string | null; // ให้ใคร — เช่น "6430212186 นายดำ แดง"
     targetId: string | null;
     statusCode: number;
     ip: string | null;
@@ -64,6 +65,8 @@ export default function A_Logs() {
     const [from, setFrom] = useState("");
     const [to, setTo] = useState("");
     const [onlyFailed, setOnlyFailed] = useState(false);
+    // ใครออกเอกสารอะไร ให้ใคร — กรองเฉพาะการออกหนังสือ/ตรวจเอกสาร/ใบตอบรับ
+    const [docsOnly, setDocsOnly] = useState(false);
 
     const queryString = useMemo(() => {
         const p = new URLSearchParams();
@@ -73,8 +76,9 @@ export default function A_Logs() {
         if (from) p.set("from", from);
         if (to) p.set("to", to);
         if (onlyFailed) p.set("onlyFailed", "true");
+        if (docsOnly) p.set("docsOnly", "true");
         return p.toString();
-    }, [q, role, userId, from, to, onlyFailed]);
+    }, [q, role, userId, from, to, onlyFailed, docsOnly]);
 
     const fetchLogs = async (targetPage: number, append: boolean) => {
         setLoading(true);
@@ -143,10 +147,10 @@ export default function A_Logs() {
 
     // ล้างเฉพาะแถบตัวกรอง — คงแท็บสิทธิ์ที่เลือกไว้
     const clearFilters = () => {
-        setQ(""); setUserId(""); setFrom(""); setTo(""); setOnlyFailed(false);
+        setQ(""); setUserId(""); setFrom(""); setTo(""); setOnlyFailed(false); setDocsOnly(false);
     };
 
-    const hasFilter = !!(q || userId || from || to || onlyFailed);
+    const hasFilter = !!(q || userId || from || to || onlyFailed || docsOnly);
     const hasMore = rows.length < total;
 
     return (
@@ -164,7 +168,7 @@ export default function A_Logs() {
             </div>
 
             <div className="card" style={{ marginBottom: 16, display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-                <input className="input" style={{ flex: "1 1 240px", minWidth: 180 }} placeholder="ค้นหา ชื่อผู้ทำ / การกระทำ / เส้นทาง"
+                <input className="input" style={{ flex: "1 1 240px", minWidth: 180 }} placeholder="ค้นหา ผู้ทำ / การกระทำ / เลขที่หนังสือ / ชื่อหรือรหัสนักศึกษา"
                     value={q} onChange={(e) => setQ(e.target.value)} />
 
                 <select className="input" value={userId} onChange={(e) => setUserId(e.target.value)} style={{ flex: "0 0 auto", width: 220 }}>
@@ -177,6 +181,11 @@ export default function A_Logs() {
                 <DateInput className="input" style={{ flex: "0 0 auto", width: 150 }} value={from} onChange={(e) => setFrom(e.target.value)} />
                 <span style={{ color: "#94a3b8" }}>ถึง</span>
                 <DateInput className="input" style={{ flex: "0 0 auto", width: 150 }} value={to} onChange={(e) => setTo(e.target.value)} />
+
+                <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "#475569" }}>
+                    <input type="checkbox" checked={docsOnly} onChange={(e) => setDocsOnly(e.target.checked)} />
+                    📄 เฉพาะเรื่องเอกสาร
+                </label>
 
                 <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "#475569" }}>
                     <input type="checkbox" checked={onlyFailed} onChange={(e) => setOnlyFailed(e.target.checked)} />
@@ -220,9 +229,9 @@ export default function A_Logs() {
                         <thead>
                             <tr style={{ background: "#f8fafc", color: "#475569", textAlign: "left" }}>
                                 <th style={th}>เวลา</th>
-                                <th style={th}>ผู้ทำ</th>
-                                <th style={th}>การกระทำ</th>
-                                <th style={th}>เป้าหมาย</th>
+                                <th style={{ ...th, minWidth: 140 }}>ผู้ทำ</th>
+                                <th style={{ ...th, minWidth: 220 }}>การกระทำ</th>
+                                <th style={th}>ให้ใคร / เป้าหมาย</th>
                                 <th style={th}>ผลลัพธ์</th>
                                 <th style={th}>รายละเอียด</th>
                             </tr>
@@ -238,7 +247,14 @@ export default function A_Logs() {
                                             <div style={{ fontSize: 11, color: "#94a3b8" }}>{ROLE_LABEL[r.role || ""] || r.role || "ไม่ได้ล็อกอิน"}</div>
                                         </td>
                                         <td style={td}>{r.action}</td>
-                                        <td style={td}>{[r.targetType, r.targetId].filter(Boolean).join(" ") || "-"}</td>
+                                        <td style={td}>
+                                            {r.targetName
+                                                ? <>
+                                                    <div style={{ fontWeight: 600, color: "#1e293b" }}>{r.targetName}</div>
+                                                    <div style={{ fontSize: 11, color: "#94a3b8" }}>{[r.targetType, r.targetId && `#${r.targetId}`].filter(Boolean).join(" ")}</div>
+                                                </>
+                                                : [r.targetType, r.targetId].filter(Boolean).join(" ") || "-"}
+                                        </td>
                                         <td style={td}>
                                             <span style={{
                                                 padding: "2px 8px", borderRadius: 99, fontSize: 11, fontWeight: 700,

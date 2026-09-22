@@ -104,17 +104,59 @@ function pickTargetId(spec, params, body) {
   return v == null || v === '' ? null : String(v).slice(0, 50);
 }
 
+// ── ใครออกเอกสารอะไร — ขยายชื่อการกระทำตามข้อมูลที่ส่งมา (สถานะที่ตั้ง, เลขที่หนังสือ, วิธีจัดส่ง) ──
+const REVIEW_STATUS_ACTION = {
+  REQ_LETTER_ISSUED: 'ออกหนังสือขอความอนุเคราะห์',
+  PLACEMENT_LETTER_ISSUED: 'ออกหนังสือส่งตัว',
+  DOCS_APPROVED: 'อนุมัติเอกสาร T000',
+  EDITS_REQUIRED: 'ให้แก้ไขเอกสาร T000',
+  WAITING_FOR_PLACEMENT_LETTER: 'ตีกลับใบตอบรับ',
+  ACCEPTANCE_CHECKED: 'ตรวจใบตอบรับผ่าน',
+  INTERNSHIP_STARTED: 'ยืนยันออกฝึกสหกิจ',
+};
+const LETTER_NAME = { REQUEST: 'หนังสือขอความอนุเคราะห์', PLACEMENT: 'หนังสือส่งตัว' };
+const DELIVERY_TEXT = { STAFF: 'เจ้าหน้าที่จัดส่งให้บริษัท', STUDENT: 'นักศึกษานำไปยื่นเอง' };
+const DOC_STATUS_ACTION = { APPROVED: 'ตรวจเอกสารผ่าน', REJECTED: 'ตรวจเอกสารไม่ผ่าน', EDITS_REQUIRED: 'ให้แก้ไขเอกสาร' };
+
+const clean = (v) => (v == null ? '' : String(v).trim());
+const withNo = (text, no) => (clean(no) ? `${text} เลขที่ ${clean(no)}` : text);
+const isTrue = (v) => v === true || v === 'true';
+
+const ACTION_DETAIL = {
+  'PUT /api/admin/t000/review': (b, base) => {
+    const name = REVIEW_STATUS_ACTION[b.status];
+    if (!name) return b.status ? `${base} → ${b.status}` : base;
+    let text = name;
+    if (b.status === 'REQ_LETTER_ISSUED') text = withNo(text, b.reqDocNumber);
+    if (b.status === 'PLACEMENT_LETTER_ISSUED') text = withNo(text, b.placeDocNumber);
+    if (DELIVERY_TEXT[b.deliveryMethod] && /LETTER_ISSUED$/.test(b.status)) text += ` (${DELIVERY_TEXT[b.deliveryMethod]})`;
+    return text;
+  },
+  'PUT /api/admin/t000/letter-pending': (b, base) => {
+    const letter = LETTER_NAME[b.letter];
+    if (!letter) return base;
+    return isTrue(b.cancel) ? `ยกเลิกรอลงนาม${letter}` : withNo(`โหลดร่าง${letter} (รอลงนาม)`, b.docNumber);
+  },
+  'POST /api/admin/supervisions/:x/upload-letter': (b, base) => withNo(base, b.docNumber),
+  'PUT /api/admin/supervisions/:x/letter-pending': (b) => (isTrue(b.cancel)
+    ? 'ยกเลิกรอลงนามหนังสือขอนิเทศ'
+    : withNo('โหลดร่างหนังสือขอนิเทศ (รอลงนาม)', b.docNumber)),
+  'PUT /api/admin/doc/:x/status': (b, base) => DOC_STATUS_ACTION[b.status] || base,
+};
+
 // คืน { action, targetType, targetId } ของ request หนึ่ง
 function describeRequest({ method, path, body }) {
   const upper = String(method || '').toUpperCase();
-  const clean = String(path || '').split('?')[0];
+  const cleanPath = String(path || '').split('?')[0];
   for (const [m, pattern, action, targetType, idSpec] of RULES) {
     if (m !== upper) continue;
-    const params = matchPath(pattern, clean);
+    const params = matchPath(pattern, cleanPath);
     if (!params) continue;
-    return { action, targetType: targetType || null, targetId: pickTargetId(idSpec, params, body) };
+    const detail = ACTION_DETAIL[`${m} ${pattern}`];
+    const fullAction = detail ? detail(body || {}, action) : action;
+    return { action: fullAction, targetType: targetType || null, targetId: pickTargetId(idSpec, params, body) };
   }
-  return { action: `${upper} ${clean}`, targetType: null, targetId: null };
+  return { action: `${upper} ${cleanPath}`, targetType: null, targetId: null };
 }
 
 // ข้อมูลที่ส่งมาแบบย่อ — ตัดความลับและของใหญ่ออก

@@ -288,3 +288,116 @@ describe('ชื่อการกระทำตรงกับ route จริ
     expect(missing).toEqual([]);
   });
 });
+
+describe('ใครออกเอกสารอะไร ให้ใคร — ชื่อการกระทำละเอียดตามเอกสาร', () => {
+  test.each([
+    [{ status: 'REQ_LETTER_ISSUED', reqDocNumber: '660301.26.6.2/1234', deliveryMethod: 'STAFF' },
+      'ออกหนังสือขอความอนุเคราะห์ เลขที่ 660301.26.6.2/1234 (เจ้าหน้าที่จัดส่งให้บริษัท)'],
+    [{ status: 'PLACEMENT_LETTER_ISSUED', placeDocNumber: '660301.26.6.2/9999', deliveryMethod: 'STUDENT' },
+      'ออกหนังสือส่งตัว เลขที่ 660301.26.6.2/9999 (นักศึกษานำไปยื่นเอง)'],
+    [{ status: 'PLACEMENT_LETTER_ISSUED' }, 'ออกหนังสือส่งตัว'],
+    [{ status: 'DOCS_APPROVED' }, 'อนุมัติเอกสาร T000'],
+    [{ status: 'EDITS_REQUIRED' }, 'ให้แก้ไขเอกสาร T000'],
+    [{ status: 'WAITING_FOR_PLACEMENT_LETTER' }, 'ตีกลับใบตอบรับ'],
+    [{ status: 'ACCEPTANCE_CHECKED' }, 'ตรวจใบตอบรับผ่าน'],
+  ])('ตรวจ/ออกหนังสือ %o → %s', (body, action) => {
+    expect(describeRequest({ method: 'PUT', path: '/api/admin/t000/review', body: { studentId: 5, ...body } }).action).toBe(action);
+  });
+
+  test('ร่างหนังสือรอลงนาม / ยกเลิก', () => {
+    const d = (body) => describeRequest({ method: 'PUT', path: '/api/admin/t000/letter-pending', body }).action;
+    expect(d({ studentId: 5, letter: 'PLACEMENT', docNumber: '660301.26.6.2/1' })).toBe('โหลดร่างหนังสือส่งตัว (รอลงนาม) เลขที่ 660301.26.6.2/1');
+    expect(d({ studentId: 5, letter: 'REQUEST', cancel: true })).toBe('ยกเลิกรอลงนามหนังสือขอความอนุเคราะห์');
+  });
+
+  test('ออกหนังสือขอนิเทศพร้อมเลขที่', () => {
+    const d = describeRequest({ method: 'POST', path: '/api/admin/supervisions/9/upload-letter', body: { docNumber: '660301.26.6.2/77' } });
+    expect(d).toMatchObject({ action: 'ออกหนังสือขอนิเทศ เลขที่ 660301.26.6.2/77', targetType: 'นัดนิเทศ', targetId: '9' });
+  });
+
+  test('เปลี่ยนสถานะเอกสารรายไฟล์', () => {
+    const d = (status) => describeRequest({ method: 'PUT', path: '/api/admin/doc/3/status', body: { status } }).action;
+    expect(d('APPROVED')).toBe('ตรวจเอกสารผ่าน');
+    expect(d('REJECTED')).toBe('ตรวจเอกสารไม่ผ่าน');
+    expect(d('EDITS_REQUIRED')).toBe('ให้แก้ไขเอกสาร');
+  });
+});
+
+describe('ให้ใคร — ชื่อเป้าหมายอ่านออก (targetName)', () => {
+  const { resolveTargetName } = require('../middlewares/auditLogger');
+
+  test('นักศึกษา (id ในระบบ) → รหัส + ชื่อ', async () => {
+    prisma.student.findUnique = prisma.student.findUnique || jest.fn();
+    prisma.student.findUnique.mockResolvedValue({ studentId: '6430212186', prefix: 'MR', firstName: 'ดำ', lastName: 'แดง' });
+    await expect(resolveTargetName('นักศึกษา', '42')).resolves.toBe('6430212186 นายดำ แดง');
+  });
+
+  test('นัดนิเทศ → นักศึกษาเจ้าของนัด', async () => {
+    prisma.supervisionAppointment.findUnique.mockResolvedValue({ student: { studentId: '6430000001', prefix: 'MS', firstName: 'ขาว', lastName: 'ใส' } });
+    await expect(resolveTargetName('นัดนิเทศ', '9')).resolves.toBe('6430000001 นางสาวขาว ใส');
+  });
+
+  test('เอกสาร → ประเภทเอกสาร + นักศึกษา', async () => {
+    prisma.document.findUnique.mockResolvedValue({ type: 'CP-ACCEPTANCE', name: 'acc.pdf', student: { studentId: '6430000002', prefix: 'MR', firstName: 'เขียว', lastName: 'ขจี' } });
+    await expect(resolveTargetName('เอกสาร', '3')).resolves.toBe('CP-ACCEPTANCE (acc.pdf) · 6430000002 นายเขียว ขจี');
+  });
+
+  test('หาไม่เจอ / ไม่มี id → null (ไม่ทำให้ log พัง)', async () => {
+    prisma.student.findUnique.mockResolvedValue(null);
+    await expect(resolveTargetName('นักศึกษา', '999')).resolves.toBeNull();
+    await expect(resolveTargetName('นักศึกษา', null)).resolves.toBeNull();
+  });
+
+  test('บันทึก targetName ลง log จริง', async () => {
+    prisma.student.findUnique.mockResolvedValue({ studentId: '6430212186', prefix: 'MR', firstName: 'ดำ', lastName: 'แดง' });
+    const req = makeReq({
+      method: 'PUT', originalUrl: '/api/admin/t000/review', user: { id: 3, role: 'staff' },
+      body: { studentId: '42', status: 'PLACEMENT_LETTER_ISSUED', placeDocNumber: '660301.26.6.2/5' },
+    });
+    const res = makeRes(200);
+    auditLogger(req, res, () => {});
+    await res.finish();
+    expect(prisma.auditLog.create.mock.calls[0][0].data).toMatchObject({
+      action: 'ออกหนังสือส่งตัว เลขที่ 660301.26.6.2/5',
+      targetType: 'นักศึกษา', targetId: '42', targetName: '6430212186 นายดำ แดง',
+    });
+  });
+});
+
+describe('ตัวกรอง "เฉพาะเรื่องเอกสาร"', () => {
+  const { buildWhere } = require('../controllers/auditLogController');
+  test('docsOnly=true → กรองเฉพาะการกระทำที่เกี่ยวกับเอกสาร และใช้ร่วมกับคำค้นได้', () => {
+    const where = buildWhere({ docsOnly: 'true', q: '6430212186' });
+    const prefixes = where.AND[0].OR.map((c) => c.action.startsWith);
+    expect(prefixes).toEqual(expect.arrayContaining(['ออกหนังสือ', 'โหลดร่าง', 'ตรวจเอกสาร', 'ตีกลับใบตอบรับ']));
+    // คำค้นยังอยู่ (ไม่ถูกทับ) และค้นจากชื่อ/รหัสนักศึกษาเป้าหมายได้
+    expect(where.OR).toEqual(expect.arrayContaining([{ targetName: { contains: '6430212186' } }]));
+  });
+});
+
+describe('ชื่อเป้าหมาย — ตารางที่ใช้ UUID (บริษัท / พี่เลี้ยง)', () => {
+  const { resolveTargetName } = require('../middlewares/auditLogger');
+  // บั๊กที่เจอตอนตรวจซ้ำ: เดิมแปลง id เป็นตัวเลขอย่างเดียว บริษัท (UUID) เลยได้ null เสมอ
+  test('บริษัท id UUID → ชื่อบริษัท', async () => {
+    prisma.company.findUnique.mockResolvedValue({ name: 'บริษัท โวซ่าร์ คอร์ปอเรชั่น จำกัด' });
+    await expect(resolveTargetName('บริษัท', '99ddf122-ae5a-49a0-9bf4-82e8452d801a')).resolves.toBe('บริษัท โวซ่าร์ คอร์ปอเรชั่น จำกัด');
+    expect(prisma.company.findUnique.mock.calls[0][0].where).toEqual({ id: '99ddf122-ae5a-49a0-9bf4-82e8452d801a' });
+  });
+
+  test('พี่เลี้ยง id UUID → ชื่อ + บริษัท', async () => {
+    prisma.mentor.findUnique.mockResolvedValue({ firstName: 'สมศรี', lastName: 'ดูแล', company: { name: 'บริษัท ก' } });
+    await expect(resolveTargetName('พี่เลี้ยง', 'a21ee297-de74-439b-bac1-25a037cda6f7')).resolves.toBe('สมศรี ดูแล (บริษัท ก)');
+  });
+
+  test('ลบบริษัท: หาชื่อไว้ก่อนส่งต่อให้ handler ลบ', async () => {
+    prisma.company.findUnique.mockResolvedValue({ name: 'บริษัทที่จะถูกลบ' });
+    const req = makeReq({ method: 'DELETE', originalUrl: '/api/companies/99ddf122-ae5a-49a0-9bf4-82e8452d801a', user: { id: 3, role: 'staff' } });
+    const res = makeRes(200);
+    const next = jest.fn(() => { prisma.company.findUnique.mockResolvedValue(null); }); // handler ลบแล้วหาไม่เจอ
+    auditLogger(req, res, next);
+    await new Promise((r) => setImmediate(r));
+    expect(next).toHaveBeenCalled();
+    await res.finish();
+    expect(prisma.auditLog.create.mock.calls[0][0].data).toMatchObject({ action: 'ลบบริษัท', targetName: 'บริษัทที่จะถูกลบ' });
+  });
+});

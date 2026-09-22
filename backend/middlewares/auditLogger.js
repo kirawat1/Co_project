@@ -61,10 +61,73 @@ function clientIp(req) {
   return raw ? String(raw).slice(0, 64) : null;
 }
 
+// ── "ให้ใคร" — แปลงเป้าหมาย (ประเภท + id) เป็นชื่อที่คนอ่านออก ─────────────────────
+const PREFIX_TH = { MR: 'นาย', MS: 'นางสาว' };
+const studentLabel = (s) => (s
+  ? `${s.studentId || ''} ${PREFIX_TH[s.prefix] || ''}${s.firstName || ''} ${s.lastName || ''}`.replace(/\s+/g, ' ').trim()
+  : null);
+const STUDENT_NAME_SELECT = { studentId: true, prefix: true, firstName: true, lastName: true };
+
+async function resolveTargetName(targetType, targetId) {
+  if (!targetType || targetId == null || targetId === '') return null;
+  const raw = String(targetId);
+  const id = /^\d{1,9}$/.test(raw) ? parseInt(raw, 10) : null;
+  try {
+    switch (targetType) {
+      case 'นักศึกษา': {
+        // id สั้น = id ในระบบ · ยาว (เช่น 6430212186) = รหัสนักศึกษา
+        const s = id != null && raw.length <= 7
+          ? await prisma.student.findUnique({ where: { id }, select: STUDENT_NAME_SELECT })
+          : await prisma.student.findFirst({ where: { studentId: raw }, select: STUDENT_NAME_SELECT });
+        return studentLabel(s);
+      }
+      case 'นัดนิเทศ': {
+        if (id == null) return null;
+        const a = await prisma.supervisionAppointment.findUnique({ where: { id }, select: { student: { select: STUDENT_NAME_SELECT } } });
+        return studentLabel(a?.student);
+      }
+      case 'เอกสาร': {
+        if (id == null) return null;
+        const d = await prisma.document.findUnique({ where: { id }, select: { type: true, name: true, student: { select: STUDENT_NAME_SELECT } } });
+        if (!d) return null;
+        const who = studentLabel(d.student);
+        return [`${d.type}${d.name ? ` (${d.name})` : ''}`, who].filter(Boolean).join(' · ');
+      }
+      // บริษัท/พี่เลี้ยงใช้ id เป็น UUID (string) ไม่ใช่ตัวเลข
+      case 'บริษัท': {
+        const c = await prisma.company.findUnique({ where: { id: raw }, select: { name: true } });
+        return c?.name || null;
+      }
+      case 'พี่เลี้ยง': {
+        const m = await prisma.mentor.findUnique({ where: { id: raw }, select: { firstName: true, lastName: true, company: { select: { name: true } } } });
+        if (!m) return null;
+        const name = `${m.firstName || ''} ${m.lastName || ''}`.trim();
+        return m.company?.name ? `${name} (${m.company.name})` : name || null;
+      }
+      case 'อาจารย์': {
+        if (id == null) return null;
+        const t = await prisma.teacher.findUnique({ where: { id }, select: { prefix: true, firstName: true, lastName: true } });
+        return t ? `${t.prefix || ''}${t.firstName || ''} ${t.lastName || ''}`.trim() : null;
+      }
+      case 'ผู้ใช้': {
+        if (id == null) return null;
+        const u = await prisma.user.findUnique({ where: { id }, select: { username: true } });
+        return u?.username || null;
+      }
+      default:
+        return null;
+    }
+  } catch (_) {
+    return null; // หาชื่อไม่ได้ก็ยังบันทึก log ได้ (มี targetId อยู่แล้ว)
+  }
+}
+
 async function writeLog(req, res) {
   const path = (req.originalUrl || req.url || '').split('?')[0];
   const isLogin = LOGIN_PATHS.includes(path);
   const { action, targetType, targetId } = describeRequest({ method: req.method, path, body: req.body });
+  // ลบข้อมูลแล้ว (DELETE) หาชื่อไม่เจอเป็นปกติ — ใช้ค่าที่ถูกเก็บไว้ก่อนลบถ้ามี
+  const targetName = res.locals?.auditTargetName || await resolveTargetName(targetType, targetId);
 
   // ผู้ทำ: จาก token · ถ้าเป็นการเข้าสู่ระบบให้ใช้ id จาก response (สำเร็จ) หรือชื่อผู้ใช้ที่กรอกมา (ไม่สำเร็จ)
   const userId = req.user?.id ?? res.locals?.auditUserId ?? null;
@@ -85,6 +148,7 @@ async function writeLog(req, res) {
       path: path.slice(0, 300),
       targetType,
       targetId,
+      targetName: targetName ? String(targetName).slice(0, 200) : null,
       statusCode: res.statusCode,
       ip: clientIp(req),
       detail: sanitizeBody(req.body),
@@ -114,6 +178,16 @@ function auditLogger(req, res, next) {
   res.on('finish', () => {
     writeLog(req, res).catch((err) => console.error('[auditLog] เขียน log ไม่สำเร็จ:', err.message));
   });
+
+  // ลบข้อมูล: หลังลบเสร็จจะหาชื่อเป้าหมายไม่เจอแล้ว — หาชื่อไว้ก่อนส่งต่อ (DELETE ใช้ id จาก path ไม่ต้องรอ body)
+  if (req.method === 'DELETE') {
+    const { targetType, targetId } = describeRequest({ method: req.method, path, body: {} });
+    resolveTargetName(targetType, targetId)
+      .then((name) => { if (name) res.locals.auditTargetName = name; })
+      .catch(() => {})
+      .finally(() => next());
+    return;
+  }
   next();
 }
 
@@ -138,4 +212,4 @@ function startLogRetentionJob() {
   return timer;
 }
 
-module.exports = { auditLogger, purgeOldLogs, startLogRetentionJob, RETENTION_DAYS, actorNameOf };
+module.exports = { auditLogger, purgeOldLogs, startLogRetentionJob, RETENTION_DAYS, actorNameOf, resolveTargetName };
