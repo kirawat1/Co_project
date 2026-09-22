@@ -27,6 +27,16 @@ type LogRow = {
 type Actor = { userId: number; name: string | null; role: string | null; count: number };
 
 const ROLE_LABEL: Record<string, string> = { staff: "เจ้าหน้าที่", teacher: "อาจารย์", student: "นักศึกษา" };
+
+// แท็บแยกดูตามสิทธิ์ · anonymous = ยังไม่ได้ล็อกอิน (เช่น เข้าสู่ระบบไม่ผ่าน)
+type RoleCounts = { all: number; staff: number; teacher: number; student: number; anonymous: number };
+const ROLE_TABS: { key: string; countKey: keyof RoleCounts; label: string; icon: string; color: string; bg: string }[] = [
+    { key: "", countKey: "all", label: "ทั้งหมด", icon: "📋", color: "#1e293b", bg: "#f1f5f9" },
+    { key: "staff", countKey: "staff", label: "เจ้าหน้าที่", icon: "🛠️", color: "#1d4ed8", bg: "#eff6ff" },
+    { key: "teacher", countKey: "teacher", label: "อาจารย์", icon: "👨‍🏫", color: "#0f766e", bg: "#f0fdfa" },
+    { key: "student", countKey: "student", label: "นักศึกษา", icon: "🎓", color: "#7c3aed", bg: "#f5f3ff" },
+    { key: "anonymous", countKey: "anonymous", label: "ไม่ได้ล็อกอิน", icon: "🔒", color: "#b45309", bg: "#fffbeb" },
+];
 const PAGE_SIZE = 50;
 
 const THAI_MONTHS = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
@@ -45,6 +55,7 @@ export default function A_Logs() {
     const [retentionDays, setRetentionDays] = useState(365);
     const [downloading, setDownloading] = useState(false);
     const sentinelRef = useRef<HTMLDivElement>(null);
+    const [roleCounts, setRoleCounts] = useState<RoleCounts>({ all: 0, staff: 0, teacher: 0, student: 0, anonymous: 0 });
 
     // ตัวกรอง
     const [q, setQ] = useState("");
@@ -80,6 +91,7 @@ export default function A_Logs() {
             setRows((prev) => (append ? [...prev, ...data.data] : data.data));
             setTotal(data.meta?.total ?? 0);
             setRetentionDays(data.meta?.retentionDays ?? 365);
+            if (data.meta?.roleCounts) setRoleCounts(data.meta.roleCounts);
             setPage(targetPage);
         } catch {
             alert("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้");
@@ -95,12 +107,14 @@ export default function A_Logs() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [queryString]);
 
+    // รายชื่อผู้ใช้ในตัวกรอง — เหลือเฉพาะคนในแท็บสิทธิ์ที่เลือก
     useEffect(() => {
-        apiFetch("/api/admin/logs/actors")
+        if (role === "anonymous") { setActors([]); return; }
+        apiFetch(`/api/admin/logs/actors${role ? `?role=${role}` : ""}`)
             .then((r) => r.json())
             .then((d) => { if (d?.ok) setActors(d.actors || []); })
             .catch(() => { /* ตัวกรองรายชื่อไม่ใช่ของจำเป็น */ });
-    }, []);
+    }, [role]);
 
     const handleExport = async () => {
         setDownloading(true);
@@ -127,11 +141,12 @@ export default function A_Logs() {
         }
     };
 
+    // ล้างเฉพาะแถบตัวกรอง — คงแท็บสิทธิ์ที่เลือกไว้
     const clearFilters = () => {
-        setQ(""); setRole(""); setUserId(""); setFrom(""); setTo(""); setOnlyFailed(false);
+        setQ(""); setUserId(""); setFrom(""); setTo(""); setOnlyFailed(false);
     };
 
-    const hasFilter = !!(q || role || userId || from || to || onlyFailed);
+    const hasFilter = !!(q || userId || from || to || onlyFailed);
     const hasMore = rows.length < total;
 
     return (
@@ -152,15 +167,8 @@ export default function A_Logs() {
                 <input className="input" style={{ flex: "1 1 240px", minWidth: 180 }} placeholder="ค้นหา ชื่อผู้ทำ / การกระทำ / เส้นทาง"
                     value={q} onChange={(e) => setQ(e.target.value)} />
 
-                <select className="input" value={role} onChange={(e) => setRole(e.target.value)} style={{ flex: "0 0 auto", width: 140 }}>
-                    <option value="">ทุกสิทธิ์</option>
-                    <option value="staff">เจ้าหน้าที่</option>
-                    <option value="teacher">อาจารย์</option>
-                    <option value="student">นักศึกษา</option>
-                </select>
-
-                <select className="input" value={userId} onChange={(e) => setUserId(e.target.value)} style={{ flex: "0 0 auto", width: 200 }}>
-                    <option value="">ทุกคน</option>
+                <select className="input" value={userId} onChange={(e) => setUserId(e.target.value)} style={{ flex: "0 0 auto", width: 220 }}>
+                    <option value="">{role ? `ทุกคนใน${ROLE_TABS.find((t) => t.key === role)?.label ?? ""}` : "ทุกคน"}</option>
                     {actors.map((a) => (
                         <option key={a.userId} value={a.userId}>{a.name || `ผู้ใช้ #${a.userId}`} ({a.count})</option>
                     ))}
@@ -181,8 +189,31 @@ export default function A_Logs() {
             </div>
 
             <div className="card">
+                {/* แท็บแยกดูตามสิทธิ์ — ตัวเลขใช้ตัวกรองอื่นเดียวกับตาราง */}
+                <div role="tablist" style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12, borderBottom: "1px solid #e2e8f0", paddingBottom: 10 }}>
+                    {ROLE_TABS.map((t) => {
+                        const active = role === t.key;
+                        return (
+                            <button
+                                key={t.key || "all"}
+                                role="tab"
+                                aria-selected={active}
+                                onClick={() => { setRole(t.key); setUserId(""); }}
+                                style={{
+                                    border: `1px solid ${active ? t.color : "#e2e8f0"}`,
+                                    background: active ? t.bg : "#fff",
+                                    color: active ? t.color : "#475569",
+                                    fontWeight: active ? 700 : 500,
+                                    borderRadius: 99, padding: "6px 14px", fontSize: 13, cursor: "pointer",
+                                }}
+                            >
+                                {t.icon} {t.label} <span style={{ opacity: 0.75 }}>({(roleCounts[t.countKey] ?? 0).toLocaleString()})</span>
+                            </button>
+                        );
+                    })}
+                </div>
                 <div style={{ fontSize: 13, color: "#64748b", marginBottom: 10 }}>
-                    ทั้งหมด {total.toLocaleString()} รายการ {loading && "· กำลังโหลด..."}
+                    แสดง {total.toLocaleString()} รายการ {loading && "· กำลังโหลด..."}
                 </div>
                 <div style={{ overflowX: "auto" }}>
                     <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>

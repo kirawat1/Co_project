@@ -17,12 +17,15 @@ const LOGIN_PATHS = ['/api/auth/signin', '/api/auth/login/sso', '/api/auth/login
 const SKIP_PATHS = new Set(['/api/notifications/mark-read', '/api/notifications/mark-all-read']);
 
 // ชื่อผู้ใช้เปลี่ยนไม่บ่อย — cache กัน query ซ้ำทุก request
-const nameCache = new Map(); // userId -> { name, at }
+const nameCache = new Map(); // "userId:role" -> { name, at }
 const NAME_TTL_MS = 5 * 60 * 1000;
 
-async function actorNameOf(userId) {
+// เลือกชื่อจากโปรไฟล์ที่ตรงกับ role ที่ใช้ทำรายการก่อน — บัญชีเดียวอาจมีหลายโปรไฟล์
+// (เช่น บัญชีที่มีทั้งข้อมูลนักศึกษาและอาจารย์) ถ้าไม่ตรงค่อยไล่ นักศึกษา → อาจารย์ → เจ้าหน้าที่
+async function actorNameOf(userId, role = null) {
   if (!userId) return null;
-  const hit = nameCache.get(userId);
+  const cacheKey = `${userId}:${role || ''}`;
+  const hit = nameCache.get(cacheKey);
   if (hit && Date.now() - hit.at < NAME_TTL_MS) return hit.name;
   try {
     const user = await prisma.user.findUnique({
@@ -38,14 +41,14 @@ async function actorNameOf(userId) {
     const s = user.student;
     const t = user.teacher;
     const st = user.staffProfile;
-    const name = s
-      ? `${s.prefix === 'MR' ? 'นาย' : s.prefix === 'MS' ? 'นางสาว' : ''}${s.firstName || ''} ${s.lastName || ''} (${s.studentId || ''})`.trim()
-      : t
-        ? `${t.prefix || ''}${t.firstName || ''} ${t.lastName || ''}`.trim()
-        : st
-          ? `${st.firstName || ''} ${st.lastName || ''}`.trim()
-          : (user.username || user.email || null);
-    nameCache.set(userId, { name, at: Date.now() });
+    const names = {
+      student: s ? `${s.prefix === 'MR' ? 'นาย' : s.prefix === 'MS' ? 'นางสาว' : ''}${s.firstName || ''} ${s.lastName || ''} (${s.studentId || ''})`.trim() : null,
+      teacher: t ? `${t.prefix || ''}${t.firstName || ''} ${t.lastName || ''}`.trim() : null,
+      staff: st ? `${st.firstName || ''} ${st.lastName || ''}`.trim() : null,
+    };
+    const roleKey = String(role || '').toLowerCase();
+    const name = names[roleKey] || names.student || names.teacher || names.staff || user.username || user.email || null;
+    nameCache.set(cacheKey, { name, at: Date.now() });
     return name;
   } catch (_) {
     return null;
@@ -66,7 +69,7 @@ async function writeLog(req, res) {
   // ผู้ทำ: จาก token · ถ้าเป็นการเข้าสู่ระบบให้ใช้ id จาก response (สำเร็จ) หรือชื่อผู้ใช้ที่กรอกมา (ไม่สำเร็จ)
   const userId = req.user?.id ?? res.locals?.auditUserId ?? null;
   const role = req.user?.role ?? res.locals?.auditRole ?? null;
-  let actorName = await actorNameOf(userId);
+  let actorName = await actorNameOf(userId, role);
   if (!actorName && isLogin) {
     actorName = String(req.body?.email || req.body?.username || '').slice(0, 200) || null;
   }
