@@ -226,7 +226,7 @@ export default function T_GroupSupervision() {
               })}
             </select>
             <div style={{ fontSize: 12, color: "#0369a1", background: "#f0f9ff", border: "1px solid #bae6fd", borderRadius: 7, padding: "6px 10px", marginBottom: 12 }}>
-              นิเทศทีละคนต่อกันตามลำดับที่ติ๊ก — คนแรกเริ่มตามเวลาที่เลือก คนถัดไปต่อจากคนก่อนหน้าทันที (ความยาวตามช่วงที่แต่ละคนเสนอ)
+              นิเทศทีละคนต่อกันตาม "ลำดับคิว" ด้านล่าง — คนแรกเริ่มตามเวลาที่เลือก คนถัดไปต่อจากคนก่อนหน้าทันที (ความยาวตามช่วงที่แต่ละคนเสนอ) · ติ๊กออกแล้วติ๊กใหม่ = ย้ายไปท้ายคิว
             </div>
             <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>นักศึกษา</div>
             {modal.company.students.map(s => {
@@ -248,6 +248,16 @@ export default function T_GroupSupervision() {
                 </label>
               );
             })}
+            {checkedIds.size > 0 && (
+              <div style={{ fontSize: 12, color: "#334155", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 7, padding: "6px 10px", margin: "10px 0" }}>
+                <div style={{ fontWeight: 700, marginBottom: 2 }}>ลำดับคิว</div>
+                {/* ลำดับเดียวกับที่ส่งให้ backend ([...checkedIds]) — backend ไล่คิวตามลำดับนี้ */}
+                {[...checkedIds].map((id, i) => {
+                  const s = modal.company.students.find(st => st.appointmentId === id);
+                  return <div key={id}>{i + 1}. {s?.studentName ?? id}</div>;
+                })}
+              </div>
+            )}
             {confirmError && <div style={{ color: '#ef4444', fontSize: 13, marginBottom: 8 }}>{confirmError}</div>}
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 20 }}>
               <button

@@ -980,3 +980,21 @@ describe('updateConfirmedDate — ย้ายวันแล้วความ�
     expect((data.confirmedEndDate - data.confirmedDate) / 60000).toBe(120);
   });
 });
+
+describe('confirmGroupSupervision — คิวเรียงตามลำดับที่อาจารย์ส่งมา (ตรวจ scrutinize)', () => {
+  const { confirmGroupSupervision } = require('../controllers/supervisionController');
+  test('ส่ง [คนที่ 2, คนที่ 1] → คนที่ 2 ได้คิวแรก แม้ฐานข้อมูลคืนมาเป็น [1, 2]', async () => {
+    prisma.teacher.findUnique.mockResolvedValue({ id: 5, prefix: 'อ.', firstName: 'ก', lastName: 'ข' });
+    const mk = (id) => ({ id, teacherId: 5, status: 'PENDING_TEACHER', coTeacherName: null, studentId: id * 10,
+      proposedDates: JSON.stringify(['2026-12-22|09:00-10:00|ONSITE']) });
+    prisma.supervisionAppointment.findMany
+      .mockResolvedValueOnce([mk(1), mk(2)]) // ดึงนัดตาม id (ลำดับของฐานข้อมูล)
+      .mockResolvedValue([]);               // ตรวจเวลาชน: ไม่มีคิวอื่น
+    prisma.supervisionAppointment.update.mockResolvedValue({});
+    prisma.student.findMany.mockResolvedValue([]);
+    const res = makeRes();
+    await confirmGroupSupervision({ user: { id: 2 }, body: { appointmentIds: [2, 1], confirmedDate: '2026-12-22T09:00:00' } }, res);
+    const updates = prisma.supervisionAppointment.update.mock.calls.map((c) => ({ id: c[0].where.id, start: c[0].data.confirmedDate.getHours() }));
+    expect(updates).toEqual([{ id: 2, start: 9 }, { id: 1, start: 10 }]);
+  });
+});

@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const { createNotifications, getStaffAndCoopTeacherIds } = require('../utils/notificationHelper');
 const { normalizeDocNumber, isPlaceholderDocNo, parseDateOr400 } = require('../utils/docNumber');
+const { setAuditDetail, letterPendingActionText, supervisionLetterActionText } = require('../utils/auditActions');
 const { resolveSlotEnd, assertNoTeacherClash, findTeacherClash, dateKey, timeKey, parseProposedList } = require('../utils/supervisionClash');
 const { SUPERVISION_SCHEDULE_SELECT, toScheduleRow, sortSchedule, buildSupervisionScheduleWorkbook } = require('../utils/supervisionExport');
 
@@ -142,6 +143,11 @@ exports.uploadOfficialLetter = async (req, res) => {
             throw txErr;
         }
 
+        setAuditDetail(res, {
+            action: supervisionLetterActionText({ docNumber: appointment.letterDocNumber }),
+            targetType: 'นัดนิเทศ',
+            targetId: parsedId,
+        });
         res.json({ ok: true, appointment });
 
         // Notify student
@@ -201,6 +207,11 @@ exports.markSupervisionLetterPending = async (req, res) => {
             await tx.supervisionAppointment.update({ where: { id }, data });
         });
 
+        setAuditDetail(res, {
+            action: letterPendingActionText({ letter: 'SUPERVISION', cancel, docNumber: data.letterDraftNumber }),
+            targetType: 'นัดนิเทศ',
+            targetId: id,
+        });
         res.json({ ok: true, pendingAt: data.letterPendingAt, draftNumber: data.letterDraftNumber, draftDate: data.letterDraftDate });
     } catch (err) {
         if (err.is404) return res.status(404).json({ ok: false, message: err.message });
@@ -908,9 +919,17 @@ exports.confirmGroupSupervision = async (req, res) => {
     const teacher = await prisma.teacher.findUnique({ where: { userId: parseInt(req.user.id) } });
     if (!teacher) return res.status(404).json({ ok: false, message: 'ไม่พบข้อมูลอาจารย์' });
 
-    const appts = await prisma.supervisionAppointment.findMany({
+    if (new Set(ids).size !== ids.length) {
+      return res.status(400).json({ ok: false, message: 'appointmentIds ซ้ำกัน' });
+    }
+
+    // เรียงตามลำดับที่อาจารย์ส่งมา = ลำดับคิวนิเทศ (ฐานข้อมูลคืนตาม id — เดิมใช้ลำดับนั้นตรงๆ
+    // หน้าต่างบอกว่า "ตามลำดับที่ติ๊ก" แต่คิวจริงเรียงตาม id)
+    const fetched = await prisma.supervisionAppointment.findMany({
       where: { id: { in: ids } },
     });
+    const byId = new Map(fetched.map(a => [a.id, a]));
+    const appts = ids.map(id => byId.get(id)).filter(Boolean);
 
     // ตรวจว่าพบทุก id ที่ส่งมา
     if (appts.length !== ids.length) {

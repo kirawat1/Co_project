@@ -405,7 +405,7 @@ export default function T_SupervisionReview() {
     };
 
     // ปฏิทิน + ตารางนิเทศ (ทั้งหมด) ใช้ข้อมูลจาก API ปฏิทิน (มีผู้นิเทศ/ช่วงเวลา) — โหลดเมื่อเป็นอาจารย์ประจำวิชา
-    const allCalendarEvents = useSupervisionSchedule(allSupervisions, isCoopTeacher);
+    const { events: allCalendarEvents, degraded: scheduleDegraded } = useSupervisionSchedule(allSupervisions, isCoopTeacher);
 
     const SortIcon = ({ col }: { col: SortKey }) => col === sortKey ? <span style={{ color: "#2563eb", marginLeft: 4 }}>{sortDir === "asc" ? "↑" : "↓"}</span> : <span style={{ color: "#cbd5e1", marginLeft: 4 }}>↕</span>;
     const AllSortIcon = ({ col }: { col: AllSortKey }) => col === allSortKey ? <span style={{ color: "#0ea5e9", marginLeft: 4 }}>{allSortDir === 'asc' ? '↑' : '↓'}</span> : <span style={{ color: '#cbd5e1', marginLeft: 4 }}>↕</span>;
@@ -648,6 +648,7 @@ export default function T_SupervisionReview() {
                         <SupervisionCalendar events={allCalendarEvents} title="📅 ปฏิทินนิเทศสหกิจ (ทั้งหมด)" />
                         <SupervisionScheduleTable
                             events={allCalendarEvents}
+                            notice={scheduleDegraded ? "โหลดตารางแบบละเอียดไม่สำเร็จ — แสดงข้อมูลเท่าที่มี (ไม่มีช่วงเวลาสิ้นสุด) ลองรีเฟรชหน้าอีกครั้ง" : undefined}
                             canExport={isCoopTeacher}
                             exportUrl="/api/admin/supervisions/export"
                         />
