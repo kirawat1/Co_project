@@ -7,7 +7,7 @@
 
 // ฟิลด์ที่ห้ามเก็บลง log เด็ดขาด — จับด้วยรูปแบบชื่อ ไม่ใช่รายชื่อตายตัว
 // (เดิมใช้รายชื่อ แล้ว kkuPassword / id_token หลุดลง log เป็นข้อความธรรมดา)
-const SECRET_KEY_PATTERN = /pass|pwd|secret|token|credential|api[_-]?key|otp|pin$/i;
+const SECRET_KEY_PATTERN = /pass|pwd|secret|token|credential|api[_-]?key|hash|otp|pin$/i;
 // ของใหญ่ที่ไม่ควรเก็บ (ไม่ใช่ความลับ แต่ทำให้ log บวม)
 const BULKY_FIELDS = new Set(['image', 'base64', 'file', 'files']);
 const isSecretKey = (key) => SECRET_KEY_PATTERN.test(String(key)) || BULKY_FIELDS.has(key);
@@ -15,6 +15,10 @@ const isSecretKey = (key) => SECRET_KEY_PATTERN.test(String(key)) || BULKY_FIELD
 const SECRET_FIELDS = { has: isSecretKey };
 
 const DETAIL_MAX = 800;
+
+// บางคนพิมพ์รหัสผ่านลงช่องอีเมล — ค่าที่ไม่ใช่อีเมลจะไม่ถูกเก็บลง log (ดู sanitizeBody/actorName)
+const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+const looksLikeEmail = (v) => EMAIL_RE.test(String(v || '').trim());
 
 // [method, รูปแบบ path, ชื่อการกระทำ, ประเภทเป้าหมาย, ฟิลด์ที่ใช้เป็น id เป้าหมาย]
 // ':x' = ส่วนไหนก็ได้ 1 ชั้น
@@ -41,6 +45,11 @@ const RULES = [
 
   ['POST', '/api/docs/upload', 'อัปโหลดเอกสาร', 'เอกสาร', 'docType'],
   ['DELETE', '/api/coop/documents/:x', 'ลบเอกสาร', 'เอกสาร', ':1'],
+  ['DELETE', '/api/docs/delete/:x', 'ลบเอกสาร', 'เอกสาร', ':1'],
+  ['DELETE', '/api/docs/document/type/:x', 'ลบเอกสารตามประเภท', 'เอกสาร', null],
+  ['POST', '/api/docs/save-form', 'บันทึกแบบฟอร์มใบสมัคร (T000)', 'นักศึกษา', null],
+  ['POST', '/api/docs/t002-form', 'ส่งแบบฟอร์ม T002', 'นักศึกษา', null],
+  ['POST', '/api/docs/t003-form', 'ส่งแบบฟอร์ม T003', 'นักศึกษา', null],
   ['POST', '/api/coop/apply', 'ยื่นคำร้องสหกิจ', 'นักศึกษา', null],
   ['PUT', '/api/coop/status', 'เปลี่ยนสถานะสหกิจ', 'นักศึกษา', 'studentId'],
 
@@ -50,6 +59,14 @@ const RULES = [
   ['POST', '/api/admin/t000/acceptance-replace', 'เปลี่ยนไฟล์ใบตอบรับแทนนักศึกษา', 'นักศึกษา', 'studentId'],
   ['PUT', '/api/admin/t000/letter-pending', 'โหลดร่างหนังสือ (รอลงนาม)', 'นักศึกษา', 'studentId'],
   ['PUT', '/api/admin/doc/:x/status', 'เปลี่ยนสถานะเอกสาร', 'เอกสาร', ':1'],
+  ['PATCH', '/api/admin/coop-applications/:x/status', 'เปลี่ยนสถานะคำร้องสหกิจ', 'คำร้องสหกิจ', ':1'],
+  // ตรวจ T002/T003 — เจ้าหน้าที่และอาจารย์ใช้คนละเส้นทางแต่ความหมายเดียวกัน (/api/teachers เป็นชื่อพ้องของ /api/teacher)
+  ['PUT', '/api/admin/documents/review-t002', 'ตรวจเอกสาร T002', 'นักศึกษา', 'studentId'],
+  ['PUT', '/api/admin/documents/review-t003', 'ตรวจเอกสาร T003', 'นักศึกษา', 'studentId'],
+  ['PUT', '/api/teacher/documents/review-t002', 'ตรวจเอกสาร T002', 'นักศึกษา', 'studentId'],
+  ['PUT', '/api/teacher/documents/review-t003', 'ตรวจเอกสาร T003', 'นักศึกษา', 'studentId'],
+  ['PUT', '/api/teachers/documents/review-t002', 'ตรวจเอกสาร T002', 'นักศึกษา', 'studentId'],
+  ['PUT', '/api/teachers/documents/review-t003', 'ตรวจเอกสาร T003', 'นักศึกษา', 'studentId'],
 
   ['PUT', '/api/admin/supervisions/:x/confirmed-date', 'แก้วันนิเทศ', 'นัดนิเทศ', ':1'],
   ['POST', '/api/admin/supervisions/:x/upload-letter', 'ออกหนังสือขอนิเทศ', 'นัดนิเทศ', ':1'],
@@ -60,8 +77,16 @@ const RULES = [
   ['POST', '/api/coop/supervision/propose', 'เสนอวันนิเทศ', 'นัดนิเทศ', null],
   ['PUT', '/api/teacher/supervisions/:x/review', 'อาจารย์พิจารณาวันนิเทศ', 'นัดนิเทศ', ':1'],
   ['POST', '/api/teacher/supervisions/confirm-group', 'ยืนยันวันนิเทศแบบกลุ่ม', 'นัดนิเทศ', null],
+  ['PUT', '/api/teacher/supervisions/:x/complete', 'ปิดงานนิเทศ', 'นัดนิเทศ', ':1'],
+  ['PUT', '/api/teachers/supervisions/:x/review', 'อาจารย์พิจารณาวันนิเทศ', 'นัดนิเทศ', ':1'],
+  ['POST', '/api/teachers/supervisions/confirm-group', 'ยืนยันวันนิเทศแบบกลุ่ม', 'นัดนิเทศ', null],
+  ['PUT', '/api/teachers/supervisions/:x/complete', 'ปิดงานนิเทศ', 'นัดนิเทศ', ':1'],
+  ['POST', '/api/visits', 'บันทึกการเยี่ยมสถานประกอบการ', 'นักศึกษา', 'studentId'],
+  ['PUT', '/api/visits/:x/toggle', 'เปลี่ยนสถานะการเยี่ยมสถานประกอบการ', null, ':1'],
+  ['DELETE', '/api/visits/:x', 'ลบการเยี่ยมสถานประกอบการ', null, ':1'],
 
   ['POST', '/api/companies', 'เพิ่มบริษัท', 'บริษัท', null],
+  ['POST', '/api/companies/bulk', 'นำเข้าบริษัทหลายรายการ', 'บริษัท', null],
   ['PUT', '/api/companies/:x', 'แก้ไขบริษัท', 'บริษัท', ':1'],
   ['DELETE', '/api/companies/:x', 'ลบบริษัท', 'บริษัท', ':1'],
   ['POST', '/api/companies/:x/mentors', 'เพิ่มพี่เลี้ยง', 'บริษัท', ':1'],
@@ -71,6 +96,14 @@ const RULES = [
   ['POST', '/api/admin/staff', 'เพิ่มบัญชีเจ้าหน้าที่', 'ผู้ใช้', null],
   ['PATCH', '/api/admin/staff/:x/password', 'รีเซ็ตรหัสผ่านเจ้าหน้าที่', 'ผู้ใช้', ':1'],
   ['DELETE', '/api/admin/staff/:x', 'ลบบัญชีเจ้าหน้าที่', 'ผู้ใช้', ':1'],
+  ['PUT', '/api/teacher/me', 'แก้ไขข้อมูลส่วนตัว', 'อาจารย์', null],
+  ['PUT', '/api/teachers/me', 'แก้ไขข้อมูลส่วนตัว', 'อาจารย์', null],
+  ['PUT', '/api/teacher/:x', 'แก้ไขข้อมูลอาจารย์', 'อาจารย์', ':1'],
+  ['PUT', '/api/teachers/:x', 'แก้ไขข้อมูลอาจารย์', 'อาจารย์', ':1'],
+  ['POST', '/api/teacher/config/t002', 'ตั้งค่าแบบฟอร์ม T002', 'ตั้งค่า', null],
+  ['POST', '/api/teacher/config/t003', 'ตั้งค่าแบบฟอร์ม T003', 'ตั้งค่า', null],
+  ['POST', '/api/teachers/config/t002', 'ตั้งค่าแบบฟอร์ม T002', 'ตั้งค่า', null],
+  ['POST', '/api/teachers/config/t003', 'ตั้งค่าแบบฟอร์ม T003', 'ตั้งค่า', null],
   ['POST', '/api/admin/teachers', 'เพิ่มอาจารย์', 'อาจารย์', null],
   ['PUT', '/api/admin/teachers/:x', 'แก้ไขข้อมูลอาจารย์', 'อาจารย์', ':1'],
   ['DELETE', '/api/admin/teachers/:x', 'ลบอาจารย์', 'อาจารย์', ':1'],
@@ -81,6 +114,30 @@ const RULES = [
   ['POST', '/api/admin/config/t000', 'ตั้งค่าระบบรับเอกสาร', 'ตั้งค่า', null],
   ['POST', '/api/admin/criteria', 'ตั้งค่าเกณฑ์สหกิจ', 'ตั้งค่า', null],
   ['POST', '/api/admin/doc-requirements', 'ตั้งค่าเอกสารที่ต้องส่ง', 'ตั้งค่า', null],
+  ['PUT', '/api/admin/doc-requirements/:x', 'ตั้งค่าเอกสารที่ต้องส่ง (แก้ไขรายการ)', 'ตั้งค่า', null],
+  ['DELETE', '/api/admin/doc-requirements/:x', 'ตั้งค่าเอกสารที่ต้องส่ง (ลบรายการ)', 'ตั้งค่า', null],
+  ['PUT', '/api/admin/criteria/:x', 'ตั้งค่าเกณฑ์สหกิจ (แก้ไข)', 'ตั้งค่า', null],
+  ['DELETE', '/api/admin/criteria/:x', 'ตั้งค่าเกณฑ์สหกิจ (ลบ)', 'ตั้งค่า', null],
+  ['PATCH', '/api/admin/coop-periods/:x/toggle', 'เปิด/ปิดรอบสหกิจ', 'รอบสหกิจ', ':1'],
+  ['DELETE', '/api/admin/coop-periods/:x', 'ลบรอบสหกิจ', 'รอบสหกิจ', ':1'],
+  ['POST', '/api/admin/assets', 'อัปโหลดไฟล์ระบบ (โลโก้/ลายเซ็น)', 'ตั้งค่า', null],
+  ['DELETE', '/api/admin/assets/:x', 'ลบไฟล์ระบบ', 'ตั้งค่า', null],
+  ['POST', '/api/admin/config/dean-info', 'ตั้งค่าข้อมูลคณบดี', 'ตั้งค่า', null],
+  ['POST', '/api/admin/config/t002', 'ตั้งค่าแบบฟอร์ม T002', 'ตั้งค่า', null],
+  ['POST', '/api/admin/config/t003', 'ตั้งค่าแบบฟอร์ม T003', 'ตั้งค่า', null],
+  ['PUT', '/api/admin/config/evaluation', 'ตั้งค่าแบบประเมิน (T005/T006)', 'ตั้งค่า', null],
+  ['PUT', '/api/admin/config/t007', 'ตั้งค่าแบบประเมิน T007', 'ตั้งค่า', null],
+  ['PUT', '/api/admin/config/t008', 'ตั้งค่าเล่มรายงาน T008', 'ตั้งค่า', null],
+  ['PUT', '/api/admin/config/gateway', 'ตั้งค่าฟอร์มคำร้อง', 'ตั้งค่า', null],
+  ['POST', '/api/announcements', 'เพิ่ม/แก้ไขประกาศ', 'ประกาศ', 'id'],
+  ['DELETE', '/api/announcements/:x', 'ลบประกาศ', 'ประกาศ', ':1'],
+
+  // ── ดึงข้อมูลออกเป็นไฟล์ (GET) — ใครดูดข้อมูลอะไรออกไป ──
+  ['GET', '/api/admin/students/export', 'ดาวน์โหลดรายชื่อนักศึกษา (Excel)', null, null],
+  ['GET', '/api/admin/logs/export', 'ดาวน์โหลดบันทึกการใช้งาน (Excel)', null, null],
+  ['GET', '/api/admin/supervisions/export', 'ดาวน์โหลดตารางนิเทศ (Excel)', null, null],
+  ['GET', '/api/teacher/students/export', 'ดาวน์โหลดรายชื่อนักศึกษาที่ดูแล (Excel)', null, null],
+  ['GET', '/api/teachers/students/export', 'ดาวน์โหลดรายชื่อนักศึกษาที่ดูแล (Excel)', null, null],
 ];
 
 // เทียบ path กับรูปแบบที่มี :x — คืน array ของส่วนที่ match (สำหรับดึง id)
@@ -128,11 +185,23 @@ const DOC_ACTION_PREFIXES = [
   'ออกหนังสือ', 'โหลดร่าง', 'ยกเลิกรอลงนาม', 'อนุมัติเอกสาร', 'ให้แก้ไขเอกสาร', 'ตรวจเอกสาร', 'เปลี่ยนสถานะเอกสาร',
   'ตีกลับใบตอบรับ', 'ตรวจใบตอบรับ', 'บันทึกรับใบตอบรับ', 'เปลี่ยนไฟล์ใบตอบรับ', 'ยืนยันออกฝึก',
   // นักศึกษาส่ง/รับเอกสาร
-  'อัปโหลดเอกสาร', 'ลบเอกสาร', 'ดาวน์โหลดหนังสือ', 'รับทราบหนังสือ',
+  'อัปโหลดเอกสาร', 'ลบเอกสาร', 'ดาวน์โหลดหนังสือ', 'รับทราบหนังสือ', 'ส่งแบบฟอร์ม', 'บันทึกแบบฟอร์ม',
 ];
 const LETTER_NAME = { REQUEST: 'หนังสือขอความอนุเคราะห์', PLACEMENT: 'หนังสือส่งตัว' };
 const DELIVERY_TEXT = { STAFF: 'เจ้าหน้าที่จัดส่งให้บริษัท', STUDENT: 'นักศึกษานำไปยื่นเอง' };
 const DOC_STATUS_ACTION = { APPROVED: 'ตรวจเอกสารผ่าน', REJECTED: 'ตรวจเอกสารไม่ผ่าน', EDITS_REQUIRED: 'ให้แก้ไขเอกสาร' };
+// ตรวจ T002/T003: ส่ง <FORM>_EDITS_REQUIRED = ให้แก้ไข · ส่ง <FORM>_SUBMITTED = ตรวจผ่าน (ไฟล์ถูกตั้งเป็น APPROVED)
+const formReviewActionText = (form) => ({ status }) => (
+  String(status || '').endsWith('EDITS_REQUIRED') ? `ให้แก้ไขเอกสาร ${form}` : `ตรวจเอกสาร ${form} ผ่าน`
+);
+// สถานะคำร้องสหกิจ — ใช้ชื่อชุดเดียวกับการตรวจคำร้องในหน้าเจ้าหน้าที่
+const APP_STATUS_ACTION = {
+  QUALIFIED: 'อนุมัติคำร้องสหกิจ (ผ่านคุณสมบัติ)',
+  QUALIFICATION_FAILED: 'คำร้องสหกิจไม่ผ่านคุณสมบัติ',
+  APPLICATION_EDITS_REQUIRED: 'ให้แก้ไขคำร้องสหกิจ',
+  EDITS_REQUIRED: 'ให้แก้ไขคำร้องสหกิจ',
+  WAITING_FOR_STAFF_CHECK: 'ส่งคำร้องสหกิจกลับให้เจ้าหน้าที่ตรวจ',
+};
 
 const clean = (v) => (v == null ? '' : String(v).trim());
 const withNo = (text, no) => (clean(no) ? `${text} เลขที่ ${clean(no)}` : text);
@@ -166,6 +235,13 @@ const ACTION_DETAIL = {
   'POST /api/admin/supervisions/:x/upload-letter': (b) => supervisionLetterActionText(b),
   'PUT /api/admin/supervisions/:x/letter-pending': (b) => letterPendingActionText({ ...b, letter: 'SUPERVISION' }),
   'PUT /api/admin/doc/:x/status': (b, base) => DOC_STATUS_ACTION[b.status] || base,
+  'PUT /api/admin/documents/review-t002': formReviewActionText('T002'),
+  'PUT /api/admin/documents/review-t003': formReviewActionText('T003'),
+  'PUT /api/teacher/documents/review-t002': formReviewActionText('T002'),
+  'PUT /api/teacher/documents/review-t003': formReviewActionText('T003'),
+  'PUT /api/teachers/documents/review-t002': formReviewActionText('T002'),
+  'PUT /api/teachers/documents/review-t003': formReviewActionText('T003'),
+  'PATCH /api/admin/coop-applications/:x/status': (b, base) => APP_STATUS_ACTION[b.status] || base,
 };
 
 // controller แนบรายละเอียดจากผลที่ทำจริง (เลขที่ที่บันทึก, พิมพ์ซ้ำ, นักศึกษาเป้าหมาย) — middleware ใช้แทนค่าที่เดาจาก request
@@ -198,11 +274,13 @@ function describeRequest({ method, path, body }) {
 }
 
 // ข้อมูลที่ส่งมาแบบย่อ — ตัดความลับและของใหญ่ออก
-function sanitizeBody(body) {
+function sanitizeBody(body, { loginPath = false } = {}) {
   if (!body || typeof body !== 'object') return null;
   const out = {};
   for (const [k, v] of Object.entries(body)) {
     if (SECRET_FIELDS.has(k)) { out[k] = '[ซ่อน]'; continue; }
+    // หน้า login: ถ้าค่าในช่องอีเมล/ชื่อผู้ใช้ไม่ใช่อีเมล อาจเป็นรหัสผ่านที่พิมพ์ผิดช่อง — ไม่เก็บ
+    if (loginPath && /^(email|username)$/i.test(k) && !looksLikeEmail(v)) { out[k] = '[ซ่อน]'; continue; }
     if (v == null) continue;
     if (typeof v === 'string') { out[k] = v.length > 200 ? `${v.slice(0, 200)}…` : v; continue; }
     if (typeof v === 'number' || typeof v === 'boolean') { out[k] = v; continue; }
@@ -215,7 +293,7 @@ function sanitizeBody(body) {
 }
 
 module.exports = {
-  describeRequest, sanitizeBody, matchPath, RULES, SECRET_FIELDS, DETAIL_MAX,
+  describeRequest, sanitizeBody, matchPath, RULES, SECRET_FIELDS, DETAIL_MAX, looksLikeEmail,
   setAuditDetail, reviewActionText, letterPendingActionText, supervisionLetterActionText,
   DOC_ACTION_PREFIXES,
 };
