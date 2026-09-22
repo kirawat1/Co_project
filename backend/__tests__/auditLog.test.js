@@ -497,3 +497,209 @@ describe('ตัวกรอง "เรื่องเอกสาร" ไม่
     expect(isDocPrefixed('ตั้งค่าเอกสารที่ต้องส่ง')).toBe(false);
   });
 });
+
+
+// =====================================================================
+// ตรวจซ้ำ scrutinize (2026-09-23): ครอบคลุมทุกเส้นทาง · T002/T003 · IP · เวลาไทย · ดึงข้อมูลออก
+// =====================================================================
+
+// อ่าน route จริงจากไฟล์ (ตัด comment ออกก่อน ไม่งั้นนับ route ที่ปิดไว้)
+function realRoutes() {
+  const fsx = require('fs');
+  const pathMod = require('path');
+  const mounts = {
+    authRoutes: ['/api/auth'], companyRoutes: ['/api/companies'], announcementRoutes: ['/api/announcements'],
+    studentRoutes: ['/api/students'], coopRoutes: ['/api/coop'], teacherRoutes: ['/api/teacher', '/api/teachers'],
+    docRoutes: ['/api/docs'], adminRoutes: ['/api/admin'], notificationRoutes: ['/api/notifications'],
+    supervisionRoutes: ['/api'], visitRoutes: ['/api/visits'],
+  };
+  const out = [];
+  for (const [file, prefixes] of Object.entries(mounts)) {
+    const src = fsx.readFileSync(pathMod.join(__dirname, '../routes', `${file}.js`), 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .split(/\r?\n/).filter((line) => !/^\s*\/\//.test(line)).join('\n');
+    const re = /router\.(get|post|put|patch|delete)\(\s*['"]([^'"]+)['"]/g;
+    let m;
+    while ((m = re.exec(src))) {
+      for (const p of prefixes) {
+        const full = (p + (m[2] === '/' ? '' : m[2])).replace(/\/$/, '') || p;
+        out.push({ method: m[1].toUpperCase(), path: full, file });
+      }
+    }
+  }
+  return out;
+}
+
+describe('ทุกเส้นทางที่เปลี่ยนข้อมูลต้องมีชื่อไทย (กัน route ใหม่หลุดเป็น URL ดิบ)', () => {
+  // ไม่ต้องมีชื่อ: การอ่านแจ้งเตือน (ไม่บันทึกอยู่แล้ว — SKIP_PATHS ใน auditLogger)
+  const ALLOW_RAW = new Set(['POST /api/notifications/mark-read', 'POST /api/notifications/mark-all-read']);
+
+  test('write route ทุกเส้นมีชื่อการกระทำภาษาไทย', () => {
+    const raw = realRoutes()
+      .filter((r) => ['POST', 'PUT', 'PATCH', 'DELETE'].includes(r.method))
+      .map((r) => ({ ...r, sample: r.path.replace(/:[A-Za-z]+/g, '123') }))
+      .filter((r) => !ALLOW_RAW.has(`${r.method} ${r.path}`))
+      .filter((r) => describeRequest({ method: r.method, path: r.sample, body: {} }).action.startsWith(`${r.method} /`))
+      .map((r) => `${r.method} ${r.path}`);
+    expect(raw).toEqual([]);
+  });
+
+  test('เส้นทางดาวน์โหลดข้อมูลออก มีชื่อไทยและมี route จริงรองรับ', () => {
+    const { LOGGED_GET_PATHS } = require('../middlewares/auditLogger');
+    const real = realRoutes().filter((r) => r.method === 'GET').map((r) => r.path);
+    for (const p of LOGGED_GET_PATHS) {
+      expect(real).toContain(p);
+      expect(describeRequest({ method: 'GET', path: p, body: {} }).action).toMatch(/^ดาวน์โหลด/);
+    }
+  });
+
+  test('ดาวน์โหลดข้อมูลออก (GET) ถูกบันทึก แต่ GET อื่นยังไม่บันทึก', async () => {
+    const req = makeReq({ method: 'GET', originalUrl: '/api/admin/logs/export?role=staff', user: { id: 1, role: 'staff' } });
+    const res = makeRes(200);
+    auditLogger(req, res, () => {});
+    await res.finish();
+    expect(prisma.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ action: 'ดาวน์โหลดบันทึกการใช้งาน (Excel)', method: 'GET' }),
+    }));
+
+    prisma.auditLog.create.mockClear();
+    const req2 = makeReq({ method: 'GET', originalUrl: '/api/admin/logs', user: { id: 1, role: 'staff' } });
+    const res2 = makeRes(200);
+    auditLogger(req2, res2, () => {});
+    await res2.finish();
+    expect(prisma.auditLog.create).not.toHaveBeenCalled();
+  });
+});
+
+describe('ตรวจ T002/T003 และคำร้องสหกิจ — ใครตรวจของใคร', () => {
+  const { resolveTargetName } = require('../middlewares/auditLogger');
+
+  test.each([
+    ['PUT', '/api/admin/documents/review-t002', { studentId: 12, status: 'T002_SUBMITTED' }, 'ตรวจเอกสาร T002 ผ่าน'],
+    ['PUT', '/api/admin/documents/review-t002', { studentId: 12, status: 'T002_EDITS_REQUIRED' }, 'ให้แก้ไขเอกสาร T002'],
+    ['PUT', '/api/teacher/documents/review-t003', { studentId: 12, status: 'T003_SUBMITTED' }, 'ตรวจเอกสาร T003 ผ่าน'],
+    ['PUT', '/api/admin/documents/review-t003', { studentId: 12, status: 'T003_APPROVED' }, 'ตรวจเอกสาร T003 ผ่าน'],
+    ['PUT', '/api/teacher/documents/review-t003', { studentId: 12, status: 'T003_EDITS_REQUIRED' }, 'ให้แก้ไขเอกสาร T003'],
+    ['PATCH', '/api/admin/coop-applications/7/status', { status: 'QUALIFIED' }, 'อนุมัติคำร้องสหกิจ (ผ่านคุณสมบัติ)'],
+    ['PATCH', '/api/admin/coop-applications/7/status', { status: 'APPLICATION_EDITS_REQUIRED' }, 'ให้แก้ไขคำร้องสหกิจ'],
+    ['POST', '/api/docs/t002-form', {}, 'ส่งแบบฟอร์ม T002'],
+    ['DELETE', '/api/docs/delete/9', {}, 'ลบเอกสาร'],
+  ])('%s %s → %s', (method, path, body, action) => {
+    expect(describeRequest({ method, path, body }).action).toBe(action);
+  });
+
+  test('ตรวจ T002 รู้ว่าเป็นของนักศึกษาคนไหน', async () => {
+    const d = describeRequest({ method: 'PUT', path: '/api/teacher/documents/review-t002', body: { studentId: 12, status: 'T002_SUBMITTED' } });
+    expect(d).toMatchObject({ targetType: 'นักศึกษา', targetId: '12' });
+    prisma.student.findUnique.mockResolvedValue({ studentId: '6430212186', prefix: 'MR', firstName: 'ดำ', lastName: 'แดง' });
+    expect(await resolveTargetName(d.targetType, d.targetId, d.targetKey)).toBe('6430212186 นายดำ แดง');
+  });
+
+  test('คำร้องสหกิจ → ชื่อนักศึกษาเจ้าของคำร้อง', async () => {
+    prisma.studentCoop.findUnique.mockResolvedValue({ student: { studentId: '6430212186', prefix: 'MS', firstName: 'ขาว', lastName: 'เขียว' } });
+    expect(await resolveTargetName('คำร้องสหกิจ', '7')).toBe('6430212186 นางสาวขาว เขียว');
+  });
+
+  test('ประกาศ → ชื่อเรื่องประกาศ (id เป็น UUID)', async () => {
+    prisma.announcement.findUnique.mockResolvedValue({ title: 'ประชุมสหกิจ' });
+    expect(await resolveTargetName('ประกาศ', 'b3f1c2d4-1111-2222-3333-444455556666')).toBe('ประชุมสหกิจ');
+  });
+
+  test('ตัวกรอง "เฉพาะเรื่องเอกสาร" จับ T002/T003 และแบบฟอร์มที่นักศึกษาส่ง', () => {
+    const { DOC_ACTION_PREFIXES } = require('../utils/auditActions');
+    const inDocs = (a) => DOC_ACTION_PREFIXES.some((p) => a.startsWith(p));
+    for (const a of ['ตรวจเอกสาร T002 ผ่าน', 'ให้แก้ไขเอกสาร T003', 'ส่งแบบฟอร์ม T002', 'บันทึกแบบฟอร์มใบสมัคร (T000)', 'ลบเอกสาร']) {
+      expect(inDocs(a)).toBe(true);
+    }
+    // คำร้องสหกิจไม่ใช่เรื่องเอกสาร (แยกตัวกรองกันคนละเรื่อง)
+    expect(inDocs('อนุมัติคำร้องสหกิจ (ผ่านคุณสมบัติ)')).toBe(false);
+  });
+});
+
+describe('IP ต้องเป็นค่าที่ proxy เติมให้ ไม่ใช่ค่าที่ผู้ใช้แนบมาเอง', () => {
+  test('ใช้ req.ip (Express ตัดชั้น proxy ตาม trust proxy) ไม่ใช่ X-Forwarded-For ตัวแรก', async () => {
+    const req = makeReq({
+      headers: { 'x-forwarded-for': '6.6.6.6, 203.0.113.9, 127.0.0.1' },
+      ip: '203.0.113.9',
+      user: { id: 1, role: 'staff' },
+    });
+    const res = makeRes(200);
+    auditLogger(req, res, () => {});
+    await res.finish();
+    expect(prisma.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ ip: '203.0.113.9' }),
+    }));
+  });
+
+  test('IPv6-mapped IPv4 ถูกตัดให้อ่านง่าย', () => {
+    const { clientIp } = require('../middlewares/auditLogger');
+    expect(clientIp({ ip: '::ffff:10.1.2.3' })).toBe('10.1.2.3');
+    expect(clientIp({ socket: { remoteAddress: '10.9.9.9' } })).toBe('10.9.9.9');
+  });
+
+  test('server ตั้งจำนวน proxy หน้าเซิร์ฟเวอร์ให้ตรงกับของจริง', () => {
+    const fsx = require('fs');
+    const pathMod = require('path');
+    const src = fsx.readFileSync(pathMod.join(__dirname, '../server.js'), 'utf8');
+    expect(src).toMatch(/app\.set\('trust proxy',[^)]*TRUST_PROXY_HOPS/);
+  });
+});
+
+describe('ค่าที่พิมพ์ผิดช่องตอนเข้าสู่ระบบ และความลับของ SSO', () => {
+  test('พิมพ์รหัสผ่านลงช่องอีเมล → ไม่เก็บทั้งชื่อผู้ทำและข้อมูลที่ส่ง', async () => {
+    prisma.user.findUnique.mockResolvedValue(null);
+    const req = makeReq({ originalUrl: '/api/auth/signin', body: { email: 'MyP@ssword 123', password: 'x', role: 'student' } });
+    const res = makeRes(401);
+    auditLogger(req, res, () => {});
+    await res.finish();
+    const data = prisma.auditLog.create.mock.calls[0][0].data;
+    expect(data.actorName).toBeNull();
+    expect(data.detail).not.toContain('MyP@ssword 123');
+    expect(data.detail).toContain('[ซ่อน]');
+  });
+
+  test('อีเมลจริงยังเก็บไว้ดูได้ว่าใครพยายามเข้าระบบ', async () => {
+    prisma.user.findUnique.mockResolvedValue(null);
+    const req = makeReq({ originalUrl: '/api/auth/signin', body: { email: 'someone@kku.ac.th', password: 'x', role: 'student' } });
+    const res = makeRes(401);
+    auditLogger(req, res, () => {});
+    await res.finish();
+    const data = prisma.auditLog.create.mock.calls[0][0].data;
+    expect(data.actorName).toBe('someone@kku.ac.th');
+    expect(data.detail).toContain('someone@kku.ac.th');
+  });
+
+  test('hash_id ของ KKU SSO ไม่ลง log (เป็นกุญแจเข้าระบบ)', () => {
+    expect(sanitizeBody({ hash_id: '9f8e7d6c5b4a3210' })).toBe('{"hash_id":"[ซ่อน]"}');
+  });
+});
+
+describe('เวลาไทยตายตัว ไม่ขึ้นกับเขตเวลาของเครื่อง', () => {
+  const { thaiDateTime, buildWhere, buildExportRows, EXPORT_LIMIT } = require('../controllers/auditLogController');
+
+  test('เวลาในไฟล์ export เป็นเวลาไทยเสมอ', () => {
+    expect(thaiDateTime('2026-09-22T01:30:00Z')).toBe('22 ก.ย. 2569 08:30');   // 08:30 น. ไทย
+    expect(thaiDateTime('2026-09-21T20:00:00Z')).toBe('22 ก.ย. 2569 03:00');   // ตี 3 ของวันที่ 22
+    expect(thaiDateTime('2026-09-22T16:59:00Z')).toBe('22 ก.ย. 2569 23:59');   // ก่อนเที่ยงคืนไทย
+  });
+
+  test('กรองวันที่ = เที่ยงคืนถึงเที่ยงคืนตามเวลาไทย (ไม่ตกช่วงเช้ามืด)', () => {
+    const w = buildWhere({ from: '2026-09-22', to: '2026-09-22' });
+    expect(w.createdAt.gte.toISOString()).toBe('2026-09-21T17:00:00.000Z');
+    expect(w.createdAt.lte.toISOString()).toBe('2026-09-22T16:59:59.999Z');
+    const earlyMorning = new Date('2026-09-21T20:00:00Z'); // ตี 3 วันที่ 22 เวลาไทย
+    expect(earlyMorning >= w.createdAt.gte && earlyMorning <= w.createdAt.lte).toBe(true);
+  });
+
+  test('วันที่ผิดรูปแบบยังตอบ 400 เหมือนเดิม', () => {
+    expect(() => buildWhere({ from: 'ไม่ใช่วันที่' })).toThrow('วันที่เริ่มไม่ถูกต้อง');
+  });
+
+  test('ไฟล์ export ที่ถูกตัด มีบรรทัดบอกว่าข้อมูลไม่ครบ', () => {
+    const one = { createdAt: new Date(), action: 'ทดสอบ', statusCode: 200, method: 'POST', path: '/x' };
+    const full = buildExportRows(new Array(EXPORT_LIMIT).fill(one));
+    expect(full).toHaveLength(EXPORT_LIMIT + 1);
+    expect(full[full.length - 1]['เวลา']).toMatch(/แสดงเฉพาะ .* รายการล่าสุด/);
+    expect(buildExportRows([one])).toHaveLength(1);
+  });
+});
