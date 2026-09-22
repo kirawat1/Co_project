@@ -140,14 +140,15 @@ export default function A_StaffManage() {
         <div style={overlay}>
           <div style={modal}>
             <h3 style={{ margin: "0 0 20px" }}>เพิ่มบัญชีเจ้าหน้าที่</h3>
-            <form onSubmit={handleAdd}>
+            {/* ฟอร์มสร้างบัญชี "คนอื่น": ปิด autofill ไม่ให้ password manager เติมบัญชีของเจ้าหน้าที่ที่ login อยู่ */}
+            <form autoComplete="off" onSubmit={handleAdd}>
               <div style={row2}>
                 <Field label="ชื่อ *" value={form.firstName} onChange={v => setForm(f => ({ ...f, firstName: v }))} />
                 <Field label="นามสกุล *" value={form.lastName} onChange={v => setForm(f => ({ ...f, lastName: v }))} />
               </div>
-              <Field label="Username *" value={form.username} onChange={v => setForm(f => ({ ...f, username: v }))} />
-              <Field label="อีเมล *" type="email" value={form.email} onChange={v => setForm(f => ({ ...f, email: v }))} />
-              <Field label="รหัสผ่าน * (อย่างน้อย 6 ตัวอักษร)" type="password" value={form.password} onChange={v => setForm(f => ({ ...f, password: v }))} />
+              <Field label="Username *" autoComplete="off" value={form.username} onChange={v => setForm(f => ({ ...f, username: v }))} />
+              <Field label="อีเมล *" type="email" autoComplete="off" value={form.email} onChange={v => setForm(f => ({ ...f, email: v }))} />
+              <Field label="รหัสผ่าน * (อย่างน้อย 6 ตัวอักษร)" type="password" autoComplete="new-password" value={form.password} onChange={v => setForm(f => ({ ...f, password: v }))} />
               <Field label="เบอร์โทร" value={form.phone} onChange={v => setForm(f => ({ ...f, phone: v }))} />
               {addErr && <div style={{ color: "red", fontSize: 13, margin: "8px 0" }}>{addErr}</div>}
               <div style={{ display: "flex", gap: 12, justifyContent: "flex-end", marginTop: 20 }}>
@@ -167,8 +168,10 @@ export default function A_StaffManage() {
             <div style={{ color: "#64748b", fontSize: 14, marginBottom: 20 }}>
               {resetTarget.staffProfile?.firstName} {resetTarget.staffProfile?.lastName} ({resetTarget.username})
             </div>
-            <form onSubmit={handleResetPw}>
-              <Field label="รหัสผ่านใหม่ (อย่างน้อย 6 ตัวอักษร)" type="password" value={newPw} onChange={setNewPw} />
+            <form autoComplete="off" onSubmit={handleResetPw}>
+              {/* username ของบัญชีที่ถูก reset (ซ่อน) — password manager จะไม่ผูกกับบัญชีของคนที่กด */}
+              <input type="text" name="username" autoComplete="username" value={resetTarget.username || ""} readOnly hidden />
+              <Field label="รหัสผ่านใหม่ (อย่างน้อย 6 ตัวอักษร)" type="password" autoComplete="new-password" value={newPw} onChange={setNewPw} />
               {resetErr && <div style={{ color: "red", fontSize: 13, margin: "8px 0" }}>{resetErr}</div>}
               <div style={{ display: "flex", gap: 12, justifyContent: "flex-end", marginTop: 20 }}>
                 <button type="button" className="btn-ghost" onClick={() => setResetTarget(null)}>ยกเลิก</button>
@@ -204,11 +207,11 @@ export default function A_StaffManage() {
   );
 }
 
-function Field({ label, value, onChange, type = "text" }: { label: string; value: string; onChange: (v: string) => void; type?: string }) {
+function Field({ label, value, onChange, type = "text", autoComplete }: { label: string; value: string; onChange: (v: string) => void; type?: string; autoComplete?: string }) {
   return (
     <div style={{ marginBottom: 14 }}>
       <label style={{ fontSize: 13, fontWeight: 600, color: "#374151", display: "block", marginBottom: 6 }}>{label}</label>
-      <input className="input" type={type} value={value} onChange={e => onChange(e.target.value)} style={{ width: "100%" }} />
+      <input className="input" type={type} autoComplete={autoComplete} value={value} onChange={e => onChange(e.target.value)} style={{ width: "100%" }} />
     </div>
   );
 }
