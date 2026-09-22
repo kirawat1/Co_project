@@ -365,7 +365,7 @@ describe('getStudentSupervision', () => {
 // proposeSupervisionDate
 // ===========================
 describe('proposeSupervisionDate', () => {
-  const student = { id: 10, userId: 1, deletedAt: null, coopAdvisorId: 5, coop: { coopPeriodId: 2 } };
+  const student = { id: 10, userId: 1, deletedAt: null, coopAdvisorId: 5, coop: { coopPeriodId: 2, status: 'INTERNSHIP_STARTED' } };
   const teacher = { id: 5, userId: 2 };
   const openPeriod = { id: 2, isSupervisionOpen: true };
 
@@ -390,6 +390,23 @@ describe('proposeSupervisionDate', () => {
     const res = makeRes();
     await proposeSupervisionDate(baseReq(), res);
     expect(res.status).toHaveBeenCalledWith(404);
+  });
+
+  // บั๊กที่พบตอนตรวจระบบ 2026-09-22: หน้าจอซ่อนฟอร์มขอนัดถ้ายังไม่ออกฝึก แต่ API ไม่เช็คสถานะ → เรียกตรงได้ 200
+  test.each(['DOCS_APPROVED', 'REQ_LETTER_ISSUED', 'PLACEMENT_LETTER_ISSUED', 'NOT_SUBMITTED'])('403 — ยังไม่ออกฝึก (%s) ขอนัดนิเทศไม่ได้', async (status) => {
+    prisma.student.findUnique.mockResolvedValue({ ...student, coop: { coopPeriodId: 2, status } });
+    prisma.coopPeriod.findUnique.mockResolvedValue(openPeriod);
+    const res = makeRes();
+    await proposeSupervisionDate(baseReq(), res);
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(prisma.supervisionAppointment.upsert).not.toHaveBeenCalled();
+  });
+
+  test('403 — ไม่มีข้อมูลสหกิจเลย', async () => {
+    prisma.student.findUnique.mockResolvedValue({ ...student, coop: null });
+    const res = makeRes();
+    await proposeSupervisionDate(baseReq(), res);
+    expect(res.status).toHaveBeenCalledWith(403);
   });
 
   test('400 — student has no coopAdvisorId', async () => {
