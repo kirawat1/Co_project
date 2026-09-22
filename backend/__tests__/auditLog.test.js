@@ -236,3 +236,55 @@ describe('ชื่อผู้ทำตาม role ที่ใช้ทำร�
     expect(prisma.auditLog.create.mock.calls[0][0].data.actorName).toBe('อ.สมศักดิ์ สอนดี');
   });
 });
+
+describe('ความลับทุกรูปแบบต้องไม่ลง log (บั๊ก: kkuPassword / id_token หลุด)', () => {
+  test.each([
+    ['kkuPassword', 'ZZ-SECRET-PASS'],
+    ['id_token', 'ZZ-GOOGLE-TOKEN'],
+    ['newPassword', 'ZZ-NEW'],
+    ['clientSecret', 'ZZ-CLIENT'],
+    ['access_token', 'ZZ-ACCESS'],
+    ['apiKey', 'ZZ-KEY'],
+  ])('ฟิลด์ %s ถูกซ่อน', (field, value) => {
+    const text = sanitizeBody({ username: 'u', [field]: value });
+    expect(text).not.toContain(value);
+    expect(text).toContain('[ซ่อน]');
+  });
+});
+
+describe('ชื่อการกระทำตรงกับ route จริง', () => {
+  test.each([
+    ['POST', '/api/students/sync-from-reg', 'ซิงก์ข้อมูลจากทะเบียน KKU'],
+    ['PUT', '/api/auth/me/password', 'เปลี่ยนรหัสผ่าน'],
+    ['POST', '/api/admin/students/import-excel', 'นำเข้านักศึกษาจาก Excel'],
+    ['POST', '/api/admin/students/create', 'เพิ่มนักศึกษา'],
+    ['PUT', '/api/admin/students/12', 'แก้ไขข้อมูลนักศึกษา'],
+    ['DELETE', '/api/admin/students/12', 'ลบนักศึกษา (ย้ายไปถังขยะ)'],
+    ['PATCH', '/api/admin/staff/3/password', 'รีเซ็ตรหัสผ่านเจ้าหน้าที่'],
+  ])('%s %s → %s', (method, path, action) => {
+    expect(describeRequest({ method, path, body: {} }).action).toBe(action);
+  });
+
+  test('ทุกกฎในตารางต้องมี route จริงรองรับ', () => {
+    const fs = require('fs');
+    const pathMod = require('path');
+    const { RULES } = require('../utils/auditActions');
+    const mounts = {
+      authRoutes: ['/api/auth'], companyRoutes: ['/api/companies'], announcementRoutes: ['/api/announcements'],
+      studentRoutes: ['/api/students'], coopRoutes: ['/api/coop'], teacherRoutes: ['/api/teacher', '/api/teachers'],
+      docRoutes: ['/api/docs'], adminRoutes: ['/api/admin'], notificationRoutes: ['/api/notifications'],
+      supervisionRoutes: ['/api'], visitRoutes: ['/api/visits'],
+    };
+    const real = [];
+    for (const [file, prefixes] of Object.entries(mounts)) {
+      const src = fs.readFileSync(pathMod.join(__dirname, '../routes', `${file}.js`), 'utf8');
+      const re = /router\.(get|post|put|patch|delete)\(\s*['"]([^'"]+)['"]/g;
+      let m;
+      while ((m = re.exec(src))) {
+        for (const p of prefixes) real.push(`${m[1].toUpperCase()} ${(p + m[2]).replace(/\/$/, '').replace(/:[A-Za-z]+/g, ':x')}`);
+      }
+    }
+    const missing = RULES.filter(([m, p]) => !real.includes(`${m} ${p}`)).map(([m, p]) => `${m} ${p}`);
+    expect(missing).toEqual([]);
+  });
+});

@@ -5,12 +5,14 @@
  * ตารางด้านล่างมีไว้ตั้งชื่อไทยให้งานสำคัญ — เส้นทางที่ไม่อยู่ในตารางจะใช้ "METHOD /path" แทน
  */
 
-// ฟิลด์ที่ห้ามเก็บลง log เด็ดขาด
-const SECRET_FIELDS = new Set([
-  'password', 'newPassword', 'oldPassword', 'confirmPassword', 'currentPassword',
-  'token', 'accessToken', 'refreshToken', 'idToken', 'credential', 'clientSecret',
-  'image', 'base64', 'file', 'files',
-]);
+// ฟิลด์ที่ห้ามเก็บลง log เด็ดขาด — จับด้วยรูปแบบชื่อ ไม่ใช่รายชื่อตายตัว
+// (เดิมใช้รายชื่อ แล้ว kkuPassword / id_token หลุดลง log เป็นข้อความธรรมดา)
+const SECRET_KEY_PATTERN = /pass|pwd|secret|token|credential|api[_-]?key|otp|pin$/i;
+// ของใหญ่ที่ไม่ควรเก็บ (ไม่ใช่ความลับ แต่ทำให้ log บวม)
+const BULKY_FIELDS = new Set(['image', 'base64', 'file', 'files']);
+const isSecretKey = (key) => SECRET_KEY_PATTERN.test(String(key)) || BULKY_FIELDS.has(key);
+// คงชื่อเดิมไว้ให้ส่วนที่อ้างถึง (เทสต์/เอกสาร)
+const SECRET_FIELDS = { has: isSecretKey };
 
 const DETAIL_MAX = 800;
 
@@ -21,14 +23,20 @@ const RULES = [
   ['POST', '/api/auth/login/sso', 'เข้าสู่ระบบด้วย SSO', null, null],
   ['POST', '/api/auth/login/google', 'เข้าสู่ระบบด้วย Google', null, null],
   ['POST', '/api/auth/register', 'เพิ่มนักศึกษาใหม่', 'นักศึกษา', 'studentId'],
-  ['POST', '/api/auth/change-password', 'เปลี่ยนรหัสผ่าน', null, null],
+  ['PUT', '/api/auth/me/password', 'เปลี่ยนรหัสผ่าน', null, null],
 
   ['PUT', '/api/students/me', 'แก้ไขข้อมูลส่วนตัว', 'นักศึกษา', null],
-  ['POST', '/api/students/sync-reg', 'ซิงก์ข้อมูลจากทะเบียน KKU', 'นักศึกษา', null],
-  ['POST', '/api/students/import', 'นำเข้านักศึกษาจาก Excel', 'นักศึกษา', null],
-  ['POST', '/api/students', 'เพิ่มนักศึกษา', 'นักศึกษา', 'studentId'],
-  ['PUT', '/api/students/:x', 'แก้ไขข้อมูลนักศึกษา', 'นักศึกษา', ':1'],
-  ['DELETE', '/api/students/:x', 'ลบนักศึกษา', 'นักศึกษา', ':1'],
+  ['POST', '/api/students/sync-from-reg', 'ซิงก์ข้อมูลจากทะเบียน KKU', 'นักศึกษา', null],
+  ['POST', '/api/students/acknowledge-dispatch', 'รับทราบหนังสือขอความอนุเคราะห์', 'นักศึกษา', null],
+  ['POST', '/api/students/download-placement-letter', 'ดาวน์โหลดหนังสือส่งตัว', 'นักศึกษา', null],
+  ['POST', '/api/admin/students/import-preview', 'ตรวจไฟล์นำเข้านักศึกษา (ยังไม่บันทึก)', 'นักศึกษา', null],
+  ['POST', '/api/admin/students/import-excel', 'นำเข้านักศึกษาจาก Excel', 'นักศึกษา', null],
+  ['POST', '/api/admin/students/create', 'เพิ่มนักศึกษา', 'นักศึกษา', 'studentId'],
+  ['PUT', '/api/admin/students/:x', 'แก้ไขข้อมูลนักศึกษา', 'นักศึกษา', ':1'],
+  ['PATCH', '/api/admin/students/:x/reset-password', 'รีเซ็ตรหัสผ่านนักศึกษา', 'นักศึกษา', ':1'],
+  ['DELETE', '/api/admin/students/:x', 'ลบนักศึกษา (ย้ายไปถังขยะ)', 'นักศึกษา', ':1'],
+  ['POST', '/api/admin/students/:x/restore', 'กู้คืนนักศึกษา', 'นักศึกษา', ':1'],
+  ['DELETE', '/api/admin/students/:x/permanent', 'ลบนักศึกษาถาวร', 'นักศึกษา', ':1'],
 
   ['POST', '/api/docs/upload', 'อัปโหลดเอกสาร', 'เอกสาร', 'docType'],
   ['DELETE', '/api/coop/documents/:x', 'ลบเอกสาร', 'เอกสาร', ':1'],
@@ -60,7 +68,7 @@ const RULES = [
   ['DELETE', '/api/companies/mentors/:x', 'ลบพี่เลี้ยง', 'พี่เลี้ยง', ':1'],
 
   ['POST', '/api/admin/staff', 'เพิ่มบัญชีเจ้าหน้าที่', 'ผู้ใช้', null],
-  ['PUT', '/api/admin/staff/:x', 'แก้ไขบัญชีเจ้าหน้าที่', 'ผู้ใช้', ':1'],
+  ['PATCH', '/api/admin/staff/:x/password', 'รีเซ็ตรหัสผ่านเจ้าหน้าที่', 'ผู้ใช้', ':1'],
   ['DELETE', '/api/admin/staff/:x', 'ลบบัญชีเจ้าหน้าที่', 'ผู้ใช้', ':1'],
   ['POST', '/api/admin/teachers', 'เพิ่มอาจารย์', 'อาจารย์', null],
   ['PUT', '/api/admin/teachers/:x', 'แก้ไขข้อมูลอาจารย์', 'อาจารย์', ':1'],
