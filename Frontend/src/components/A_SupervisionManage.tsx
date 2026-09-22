@@ -368,7 +368,7 @@ export default function A_SupervisionManage() {
 
     // แปลง supervisions → CalendarEvent (เฉพาะที่ยืนยันวันแล้ว)
     // ปฏิทิน + ตารางนิเทศใช้ข้อมูลจาก API ปฏิทิน (มีผู้นิเทศ/ช่วงเวลา) — โหลดใหม่ทุกครั้งที่รายการนิเทศรีเฟรช
-    const calendarEvents = useSupervisionSchedule(supervisions);
+    const { events: calendarEvents, degraded: scheduleDegraded } = useSupervisionSchedule(supervisions);
 
     if (loading) return <div style={{ padding: 40, textAlign: 'center' }}>กำลังโหลดข้อมูล...</div>;
 
@@ -443,6 +443,7 @@ export default function A_SupervisionManage() {
                 <SupervisionCalendar events={calendarEvents} title="📅 ปฏิทินนิเทศสหกิจ (วันที่ยืนยันแล้ว)" />
                 <SupervisionScheduleTable
                     events={calendarEvents}
+                    notice={scheduleDegraded ? "โหลดตารางแบบละเอียดไม่สำเร็จ — แสดงข้อมูลเท่าที่มี (ไม่มีช่วงเวลาสิ้นสุด) ลองรีเฟรชหน้าอีกครั้ง" : undefined}
                     canExport
                     exportUrl={`/api/admin/supervisions/export${selectedPeriodId ? `?coopPeriodId=${selectedPeriodId}` : ''}`}
                 />

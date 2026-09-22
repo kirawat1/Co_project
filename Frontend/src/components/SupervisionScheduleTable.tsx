@@ -12,12 +12,13 @@ interface Props {
     canExport?: boolean;
     exportUrl?: string;           // เช่น /api/admin/supervisions/export?coopPeriodId=3
     title?: string;
+    notice?: string;              // เช่น โหลดข้อมูลละเอียดไม่สำเร็จ แสดงข้อมูลสำรอง
 }
 
 const dayOf = (ev: CalendarEvent) => ev.date || String(ev.confirmedDate || "").slice(0, 10);
 const timeOf = (ev: CalendarEvent) => (ev.start && ev.end ? `${ev.start}-${ev.end} น.` : "-");
 
-export default function SupervisionScheduleTable({ events, canExport = false, exportUrl, title = "🗓️ ตารางนิเทศ (เรียงตามวัน)" }: Props) {
+export default function SupervisionScheduleTable({ events, canExport = false, exportUrl, title = "🗓️ ตารางนิเทศ (เรียงตามวัน)", notice }: Props) {
     const [q, setQ] = useState("");
     const [downloading, setDownloading] = useState(false);
 
@@ -87,6 +88,11 @@ export default function SupervisionScheduleTable({ events, canExport = false, ex
                 </div>
             </div>
 
+            {notice && (
+                <div role="status" style={{ marginBottom: 10, padding: "8px 12px", borderRadius: 8, background: "#fffbeb", border: "1px solid #fcd34d", color: "#92400e", fontSize: 13 }}>
+                    ⚠️ {notice}
+                </div>
+            )}
             {rows.length === 0 ? (
                 <div style={{ padding: 20, textAlign: "center", color: "#94a3b8", fontSize: 14 }}>ยังไม่มีนิเทศที่ยืนยันวัน</div>
             ) : (
