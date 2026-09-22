@@ -154,3 +154,85 @@ describe('purgeOldLogs — เก็บย้อนหลัง 1 ปี', () =>
     expect(Math.round(days)).toBe(365);
   });
 });
+
+describe('แท็บแยกตามสิทธิ์ (เจ้าหน้าที่ / อาจารย์ / นักศึกษา / ไม่ได้ล็อกอิน)', () => {
+  const { getAuditLogs, buildWhere } = require('../controllers/auditLogController');
+  const makeJsonRes = () => {
+    const res = {};
+    res.status = jest.fn(() => res);
+    res.json = jest.fn(() => res);
+    return res;
+  };
+
+  test('role=anonymous กรองเฉพาะรายการที่ยังไม่ได้ล็อกอิน (role เป็น null)', () => {
+    expect(buildWhere({ role: 'anonymous' })).toEqual({ role: null });
+    expect(buildWhere({ role: 'teacher' })).toEqual({ role: 'teacher' });
+    expect(buildWhere({ role: 'hacker' })).toEqual({});
+  });
+
+  test('คืนจำนวนของแต่ละแท็บ โดยใช้ตัวกรองอื่นเดียวกันแต่ไม่กรองสิทธิ์', async () => {
+    prisma.auditLog.count.mockResolvedValue(3);
+    prisma.auditLog.findMany.mockResolvedValue([]);
+    prisma.auditLog.groupBy.mockResolvedValue([
+      { role: 'staff', _count: { _all: 5 } },
+      { role: 'teacher', _count: { _all: 2 } },
+      { role: 'student', _count: { _all: 3 } },
+      { role: null, _count: { _all: 4 } },
+    ]);
+    const res = makeJsonRes();
+    await getAuditLogs({ query: { role: 'student', onlyFailed: 'true' } }, res);
+
+    const { meta } = res.json.mock.calls[0][0];
+    expect(meta.roleCounts).toEqual({ all: 14, staff: 5, teacher: 2, student: 3, anonymous: 4 });
+    // ตัวเลขแท็บต้องไม่ถูกกรองด้วยสิทธิ์ที่เลือกอยู่ แต่ยังใช้ตัวกรองอื่น (เฉพาะที่ไม่สำเร็จ)
+    const groupWhere = prisma.auditLog.groupBy.mock.calls[0][0].where;
+    expect(groupWhere.role).toBeUndefined();
+    expect(groupWhere.statusCode).toEqual({ gte: 400 });
+    // ส่วนตารางยังกรองเฉพาะนักศึกษา
+    expect(prisma.auditLog.findMany.mock.calls[0][0].where.role).toBe('student');
+  });
+});
+
+describe('รายชื่อผู้ใช้ในตัวกรอง', () => {
+  const { getAuditActors } = require('../controllers/auditLogController');
+
+  test('คนเดียวกันที่มีหลายชื่อในบันทึก รวมเป็นแถวเดียว (กัน key ซ้ำบนหน้าจอ)', async () => {
+    prisma.auditLog.groupBy.mockResolvedValue([
+      { userId: 7, actorName: 'อ.สมชาย ใจดี', role: 'teacher', _count: { _all: 8 } },
+      { userId: 7, actorName: null, role: 'teacher', _count: { _all: 2 } },
+      { userId: 9, actorName: 'สมหญิง', role: 'staff', _count: { _all: 3 } },
+      { userId: null, actorName: 'ghost@example.com', role: null, _count: { _all: 5 } },
+    ]);
+    const res = { status: jest.fn(() => res), json: jest.fn(() => res) };
+    await getAuditActors({ query: {} }, res);
+
+    const { actors } = res.json.mock.calls[0][0];
+    expect(actors).toEqual([
+      { userId: 7, name: 'อ.สมชาย ใจดี', role: 'teacher', count: 10 },
+      { userId: 9, name: 'สมหญิง', role: 'staff', count: 3 },
+    ]);
+  });
+
+  test('ส่ง role มา → กรองเฉพาะคนในแท็บนั้น', async () => {
+    prisma.auditLog.groupBy.mockResolvedValue([]);
+    const res = { status: jest.fn(() => res), json: jest.fn(() => res) };
+    await getAuditActors({ query: { role: 'student' } }, res);
+    expect(prisma.auditLog.groupBy.mock.calls[0][0].where).toEqual({ role: 'student' });
+  });
+});
+
+describe('ชื่อผู้ทำตาม role ที่ใช้ทำรายการ', () => {
+  test('บัญชีที่มีทั้งโปรไฟล์นักศึกษาและอาจารย์ → ทำในฐานะอาจารย์ต้องได้ชื่ออาจารย์', async () => {
+    prisma.user.findUnique.mockResolvedValue({
+      username: 'dual',
+      student: { prefix: 'MR', firstName: 'ดำ', lastName: 'แดง', studentId: '6430212186' },
+      teacher: { prefix: 'อ.', firstName: 'สมศักดิ์', lastName: 'สอนดี' },
+      staffProfile: null,
+    });
+    const req = makeReq({ user: { id: 555, role: 'teacher' }, originalUrl: '/api/teacher/supervisions/confirm-group' });
+    const res = makeRes(200);
+    auditLogger(req, res, () => {});
+    await res.finish();
+    expect(prisma.auditLog.create.mock.calls[0][0].data.actorName).toBe('อ.สมศักดิ์ สอนดี');
+  });
+});
