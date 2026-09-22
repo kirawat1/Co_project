@@ -21,7 +21,10 @@ const app = express();
 
 // เชื่อใจ reverse proxy ชั้นแรก (nginx) เพื่อให้ req.ip / X-Forwarded-For
 // เป็น IP จริงของผู้ใช้ ไม่ใช่ IP ของ nginx เอง — จำเป็นสำหรับ rate-limit ให้แม่นยำต่อคน
-app.set('trust proxy', 1);
+// จำนวน proxy ที่อยู่หน้าเซิร์ฟเวอร์จริง — production: ngrok agent → nginx = 2 (ตั้งทับได้ด้วย TRUST_PROXY_HOPS)
+// ต้องตรงกับของจริง: น้อยไปจะได้ IP ของ proxy เอง (rate limit รวมกันทุกคน) มากไปจะโดนปลอม IP ผ่าน X-Forwarded-For
+const TRUST_PROXY_HOPS = Number.parseInt(process.env.TRUST_PROXY_HOPS, 10);
+app.set('trust proxy', Number.isFinite(TRUST_PROXY_HOPS) && TRUST_PROXY_HOPS >= 0 ? TRUST_PROXY_HOPS : 2);
 
 // Security headers (XSS, clickjacking, content-type sniffing, etc.)
 app.use(helmet({
