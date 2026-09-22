@@ -40,6 +40,16 @@ describe('listStaff', () => {
     expect(res.json).toHaveBeenCalledWith({ ok: true, staff });
   });
 
+  test('ไม่ดึง hash รหัสผ่าน / สำเนารหัส / token ออกไปให้หน้าเว็บ (select เฉพาะฟิลด์ที่ใช้)', async () => {
+    prisma.user.findMany.mockResolvedValue([]);
+    await listStaff({}, makeRes());
+    const args = prisma.user.findMany.mock.calls[0][0];
+    expect(args.include).toBeUndefined();
+    expect(args.select).toBeDefined();
+    for (const secret of ['password', 'passwordEnc', 'kkuAccessToken']) expect(args.select[secret]).toBeUndefined();
+    expect(args.select).toEqual(expect.objectContaining({ id: true, username: true, email: true, createdAt: true }));
+  });
+
   test('500 — DB error', async () => {
     prisma.user.findMany.mockRejectedValue(new Error('db down'));
     const res = makeRes();
@@ -89,6 +99,9 @@ describe('createStaff', () => {
     );
     expect(res.status).toHaveBeenCalledWith(201);
     expect(res.json).toHaveBeenCalledWith({ ok: true, staff: full });
+    const readBack = prisma.user.findUnique.mock.calls[0][0];
+    expect(readBack.include).toBeUndefined();
+    for (const secret of ['password', 'passwordEnc', 'kkuAccessToken']) expect(readBack.select[secret]).toBeUndefined();
   });
 
   test('phone is optional — defaults to null', async () => {

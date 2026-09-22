@@ -1,12 +1,18 @@
 const prisma = require('../config/prismaClient');
 const bcrypt = require('bcryptjs');
 
+// ฟิลด์ที่ส่งให้หน้าเว็บได้ — ห้ามส่งแถว User ทั้งแถว (มี hash รหัสผ่าน, kkuAccessToken)
+const STAFF_PUBLIC_SELECT = {
+  id: true, username: true, email: true, role: true, createdAt: true,
+  staffProfile: { select: { firstName: true, lastName: true, phone: true } },
+};
+
 // GET /api/admin/staff
 exports.listStaff = async (req, res) => {
   try {
     const users = await prisma.user.findMany({
       where: { role: 'staff' },
-      include: { staffProfile: true },
+      select: STAFF_PUBLIC_SELECT,
       orderBy: { id: 'asc' },
     });
     res.json({ ok: true, staff: users });
@@ -34,7 +40,7 @@ exports.createStaff = async (req, res) => {
       return u;
     });
 
-    const result = await prisma.user.findUnique({ where: { id: user.id }, include: { staffProfile: true } });
+    const result = await prisma.user.findUnique({ where: { id: user.id }, select: STAFF_PUBLIC_SELECT });
     res.status(201).json({ ok: true, staff: result });
   } catch (err) {
     console.error(err);
