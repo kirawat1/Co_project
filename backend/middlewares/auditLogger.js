@@ -8,10 +8,19 @@
  */
 
 const prisma = require('../config/prismaClient');
-const { describeRequest, sanitizeBody } = require('../utils/auditActions');
+const { describeRequest, sanitizeBody, looksLikeEmail } = require('../utils/auditActions');
 
 const LOGGED_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 const LOGIN_PATHS = ['/api/auth/signin', '/api/auth/login/sso', '/api/auth/login/google'];
+
+// GET ที่ต้องบันทึกด้วย — การดึงข้อมูลส่วนบุคคลออกเป็นไฟล์ (ใครดูดอะไรออกไปเมื่อไหร่)
+const LOGGED_GET_PATHS = new Set([
+  '/api/admin/students/export',
+  '/api/admin/logs/export',
+  '/api/admin/supervisions/export',
+  '/api/teacher/students/export',
+  '/api/teachers/students/export',
+]);
 
 // เก็บเวลาที่ไม่ต้อง log (โพลถี่ ๆ ที่ไม่ใช่การเปลี่ยนข้อมูลจริง)
 const SKIP_PATHS = new Set(['/api/notifications/mark-read', '/api/notifications/mark-all-read']);
@@ -55,10 +64,12 @@ async function actorNameOf(userId, role = null) {
   }
 }
 
+// ใช้ req.ip ซึ่ง Express ตัดชั้น proxy ให้ตามค่า trust proxy ใน server.js
+// เดิมอ่าน X-Forwarded-For ตัวแรกเอง — ผู้ใช้แนบ header มาเองแล้วปลอม IP ใน log ได้
 function clientIp(req) {
-  const fwd = req.headers['x-forwarded-for'];
-  const raw = (Array.isArray(fwd) ? fwd[0] : fwd || '').split(',')[0].trim() || req.ip || req.socket?.remoteAddress || '';
-  return raw ? String(raw).slice(0, 64) : null;
+  const raw = req.ip || req.socket?.remoteAddress || '';
+  const clean = String(raw).replace(/^::ffff:/, '').trim();
+  return clean ? clean.slice(0, 64) : null;
 }
 
 // ── "ให้ใคร" — แปลงเป้าหมาย (ประเภท + id) เป็นชื่อที่คนอ่านออก ─────────────────────
@@ -111,6 +122,15 @@ async function resolveTargetName(targetType, targetId, targetKey = 'id') {
         const t = await prisma.teacher.findUnique({ where: { id }, select: { prefix: true, firstName: true, lastName: true } });
         return t ? `${t.prefix || ''}${t.firstName || ''} ${t.lastName || ''}`.trim() : null;
       }
+      case 'คำร้องสหกิจ': {
+        if (id == null) return null;
+        const c = await prisma.studentCoop.findUnique({ where: { id }, select: { student: { select: STUDENT_NAME_SELECT } } });
+        return studentLabel(c?.student);
+      }
+      case 'ประกาศ': {
+        const a = await prisma.announcement.findUnique({ where: { id: raw }, select: { title: true } });
+        return a?.title || null;
+      }
       case 'ผู้ใช้': {
         if (id == null) return null;
         const u = await prisma.user.findUnique({ where: { id }, select: { username: true } });
@@ -142,7 +162,9 @@ async function writeLog(req, res) {
   const role = req.user?.role ?? res.locals?.auditRole ?? null;
   let actorName = await actorNameOf(userId, role);
   if (!actorName && isLogin) {
-    actorName = String(req.body?.email || req.body?.username || '').slice(0, 200) || null;
+    // เก็บเฉพาะค่าที่เป็นอีเมลจริง — บางคนพิมพ์รหัสผ่านลงช่องอีเมล ไม่ควรไปโผล่ในบันทึก
+    const typed = String(req.body?.email || req.body?.username || '').trim();
+    actorName = looksLikeEmail(typed) ? typed.slice(0, 200) : null;
   }
 
   const failed = res.statusCode >= 400;
@@ -159,7 +181,7 @@ async function writeLog(req, res) {
       targetName: targetName ? String(targetName).slice(0, 200) : null,
       statusCode: res.statusCode,
       ip: clientIp(req),
-      detail: sanitizeBody(req.body),
+      detail: sanitizeBody(req.body, { loginPath: isLogin }),
     },
   });
 }
@@ -167,7 +189,9 @@ async function writeLog(req, res) {
 function auditLogger(req, res, next) {
   const path = (req.originalUrl || req.url || '').split('?')[0];
   const isLogin = LOGIN_PATHS.includes(path);
-  if ((!LOGGED_METHODS.has(req.method) && !isLogin) || SKIP_PATHS.has(path)) return next();
+  const shouldLog = LOGGED_METHODS.has(req.method) || isLogin
+    || (req.method === 'GET' && LOGGED_GET_PATHS.has(path));
+  if (!shouldLog || SKIP_PATHS.has(path)) return next();
 
   // การเข้าสู่ระบบยังไม่มี token — ดึง id ผู้ใช้จาก response แทน (ไม่เก็บ token)
   if (isLogin) {
@@ -233,4 +257,7 @@ function startLogRetentionJob() {
   return timer;
 }
 
-module.exports = { auditLogger, purgeOldLogs, startLogRetentionJob, RETENTION_DAYS, actorNameOf, resolveTargetName };
+module.exports = {
+  auditLogger, purgeOldLogs, startLogRetentionJob, RETENTION_DAYS,
+  actorNameOf, resolveTargetName, clientIp, LOGGED_GET_PATHS,
+};
