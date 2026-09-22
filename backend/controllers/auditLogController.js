@@ -7,9 +7,22 @@ const EXPORT_LIMIT = 20000;
 
 const THAI_MONTHS = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
 const pad2 = (n) => String(n).padStart(2, '0');
+
+// ยึดเวลาไทยเสมอ ไม่อิงเขตเวลาของเครื่อง — ถ้าเครื่องถูกตั้งเป็น UTC เวลาในไฟล์จะเพี้ยน 7 ชั่วโมง
+// และตัวกรองวันที่จะตกช่วงเที่ยงคืน–ตี 7 ของวันนั้นไป
+const BKK_OFFSET_MS = 7 * 60 * 60 * 1000;
+const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
 function thaiDateTime(d) {
-  const date = new Date(d);
-  return `${date.getDate()} ${THAI_MONTHS[date.getMonth()]} ${date.getFullYear() + 543} ${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
+  const t = new Date(new Date(d).getTime() + BKK_OFFSET_MS);
+  return `${t.getUTCDate()} ${THAI_MONTHS[t.getUTCMonth()]} ${t.getUTCFullYear() + 543} ${pad2(t.getUTCHours())}:${pad2(t.getUTCMinutes())}`;
+}
+// "2026-09-22" → ต้นวัน/ปลายวันตามเวลาไทย
+function bangkokBound(value, endOfDay) {
+  const raw = String(value).trim();
+  const d = DATE_ONLY_RE.test(raw)
+    ? new Date(`${raw}T${endOfDay ? '23:59:59.999' : '00:00:00.000'}+07:00`)
+    : new Date(raw);
+  return isNaN(d.getTime()) ? null : d;
 }
 const ROLE_LABEL_TH = { staff: 'เจ้าหน้าที่', teacher: 'อาจารย์', student: 'นักศึกษา' };
 // ตัวกรองเรื่องเอกสาร — รายการอยู่ที่ utils/auditActions.js ที่เดียวกับชื่อการกระทำ
@@ -31,15 +44,13 @@ function buildWhere(query) {
   if (from || to) {
     where.createdAt = {};
     if (from) {
-      const d = new Date(from);
-      if (isNaN(d.getTime())) throw Object.assign(new Error('วันที่เริ่มไม่ถูกต้อง'), { is400: true });
-      d.setHours(0, 0, 0, 0);
+      const d = bangkokBound(from, false);
+      if (!d) throw Object.assign(new Error('วันที่เริ่มไม่ถูกต้อง'), { is400: true });
       where.createdAt.gte = d;
     }
     if (to) {
-      const d = new Date(to);
-      if (isNaN(d.getTime())) throw Object.assign(new Error('วันที่สิ้นสุดไม่ถูกต้อง'), { is400: true });
-      d.setHours(23, 59, 59, 999);
+      const d = bangkokBound(to, true);
+      if (!d) throw Object.assign(new Error('วันที่สิ้นสุดไม่ถูกต้อง'), { is400: true });
       where.createdAt.lte = d;
     }
   }
@@ -102,13 +113,9 @@ exports.getAuditLogs = async (req, res) => {
   }
 };
 
-// GET /api/admin/logs/export — ไฟล์ Excel ตามตัวกรองเดียวกัน
-exports.exportAuditLogs = async (req, res) => {
-  try {
-    const where = buildWhere(req.query);
-    const logs = await prisma.auditLog.findMany({ where, orderBy: { createdAt: 'desc' }, take: EXPORT_LIMIT });
-
-    const rows = logs.map((l) => ({
+// แถวในไฟล์ Excel — แยกออกมาให้เทสต์ได้ว่าไฟล์ที่ถูกตัดมีคำเตือนจริง
+function buildExportRows(logs) {
+  const rows = logs.map((l) => ({
       'เวลา': thaiDateTime(l.createdAt),
       'ผู้ทำ': l.actorName || '-',
       'สิทธิ์': ROLE_LABEL_TH[l.role] || l.role || 'ไม่ได้ล็อกอิน',
@@ -118,7 +125,23 @@ exports.exportAuditLogs = async (req, res) => {
       'เส้นทาง': `${l.method} ${l.path}`,
       'IP': l.ip || '-',
       'ข้อมูลที่ส่ง': l.detail || '-',
-    }));
+  }));
+
+  // ไฟล์ถูกตัดที่ EXPORT_LIMIT — บอกไว้ในไฟล์ ไม่ให้เข้าใจผิดว่าข้อมูลครบ
+  if (logs.length === EXPORT_LIMIT) {
+    rows.push({
+      'เวลา': `— แสดงเฉพาะ ${EXPORT_LIMIT.toLocaleString('th-TH')} รายการล่าสุดตามตัวกรองนี้ กรุณาแคบช่วงวันที่เพื่อดูส่วนที่เหลือ —`,
+    });
+  }
+  return rows;
+}
+
+// GET /api/admin/logs/export — ไฟล์ Excel ตามตัวกรองเดียวกัน
+exports.exportAuditLogs = async (req, res) => {
+  try {
+    const where = buildWhere(req.query);
+    const logs = await prisma.auditLog.findMany({ where, orderBy: { createdAt: 'desc' }, take: EXPORT_LIMIT });
+    const rows = buildExportRows(logs);
 
     const worksheet = XLSX.utils.json_to_sheet(rows, {
       header: ['เวลา', 'ผู้ทำ', 'สิทธิ์', 'การกระทำ', 'ให้ใคร / เป้าหมาย', 'ผลลัพธ์', 'เส้นทาง', 'IP', 'ข้อมูลที่ส่ง'],
@@ -173,3 +196,5 @@ exports.getAuditActors = async (req, res) => {
 
 module.exports.buildWhere = buildWhere;
 module.exports.thaiDateTime = thaiDateTime;
+module.exports.EXPORT_LIMIT = EXPORT_LIMIT;
+module.exports.buildExportRows = buildExportRows;
