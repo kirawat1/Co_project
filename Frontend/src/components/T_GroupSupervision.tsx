@@ -117,8 +117,9 @@ export default function T_GroupSupervision() {
       } else {
         setConfirmError(res.data.message || "เกิดข้อผิดพลาด");
       }
-    } catch {
-      setConfirmError("ไม่สามารถยืนยันการนัดหมายได้ กรุณาลองใหม่");
+    } catch (err: any) {
+      // เดิมกลืนข้อความจาก backend — เวลาชน (409) อาจารย์เห็นแค่ "กรุณาลองใหม่" ซึ่งลองกี่ครั้งก็ไม่ผ่าน
+      setConfirmError(err?.response?.data?.message || "ไม่สามารถยืนยันการนัดหมายได้ กรุณาลองใหม่");
     }
     setSubmitting(false);
   };
@@ -224,6 +225,9 @@ export default function T_GroupSupervision() {
                 return <option key={entry} value={entry}>{displayDate} {time}</option>;
               })}
             </select>
+            <div style={{ fontSize: 12, color: "#0369a1", background: "#f0f9ff", border: "1px solid #bae6fd", borderRadius: 7, padding: "6px 10px", marginBottom: 12 }}>
+              นิเทศทีละคนต่อกันตามลำดับที่ติ๊ก — คนแรกเริ่มตามเวลาที่เลือก คนถัดไปต่อจากคนก่อนหน้าทันที (ความยาวตามช่วงที่แต่ละคนเสนอ)
+            </div>
             <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>นักศึกษา</div>
             {modal.company.students.map(s => {
               const dateKey = selectedDateEntry.split("|")[0].slice(0, 10);

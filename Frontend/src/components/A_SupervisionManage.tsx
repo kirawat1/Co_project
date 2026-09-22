@@ -352,8 +352,9 @@ export default function A_SupervisionManage() {
             toast.success("บันทึกรายชื่ออาจารย์นิเทศเรียบร้อยแล้ว");
             setAssignTeacherModalOpen(false);
             fetchData();
-        } catch {
-            toast.error("เกิดข้อผิดพลาดในการบันทึกข้อมูลอาจารย์นิเทศ");
+        } catch (err: any) {
+            // เช่น อาจารย์ร่วมติดนิเทศเวลานั้น (409) — ให้เห็นว่าชนกับใคร
+            toast.error(err?.response?.data?.message || "เกิดข้อผิดพลาดในการบันทึกข้อมูลอาจารย์นิเทศ");
         }
     };
 
