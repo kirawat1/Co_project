@@ -524,6 +524,7 @@ exports.getLatestRequests = async (req, res) => {
 // POST /api/admin/teachers
 // ==========================================
 const bcrypt = require("bcryptjs");
+const { passwordEncFor, revealPassword } = require("../utils/passwordVault");
 
 exports.createTeacher = async (req, res) => {
   try {
@@ -542,7 +543,7 @@ exports.createTeacher = async (req, res) => {
       const existing = await tx.user.findFirst({ where: { OR: [{ username: email }, { email }] } });
       if (existing) throw Object.assign(new Error(`อีเมล ${email} มีในระบบแล้ว`), { is409: true });
       const user = await tx.user.create({
-        data: { username: email, email, password: hashed, role: "teacher" },
+        data: { username: email, email, password: hashed, passwordEnc: passwordEncFor("teacher", password), role: "teacher" },
       });
       teacher = await tx.teacher.create({
         data: {
@@ -608,6 +609,31 @@ exports.deleteTeacher = async (req, res) => {
 // ADMIN: รีเซ็ตรหัสผ่านอาจารย์
 // PUT /api/admin/teachers/:id/password
 // ==========================================
+// POST /api/admin/teachers/:id/password/reveal — เจ้าหน้าที่กดดูรหัสผ่านอาจารย์
+// เป็น POST ไม่ใช่ GET เพื่อให้ทุกครั้งที่ดูถูกบันทึกลง audit log
+exports.revealTeacherPassword = async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id) || id <= 0) return res.status(400).json({ ok: false, message: 'id ไม่ถูกต้อง' });
+
+    const teacher = await prisma.teacher.findUnique({
+      where: { id },
+      select: { user: { select: { id: true, role: true, password: true, passwordEnc: true } } },
+    });
+    if (!teacher || !teacher.user) return res.status(404).json({ ok: false, message: 'ไม่พบอาจารย์' });
+
+    const result = await revealPassword(teacher.user);
+    if (result.backfill) {
+      await prisma.user.update({ where: { id: teacher.user.id }, data: { passwordEnc: result.backfill } });
+    }
+    res.set('Cache-Control', 'no-store');
+    res.json({ ok: true, data: { password: result.password, source: result.source } });
+  } catch (err) {
+    console.error("REVEAL TEACHER PASSWORD ERROR:", err);
+    res.status(500).json({ ok: false, message: "ดูรหัสผ่านไม่สำเร็จ" });
+  }
+};
+
 exports.resetTeacherPassword = async (req, res) => {
   try {
     const { id } = req.params;
@@ -622,7 +648,7 @@ exports.resetTeacherPassword = async (req, res) => {
     if (!teacher) return res.status(404).json({ ok: false, message: "ไม่พบอาจารย์" });
 
     const hashed = await bcrypt.hash(newPassword, 10);
-    await prisma.user.update({ where: { id: teacher.userId }, data: { password: hashed } });
+    await prisma.user.update({ where: { id: teacher.userId }, data: { password: hashed, passwordEnc: passwordEncFor("teacher", newPassword) } });
     res.json({ ok: true, message: "รีเซ็ตรหัสผ่านเรียบร้อย" });
   } catch (err) {
     if (err.code === 'P2025') return res.status(404).json({ ok: false, message: 'ไม่พบอาจารย์' });

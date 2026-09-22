@@ -62,6 +62,7 @@ async function main() {
       username,
       email: email || null,
       password: hashed,
+      passwordEnc: require('../utils/passwordVault').passwordEncFor(role, password),
       role,
       provider: 'credentials',
     },

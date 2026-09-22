@@ -10,7 +10,7 @@ const BCRYPT_PREFIX = /^\$2[ab]\$/; // bcrypt hash เริ่มด้วย $
 
 async function main() {
   const users = await prisma.user.findMany({
-    select: { id: true, email: true, password: true }
+    select: { id: true, email: true, password: true, role: true }
   });
 
   const plaintext = users.filter(u => u.password && !BCRYPT_PREFIX.test(u.password));
@@ -26,7 +26,7 @@ async function main() {
     const hashed = await bcrypt.hash(user.password, 10);
     await prisma.user.update({
       where: { id: user.id },
-      data: { password: hashed }
+      data: { password: hashed, passwordEnc: require('../utils/passwordVault').passwordEncFor(user.role, user.password) }
     });
     console.log(`  ✓ ${user.email} (id=${user.id})`);
   }
