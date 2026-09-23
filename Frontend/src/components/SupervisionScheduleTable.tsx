@@ -1,7 +1,8 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
 import type { CalendarEvent } from "./SupervisionCalendar";
 import { fmtDate } from "../utils/dateFormat";
+import { apiFetch } from "../utils/apiFetch";
 
 /**
  * ตารางนิเทศเรียงตามวัน-เวลา — ใครนิเทศ เมื่อไหร่ ใครเป็นผู้นิเทศ
@@ -10,10 +11,14 @@ import { fmtDate } from "../utils/dateFormat";
 interface Props {
     events: CalendarEvent[];
     canExport?: boolean;
-    exportUrl?: string;           // เช่น /api/admin/supervisions/export?coopPeriodId=3
+    exportUrl?: string;           // เส้นทางฐาน เช่น /api/admin/supervisions/export (รอบสหกิจต่อท้ายให้เอง)
     title?: string;
     notice?: string;              // เช่น โหลดข้อมูลละเอียดไม่สำเร็จ แสดงข้อมูลสำรอง
 }
+
+interface CoopPeriod { id: number; academicYear: string; semester: number; isActive?: boolean }
+
+const periodLabel = (p: CoopPeriod) => `ปีการศึกษา ${p.academicYear} ภาค ${p.semester}${p.isActive ? " (เปิดรับสมัคร)" : ""}`;
 
 const dayOf = (ev: CalendarEvent) => ev.date || String(ev.confirmedDate || "").slice(0, 10);
 const timeOf = (ev: CalendarEvent) => (ev.start && ev.end ? `${ev.start}-${ev.end} น.` : "-");
@@ -21,6 +26,25 @@ const timeOf = (ev: CalendarEvent) => (ev.start && ev.end ? `${ev.start}-${ev.en
 export default function SupervisionScheduleTable({ events, canExport = false, exportUrl, title = "🗓️ ตารางนิเทศ (เรียงตามวัน)", notice }: Props) {
     const [q, setQ] = useState("");
     const [downloading, setDownloading] = useState(false);
+    // รอบสหกิจสำหรับไฟล์ export — ค่าเริ่มต้นคือรอบล่าสุด (API เรียงปีการศึกษา/ภาคจากใหม่ไปเก่า)
+    const [periods, setPeriods] = useState<CoopPeriod[]>([]);
+    const [periodId, setPeriodId] = useState<number | "all">("all");
+
+    useEffect(() => {
+        if (!canExport || !exportUrl) return;
+        let alive = true;
+        apiFetch("/api/admin/coop-periods")
+            .then((r) => (r.ok ? r.json() : null))
+            .then((data) => {
+                if (!alive) return;
+                const list: CoopPeriod[] = Array.isArray(data?.periods) ? data.periods : [];
+                setPeriods(list);
+                if (list.length) setPeriodId(list[0].id);
+            })
+            // โหลดรายชื่อรอบไม่ได้ก็ยัง export ได้ (จะได้ทุกรอบ) — ไม่ต้องขวางการใช้งาน
+            .catch(() => { if (alive) setPeriods([]); });
+        return () => { alive = false; };
+    }, [canExport, exportUrl]);
 
     const rows = useMemo(() => {
         const keyword = q.trim().toLowerCase();
@@ -41,7 +65,9 @@ export default function SupervisionScheduleTable({ events, canExport = false, ex
         setDownloading(true);
         try {
             const token = localStorage.getItem("coop.token");
-            const res = await fetch(exportUrl, { headers: { Authorization: `Bearer ${token}` } });
+            const sep = exportUrl.includes("?") ? "&" : "?";
+            const reqUrl = periodId === "all" ? exportUrl : `${exportUrl}${sep}coopPeriodId=${periodId}`;
+            const res = await fetch(reqUrl, { headers: { Authorization: `Bearer ${token}` } });
             if (!res.ok) {
                 const msg = await res.json().catch(() => ({}));
                 alert(`❌ ดาวน์โหลดไม่สำเร็จ${msg.message ? `: ${msg.message}` : ""}`);
@@ -51,7 +77,10 @@ export default function SupervisionScheduleTable({ events, canExport = false, ex
             const url = URL.createObjectURL(blob);
             const a = document.createElement("a");
             a.href = url;
-            a.download = `ตารางนิเทศ_${new Date().toISOString().slice(0, 10)}.xlsx`;
+            // ใส่รอบสหกิจไว้ในชื่อไฟล์ จะได้แยกออกเวลาดาวน์โหลดหลายรอบ
+            const chosen = periods.find((p) => p.id === periodId);
+            const tag = chosen ? `${chosen.academicYear}-${chosen.semester}` : "ทุกรอบ";
+            a.download = `ตารางนิเทศ_${tag}_${new Date().toISOString().slice(0, 10)}.xlsx`;
             document.body.appendChild(a);
             a.click();
             a.remove();
@@ -80,6 +109,20 @@ export default function SupervisionScheduleTable({ events, canExport = false, ex
                         value={q}
                         onChange={(e) => setQ(e.target.value)}
                     />
+                    {canExport && exportUrl && periods.length > 0 && (
+                        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "#475569" }}>
+                            รอบสหกิจ
+                            <select
+                                className="input"
+                                style={{ minWidth: 190 }}
+                                value={periodId}
+                                onChange={(e) => setPeriodId(e.target.value === "all" ? "all" : Number(e.target.value))}
+                            >
+                                {periods.map((p) => <option key={p.id} value={p.id}>{periodLabel(p)}</option>)}
+                                <option value="all">ทุกรอบ</option>
+                            </select>
+                        </label>
+                    )}
                     {canExport && exportUrl && (
                         <button className="btn" style={{ background: "#16a34a", color: "#fff" }} onClick={handleExport} disabled={downloading}>
                             {downloading ? "กำลังสร้างไฟล์..." : "📊 Export Excel"}

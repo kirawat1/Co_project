@@ -445,7 +445,7 @@ export default function A_SupervisionManage() {
                     events={calendarEvents}
                     notice={scheduleDegraded ? "โหลดตารางแบบละเอียดไม่สำเร็จ — แสดงข้อมูลเท่าที่มี (ไม่มีช่วงเวลาสิ้นสุด) ลองรีเฟรชหน้าอีกครั้ง" : undefined}
                     canExport
-                    exportUrl={`/api/admin/supervisions/export${selectedPeriodId ? `?coopPeriodId=${selectedPeriodId}` : ''}`}
+                    exportUrl="/api/admin/supervisions/export"
                 />
             </div>
 
