@@ -217,6 +217,9 @@ model CoopApplicationForm {
   // --- แบบฟอร์มตรวจสอบการสำเร็จการศึกษา (Google Sheets link) ---
   gradeSheetUrl String?
 
+  // --- รูปถ่ายนักศึกษา (ชื่อไฟล์ใน uploads/) — พิมพ์ลงกรอบรูปถ่ายของใบสมัคร T000 ---
+  photoPath String?
+
   updatedAt DateTime @updatedAt
 }
 
