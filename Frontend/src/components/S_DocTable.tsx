@@ -1,6 +1,7 @@
 import React from "react";
-import { useEffect } from "react";
+import { useState, useEffect } from "react";
 import { fmtDate } from '../utils/dateFormat';
+import { askConfirm } from "../utils/notify";
 
 // ================= TYPES DEFINITION =================
 export type DocStatus =
@@ -30,7 +31,7 @@ type Props = {
   items: DocumentItem[];
   onChange?: (next: DocumentItem[]) => void;
   allowStatusChange?: boolean;
-  onUploadCall?: (id: string, file: File) => void;
+  onUploadCall?: (id: string, file: File) => void | Promise<void>;
   onDeleteCall?: (id: string) => void;
 };
 
@@ -66,6 +67,28 @@ export default function DocTable({
     // console.log("DOC ITEMS", items);
   }, [items]);
 
+  // ไฟล์ที่เลือกแล้วแต่ยังไม่ยืนยันส่ง (แยกตามรายการเอกสาร) — ตรวจชื่อไฟล์ให้ถูกก่อนค่อยอัปโหลด แบบ T002/T003
+  const [pending, setPending] = useState<Record<string, File>>({});
+  const [uploadingId, setUploadingId] = useState<string | null>(null);
+
+  const clearPending = (id: string) => setPending((p) => {
+    const next = { ...p };
+    delete next[id];
+    return next;
+  });
+
+  async function confirmUpload(id: string) {
+    const file = pending[id];
+    if (!file || !onUploadCall) return;
+    setUploadingId(id);
+    try {
+      await onUploadCall(id, file);
+    } finally {
+      setUploadingId(null);
+      clearPending(id);
+    }
+  }
+
   function patch(id: string, partial: Partial<DocumentItem>) {
     if (!onChange) return;
     const next = items.map((it) =>
@@ -90,7 +113,7 @@ export default function DocTable({
     if (!it) return;
 
     if (onUploadCall) {
-      onUploadCall(id, file);
+      setPending((p) => ({ ...p, [id]: file }));
     } else {
       patch(id, {
         fileName: file.name,
@@ -101,8 +124,8 @@ export default function DocTable({
     }
   }
 
-  function onRemoveFile(id: string) {
-    if (!window.confirm("ต้องการลบไฟล์นี้ใช่หรือไม่?")) return;
+  async function onRemoveFile(id: string) {
+    if (!(await askConfirm("ลบไฟล์นี้? หากต้องการใช้อีกต้องอัปโหลดใหม่", { confirmLabel: "ลบไฟล์", danger: true }))) return;
 
     if (onDeleteCall) {
       onDeleteCall(id);
@@ -164,6 +187,21 @@ export default function DocTable({
                       onRemove={() => onRemoveFile(it.id)}
                       isApproved={isApproved}
                     />
+                  ) : pending[it.id] ? (
+                    <div className="pending-wrap">
+                      <div className="pending-name" title={pending[it.id].name}>
+                        ⏳ ไฟล์ที่เลือก: {pending[it.id].name}
+                        <span className="pending-size"> ({formatSize(pending[it.id].size)})</span>
+                      </div>
+                      <div className="pending-actions">
+                        <button type="button" className="btn-cancel" disabled={uploadingId === it.id} onClick={() => clearPending(it.id)}>
+                          ยกเลิก
+                        </button>
+                        <button type="button" className="btn-confirm" disabled={uploadingId === it.id} onClick={() => confirmUpload(it.id)}>
+                          {uploadingId === it.id ? "⏳ กำลังอัปโหลด..." : "🚀 ยืนยันส่งไฟล์"}
+                        </button>
+                      </div>
+                    </div>
                   ) : (
                     <div className="upload-wrap">
                       <label className="btn-light" style={{ cursor: 'pointer' }}>
@@ -235,6 +273,24 @@ export default function DocTable({
         }
         .btn-light:hover { background: #f1f5f9; border-color: #94a3b8; color: #0f172a; }
 
+        .pending-wrap {
+          background: #fffbeb; border: 1px dashed #f59e0b; border-radius: 8px;
+          padding: 10px 12px; box-sizing: border-box; max-width: 420px;
+        }
+        .pending-name {
+          font-size: 13px; font-weight: 700; color: #b45309; margin-bottom: 8px;
+          overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .pending-size { font-weight: 500; color: #92400e; }
+        .pending-actions { display: flex; gap: 8px; }
+        .pending-actions button {
+          flex: 1; height: 34px; border-radius: 8px; border: none; cursor: pointer;
+          font-weight: 700; font-size: 13px;
+        }
+        .pending-actions button:disabled { opacity: .6; cursor: not-allowed; }
+        .btn-cancel { background: #fee2e2; color: #b91c1c; }
+        .btn-confirm { background: #10b981; color: #fff; }
+
         .file-wrap { 
           display: flex; align-items: center; justify-content: space-between; 
           background: #eff6ff; border: 1px solid #bfdbfe; 
@@ -272,6 +328,11 @@ export default function DocTable({
 }
 
 // ================= HELPERS =================
+function formatSize(bytes: number) {
+  if (bytes >= 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+  return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+}
+
 function revisionCount(it: DocumentItem) {
   if (!it.history) return 0;
   return it.history.filter((h: DocumentHistory) => (h.status || "").toUpperCase() === "REJECTED").length;
