@@ -11,7 +11,6 @@ interface DashboardStats {
   waiting: number;
   approved: number;
   rejected: number;
-  specialRequests: number;
 }
 
 interface CoopPeriod {
@@ -30,7 +29,6 @@ export default function A_Dashboard() {
     waiting: 0,
     approved: 0,
     rejected: 0,
-    specialRequests: 0,
   });
 
   const [loading, setLoading] = useState(true);
@@ -217,14 +215,6 @@ export default function A_Dashboard() {
               <SummaryCard title="รอดำเนินการ (Waiting)" value={stats.waiting} color="#ca8a04" subText="ต้องเข้าตรวจสอบ" />
               <SummaryCard title="อนุมัติผ่านแล้ว (Approved)" value={stats.approved} color="#16a34a" subText="ผ่านคุณสมบัติ" />
               <SummaryCard title="ไม่ผ่าน/แก้ไข (Rejected)" value={stats.rejected} color="#dc2626" subText="รอการแก้ไขจาก นศ." />
-
-              <div className="card" style={{ padding: 20, background: "linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%)", borderRadius: 18, border: '1px solid #fed7aa' }}>
-                <div style={{ color: "#9a3412", fontWeight: 700, fontSize: 14 }}>🎯 คำขอพิจารณากรณีพิเศษ</div>
-                <div style={{ fontSize: 36, fontWeight: 800, color: "#9a3412", marginTop: 8 }}>
-                  {stats.specialRequests}
-                </div>
-                <div style={{ fontSize: 12, color: "#c2410c", marginTop: 4 }}>สิทธิ์เข้าเรียนเตรียมความพร้อม</div>
-              </div>
             </div>
           </section>
         </>
