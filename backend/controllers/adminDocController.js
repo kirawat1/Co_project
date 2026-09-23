@@ -9,7 +9,7 @@ const fs = require('fs');
 
 // ลำดับขั้นตอนตาม enum CoopStatus (schema.prisma) — ใช้กันสถานะย้อนกลับใน reviewStudentStatus
 const COOP_STATUS_ORDER = [
-  'NOT_SUBMITTED', 'APPLYING', 'QUALIFICATION_FAILED', 'APPLICATION_EDITS_REQUIRED', 'QUALIFIED',
+  'NOT_SUBMITTED', 'APPLYING', 'PENDING_GRADE', 'QUALIFICATION_FAILED', 'APPLICATION_EDITS_REQUIRED', 'QUALIFIED',
   'WAITING_FOR_STAFF_CHECK', 'EDITS_REQUIRED', 'DOCS_APPROVED', 'REQ_LETTER_ISSUED',
   'WAITING_FOR_PLACEMENT_LETTER', 'WAITING_FOR_STAFF_CHECK_LETTER', 'ACCEPTANCE_CHECKED', 'PLACEMENT_LETTER_ISSUED',
   'INTERNSHIP_STARTED', 'T002_SUBMITTED', 'T002_EDITS_REQUIRED', 'T003_SUBMITTED', 'T003_EDITS_REQUIRED', 'T003_APPROVED',
@@ -717,6 +717,7 @@ exports.updateCoopApplicationStatus = async (req, res) => {
     const APP_STATUS_ALLOWED = new Set([
       'WAITING_FOR_STAFF_CHECK', 'EDITS_REQUIRED', 'QUALIFIED',
       'QUALIFICATION_FAILED', 'APPLICATION_EDITS_REQUIRED',
+      'PENDING_GRADE', // เกรดยังไม่ออก — พักคำร้องไว้ ค่อยกดผ่าน/ไม่ผ่านทีหลัง
     ]);
     if (!status || !APP_STATUS_ALLOWED.has(status)) {
       return res.status(400).json({ ok: false, message: 'status ไม่ถูกต้อง' });
@@ -743,7 +744,7 @@ exports.updateCoopApplicationStatus = async (req, res) => {
       }
 
       const REVIEWABLE = new Set([
-        'APPLYING', 'WAITING_FOR_STAFF_CHECK', 'APPLICATION_EDITS_REQUIRED',
+        'APPLYING', 'PENDING_GRADE', 'WAITING_FOR_STAFF_CHECK', 'APPLICATION_EDITS_REQUIRED',
         'EDITS_REQUIRED', 'QUALIFIED', 'QUALIFICATION_FAILED',
       ]);
       if (!REVIEWABLE.has(record.status)) {
@@ -763,6 +764,7 @@ exports.updateCoopApplicationStatus = async (req, res) => {
       QUALIFIED: 'คำร้องของคุณผ่านการพิจารณา ✅',
       QUALIFICATION_FAILED: 'คำร้องของคุณไม่ผ่านการพิจารณา',
       APPLICATION_EDITS_REQUIRED: 'คำร้องของคุณต้องแก้ไข กรุณาตรวจสอบ',
+      PENDING_GRADE: 'คำร้องของคุณรอพิจารณาเกรด — จะแจ้งผลอีกครั้งเมื่อเกรดออก',
     };
     const notifMsg = notifMsgs[status];
     if (notifMsg && updated?.studentId) {

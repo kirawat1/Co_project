@@ -3,6 +3,7 @@
 const COOP_STATUS_LABEL_TH = {
   NOT_SUBMITTED: 'ยังไม่ยื่นสหกิจ',
   APPLYING: 'รอตรวจสอบคุณสมบัติ',
+  PENDING_GRADE: 'รอพิจารณาเกรด',
   QUALIFIED: 'ผ่านคุณสมบัติ',
   QUALIFICATION_FAILED: 'ไม่ผ่านคุณสมบัติ',
   APPLICATION_EDITS_REQUIRED: 'แก้ไขใบสมัคร',

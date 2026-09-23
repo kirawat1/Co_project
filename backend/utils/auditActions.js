@@ -181,6 +181,7 @@ const REVIEW_STATUS_ACTION = {
   QUALIFIED: 'อนุมัติคำร้องสหกิจ (ผ่านคุณสมบัติ)',
   QUALIFICATION_FAILED: 'คำร้องสหกิจไม่ผ่านคุณสมบัติ',
   APPLICATION_EDITS_REQUIRED: 'ให้แก้ไขคำร้องสหกิจ',
+  PENDING_GRADE: 'พักคำร้องสหกิจ (รอพิจารณาเกรด)',
 };
 
 // ตัวกรอง "📄 เฉพาะเรื่องเอกสาร" ในหน้า /admin/logs — ชื่อการกระทำที่ขึ้นต้นด้วยคำเหล่านี้
@@ -206,6 +207,7 @@ const APP_STATUS_ACTION = {
   APPLICATION_EDITS_REQUIRED: 'ให้แก้ไขคำร้องสหกิจ',
   EDITS_REQUIRED: 'ให้แก้ไขคำร้องสหกิจ',
   WAITING_FOR_STAFF_CHECK: 'ส่งคำร้องสหกิจกลับให้เจ้าหน้าที่ตรวจ',
+  PENDING_GRADE: 'พักคำร้องสหกิจ (รอพิจารณาเกรด)',
 };
 
 const clean = (v) => (v == null ? '' : String(v).trim());

@@ -2,7 +2,7 @@ import React from "react";
 
 export type CoopStatusType =
     // --- Zone 1-3 ---
-    | "NOT_SUBMITTED" | "APPLYING" | "QUALIFICATION_FAILED" | "APPLICATION_EDITS_REQUIRED" | "QUALIFIED"
+    | "NOT_SUBMITTED" | "APPLYING" | "PENDING_GRADE" | "QUALIFICATION_FAILED" | "APPLICATION_EDITS_REQUIRED" | "QUALIFIED"
     | "WAITING_FOR_STAFF_CHECK" | "EDITS_REQUIRED" | "DOCS_APPROVED" | "REQ_LETTER_ISSUED"
     | "WAITING_FOR_PLACEMENT_LETTER" | "WAITING_FOR_STAFF_CHECK_LETTER" | "ACCEPTANCE_CHECKED" | "PLACEMENT_LETTER_ISSUED"
     // --- Zone 4 (Main) ---
@@ -20,6 +20,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; 
     // ... (Zone 1-3 ใส่เหมือนเดิมที่คุณมี) ...
     NOT_SUBMITTED: { label: "ยังไม่ยื่นสหกิจ", color: "#64748b", bg: "#f1f5f9", icon: "⚪" },
     APPLYING: { label: "รอตรวจสอบคุณสมบัติ", color: "#854d0e", bg: "#fef9c3", icon: "⏳" },
+    PENDING_GRADE: { label: "รอพิจารณาเกรด", color: "#6d28d9", bg: "#f5f3ff", icon: "📊" },
     QUALIFIED: { label: "ผ่านคุณสมบัติ", color: "#166534", bg: "#dcfce7", icon: "✅" },
     QUALIFICATION_FAILED: { label: "ไม่ผ่านคุณสมบัติ", color: "#dc2626", bg: "#fef2f2", icon: "❌" },
     APPLICATION_EDITS_REQUIRED: { label: "แก้ไขใบสมัคร", color: "#c2410c", bg: "#fff7ed", icon: "📝" },

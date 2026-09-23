@@ -364,6 +364,7 @@ export default function CoopRequestPage() {
             ['APPLICATION_EDITS_REQUIRED', 'EDITS_REQUIRED'].includes(currentStatus) ? '#ffedd5' :
               ['QUALIFICATION_FAILED', 'REJECTED'].includes(currentStatus) ? '#fee2e2' :
                 ['APPLYING'].includes(currentStatus) ? '#fef9c3' :
+                ['PENDING_GRADE'].includes(currentStatus) ? '#f5f3ff' :
                   ['WAITING_FOR_STAFF_CHECK', 'WAITING_FOR_PLACEMENT_LETTER'].includes(currentStatus) ? '#eff6ff' :
                     ['ACCEPTANCE_CHECKED'].includes(currentStatus) ? '#d1fae5' : '#f1f5f9',
         border: '1px solid rgba(0,0,0,0.1)', color: '#1e293b'
@@ -375,6 +376,7 @@ export default function CoopRequestPage() {
             {['APPLICATION_EDITS_REQUIRED', 'EDITS_REQUIRED'].includes(currentStatus) && "📝"}
             {['ACCEPTANCE_CHECKED'].includes(currentStatus) && "🚀"}
             {currentStatus === 'APPLYING' && "⏳"}
+            {currentStatus === 'PENDING_GRADE' && "📊"}
             {currentStatus === 'NOT_SUBMITTED' && "⚪"}
             {currentStatus === 'WAITING_FOR_STAFF_CHECK' && "🔍"}
           </span>
@@ -383,6 +385,11 @@ export default function CoopRequestPage() {
               <h3 style={{ margin: 0, fontSize: '18px' }}>สถานะปัจจุบัน:</h3>
               <StatusBadge status={currentStatus} />
             </div>
+            {currentStatus === 'PENDING_GRADE' && (
+              <div style={{ marginTop: 6, fontSize: 14, color: '#5b21b6' }}>
+                เกรดยังไม่ออก เจ้าหน้าที่พักคำร้องไว้และจะตรวจอีกครั้งเมื่อเกรดออก — ไม่ต้องยื่นใหม่
+              </div>
+            )}
             {(profile.coop?.teacherCheckComment || profile.coop?.t000Comment) &&
               ['APPLICATION_EDITS_REQUIRED', 'EDITS_REQUIRED', 'QUALIFICATION_FAILED', 'REJECTED'].includes(currentStatus) && (
                 <div style={{ marginTop: '10px', fontSize: '14px', color: '#b91c1c', background: 'rgba(255,255,255,0.6)', padding: '8px 12px', borderRadius: '8px', border: '1px solid #fecaca' }}>

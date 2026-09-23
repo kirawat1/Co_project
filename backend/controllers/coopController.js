@@ -232,7 +232,7 @@ const updateCoopStatus = async (req, res) => {
         }
       }
       const coop = await tx.studentCoop.findUnique({ where: { studentId: parsedId }, select: { status: true } });
-      const REVIEWABLE_STATUSES = ['APPLYING', 'WAITING_FOR_STAFF_CHECK'];
+      const REVIEWABLE_STATUSES = ['APPLYING', 'PENDING_GRADE', 'WAITING_FOR_STAFF_CHECK'];
       if (!coop || !REVIEWABLE_STATUSES.includes(coop.status)) {
         throw Object.assign(new Error('ไม่สามารถเปลี่ยนสถานะได้ในขั้นตอนนี้'), { is400: true });
       }

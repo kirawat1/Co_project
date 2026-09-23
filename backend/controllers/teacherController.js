@@ -1,6 +1,6 @@
 const prisma = require("../config/prismaClient");
 const { createNotifications } = require('../utils/notificationHelper');
-const { buildStudentExportWorkbook, STUDENT_EXPORT_INCLUDE } = require('../utils/studentExport');
+const { buildStudentExportWorkbook, exportBaseUrl, STUDENT_EXPORT_INCLUDE } = require('../utils/studentExport');
 const { changeUserEmail } = require('../utils/userEmail');
 
 // ✅ 1. getProfile: เลียนแบบ logic ของ Student
@@ -426,7 +426,7 @@ exports.getDashboardStats = async (req, res) => {
         const pendingRequests = await prisma.studentCoop.count({
             where: {
                 student: advisorFilter,
-                status: 'APPLYING', // 🟢 ปรับให้ตรงกับ Enum ของคุณ
+                status: { in: ['APPLYING', 'PENDING_GRADE'] }, // รอเกรดก็ยังค้างพิจารณา
                 ...(semesterInt && yearStr ? {
                     coopPeriod: { semester: semesterInt, academicYear: yearStr }
                 } : {})
@@ -799,12 +799,14 @@ exports.exportMyStudents = async (req, res) => {
         : { AND: [deletedFilter, advisorFilter] };
     }
 
-    const [students, criteria] = await Promise.all([
+    const [students, criteria, requirements] = await Promise.all([
       prisma.student.findMany({ where, include: STUDENT_EXPORT_INCLUDE, orderBy: { studentId: 'asc' } }),
       prisma.coopCriteria.findMany({ select: { major: true, nameTh: true } }),
+      prisma.documentRequirement.findMany({ select: { docKey: true, title: true } }),
     ]);
 
-    const buffer = buildStudentExportWorkbook(students, { criteria });
+    // ไฟล์มีลิงก์เปิดเอกสารแต่ละฉบับ + ชีต "เอกสารทั้งหมด"
+    const buffer = buildStudentExportWorkbook(students, { criteria, requirements, baseUrl: exportBaseUrl(req) });
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename="students_${coopPeriodId || 'all'}.xlsx"`);
