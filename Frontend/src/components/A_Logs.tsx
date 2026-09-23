@@ -58,12 +58,13 @@ export default function A_Logs() {
     const sentinelRef = useRef<HTMLDivElement>(null);
     const [roleCounts, setRoleCounts] = useState<RoleCounts>({ all: 0, staff: 0, teacher: 0, student: 0, anonymous: 0 });
 
-    // ตัวกรอง
+    // ตัวกรอง — ตั้งค่าเริ่มต้นจาก URL ได้ (หน้าเรื่องที่ผู้ใช้แจ้งลิงก์มาพร้อม userId และช่วงวัน)
+    const initial = useMemo(() => new URLSearchParams(window.location.search), []);
     const [q, setQ] = useState("");
     const [role, setRole] = useState("");
-    const [userId, setUserId] = useState("");
-    const [from, setFrom] = useState("");
-    const [to, setTo] = useState("");
+    const [userId, setUserId] = useState(initial.get("userId") || "");
+    const [from, setFrom] = useState(initial.get("from") || "");
+    const [to, setTo] = useState(initial.get("to") || "");
     const [onlyFailed, setOnlyFailed] = useState(false);
     // ใครออกเอกสารอะไร ให้ใคร — กรองเฉพาะการออกหนังสือ/ตรวจเอกสาร/ใบตอบรับ
     const [docsOnly, setDocsOnly] = useState(false);
