@@ -82,6 +82,11 @@ export default function CoopRequestPage() {
   const [showPDFPopup, setShowPDFPopup] = useState(false);
   const [pdfDataUrl, setPdfDataUrl] = useState("");
   const [activePeriod, setActivePeriod] = useState<any>(null);
+  // ช่วงเวลายื่นคำร้อง (ตั้งแยกจากรอบรับสมัคร แบบ T000–T003) — ใช้สถานะที่ server ตัดสินให้ตรงกับที่บังคับจริง
+  // ยังไม่โหลด/โหลดไม่ได้ = ถือว่าเปิด แล้วให้ server เป็นคนตัดสินตอนกดส่ง
+  const [applyWindow, setApplyWindow] = useState<{ open: boolean; configured: boolean; startDate: string | null; endDate: string | null; message: string | null }>(
+    { open: true, configured: false, startDate: null, endDate: null, message: null }
+  );
   const [submitting, setSubmitting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
   const [gradeSheetUrl, setGradeSheetUrl] = useState("");
@@ -127,6 +132,15 @@ export default function CoopRequestPage() {
           setCoopField(data.coop.jobPosition);
         }
       }
+
+      // ช่วงเวลายื่นคำร้อง
+      try {
+        const wRes = await apiFetch("/api/coop/config/apply");
+        if (wRes.ok) {
+          const w = await wRes.json();
+          if (w?.state) setApplyWindow(w.state);
+        }
+      } catch { /* ใช้ค่าเริ่มต้น (เปิด) แล้วให้ server ตัดสินตอนส่ง */ }
 
       // 2. ดึงรอบรับสมัครที่เปิดอยู่ (Active Period)
       const periodRes = await apiFetch("/api/students/coop-periods/active");
@@ -192,6 +206,7 @@ export default function CoopRequestPage() {
 
   // ฟังก์ชันตรวจสอบเวลาของรอบรับสมัคร
   const isTimeValid = () => {
+    if (!applyWindow.open) return false;
     if (!activePeriod || !activePeriod.isActive) return false;
     const now = new Date().getTime();
     const start = new Date(activePeriod.startDate).getTime();
@@ -200,6 +215,10 @@ export default function CoopRequestPage() {
   };
 
   const handleSubmitApplication = async () => {
+    if (!applyWindow.open) {
+      toast.error(applyWindow.message || "ขณะนี้ปิดรับคำร้องขอเข้าร่วมสหกิจศึกษา");
+      return;
+    }
     if (!activePeriod || !isTimeValid()) {
       toast.error("ไม่สามารถยื่นคำร้องได้ เนื่องจากขณะนี้ไม่มีรอบการรับสมัครที่เปิดอยู่ หรือนอกช่วงเวลา");
       return;
@@ -308,9 +327,11 @@ export default function CoopRequestPage() {
           <div>
             <strong style={{ fontSize: '18px' }}>ระบบปิดรับสมัคร หรือ นอกช่วงเวลาการยื่นคำร้อง</strong>
             <div style={{ marginTop: 4, fontSize: 14 }}>
-              {activePeriod
-                ? `รอบการรับสมัครที่ตั้งไว้: เทอม ${activePeriod.semester}/${activePeriod.academicYear} (เปิดรับ: ${fmtDate(activePeriod.startDate)} - ${fmtDate(activePeriod.endDate)}) แต่สถานะระบบปิดใช้งาน หรือหมดเขตแล้ว`
-                : "ขณะนี้ยังไม่มีการเปิดรอบรับสมัครสหกิจศึกษาในระบบ กรุณาติดต่อเจ้าหน้าที่"}
+              {!applyWindow.open
+                ? (applyWindow.message || "ขณะนี้ปิดรับคำร้องขอเข้าร่วมสหกิจศึกษา")
+                : activePeriod
+                  ? `รอบการรับสมัครที่ตั้งไว้: เทอม ${activePeriod.semester}/${activePeriod.academicYear} (เปิดรับ: ${fmtDate(activePeriod.startDate)} - ${fmtDate(activePeriod.endDate)}) แต่สถานะระบบปิดใช้งาน หรือหมดเขตแล้ว`
+                  : "ขณะนี้ยังไม่มีการเปิดรอบรับสมัครสหกิจศึกษาในระบบ กรุณาติดต่อเจ้าหน้าที่"}
             </div>
           </div>
         </div>
@@ -327,7 +348,9 @@ export default function CoopRequestPage() {
               รอบการรับสมัคร: เทอม {activePeriod.semester} / ปีการศึกษา {activePeriod.academicYear}
             </div>
             <div style={{ fontSize: 13, color: "#3b82f6" }}>
-              (เปิดรับตั้งแต่: {fmtDate(activePeriod.startDate)} ถึง {fmtDate(activePeriod.endDate)})
+              {applyWindow.configured && (applyWindow.startDate || applyWindow.endDate)
+                ? <>(ยื่นคำร้องได้ตั้งแต่: {applyWindow.startDate ? fmtDate(applyWindow.startDate) : "-"} ถึง {applyWindow.endDate ? fmtDate(applyWindow.endDate) : "-"})</>
+                : <>(เปิดรับตั้งแต่: {fmtDate(activePeriod.startDate)} ถึง {fmtDate(activePeriod.endDate)})</>}
             </div>
           </div>
         </div>

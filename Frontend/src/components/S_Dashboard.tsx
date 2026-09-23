@@ -47,12 +47,14 @@ interface SystemConfig {
     Document Name Mapping
 =============================== */
 const DOC_LABEL: Record<string, string> = {
+  apply: "คำร้องขอเข้าร่วมสหกิจศึกษา",
   t000: "แบบขออนุมัติไปปฏิบัติงานสหกิจ (T000)",
   t002: "แบบแจ้งรายละเอียดงานและที่พัก (T002)",
   t003: "โครงร่างรายงานและแผนปฏิบัติงาน (T003)",
 };
 
 const DOC_ROUTE: Record<string, string> = {
+  apply: "/student/gateway",
   t000: "/student/docs",
   t002: "/student/docs-t002",
   t003: "/student/docs-t003",
@@ -99,7 +101,7 @@ export default function S_Dashboard() {
       }
 
       // 4. ดึง Config วันที่เปิด-ปิดของแต่ละฟอร์ม (T000, T002, T003)
-      const configKeys = ['t000', 't002', 't003'];
+      const configKeys = ['apply', 't000', 't002', 't003'];
       const configData: Record<string, SystemConfig> = {};
 
       for (const key of configKeys) {
