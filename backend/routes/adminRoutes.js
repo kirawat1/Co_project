@@ -155,6 +155,9 @@ router.post('/config/t002', verifyToken, verifyRole(...ADMIN_ROLES), configContr
 
 router.get('/config/t003', verifyToken, verifyRole(...ADMIN_ROLES), configController.getT003Config);
 router.post('/config/t003', verifyToken, verifyRole(...ADMIN_ROLES), configController.saveT003Config);
+// ช่วงเวลายื่นคำร้องสหกิจ — แก้ได้เฉพาะเจ้าหน้าที่
+router.get('/config/apply', verifyToken, verifyRole(...ADMIN_ROLES), configController.getApplyConfig);
+router.post('/config/apply', verifyToken, verifyRole(...STAFF_ONLY), configController.saveApplyConfig);
 
 router.get('/config/evaluation', verifyToken, verifyRole(...ADMIN_ROLES), configController.getEvaluationConfig);
 router.put('/config/evaluation', verifyToken, verifyRole(...ADMIN_ROLES), configController.updateEvaluationConfig);

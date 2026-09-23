@@ -270,6 +270,52 @@ exports.saveT003Config = async (req, res) => {
 };
 
 // ==========================================
+// จัดการเวลายื่นคำร้องสหกิจ — แยกจากวันของรอบรับสมัคร แบบเดียวกับ T000–T003
+// ==========================================
+const { APPLY_CONFIG_KEY, readApplyConfig, evaluateApplyWindow, bangkokBound, applyWindowMessage } = require('../utils/applyWindow');
+
+exports.getApplyConfig = async (req, res) => {
+    try {
+        const config = await readApplyConfig();
+        const data = config || { startDate: null, endDate: null, isOpen: false };
+        // สถานะ ณ ตอนนี้ (ตัดสินที่ server เวลาไทย) — หน้าเว็บใช้แสดงผลให้ตรงกับที่ server บังคับจริง
+        const state = evaluateApplyWindow(config);
+        res.json({ ...data, state: { ...state, message: applyWindowMessage(state) } });
+    } catch (err) {
+        console.error('Error fetching apply config:', err);
+        res.status(500).json({ message: 'Error fetching apply config' });
+    }
+};
+
+exports.saveApplyConfig = async (req, res) => {
+    try {
+        const { startDate, endDate, isOpen } = req.body || {};
+        const start = startDate ? bangkokBound(startDate, false) : null;
+        const end = endDate ? bangkokBound(endDate, true) : null;
+        if (startDate && !start) return res.status(400).json({ ok: false, message: 'วันเปิดรับไม่ถูกต้อง' });
+        if (endDate && !end) return res.status(400).json({ ok: false, message: 'วันปิดรับไม่ถูกต้อง' });
+        if (start && end && start > end) {
+            return res.status(400).json({ ok: false, message: 'วันเปิดรับต้องไม่อยู่หลังวันปิดรับ' });
+        }
+
+        const payload = {
+            startDate: startDate ? String(startDate).slice(0, 10) : null,
+            endDate: endDate ? String(endDate).slice(0, 10) : null,
+            isOpen: isOpen === true || isOpen === 'true',
+        };
+        await prisma.systemConfig.upsert({
+            where: { key: APPLY_CONFIG_KEY },
+            update: { value: JSON.stringify(payload) },
+            create: { key: APPLY_CONFIG_KEY, value: JSON.stringify(payload) },
+        });
+        res.json({ ok: true, message: 'บันทึกเวลายื่นคำร้องสำเร็จ', data: { ...payload, state: evaluateApplyWindow(payload) } });
+    } catch (err) {
+        console.error('Error saving apply config:', err);
+        res.status(500).json({ ok: false, message: 'Error saving apply config' });
+    }
+};
+
+// ==========================================
 // Gateway Settings — ข้อความและลิงก์ใน S_Gateway
 // ==========================================
 const GATEWAY_DEFAULTS = {

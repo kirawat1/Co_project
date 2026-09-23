@@ -127,6 +127,7 @@ const RULES = [
   ['POST', '/api/admin/config/dean-info', 'ตั้งค่าข้อมูลคณบดี', 'ตั้งค่า', null],
   ['POST', '/api/admin/config/t002', 'ตั้งค่าแบบฟอร์ม T002', 'ตั้งค่า', null],
   ['POST', '/api/admin/config/t003', 'ตั้งค่าแบบฟอร์ม T003', 'ตั้งค่า', null],
+  ['POST', '/api/admin/config/apply', 'ตั้งค่าช่วงเวลายื่นคำร้องสหกิจ', 'ตั้งค่า', null],
   ['PUT', '/api/admin/config/evaluation', 'ตั้งค่าแบบประเมิน (T005/T006)', 'ตั้งค่า', null],
   ['PUT', '/api/admin/config/t007', 'ตั้งค่าแบบประเมิน T007', 'ตั้งค่า', null],
   ['PUT', '/api/admin/config/t008', 'ตั้งค่าเล่มรายงาน T008', 'ตั้งค่า', null],
