@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { apiFetch } from "../utils/apiFetch";
-import { IcUsers, IcDocs, IcAnnounce, IcCalendar } from "./icons";
+import { IcUsers, IcDocs, IcAnnounce } from "./icons";
 
 // --- Types ---
 interface DashboardStats {
   totalStudents: number;
   submittedStudents: number;
   totalAnnouncements: number;
-  totalDailyLogs: number;
   waiting: number;
   approved: number;
   rejected: number;
@@ -25,7 +24,6 @@ export default function A_Dashboard() {
     totalStudents: 0,
     submittedStudents: 0,
     totalAnnouncements: 0,
-    totalDailyLogs: 0,
     waiting: 0,
     approved: 0,
     rejected: 0,
@@ -199,7 +197,6 @@ export default function A_Dashboard() {
               <IconCard icon={<IcUsers />} title="นักศึกษาในระบบ" value={stats.totalStudents} color="#0284c7" bgColor="#e0f2fe" />
               <IconCard icon={<IcDocs />} title="ยื่นสหกิจแล้ว" value={stats.submittedStudents} color="#10b981" bgColor="#dcfce7" />
               <IconCard icon={<IcAnnounce />} title="ข่าวประกาศ" value={stats.totalAnnouncements} color="#f59e0b" bgColor="#fef3c7" />
-              <IconCard icon={<IcCalendar />} title="บันทึกรายงาน" value={stats.totalDailyLogs} color="#6366f1" bgColor="#e0e7ff" />
             </div>
           </section>
 

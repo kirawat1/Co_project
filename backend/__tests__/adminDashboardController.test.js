@@ -45,7 +45,6 @@ describe('getDashboardStats', () => {
         totalStudents: 150,
         submittedStudents: 3,
         totalAnnouncements: 10,
-        totalDailyLogs: 0,
         waiting: 1,   // APPLYING
         approved: 1,  // QUALIFIED
         rejected: 1,  // QUALIFICATION_FAILED
@@ -116,7 +115,6 @@ describe('getDashboardStats', () => {
         waiting: 1,              // WAITING_FOR_STAFF_CHECK
         approved: 2,             // DOCS_APPROVED x2
         rejected: 1,             // APPLICATION_EDITS_REQUIRED
-        totalDailyLogs: 0,
       }),
     });
   });

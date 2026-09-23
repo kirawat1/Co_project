@@ -59,15 +59,12 @@ exports.getDashboardStats = async (req, res) => {
     ];
     const rejected = coops.filter(c => rejectedStatuses.includes(c.status)).length;
 
-    const totalDailyLogs = 0; 
-
     res.json({
       ok: true,
       data: {
         totalStudents,
         submittedStudents,
         totalAnnouncements,
-        totalDailyLogs,
         waiting,
         approved,
         rejected
