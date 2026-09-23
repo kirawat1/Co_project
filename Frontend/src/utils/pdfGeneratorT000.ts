@@ -94,6 +94,31 @@ export interface T000FormData {
   careerObjective3?: string;
   startDate?: string;
   endDate?: string;
+  photoPath?: string | null; // รูปถ่ายนักศึกษา (ไฟล์ใน /uploads) — วาดลงกรอบรูปถ่าย
+}
+
+// โหลดรูปจาก /uploads เป็น data URL สำหรับ jsPDF — โหลดไม่ได้ก็คืน null (PDF ยังสร้างได้ แค่กรอบว่าง)
+async function loadImageDataUrl(url: string): Promise<{ data: string; w: number; h: number } | null> {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    const data = await new Promise<string>((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(String(r.result));
+      r.onerror = () => reject(r.error);
+      r.readAsDataURL(blob);
+    });
+    const size = await new Promise<{ w: number; h: number }>((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve({ w: img.naturalWidth, h: img.naturalHeight });
+      img.onerror = () => reject(new Error("decode"));
+      img.src = data;
+    });
+    return { data, ...size };
+  } catch {
+    return null;
+  }
 }
 
 // ================= GENERATOR =================
@@ -178,9 +203,19 @@ export const createT000PDF = async (
   doc.line(leftX, y + 16, 160, y + 16);
 
   doc.rect(160, y, 30, 35); // Photo Box
-  drawText("รูปถ่าย", 175, y + 10, "center", false, 10);
-  drawText("Recent", 175, y + 14, "center", false, 10);
-  drawText("of Applicant", 175, y + 22, "center", false, 10);
+  const photo = formData.photoPath ? await loadImageDataUrl(`/uploads/${formData.photoPath}`) : null;
+  if (photo) {
+    // วางให้พอดีกรอบโดยไม่บิดสัดส่วน (เว้นขอบ 1 มม.)
+    const boxW = 28, boxH = 33;
+    const scale = Math.min(boxW / photo.w, boxH / photo.h);
+    const w = photo.w * scale, h = photo.h * scale;
+    const format = /^data:image\/png/i.test(photo.data) ? "PNG" : "JPEG";
+    doc.addImage(photo.data, format, 161 + (boxW - w) / 2, y + 1 + (boxH - h) / 2, w, h);
+  } else {
+    drawText("รูปถ่าย", 175, y + 10, "center", false, 10);
+    drawText("Recent", 175, y + 14, "center", false, 10);
+    drawText("of Applicant", 175, y + 22, "center", false, 10);
+  }
 
   // Row 1: Company Name
   drawText(

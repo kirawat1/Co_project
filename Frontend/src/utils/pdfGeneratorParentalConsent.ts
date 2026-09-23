@@ -1,5 +1,6 @@
 import { jsPDF } from "jspdf";
 import { formMajorName } from "./docGeneratorUtils";
+import { composeAddress } from "./addressFormat";
 
 // ================= HELPERS =================
 const getFontBase64 = async (url: string): Promise<string> => {
@@ -70,9 +71,16 @@ export const createParentalConsentPDF = async (
   // major เป็นรหัสสาขา (CS) — พิมพ์ชื่อไทย
   const major = formMajorName(profile, "...................................");
   const curriculum = "วิทยาลัยการคอมพิวเตอร์";
+  const company = profile.company || profile.coop?.company;
   const companyName =
-    profile.company?.name ||
-    profile.coop?.company?.name ||
+    company?.name ||
+    "......................................................................";
+  // ที่อยู่บริษัท — ประกอบจากช่องย่อยแบบเดียวกับที่อยู่อื่นในระบบ · ข้อมูลเก่ามีแต่ข้อความรวมก็ใช้ข้อความนั้น
+  const companyAddress =
+    (company && (composeAddress({
+      addrNo: company.addressNo, moo: company.moo, soi: company.soi, road: company.road,
+      subDistrict: company.subDistrict, district: company.district, province: company.province, zipcode: company.zipcode,
+    }) || company.address)) ||
     "......................................................................";
 
   // ข้อมูลผู้ปกครอง (ดึงจากบุคคลติดต่อฉุกเฉิน)
@@ -154,7 +162,7 @@ export const createParentalConsentPDF = async (
 
   // 5. Body Paragraph 1 (ข้อมูลผู้ปกครอง & การยินยอม)
   y += 12;
-  const p1 = `       ด้วยข้าพเจ้า นาย/นาง/นางสาว ${parentName} ผู้ปกครองของ ${studentName} รหัสประจำตัว ${studentId} หลักสูตร ${curriculum} สาขาวิชา ${major} วิทยาลัยการคอมพิวเตอร์ มหาวิทยาลัยขอนแก่น ยินยอมให้ ${studentName} ซึ่งเกี่ยวข้องกับข้าพเจ้าโดยเป็น ${relation} เดินทางไปปฏิบัติงานสหกิจศึกษา ณ สถานประกอบการที่ ${companyName}`;
+  const p1 = `       ด้วยข้าพเจ้า นาย/นาง/นางสาว ${parentName} ผู้ปกครองของ ${studentName} รหัสประจำตัว ${studentId} หลักสูตร ${curriculum} สาขาวิชา ${major} วิทยาลัยการคอมพิวเตอร์ มหาวิทยาลัยขอนแก่น ยินยอมให้ ${studentName} ซึ่งเกี่ยวข้องกับข้าพเจ้าโดยเป็น ${relation} เดินทางไปปฏิบัติงานสหกิจศึกษา ณ สถานประกอบการที่ ${companyName} ตั้งอยู่ที่ ${companyAddress}`;
 
   doc.setFont("THSarabun", "normal");
   const lines1 = doc.splitTextToSize(p1, contentWidth);
