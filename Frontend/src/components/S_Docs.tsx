@@ -10,6 +10,7 @@ import { apiFetch } from "../utils/apiFetch";
 import DateInput from './DateInput';
 import AddressFields from "./AddressFields";
 import { composeAddress, readAddressParts } from "../utils/addressFormat";
+import S_FormPhoto from "./S_FormPhoto";
 
 // ✅ Interface
 export interface LocalStudentProfile {
@@ -527,6 +528,14 @@ export default function S_Docs({ profile, setProfile }: { profile: LocalStudentP
           {/* ข้อมูลพื้นฐาน */}
           <div style={{ background: '#f8fafc', padding: 20, borderRadius: 12, border: '1px solid #e2e8f0' }}>
             <h4 style={{ margin: '0 0 16px 0', color: '#334155' }}>📌 ข้อมูลการสมัคร</h4>
+            {/* รูปถ่ายสำหรับกรอบรูปในใบสมัคร — อัปโหลดครั้งเดียว PDF ใส่ให้เอง */}
+            <div style={{ marginBottom: 20 }}>
+              <label style={lbl}>รูปถ่ายสำหรับใบสมัคร</label>
+              <S_FormPhoto
+                photoPath={formData.photoPath}
+                onChange={(photoPath) => setFormData(prev => ({ ...prev, photoPath }))}
+              />
+            </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 20 }}>
               <div><label style={lbl}>ตำแหน่งงานที่สมัคร (Job Position):</label><input className="input" value={profile.jobPosition || ""} onChange={e => handleUpdateProfileField("jobPosition", e.target.value)} placeholder="Ex. Software Engineer" /></div>
               <div><label style={lbl}>อาจารย์ที่ปรึกษา (Advisor):</label><input className="input" value={profile.advisorName || "-"} disabled style={{ backgroundColor: '#f1f5f9', color: '#64748b', cursor: 'not-allowed' }} /></div>
