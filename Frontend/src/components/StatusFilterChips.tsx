@@ -3,7 +3,7 @@ export const STATUS_GROUPS: Record<string, { label: string; icon: string; color:
   ALL:           { label:"ทั้งหมด",          icon:"📋", color:"#334155", bg:"#f1f5f9", statuses:[] },
   // รอตรวจสอบ = ก่อนฝึก (ยื่นคำร้อง / รอตรวจเอกสาร T000 / รอใบตอบรับ)
   PENDING_REVIEW:{ label:"รอตรวจสอบ",        icon:"⏳", color:"#92400e", bg:"#fef9c3",
-    statuses:["APPLYING","WAITING_FOR_STAFF_CHECK","WAITING_FOR_STAFF_CHECK_LETTER"] },
+    statuses:["APPLYING","PENDING_GRADE","WAITING_FOR_STAFF_CHECK","WAITING_FOR_STAFF_CHECK_LETTER"] },
   // ต้องแก้ไข — เฉพาะก่อนฝึก (T002/T003_EDITS_REQUIRED อยู่ใน INTERNSHIP แล้ว ไม่ซ้ำ)
   NEEDS_EDIT:    { label:"ต้องแก้ไข",         icon:"📝", color:"#9a3412", bg:"#fff7ed",
     statuses:["APPLICATION_EDITS_REQUIRED","EDITS_REQUIRED"] },

@@ -35,7 +35,8 @@ exports.getDashboardStats = async (req, res) => {
     const submittedStudents = coops.length;
 
     const waitingStatuses = [
-      'APPLYING', 
+      'APPLYING',
+      'PENDING_GRADE', 
       'WAITING_FOR_STAFF_CHECK', 
       'WAITING_FOR_PLACEMENT_LETTER', 
       'WAITING_FOR_STAFF_CHECK_LETTER'

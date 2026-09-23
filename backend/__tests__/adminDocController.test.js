@@ -539,6 +539,32 @@ describe('updateCoopApplicationStatus', () => {
     expect(res.status).not.toHaveBeenCalledWith(403);
     expect(prisma.studentCoop.update).toHaveBeenCalled();
   });
+
+  test('200 — เจ้าหน้าที่กด "รอพิจารณาเกรด" ให้คำร้องที่รอตรวจ', async () => {
+    prisma.studentCoop.findUnique.mockResolvedValue({ status: 'APPLYING', student: { deletedAt: null, id: 1, coopAdvisorId: 7 } });
+    prisma.studentCoop.update.mockResolvedValue({ id: 1, studentId: 1, status: 'PENDING_GRADE' });
+    prisma.student.findUnique.mockResolvedValue({ userId: 10 });
+    prisma.notification.createMany.mockResolvedValue({ count: 1 });
+
+    const res = makeRes();
+    await updateCoopApplicationStatus({ params: { id: '1' }, body: { status: 'PENDING_GRADE' }, user: { id: 2, role: 'staff' } }, res);
+
+    expect(res.status).not.toHaveBeenCalled();
+    expect(prisma.studentCoop.update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: 'PENDING_GRADE' }) }));
+  });
+
+  test('200 — เกรดออกแล้ว กดผ่านให้คำร้องที่รอพิจารณาเกรดได้', async () => {
+    prisma.studentCoop.findUnique.mockResolvedValue({ status: 'PENDING_GRADE', student: { deletedAt: null, id: 1, coopAdvisorId: 7 } });
+    prisma.studentCoop.update.mockResolvedValue({ id: 1, studentId: 1, status: 'QUALIFIED' });
+    prisma.student.findUnique.mockResolvedValue({ userId: 10 });
+    prisma.notification.createMany.mockResolvedValue({ count: 1 });
+
+    const res = makeRes();
+    await updateCoopApplicationStatus({ params: { id: '1' }, body: { status: 'QUALIFIED' }, user: { id: 2, role: 'staff' } }, res);
+
+    expect(res.status).not.toHaveBeenCalled();
+    expect(prisma.studentCoop.update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: 'QUALIFIED' }) }));
+  });
 });
 
 // =====================

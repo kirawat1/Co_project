@@ -6,8 +6,8 @@ type Phase = { id: number; label: string; icon: string; subSteps: SubStep[]; ent
 const PHASES: Phase[] = [
   {
     id: 1, label: "ยื่นคำร้อง", icon: "📋",
-    entryStatuses: ["NOT_SUBMITTED","APPLYING","QUALIFICATION_FAILED","APPLICATION_EDITS_REQUIRED","QUALIFIED"],
-    subSteps: [{ key:"submit", label:"ยื่นคำร้องขอสหกิจ", statuses:["APPLYING","QUALIFICATION_FAILED","APPLICATION_EDITS_REQUIRED","QUALIFIED"], doneStatuses:["QUALIFIED"] }],
+    entryStatuses: ["NOT_SUBMITTED","APPLYING","PENDING_GRADE","QUALIFICATION_FAILED","APPLICATION_EDITS_REQUIRED","QUALIFIED"],
+    subSteps: [{ key:"submit", label:"ยื่นคำร้องขอสหกิจ", statuses:["APPLYING","PENDING_GRADE","QUALIFICATION_FAILED","APPLICATION_EDITS_REQUIRED","QUALIFIED"], doneStatuses:["QUALIFIED"] }],
   },
   {
     id: 2, label: "เอกสาร T000", icon: "📄",
@@ -40,6 +40,7 @@ const PHASES: Phase[] = [
 const ACTION_CONFIG: Record<string, { text: string; link?: string; linkText?: string; isWarning?: boolean }> = {
   NOT_SUBMITTED:               { text: "กรอกข้อมูลและยื่นคำร้องขอเข้าร่วมโครงการ", link: "/student/gateway", linkText: "ยื่นคำร้อง" },
   APPLYING:                    { text: "รอเจ้าหน้าที่ตรวจสอบคุณสมบัติ (1-3 วันทำการ)" },
+  PENDING_GRADE:               { text: "รอพิจารณาเกรด — เจ้าหน้าที่จะตรวจคำร้องอีกครั้งเมื่อเกรดออก ไม่ต้องยื่นใหม่" },
   APPLICATION_EDITS_REQUIRED:  { text: "ต้องแก้ไขใบสมัคร — ดูความคิดเห็นและส่งใหม่", link: "/student/gateway", linkText: "ไปแก้ไข", isWarning: true },
   QUALIFICATION_FAILED:        { text: "คุณสมบัติไม่ผ่านเกณฑ์ กรุณาติดต่อเจ้าหน้าที่", isWarning: true },
   QUALIFIED:                   { text: "ผ่านคุณสมบัติแล้ว รอเจ้าหน้าที่ตรวจเอกสาร T000" },

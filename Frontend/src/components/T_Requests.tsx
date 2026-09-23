@@ -201,7 +201,7 @@ export default function T_Requests() {
     const appPeriodId = String(s.coopPeriodId || s.coop?.coopPeriodId || "");
     const matchPeriod = filterPeriodId === "all" || appPeriodId === filterPeriodId;
 
-    if (filterStatus === "PENDING") return matchSearch && matchPeriod && status === "APPLYING";
+    if (filterStatus === "PENDING") return matchSearch && matchPeriod && (status === "APPLYING" || status === "PENDING_GRADE");
 
     return matchSearch && matchStatus && matchPeriod;
   });

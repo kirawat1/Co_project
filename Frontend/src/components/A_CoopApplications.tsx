@@ -156,6 +156,7 @@ export default function A_CoopApplications() {
             QUALIFIED: "ผ่านคุณสมบัติ",
             APPLICATION_EDITS_REQUIRED: "ขอให้แก้ไข",
             QUALIFICATION_FAILED: "ไม่ผ่านคุณสมบัติ",
+            PENDING_GRADE: "รอพิจารณาเกรด",
         };
         openConfirm({
             title: "ยืนยันการเปลี่ยนสถานะ",
@@ -210,13 +211,16 @@ export default function A_CoopApplications() {
     // ✅ กรองตาราง
     const filteredApps = apps.filter(app => {
         const matchSearch = `${app.student.studentId} ${app.student.firstName} ${app.student.lastName} ${app.company?.name || ""}`.toLowerCase().includes(debouncedSearch.toLowerCase());
-        const matchStatus = filterStatus === "ALL" || app.status === filterStatus;
+        // "ผ่านเกณฑ์แล้ว" = ตรวจผ่านแล้วทุกคน ไม่ว่าตอนนี้จะไปถึงขั้นไหน
+        const matchStatus = filterStatus === "ALL"
+            || (filterStatus === "QUALIFIED" ? isReviewedPass(app.status) : app.status === filterStatus);
 
         // กรองตามปีการศึกษา
         const appPeriodId = String(app.student.coopPeriodId || app.coopPeriodId || "");
         const matchPeriod = filterPeriodId === "all" || appPeriodId === filterPeriodId;
 
-        if (filterStatus === "PENDING") return matchSearch && matchPeriod && ["APPLYING", "WAITING_FOR_STAFF_CHECK"].includes(app.status);
+        // รอดำเนินการ = คำร้องที่ยังไม่ได้ตรวจเท่านั้น (เดิมนับ WAITING_FOR_STAFF_CHECK ด้วย ซึ่งเป็นคำร้องที่ผ่านแล้วและรอตรวจ T000)
+        if (filterStatus === "PENDING") return matchSearch && matchPeriod && app.status === "APPLYING";
         return matchSearch && matchStatus && matchPeriod;
     });
 
@@ -282,8 +286,10 @@ export default function A_CoopApplications() {
                     <select className="input" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} style={{ width: 'auto' }}>
                         <option value="ALL">📋 แสดงทุกสถานะ</option>
                         <option value="PENDING">⏳ รอดำเนินการ</option>
+                        <option value="PENDING_GRADE">📊 รอพิจารณาเกรด</option>
                         <option value="QUALIFIED">✅ ผ่านเกณฑ์แล้ว</option>
                         <option value="APPLICATION_EDITS_REQUIRED">⚠️ ส่งกลับแก้ไข</option>
+                        <option value="QUALIFICATION_FAILED">❌ ไม่ผ่าน</option>
                     </select>
                 </div>
 
@@ -310,12 +316,22 @@ export default function A_CoopApplications() {
                                     <div style={{ fontSize: 12, color: '#0ea5e9', marginTop: 2 }}>{app.jobPosition}</div>
                                 </td>
                                 <td style={td} data-label="สถานะ">
-                                    <StatusBadge status={app.status} />
+                                    {isReviewedPass(app.status) ? (
+                                        <>
+                                            {/* คำร้องตรวจผ่านแล้ว — สถานะจริงเดินต่อไปขั้น T000 แล้ว แสดงให้ชัดว่าหน้านี้ไม่ต้องทำอะไรต่อ */}
+                                            <span style={reviewedBadge}>✅ ตรวจแล้ว · ผ่านเกณฑ์</span>
+                                            {app.status !== "QUALIFIED" && (
+                                                <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>ขั้นตอนตอนนี้: <StatusBadge status={app.status} showIcon={false} /></div>
+                                            )}
+                                        </>
+                                    ) : (
+                                        <StatusBadge status={app.status} />
+                                    )}
                                 </td>
 
                                 <td style={{ ...td, textAlign: 'right' }}>
-                                    <button className="btn" style={{ padding: '8px 16px', fontSize: 13 }} onClick={() => openReviewModal(app)}>
-                                        🔍 ตรวจเอกสาร
+                                    <button className={isReviewedPass(app.status) ? "btn-secondary" : "btn"} style={{ padding: '8px 16px', fontSize: 13 }} onClick={() => openReviewModal(app)}>
+                                        {isReviewedPass(app.status) ? "📄 ดูคำร้อง" : "🔍 ตรวจคำร้อง"}
                                     </button>
                                 </td>
                             </tr>
@@ -396,6 +412,10 @@ export default function A_CoopApplications() {
                                         <button className="btn-warning" style={{ flex: 1 }} onClick={() => updateStatus("APPLICATION_EDITS_REQUIRED")}>⚠️ ส่งกลับให้แก้ไข</button>
                                         <button className="btn-danger" style={{ flex: 1 }} onClick={() => updateStatus("QUALIFICATION_FAILED")}>❌ ไม่ผ่าน</button>
                                     </div>
+                                    {/* เกรดยังไม่ออก — พักคำร้องไว้ เกรดออกแล้วค่อยกลับมากดผ่าน/ไม่ผ่าน */}
+                                    {selectedApp.status !== "PENDING_GRADE" && !isReviewedPass(selectedApp.status) && (
+                                        <button className="btn-secondary" style={{ width: '100%', marginTop: 10, color: '#6d28d9', borderColor: '#c4b5fd' }} onClick={() => updateStatus("PENDING_GRADE")}>📊 รอพิจารณาเกรด</button>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -425,3 +445,12 @@ const thRow: CSSProperties = { background: "#f8fafc", borderBottom: "2px solid #
 const th: CSSProperties = { padding: "14px 16px", textAlign: "left", fontSize: 13, fontWeight: 700, color: "#64748b" };
 const tr: CSSProperties = { borderBottom: "1px solid #f1f5f9" };
 const td: CSSProperties = { padding: "14px 16px", verticalAlign: "middle", fontSize: 14 };
+// คำร้องที่ตรวจผ่านเกณฑ์แล้ว — ผ่านแล้วนักศึกษาเดินต่อไปขั้น T000/หนังสือ/ฝึกงาน สถานะจริงจึงเปลี่ยนไปเรื่อยๆ
+const APPLICATION_OPEN_STATUSES = ["NOT_SUBMITTED", "APPLYING", "PENDING_GRADE", "APPLICATION_EDITS_REQUIRED", "QUALIFICATION_FAILED"];
+function isReviewedPass(status?: string | null) {
+    return !!status && !APPLICATION_OPEN_STATUSES.includes(status);
+}
+const reviewedBadge: React.CSSProperties = {
+    display: "inline-flex", alignItems: "center", padding: "4px 12px", borderRadius: 99, fontSize: 12, fontWeight: 700,
+    whiteSpace: "nowrap", color: "#166534", backgroundColor: "#dcfce7", border: "1px solid #16653430",
+};
