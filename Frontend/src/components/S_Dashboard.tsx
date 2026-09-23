@@ -41,7 +41,18 @@ interface SystemConfig {
   startDate: string;
   endDate: string;
   isOpen: boolean;
+  // เฉพาะ config/apply — สถานะช่วงยื่นคำร้องที่ server ตัดสินแล้ว (เวลาไทย)
+  state?: { configured: boolean; open: boolean; endDate: string | null; message: string | null };
 }
+
+interface CoopPeriod {
+  id: number;
+  semester: number | string;
+  academicYear: string;
+  isActive?: boolean;
+}
+
+const periodText = (p: CoopPeriod) => `ภาคเรียนที่ ${p.semester} ปีการศึกษา ${p.academicYear}`;
 
 /* ===============================
     Document Name Mapping
@@ -70,6 +81,9 @@ export default function S_Dashboard() {
   const [statusExpanded, setStatusExpanded] = useState(false);
   const [loading, setLoading] = useState(true);
   const [selectedAnn, setSelectedAnn] = useState<Announcement | null>(null);
+  // รอบที่เปิดรับสมัคร + รอบของนักศึกษาเอง
+  const [activePeriod, setActivePeriod] = useState<CoopPeriod | null>(null);
+  const [myPeriod, setMyPeriod] = useState<CoopPeriod | null>(null);
   const fetchData = async () => {
     setLoading(true);
     try {
@@ -80,6 +94,20 @@ export default function S_Dashboard() {
       setStudentStatus(profileData?.coop?.status || "NOT_SUBMITTED");
       setLastComment(profileData?.coop?.teacherCheckComment || profileData?.coop?.t000Comment || "");
       setStudentMajor(major);
+
+      // 1.1 รอบสหกิจ — รอบที่เปิดรับตอนนี้ และรอบที่นักศึกษาสังกัด (ถ้ายื่นแล้ว)
+      try {
+        const [activeRes, allRes] = await Promise.all([
+          apiFetch("/api/students/coop-periods/active"),
+          apiFetch("/api/students/coop-periods"),
+        ]);
+        const activeData = activeRes.ok ? await activeRes.json() : null;
+        setActivePeriod(activeData?.period ?? null);
+        const allData = allRes.ok ? await allRes.json() : null;
+        const periods: CoopPeriod[] = Array.isArray(allData) ? allData : (allData?.periods ?? allData?.data ?? []);
+        const mineId = profileData?.coop?.coopPeriodId;
+        setMyPeriod(mineId ? periods.find((p) => p.id === mineId) ?? null : null);
+      } catch (e) { console.error("Error loading coop periods", e); }
 
       // 2. Announcements filtered by major
       const majorParam = major ? `?major=${encodeURIComponent(major)}` : "";
@@ -176,6 +204,33 @@ export default function S_Dashboard() {
         <h1>ภาพรวมสำหรับนักศึกษา</h1>
         <p>ติดตามประกาศ เอกสาร และนัดนิเทศของสหกิจศึกษา</p>
       </div>
+
+      {/* ===== รอบที่เปิดรับสมัคร ===== */}
+      {(() => {
+        const apply = configs.apply?.state;
+        return (
+          <div className="period-card" style={{ display:"flex", flexWrap:"wrap", alignItems:"center", gap:"8px 20px", background:"#fff", borderRadius:16, padding:"14px 20px", marginBottom:16, boxShadow:"0 1px 4px rgba(0,0,0,.06)", border:"1px solid #e2e8f0" }}>
+            <span style={{ fontSize:28 }}>📅</span>
+            <div style={{ flex:"1 1 260px" }}>
+              <div style={{ fontSize:12, color:"#94a3b8", fontWeight:700, letterSpacing:".5px", marginBottom:4 }}>รอบที่เปิดรับสมัครสหกิจ</div>
+              <div style={{ fontWeight:800, color:"#0f172a", fontSize:16 }}>
+                {activePeriod ? periodText(activePeriod) : "ยังไม่เปิดรับสมัครรอบใหม่"}
+              </div>
+              {myPeriod && (!activePeriod || myPeriod.id !== activePeriod.id) && (
+                <div style={{ fontSize:13, color:"#64748b", marginTop:2 }}>รอบของคุณ: {periodText(myPeriod)}</div>
+              )}
+            </div>
+            {apply?.configured && (
+              <div style={{ fontSize:13, fontWeight:700, padding:"6px 12px", borderRadius:10,
+                color: apply.open ? "#166534" : "#991b1b", background: apply.open ? "#dcfce7" : "#fef2f2" }}>
+                {apply.open
+                  ? (apply.endDate ? `ยื่นคำร้องได้ถึง ${fmtDate(apply.endDate)}` : "เปิดรับคำร้องอยู่")
+                  : (apply.message || "ปิดรับคำร้องแล้ว")}
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* ===== COMPACT STATUS CARD ===== */}
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", background:"#fff", borderRadius:16, padding:"14px 20px", marginBottom:16, boxShadow:"0 1px 4px rgba(0,0,0,.06)", border:"1px solid #e2e8f0" }}>
@@ -304,7 +359,7 @@ export default function S_Dashboard() {
       </div>
 
       {/* SUBMIT BUTTON: แสดงเฉพาะช่วงก่อนผ่านคุณสมบัติ */}
-      {["NOT_SUBMITTED", "APPLYING", "APPLICATION_EDITS_REQUIRED", "QUALIFICATION_FAILED"].includes(studentStatus) && (
+      {["NOT_SUBMITTED", "APPLYING", "PENDING_GRADE", "APPLICATION_EDITS_REQUIRED", "QUALIFICATION_FAILED"].includes(studentStatus) && (
         <div className="dash-btn-wrapper">
           <a href="/student/gateway" className="dash-btn">
             ยื่นคำร้องเข้าร่วมโครงการ
