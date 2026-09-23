@@ -1,5 +1,16 @@
 # CHANGELOG — Co_project
 
+## [2026-09-23] chore(dashboard): เอาการ์ด "บันทึกรายงาน" ออก
+
+### Removed
+- การ์ด "บันทึกรายงาน" บนหน้า Dashboard เจ้าหน้าที่ — เหมือนการ์ดกรณีพิเศษคือหลังบ้านส่ง 0 ตายตัว (`const totalDailyLogs = 0`) ไม่เคยนับข้อมูลจริง
+- `totalDailyLogs` ออกจาก response ของ `/api/admin/dashboard-stats` และจาก type ฝั่งหน้าเว็บ · เก็บ import ไอคอนที่ไม่ใช้แล้วออกด้วย
+- หน้า Dashboard เหลือการ์ดที่มีค่าจริงทั้งหมด: นักศึกษาในระบบ · ยื่นสหกิจแล้ว · ข่าวประกาศ · รอดำเนินการ · อนุมัติผ่านแล้ว · ไม่ผ่าน/แก้ไข
+
+### Verified
+- เบราว์เซอร์ 8/8: API ไม่ส่งทั้ง specialRequests และ totalDailyLogs แล้ว · การ์ดทั้งสองหายจากหน้าจอ · การ์ดที่เหลือครบ · ไม่มี JS error
+- unit tests 689/689 · tsc 24 error เดิม (ไม่เพิ่มจาก import ค้าง) · vite build ผ่าน · e2e 97/97
+
 ## [2026-09-23] chore(dashboard): เอาการ์ด "คำขอพิจารณากรณีพิเศษ" ออก
 
 ### Removed
