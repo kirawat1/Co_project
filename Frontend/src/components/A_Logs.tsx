@@ -3,6 +3,7 @@ import type { CSSProperties } from "react";
 import { apiFetch } from "../utils/apiFetch";
 import DateInput from "./DateInput";
 import LoadMoreFooter from "./LoadMoreFooter";
+import { notify } from "../utils/notify";
 
 /**
  * บันทึกการใช้งาน — ใครทำอะไรกับระบบ (เจ้าหน้าที่เท่านั้น)
@@ -94,7 +95,7 @@ export default function A_Logs() {
             const data = await res.json().catch(() => ({}));
             if (mySeq !== requestSeq.current) return; // มีคำขอใหม่กว่าแล้ว ทิ้งผลนี้
             if (!res.ok || !data.ok) {
-                alert(`โหลดบันทึกไม่สำเร็จ${data.message ? `: ${data.message}` : ""}`);
+                notify.error(`โหลดบันทึกไม่สำเร็จ${data.message ? `: ${data.message}` : ""}`);
                 return;
             }
             setRows((prev) => (append ? [...prev, ...data.data] : data.data));
@@ -103,7 +104,7 @@ export default function A_Logs() {
             if (data.meta?.roleCounts) setRoleCounts(data.meta.roleCounts);
             setPage(targetPage);
         } catch {
-            if (mySeq === requestSeq.current) alert("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้");
+            if (mySeq === requestSeq.current) notify.error("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้");
         } finally {
             if (mySeq === requestSeq.current) setLoading(false);
         }
@@ -131,7 +132,7 @@ export default function A_Logs() {
             const res = await apiFetch(`/api/admin/logs/export?${queryString}`);
             if (!res.ok) {
                 const msg = await res.json().catch(() => ({}));
-                alert(`ดาวน์โหลดไม่สำเร็จ${msg.message ? `: ${msg.message}` : ""}`);
+                notify.error(`ดาวน์โหลดไม่สำเร็จ${msg.message ? `: ${msg.message}` : ""}`);
                 return;
             }
             const blob = await res.blob();
@@ -144,7 +145,7 @@ export default function A_Logs() {
             a.remove();
             URL.revokeObjectURL(url);
         } catch {
-            alert("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้");
+            notify.error("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้");
         } finally {
             setDownloading(false);
         }

@@ -4,6 +4,7 @@ import { createT003PDF } from "../utils/pdfGeneratorT003";
 import StatusBadge from "./StatusBadge";
 import CountdownTimer from "../components/CountdownTimer"; // ✅ Import เข้ามา
 import AutoTextarea from "./AutoTextarea";
+import { notify } from "../utils/notify";
 
 interface Props {
     profile: any;
@@ -159,7 +160,7 @@ export default function S_DocsT003Form({ profile, onRefresh }: Props) {
             setShowModal(true);
         } catch (err) {
             console.error(err);
-            alert("เกิดข้อผิดพลาดในการสร้าง PDF");
+            notify.error("เกิดข้อผิดพลาดในการสร้าง PDF");
         } finally {
             setLoading(false);
         }
@@ -200,11 +201,11 @@ export default function S_DocsT003Form({ profile, onRefresh }: Props) {
                 setLastSavedAt(new Date());
                 if (!silent && typeof onRefresh === 'function') onRefresh();
             } else if (!silent) {
-                alert("❌ เกิดข้อผิดพลาดในการบันทึกข้อมูล");
+                notify.error("❌ เกิดข้อผิดพลาดในการบันทึกข้อมูล");
             }
         } catch (err) {
             console.error(err);
-            if (!silent) alert("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้");
+            if (!silent) notify.error("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้");
         } finally {
             if (!silent) setLoading(false);
         }
@@ -234,16 +235,17 @@ export default function S_DocsT003Form({ profile, onRefresh }: Props) {
             const res = await apiFetch("/api/docs/upload", { method: "POST", body: uploadData });
 
             if (res.ok) {
-                alert("✅ อัปโหลดแบบฟอร์ม T003 สำเร็จ!");
+                // หน้าจะรีโหลด — เก็บข้อความไว้แสดงหลังโหลดใหม่
+                notify.afterReload("success", "อัปโหลดแบบฟอร์ม T003 แล้ว รอการตรวจ");
                 setSelectedUploadFile(null);
                 if (typeof onRefresh === 'function') onRefresh();
                 setTimeout(() => window.location.reload(), 500);
             } else {
-                alert("❌ เกิดข้อผิดพลาดในการอัปโหลด");
+                notify.error("❌ เกิดข้อผิดพลาดในการอัปโหลด");
             }
         } catch (error) {
             console.error(error);
-            alert("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้");
+            notify.error("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้");
         } finally {
             setLoading(false);
         }

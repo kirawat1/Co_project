@@ -19,5 +19,10 @@ export default tseslint.config([
       ecmaVersion: 2020,
       globals: globals.browser,
     },
+
+    rules: {
+      // ใช้ notify / askConfirm จาก src/utils/notify.ts แทนกล่องของเบราว์เซอร์
+      'no-alert': 'error',
+    },
   },
 ])

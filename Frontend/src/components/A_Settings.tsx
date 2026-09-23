@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { apiFetch } from "../utils/apiFetch";
 import { fmtDate } from '../utils/dateFormat';
+import { notify, askConfirm } from "../utils/notify";
 
 // --- Config สำหรับไฟล์แม่แบบ ---
 const ASSET_KEYS = [
@@ -39,7 +40,7 @@ export default function A_Settings() {
 
   // --- Handlers: Upload Assets ---
   const handleUpload = async (key: string, file: File) => {
-    if (!confirm(`ยืนยันการเปลี่ยนไฟล์ "${key}"?`)) return;
+    if (!(await askConfirm(`ยืนยันการเปลี่ยนไฟล์ "${key}"?`, { confirmLabel: "เปลี่ยนไฟล์" }))) return;
 
     setUploadingKey(key);
     const formData = new FormData();
@@ -51,29 +52,29 @@ export default function A_Settings() {
     try {
       const res = await apiFetch("/api/admin/assets", { method: "POST", body: formData });
       if (res.ok) {
-        alert("✅ อัปโหลดเรียบร้อย");
+        notify.success("✅ อัปโหลดเรียบร้อย");
         loadData();
       } else {
-        alert("❌ อัปโหลดล้มเหลว");
+        notify.error("❌ อัปโหลดล้มเหลว");
       }
-    } catch (err) { alert("Error uploading file"); }
+    } catch (err) { notify.error("อัปโหลดไม่สำเร็จ: เชื่อมต่อเซิร์ฟเวอร์ไม่ได้"); }
     finally { setUploadingKey(null); }
   };
 
   // --- 🆕 Handlers: Delete Assets ---
   const handleDeleteAsset = async (key: string) => {
-    if (!confirm(`⚠️ ยืนยันการลบไฟล์แม่แบบ "${key}" ใช่หรือไม่?\n(หากลบไปแล้ว ระบบจะไม่สามารถดึงไฟล์นี้ไปสร้าง PDF ได้จนกว่าจะอัปโหลดใหม่)`)) return;
+    if (!(await askConfirm(`⚠️ ยืนยันการลบไฟล์แม่แบบ "${key}" ใช่หรือไม่?\n(หากลบไปแล้ว ระบบจะไม่สามารถดึงไฟล์นี้ไปสร้าง PDF ได้จนกว่าจะอัปโหลดใหม่)`, { confirmLabel: "ลบไฟล์", danger: true }))) return;
 
     try {
       const res = await apiFetch(`/api/admin/assets/${key}`, { method: "DELETE" });
       if (res.ok) {
-        alert("🗑️ ลบไฟล์เรียบร้อยแล้ว");
+        notify.success("🗑️ ลบไฟล์เรียบร้อยแล้ว");
         loadData();
       } else {
-        alert("❌ ลบไฟล์ล้มเหลว");
+        notify.error("❌ ลบไฟล์ล้มเหลว");
       }
     } catch (err) {
-      alert("เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์");
+      notify.error("เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์");
     }
   };
 
@@ -87,12 +88,12 @@ export default function A_Settings() {
       });
 
       if (res.ok) {
-        alert("✅ บันทึกข้อมูลคณบดีเรียบร้อยแล้ว");
+        notify.success("✅ บันทึกข้อมูลคณบดีเรียบร้อยแล้ว");
       } else {
-        alert("❌ บันทึกไม่สำเร็จ");
+        notify.error("❌ บันทึกไม่สำเร็จ");
       }
     } catch (error) {
-      alert("เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์");
+      notify.error("เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์");
     }
   };
 

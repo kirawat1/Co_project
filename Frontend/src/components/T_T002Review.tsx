@@ -5,6 +5,7 @@ import { apiFetch } from "../utils/apiFetch";
 import AutoTextarea from "./AutoTextarea";
 import LoadMoreFooter from "./LoadMoreFooter";
 import { useLoadMore } from "../utils/useLoadMore";
+import { notify, askConfirm } from "../utils/notify";
 
 // --- Types ---
 type Document = { id: number; type: string; path: string; name: string; status: string; };
@@ -155,8 +156,8 @@ export default function T_T002Review() {
     };
 
     const submitReview = async (action: 'APPROVE' | 'REJECT') => {
-        if (action === 'REJECT' && !comment.trim()) return alert("กรุณาระบุเหตุผลที่ตีกลับ");
-        if (!confirm(`ยืนยันการ ${action === 'APPROVE' ? 'อนุมัติ' : 'ตีกลับ'} เอกสาร T002?`)) return;
+        if (action === 'REJECT' && !comment.trim()) return notify.warning("กรุณาระบุเหตุผลที่ตีกลับ");
+        if (!(await askConfirm(`ยืนยันการ ${action === 'APPROVE' ? 'อนุมัติ' : 'ตีกลับ'} เอกสาร T002?`, { confirmLabel: action === 'APPROVE' ? "อนุมัติ" : "ตีกลับ", danger: action !== 'APPROVE' }))) return;
 
         setLoading(true);
         try {
@@ -171,10 +172,10 @@ export default function T_T002Review() {
                 comment: action === 'REJECT' ? comment : null
             }, { headers: { Authorization: `Bearer ${token}` } });
 
-            alert(`บันทึกผลเรียบร้อย`);
+            notify.success(`บันทึกผลเรียบร้อย`);
             setModalOpen(false);
             reloadStudents(selectedPeriod);
-        } catch (err) { alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล"); }
+        } catch (err) { notify.error("เกิดข้อผิดพลาดในการบันทึกข้อมูล"); }
         finally { setLoading(false); }
     };
 

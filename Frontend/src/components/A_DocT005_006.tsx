@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import AutoTextarea from "./AutoTextarea";
+import { notify, askConfirm } from "../utils/notify";
 
 export default function A_DocT005_006() {
     const [isFetching, setIsFetching] = useState(true); // ✅ State สำหรับตอนดึงข้อมูลครั้งแรก
@@ -45,7 +46,7 @@ export default function A_DocT005_006() {
 
     // บันทึกการแก้ไข
     const handleSave = async () => {
-        if (!confirm("ยืนยันการบันทึกการเปลี่ยนแปลง? (นักศึกษาจะเห็นข้อความใหม่ทันที)")) return;
+        if (!(await askConfirm("ยืนยันการบันทึกการเปลี่ยนแปลง? (นักศึกษาจะเห็นข้อความใหม่ทันที)", { confirmLabel: "บันทึก" }))) return;
 
         setIsSaving(true);
         try {
@@ -53,9 +54,9 @@ export default function A_DocT005_006() {
             await axios.put("/api/admin/config/evaluation", payload, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            alert("✅ บันทึกข้อมูลสำเร็จ");
+            notify.success("✅ บันทึกข้อมูลสำเร็จ");
         } catch (err) {
-            alert("❌ เกิดข้อผิดพลาดในการบันทึก");
+            notify.error("❌ เกิดข้อผิดพลาดในการบันทึก");
         } finally {
             setIsSaving(false);
         }

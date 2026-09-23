@@ -4,6 +4,7 @@ import type { CSSProperties } from "react";
 import { fmtDate } from '../utils/dateFormat';
 import AutoTextarea from "./AutoTextarea";
 import DateInput from "./DateInput";
+import { notify, askConfirm } from "../utils/notify";
 
 function safeHref(url: string | null | undefined): string | undefined {
   if (!url) return undefined;
@@ -137,14 +138,19 @@ export default function A_Announcements() {
   }
 
   // 1. ฟังก์ชันสำหรับเพิ่มลิงก์
+  // ช่องกรอกลิงก์ในฟอร์ม (null = ยังไม่เปิด) — แทน prompt() ของเบราว์เซอร์ · ข้อความผิดแสดงใต้ช่อง
+  const [linkDraft, setLinkDraft] = useState<string | null>(null);
+  const [linkError, setLinkError] = useState("");
   function addLink() {
-    const url = prompt("กรอก URL (เช่น https://google.com)");
-    if (!url) return;
+    const url = (linkDraft ?? "").trim();
+    if (!url) { setLinkError("กรุณากรอก URL"); return; }
     if (!/^https?:\/\//i.test(url)) {
-      alert("URL ต้องเริ่มต้นด้วย https:// หรือ http://");
+      setLinkError("URL ต้องเริ่มต้นด้วย https:// หรือ http://");
       return;
     }
     setAttachments(prev => [...prev, { type: "link", name: url, url }]);
+    setLinkDraft(null);
+    setLinkError("");
   }
 
   // 2. ฟังก์ชันสำหรับลบไฟล์แนบ (ทั้งลิงก์และไฟล์)
@@ -162,7 +168,7 @@ export default function A_Announcements() {
   /* ================= ACTIONS ================= */
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim()) return alert("กรุณากรอกหัวข้อประกาศ");
+    if (!title.trim()) return notify.warning("กรุณากรอกหัวข้อประกาศ");
 
     const form = new FormData();
     if (editingId) form.append("id", editingId);
@@ -185,17 +191,23 @@ export default function A_Announcements() {
     if (keepFileIds.length) form.append("keepFileIds", JSON.stringify(keepFileIds));
 
     try {
-      await apiFetch("/api/announcements", { method: "POST", body: form });
+      const res = await apiFetch("/api/announcements", { method: "POST", body: form });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        notify.error(`บันทึกประกาศไม่สำเร็จ${d.message ? `: ${d.message}` : " กรุณาลองใหม่"}`);
+        return;
+      }
+      notify.success(editingId ? "แก้ไขประกาศแล้ว" : "เผยแพร่ประกาศแล้ว");
       resetForm();
       fetchAnnouncements();
     } catch (err) {
-      alert("เกิดข้อผิดพลาดในการบันทึก");
+      notify.error("บันทึกประกาศไม่สำเร็จ: เชื่อมต่อเซิร์ฟเวอร์ไม่ได้");
     }
   };
 
   const resetForm = () => {
     setTitle(""); setBody(""); setDate(new Date().toISOString().slice(0, 10));
-    setAttachments([]); setEditingId(null); setModalOpen(false);
+    setAttachments([]); setEditingId(null); setModalOpen(false); setLinkDraft(null); setLinkError("");
     setTargetMajors([]);
   };
 
@@ -204,17 +216,17 @@ export default function A_Announcements() {
     setTitle(a.title);
     setBody(a.body || "");
     setDate(a.date ? a.date.slice(0, 10) : new Date().toISOString().slice(0, 10));
-    setAttachments(a.attachments || []);
+    setAttachments(a.attachments || []); setLinkDraft(null); setLinkError("");
     setTargetMajors(a.targetMajors || []);
     setModalOpen(true);
   };
 
   const remove = async (id: string) => {
-    if (!confirm("ลบประกาศนี้? ข้อมูลจะไม่สามารถกู้คืนได้")) return;
+    if (!(await askConfirm("ลบประกาศนี้? ข้อมูลจะไม่สามารถกู้คืนได้", { confirmLabel: "ลบประกาศ", danger: true }))) return;
     try {
       await apiFetch(`/api/announcements/${id}`, { method: "DELETE" });
       fetchAnnouncements();
-    } catch (err) { alert("ลบไม่สำเร็จ"); }
+    } catch (err) { notify.error("ลบไม่สำเร็จ"); }
   };
 
   return (
@@ -398,7 +410,7 @@ export default function A_Announcements() {
               <div style={attachmentSection}>
                 <label style={labelStyle}>ไฟล์แนบและลิงก์</label>
                 <div style={attachBtnRow}>
-                  <button type="button" style={btnSmall} onClick={addLink}>🔗 เพิ่มลิงก์</button>
+                  <button type="button" style={btnSmall} onClick={() => { setLinkDraft(linkDraft === null ? "" : null); setLinkError(""); }}>🔗 เพิ่มลิงก์</button>
                   <label style={btnSmallLabel}>
                     📄 ไฟล์
                     <input
@@ -420,6 +432,25 @@ export default function A_Announcements() {
                     />
                   </label>
                 </div>
+                {linkDraft !== null && (
+                  <div style={{ marginTop: 10 }}>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <input
+                        autoFocus
+                        type="url"
+                        aria-label="URL ของลิงก์"
+                        placeholder="https://..."
+                        value={linkDraft}
+                        onChange={e => { setLinkDraft(e.target.value); setLinkError(""); }}
+                        onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addLink(); } if (e.key === "Escape") setLinkDraft(null); }}
+                        style={{ flex: 1, padding: "8px 10px", borderRadius: 8, border: `1px solid ${linkError ? "#ef4444" : "#cbd5e1"}`, fontSize: 14 }}
+                      />
+                      <button type="button" style={btnSmall} onClick={addLink}>เพิ่ม</button>
+                      <button type="button" style={btnSmall} onClick={() => { setLinkDraft(null); setLinkError(""); }}>ยกเลิก</button>
+                    </div>
+                    {linkError && <div style={{ color: "#dc2626", fontSize: 13, marginTop: 4 }}>{linkError}</div>}
+                  </div>
+                )}
                 {attachments.length > 0 && (
                   <div style={formAttachmentList}>
                     {attachments.map((a, i) => (

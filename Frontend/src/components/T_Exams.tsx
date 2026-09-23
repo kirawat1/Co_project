@@ -2,6 +2,7 @@
 import DateInput from './DateInput';
 import type { StudentProfile } from "./store";
 import AutoTextarea from "./AutoTextarea";
+import { notify, askConfirm } from "../utils/notify";
 
 function safeHref(url: string | undefined): string | undefined {
   if (!url) return undefined;
@@ -154,15 +155,15 @@ export default function T_Exams() {
 
   function save() {
     if (!edit) return;
-    if (!edit.studentId) return alert("กรุณาเลือกนักศึกษา");
-    if (!edit.date) return alert("กรุณาเลือกวันที่");
+    if (!edit.studentId) return notify.warning("กรุณาเลือกนักศึกษา");
+    if (!edit.date) return notify.warning("กรุณาเลือกวันที่");
 
     if (edit.mode === "onsite" && !edit.location) {
-      return alert("กรุณาระบุสถานที่สอบ (ออนไซต์)");
+      return notify.warning("กรุณาระบุสถานที่สอบ (ออนไซต์)");
     }
 
     if (edit.mode === "online" && !edit.onlineUrl) {
-      return alert("กรุณาระบุลิงก์สอบออนไลน์");
+      return notify.warning("กรุณาระบุลิงก์สอบออนไลน์");
     }
 
     const next = [...items];
@@ -176,8 +177,8 @@ export default function T_Exams() {
     close();
   }
 
-  function remove(id: string) {
-    if (!confirm("ลบนัดนิเทศรายการนี้?")) return;
+  async function remove(id: string) {
+    if (!(await askConfirm("ลบนัดนิเทศรายการนี้?", { confirmLabel: "ลบนัด", danger: true }))) return;
     persist(items.filter((x) => x.id !== id));
   }
 

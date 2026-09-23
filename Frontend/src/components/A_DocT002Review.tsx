@@ -6,6 +6,7 @@ import AutoTextarea from "./AutoTextarea";
 import DateInput from './DateInput';
 import LoadMoreFooter from "./LoadMoreFooter";
 import { useLoadMore } from "../utils/useLoadMore";
+import { notify, askConfirm } from "../utils/notify";
 
 // --- Types ---
 type Document = {
@@ -212,8 +213,8 @@ export default function A_T002Review() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(config)
             });
-            if (res.ok) alert("✅ บันทึกการตั้งค่าวันเวลาเรียบร้อยแล้ว");
-        } catch (err) { alert("เกิดข้อผิดพลาดในการบันทึก"); }
+            if (res.ok) notify.success("✅ บันทึกการตั้งค่าวันเวลาเรียบร้อยแล้ว");
+        } catch (err) { notify.error("เกิดข้อผิดพลาดในการบันทึก"); }
     };
 
     // รีวิวได้เฉพาะตอนสถานะเป็น T002_SUBMITTED/T002_EDITS_REQUIRED เท่านั้น (ตรงกับที่ backend ยอมรับ)
@@ -226,12 +227,12 @@ export default function A_T002Review() {
     // 4. บันทึกผลการตรวจ
     const submitReview = async (action: 'APPROVE' | 'REJECT') => {
         if (!isSelectedReviewable(selectedStudent)) {
-            return alert("เอกสารนี้ไม่อยู่ในสถานะที่ตรวจสอบได้แล้ว (อาจถูกตรวจไปแล้ว หรือนักศึกษายังไม่ได้ส่ง) กรุณาปิดหน้าต่างแล้วรีเฟรชรายชื่อ");
+            return notify.error("เอกสารนี้ไม่อยู่ในสถานะที่ตรวจสอบได้แล้ว (อาจถูกตรวจไปแล้ว หรือนักศึกษายังไม่ได้ส่ง) กรุณาปิดหน้าต่างแล้วรีเฟรชรายชื่อ");
         }
         if (action === 'REJECT' && !comment.trim()) {
-            return alert("กรุณาระบุเหตุผลที่ตีกลับ เพื่อให้นักศึกษาแก้ไข");
+            return notify.warning("กรุณาระบุเหตุผลที่ตีกลับ เพื่อให้นักศึกษาแก้ไข");
         }
-        if (!confirm(`ยืนยันการ ${action === 'APPROVE' ? 'อนุมัติ' : 'ตีกลับ'} เอกสาร T002?`)) return;
+        if (!(await askConfirm(`ยืนยันการ ${action === 'APPROVE' ? 'อนุมัติ' : 'ตีกลับ'} เอกสาร T002?`, { confirmLabel: action === 'APPROVE' ? "อนุมัติ" : "ตีกลับ", danger: action !== 'APPROVE' }))) return;
 
         setLoading(true);
         try {
@@ -248,12 +249,12 @@ export default function A_T002Review() {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
-            alert(`บันทึกผลเรียบร้อย (${action === 'APPROVE' ? 'อนุมัติ' : 'ตีกลับ'})`);
+            notify.success(`บันทึกผลเรียบร้อย (${action === 'APPROVE' ? 'อนุมัติ' : 'ตีกลับ'})`);
             setModalOpen(false);
             reloadStudents(selectedPeriod);
         } catch (err) {
             console.error(err);
-            alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล");
+            notify.error("เกิดข้อผิดพลาดในการบันทึกข้อมูล");
         } finally {
             setLoading(false);
         }

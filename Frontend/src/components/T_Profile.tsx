@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { IcUser, IcEdit, IcSave } from "./icons";
 import { apiFetch } from "../utils/apiFetch";
+import { notify } from "../utils/notify";
 
 /* =========================
    Types & Enums
@@ -118,10 +119,10 @@ export default function T_Profile() {
         setIsModalOpen(false);
       } else {
         const result = await res.json().catch(() => ({}));
-        alert(result.message || "บันทึกไม่สำเร็จ กรุณาลองใหม่");
+        notify.error(result.message || "บันทึกไม่สำเร็จ กรุณาลองใหม่");
       }
     } catch (err) {
-      alert("ไม่สามารถบันทึกข้อมูลได้");
+      notify.error("ไม่สามารถบันทึกข้อมูลได้");
     }
   };
 

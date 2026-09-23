@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { apiFetch } from "../utils/apiFetch";
+import { notify } from "../utils/notify";
 
 const IOS_BLUE = "#0074B7";
 
@@ -191,7 +192,7 @@ export default function T_Dashboard() {
       window.URL.revokeObjectURL(url);
     } catch (err) {
       console.error("Export failed", err);
-      alert("ดาวน์โหลดไฟล์ไม่สำเร็จ กรุณาลองใหม่");
+      notify.error("ดาวน์โหลดไฟล์ไม่สำเร็จ กรุณาลองใหม่");
     }
   };
 

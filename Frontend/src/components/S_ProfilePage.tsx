@@ -5,6 +5,7 @@ import { useToast } from "./Toast";
 import Spinner from "./Spinner";
 import { apiFetch } from "../utils/apiFetch";
 import S_ChangePasswordModal from "./S_ChangePasswordModal";
+import { notify } from "../utils/notify";
 
 /* ================= TYPES ================= */
 interface Mentor {
@@ -243,7 +244,7 @@ export default function S_ProfilePage() {
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        alert(err.message || "บันทึกไม่สำเร็จ กรุณาลองใหม่");
+        notify.error(err.message || "บันทึกไม่สำเร็จ กรุณาลองใหม่");
         return;
       }
 
@@ -257,10 +258,10 @@ export default function S_ProfilePage() {
         setNoMentorYet(!!data.coop?.company && (data.coop.mentors || []).length === 0);
       }
 
-      alert("บันทึกข้อมูลเรียบร้อย");
+      notify.success("บันทึกข้อมูลเรียบร้อย");
       setOpenStudentModal(false);
     } catch (err) {
-      alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล");
+      notify.error("เกิดข้อผิดพลาดในการบันทึกข้อมูล");
     }
   }
 
@@ -282,12 +283,12 @@ export default function S_ProfilePage() {
           ...result.student,
           company: profile.company // คงค่าไว้ไม่ให้ UI กระพริบ
         }));
-        alert("บันทึกข้อมูลสถานที่ฝึกเรียบร้อย");
+        notify.success("บันทึกข้อมูลสถานที่ฝึกเรียบร้อย");
       } else {
         const err = await res.json().catch(() => ({}));
-        alert(err.message || "บันทึกไม่สำเร็จ กรุณาลองใหม่");
+        notify.error(err.message || "บันทึกไม่สำเร็จ กรุณาลองใหม่");
       }
-    } catch (err) { alert("เกิดข้อผิดพลาดในการบันทึกบริษัท"); }
+    } catch (err) { notify.error("เกิดข้อผิดพลาดในการบันทึกบริษัท"); }
   }
 
   // ฟังก์ชันประกอบร่างที่อยู่

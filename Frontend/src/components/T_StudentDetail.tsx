@@ -4,6 +4,7 @@ import StatusBadge from "../components/StatusBadge";
 import { apiFetch } from "../utils/apiFetch";
 import { fmtDate } from '../utils/dateFormat';
 import DateInput from './DateInput';
+import { notify, askConfirm } from "../utils/notify";
 
 /* =========================
    Types
@@ -215,7 +216,7 @@ export default function T_StudentDetail() {
 
   // --- Actions (Visits) ---
   const addVisit = async () => {
-    if (!visitForm.date) return alert("กรุณาเลือกวันที่");
+    if (!visitForm.date) return notify.warning("กรุณาเลือกวันที่");
     try {
       const res = await apiFetch("/api/visits", {
         method: "POST",
@@ -223,10 +224,10 @@ export default function T_StudentDetail() {
         body: JSON.stringify({ studentId: studentId, ...visitForm }),
       });
       if (res.ok) {
-        alert("✅ บันทึกนัดหมายแล้ว");
+        notify.success("✅ บันทึกนัดหมายแล้ว");
         setVisitForm({ date: new Date().toISOString().slice(0, 10), time: "09:00", location: "", note: "" });
         fetchData();
-      } else { alert("❌ บันทึกไม่สำเร็จ"); }
+      } else { notify.error("❌ บันทึกไม่สำเร็จ"); }
     } catch (err) { console.error(err); }
   };
 
@@ -241,7 +242,7 @@ export default function T_StudentDetail() {
   };
 
   const removeVisit = async (id: number) => {
-    if (!confirm("ยืนยันลบรายการนี้?")) return;
+    if (!(await askConfirm("ยืนยันลบรายการนี้?", { confirmLabel: "ลบ", danger: true }))) return;
     try {
       const res = await apiFetch(`/api/visits/${id}`, {
         method: "DELETE",

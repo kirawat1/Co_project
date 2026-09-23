@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import type { StudentProfile } from "./A_Students";
 import { apiFetch } from "../utils/apiFetch";
+import { askConfirm } from "../utils/notify";
 
 const CURRICULUM_TH: Record<string, string> = {
   normal: "ภาคปกติ",
@@ -84,7 +85,7 @@ export default function A_StudentEditModal({ student, onClose, onSaved }: Props)
 
   // ใช้รหัสนักศึกษาที่บันทึกในระบบ (ฝั่ง server อ่านจาก DB) ไม่ใช่ค่าที่กำลังแก้ในฟอร์ม
   async function handleResetPassword() {
-    if (!window.confirm(`รีเซ็ตรหัสผ่านของ ${student.firstName ?? ""} ${student.lastName ?? ""} เป็นรหัสนักศึกษา (${student.studentId})?\nรหัสผ่านเดิมจะใช้ไม่ได้อีก`)) return;
+    if (!(await askConfirm(`รีเซ็ตรหัสผ่านของ ${student.firstName ?? ""} ${student.lastName ?? ""} เป็นรหัสนักศึกษา (${student.studentId})?\nรหัสผ่านเดิมจะใช้ไม่ได้อีก`, { title: "รีเซ็ตรหัสผ่าน", confirmLabel: "รีเซ็ตรหัสผ่าน", danger: true, icon: "🔑" }))) return;
     setResetting(true);
     setResetResult(null);
     try {

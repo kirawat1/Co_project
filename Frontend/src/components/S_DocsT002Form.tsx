@@ -6,6 +6,7 @@ import AutoTextarea from "./AutoTextarea";
 import { apiFetch } from "../utils/apiFetch";
 import AddressFields from "./AddressFields";
 import { composeAddress, readAddressParts } from "../utils/addressFormat";
+import { notify } from "../utils/notify";
 
 interface Props {
     profile: any;
@@ -203,7 +204,7 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
             setShowModal(true);
         } catch (err) {
             console.error(err);
-            alert("เกิดข้อผิดพลาดในการสร้าง PDF");
+            notify.error("เกิดข้อผิดพลาดในการสร้าง PDF");
         } finally {
             setLoading(false);
         }
@@ -246,12 +247,12 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
                 if (!silent && typeof onRefresh === 'function') onRefresh();
             } else {
                 setSaveFailed(true);
-                if (!silent) alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล");
+                if (!silent) notify.error("เกิดข้อผิดพลาดในการบันทึกข้อมูล");
             }
         } catch (err) {
             console.error(err);
             setSaveFailed(true);
-            if (!silent) alert("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้");
+            if (!silent) notify.error("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้");
         } finally {
             if (!silent) setLoading(false);
         }
@@ -291,7 +292,8 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
             if (res.ok) {
                 const result = await res.json().catch(() => ({}));
                 const linked = result?.mentorSync?.linked || 0;
-                alert(`✅ อัปโหลดแบบฟอร์ม T002 สำเร็จ!${linked > 0 ? `\nบันทึกพี่เลี้ยง ${linked} คนจากข้อ 3 เข้าระบบแล้ว` : ""}`);
+                // หน้าจะรีโหลด — เก็บข้อความไว้แสดงหลังโหลดใหม่
+                notify.afterReload("success", `อัปโหลดแบบฟอร์ม T002 แล้ว รอการตรวจ${linked > 0 ? `\nบันทึกพี่เลี้ยง ${linked} คนจากข้อ 3 เข้าระบบแล้ว` : ""}`);
                 setSelectedUploadFile(null);
                 if (typeof onRefresh === 'function') {
                     onRefresh();
@@ -301,11 +303,11 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
                 }, 500);
 
             } else {
-                alert("❌ เกิดข้อผิดพลาดในการอัปโหลด");
+                notify.error("❌ เกิดข้อผิดพลาดในการอัปโหลด");
             }
         } catch (error) {
             console.error(error);
-            alert("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้");
+            notify.error("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้");
         } finally {
             setLoading(false);
         }

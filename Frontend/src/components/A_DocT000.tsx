@@ -9,6 +9,7 @@ import AutoTextarea from "./AutoTextarea";
 import DateInput from './DateInput';
 import LoadMoreFooter from "./LoadMoreFooter";
 import { useLoadMore } from "../utils/useLoadMore";
+import { notify, askConfirm } from "../utils/notify";
 
 // --- Interfaces ---
 interface StudentDocument {
@@ -251,9 +252,9 @@ export default function A_DocT000() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(config)
             });
-            if (res.ok) alert("✅ บันทึกการตั้งค่าวันเวลาเรียบร้อยแล้ว");
-            else alert("❌ บันทึกการตั้งค่าไม่สำเร็จ กรุณาลองใหม่");
-        } catch (err) { alert("บันทึกไม่สำเร็จ กรุณาตรวจสอบการเชื่อมต่อ"); }
+            if (res.ok) notify.success("✅ บันทึกการตั้งค่าวันเวลาเรียบร้อยแล้ว");
+            else notify.error("❌ บันทึกการตั้งค่าไม่สำเร็จ กรุณาลองใหม่");
+        } catch (err) { notify.error("บันทึกไม่สำเร็จ กรุณาตรวจสอบการเชื่อมต่อ"); }
     };
 
     const updateStudentState = (studentId: number, newData: Partial<StudentProfile>) => {
@@ -269,7 +270,7 @@ export default function A_DocT000() {
     // เปลี่ยน/อัปโหลดไฟล์ใบตอบรับแทนนักศึกษา — สถานะถอยกลับไป "รอตรวจใบตอบรับ" ให้ตรวจไฟล์ใหม่อีกครั้ง
     const handleReplaceAcceptance = async (file: File) => {
         if (!selectedStudent) return;
-        if (!confirm(`เปลี่ยนไฟล์ใบตอบรับของ ${selectedStudent.firstName} ${selectedStudent.lastName} เป็น "${file.name}" ?\nสถานะจะกลับไป "รอตรวจใบตอบรับ" ให้ตรวจอีกครั้ง`)) return;
+        if (!(await askConfirm(`เปลี่ยนไฟล์ใบตอบรับของ ${selectedStudent.firstName} ${selectedStudent.lastName} เป็น "${file.name}" ?\nสถานะจะกลับไป "รอตรวจใบตอบรับ" ให้ตรวจอีกครั้ง`, { confirmLabel: "เปลี่ยนไฟล์" }))) return;
         setReplacingAcceptance(true);
         try {
             const fd = new FormData();
@@ -278,14 +279,14 @@ export default function A_DocT000() {
             const res = await apiFetch('/api/admin/t000/acceptance-replace', { method: 'POST', body: fd });
             const data = await res.json().catch(() => ({}));
             if (!res.ok || !data.ok) {
-                alert(`❌ เปลี่ยนไฟล์ไม่สำเร็จ${data.message ? `: ${data.message}` : ''}`);
+                notify.error(`❌ เปลี่ยนไฟล์ไม่สำเร็จ${data.message ? `: ${data.message}` : ''}`);
                 return;
             }
             setShowModal(false);
             await fetchAllData();
-            alert('✅ เปลี่ยนไฟล์ใบตอบรับแล้ว — สถานะกลับไป "รอตรวจใบตอบรับ" กด "ตรวจสอบใบตอบรับ" เพื่อตรวจไฟล์ใหม่ได้เลย');
+            notify.success('✅ เปลี่ยนไฟล์ใบตอบรับแล้ว — สถานะกลับไป "รอตรวจใบตอบรับ" กด "ตรวจสอบใบตอบรับ" เพื่อตรวจไฟล์ใหม่ได้เลย');
         } catch {
-            alert('❌ เชื่อมต่อเซิร์ฟเวอร์ไม่ได้');
+            notify.error('❌ เชื่อมต่อเซิร์ฟเวอร์ไม่ได้');
         } finally {
             setReplacingAcceptance(false);
         }
@@ -348,7 +349,7 @@ export default function A_DocT000() {
 
     const handleApproveAll = async () => {
         if (!selectedStudent || !canEditInModal(selectedStudent, 1)) return;
-        if (!confirm("ยืนยัน 'อนุมัติทั้งหมด' ?")) return;
+        if (!(await askConfirm("ยืนยัน 'อนุมัติทั้งหมด' ?", { confirmLabel: "อนุมัติทั้งหมด" }))) return;
 
         const studentId = selectedStudent.id;
         const previousDocuments = selectedStudent.documents;
@@ -381,7 +382,7 @@ export default function A_DocT000() {
             });
             setAdminComment(previousComment);
             // บอกเหตุผลจาก server (เช่น สถานะไม่อยู่ในช่วงที่อนุมัติได้) — เดิมขึ้นแค่ "ลองใหม่" กดซ้ำก็ไม่ผ่าน
-            alert(`❌ อนุมัติทั้งหมดไม่สำเร็จ${err?.message ? `: ${err.message}` : " กรุณาลองใหม่อีกครั้ง"}`);
+            notify.error(`❌ อนุมัติทั้งหมดไม่สำเร็จ${err?.message ? `: ${err.message}` : " กรุณาลองใหม่อีกครั้ง"}`);
         }
     };
 
@@ -389,7 +390,7 @@ export default function A_DocT000() {
         if (!selectedStudent) return;
 
         if (!autoComment && (requireReason || status === "REJECTED" || status === "EDITS_REQUIRED") && !adminComment.trim()) {
-            return alert("กรุณาระบุเหตุผลในช่องความเห็น");
+            return notify.warning("กรุณาระบุเหตุผลในช่องความเห็น");
         }
 
         const finalComment = autoComment || adminComment;
@@ -409,12 +410,12 @@ export default function A_DocT000() {
             if (!res.ok) {
                 // เดิมไม่เช็คผล — ถ้า server ปฏิเสธ หน้าจอยังโชว์สถานะใหม่ทั้งที่ข้อมูลจริงไม่เปลี่ยน
                 const data = await res.json().catch(() => ({}));
-                alert(`❌ บันทึกสถานะไม่สำเร็จ${data.message ? `: ${data.message}` : ""}`);
+                notify.error(`❌ บันทึกสถานะไม่สำเร็จ${data.message ? `: ${data.message}` : ""}`);
                 fetchAllData();
                 return;
             }
             if (!autoComment) {
-                alert("บันทึกผลเรียบร้อย");
+                notify.success("บันทึกผลเรียบร้อย");
                 setShowModal(false);
             }
         } catch (err) { console.error("Update Status Error", err); }
@@ -888,7 +889,7 @@ function AcceptanceReceivedModal({ student, onClose, onSuccess }: { student: Stu
     const [saving, setSaving] = useState(false);
 
     const submit = async () => {
-        if (!confirm(`ยืนยันว่าได้รับใบตอบรับของ ${student.firstName} ${student.lastName} จากบริษัทแล้ว?`)) return;
+        if (!(await askConfirm(`ยืนยันว่าได้รับใบตอบรับของ ${student.firstName} ${student.lastName} จากบริษัทแล้ว?`, { confirmLabel: "ได้รับแล้ว" }))) return;
         setSaving(true);
         try {
             const fd = new FormData();
@@ -898,13 +899,13 @@ function AcceptanceReceivedModal({ student, onClose, onSuccess }: { student: Stu
             const res = await apiFetch("/api/admin/t000/acceptance-received", { method: "POST", body: fd });
             const data = await res.json().catch(() => ({}));
             if (!res.ok || !data.ok) {
-                alert(`❌ บันทึกไม่สำเร็จ${data.message ? `: ${data.message}` : ""}`);
+                notify.error(`❌ บันทึกไม่สำเร็จ${data.message ? `: ${data.message}` : ""}`);
                 return;
             }
-            alert("✅ บันทึกแล้ว — ออกหนังสือส่งตัวต่อได้เลย");
+            notify.success("✅ บันทึกแล้ว — ออกหนังสือส่งตัวต่อได้เลย");
             onSuccess();
         } catch {
-            alert("❌ เชื่อมต่อเซิร์ฟเวอร์ไม่ได้");
+            notify.error("❌ เชื่อมต่อเซิร์ฟเวอร์ไม่ได้");
         } finally {
             setSaving(false);
         }

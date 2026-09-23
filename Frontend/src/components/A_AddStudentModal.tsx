@@ -1,6 +1,7 @@
 // Frontend/src/components/A_AddStudentModal.tsx
 import { useEffect, useState } from "react";
 import { apiFetch } from "../utils/apiFetch";
+import { notify } from "../utils/notify";
 
 interface Props {
   onClose: () => void;
@@ -41,10 +42,10 @@ export default function A_AddStudentModal({ onClose, onSuccess }: Props) {
 
   const handleSubmit = async () => {
     if (!form.studentId.trim() || !form.firstName.trim() || !form.lastName.trim() || !form.email.trim()) {
-      return alert("กรุณากรอกข้อมูลที่จำเป็น: รหัสนักศึกษา, ชื่อ, นามสกุล, อีเมล");
+      return notify.warning("กรุณากรอกข้อมูลที่จำเป็น: รหัสนักศึกษา, ชื่อ, นามสกุล, อีเมล");
     }
     if (!/^[^@\s]+@(kkumail\.com|kku\.ac\.th)$/i.test(form.email.trim())) {
-      return alert("กรุณาใช้อีเมล @kkumail.com หรือ @kku.ac.th");
+      return notify.warning("กรุณาใช้อีเมล @kkumail.com หรือ @kku.ac.th");
     }
     setLoading(true);
     try {
@@ -54,11 +55,11 @@ export default function A_AddStudentModal({ onClose, onSuccess }: Props) {
         body: JSON.stringify(form),
       });
       const data = await res.json();
-      if (!res.ok) return alert(data.message || "เกิดข้อผิดพลาด");
-      alert("✅ เพิ่มนักศึกษาเรียบร้อย");
+      if (!res.ok) return notify.error(data.message || "เกิดข้อผิดพลาด");
+      notify.success("✅ เพิ่มนักศึกษาเรียบร้อย");
       onSuccess();
     } catch (err: any) {
-      alert("เกิดข้อผิดพลาด: " + err.message);
+      notify.error("เกิดข้อผิดพลาด: " + err.message);
     } finally {
       setLoading(false);
     }

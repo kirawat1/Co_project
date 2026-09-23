@@ -1,6 +1,7 @@
 import { jsPDF } from "jspdf";
 import { formMajorName } from "./docGeneratorUtils";
 import { composeAddress } from "./addressFormat";
+import { notify } from "./notify";
 
 // ================= HELPERS =================
 const getFontBase64 = async (url: string): Promise<string> => {
@@ -60,7 +61,7 @@ export const createParentalConsentPDF = async (
     doc.setFont("THSarabun", "normal");
   } catch (e) {
     console.error("Error loading fonts:", e);
-    alert("ไม่พบไฟล์ฟอนต์ THSarabunNew ในโฟลเดอร์ public/fonts/");
+    notify.error("ไม่พบไฟล์ฟอนต์ THSarabunNew ในโฟลเดอร์ public/fonts/");
     return doc;
   }
 

@@ -4,6 +4,7 @@ import { createDispatchPDF } from "../utils/pdfDispatchGenerator";
 import { createWordBlob, createPreviewBlob, buildDispatchLetterHtml, thaiPrefix, normalizeDocNumber } from "../utils/docGeneratorUtils";
 import { FileReady, DeliveryPicker, CompanyAddressBox, MODAL_CSS, useLetterPending, LetterPendingBanner, confirmMatchesDraft, type LetterDraft } from "./LetterModalShared";
 import DateInput from './DateInput';
+import { notify, askConfirm } from "../utils/notify";
 
 interface Props {
     student: any;
@@ -49,14 +50,14 @@ export default function IssueLetterModal({ student, onClose, onSuccess }: Props)
     };
 
     const handleCreatePdf = async () => {
-        if (!startDate) return alert("ไม่พบวันที่เริ่มฝึกในระบบ — นักศึกษาต้องกรอกที่หน้าเอกสารก่อน");
+        if (!startDate) return notify.warning("ไม่พบวันที่เริ่มฝึกในระบบ — นักศึกษาต้องกรอกที่หน้าเอกสารก่อน");
         setLoadingPdf(true);
         try {
             const { getAsset, deanName, deanPosition } = await loadCommonData();
             const krutUrl = getAsset("KRUT");
             const projectUrl = getAsset("PROJECT_DETAILS");
             const acceptUrl = getAsset("ACCEPTANCE_FORM");
-            if (!krutUrl) return alert("⚠️ ไม่พบไฟล์ตราครุฑ (KRUT) กรุณาอัปโหลดในหน้าตั้งค่า");
+            if (!krutUrl) return notify.error("⚠️ ไม่พบไฟล์ตราครุฑ (KRUT) กรุณาอัปโหลดในหน้าตั้งค่า");
 
             const profile = { ...student, coop: { ...student.coop, actualStartDate: startDate, actualEndDate: endDate } };
             const allDocs = (student.documents || []).filter((d: any) => d.path);
@@ -75,7 +76,7 @@ export default function IssueLetterModal({ student, onClose, onSuccess }: Props)
             const missing = fileChecks.filter(f => !f.exists);
             if (missing.length > 0) {
                 const names = missing.map(f => f.doc.name || f.doc.path).join("\n• ");
-                const proceed = window.confirm(`⚠️ พบเอกสาร ${missing.length} ไฟล์ที่ไม่พบบนเซิร์ฟเวอร์ (อาจเป็นไฟล์เก่าที่ถูกลบ):\n• ${names}\n\nสร้าง PDF ต่อโดยข้ามไฟล์ที่หายไป?`);
+                const proceed = (await askConfirm(`⚠️ พบเอกสาร ${missing.length} ไฟล์ที่ไม่พบบนเซิร์ฟเวอร์ (อาจเป็นไฟล์เก่าที่ถูกลบ):\n• ${names}\n\nสร้าง PDF ต่อโดยข้ามไฟล์ที่หายไป?`, { title: "ไฟล์แนบบางไฟล์หายไป", confirmLabel: "สร้าง PDF ต่อ" }));
                 if (!proceed) return;
             }
             const studentFiles = fileChecks.filter(f => f.exists).map(f => ({ type: f.doc.type, url: f.url }));
@@ -87,12 +88,12 @@ export default function IssueLetterModal({ student, onClose, onSuccess }: Props)
             setPdfDraft({ blob, docNumber, docDate });
             const url = URL.createObjectURL(blob);
             setPreviewUrl(url);
-                    } catch (err) { alert("สร้าง PDF ไม่สำเร็จ: " + err); }
+                    } catch (err) { notify.error("สร้าง PDF ไม่สำเร็จ: " + err); }
         finally { setLoadingPdf(false); }
     };
 
     const handleCreateDoc = async () => {
-        if (!startDate) return alert("ไม่พบวันที่เริ่มฝึกในระบบ — นักศึกษาต้องกรอกที่หน้าเอกสารก่อน");
+        if (!startDate) return notify.warning("ไม่พบวันที่เริ่มฝึกในระบบ — นักศึกษาต้องกรอกที่หน้าเอกสารก่อน");
         setLoadingDoc(true);
         try {
             const { deanName, deanPosition } = await loadCommonData();
@@ -108,7 +109,7 @@ export default function IssueLetterModal({ student, onClose, onSuccess }: Props)
             setDocDraft({ blob: createWordBlob(html), docNumber, docDate });
             // preview doc ใน iframe ด้วย HTML blob
             setPreviewUrl(URL.createObjectURL(createPreviewBlob(html)));
-                    } catch (err) { alert("สร้าง Word ไม่สำเร็จ: " + err); }
+                    } catch (err) { notify.error("สร้าง Word ไม่สำเร็จ: " + err); }
         finally { setLoadingDoc(false); }
     };
 
@@ -128,11 +129,11 @@ export default function IssueLetterModal({ student, onClose, onSuccess }: Props)
         // เลขที่หนังสือราชการห้ามซ้ำ — เทมเพลตที่ยังไม่กรอกเลขท้าย "/" จะกลายเป็นเลขซ้ำทันที
         const docNo = normalizeDocNumber(docNumber);
         if (!docNo || /[.]{3,}|x{3,}/i.test(docNo) || !/\/\s*\S/.test(docNo)) {
-            return alert("กรุณากรอกเลขที่หนังสือให้ครบก่อนบันทึก (ใส่เลขต่อท้าย / เช่น 660301.26.6.2/1234)");
+            return notify.warning("กรุณากรอกเลขที่หนังสือให้ครบก่อนบันทึก (ใส่เลขต่อท้าย / เช่น 660301.26.6.2/1234)");
         }
-        if (!signedFile) return alert("กรุณาอัปโหลดไฟล์ที่ลงนามแล้วก่อนบันทึกเข้าระบบ");
-        if (!confirmMatchesDraft(pending.draftNumber, docNo)) return;
-        if (!confirm("ยืนยันการบันทึกข้อมูล และอัปเดตสถานะให้นักศึกษา?")) return;
+        if (!signedFile) return notify.warning("กรุณาอัปโหลดไฟล์ที่ลงนามแล้วก่อนบันทึกเข้าระบบ");
+        if (!(await confirmMatchesDraft(pending.draftNumber, docNo))) return;
+        if (!(await askConfirm("ยืนยันการบันทึกข้อมูล และอัปเดตสถานะให้นักศึกษา?", { confirmLabel: "บันทึก" }))) return;
         try {
             const formData = new FormData();
             formData.append("studentId", student.id);
@@ -148,9 +149,9 @@ export default function IssueLetterModal({ student, onClose, onSuccess }: Props)
             formData.append("file", signedFile);
             const res = await apiFetch("/api/admin/t000/review", { method: "PUT", body: formData });
             if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.message || `Server error ${res.status}`); }
-            alert("✅ บันทึกและจัดเก็บไฟล์เรียบร้อย");
+            notify.success("✅ บันทึกและจัดเก็บไฟล์เรียบร้อย");
             onSuccess();
-        } catch (err: any) { alert(`❌ เกิดข้อผิดพลาด: ${err.message || err}`); }
+        } catch (err: any) { notify.error(`❌ เกิดข้อผิดพลาด: ${err.message || err}`); }
     };
 
     return (

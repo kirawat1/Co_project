@@ -11,6 +11,7 @@ import PasswordReveal from "./PasswordReveal";
 import LoadMoreFooter from "./LoadMoreFooter";
 import { useInfinitePages } from "../utils/useInfinitePages";
 import { toggleSelectAllShown, allShownSelected } from "../utils/useLoadMore";
+import { notify, askConfirm } from "../utils/notify";
 
 function safeHref(url: string | null | undefined): string | undefined {
   if (!url) return undefined;
@@ -303,21 +304,21 @@ export default function A_Students() {
 
   const handleDeleteStudent = async (s: StudentProfile) => {
     const fullName = `${s.firstName ?? ""} ${s.lastName ?? ""}`.trim();
-    if (!window.confirm(`ย้าย "${fullName || s.studentId}" ไปถังขยะ?`)) return;
+    if (!(await askConfirm(`ย้าย "${fullName || s.studentId}" ไปถังขยะ?`, { confirmLabel: "ย้ายไปถังขยะ", danger: true }))) return;
     try {
       const res = await apiFetch(`/api/admin/students/${s.id}`, {
         method: "DELETE",
       });
       const data = await res.json();
       if (!data.ok) {
-        alert(data.message || "ลบไม่สำเร็จ");
+        notify.error(data.message || "ลบไม่สำเร็จ");
         return;
       }
       // ลบออกจากรายการที่โหลดไว้แล้วเลย ไม่ต้องโหลดใหม่ทั้งหมด (เหมือนหน้าบริษัท/อาจารย์)
       setItems(prev => prev.filter(x => x.id !== s.id));
       setTotal(t => Math.max(0, t - 1));
     } catch (err: any) {
-      alert(err.message || "เกิดข้อผิดพลาด");
+      notify.error(err.message || "เกิดข้อผิดพลาด");
     }
   };
 
@@ -342,7 +343,7 @@ export default function A_Students() {
   const handleBulkDeleteStudents = async () => {
     const ids = Array.from(selectedIds);
     if (ids.length === 0) return;
-    if (!window.confirm(`ย้ายนักศึกษาที่เลือก ${ids.length} คน ไปถังขยะ?`)) return;
+    if (!(await askConfirm(`ย้ายนักศึกษาที่เลือก ${ids.length} คน ไปถังขยะ?`, { confirmLabel: "ย้ายไปถังขยะ", danger: true }))) return;
     setBulkDeleting(true);
     try {
       const results = await Promise.allSettled(
@@ -357,7 +358,7 @@ export default function A_Students() {
       );
       const failed = results.length - succeededIds.size;
       if (failed > 0) {
-        alert(`ย้ายไปถังขยะสำเร็จ ${succeededIds.size} คน, ไม่สำเร็จ ${failed} คน`);
+        notify.warning(`ย้ายไปถังขยะสำเร็จ ${succeededIds.size} คน, ไม่สำเร็จ ${failed} คน`);
       }
       // ลบออกจากรายการที่โหลดไว้แล้วเลย ไม่ต้องโหลดใหม่ทั้งหมด
       setItems(prev => prev.filter(s => !succeededIds.has(s.id)));
@@ -394,10 +395,10 @@ export default function A_Students() {
         setImportPreview(data.rows);
         setImportPreviewSummary(data.summary);
       } else {
-        alert(data.message || "ไม่สามารถอ่านไฟล์ได้");
+        notify.error(data.message || "ไม่สามารถอ่านไฟล์ได้");
       }
     } catch (err: any) {
-      alert(err.message || "เกิดข้อผิดพลาด");
+      notify.error(err.message || "เกิดข้อผิดพลาด");
     } finally {
       setImportPreviewLoading(false);
     }
@@ -423,10 +424,10 @@ export default function A_Students() {
         setImportPreviewSummary(null);
         reloadStudents(); // นำเข้าใหม่อาจมีหลายร้อยแถว ไม่รู้ตำแหน่งที่ควรแทรก โหลดหน้า 1 ใหม่ทั้งหมด
       } else {
-        alert(data.message || "นำเข้าไม่สำเร็จ");
+        notify.error(data.message || "นำเข้าไม่สำเร็จ");
       }
     } catch (err: any) {
-      alert(err.message || "เกิดข้อผิดพลาด");
+      notify.error(err.message || "เกิดข้อผิดพลาด");
     } finally {
       setImportLoading(false);
     }
