@@ -8,6 +8,7 @@ import ConfirmDialog from "./ConfirmDialog";
 import Spinner from "./Spinner";
 import { useDebounce } from "../hooks/useDebounce";
 import LoadMoreFooter from "./LoadMoreFooter";
+import A_ApplyWindowCard from "./A_ApplyWindowCard";
 import { useLoadMore } from "../utils/useLoadMore";
 
 function safeHref(url: string | null | undefined): string | undefined {
@@ -261,6 +262,9 @@ export default function A_CoopApplications() {
                     </button>
                 </div>
             </section>
+
+            {/* ช่วงเวลายื่นคำร้อง — ตั้งแยกจากรอบรับสมัคร แบบเดียวกับ T000–T003 */}
+            <A_ApplyWindowCard />
 
             {/* FILTER & LIST */}
             <section style={card}>
