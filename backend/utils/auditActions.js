@@ -28,6 +28,8 @@ const RULES = [
   ['POST', '/api/auth/login/google', 'เข้าสู่ระบบด้วย Google', null, null],
   ['POST', '/api/auth/register', 'เพิ่มนักศึกษาใหม่', 'นักศึกษา', 'code:studentId'],
   ['PUT', '/api/auth/me/password', 'เปลี่ยนรหัสผ่าน', null, null],
+  ['POST', '/api/feedback', 'แจ้งปัญหาการใช้งาน', null, null],
+  ['PATCH', '/api/admin/feedback/:x', 'ตอบกลับ/อัปเดตเรื่องที่แจ้ง', 'เรื่องที่แจ้ง', ':1'],
 
   ['PUT', '/api/students/me', 'แก้ไขข้อมูลส่วนตัว', 'นักศึกษา', null],
   ['POST', '/api/students/sync-from-reg', 'ซิงก์ข้อมูลจากทะเบียน KKU', 'นักศึกษา', null],

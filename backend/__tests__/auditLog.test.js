@@ -278,7 +278,7 @@ describe('ชื่อการกระทำตรงกับ route จริ
       authRoutes: ['/api/auth'], companyRoutes: ['/api/companies'], announcementRoutes: ['/api/announcements'],
       studentRoutes: ['/api/students'], coopRoutes: ['/api/coop'], teacherRoutes: ['/api/teacher', '/api/teachers'],
       docRoutes: ['/api/docs'], adminRoutes: ['/api/admin'], notificationRoutes: ['/api/notifications'],
-      supervisionRoutes: ['/api'], visitRoutes: ['/api/visits'],
+      supervisionRoutes: ['/api'], visitRoutes: ['/api/visits'], feedbackRoutes: ['/api/feedback'],
     };
     const real = [];
     for (const [file, prefixes] of Object.entries(mounts)) {
@@ -511,7 +511,7 @@ function realRoutes() {
     authRoutes: ['/api/auth'], companyRoutes: ['/api/companies'], announcementRoutes: ['/api/announcements'],
     studentRoutes: ['/api/students'], coopRoutes: ['/api/coop'], teacherRoutes: ['/api/teacher', '/api/teachers'],
     docRoutes: ['/api/docs'], adminRoutes: ['/api/admin'], notificationRoutes: ['/api/notifications'],
-    supervisionRoutes: ['/api'], visitRoutes: ['/api/visits'],
+    supervisionRoutes: ['/api'], visitRoutes: ['/api/visits'], feedbackRoutes: ['/api/feedback'],
   };
   const out = [];
   for (const [file, prefixes] of Object.entries(mounts)) {

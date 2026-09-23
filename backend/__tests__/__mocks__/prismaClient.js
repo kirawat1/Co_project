@@ -179,6 +179,17 @@ const prismaMock = {
     delete: jest.fn(),
     count: jest.fn(),
   },
+  feedback: {
+    findUnique: jest.fn(),
+    findFirst: jest.fn(),
+    findMany: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+    deleteMany: jest.fn(),
+    count: jest.fn(),
+    groupBy: jest.fn(),
+  },
   auditLog: {
     create: jest.fn(),
     findMany: jest.fn(),

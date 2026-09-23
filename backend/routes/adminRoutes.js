@@ -34,6 +34,11 @@ router.post('/config/t000', verifyToken, verifyRole(...ADMIN_ROLES), adminDocCon
 router.get('/t000/students', verifyToken, verifyRole(...ADMIN_ROLES), adminDocController.getStudentsForT000);
 
 // บันทึกการใช้งาน (ใครทำอะไร) — เจ้าหน้าที่เท่านั้น
+// เรื่องที่ผู้ใช้แจ้งเข้ามา (ปุ่มแจ้งปัญหา)
+const feedbackController = require('../controllers/feedbackController');
+router.get('/feedback', verifyToken, verifyRole(...STAFF_ONLY), feedbackController.listFeedback);
+router.patch('/feedback/:id', verifyToken, verifyRole(...STAFF_ONLY), feedbackController.updateFeedback);
+
 router.get('/logs/export', verifyToken, verifyRole(...STAFF_ONLY), auditLogController.exportAuditLogs);
 router.get('/logs/actors', verifyToken, verifyRole(...STAFF_ONLY), auditLogController.getAuditActors);
 router.get('/logs', verifyToken, verifyRole(...STAFF_ONLY), auditLogController.getAuditLogs);
