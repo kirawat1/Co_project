@@ -142,6 +142,17 @@ async function loginAs(page: Page, role: Role, email: string) {
 }
 
 /** ดึง JWT ที่ frontend เก็บไว้ เพื่อใช้ยิง API ตรงในขั้นที่เป็นการอัปโหลดไฟล์ล้วน ๆ */
+// กล่องยืนยันของระบบ (askConfirm ใน src/utils/notify.ts) — แทน window.confirm เดิม
+// กดปุ่มยืนยัน (ปุ่มขวาสุด) ทุกกล่องที่เด้งตามกันมา เช่น "เลขที่ไม่ตรงร่าง" แล้วต่อด้วย "ยืนยันบันทึก"
+async function acceptConfirms(page: Page, max = 3) {
+  const dlg = page.locator('[role="dialog"][aria-modal="true"]');
+  await dlg.first().waitFor({ state: "visible", timeout: 10_000 });
+  for (let i = 0; i < max && (await dlg.count()) > 0; i++) {
+    await dlg.last().locator("button").last().click();
+    await page.waitForTimeout(300);
+  }
+}
+
 async function tokenOf(page: Page): Promise<string> {
   const token = await page.evaluate(() => localStorage.getItem("coop.token"));
   expect(token, "ต้อง login สำเร็จก่อนถึงจะมี token").toBeTruthy();
@@ -183,7 +194,6 @@ test("P1: นักศึกษา login แล้วยื่นคำร้อ
     buffer: PDF,
   });
 
-  page.once("dialog", (d) => d.accept());
   await page.getByRole("button", { name: /ส่งคำร้อง|ยื่นคำร้อง/ }).click();
 
   await expect
@@ -259,8 +269,8 @@ test("P4: เจ้าหน้าที่กดอนุมัติเอก�
   await expect(modal).toBeVisible();
   await expect(modal).toContainText(fx.student.studentId);
 
-  page.once("dialog", (d) => d.accept());
   await modal.getByRole("button", { name: /อนุมัติทั้งหมด/ }).click();
+  await acceptConfirms(page);
 
   await expect.poll(() => getCoopStatus(fx.student.studentPk), { timeout: 15_000 })
     .toBe("DOCS_APPROVED");
@@ -296,8 +306,8 @@ test("P5: ออกหนังสือขอความอนุเครา�
     buffer: PDF,
   });
 
-  page.on("dialog", (d) => d.accept());
   await modal.getByRole("button", { name: /บันทึกเข้าระบบ/ }).click();
+  await acceptConfirms(page);
 
   await expect.poll(() => getCoopStatus(fx.student.studentPk), { timeout: 20_000 })
     .toBe("REQ_LETTER_ISSUED");
@@ -371,8 +381,8 @@ test("P8: ออกหนังสือส่งตัว → PLACEMENT_LETTER_
     buffer: PDF,
   });
 
-  page.on("dialog", (d) => d.accept());
   await modal.getByRole("button", { name: /บันทึกเข้าระบบ/ }).click();
+  await acceptConfirms(page);
 
   await expect.poll(() => getCoopStatus(fx.student.studentPk), { timeout: 20_000 })
     .toBe("PLACEMENT_LETTER_ISSUED");
@@ -470,11 +480,11 @@ test("P11: นักศึกษาเสนอวันนิเทศผ่า
   await dateInput.fill("2026-12-15");
 
   // รูปแบบเริ่มต้นของฟอร์มคือ "ออนไลน์" ซึ่งบังคับกรอกลิงก์ประชุม (มี * กำกับ)
-  // ถ้าไม่กรอก ปุ่มส่งจะเด้ง alert แล้วไม่ยิง API เลย
+  // ถ้าไม่กรอก ปุ่มส่งจะขึ้นคำเตือนแล้วไม่ยิง API เลย
   await page.getByPlaceholder(/meet\.google\.com/).fill("https://meet.google.com/e2e-test");
 
-  page.on("dialog", (d) => d.accept());
   await page.getByRole("button", { name: /ส่งข้อมูลให้อาจารย์พิจารณา/ }).click();
+  await acceptConfirms(page);
 
   await expect
     .poll(() => getSupervision(fx.student.studentPk).then((s) => s?.status), { timeout: 20_000 })
