@@ -20,6 +20,7 @@ import S_DocT008 from './S_DocT008';
 import S_Announcements from './S_Announcements';
 import { ThemeToggleBtn } from "./ThemeContext";
 import { apiFetch } from "../utils/apiFetch";
+import S_FeedbackButton from "./S_FeedbackButton";
 
 const IOS_BLUE = "#0074B7";
 
@@ -115,6 +116,9 @@ export default function StudentApp() {
           </Routes>
         </main>
       </div>
+
+      {/* ปุ่มแจ้งปัญหา — ลอยอยู่ทุกหน้าของนักศึกษา ส่งหน้าที่เปิดอยู่กับสถานะสหกิจไปให้เจ้าหน้าที่ด้วย */}
+      <S_FeedbackButton coopStatus={profile.coop?.status} />
 
       <StudentTheme IOS_BLUE={IOS_BLUE} />
     </div>

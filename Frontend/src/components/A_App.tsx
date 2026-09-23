@@ -16,6 +16,7 @@ import Teachers from "./A_Teacher";
 import Companies from "./A_Company";
 import StaffCriteriaPage from "./A_CriteriaPage";
 import A_Logs from "./A_Logs";
+import A_Feedback from "./A_Feedback";
 import DocT000 from "./A_DocT000";
 import DocT002 from "./A_DocT002Review";
 import DocT003 from "./A_DocT003Review";
@@ -128,6 +129,7 @@ export default function AdminApp() {
             <Route path="coop-applications" element={<CoopApplications />} />
             <Route path="supervision-manager" element={<A_SupervisionManager />} />
             <Route path="logs" element={<A_Logs />} />
+            <Route path="feedback" element={<A_Feedback />} />
             <Route path="doc-t005-006" element={<A_DocT005_006 />} />
             <Route path="doc-t007" element={<A_DocT007 />} />
             <Route path="doc-t008" element={<A_DocT008 />} />

@@ -158,6 +158,9 @@ export default function A_Sidebar({ isOpen = false, onClose = () => {} }: Sideba
           <span className="text">จัดการบัญชีเจ้าหน้าที่</span>
         </NavLink>
 
+        {/* เรื่องที่ผู้ใช้แจ้งเข้ามาจากปุ่มแจ้งปัญหา — ป้ายนับเฉพาะเรื่องที่ยังไม่ได้อ่าน */}
+        <NavItem to="/admin/feedback" label="เรื่องที่ผู้ใช้แจ้ง" icon={<IcInbox />} {...badge(["FEEDBACK_NEW"])} />
+
         {/* บันทึกการใช้งาน — ใครทำอะไรกับระบบ (เจ้าหน้าที่เท่านั้น) */}
         <NavItem to="/admin/logs" label="บันทึกการใช้งาน" icon={<IcClipboard />} onClick={nav} />
 
