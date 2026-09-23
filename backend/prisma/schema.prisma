@@ -174,16 +174,34 @@ model CoopApplicationForm {
   student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   // --- ข้อมูลที่อยู่ที่ติดต่อได้ ---
-  contactAddress String? @db.Text
-  contactPhone   String?
-  contactEmail   String?
+  // ที่อยู่ติดต่อ — กรอกแยกช่อง ส่วน contactAddress คือข้อความรวมที่ระบบประกอบให้ (ใช้ในเอกสาร PDF)
+  contactAddress     String? @db.Text
+  contactAddrNo      String?
+  contactMoo         String?
+  contactSoi         String?
+  contactRoad        String?
+  contactSubDistrict String?
+  contactDistrict    String?
+  contactProvince    String?
+  contactZipcode     String?
+  contactPhone       String?
+  contactEmail       String?
 
   // --- ข้อมูลบุคคลฉุกเฉิน ---
   emergencyName      String?
   emergencyRelation  String?
   emergencyJob       String?
   emergencyWorkplace String?
+  // ที่อยู่ผู้ปกครอง — แยกช่องเช่นกัน (emergencyAddress = ข้อความรวม)
   emergencyAddress   String? @db.Text
+  emerAddrNo         String?
+  emerMoo            String?
+  emerSoi            String?
+  emerRoad           String?
+  emerSubDistrict    String?
+  emerDistrict       String?
+  emerProvince       String?
+  emerZipcode        String?
   emergencyPhone     String?
   emergencyEmail     String?
 
@@ -452,11 +470,29 @@ model CoopT002Form {
   jobPosition    String?
   jobDescription String? @db.Text
 
+  // ที่พักระหว่างฝึก — แยกช่อง (accommodationAddress = ข้อความรวมที่ระบบประกอบให้)
   accommodationAddress String? @db.Text
+  accomAddrNo          String?
+  accomMoo             String?
+  accomSoi             String?
+  accomRoad            String?
+  accomSubDistrict     String?
+  accomDistrict        String?
+  accomProvince        String?
+  accomZipcode         String?
   accommodationPhone   String?
 
   emergencyName    String?
+  // ที่อยู่กรณีฉุกเฉิน — แยกช่อง (emergencyAddress = ข้อความรวม)
   emergencyAddress String? @db.Text
+  emerAddrNo       String?
+  emerMoo          String?
+  emerSoi          String?
+  emerRoad         String?
+  emerSubDistrict  String?
+  emerDistrict     String?
+  emerProvince     String?
+  emerZipcode      String?
   emergencyPhone   String?
   emergencyFax     String?
   emergencyEmail   String?

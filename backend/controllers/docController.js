@@ -1,5 +1,6 @@
 // controllers/docController.js
 const prisma = require('../config/prismaClient');
+const { buildAddressData } = require('../utils/addressFormat');
 const fs = require('fs');
 const path = require('path');
 const { createNotifications, getStaffAndCoopTeacherIds, getStaffIds } = require('../utils/notificationHelper');
@@ -77,9 +78,9 @@ exports.saveApplicationForm = async (req, res) => {
     }
 
     const {
-      contactAddress, contactPhone, contactEmail,
+      contactPhone, contactEmail,
       emergencyName, emergencyRelation, emergencyJob,
-      emergencyWorkplace, emergencyAddress, emergencyPhone, emergencyEmail,
+      emergencyWorkplace, emergencyPhone, emergencyEmail,
       startDate, endDate, 
       careerObjective1, careerObjective2, careerObjective3 
     } = req.body;
@@ -87,25 +88,22 @@ exports.saveApplicationForm = async (req, res) => {
     const start = startDate ? new Date(startDate) : null;
     const end = endDate ? new Date(endDate) : null;
 
+    // ที่อยู่กรอกแยกช่อง — ประกอบข้อความรวมที่ฝั่ง server เสมอ (เอกสาร PDF อ่านจากช่องรวม)
+    const formData = {
+      contactPhone, contactEmail,
+      emergencyName, emergencyRelation, emergencyJob,
+      emergencyWorkplace, emergencyPhone, emergencyEmail,
+      startDate: start,
+      endDate: end,
+      careerObjective1, careerObjective2, careerObjective3,
+      ...buildAddressData(req.body, 'contact', 'contactAddress'),
+      ...buildAddressData(req.body, 'emer', 'emergencyAddress'),
+    };
+
     const form = await prisma.coopApplicationForm.upsert({
-      where: { studentId: realStudentId }, 
-      update: {
-        contactAddress, contactPhone, contactEmail,
-        emergencyName, emergencyRelation, emergencyJob,
-        emergencyWorkplace, emergencyAddress, emergencyPhone, emergencyEmail,
-        startDate: start,
-        endDate: end,
-        careerObjective1, careerObjective2, careerObjective3
-      },
-      create: {
-        studentId: realStudentId, 
-        contactAddress, contactPhone, contactEmail,
-        emergencyName, emergencyRelation, emergencyJob,
-        emergencyWorkplace, emergencyAddress, emergencyPhone, emergencyEmail,
-        startDate: start,
-        endDate: end,
-        careerObjective1, careerObjective2, careerObjective3
-      }
+      where: { studentId: realStudentId },
+      update: formData,
+      create: { studentId: realStudentId, ...formData }
     });
 
     res.json({ ok: true, message: "บันทึกข้อมูลเรียบร้อย", data: form });
@@ -500,8 +498,8 @@ exports.saveT002Form = async (req, res) => {
             coordinatorType, coordName, coordPosition, coordDept, coordPhone, coordFax, coordEmail,
             supervisorName, supervisorPosition, supervisorDept, supervisorPhone, supervisorFax, supervisorEmail,
             jobPosition, jobDescription,
-            accommodationAddress, accommodationPhone,
-            emergencyName, emergencyAddress, emergencyPhone, emergencyFax, emergencyEmail
+            accommodationPhone,
+            emergencyName, emergencyPhone, emergencyFax, emergencyEmail
         } = req.body;
 
         const data = {
@@ -511,8 +509,11 @@ exports.saveT002Form = async (req, res) => {
             coordinatorType, coordName, coordPosition, coordDept, coordPhone, coordFax, coordEmail,
             supervisorName, supervisorPosition, supervisorDept, supervisorPhone, supervisorFax, supervisorEmail,
             jobPosition, jobDescription,
-            accommodationAddress, accommodationPhone,
-            emergencyName, emergencyAddress, emergencyPhone, emergencyFax, emergencyEmail
+            accommodationPhone,
+            emergencyName, emergencyPhone, emergencyFax, emergencyEmail,
+            // ที่พักระหว่างฝึก/ที่อยู่ฉุกเฉิน กรอกแยกช่องเหมือนใบสมัคร
+            ...buildAddressData(req.body, 'accom', 'accommodationAddress'),
+            ...buildAddressData(req.body, 'emer', 'emergencyAddress'),
         };
 
         // พี่เลี้ยงคนที่ 2 เป็นต้นไป (ข้อ 3) — ไม่ได้ส่งมา = ไม่แตะค่าเดิม
