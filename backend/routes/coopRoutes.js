@@ -36,6 +36,7 @@ router.get("/config/gateway", verifyToken, configController.getGatewaySettings);
 const adminDocController = require("../controllers/adminDocController");
 router.get("/config/t000", verifyToken, adminDocController.getT000Config);
 router.get("/config/t002", verifyToken, configController.getT002Config);
+router.get("/config/apply", verifyToken, configController.getApplyConfig);
 router.get("/config/t003", verifyToken, configController.getT003Config);
 
 // T005/T006 evaluation, T007, T008 content config — read-only, students need these for their doc pages

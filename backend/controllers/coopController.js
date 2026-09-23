@@ -1,5 +1,6 @@
 // backend/controllers/coopController.js
 const prisma = require('../config/prismaClient');
+const { getApplyWindowState, applyWindowMessage } = require('../utils/applyWindow');
 const path = require("path");
 const fs = require("fs");
 const multer = require("multer");
@@ -45,6 +46,13 @@ const submitCoopApplication = async (req, res) => {
       where: { id: parsedPeriodId }
     });
     activePeriod = await autoCloseIfExpired(activePeriod);
+
+    // ช่วงเวลายื่นคำร้อง (ตั้งแยกแบบ T000–T003) — ยื่นได้ต้องผ่านทั้งช่วงนี้และรอบรับสมัครที่เปิดอยู่
+    const applyWindow = await getApplyWindowState();
+    if (!applyWindow.open) {
+      if (req.files?.length) req.files.forEach((f) => { try { fs.unlinkSync(f.path); } catch (_) { /* ignore */ } });
+      return res.status(400).json({ ok: false, message: applyWindowMessage(applyWindow) });
+    }
 
     if (!activePeriod || !activePeriod.isActive) {
       files.forEach(f => { try { fs.unlinkSync(f.path); } catch (_) {} });
