@@ -1,7 +1,7 @@
 // backend/controllers/studentController.js
 const prisma = require('../config/prismaClient');
 const kkuReg = require('../services/kkuRegService');
-const { buildStudentExportWorkbook, STUDENT_EXPORT_INCLUDE } = require('../utils/studentExport');
+const { buildStudentExportWorkbook, exportBaseUrl, STUDENT_EXPORT_INCLUDE } = require('../utils/studentExport');
 const { defaultStudentPassword, hashDefaultStudentPassword } = require('../utils/studentPassword');
 const { encryptPassword, revealPassword } = require('../utils/passwordVault');
 const { changeUserEmail, normalizeEmail } = require('../utils/userEmail');
@@ -369,12 +369,14 @@ exports.exportStudents = async (req, res) => {
       ? { deletedAt: null, coop: { coopPeriodId } }
       : { deletedAt: null };
 
-    const [students, criteria] = await Promise.all([
+    const [students, criteria, requirements] = await Promise.all([
       prisma.student.findMany({ where, include: STUDENT_EXPORT_INCLUDE, orderBy: { studentId: 'asc' } }),
       prisma.coopCriteria.findMany({ select: { major: true, nameTh: true } }),
+      prisma.documentRequirement.findMany({ select: { docKey: true, title: true } }),
     ]);
 
-    const buffer = buildStudentExportWorkbook(students, { criteria });
+    // ไฟล์มีลิงก์เปิดเอกสารแต่ละฉบับ + ชีต "เอกสารทั้งหมด"
+    const buffer = buildStudentExportWorkbook(students, { criteria, requirements, baseUrl: exportBaseUrl(req) });
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename="students_${coopPeriodId || 'all'}.xlsx"`);
