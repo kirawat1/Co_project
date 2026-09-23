@@ -27,6 +27,7 @@ model User {
   companies     Company[]
   mentors       Mentor[]
   notifications Notification[]
+  feedbacks     Feedback[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -110,10 +111,10 @@ model StudentCoop {
   t000Comment String?   @db.Text
 
   // --- Step 5-6: เจ้าหน้าที่ตรวจเอกสาร & ออก "เอกสารยื่นสหกิจ" (ใบแรก) ---
-  staffCheckComment String?   @db.Text // เหตุผลที่ให้แก้เอกสาร (EDITS_REQUIRED)
-  reqDocNumber      String? @unique // เลขที่หนังสือ "ที่ อว 660301..." — หนังสือราชการ ห้ามซ้ำ (NULL ซ้ำได้)
-  reqDocDate        DateTime? // วันที่ออกหนังสือ
-  reqLetterUrl      String? // ไฟล์ PDF ออกเอกสารยื่นสหกิจ
+  staffCheckComment    String?   @db.Text // เหตุผลที่ให้แก้เอกสาร (EDITS_REQUIRED)
+  reqDocNumber         String?   @unique // เลขที่หนังสือ "ที่ อว 660301..." — หนังสือราชการ ห้ามซ้ำ (NULL ซ้ำได้)
+  reqDocDate           DateTime? // วันที่ออกหนังสือ
+  reqLetterUrl         String? // ไฟล์ PDF ออกเอกสารยื่นสหกิจ
   // รอลงนาม (ป้ายสำหรับเจ้าหน้าที่) — ตั้งตอนดาวน์โหลดฉบับร่าง ล้างตอนอัปโหลดฉบับลงนาม · เลขที่/วันที่ร่างใช้เติมตอนกลับมาอัปโหลด
   reqLetterPendingAt   DateTime?
   reqLetterDraftNumber String?
@@ -127,9 +128,9 @@ model StudentCoop {
   actualStartDate DateTime? // วันเริ่มงานจริง
   actualEndDate   DateTime? // วันจบงานจริง
 
-  placeDocNumber String? @unique // เลขที่หนังสือส่งตัว "ที่ อว..." — หนังสือราชการ ห้ามซ้ำ (NULL ซ้ำได้)
-  placeDocDate   DateTime? // วันที่ออกหนังสือส่งตัว
-  placeLetterUrl String? // ไฟล์ PDF ส่งตัว
+  placeDocNumber         String?   @unique // เลขที่หนังสือส่งตัว "ที่ อว..." — หนังสือราชการ ห้ามซ้ำ (NULL ซ้ำได้)
+  placeDocDate           DateTime? // วันที่ออกหนังสือส่งตัว
+  placeLetterUrl         String? // ไฟล์ PDF ส่งตัว
   // รอลงนามหนังสือส่งตัว (เหมือน reqLetter* ด้านบน)
   placeLetterPendingAt   DateTime?
   placeLetterDraftNumber String?
@@ -534,10 +535,10 @@ model SupervisionAppointment {
   supervisionType SupervisionType // ออนไลน์ หรือ ออนไซต์
 
   // อาจารย์ตอบกลับ
-  confirmedDate DateTime? // วันที่อาจารย์เลือก (ถ้ามี)
+  confirmedDate    DateTime? // วันที่อาจารย์เลือก (ถ้ามี)
   // เวลาสิ้นสุดของคิวนิเทศ (มาจากช่วงเวลาที่นักศึกษาเสนอ เช่น 10:00-12:00) — ใช้กันเวลานิเทศทับกันของอาจารย์คนเดียวกัน
   confirmedEndDate DateTime?
-  rejectReason  String?   @db.Text // เหตุผลที่ให้ นศ. เลือกใหม่
+  rejectReason     String?   @db.Text // เหตุผลที่ให้ นศ. เลือกใหม่
 
   status SupervisionStatus @default(PENDING_TEACHER)
 
@@ -549,10 +550,10 @@ model SupervisionAppointment {
   letterPendingAt    DateTime?
   letterDraftNumber  String?
   letterDraftDate    DateTime?
-  onlineLink         String?  @db.Text
+  onlineLink         String?   @db.Text
   groupId            String? // UUID เชื่อม appointment ที่นัดพร้อมกัน (null = นัดเดี่ยว)
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
   teacher Teacher @relation(fields: [teacherId], references: [id])
@@ -594,4 +595,28 @@ model AuditLog {
   @@index([createdAt])
   @@index([userId])
   @@index([action])
+}
+
+// เรื่องที่ผู้ใช้แจ้งเข้ามาจากปุ่ม "แจ้งปัญหา" — เก็บบริบทตอนแจ้งไว้ด้วย จะได้ตามเรื่องได้
+model Feedback {
+  id          Int       @id @default(autoincrement())
+  userId      Int
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role        String    @db.VarChar(20)
+  kind        String    @db.VarChar(20) // BUG = บัค · SUGGEST = ข้อเสนอแนะ
+  message     String    @db.Text
+  pagePath    String?   @db.VarChar(300) // หน้าที่เปิดอยู่ตอนแจ้ง
+  contextNote String?   @db.VarChar(300) // สถานะสหกิจ/ข้อมูลประกอบ ณ เวลานั้น
+  userAgent   String?   @db.VarChar(300)
+  imagePath   String?   @db.VarChar(300) // ภาพหน้าจอที่แนบมา (ไม่บังคับ)
+  status      String    @default("NEW") @db.VarChar(20) // NEW | IN_PROGRESS | RESOLVED
+  staffReply  String?   @db.Text
+  handledById Int? // ไม่ผูก relation เพราะบัญชีอาจถูกลบ — เก็บชื่อไว้ด้วย
+  handledName String?   @db.VarChar(200)
+  handledAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([status, createdAt])
+  @@index([userId])
 }

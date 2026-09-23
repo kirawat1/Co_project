@@ -122,6 +122,16 @@ async function resolveTargetName(targetType, targetId, targetKey = 'id') {
         const t = await prisma.teacher.findUnique({ where: { id }, select: { prefix: true, firstName: true, lastName: true } });
         return t ? `${t.prefix || ''}${t.firstName || ''} ${t.lastName || ''}`.trim() : null;
       }
+      case 'เรื่องที่แจ้ง': {
+        if (id == null) return null;
+        const fb = await prisma.feedback.findUnique({
+          where: { id },
+          select: { kind: true, user: { select: { student: { select: STUDENT_NAME_SELECT } } } },
+        });
+        if (!fb) return null;
+        const who = studentLabel(fb.user?.student);
+        return [fb.kind === 'SUGGEST' ? 'ข้อเสนอแนะ' : 'ปัญหาการใช้งาน', who].filter(Boolean).join(' · ');
+      }
       case 'คำร้องสหกิจ': {
         if (id == null) return null;
         const c = await prisma.studentCoop.findUnique({ where: { id }, select: { student: { select: STUDENT_NAME_SELECT } } });
