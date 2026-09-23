@@ -4,6 +4,8 @@ import StatusBadge from "./StatusBadge";
 import CountdownTimer from "../components/CountdownTimer"; // ✅ Import มาแล้ว
 import AutoTextarea from "./AutoTextarea";
 import { apiFetch } from "../utils/apiFetch";
+import AddressFields from "./AddressFields";
+import { composeAddress, readAddressParts } from "../utils/addressFormat";
 
 interface Props {
     profile: any;
@@ -483,7 +485,17 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
                 <Section title="5. ข้อมูลที่พักระหว่างฝึกงาน & กรณีฉุกเฉิน">
                     <div style={{ marginBottom: 15 }}>
                         <label style={lblStyle}>ที่อยู่หอพัก / ที่พักปัจจุบัน</label>
-                        <AutoTextarea name="accommodationAddress" value={formData.accommodationAddress} onChange={handleChange} rows={2} style={inputStyle} required />
+                        <AddressFields
+                            form={formData as unknown as Record<string, unknown>}
+                            prefix="accom"
+                            legacyValue={formData.accommodationAddress}
+                            disabled={!canEdit}
+                            onChange={(field, value) => setFormData((prev: any) => {
+                                const next = { ...prev, [field]: value };
+                                // ประกอบข้อความรวมทันที เอกสาร PDF สร้างจากค่านี้
+                                return { ...next, accommodationAddress: composeAddress(readAddressParts(next, "accom")) };
+                            })}
+                        />
                         <div style={{ marginTop: 10, width: '50%' }}>
                             <Input label="เบอร์โทรศัพท์ที่พัก/เบอร์นักศึกษา" name="accommodationPhone" value={formData.accommodationPhone} onChange={handleChange} required />
                         </div>
@@ -497,7 +509,16 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
                         </div>
                         <div style={{ marginTop: 10 }}>
                             <label style={lblStyle}>ที่อยู่กรณีฉุกเฉิน</label>
-                            <AutoTextarea name="emergencyAddress" value={formData.emergencyAddress} onChange={handleChange} rows={2} style={inputStyle} required />
+                            <AddressFields
+                                form={formData as unknown as Record<string, unknown>}
+                                prefix="emer"
+                                legacyValue={formData.emergencyAddress}
+                                disabled={!canEdit}
+                                onChange={(field, value) => setFormData((prev: any) => {
+                                    const next = { ...prev, [field]: value };
+                                    return { ...next, emergencyAddress: composeAddress(readAddressParts(next, "emer")) };
+                                })}
+                            />
                         </div>
                     </div>
                 </Section>
