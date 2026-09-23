@@ -86,12 +86,14 @@ export default function S_Sidebar({ profile, isOpen = false, onClose = () => {} 
           <span className="text">ประกาศ</span>
         </NavLink>
 
+        <div className="sec-label">COOP PROCESS</div>
+
+        {/* ยื่นคำร้อง = ขั้นแรกของกระบวนการ จึงอยู่นอกเงื่อนไข showDocsMenu
+            (เงื่อนไขนั้นเปิดตั้งแต่ผ่านคุณสมบัติขึ้นไป ถ้าเอาไว้ข้างใน คนที่ยังไม่ได้ยื่นจะเข้าหน้ายื่นไม่ได้) */}
         <NavItem to="/student/gateway" label="ยื่นคำร้องสหกิจ" icon={<IcInbox />} onClick={handleNav} />
 
         {showDocsMenu && (
           <>
-            <div className="sec-label">COOP PROCESS</div>
-
             {/* ผลตรวจ T000 / หนังสือขอความอนุเคราะห์ / ใบตอบรับ / หนังสือส่งตัว (REQ/PLACEMENT_LETTER_ISSUED = ชนิดเก่า) */}
             <NavItem to="/student/docs" label="เอกสารสหกิจ (CP-T000)" icon={<IcClipboard />}
               {...badge(["DOCS_UPDATED", "REQ_LETTER_ISSUED", "PLACEMENT_LETTER_ISSUED"])} />
