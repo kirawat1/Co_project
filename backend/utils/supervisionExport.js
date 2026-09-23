@@ -97,8 +97,12 @@ const COLUMNS = [
   ['อาจารย์นิเทศร่วม', 30],
   ['อาจารย์ที่ปรึกษาโครงงานสหกิจ', 26],
   ['รูปแบบ', 10],
+  ['ลิงก์นิเทศ (ออนไลน์)', 42],
   ['สถานะ', 28],
 ];
+const LINK_HEADER = 'ลิงก์นิเทศ (ออนไลน์)';
+// ใส่ลิงก์เฉพาะ http/https — ค่าอื่นแสดงเป็นข้อความ ไม่ทำเป็นลิงก์ให้กด
+const SAFE_LINK_RE = /^https?:///i;
 const EXPORT_HEADERS = COLUMNS.map(([h]) => h);
 
 function rowToExcel(row) {
@@ -114,6 +118,8 @@ function rowToExcel(row) {
     'อาจารย์นิเทศร่วม': dash(row.coTeacherName),
     'อาจารย์ที่ปรึกษาโครงงานสหกิจ': dash(row.coopAdvisorName),
     'รูปแบบ': row.typeLabel,
+    // นิเทศออนไซต์ไม่มีลิงก์ — แสดง "-" แม้จะมีลิงก์ค้างจากตอนเสนอวันแบบออนไลน์
+    [LINK_HEADER]: row.supervisionType === 'ONLINE' ? dash(row.onlineLink) : '-',
     'สถานะ': row.statusLabel,
   };
 }
@@ -127,6 +133,15 @@ function buildSupervisionScheduleWorkbook(appointments) {
   const rows = sortSchedule(appointments.map(toScheduleRow)).map(rowToExcel);
   const worksheet = XLSX.utils.json_to_sheet(rows, { header: EXPORT_HEADERS });
   worksheet['!cols'] = COLUMNS.map(([, wch]) => ({ wch }));
+
+  // ทำให้ลิงก์กดเปิดได้ใน Excel
+  const linkCol = EXPORT_HEADERS.indexOf(LINK_HEADER);
+  rows.forEach((row, i) => {
+    const url = row[LINK_HEADER];
+    if (!SAFE_LINK_RE.test(String(url || ''))) return;
+    const cell = worksheet[XLSX.utils.encode_cell({ r: i + 1, c: linkCol })];
+    if (cell) cell.l = { Target: url, Tooltip: 'เปิดลิงก์นิเทศ' };
+  });
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, 'ตารางนิเทศ');
   return XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
