@@ -1,6 +1,7 @@
 // utils/pdfGeneratorPlacement.ts
 import { jsPDF } from "jspdf";
 import { letterMajorName } from "./docGeneratorUtils";
+import { notify } from "./notify";
 
 // Helper: โหลด Font
 const getFontBase64 = async (url: string): Promise<string> => {
@@ -64,7 +65,7 @@ export const createPlacementPDF = async (
     doc.setFont("THSarabun", "normal");
   } catch (e) {
     console.error("Error loading fonts:", e);
-    alert("ไม่พบไฟล์ฟอนต์ใน /fonts/ กรุณาตรวจสอบ");
+    notify.error("ไม่พบไฟล์ฟอนต์ใน /fonts/ กรุณาตรวจสอบ");
     return doc;
   }
 

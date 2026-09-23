@@ -17,6 +17,7 @@ import T_GroupSupervision from "./T_GroupSupervision";
 import DateInput from './DateInput';
 import LoadMoreFooter from "./LoadMoreFooter";
 import { useLoadMore } from "../utils/useLoadMore";
+import { notify, askConfirm } from "../utils/notify";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -285,11 +286,11 @@ export default function T_SupervisionReview() {
     const closeModal = () => { setSelectedAppt(null); setRejectReason(""); };
 
     const handleAction = async (action: "APPROVE" | "REJECT", confirmedDateStr?: string) => {
-        if (action === "REJECT" && !rejectReason.trim()) return alert("กรุณาระบุเหตุผล เพื่อให้นักศึกษาทราบและเลือกวันใหม่");
+        if (action === "REJECT" && !rejectReason.trim()) return notify.warning("กรุณาระบุเหตุผล เพื่อให้นักศึกษาทราบและเลือกวันใหม่");
         const confirmMsg = action === "APPROVE"
             ? `ยืนยันการเลือกวันนี้?\n\n${confirmedDateStr ? parseProposed(confirmedDateStr).dmy + " เวลา " + parseProposed(confirmedDateStr).time : ""}`
             : "ยืนยันการปฏิเสธและให้นักศึกษาเสนอวันใหม่?";
-        if (!confirm(confirmMsg)) return;
+        if (!(await askConfirm(confirmMsg, { confirmLabel: action === "APPROVE" ? "ยืนยันวันนี้" : "ปฏิเสธ", danger: action !== "APPROVE" }))) return;
         setIsSubmitting(true);
         try {
             let finalConfirmedDate: string | null = null;
@@ -303,18 +304,18 @@ export default function T_SupervisionReview() {
                 action, confirmedDate: finalConfirmedDate,
                 rejectReason: action === "REJECT" ? rejectReason : null, supervisionType
             }, { headers: { Authorization: `Bearer ${token}` } });
-            alert("บันทึกผลการพิจารณาเรียบร้อยแล้ว");
+            notify.success("บันทึกผลการพิจารณาเรียบร้อยแล้ว");
             closeModal(); fetchMine();
-        } catch (err: any) { alert(err?.response?.data?.message || "เกิดข้อผิดพลาดในการบันทึก"); }
+        } catch (err: any) { notify.error(err?.response?.data?.message || "เกิดข้อผิดพลาดในการบันทึก"); }
         finally { setIsSubmitting(false); }
     };
 
     const handleMyComplete = async (id: number) => {
-        if (!confirm("ยืนยันว่าการนิเทศเสร็จสิ้นแล้ว?")) return;
+        if (!(await askConfirm("ยืนยันว่าการนิเทศเสร็จสิ้นแล้ว?", { confirmLabel: "นิเทศเสร็จสิ้น", icon: "✅" }))) return;
         try {
             await axios.put(`/api/teacher/supervisions/${id}/complete`, {}, { headers: { Authorization: `Bearer ${token}` } });
-            alert("บันทึกผลนิเทศเสร็จสิ้นสำเร็จ"); fetchMine();
-        } catch (err: any) { alert(err?.response?.data?.message || "เกิดข้อผิดพลาด"); }
+            notify.success("บันทึกผลนิเทศเสร็จสิ้นสำเร็จ"); fetchMine();
+        } catch (err: any) { notify.error(err?.response?.data?.message || "เกิดข้อผิดพลาด"); }
     };
 
     const myCalendarEvents = useMemo<CalendarEvent[]>(() =>
@@ -397,7 +398,7 @@ export default function T_SupervisionReview() {
     };
 
     const handleAllComplete = async (sup: SupervisionAppt) => {
-        if (!confirm("ยืนยันว่าการนิเทศเสร็จสิ้นแล้ว?")) return;
+        if (!(await askConfirm("ยืนยันว่าการนิเทศเสร็จสิ้นแล้ว?", { confirmLabel: "นิเทศเสร็จสิ้น", icon: "✅" }))) return;
         try {
             await axios.put(`/api/admin/supervisions/${sup.id}/complete`, {}, { headers: { Authorization: `Bearer ${token}` } });
             toast.success("บันทึกผลนิเทศเสร็จสิ้น"); fetchAll();

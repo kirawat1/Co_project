@@ -5,6 +5,7 @@ import { createPlacementPDF } from "../utils/pdfGeneratorPlacement";
 import { createWordBlob, createPreviewBlob, buildPlacementLetterHtml, thaiPrefix, normalizeDocNumber, letterMajorName } from "../utils/docGeneratorUtils";
 import { FileReady, DeliveryPicker, CompanyAddressBox, MODAL_CSS, useLetterPending, LetterPendingBanner, confirmMatchesDraft, type LetterDraft } from "./LetterModalShared";
 import DateInput from './DateInput';
+import { notify, askConfirm } from "../utils/notify";
 
 interface Props { student: any; onClose: () => void; onSuccess: () => void; }
 
@@ -43,7 +44,7 @@ export default function IssuePlacementLetterModal({ student, onClose, onSuccess 
         try {
             const { getAsset, deanName, deanPosition } = await loadCommonData();
             const krutUrl = getAsset("KRUT");
-            if (!krutUrl) return alert("⚠️ ไม่พบไฟล์ตราครุฑ (KRUT) กรุณาอัปโหลดในหน้าตั้งค่า");
+            if (!krutUrl) return notify.error("⚠️ ไม่พบไฟล์ตราครุฑ (KRUT) กรุณาอัปโหลดในหน้าตั้งค่า");
             const doc = await createPlacementPDF(
                 student, { placeDocNumber, placeDocDate, actualStartDate: startDate, actualEndDate: endDate },
                 "", krutUrl, deanName, deanPosition
@@ -51,7 +52,7 @@ export default function IssuePlacementLetterModal({ student, onClose, onSuccess 
             const blob = doc.output("blob");
             setPdfDraft({ blob, docNumber: placeDocNumber, docDate: placeDocDate });
             setPreviewUrl(URL.createObjectURL(blob));
-        } catch (err) { alert("สร้าง PDF ไม่สำเร็จ: " + err); }
+        } catch (err) { notify.error("สร้าง PDF ไม่สำเร็จ: " + err); }
         finally { setLoadingPdf(false); }
     };
 
@@ -69,7 +70,7 @@ export default function IssuePlacementLetterModal({ student, onClose, onSuccess 
             });
             setDocDraft({ blob: createWordBlob(html), docNumber: placeDocNumber, docDate: placeDocDate });
             setPreviewUrl(URL.createObjectURL(createPreviewBlob(html)));
-        } catch (err) { alert("สร้าง Word ไม่สำเร็จ: " + err); }
+        } catch (err) { notify.error("สร้าง Word ไม่สำเร็จ: " + err); }
         finally { setLoadingDoc(false); }
     };
 
@@ -88,11 +89,11 @@ export default function IssuePlacementLetterModal({ student, onClose, onSuccess 
         // เลขที่หนังสือราชการห้ามซ้ำ — เทมเพลตที่ยังไม่กรอกเลขท้าย "/" จะกลายเป็นเลขซ้ำทันที
         const docNo = normalizeDocNumber(placeDocNumber);
         if (!docNo || /[.]{3,}|x{3,}/i.test(docNo) || !/\/\s*\S/.test(docNo)) {
-            return alert("กรุณากรอกเลขที่หนังสือส่งตัวให้ครบก่อนบันทึก (ใส่เลขต่อท้าย / เช่น 660301.26.6.2/1234)");
+            return notify.warning("กรุณากรอกเลขที่หนังสือส่งตัวให้ครบก่อนบันทึก (ใส่เลขต่อท้าย / เช่น 660301.26.6.2/1234)");
         }
-        if (!signedFile) return alert("กรุณาอัปโหลดไฟล์ที่ลงนามแล้วก่อนบันทึกเข้าระบบ");
-        if (!confirmMatchesDraft(pending.draftNumber, docNo)) return;
-        if (!confirm("ยืนยันการบันทึกข้อมูล และอัปเดตสถานะให้นักศึกษา?")) return;
+        if (!signedFile) return notify.warning("กรุณาอัปโหลดไฟล์ที่ลงนามแล้วก่อนบันทึกเข้าระบบ");
+        if (!(await confirmMatchesDraft(pending.draftNumber, docNo))) return;
+        if (!(await askConfirm("ยืนยันการบันทึกข้อมูล และอัปเดตสถานะให้นักศึกษา?", { confirmLabel: "บันทึก" }))) return;
         try {
             const formData = new FormData();
             formData.append("studentId", student.id);
@@ -108,9 +109,9 @@ export default function IssuePlacementLetterModal({ student, onClose, onSuccess 
             formData.append("file", signedFile);
             const res = await apiFetch("/api/admin/t000/review", { method: "PUT", body: formData });
             if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.message || `Server error ${res.status}`); }
-            alert("✅ บันทึกเข้าระบบเรียบร้อย");
+            notify.success("✅ บันทึกเข้าระบบเรียบร้อย");
             onSuccess();
-        } catch (err: any) { alert(`❌ เกิดข้อผิดพลาด: ${err.message || err}`); }
+        } catch (err: any) { notify.error(`❌ เกิดข้อผิดพลาด: ${err.message || err}`); }
     };
 
     return (

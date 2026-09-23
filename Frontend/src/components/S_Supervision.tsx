@@ -6,6 +6,7 @@ import StatusBadge from "./StatusBadge";
 import SupervisionCalendar from "./SupervisionCalendar";
 import SupervisionScheduleTable from "./SupervisionScheduleTable";
 import type { CalendarEvent } from "./SupervisionCalendar";
+import { notify, askConfirm } from "../utils/notify";
 
 function safeHref(url: string | null | undefined): string | undefined {
   if (!url) return undefined;
@@ -181,7 +182,7 @@ export default function S_Supervision() {
 
     // --- Handlers ---
     const handleAddDate = () => {
-        if (dates.length >= 3) return alert("เสนอวันได้สูงสุด 3 วัน");
+        if (dates.length >= 3) return notify.warning("เสนอวันได้สูงสุด 3 วัน");
         setDates([...dates, ""]);
     };
 
@@ -198,7 +199,7 @@ export default function S_Supervision() {
         if (idx < 0) idx = next.findIndex(d => !d || !d.split('|')[0]);
         if (idx < 0) {
             if (next.length >= 3) {
-                alert('เสนอวันได้สูงสุด 3 ตัวเลือก — ลบตัวเลือกที่ไม่ต้องการก่อน แล้วกด "ขอนัดวันนี้" อีกครั้ง');
+                notify.warning('เสนอวันได้สูงสุด 3 ตัวเลือก — ลบตัวเลือกที่ไม่ต้องการก่อน แล้วกด "ขอนัดวันนี้" อีกครั้ง');
                 return;
             }
             next.push('');
@@ -212,7 +213,7 @@ export default function S_Supervision() {
         // ช่องเวลาไม่มีตัวเลือกนั้น หน้าจอโชว์ 08.00 แต่ค่าที่จะส่งเป็น 18:30
         const startMin = Math.max(DAY_START, Math.ceil(lastEnd / SLOT_STEP) * SLOT_STEP);
         if (startMin >= DAY_END) {
-            alert(`คิวนิเทศวันที่ ${fmtDate(date)} เต็มถึง ${toHHMM(lastEnd)} น. แล้ว (เลือกเวลาได้ถึง 17.00 น.) — กรุณาเลือกวันอื่น`);
+            notify.warning(`คิวนิเทศวันที่ ${fmtDate(date)} เต็มถึง ${toHHMM(lastEnd)} น. แล้ว (เลือกเวลาได้ถึง 17.00 น.) — กรุณาเลือกวันอื่น`);
             return;
         }
         const endMin = Math.min(DAY_END, startMin + duration);
@@ -254,26 +255,26 @@ export default function S_Supervision() {
             return datePart && datePart.trim() !== "";
         });
 
-        if (validDates.length === 0) return alert("กรุณาระบุวันที่ต้องการเสนออย่างน้อย 1 วัน");
+        if (validDates.length === 0) return notify.warning("กรุณาระบุวันที่ต้องการเสนออย่างน้อย 1 วัน");
 
         const now = new Date();
         const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
         for (let i = 0; i < validDates.length; i++) {
             if (validDates[i].split('|')[0].slice(0, 10) < todayKey) {
-                return alert(`ตัวเลือก ${i + 1}: วันที่ผ่านมาแล้ว กรุณาเลือกตั้งแต่วันนี้เป็นต้นไป`);
+                return notify.warning(`ตัวเลือก ${i + 1}: วันที่ผ่านมาแล้ว กรุณาเลือกตั้งแต่วันนี้เป็นต้นไป`);
             }
             const timePart = validDates[i].split('|')[1];
             if (timePart) {
                 const [start, end] = timePart.split('-');
                 if (start >= end) {
-                    return alert(`ตัวเลือกที่ ${i + 1}: เวลาเริ่มต้องน้อยกว่าเวลาสิ้นสุด`);
+                    return notify.warning(`ตัวเลือกที่ ${i + 1}: เวลาเริ่มต้องน้อยกว่าเวลาสิ้นสุด`);
                 }
             }
         }
 
         const hasOnlineSlot = validDates.some(d => getSlotType(d) === "ONLINE");
         if (hasOnlineSlot && !onlineLink.trim()) {
-            return alert("กรุณาระบุ Link สำหรับการนิเทศออนไลน์ (เช่น Zoom, Google Meet)");
+            return notify.warning("กรุณาระบุ Link สำหรับการนิเทศออนไลน์ (เช่น Zoom, Google Meet)");
         }
 
         let confirmMsg = "ยืนยันการเสนอวันนิเทศให้อาจารย์พิจารณา?";
@@ -281,7 +282,7 @@ export default function S_Supervision() {
             confirmMsg = "การแก้ไขจะทำให้อาจารย์ต้องพิจารณาเวลาใหม่ทั้งหมด ยืนยันการเปลี่ยนแปลงข้อมูล?";
         }
 
-        if (!confirm(confirmMsg)) return;
+        if (!(await askConfirm(confirmMsg, { confirmLabel: "ส่งให้อาจารย์พิจารณา" }))) return;
 
         try {
             await axios.post("/api/coop/supervision/propose", {
@@ -292,11 +293,11 @@ export default function S_Supervision() {
                 coTeacherName: appointment?.coTeacherName || null
             }, { headers: { Authorization: `Bearer ${token}` } });
 
-            alert("บันทึกและส่งข้อมูลการนัดหมายเรียบร้อยแล้ว");
+            notify.success("บันทึกและส่งข้อมูลการนัดหมายเรียบร้อยแล้ว");
             setIsEditing(false); // ปิดโหมดแก้ไข
             fetchData(); // โหลดข้อมูลใหม่
         } catch (err: any) {
-            alert(err.response?.data?.message || "เกิดข้อผิดพลาดในการบันทึก");
+            notify.error(err.response?.data?.message || "เกิดข้อผิดพลาดในการบันทึก");
         }
     };
 

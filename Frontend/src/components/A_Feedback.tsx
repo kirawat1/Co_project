@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
 import { apiFetch } from "../utils/apiFetch";
 import { fmtDateTime } from "../utils/dateFormat";
+import { notify } from "../utils/notify";
 
 /**
  * เรื่องที่ผู้ใช้แจ้งเข้ามาจากปุ่ม "แจ้งปัญหา" (เจ้าหน้าที่เท่านั้น)
@@ -97,12 +98,12 @@ export default function A_Feedback() {
             });
             const data = await res.json().catch(() => ({}));
             if (!res.ok || !data.ok) {
-                alert(`❌ ${data.message || "บันทึกไม่สำเร็จ"}`);
+                notify.error(`❌ ${data.message || "บันทึกไม่สำเร็จ"}`);
                 return;
             }
             await load();
         } catch {
-            alert("❌ เชื่อมต่อเซิร์ฟเวอร์ไม่ได้");
+            notify.error("❌ เชื่อมต่อเซิร์ฟเวอร์ไม่ได้");
         } finally {
             setSaving(null);
         }

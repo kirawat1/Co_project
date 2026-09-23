@@ -8,6 +8,7 @@ import { ToastProvider } from "./components/Toast";
 import '@fontsource-variable/inter/index.css';
 import '@fontsource-variable/noto-sans-thai/index.css';
 import App from "./App";
+import { notify } from "./utils/notify";
 
 // ── Global axios interceptors ────────────────────────────────
 // Request: inject Authorization header จาก localStorage โดยอัตโนมัติ
@@ -27,7 +28,8 @@ axios.interceptors.response.use(
     if (error?.response?.status === 401) {
       localStorage.removeItem("coop.token");
       if (window.location.pathname !== "/") {
-        alert("Session หมดอายุ กรุณาเข้าสู่ระบบใหม่");
+        // ไม่ใช้ alert — คำขอหลายตัวได้ 401 พร้อมกันจะเด้งซ้อนหลายกล่อง; แสดงครั้งเดียวที่หน้าเข้าสู่ระบบแทน
+        notify.afterReload("warning", "เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่");
         window.location.href = "/";
       }
     }

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import AutoTextarea from "./AutoTextarea";
+import { notify, askConfirm } from "../utils/notify";
 
 export default function A_DocT008() {
     const [isFetching, setIsFetching] = useState(true);
@@ -58,7 +59,7 @@ export default function A_DocT008() {
     };
 
     const handleSave = async () => {
-        if (!confirm("ยืนยันการบันทึกการเปลี่ยนแปลง?")) return;
+        if (!(await askConfirm("ยืนยันการบันทึกการเปลี่ยนแปลง?", { confirmLabel: "บันทึก" }))) return;
 
         setIsSaving(true);
         try {
@@ -79,13 +80,13 @@ export default function A_DocT008() {
                 }
             });
 
-            alert("✅ บันทึกข้อมูลสำเร็จ");
+            notify.success("✅ บันทึกข้อมูลสำเร็จ");
             if (res.data.imagePath) {
                 setExistingImage(res.data.imagePath); // อัปเดตชื่อรูปใหม่
                 setImageFile(null);
             }
         } catch (err) {
-            alert("❌ เกิดข้อผิดพลาดในการบันทึก");
+            notify.error("❌ เกิดข้อผิดพลาดในการบันทึก");
         } finally {
             setIsSaving(false);
         }

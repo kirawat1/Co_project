@@ -4,6 +4,7 @@ import { createSupervisionLetterPDF } from "../utils/pdfSupervisionLetterGenerat
 import { createWordBlob, createPreviewBlob, buildSupervisionLetterHtml, thaiPrefix, supervisionSupervisorNames, supervisionTimeText, normalizeDocNumber } from "../utils/docGeneratorUtils";
 import { FileReady, DeliveryPicker, CompanyAddressBox, MODAL_CSS, useLetterPending, LetterPendingBanner, confirmMatchesDraft, type LetterDraft } from "./LetterModalShared";
 import DateInput from './DateInput';
+import { notify, askConfirm } from "../utils/notify";
 
 interface Props { supervision: any; onClose: () => void; onSuccess: () => void; }
 
@@ -55,11 +56,11 @@ export default function IssueSupervisionLetterModal({ supervision, onClose, onSu
         try {
             const { getAsset, deanName, deanPosition } = await loadCommonData();
             const krutUrl = getAsset("KRUT");
-            if (!krutUrl) return alert("⚠️ ไม่พบไฟล์ตราครุฑ (KRUT) กรุณาอัปโหลดในหน้าตั้งค่า");
+            if (!krutUrl) return notify.error("⚠️ ไม่พบไฟล์ตราครุฑ (KRUT) กรุณาอัปโหลดในหน้าตั้งค่า");
             const blob = await createSupervisionLetterPDF(supervision, docNumber, docDate, krutUrl, "", deanName, deanPosition);
             setPdfDraft({ blob, docNumber, docDate });
             setPreviewUrl(URL.createObjectURL(blob));
-        } catch (err) { alert("สร้าง PDF ไม่สำเร็จ: " + err); }
+        } catch (err) { notify.error("สร้าง PDF ไม่สำเร็จ: " + err); }
         finally { setLoadingPdf(false); }
     };
 
@@ -74,7 +75,7 @@ export default function IssueSupervisionLetterModal({ supervision, onClose, onSu
             });
             setDocDraft({ blob: createWordBlob(html), docNumber, docDate });
             setPreviewUrl(URL.createObjectURL(createPreviewBlob(html)));
-        } catch (err) { alert("สร้าง Word ไม่สำเร็จ: " + err); }
+        } catch (err) { notify.error("สร้าง Word ไม่สำเร็จ: " + err); }
         finally { setLoadingDoc(false); }
     };
 
@@ -93,11 +94,11 @@ export default function IssueSupervisionLetterModal({ supervision, onClose, onSu
         // เลขที่หนังสือราชการห้ามซ้ำ — เทมเพลตที่ยังไม่กรอกเลขท้าย "/" จะกลายเป็นเลขซ้ำทันที
         const docNo = normalizeDocNumber(docNumber);
         if (!docNo || /[.]{3,}|x{3,}/i.test(docNo) || !/\/\s*\S/.test(docNo)) {
-            return alert("กรุณากรอกเลขที่หนังสือให้ครบก่อนบันทึก (ใส่เลขต่อท้าย / เช่น 660301.26.6.2/1234)");
+            return notify.warning("กรุณากรอกเลขที่หนังสือให้ครบก่อนบันทึก (ใส่เลขต่อท้าย / เช่น 660301.26.6.2/1234)");
         }
-        if (!signedFile) return alert("กรุณาอัปโหลดไฟล์ที่ลงนามแล้วก่อนบันทึกเข้าระบบ");
-        if (!confirmMatchesDraft(pending.draftNumber, docNo)) return;
-        if (!confirm("ยืนยันการบันทึกข้อมูล และอัปเดตสถานะการนิเทศให้นักศึกษา?")) return;
+        if (!signedFile) return notify.warning("กรุณาอัปโหลดไฟล์ที่ลงนามแล้วก่อนบันทึกเข้าระบบ");
+        if (!(await confirmMatchesDraft(pending.draftNumber, docNo))) return;
+        if (!(await askConfirm("ยืนยันการบันทึกข้อมูล และอัปเดตสถานะการนิเทศให้นักศึกษา?", { confirmLabel: "บันทึก" }))) return;
         setLoadingPdf(true);
         try {
             const formData = new FormData();
@@ -110,9 +111,9 @@ export default function IssueSupervisionLetterModal({ supervision, onClose, onSu
                 body: formData,
             });
             if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.message || `Server error ${res.status}`); }
-            alert("✅ บันทึกและจัดเก็บไฟล์หนังสือนิเทศเรียบร้อยแล้ว");
+            notify.success("✅ บันทึกและจัดเก็บไฟล์หนังสือนิเทศเรียบร้อยแล้ว");
             onSuccess();
-        } catch (err: any) { alert(`❌ เกิดข้อผิดพลาด: ${err.message || err}`); }
+        } catch (err: any) { notify.error(`❌ เกิดข้อผิดพลาด: ${err.message || err}`); }
         finally { setLoadingPdf(false); }
     };
 

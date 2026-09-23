@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { apiFetch } from "../utils/apiFetch";
 import { fmtDate, fmtDateTime } from "../utils/dateFormat";
+import { notify, askConfirm } from "../utils/notify";
 
 // ================= รอลงนาม =================
 // ดาวน์โหลดร่างหนังสือไปเสนอลงนาม → ป้าย "รอลงนาม" (เห็นเฉพาะเจ้าหน้าที่/อาจารย์ สถานะหลักไม่เปลี่ยน)
@@ -37,19 +38,19 @@ export function useLetterPending({ record, prefix, endpoint, body: baseBody }: L
         try {
             const res = await request({ docNumber: draft.docNumber, docDate: draft.docDate });
             const d = await res.json().catch(() => ({}));
-            if (res.status === 409) { alert(`❌ ${d.message}`); return false; }
-            if (!res.ok) { alert(`⚠️ บันทึกสถานะ "รอลงนาม" ไม่สำเร็จ: ${d.message || res.status} — ดาวน์โหลดไฟล์ต่อได้`); return true; }
+            if (res.status === 409) { notify.error(`❌ ${d.message}`); return false; }
+            if (!res.ok) { notify.error(`⚠️ บันทึกสถานะ "รอลงนาม" ไม่สำเร็จ: ${d.message || res.status} — ดาวน์โหลดไฟล์ต่อได้`); return true; }
             setInfo({ pendingAt: d.pendingAt, draftNumber: d.draftNumber, draftDate: d.draftDate ? String(d.draftDate).slice(0, 10) : null });
         } catch {
-            alert('⚠️ บันทึกสถานะ "รอลงนาม" ไม่สำเร็จ — ดาวน์โหลดไฟล์ต่อได้');
+            notify.error('⚠️ บันทึกสถานะ "รอลงนาม" ไม่สำเร็จ — ดาวน์โหลดไฟล์ต่อได้');
         }
         return true;
     };
 
     const cancelPending = async () => {
-        if (!confirm('ยกเลิกสถานะ "รอลงนาม" ของหนังสือนี้? (ใช้เมื่อไม่ได้นำร่างไปเสนอลงนามแล้ว)')) return;
+        if (!(await askConfirm('ยกเลิกสถานะ "รอลงนาม" ของหนังสือนี้? (ใช้เมื่อไม่ได้นำร่างไปเสนอลงนามแล้ว)', { confirmLabel: "ยกเลิกสถานะ", cancelLabel: "ไม่ยกเลิก", danger: true }))) return;
         const res = await request({ cancel: true }).catch(() => null);
-        if (!res?.ok) { const d = await res?.json().catch(() => ({})); return alert(`❌ ยกเลิกไม่สำเร็จ: ${d?.message || res?.status || ''}`); }
+        if (!res?.ok) { const d = await res?.json().catch(() => ({})); return notify.error(`❌ ยกเลิกไม่สำเร็จ: ${d?.message || res?.status || ''}`); }
         setInfo({ pendingAt: null, draftNumber: null, draftDate: null });
     };
 
@@ -84,9 +85,9 @@ export function PendingSignBadge({ label, at, draftNumber }: { label: string; at
 }
 
 // เลขที่ที่จะบันทึกไม่ตรงกับร่างที่ส่งไปลงนาม → ให้ยืนยันก่อน (กันอัปโหลดไฟล์ผิดคน/ผิดฉบับ)
-export function confirmMatchesDraft(draftNumber: string | null, docNo: string): boolean {
+export async function confirmMatchesDraft(draftNumber: string | null, docNo: string): Promise<boolean> {
     if (!draftNumber || draftNumber === docNo) return true;
-    return confirm(`⚠️ เลขที่หนังสือ "${docNo}" ไม่ตรงกับร่างที่ส่งไปลงนาม "${draftNumber}"\nตรวจสอบว่าไฟล์ที่แนบเป็นฉบับที่ถูกต้อง แล้วกดตกลงเพื่อบันทึกต่อ`);
+    return (await askConfirm(`⚠️ เลขที่หนังสือ "${docNo}" ไม่ตรงกับร่างที่ส่งไปลงนาม "${draftNumber}"\nตรวจสอบว่าไฟล์ที่แนบเป็นฉบับที่ถูกต้อง แล้วกด "บันทึกต่อ"`, { title: "เลขที่หนังสือไม่ตรงกับร่าง", confirmLabel: "บันทึกต่อ", danger: true, icon: "⚠️" }));
 }
 
 function buildAddressLine(c: any): string {

@@ -6,6 +6,7 @@ import { apiFetch } from "../utils/apiFetch";
 import { applyAddressChange } from "../utils/addressAutofill";
 import LoadMoreFooter from "./LoadMoreFooter";
 import { useLoadMore } from "../utils/useLoadMore";
+import { notify, askConfirm } from "../utils/notify";
 
 interface MentorRecord {
     id: string;
@@ -105,7 +106,7 @@ export default function Company({ profile }: { profile: any }) {
     /* ---------------- Company Functions ---------------- */
     async function saveAdd(e: React.FormEvent) {
         e.preventDefault();
-        if (!token) return alert("กรุณาเข้าสู่ระบบ");
+        if (!token) return notify.warning("กรุณาเข้าสู่ระบบ");
 
         try {
             if (form.id) {
@@ -116,7 +117,7 @@ export default function Company({ profile }: { profile: any }) {
                     body: JSON.stringify(form),
                 });
                 const data = await res.json();
-                if (!data.ok) return alert(data.message || "แก้ไขข้อมูลบริษัทไม่สำเร็จ");
+                if (!data.ok) return notify.error(data.message || "แก้ไขข้อมูลบริษัทไม่สำเร็จ");
                 setItems(prev => prev.map(c => c.id === form.id ? data.company : c));
                 setShowAdd(false);
                 setForm(emptyCompany());
@@ -128,18 +129,18 @@ export default function Company({ profile }: { profile: any }) {
                     body: JSON.stringify({ ...form, createdBy: userId }),
                 });
                 const data = await res.json();
-                if (!data.ok) return alert(data.message || "บันทึกบริษัทไม่สำเร็จ");
+                if (!data.ok) return notify.error(data.message || "บันทึกบริษัทไม่สำเร็จ");
                 setItems(prev => [...prev, data.company]);
                 setShowAdd(false);
                 setForm(emptyCompany());
                 setJustCreatedCompany(data.company);
             }
-        } catch (err) { console.error(err); alert("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้"); }
+        } catch (err) { console.error(err); notify.error("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้"); }
     }
 
     async function saveEdit(e: React.FormEvent) {
         e.preventDefault();
-        if (!token || !form.id) return alert("กรุณาเข้าสู่ระบบ");
+        if (!token || !form.id) return notify.warning("กรุณาเข้าสู่ระบบ");
 
         try {
             const res = await apiFetch(`/api/companies/${form.id}`, {
@@ -148,26 +149,26 @@ export default function Company({ profile }: { profile: any }) {
                 body: JSON.stringify(form),
             });
             const data = await res.json();
-            if (!data.ok) return alert(data.message || "แก้ไขข้อมูลบริษัทไม่สำเร็จ");
+            if (!data.ok) return notify.error(data.message || "แก้ไขข้อมูลบริษัทไม่สำเร็จ");
 
             setItems(prev => prev.map(c => c.id === form.id ? data.company : c));
             setShowEdit(false);
-        } catch (err) { console.error(err); alert("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้"); }
+        } catch (err) { console.error(err); notify.error("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้"); }
     }
 
     async function removeCompany(id: string) {
         // ใครก็ลบได้ — ถ้ามีนักศึกษาคนอื่นเลือกบริษัทนี้อยู่ ระบบจะไม่ให้ลบ (ให้กดแก้ไขแทน)
-        if (!confirm("ลบบริษัทนี้หรือไม่? (พี่เลี้ยงของบริษัทนี้จะถูกลบด้วย)")) return;
-        if (!token) return alert("กรุณาเข้าสู่ระบบ");
+        if (!(await askConfirm("ลบบริษัทนี้หรือไม่? (พี่เลี้ยงของบริษัทนี้จะถูกลบด้วย)", { confirmLabel: "ลบบริษัท", danger: true }))) return;
+        if (!token) return notify.warning("กรุณาเข้าสู่ระบบ");
 
         try {
             const res = await apiFetch(`/api/companies/${id}`, { method: "DELETE" });
             const data = await res.json();
-            if (!data.ok) return alert(data.message);
+            if (!data.ok) return notify.error(data.message);
 
             setItems(prev => prev.filter(c => c.id !== id));
             if (viewCompany?.id === id) setViewCompany(null);
-        } catch (err) { console.error(err); alert("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้"); }
+        } catch (err) { console.error(err); notify.error("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้"); }
     }
 
     /* ---------------- Mentor Functions ---------------- */
@@ -176,10 +177,10 @@ export default function Company({ profile }: { profile: any }) {
         if (!viewCompany) return;
 
         const { firstName, lastName, department, position, email, phone } = mentorForm;
-        if (!firstName || !lastName || !department || !position || !email || !phone) return alert("กรุณากรอกให้ครบ");
-        if (!/^\S+@\S+\.\S+$/.test(email)) return alert("รูปแบบอีเมลไม่ถูกต้อง");
+        if (!firstName || !lastName || !department || !position || !email || !phone) return notify.warning("กรุณากรอกให้ครบ");
+        if (!/^\S+@\S+\.\S+$/.test(email)) return notify.warning("รูปแบบอีเมลไม่ถูกต้อง");
 
-        if (!token) return alert("กรุณาเข้าสู่ระบบ");
+        if (!token) return notify.warning("กรุณาเข้าสู่ระบบ");
 
         try {
             if (!editingMentor) {
@@ -189,7 +190,7 @@ export default function Company({ profile }: { profile: any }) {
                     body: JSON.stringify(mentorForm)
                 });
                 const data = await res.json();
-                if (!data.ok) return alert("เพิ่มพี่เลี้ยงไม่สำเร็จ");
+                if (!data.ok) return notify.error("เพิ่มพี่เลี้ยงไม่สำเร็จ");
 
                 setViewCompany(prev => prev ? { ...prev, mentors: [...(prev.mentors || []), data.mentor] } : prev);
                 setItems(prev => prev.map(c => c.id === viewCompany?.id ? { ...c, mentors: [...(c.mentors || []), data.mentor] } : c));
@@ -200,7 +201,7 @@ export default function Company({ profile }: { profile: any }) {
                     body: JSON.stringify(mentorForm)
                 });
                 const data = await res.json();
-                if (!data.ok) return alert("แก้ไขพี่เลี้ยงไม่สำเร็จ");
+                if (!data.ok) return notify.error("แก้ไขพี่เลี้ยงไม่สำเร็จ");
 
                 setViewCompany(prev => prev ? { ...prev, mentors: (prev.mentors || []).map(m => m.id === editingMentor.id ? data.mentor : m) } : prev);
                 setItems(prev => prev.map(c => c.id === viewCompany?.id ? { ...c, mentors: (c.mentors || []).map(m => m.id === editingMentor.id ? data.mentor : m) } : c));
@@ -214,7 +215,7 @@ export default function Company({ profile }: { profile: any }) {
                 setViewCompany(null);
                 setQuickAddMentor(false);
             }
-        } catch (err) { console.error(err); alert("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้"); }
+        } catch (err) { console.error(err); notify.error("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้"); }
     }
 
     async function saveMentorAndNext(e: React.FormEvent) {
@@ -222,8 +223,8 @@ export default function Company({ profile }: { profile: any }) {
         if (!viewCompany) return;
 
         const { firstName, lastName, department, position, email, phone } = mentorForm;
-        if (!firstName || !lastName || !department || !position || !email || !phone) return alert("กรุณากรอกให้ครบ");
-        if (!/^\S+@\S+\.\S+$/.test(email)) return alert("รูปแบบอีเมลไม่ถูกต้อง");
+        if (!firstName || !lastName || !department || !position || !email || !phone) return notify.warning("กรุณากรอกให้ครบ");
+        if (!/^\S+@\S+\.\S+$/.test(email)) return notify.warning("รูปแบบอีเมลไม่ถูกต้อง");
 
         try {
             const res = await apiFetch(`/api/companies/${viewCompany.id}/mentors`, {
@@ -232,26 +233,26 @@ export default function Company({ profile }: { profile: any }) {
                 body: JSON.stringify(mentorForm)
             });
             const data = await res.json();
-            if (!data.ok) return alert("เพิ่มพี่เลี้ยงไม่สำเร็จ");
+            if (!data.ok) return notify.error("เพิ่มพี่เลี้ยงไม่สำเร็จ");
 
             setViewCompany(prev => prev ? { ...prev, mentors: [...(prev.mentors || []), data.mentor] } : prev);
             setItems(prev => prev.map(c => c.id === viewCompany?.id ? { ...c, mentors: [...(c.mentors || []), data.mentor] } : c));
             setMentorForm(emptyMentor()); // reset form แต่ modal ยังเปิดอยู่
-        } catch (err) { console.error(err); alert("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้"); }
+        } catch (err) { console.error(err); notify.error("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้"); }
     }
 
     async function removeMentor(mentorId: string) {
-        if (!confirm("ลบพี่เลี้ยงคนนี้หรือไม่?")) return;
-        if (!token) return alert("กรุณาเข้าสู่ระบบ");
+        if (!(await askConfirm("ลบพี่เลี้ยงคนนี้หรือไม่?", { confirmLabel: "ลบพี่เลี้ยง", danger: true }))) return;
+        if (!token) return notify.warning("กรุณาเข้าสู่ระบบ");
 
         try {
             const res = await apiFetch(`/api/companies/mentors/${mentorId}`, { method: "DELETE" });
             const data = await res.json();
-            if (!data.ok) return alert(data.message);
+            if (!data.ok) return notify.error(data.message);
 
             setViewCompany(prev => prev ? { ...prev, mentors: (prev.mentors || []).filter(m => m.id !== mentorId) } : prev);
             setItems(prev => prev.map(c => c.id === viewCompany?.id ? { ...c, mentors: (c.mentors || []).filter(m => m.id !== mentorId) } : c));
-        } catch (err) { console.error(err); alert("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้"); }
+        } catch (err) { console.error(err); notify.error("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้"); }
     }
 
     /* ---------------- UI ---------------- */

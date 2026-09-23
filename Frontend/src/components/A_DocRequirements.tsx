@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import type { CSSProperties } from "react";
 import axios from "axios";
+import { notify, askConfirm } from "../utils/notify";
 
 type DocReq = {
     id: number;
@@ -48,16 +49,16 @@ export default function A_DocRequirements() {
                     headers: { Authorization: `Bearer ${token}` }
                 });
             }
-            alert("บันทึกข้อมูลเรียบร้อย");
+            notify.success("บันทึกข้อมูลเรียบร้อย");
             setModalOpen(false);
             fetchReqs();
         } catch (err: any) {
-            alert(err.response?.data?.message || "เกิดข้อผิดพลาดในการบันทึก");
+            notify.error(err.response?.data?.message || "เกิดข้อผิดพลาดในการบันทึก");
         }
     };
 
     const removeRequirement = async (id: number, title: string) => {
-        if (!confirm(`⚠️ ยืนยันการลบหัวข้อเอกสาร "${title}"?\n(ไฟล์ที่นักศึกษาเคยอัปโหลดในหัวข้อนี้จะยังอยู่ในระบบ แต่จะไม่แสดงในหน้าจออัปโหลดอีก)`)) return;
+        if (!(await askConfirm(`⚠️ ยืนยันการลบหัวข้อเอกสาร "${title}"?\n(ไฟล์ที่นักศึกษาเคยอัปโหลดในหัวข้อนี้จะยังอยู่ในระบบ แต่จะไม่แสดงในหน้าจออัปโหลดอีก)`, { confirmLabel: "ลบหัวข้อ", danger: true }))) return;
         const token = localStorage.getItem("coop.token");
         try {
             await axios.delete(`/api/admin/doc-requirements/${id}`, {
@@ -65,7 +66,7 @@ export default function A_DocRequirements() {
             });
             fetchReqs();
         } catch (err) {
-            alert("ลบไม่สำเร็จ");
+            notify.error("ลบไม่สำเร็จ");
         }
     };
 

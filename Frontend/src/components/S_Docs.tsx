@@ -11,6 +11,7 @@ import DateInput from './DateInput';
 import AddressFields from "./AddressFields";
 import { composeAddress, readAddressParts } from "../utils/addressFormat";
 import S_FormPhoto from "./S_FormPhoto";
+import { notify } from "../utils/notify";
 
 // ✅ Interface
 export interface LocalStudentProfile {
@@ -373,14 +374,14 @@ export default function S_Docs({ profile, setProfile }: { profile: LocalStudentP
       if (res.ok) {
         setLastSavedAt(new Date());
         setSaveFailed(false);
-        if (!silent) alert("✅ บันทึกข้อมูลแบบฟอร์มเรียบร้อยแล้ว");
+        if (!silent) notify.success("✅ บันทึกข้อมูลแบบฟอร์มเรียบร้อยแล้ว");
       } else {
         setSaveFailed(true);
-        if (!silent) alert("Connection Error");
+        if (!silent) notify.error("บันทึกแบบฟอร์มไม่สำเร็จ กรุณาลองใหม่");
       }
     } catch (err) {
       setSaveFailed(true);
-      if (!silent) alert("Connection Error");
+      if (!silent) notify.error("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ กรุณาตรวจสอบอินเทอร์เน็ตแล้วลองใหม่");
     }
     finally { if (!silent) setLoading(false); }
   };
@@ -399,7 +400,7 @@ export default function S_Docs({ profile, setProfile }: { profile: LocalStudentP
 
   const handleGeneratePDF = async (mode: "preview" | "download") => {
     if (!formData.startDate || !formData.endDate) {
-      alert("กรุณากรอกวันที่เริ่มฝึกงาน และวันที่สิ้นสุดในส่วน \"ระยะเวลาและจุดมุ่งหมาย\" ก่อนสร้างเอกสาร");
+      notify.warning("กรุณากรอกวันที่เริ่มฝึกงาน และวันที่สิ้นสุดในส่วน \"ระยะเวลาและจุดมุ่งหมาย\" ก่อนสร้างเอกสาร");
       return;
     }
     try {
@@ -414,13 +415,13 @@ export default function S_Docs({ profile, setProfile }: { profile: LocalStudentP
       }
     } catch (error) {
       console.error(error);
-      alert("PDF Error: ตรวจสอบ Console สำหรับรายละเอียด");
+      notify.error("สร้าง PDF ไม่สำเร็จ กรุณาลองใหม่ หากยังไม่ได้ให้กดปุ่มแจ้งปัญหา");
     }
   };
 
   const handleGenerateConsentPDF = async (mode: "preview" | "download") => {
     if (!formData.startDate || !formData.endDate) {
-      alert("กรุณากรอกวันที่เริ่มฝึกงาน และวันที่สิ้นสุดในส่วน \"ระยะเวลาและจุดมุ่งหมาย\" ก่อนสร้างเอกสาร");
+      notify.warning("กรุณากรอกวันที่เริ่มฝึกงาน และวันที่สิ้นสุดในส่วน \"ระยะเวลาและจุดมุ่งหมาย\" ก่อนสร้างเอกสาร");
       return;
     }
     try {
@@ -435,14 +436,14 @@ export default function S_Docs({ profile, setProfile }: { profile: LocalStudentP
       }
     } catch (error) {
       console.error(error);
-      alert("ไม่สามารถสร้าง PDF ได้");
+      notify.error("ไม่สามารถสร้าง PDF ได้");
     }
   };
 
   const handleUpload = async (docTypeId: string, file: File) => {
     if (!file) return;
     if (config && config.isOpen === false && docTypeId !== 'CP-ACCEPTANCE') {
-      alert("⛔ ระบบปิดรับเอกสารสมัครแล้ว");
+      notify.warning("⛔ ระบบปิดรับเอกสารสมัครแล้ว");
       return;
     }
     setLoading(true);
@@ -452,24 +453,24 @@ export default function S_Docs({ profile, setProfile }: { profile: LocalStudentP
     try {
       const res = await apiFetch("/api/docs/upload", { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: data });
       if (res.ok) {
-        alert("✅ อัปโหลดไฟล์สำเร็จ");
+        notify.success("✅ อัปโหลดไฟล์สำเร็จ");
         await refreshProfile();
       } else {
         const errData = await res.json().catch(() => ({}));
-        alert(errData.message || "❌ อัปโหลดล้มเหลว");
+        notify.error(errData.message || "❌ อัปโหลดล้มเหลว");
       }
-    } catch (err) { alert("Connect Error"); }
+    } catch (err) { notify.error("อัปโหลดไม่สำเร็จ: เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ กรุณาลองใหม่"); }
     finally { setLoading(false); }
   };
 
   const handleDeleteFile = async (documentId?: number) => {
     if (!documentId) return;
-    if (!window.confirm("คุณต้องการลบไฟล์นี้ใช่หรือไม่?")) return;
+    // ถามยืนยันแล้วที่ตาราง (S_DocTable.onRemoveFile) — ไม่ถามซ้ำ
     setLoading(true);
     try {
       const res = await apiFetch(`/api/docs/delete/${documentId}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
-      if (res.ok) { alert("🗑️ ลบไฟล์เรียบร้อยแล้ว"); await refreshProfile(); }
-      else { const d = await res.json().catch(() => ({})); alert(d.message || "❌ ลบไฟล์ไม่สำเร็จ"); }
+      if (res.ok) { notify.success("🗑️ ลบไฟล์เรียบร้อยแล้ว"); await refreshProfile(); }
+      else { const d = await res.json().catch(() => ({})); notify.error(d.message || "❌ ลบไฟล์ไม่สำเร็จ"); }
     } finally { setLoading(false); }
   };
 

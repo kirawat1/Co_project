@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { apiFetch } from "../utils/apiFetch";
 import { IcUsers, IcDocs, IcAnnounce } from "./icons";
+import { notify } from "../utils/notify";
 
 // --- Types ---
 interface DashboardStats {
@@ -107,7 +108,7 @@ export default function A_Dashboard() {
       window.URL.revokeObjectURL(url);
     } catch (err) {
       console.error("Export failed", err);
-      alert("ดาวน์โหลดไฟล์ไม่สำเร็จ กรุณาลองใหม่");
+      notify.error("ดาวน์โหลดไฟล์ไม่สำเร็จ กรุณาลองใหม่");
     }
   };
 

@@ -3,6 +3,7 @@ import { apiFetch } from "../utils/apiFetch";
 import type { StudentProfile } from "./A_Students";
 import LoadMoreFooter from "./LoadMoreFooter";
 import { useLoadMore } from "../utils/useLoadMore";
+import { notify } from "../utils/notify";
 
 export default function A_StudentTrash() {
   const [items, setItems] = useState<StudentProfile[]>([]);
@@ -37,12 +38,12 @@ export default function A_StudentTrash() {
       });
       const data = await res.json();
       if (!data.ok) {
-        alert(data.message || "กู้คืนไม่สำเร็จ");
+        notify.error(data.message || "กู้คืนไม่สำเร็จ");
         return;
       }
       fetchTrash();
     } catch (err: any) {
-      alert(err.message || "เกิดข้อผิดพลาด");
+      notify.error(err.message || "เกิดข้อผิดพลาด");
     }
   };
 
@@ -55,13 +56,13 @@ export default function A_StudentTrash() {
       const res = await apiFetch(`/api/admin/students/${s.id}/permanent`, { method: "DELETE" });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.ok) {
-        alert(data.message || "ลบถาวรไม่สำเร็จ");
+        notify.error(data.message || "ลบถาวรไม่สำเร็จ");
         return;
       }
       cancelConfirm();
       setItems(prev => prev.filter(x => x.id !== s.id));
     } catch (err: any) {
-      alert(err.message || "เกิดข้อผิดพลาด");
+      notify.error(err.message || "เกิดข้อผิดพลาด");
     } finally {
       setDeleting(false);
     }

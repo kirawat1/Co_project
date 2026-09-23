@@ -7,6 +7,7 @@ import { applyAddressChange } from "../utils/addressAutofill";
 import A_CompanyImport from "./A_CompanyImport";
 import LoadMoreFooter from "./LoadMoreFooter";
 import { useLoadMore, toggleSelectAllShown, allShownSelected } from "../utils/useLoadMore";
+import { notify, askConfirm } from "../utils/notify";
 
 /* ----------------------------------------------------
    Types
@@ -149,7 +150,7 @@ export default function A_Companies() {
       const data = await res.json();
 
       if (!data.ok || !data.company) {
-        alert(data.message || "บันทึกบริษัทไม่สำเร็จ");
+        notify.error(data.message || "บันทึกบริษัทไม่สำเร็จ");
         return;
       }
 
@@ -160,13 +161,13 @@ export default function A_Companies() {
 
     } catch (err) {
       console.error(err);
-      alert("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้");
+      notify.error("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้");
     }
   }
 
   async function saveEdit(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.id) return alert("ข้อมูลไม่ครบถ้วน");
+    if (!form.id) return notify.warning("ข้อมูลไม่ครบถ้วน");
 
     try {
       const res = await apiFetch(`/api/companies/${form.id}`, {
@@ -181,21 +182,21 @@ export default function A_Companies() {
       setShowEdit(false);
     } catch (err: any) {
       console.error(err);
-      alert(err.message || "อัปเดตไม่สำเร็จ");
+      notify.error(err.message || "อัปเดตไม่สำเร็จ");
     }
   }
 
   async function remove(id: string) {
-    if (!confirm("ลบบริษัทนี้พร้อมพี่เลี้ยงทั้งหมดหรือไม่?")) return;
+    if (!(await askConfirm("ลบบริษัทนี้พร้อมพี่เลี้ยงทั้งหมดหรือไม่?", { confirmLabel: "ลบบริษัท", danger: true }))) return;
 
     try {
       const res = await apiFetch(`/api/companies/${id}`, { method: "DELETE" });
       const data = await res.json();
-      if (!data.ok) return alert(data.message);
+      if (!data.ok) return notify.error(data.message);
 
       setItems(prev => prev.filter(c => c.id !== id));
       if (viewCompany?.id === id) setViewCompany(null);
-    } catch (err) { alert("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้"); }
+    } catch (err) { notify.error("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้"); }
   }
 
   // เลือกทั้งหมด = ทุกแห่งที่แสดงอยู่บนจอ ไม่เหมารวมแห่งที่ยังไม่ได้เลื่อนลงไปแสดง
@@ -220,7 +221,7 @@ export default function A_Companies() {
   async function handleBulkDeleteCompanies() {
     const ids = Array.from(selectedIds);
     if (ids.length === 0) return;
-    if (!confirm(`ลบบริษัทที่เลือก ${ids.length} แห่ง พร้อมพี่เลี้ยงทั้งหมดหรือไม่?`)) return;
+    if (!(await askConfirm(`ลบบริษัทที่เลือก ${ids.length} แห่ง พร้อมพี่เลี้ยงทั้งหมดหรือไม่?`, { confirmLabel: "ลบบริษัท", danger: true }))) return;
     setBulkDeleting(true);
     try {
       const results = await Promise.allSettled(
@@ -240,7 +241,7 @@ export default function A_Companies() {
       exitSelectMode();
 
       if (failed > 0) {
-        alert(`ลบสำเร็จ ${succeededIds.size} แห่ง, ไม่สำเร็จ ${failed} แห่ง (อาจมีนักศึกษาอ้างอิงอยู่)`);
+        notify.warning(`ลบสำเร็จ ${succeededIds.size} แห่ง, ไม่สำเร็จ ${failed} แห่ง (อาจมีนักศึกษาอ้างอิงอยู่)`);
       }
     } finally {
       setBulkDeleting(false);
@@ -255,11 +256,11 @@ export default function A_Companies() {
     const { firstName, lastName, department, position, email, phone } = mentorForm;
 
     if (!firstName || !lastName || !department || !position || !email || !phone) {
-      alert("กรุณากรอกข้อมูลพี่เลี้ยงให้ครบทุกช่อง");
+      notify.warning("กรุณากรอกข้อมูลพี่เลี้ยงให้ครบทุกช่อง");
       return;
     }
     if (!/^\S+@\S+\.\S+$/.test(email)) {
-      alert("รูปแบบอีเมลไม่ถูกต้อง");
+      notify.warning("รูปแบบอีเมลไม่ถูกต้อง");
       return;
     }
 
@@ -272,7 +273,7 @@ export default function A_Companies() {
           body: JSON.stringify(mentorForm),
         });
         const data = await res.json();
-        if (!data.ok || !data.mentor) return alert("เพิ่มพี่เลี้ยงไม่สำเร็จ");
+        if (!data.ok || !data.mentor) return notify.error("เพิ่มพี่เลี้ยงไม่สำเร็จ");
 
         setViewCompany(prev => prev ? { ...prev, mentors: [...(prev.mentors || []), data.mentor] } : prev);
         setItems(prev => prev.map(c => c.id === viewCompany?.id ? { ...c, mentors: [...(c.mentors || []), data.mentor] } : c));
@@ -285,7 +286,7 @@ export default function A_Companies() {
           body: JSON.stringify(mentorForm),
         });
         const data = await res.json();
-        if (!data.ok || !data.mentor) return alert("แก้ไขพี่เลี้ยงไม่สำเร็จ");
+        if (!data.ok || !data.mentor) return notify.error("แก้ไขพี่เลี้ยงไม่สำเร็จ");
 
         setViewCompany(prev => prev ? { ...prev, mentors: (prev.mentors || []).map(m => m.id === editingMentor.id ? data.mentor : m) } : prev);
         setItems(prev => prev.map(c => c.id === viewCompany?.id ? { ...c, mentors: (c.mentors || []).map(m => m.id === editingMentor.id ? data.mentor : m) } : c));
@@ -302,23 +303,23 @@ export default function A_Companies() {
 
     } catch (err) {
       console.error(err);
-      alert("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้");
+      notify.error("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้");
     }
   }
 
   async function removeMentor(mentorId: string) {
-    if (!confirm("ลบพี่เลี้ยงคนนี้หรือไม่?")) return;
+    if (!(await askConfirm("ลบพี่เลี้ยงคนนี้หรือไม่?", { confirmLabel: "ลบพี่เลี้ยง", danger: true }))) return;
 
     try {
       const res = await apiFetch(`/api/companies/mentors/${mentorId}`, { method: "DELETE" });
 
       const data = await res.json();
-      if (!data.ok) return alert(data.message || "ลบพี่เลี้ยงไม่สำเร็จ");
+      if (!data.ok) return notify.error(data.message || "ลบพี่เลี้ยงไม่สำเร็จ");
 
       setViewCompany(prev => prev ? { ...prev, mentors: (prev.mentors || []).filter(m => m.id !== mentorId) } : prev);
       setItems(prev => prev.map(c => c.id === viewCompany?.id ? { ...c, mentors: (c.mentors || []).filter(m => m.id !== mentorId) } : c));
 
-    } catch (err) { console.error(err); alert("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้"); }
+    } catch (err) { console.error(err); notify.error("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้"); }
   }
 
   /* ---------------- UI ---------------- */

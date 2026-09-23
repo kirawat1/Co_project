@@ -3,6 +3,7 @@ import axios from "axios";
 import type { CSSProperties } from "react";
 import { fmtDate } from '../utils/dateFormat';
 import DateInput from './DateInput';
+import { notify, askConfirm } from "../utils/notify";
 
 // --- Type สำหรับ CoopPeriod ---
 type CoopPeriod = {
@@ -61,7 +62,7 @@ export default function A_CoopPeriod() {
 
     const save = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!academicYear.trim()) return alert("กรุณากรอกปีการศึกษา");
+        if (!academicYear.trim()) return notify.warning("กรุณากรอกปีการศึกษา");
 
         const payload = {
             academicYear,
@@ -85,7 +86,7 @@ export default function A_CoopPeriod() {
             fetchPeriods();
         } catch (err) {
             console.error(err);
-            alert("เกิดข้อผิดพลาดในการบันทึก (อาจมีปี/เทอมนี้ซ้ำอยู่แล้ว)");
+            notify.error("เกิดข้อผิดพลาดในการบันทึก (อาจมีปี/เทอมนี้ซ้ำอยู่แล้ว)");
         }
     };
 
@@ -94,13 +95,13 @@ export default function A_CoopPeriod() {
         if (!currentStatus) {
             const hasActive = periods.some(p => p.isActive && p.id !== id);
             if (hasActive) {
-                if (!confirm(`⚠️ มีรอบรับสมัครอื่นเปิดอยู่แล้ว\nคุณต้องการ "ปิดรอบเดิม" และ "เปิดรอบนี้" แทนหรือไม่?`)) return;
+                if (!(await askConfirm(`⚠️ มีรอบรับสมัครอื่นเปิดอยู่แล้ว\nคุณต้องการ "ปิดรอบเดิม" และ "เปิดรอบนี้" แทนหรือไม่?`, { title: "มีรอบที่เปิดอยู่แล้ว", confirmLabel: "ปิดรอบเดิม เปิดรอบนี้" }))) return;
             } else {
-                if (!confirm(`ต้องการเปิดการรับสมัครรอบนี้ใช่หรือไม่?`)) return;
+                if (!(await askConfirm(`ต้องการเปิดการรับสมัครรอบนี้ใช่หรือไม่?`, { confirmLabel: "เปิดรับสมัคร" }))) return;
             }
         } else {
             // หากปัจจุบันเปิดอยู่ (กำลังจะกดปิด)
-            if (!confirm(`ต้องการปิดการรับสมัครรอบนี้ใช่หรือไม่?`)) return;
+            if (!(await askConfirm(`ต้องการปิดการรับสมัครรอบนี้ใช่หรือไม่?`, { confirmLabel: "ปิดรับสมัคร", danger: true, icon: "🔒" }))) return;
         }
 
         const token = localStorage.getItem("coop.token");
@@ -114,12 +115,12 @@ export default function A_CoopPeriod() {
         } catch (err: any) {
             console.error(err);
             // แสดงเหตุผลจาก server (เช่น เลยวันปิดรับสมัครแล้ว) แทนข้อความกลางๆ
-            alert(err?.response?.data?.message || err?.response?.data?.error || "ไม่สามารถเปลี่ยนสถานะได้");
+            notify.error(err?.response?.data?.message || err?.response?.data?.error || "ไม่สามารถเปลี่ยนสถานะได้");
         }
     };
 
     const remove = async (id: number) => {
-        if (!confirm("ลบรอบการรับสมัครนี้? (คำเตือน: หากมีนักศึกษาอยู่ในรอบนี้อาจเกิดปัญหา)")) return;
+        if (!(await askConfirm("ลบรอบการรับสมัครนี้? (คำเตือน: หากมีนักศึกษาอยู่ในรอบนี้อาจเกิดปัญหา)", { confirmLabel: "ลบรอบ", danger: true }))) return;
         const token = localStorage.getItem("coop.token");
         try {
             await axios.delete(`/api/admin/coop-periods/${id}`, {
@@ -128,7 +129,7 @@ export default function A_CoopPeriod() {
             fetchPeriods();
         } catch (err) {
             console.error(err);
-            alert("ลบไม่สำเร็จ");
+            notify.error("ลบไม่สำเร็จ");
         }
     };
 

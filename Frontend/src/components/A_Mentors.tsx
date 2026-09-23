@@ -3,6 +3,7 @@ import { IcSave, IcUser } from "./icons"; // อย่าลืมเช็ค p
 import { apiFetch } from "../utils/apiFetch";
 import LoadMoreFooter from "./LoadMoreFooter";
 import { useLoadMore } from "../utils/useLoadMore";
+import { notify, askConfirm } from "../utils/notify";
 
 /* =========================
    Types
@@ -79,34 +80,34 @@ export default function A_Mentors() {
       });
 
       if (res.ok) {
-        alert("บันทึกข้อมูลเรียบร้อย");
+        notify.success("บันทึกข้อมูลเรียบร้อย");
         setModalData(null);
         fetchData();
       } else {
         const d = await res.json();
-        alert("บันทึกไม่สำเร็จ: " + d.message);
+        notify.error("บันทึกไม่สำเร็จ: " + d.message);
       }
     } catch (err) {
       console.error(err);
-      alert("เกิดข้อผิดพลาดในการเชื่อมต่อ");
+      notify.error("เกิดข้อผิดพลาดในการเชื่อมต่อ");
     }
   };
 
   // --- Delete Data ---
   const handleDelete = async (id: string) => {
-    if (!confirm("ต้องการลบพี่เลี้ยงคนนี้ใช่หรือไม่?")) return;
+    if (!(await askConfirm("ต้องการลบพี่เลี้ยงคนนี้ใช่หรือไม่?", { confirmLabel: "ลบพี่เลี้ยง", danger: true }))) return;
     try {
       const res = await apiFetch(`/api/companies/mentors/${id}`, { method: "DELETE" });
 
       if (res.ok) {
-        alert("ลบข้อมูลสำเร็จ");
+        notify.success("ลบข้อมูลสำเร็จ");
         setItems(prev => prev.filter(m => m.id !== id));
       } else {
-        alert("ลบไม่สำเร็จ");
+        notify.error("ลบไม่สำเร็จ");
       }
     } catch (err) {
       console.error(err);
-      alert("เกิดข้อผิดพลาด");
+      notify.error("เกิดข้อผิดพลาด");
     }
   };
 

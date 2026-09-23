@@ -3,6 +3,7 @@
 import React, { useMemo, useState } from "react";
 import type { DailyLog } from "./store";
 import { fmtDate, fmtDateTime } from '../utils/dateFormat';
+import { notify } from "../utils/notify";
 
 const DAILY_KEY = "coop.student.daily.v1";
 const YEAR_KEY = "coop.admin.academicYear";
@@ -178,7 +179,7 @@ export default function A_Daily() {
 
   /* ---------------- EXPORT CSV ---------------- */
   function exportCsv() {
-    if (rows.length === 0) return alert("ไม่มีข้อมูลสำหรับส่งออก");
+    if (rows.length === 0) return notify.info("ไม่มีข้อมูลสำหรับส่งออก");
 
     const header = [
       "วันที่ทำงาน",

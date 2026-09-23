@@ -3,6 +3,7 @@ import type { CSSProperties } from "react";
 import type { CalendarEvent } from "./SupervisionCalendar";
 import { fmtDate } from "../utils/dateFormat";
 import { apiFetch } from "../utils/apiFetch";
+import { notify } from "../utils/notify";
 
 /**
  * ตารางนิเทศเรียงตามวัน-เวลา — ใครนิเทศ เมื่อไหร่ ใครเป็นผู้นิเทศ
@@ -70,7 +71,7 @@ export default function SupervisionScheduleTable({ events, canExport = false, ex
             const res = await fetch(reqUrl, { headers: { Authorization: `Bearer ${token}` } });
             if (!res.ok) {
                 const msg = await res.json().catch(() => ({}));
-                alert(`❌ ดาวน์โหลดไม่สำเร็จ${msg.message ? `: ${msg.message}` : ""}`);
+                notify.error(`❌ ดาวน์โหลดไม่สำเร็จ${msg.message ? `: ${msg.message}` : ""}`);
                 return;
             }
             const blob = await res.blob();
@@ -86,7 +87,7 @@ export default function SupervisionScheduleTable({ events, canExport = false, ex
             a.remove();
             URL.revokeObjectURL(url);
         } catch {
-            alert("❌ เชื่อมต่อเซิร์ฟเวอร์ไม่ได้");
+            notify.error("❌ เชื่อมต่อเซิร์ฟเวอร์ไม่ได้");
         } finally {
             setDownloading(false);
         }

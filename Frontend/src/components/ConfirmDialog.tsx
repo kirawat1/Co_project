@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 /* ============================================================
    ConfirmDialog — แทน window.confirm()
@@ -22,6 +22,8 @@ interface Props {
   cancelLabel?: string;
   confirmColor?: string;
   icon?: string;
+  /** ค่าเริ่มต้น 10000 — กล่องยืนยันกลาง (askConfirm) ใช้ค่าสูงกว่าเพื่อลอยเหนือ modal อื่น */
+  zIndex?: number;
   onConfirm: () => void;
   onCancel: () => void;
 }
@@ -34,9 +36,17 @@ export default function ConfirmDialog({
   cancelLabel = "ยกเลิก",
   confirmColor = "#0074B7",
   icon = "❓",
+  zIndex = 10000,
   onConfirm,
   onCancel,
 }: Props) {
+  const cancelRef = useRef<HTMLButtonElement>(null);
+
+  // โฟกัสปุ่มยกเลิกเมื่อเปิด — กด Enter พลาดจะไม่ลบ/ส่งโดยไม่ตั้งใจ
+  useEffect(() => {
+    if (open) cancelRef.current?.focus();
+  }, [open, message]);
+
   // Close on Escape
   useEffect(() => {
     if (!open) return;
@@ -50,12 +60,15 @@ export default function ConfirmDialog({
   return (
     <div
       style={{
-        position: "fixed", inset: 0, zIndex: 10000,
+        position: "fixed", inset: 0, zIndex,
         background: "rgba(15,23,42,.55)", backdropFilter: "blur(4px)",
         display: "flex", alignItems: "center", justifyContent: "center",
         padding: 16,
       }}
       onClick={onCancel}
+      role="dialog"
+      aria-modal="true"
+      aria-label={title}
     >
       <div
         style={{
@@ -78,10 +91,12 @@ export default function ConfirmDialog({
           margin: "0 0 28px",
           fontSize: 15, lineHeight: 1.6,
           color: "var(--text-muted, #64748b)",
+          whiteSpace: "pre-line", wordBreak: "break-word",
         }}>{message}</p>
 
         <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
           <button
+            ref={cancelRef}
             className="btn-secondary"
             onClick={onCancel}
             style={{ flex: 1, maxWidth: 160 }}

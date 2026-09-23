@@ -2,6 +2,7 @@ import { useState } from "react";
 import { apiFetch } from "../utils/apiFetch";
 import { fmtDate } from '../utils/dateFormat';
 import LetterDeliveryNotice, { type LetterDelivery } from "./LetterDeliveryNotice";
+import { notify } from "../utils/notify";
 
 interface Props {
     placeLetterUrl?: string;
@@ -59,14 +60,14 @@ export default function PlacementLetterCard({
 
             if (!res.ok) {
                 const data = await res.json().catch(() => ({}));
-                alert(data.message || "ไม่สามารถอัปเดตสถานะได้ กรุณาลองใหม่หรือติดต่อเจ้าหน้าที่");
+                notify.error(data.message || "ไม่สามารถอัปเดตสถานะได้ กรุณาลองใหม่หรือติดต่อเจ้าหน้าที่");
                 return;
             }
 
             onRefresh?.();
         } catch (err) {
             console.error("ack placement error", err);
-            alert("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้");
+            notify.error("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้");
         }
     };
 

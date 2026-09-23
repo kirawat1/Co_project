@@ -3,6 +3,8 @@
 // it only attaches to axios.
 // Auto-injects Authorization header from localStorage unless the caller
 // provides one explicitly (caller's headers always win).
+import { notify } from "./notify";
+
 export async function apiFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   const token = localStorage.getItem("coop.token");
   const mergedInit: RequestInit = {
@@ -16,7 +18,7 @@ export async function apiFetch(input: RequestInfo | URL, init?: RequestInit): Pr
   if (res.status === 401) {
     localStorage.removeItem("coop.token");
     if (window.location.pathname !== "/") {
-      alert("Session หมดอายุ กรุณาเข้าสู่ระบบใหม่");
+      notify.afterReload("warning", "เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่");
       window.location.href = "/";
     }
   }

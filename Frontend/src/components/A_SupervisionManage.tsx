@@ -14,6 +14,7 @@ import Spinner from "./Spinner";
 import DateInput from './DateInput';
 import LoadMoreFooter from "./LoadMoreFooter";
 import { useLoadMore } from "../utils/useLoadMore";
+import { askConfirm } from "../utils/notify";
 
 // --- Types ---
 type SupervisionStatus = "PENDING_TEACHER" | "TEACHER_REJECTED" | "DATE_CONFIRMED" | "LETTER_UPLOADED" | "COMPLETED";
@@ -278,7 +279,7 @@ export default function A_SupervisionManage() {
     };
 
     const handleComplete = async (sup: Supervision) => {
-        if (!confirm("ยืนยันว่าการนิเทศเสร็จสิ้นแล้ว?")) return;
+        if (!(await askConfirm("ยืนยันว่าการนิเทศเสร็จสิ้นแล้ว?", { confirmLabel: "นิเทศเสร็จสิ้น", icon: "✅" }))) return;
         try {
             await axios.put(`/api/admin/supervisions/${sup.id}/complete`, {}, { headers: { Authorization: `Bearer ${token}` } });
             toast.success("บันทึกผลนิเทศเสร็จสิ้นสำเร็จ");
