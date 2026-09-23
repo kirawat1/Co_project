@@ -60,7 +60,6 @@ exports.getDashboardStats = async (req, res) => {
     const rejected = coops.filter(c => rejectedStatuses.includes(c.status)).length;
 
     const totalDailyLogs = 0; 
-    const specialRequests = 0;
 
     res.json({
       ok: true,
@@ -71,8 +70,7 @@ exports.getDashboardStats = async (req, res) => {
         totalDailyLogs,
         waiting,
         approved,
-        rejected,
-        specialRequests
+        rejected
       }
     });
 

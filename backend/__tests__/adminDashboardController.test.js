@@ -49,7 +49,6 @@ describe('getDashboardStats', () => {
         waiting: 1,   // APPLYING
         approved: 1,  // QUALIFIED
         rejected: 1,  // QUALIFICATION_FAILED
-        specialRequests: 0,
       }),
     });
     expect(res.status).not.toHaveBeenCalled();
@@ -118,7 +117,6 @@ describe('getDashboardStats', () => {
         approved: 2,             // DOCS_APPROVED x2
         rejected: 1,             // APPLICATION_EDITS_REQUIRED
         totalDailyLogs: 0,
-        specialRequests: 0,
       }),
     });
   });
