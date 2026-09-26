@@ -145,6 +145,11 @@ export async function seedLifecycleFixture(): Promise<LifecycleFixture> {
     },
   });
 
+  // ผู้ติดต่อ (HR) — บังคับก่อนยื่นคำร้อง (ลบตามบริษัทตอน cleanup)
+  const contact = await prisma.companyContact.create({
+    data: { firstName: "ผู้ประสานงาน", lastName: "อีทูอี", position: "HR", email: "hr@company.test", companyId: company.id, createdById: staffUser.id },
+  });
+
   // สภาพตั้งต้น: นักศึกษาเลือกบริษัทจากหน้าโปรไฟล์ไว้แล้ว แต่ยังไม่ยื่นคำร้อง
   // (หน้า Gateway บล็อกการยื่นถ้ายังไม่มีบริษัท — ดู S_Gateway.tsx handleSubmitApplication)
   // coopPeriodId ปล่อยว่างไว้ ให้ endpoint ยื่นคำร้องเป็นคนผูกเอง
@@ -153,6 +158,7 @@ export async function seedLifecycleFixture(): Promise<LifecycleFixture> {
       studentId: student.id,
       status: "NOT_SUBMITTED",
       companyId: company.id,
+      contacts: { connect: [{ id: contact.id }] },
     },
   });
 
