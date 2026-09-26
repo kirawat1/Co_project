@@ -291,7 +291,7 @@ export default function A_Teacher() {
             value={q} onChange={(e) => setQ(e.target.value)}
             style={{ width: 280, padding: "8px", borderRadius: 8, border: "1px solid #e5e7eb" }}
           />
-          <FilterBox title="สาขาวิชา" items={Object.fromEntries(departments.map(d => [d, d]))} values={filterMajor} onChange={setFilterMajor} />
+          <FilterBox title="หลักสูตร" items={Object.fromEntries(departments.map(d => [d, d]))} values={filterMajor} onChange={setFilterMajor} />
           <button className="btn" style={{ ...saveBtn, marginLeft: "auto" }} onClick={() => { setQ(""); setFilterMajor([]); }}>
             ล้างตัวกรอง
           </button>
@@ -355,7 +355,7 @@ export default function A_Teacher() {
                   />
                 </th>
               )}
-              {["ชื่อ-นามสกุล", "อีเมล (Username)", "เบอร์โทร", "สาขาวิชา", "จัดการ"].map((h) => (
+              {["ชื่อ-นามสกุล", "อีเมล (Username)", "เบอร์โทร", "หลักสูตร", "จัดการ"].map((h) => (
                 <th key={h} style={th}>{h}</th>
               ))}
             </tr>
@@ -390,7 +390,7 @@ export default function A_Teacher() {
                 </td>
                 <td style={{ ...td, color: "#0369a1" }} data-label="อีเมล (Username)">{t.email}</td>
                 <td style={td} data-label="เบอร์โทร">{t.phone || "-"}</td>
-                <td style={td} data-label="สาขาวิชา">
+                <td style={td} data-label="หลักสูตร">
                   <span style={{ padding: "4px 10px", borderRadius: 99, fontSize: 12, fontWeight: 600, background: t.major ? "#f0f9ff" : "#f1f5f9", color: t.major ? "#0369a1" : "#64748b" }}>
                     {t.major || "-"}
                   </span>
@@ -591,9 +591,9 @@ function TeacherFields({ form, setForm, prefixOptions, departments, allowEmailEd
         <input style={inputStyle} value={form.phone || ""} onChange={e => setForm({ ...form, phone: e.target.value })} placeholder="0XX-XXXXXXX" />
       </div>
       <div style={{ gridColumn: "span 2" }}>
-        <label style={labelStyle}>สาขาวิชา</label>
+        <label style={labelStyle}>หลักสูตร</label>
         <select style={{ ...inputStyle, cursor: "pointer" }} value={form.major || ""} onChange={e => setForm({ ...form, major: e.target.value })}>
-          <option value="">-- เลือกสาขาวิชา --</option>
+          <option value="">-- เลือกหลักสูตร --</option>
           {departments.map(d => <option key={d} value={d}>{d}</option>)}
         </select>
       </div>

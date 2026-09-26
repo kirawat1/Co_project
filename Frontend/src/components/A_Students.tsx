@@ -480,7 +480,7 @@ export default function A_Students() {
         )}
         {importResult && (
           <span style={{ fontSize: 12, color: "#16a34a", fontWeight: 700 }}>
-            ✅ สร้างใหม่ {importResult.created} | อัปเดต {importResult.updated} | error {importResult.errors} จาก {importResult.total} รายการ{importResult.autoCreatedMajors ? ` · เพิ่มสาขาใหม่ ${importResult.autoCreatedMajors} สาขา` : ""}
+            ✅ สร้างใหม่ {importResult.created} | อัปเดต {importResult.updated} | error {importResult.errors} จาก {importResult.total} รายการ{importResult.autoCreatedMajors ? ` · เพิ่มหลักสูตรใหม่ ${importResult.autoCreatedMajors} หลักสูตร` : ""}
           </span>
         )}
       </div>
@@ -522,7 +522,7 @@ export default function A_Students() {
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
               <thead>
                 <tr style={{ background: "#f8fafc", borderBottom: "2px solid #e2e8f0" }}>
-                  {["แถว", "รหัส", "ชื่อ-นามสกุล", "อีเมล", "สาขาวิชา", "หลักสูตร", "อาจารย์ที่ปรึกษา", "สถานะ"].map(h => (
+                  {["แถว", "รหัส", "ชื่อ-นามสกุล", "อีเมล", "หลักสูตร", "รูปแบบการศึกษา", "อาจารย์ที่ปรึกษา", "สถานะ"].map(h => (
                     <th key={h} style={{ padding: "8px 12px", textAlign: "left", fontWeight: 700, color: "#475569", whiteSpace: "nowrap" }}>{h}</th>
                   ))}
                 </tr>
@@ -632,23 +632,23 @@ export default function A_Students() {
           />
 
           <div>
-            <div style={{ fontSize: 13, color: "#475569", marginBottom: 4 }}>สาขาวิชา</div>
+            <div style={{ fontSize: 13, color: "#475569", marginBottom: 4 }}>หลักสูตร</div>
             <select
               className="input"
               style={{ padding: '6px 8px', borderRadius: 8, border: '1px solid #e5e7eb' }}
               value={filterMajor}
               onChange={e => setFilterMajor(e.target.value)}
             >
-              <option value="all">🎓 ทุกสาขา</option>
+              <option value="all">🎓 ทุกหลักสูตร</option>
               {departments.map(d => (
                 <option key={d.major} value={d.major}>{d.nameTh && d.nameTh !== d.major ? `${d.nameTh} (${d.major})` : d.major}</option>
               ))}
-              <option value={NO_MAJOR}>— ยังไม่ระบุสาขา —</option>
+              <option value={NO_MAJOR}>— ยังไม่ระบุหลักสูตร —</option>
             </select>
           </div>
 
           <FilterBox
-            title="ระบบการศึกษา"
+            title="รูปแบบการศึกษา"
             items={CURRICULUM_TH}
             values={filterCurriculums}
             onChange={setFilterCurriculums}
@@ -719,8 +719,8 @@ export default function A_Students() {
                 { label: "ชื่อ", key: "firstName" },
                 { label: "นามสกุล", key: "lastName" },
                 { label: "อีเมล", key: null },
-                { label: "สาขา", key: null },
-                { label: "ระบบการศึกษา", key: "studyProgram" },
+                { label: "หลักสูตร", key: null },
+                { label: "รูปแบบการศึกษา", key: "studyProgram" },
                 { label: "สถานะ", key: null },
                 { label: "รายละเอียด", key: null },
               ] as { label: string; key: string | null }[]).map(({ label, key }) => (
@@ -762,8 +762,8 @@ export default function A_Students() {
                   <td style={td} data-label="ชื่อ">{getThaiPrefix(s.prefix)} {s.firstName}</td>
                   <td style={td} data-label="นามสกุล">{s.lastName}</td>
                   <td style={td} data-label="อีเมล">{s.user?.email || "-"}</td>
-                  <td style={td} data-label="สาขา">{s.major ? (deptMap[s.major] || s.major) : <span style={{ color: "#94a3b8" }}>-</span>}</td>
-                  <td style={td} data-label="ระบบการศึกษา">{CURRICULUM_TH[s.studyProgram ?? ""] ?? s.studyProgram ?? "-"}</td>
+                  <td style={td} data-label="หลักสูตร">{s.major ? (deptMap[s.major] || s.major) : <span style={{ color: "#94a3b8" }}>-</span>}</td>
+                  <td style={td} data-label="รูปแบบการศึกษา">{CURRICULUM_TH[s.studyProgram ?? ""] ?? s.studyProgram ?? "-"}</td>
                   <td style={td} data-label="สถานะ"><StatusBadge status={s.coop?.status || s.docStatus} /></td>
                   <td style={td} data-label="รายละเอียด">
                     <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
@@ -882,8 +882,8 @@ function StudentModal({
                 <InfoRow label="ชื่อ-สกุล" value={fullName} />
                 <InfoRow label="ชื่อ-สกุล (EN)" value={[student.firstNameEn, student.lastNameEn].filter(Boolean).join(" ")} />
                 <InfoRow label="ชั้นปี" value={student.year} />
-                <InfoRow label="สาขาวิชา" value={student.major ? (deptMap[student.major] ? `${deptMap[student.major]} (${student.major})` : student.major) : "-"} />
-                <InfoRow label="ระบบการศึกษา" value={CURRICULUM_TH[student.studyProgram || ""] || student.studyProgram} />
+                <InfoRow label="หลักสูตร" value={student.major ? (deptMap[student.major] ? `${deptMap[student.major]} (${student.major})` : student.major) : "-"} />
+                <InfoRow label="รูปแบบการศึกษา" value={CURRICULUM_TH[student.studyProgram || ""] || student.studyProgram} />
                 <InfoRow label="เบอร์โทร" value={student.phone} />
                 {/* อีเมลติดต่อที่นักศึกษากรอกเอง กับอีเมลบัญชีเข้าระบบ อาจเป็นคนละอัน */}
                 <InfoRow label="อีเมลติดต่อ" value={student.email || student.user?.email} />

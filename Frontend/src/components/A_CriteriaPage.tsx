@@ -100,7 +100,7 @@ export default function A_CriteriaPage() {
         setShowAddForm(false);
         fetchDepartments();
       } else {
-        setError(data.message || "เพิ่มสาขาวิชาล้มเหลว");
+        setError(data.message || "เพิ่มหลักสูตรไม่สำเร็จ");
       }
     } catch {
       setError("เกิดข้อผิดพลาด");
@@ -175,15 +175,15 @@ export default function A_CriteriaPage() {
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 12, marginBottom: 24 }}>
           <div>
             <h2 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "var(--text)" }}>
-              🏛️ จัดการสาขาวิชา
+              🏛️ จัดการหลักสูตร
             </h2>
             <p style={{ margin: "6px 0 0", fontSize: 13, color: "var(--text-muted)" }}>
-              เพิ่ม แก้ไข หรือลบสาขาวิชา · <strong>รหัสสาขา</strong> = ตัวย่อในระบบ (cs, ai) · <strong>ชื่อภาษาไทย</strong> = ชื่อเต็ม
+              เพิ่ม แก้ไข หรือลบหลักสูตร · <strong>รหัสหลักสูตร</strong> = ตัวย่อในระบบ (cs, ai) · <strong>ชื่อภาษาไทย</strong> = ชื่อเต็ม
             </p>
           </div>
           {!showAddForm && (
             <button style={btn("#fff", "#0ea5e9")} onClick={() => setShowAddForm(true)}>
-              + เพิ่มสาขาวิชา
+              + เพิ่มหลักสูตร
             </button>
           )}
         </div>
@@ -200,7 +200,7 @@ export default function A_CriteriaPage() {
           <div style={{ marginBottom: 20, padding: 18, background: "var(--surface2)", borderRadius: 12, border: "1px solid var(--border)" }}>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
               <div style={{ minWidth: 140 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: "#0369a1", marginBottom: 4 }}>รหัสสาขา</div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#0369a1", marginBottom: 4 }}>รหัสหลักสูตร</div>
                 <input
                   ref={addInputRef}
                   style={input}
@@ -245,7 +245,7 @@ export default function A_CriteriaPage() {
           <div style={{ textAlign: "center", padding: 40, color: "#94a3b8" }}>กำลังโหลด...</div>
         ) : departments.length === 0 ? (
           <div style={{ textAlign: "center", padding: 40, color: "#94a3b8" }}>
-            ยังไม่มีสาขาวิชา — กดปุ่ม "+ เพิ่มสาขาวิชา" เพื่อเพิ่ม
+            ยังไม่มีหลักสูตร — กดปุ่ม "+ เพิ่มหลักสูตร" เพื่อเพิ่ม
           </div>
         ) : (
           <div style={{ display: "flex", flexWrap: "wrap", gap: 16 }}>
@@ -281,7 +281,7 @@ export default function A_CriteriaPage() {
                         />
                       </div>
                       <div>
-                        <div style={{ fontSize: 10, fontWeight: 700, color: "var(--text-muted)", marginBottom: 3 }}>รหัสสาขา (ตัวย่อ)</div>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: "var(--text-muted)", marginBottom: 3 }}>รหัสหลักสูตร (ตัวย่อ)</div>
                         <input
                           style={{ ...input, fontWeight: 700 }}
                           value={editName}
@@ -306,7 +306,7 @@ export default function A_CriteriaPage() {
                     <div>
                       {noCode && (
                         <div style={{ fontSize: 11, color: "#b45309", background: "rgba(234,179,8,.12)", border: "1px solid rgba(234,179,8,.3)", borderRadius: 6, padding: "3px 8px", marginBottom: 8, display: "inline-block" }}>
-                          ⚠️ ยังไม่มีรหัส — แก้ไขเพื่อตั้งรหัสสาขา
+                          ⚠️ ยังไม่มีรหัส — แก้ไขเพื่อตั้งรหัสหลักสูตร
                         </div>
                       )}
                       <div style={{ fontSize: dept.nameTh ? 15 : 22, fontWeight: 800, color: "var(--text)", lineHeight: 1.3 }}>
@@ -341,12 +341,12 @@ export default function A_CriteriaPage() {
         {/* Curriculum note */}
         <div style={{ marginTop: 28, padding: 16, background: "var(--surface2)", borderRadius: 12, border: "1px solid var(--border)" }}>
           <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-muted)", marginBottom: 10, textTransform: "uppercase", letterSpacing: 0.5 }}>
-            📋 หลักสูตรการศึกษา
+            📋 รูปแบบการศึกษา
           </div>
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
             {[{ code: "normal", label: "ภาคปกติ" }, { code: "special", label: "ภาคพิเศษ" }].map(({ code, label }) => (
               <div key={code} style={{ background: "var(--card-bg)", border: "1px solid var(--border)", borderRadius: 10, padding: "10px 20px", minWidth: 140 }}>
-                <div style={{ fontSize: 10, fontWeight: 800, color: "#0ea5e9", textTransform: "uppercase", letterSpacing: 1 }}>หลักสูตร</div>
+                <div style={{ fontSize: 10, fontWeight: 800, color: "#0ea5e9", textTransform: "uppercase", letterSpacing: 1 }}>รูปแบบการศึกษา</div>
                 <div style={{ fontSize: 18, fontWeight: 900, color: "var(--text)", marginTop: 2 }}>{label}</div>
                 <div style={{ fontSize: 11, color: "var(--text-sub)", marginTop: 1 }}>รหัส: {code}</div>
               </div>
@@ -361,10 +361,10 @@ export default function A_CriteriaPage() {
           onClick={e => { if (e.target === e.currentTarget) { setDeleteId(null); setError(""); } }}>
           <div style={{ background: "var(--card-bg)", borderRadius: 16, padding: 28, maxWidth: 380, width: "90%", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
             <div style={{ fontSize: 20, marginBottom: 12 }}>🗑️</div>
-            <h3 style={{ margin: "0 0 8px", fontSize: 16, fontWeight: 800, color: "var(--text)" }}>ยืนยันการลบสาขาวิชา</h3>
+            <h3 style={{ margin: "0 0 8px", fontSize: 16, fontWeight: 800, color: "var(--text)" }}>ยืนยันการลบหลักสูตร</h3>
             <p style={{ margin: "0 0 20px", fontSize: 14, color: "var(--text-muted)" }}>
-              ต้องการลบสาขาวิชา <strong style={{ color: "#dc2626" }}>"{deleteConfirmName}"</strong> ออกจากระบบ?
-              <br />นักศึกษาที่เลือกสาขานี้ไว้จะยังคงข้อมูลเดิม แต่จะไม่สามารถเลือกสาขานี้ใหม่ได้
+              ต้องการลบหลักสูตร <strong style={{ color: "#dc2626" }}>"{deleteConfirmName}"</strong> ออกจากระบบ?
+              <br />นักศึกษาที่เลือกหลักสูตรนี้ไว้จะยังคงข้อมูลเดิม แต่จะไม่สามารถเลือกหลักสูตรนี้ใหม่ได้
             </p>
             <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
               <button style={btn("#64748b", "#f1f5f9", "#e2e8f0")} onClick={() => { setDeleteId(null); setError(""); }}>ยกเลิก</button>

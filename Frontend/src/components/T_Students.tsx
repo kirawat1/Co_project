@@ -251,7 +251,7 @@ export default function T_Students({ isCoopTeacher = false }: Props) {
           </select>
 
           <select className="input soft" style={{ width: 'auto' }} value={filterCurriculum} onChange={e => setFilterCurriculum(e.target.value)}>
-            <option value="all">📚 ทุกหลักสูตร</option>
+            <option value="all">📚 ทุกรูปแบบการศึกษา</option>
             <option value="normal">ภาคปกติ</option>
             <option value="special">ภาคพิเศษ</option>
           </select>
@@ -265,7 +265,7 @@ export default function T_Students({ isCoopTeacher = false }: Props) {
             <tr>
               <th>รหัสนักศึกษา</th>
               <th>ชื่อ-นามสกุล</th>
-              <th>หลักสูตร</th>
+              <th>รูปแบบการศึกษา</th>
               <th>สถานประกอบการ</th>
               <th>สถานะคำร้อง</th>
               <th style={{ textAlign: 'right' }}>รายละเอียด</th>
@@ -287,7 +287,7 @@ export default function T_Students({ isCoopTeacher = false }: Props) {
                 <tr key={s.studentId} className="student-row">
                   <td style={{ fontWeight: 700, color: '#0ea5e9' }} data-label="รหัสนักศึกษา">{s.studentId}</td>
                   <td style={{ fontWeight: 600, color: '#1e293b' }} data-label="ชื่อ-นามสกุล">{name}</td>
-                  <td data-label="หลักสูตร">{displayCurriculum}</td>
+                  <td data-label="รูปแบบการศึกษา">{displayCurriculum}</td>
                   <td style={{ color: '#475569' }} data-label="สถานประกอบการ">{s.company?.name || "-"}</td>
                   <td data-label="สถานะคำร้อง"><StatusBadge status={st} /></td>
                   <td style={{ textAlign: 'right' }}>
@@ -446,7 +446,7 @@ function StudentViewModal({
                   <InfoRow label="ชื่อ-สกุล" value={fullName} />
                   <InfoRow label="ชั้นปี" value={student.year || "-"} />
                   <InfoRow label="คณะ" value={student.faculty || "วิทยาลัยการคอมพิวเตอร์"} />
-                  <InfoRow label="หลักสูตร" value={displayCurriculum} />
+                  <InfoRow label="รูปแบบการศึกษา" value={displayCurriculum} />
                 </div>
               </div>
               <div style={{ background: '#f8fafc', padding: 20, borderRadius: 16, border: '1px solid #e2e8f0' }}>

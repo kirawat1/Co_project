@@ -378,7 +378,7 @@ export default function S_ProfilePage() {
                   <button onClick={() => setKkuModalOpen(false)} style={{ background: "none", border: "none", fontSize: 22, cursor: "pointer", color: "#94a3b8" }}>✕</button>
                 </div>
                 <p style={{ margin: "0 0 20px", fontSize: 14, color: "#64748b", lineHeight: 1.6 }}>
-                  ระบบจะดึงข้อมูล ชื่อ-นามสกุล, สาขา, คณะ, ชั้นปี และอาจารย์ที่ปรึกษา จากสำนักทะเบียน มข. มาเติมให้อัตโนมัติ
+                  ระบบจะดึงข้อมูล ชื่อ-นามสกุล, หลักสูตร, คณะ, ชั้นปี และอาจารย์ที่ปรึกษา จากสำนักทะเบียน มข. มาเติมให้อัตโนมัติ
                 </p>
                 <div style={{ marginBottom: 14 }}>
                   <label style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#64748b", marginBottom: 6 }}>KKU Username (อีเมล @kkumail.com)</label>
@@ -420,8 +420,8 @@ export default function S_ProfilePage() {
           <Info label="ชื่อ–นามสกุล (TH)" value={`${prefixMapToUI[profile.prefix as keyof typeof prefixMapToUI] || ""} ${profile.firstName ?? ""} ${profile.lastName ?? ""}`} />
           <Info label="ชื่อ–นามสกุล (EN)" value={`${profile.firstNameEn ?? "-"} ${profile.lastNameEn ?? "-"}`} />
           <Info label="ชั้นปี" value={profile.year || "-"} />
-          <Info label="สาขาวิชา" value={profile.major ? (deptMap[profile.major] ? `${deptMap[profile.major]} (${profile.major})` : profile.major) : "-"} />
-          <Info label="หลักสูตรการศึกษา" value={studyProgramMapToUI[profile.studyProgram as string] || profile.studyProgram || "-"} />
+          <Info label="หลักสูตร" value={profile.major ? (deptMap[profile.major] ? `${deptMap[profile.major]} (${profile.major})` : profile.major) : "-"} />
+          <Info label="รูปแบบการศึกษา" value={studyProgramMapToUI[profile.studyProgram as string] || profile.studyProgram || "-"} />
           {/* อาจารย์ที่ปรึกษา */}
           <div style={{ marginTop: 16 }}>
             <div style={{ fontWeight: 700, fontSize: 14, color: '#334155', marginBottom: 10 }}>
@@ -661,9 +661,9 @@ function StudentModal({ profile, teachers, saveStudentInfo, closeModal, departme
           <div><label className="label">ชั้นปี</label><input className="input" value={form.year ?? ""} onChange={(e) => setForm({ ...form, year: e.target.value })} /></div>
 
           <div>
-            <label className="label">สาขาวิชา</label>
+            <label className="label">หลักสูตร</label>
             <select className="input" value={form.major ?? ""} onChange={(e) => setForm({ ...form, major: e.target.value })} disabled={departments === null}>
-              <option value="">{departments === null ? "กำลังโหลด..." : "-- เลือกสาขาวิชา --"}</option>
+              <option value="">{departments === null ? "กำลังโหลด..." : "-- เลือกหลักสูตร --"}</option>
               {(departments ?? []).map((d: { major: string; nameTh: string | null }) => (
                 <option key={d.major} value={d.major}>
                   {d.nameTh && d.nameTh !== d.major ? `${d.nameTh} (${d.major})` : d.major}

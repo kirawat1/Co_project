@@ -205,7 +205,7 @@ export default function T_Profile() {
                 <span className="value">{profile.faculty || "-"}</span>
               </div>
               <div className="info-row">
-                <span className="label">สาขาวิชา</span>
+                <span className="label">หลักสูตร</span>
                 <span className="value">{displayMajor}</span>
               </div>
             </div>
@@ -268,13 +268,13 @@ export default function T_Profile() {
               </div>
 
               <div style={{ gridColumn: 'span 2' }}>
-                <label className="label">สาขาวิชา</label>
+                <label className="label">หลักสูตร</label>
                 <select
                   className="input"
                   value={form.major || ""}
                   onChange={(e) => setForm({ ...form, major: e.target.value })}
                 >
-                  <option value="">-- เลือกสาขาวิชา --</option>
+                  <option value="">-- เลือกหลักสูตร --</option>
                   {departments.map(d => <option key={d} value={d}>{d}</option>)}
                 </select>
               </div>

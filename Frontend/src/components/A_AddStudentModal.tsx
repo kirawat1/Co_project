@@ -122,9 +122,9 @@ export default function A_AddStudentModal({ onClose, onSuccess }: Props) {
 
           {/* สาขา + แผนการศึกษา */}
           <div>
-            <label style={LBL}>สาขาวิชา / หลักสูตร</label>
+            <label style={LBL}>หลักสูตร</label>
             <select style={FIELD_STYLE} value={form.major} onChange={set("major")} disabled={departments === null}>
-              <option value="">{departments === null ? "กำลังโหลด..." : "-- เลือกสาขาวิชา --"}</option>
+              <option value="">{departments === null ? "กำลังโหลด..." : "-- เลือกหลักสูตร --"}</option>
               {(departments ?? []).map(d => (
                 <option key={d.major} value={d.major}>
                   {d.nameTh && d.nameTh !== d.major ? `${d.nameTh} (${d.major})` : d.major}
@@ -132,11 +132,11 @@ export default function A_AddStudentModal({ onClose, onSuccess }: Props) {
               ))}
             </select>
             {departments !== null && departments.length === 0 && (
-              <div style={{ fontSize: 11, color: "#b45309", marginTop: 3 }}>ยังไม่มีสาขาวิชา — เพิ่มที่เมนู "จัดการสาขาวิชา"</div>
+              <div style={{ fontSize: 11, color: "#b45309", marginTop: 3 }}>ยังไม่มีหลักสูตร — เพิ่มที่เมนู "จัดการหลักสูตร"</div>
             )}
           </div>
           <div>
-            <label style={LBL}>แผนการศึกษา</label>
+            <label style={LBL}>รูปแบบการศึกษา</label>
             <select style={FIELD_STYLE} value={form.studyProgram} onChange={set("studyProgram")}>
               <option value="normal">ภาคปกติ</option>
               <option value="special">ภาคพิเศษ</option>
