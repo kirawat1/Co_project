@@ -3,7 +3,8 @@
 import { jsPDF } from "jspdf";
 import { PDFDocument } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
-import { normalizeDocNumber } from "./docGeneratorUtils";
+import { normalizeDocNumber } from "./docGeneratorUtils";
+import { letterRecipient, recipientText } from "./letterRecipient";
 
 // --- Helpers ---
 const getFontBase64 = async (url: string): Promise<string> => {
@@ -127,19 +128,10 @@ export const createDispatchPDF = async (
   const companyName =
     profile.company?.name || profile.coop?.company?.name || "...............";
 
-  const companyContact =
-    profile.company?.contactPersonName ||
-    profile.coop?.company?.contactPersonName ||
-    "..............";
-
-  const companyPosition =
-    profile.company?.contactPersonPosition ||
-    profile.coop?.company?.contactPersonPosition ||
-    "..............";
-
-  const recipientName = companyContact !== ".............." ? companyContact : `กรรมการผู้จัดการ ${companyName}`;
-  const recipientSuffix = companyContact !== ".............." && companyPosition !== ".............." ? ` ${companyPosition}` : "";
-  doc.text(`เรียน   ${recipientName}${recipientSuffix}`, margin, y);
+  // ผู้รับ = ผู้ติดต่อ (HR) ของคำร้อง → ผู้ติดต่อเดิมของบริษัท → กรรมการผู้จัดการ
+  // (เดิมอ่าน contactPersonName / contactPersonPosition ซึ่งไม่มีอยู่จริง — ขึ้น "กรรมการผู้จัดการ" ทุกฉบับ)
+  const recipient = recipientText(letterRecipient({ contacts: profile.coop?.contacts, company: profile.coop?.company || profile.company }));
+  doc.text(`เรียน   ${recipient || `กรรมการผู้จัดการ ${companyName}`}`, margin, y);
 
   // 6. สิ่งที่ส่งมาด้วย
   y += 8;

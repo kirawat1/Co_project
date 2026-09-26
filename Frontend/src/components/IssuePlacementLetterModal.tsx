@@ -3,9 +3,10 @@ import React, { useState } from "react";
 import { apiFetch } from "../utils/apiFetch";
 import { createPlacementPDF } from "../utils/pdfGeneratorPlacement";
 import { createWordBlob, createPreviewBlob, buildPlacementLetterHtml, thaiPrefix, normalizeDocNumber, letterMajorName } from "../utils/docGeneratorUtils";
-import { FileReady, DeliveryPicker, CompanyAddressBox, MODAL_CSS, useLetterPending, LetterPendingBanner, confirmMatchesDraft, type LetterDraft } from "./LetterModalShared";
+import { FileReady, DeliveryPicker, CompanyAddressBox, RecipientNotice, MODAL_CSS, useLetterPending, LetterPendingBanner, confirmMatchesDraft, type LetterDraft } from "./LetterModalShared";
 import DateInput from './DateInput';
 import { notify, askConfirm } from "../utils/notify";
+import { letterRecipient, recipientText } from "../utils/letterRecipient";
 
 interface Props { student: any; onClose: () => void; onSuccess: () => void; }
 
@@ -65,7 +66,7 @@ export default function IssuePlacementLetterModal({ student, onClose, onSuccess 
                 docNumber: placeDocNumber, docDate: placeDocDate, studentName,
                 studentId: student.studentId, major: letterMajorName(student),
                 companyName: student.coop?.company?.name || "....",
-                companyRecipient: student.coop?.company?.contactPerson || undefined,
+                companyRecipient: recipientText(letterRecipient(student.coop)) || undefined,
                 startDate, endDate, deanName, deanPosition,
             });
             setDocDraft({ blob: createWordBlob(html), docNumber: placeDocNumber, docDate: placeDocDate });
@@ -178,8 +179,9 @@ export default function IssuePlacementLetterModal({ student, onClose, onSuccess 
                         </div>
                         <div>
                             <div style={{ ...sec, borderColor: '#10b981' }}>4. การจัดส่งเอกสาร</div>
+                            <RecipientNotice coop={student.coop} />
                             <DeliveryPicker value={deliveryMethod} onChange={setDeliveryMethod} name="delivery-placement" />
-                            {deliveryMethod === "STAFF" && <CompanyAddressBox company={student.coop?.company} />}
+                            {deliveryMethod === "STAFF" && <CompanyAddressBox company={student.coop?.company} coop={student.coop} />}
                         </div>
                         <div style={{ marginTop: 'auto', paddingTop: 8 }}>
                             <button className="btn btn-success" onClick={handleConfirm} disabled={!signedFile} style={{ width: '100%', padding: 14 }}>🚀 บันทึกเข้าระบบ & แจ้งนักศึกษา</button>

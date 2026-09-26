@@ -2,9 +2,10 @@
 import { apiFetch } from "../utils/apiFetch";
 import { createDispatchPDF } from "../utils/pdfDispatchGenerator";
 import { createWordBlob, createPreviewBlob, buildDispatchLetterHtml, thaiPrefix, normalizeDocNumber } from "../utils/docGeneratorUtils";
-import { FileReady, DeliveryPicker, CompanyAddressBox, MODAL_CSS, useLetterPending, LetterPendingBanner, confirmMatchesDraft, type LetterDraft } from "./LetterModalShared";
+import { FileReady, DeliveryPicker, CompanyAddressBox, RecipientNotice, MODAL_CSS, useLetterPending, LetterPendingBanner, confirmMatchesDraft, type LetterDraft } from "./LetterModalShared";
 import DateInput from './DateInput';
 import { notify, askConfirm } from "../utils/notify";
+import { letterRecipient, recipientText } from "../utils/letterRecipient";
 
 interface Props {
     student: any;
@@ -103,7 +104,7 @@ export default function IssueLetterModal({ student, onClose, onSuccess }: Props)
                 studentId: student.studentId,
                 studyProgram: student.studyProgram,
                 companyName: student.coop?.company?.name || "....",
-                companyContact: student.coop?.company?.contactPerson || undefined,
+                companyContact: recipientText(letterRecipient(student.coop)) || undefined,
                 startDate, endDate, deanName, deanPosition,
             });
             setDocDraft({ blob: createWordBlob(html), docNumber, docDate });
@@ -235,8 +236,9 @@ export default function IssueLetterModal({ student, onClose, onSuccess }: Props)
 
                         <div>
                             <div style={{ ...sec, borderColor: '#10b981' }}>4. การจัดส่งเอกสาร</div>
+                            <RecipientNotice coop={student.coop} />
                             <DeliveryPicker value={deliveryMethod} onChange={setDeliveryMethod} name="delivery-dispatch" />
-                            {deliveryMethod === "STAFF" && <CompanyAddressBox company={student.coop?.company} />}
+                            {deliveryMethod === "STAFF" && <CompanyAddressBox company={student.coop?.company} coop={student.coop} />}
                         </div>
 
                         <div style={{ marginTop: 'auto', paddingTop: 8 }}>

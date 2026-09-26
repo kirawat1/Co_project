@@ -2,9 +2,10 @@
 import { apiFetch } from "../utils/apiFetch";
 import { createSupervisionLetterPDF } from "../utils/pdfSupervisionLetterGenerator";
 import { createWordBlob, createPreviewBlob, buildSupervisionLetterHtml, thaiPrefix, supervisionSupervisorNames, supervisionTimeText, normalizeDocNumber } from "../utils/docGeneratorUtils";
-import { FileReady, DeliveryPicker, CompanyAddressBox, MODAL_CSS, useLetterPending, LetterPendingBanner, confirmMatchesDraft, type LetterDraft } from "./LetterModalShared";
+import { FileReady, DeliveryPicker, CompanyAddressBox, RecipientNotice, MODAL_CSS, useLetterPending, LetterPendingBanner, confirmMatchesDraft, type LetterDraft } from "./LetterModalShared";
 import DateInput from './DateInput';
 import { notify, askConfirm } from "../utils/notify";
+import { letterRecipient, recipientText } from "../utils/letterRecipient";
 
 interface Props { supervision: any; onClose: () => void; onSuccess: () => void; }
 
@@ -72,6 +73,7 @@ export default function IssueSupervisionLetterModal({ supervision, onClose, onSu
                 docNumber, docDate, studentName,
                 studentId: student.studentId || "",
                 companyName, supervisorNames, visitDate, visitTime, visitMode, deanName, deanPosition,
+                companyRecipient: recipientText(letterRecipient(student.coop)) || undefined,
             });
             setDocDraft({ blob: createWordBlob(html), docNumber, docDate });
             setPreviewUrl(URL.createObjectURL(createPreviewBlob(html)));
@@ -181,8 +183,9 @@ export default function IssueSupervisionLetterModal({ supervision, onClose, onSu
                         </div>
                         <div>
                             <div style={{ ...sec, borderColor: '#10b981' }}>4. การจัดส่งเอกสาร</div>
+                            <RecipientNotice coop={student.coop} />
                             <DeliveryPicker value={deliveryMethod} onChange={setDeliveryMethod} name="delivery-supervision" />
-                            {deliveryMethod === "STAFF" && <CompanyAddressBox company={student.coop?.company} />}
+                            {deliveryMethod === "STAFF" && <CompanyAddressBox company={student.coop?.company} coop={student.coop} />}
                         </div>
                         <div style={{ marginTop: 'auto', paddingTop: 8 }}>
                             <button className="btn btn-success" onClick={handleConfirm} disabled={!signedFile} style={{ width: '100%', padding: 14 }}>🚀 บันทึกเข้าระบบ & แจ้งนักศึกษา</button>

@@ -1,7 +1,8 @@
 // utils/pdfGeneratorPlacement.ts
 import { jsPDF } from "jspdf";
 import { letterMajorName } from "./docGeneratorUtils";
-import { notify } from "./notify";
+import { notify } from "./notify";
+import { letterRecipient, recipientText } from "./letterRecipient";
 
 // Helper: โหลด Font
 const getFontBase64 = async (url: string): Promise<string> => {
@@ -124,11 +125,8 @@ export const createPlacementPDF = async (
 
   // 4. เรื่อง & เรียน
   doc.text("เรื่อง  ขอส่งตัวนักศึกษาเข้ารับการปฏิบัติงานสหกิจศึกษา", 20, 85);
-  const companyContactPerson = student.coop?.company?.contactPerson || "";
-  const companyContactPos = student.coop?.company?.contactPersonPosition || "";
-  const recipientStr = companyContactPerson
-    ? `${companyContactPerson}${companyContactPos ? ` ${companyContactPos}` : ""}`
-    : `ผู้จัดการบริษัท ${companyName}`;
+  // ผู้รับ = ผู้ติดต่อ (HR) ของคำร้อง → ผู้ติดต่อเดิมของบริษัท → ผู้จัดการบริษัท (เดิมอ่านตำแหน่งผิดช่อง ตำแหน่งไม่เคยขึ้น)
+  const recipientStr = recipientText(letterRecipient(student.coop)) || `ผู้จัดการบริษัท ${companyName}`;
   doc.text(`เรียน  ${recipientStr}`, 20, 92);
 
   // 5. เนื้อหา (paragraph เดียวต่อเนื่องตามต้นแบบจริง)
