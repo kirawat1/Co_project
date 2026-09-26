@@ -8,6 +8,12 @@ router.get("/search", verifyToken, companyController.searchCompanies);
 router.post("/bulk", verifyToken, verifyRole('staff'), companyController.bulkImportCompanies);
 router.get("/", verifyToken, companyController.getCompanies);
 router.post("/", verifyToken, verifyRole('staff', 'teacher', 'student'), companyController.addCompany);
+// ผู้ติดต่อ (HR) — วางก่อน "/:id" ไม่ให้ "/contacts" ถูกจับเป็น id บริษัท
+router.get("/contacts", verifyToken, verifyRole('staff'), companyController.getAllContacts);
+router.post("/:companyId/contacts", verifyToken, verifyRole('staff', 'teacher', 'student'), companyController.addContact);
+router.put("/contacts/:id", verifyToken, verifyRole('staff', 'teacher', 'student'), companyController.updateContact);
+router.delete("/contacts/:id", verifyToken, verifyRole('staff', 'teacher', 'student'), companyController.deleteContact);
+
 router.put("/:id", verifyToken, verifyRole('staff', 'teacher', 'student'), companyController.updateCompany);
 router.delete("/:id", verifyToken, verifyRole('staff', 'teacher', 'student'), companyController.deleteCompany);
 

@@ -24,6 +24,7 @@ exports.searchCompanies = async (req, res) => {
       where: { OR: [{ name: { contains: q } }, { nameEn: { contains: q } }] },
       take: 10,
       orderBy: { name: 'asc' },
+      include: { contacts: { orderBy: { createdAt: 'asc' } } },
     });
     res.json({ ok: true, data: companies });
   } catch (err) {
@@ -85,7 +86,7 @@ exports.bulkImportCompanies = async (req, res) => {
 exports.getCompanies = async (req, res) => {
   try {
     const companies = await prisma.company.findMany({
-      include: { mentors: true },
+      include: { mentors: true, contacts: { orderBy: { createdAt: 'asc' } } },
       orderBy: { id: 'desc' } // (แถม) เรียงจากบริษัทล่าสุดขึ้นก่อน
     });
     res.json({ ok: true, data: companies });
@@ -297,4 +298,78 @@ exports.deleteMentor = async (req, res) => {
     console.error("Delete Mentor Error:", err);
     res.status(500).json({ ok: false, message: "ลบพี่เลี้ยงไม่สำเร็จ" });
   }
+};
+// ---------------- ผู้ติดต่อ (HR) ----------------
+// โครงเดียวกับพี่เลี้ยง: ใครก็เพิ่ม/แก้/ลบได้ (ข้อมูลบริษัทใช้ร่วมกันทุกรุ่น)
+const CONTACT_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const trimOrNull = (v) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, 200) : null);
+
+function contactData(body) {
+  const firstName = typeof body.firstName === 'string' ? body.firstName.trim().slice(0, 200) : '';
+  if (!firstName) throw Object.assign(new Error('กรุณากรอกชื่อผู้ติดต่อ'), { is400: true });
+  const email = trimOrNull(body.email);
+  if (email && !CONTACT_EMAIL_RE.test(email)) throw Object.assign(new Error('รูปแบบอีเมลผู้ติดต่อไม่ถูกต้อง'), { is400: true });
+  return {
+    firstName,
+    lastName: typeof body.lastName === 'string' ? body.lastName.trim().slice(0, 200) : '',
+    position: trimOrNull(body.position),
+    department: trimOrNull(body.department),
+    email,
+    phone: trimOrNull(body.phone),
+  };
+}
+
+function contactError(res, err, fallback) {
+  if (err.is400) return res.status(400).json({ ok: false, message: err.message });
+  if (err.is404 || err.code === 'P2025') return res.status(404).json({ ok: false, message: err.is404 ? err.message : 'ไม่พบผู้ติดต่อ' });
+  console.error(fallback, err);
+  return res.status(500).json({ ok: false, message: fallback });
+}
+
+exports.getAllContacts = async (req, res) => {
+  try {
+    const contacts = await prisma.companyContact.findMany({
+      include: { company: { select: { id: true, name: true } }, _count: { select: { studentCoops: true } } },
+      orderBy: [{ company: { name: 'asc' } }, { firstName: 'asc' }],
+    });
+    res.json({ ok: true, contacts });
+  } catch (err) { contactError(res, err, 'โหลดรายชื่อผู้ติดต่อไม่สำเร็จ'); }
+};
+
+exports.addContact = async (req, res) => {
+  try {
+    const data = contactData(req.body || {});
+    let contact;
+    await prisma.$transaction(async (tx) => {
+      const company = await tx.company.findUnique({ where: { id: req.params.companyId }, select: { id: true } });
+      if (!company) throw Object.assign(new Error('ไม่พบบริษัท'), { is404: true });
+      contact = await tx.companyContact.create({ data: { ...data, companyId: company.id, createdById: req.user.id } });
+    });
+    res.json({ ok: true, contact });
+  } catch (err) { contactError(res, err, 'เพิ่มผู้ติดต่อไม่สำเร็จ'); }
+};
+
+exports.updateContact = async (req, res) => {
+  try {
+    const data = contactData(req.body || {});
+    let contact;
+    await prisma.$transaction(async (tx) => {
+      const found = await tx.companyContact.findUnique({ where: { id: String(req.params.id) } });
+      if (!found) throw Object.assign(new Error('ไม่พบผู้ติดต่อ'), { is404: true });
+      contact = await tx.companyContact.update({ where: { id: found.id }, data });
+    });
+    res.json({ ok: true, contact });
+  } catch (err) { contactError(res, err, 'แก้ไขผู้ติดต่อไม่สำเร็จ'); }
+};
+
+exports.deleteContact = async (req, res) => {
+  try {
+    await prisma.$transaction(async (tx) => {
+      const found = await tx.companyContact.findUnique({ where: { id: String(req.params.id) } });
+      if (!found) throw Object.assign(new Error('ไม่พบผู้ติดต่อ'), { is404: true });
+      // ถอดออกจากคำร้องที่เคยเลือกไว้ด้วย (ตาราง _CoopContacts ลบตาม) — หนังสือถอยไปใช้ผู้ติดต่อของบริษัท
+      await tx.companyContact.delete({ where: { id: found.id } });
+    });
+    res.json({ ok: true });
+  } catch (err) { contactError(res, err, 'ลบผู้ติดต่อไม่สำเร็จ'); }
 };
