@@ -5,6 +5,7 @@
  */
 const fs = require('fs');
 const path = require('path');
+const { stripComments } = require('./helpers/sourceScan'); // ตัดคอมเมนต์โดยรู้ว่าอยู่ในสตริงหรือไม่
 
 const SRC = path.join(__dirname, '..', '..', 'Frontend', 'src');
 const hasFrontend = fs.existsSync(SRC);
@@ -17,13 +18,6 @@ function listSources(dir) {
     else if (/\.(ts|tsx)$/.test(e.name)) out.push(p);
   }
   return out;
-}
-
-// ตัดคอมเมนต์ออกก่อนค้น — คำอธิบายในคอมเมนต์ที่พูดถึง alert() ไม่นับ
-function stripComments(code) {
-  return code
-    .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' '))
-    .replace(/(^|[^:"'`\\])\/\/.*$/gm, '$1');
 }
 
 (hasFrontend ? describe : describe.skip)('Frontend ไม่ใช้กล่องของเบราว์เซอร์', () => {

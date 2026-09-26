@@ -5,17 +5,11 @@
  */
 const fs = require('fs');
 const path = require('path');
+const { stripComments } = require('./helpers/sourceScan'); // ตัดคอมเมนต์โดยรู้ว่าอยู่ในสตริงหรือไม่
 
 const SRC = path.join(__dirname, '..', '..', 'Frontend', 'src');
 const COMPONENTS = path.join(SRC, 'components');
 const hasFrontend = fs.existsSync(COMPONENTS);
-
-// ตัดคอมเมนต์ (// … และ /* … */ รวม {/* … */} ใน JSX) — คอมเมนต์ในโค้ดพูดถึง "สาขา" ได้
-function stripComments(code) {
-  return code
-    .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' '))
-    .replace(/(^|[^:"'`\\])\/\/.*$/gm, '$1');
-}
 
 const OLD_TERMS = /สาขา|ระบบการศึกษา|แผนการศึกษา|หลักสูตรการศึกษา/;
 
