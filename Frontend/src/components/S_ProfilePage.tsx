@@ -6,6 +6,8 @@ import Spinner from "./Spinner";
 import { apiFetch } from "../utils/apiFetch";
 import S_ChangePasswordModal from "./S_ChangePasswordModal";
 import { notify } from "../utils/notify";
+import ContactForm from "./ContactForm";
+import { contactName, contactLine, type CompanyContact } from "../utils/contacts";
 
 /* ================= TYPES ================= */
 interface Mentor {
@@ -26,7 +28,8 @@ interface StudentCompany {
   contactPosition?: string;
   phone?: string;
   mentors: Mentor[];
-  selectedMentors?: Mentor[];
+  contacts?: CompanyContact[]; // ผู้ติดต่อทั้งหมดของบริษัท
+  selectedContacts?: CompanyContact[]; // ผู้ติดต่อที่นักศึกษาเลือก (บังคับอย่างน้อย 1 คนก่อนยื่นคำร้อง)
 }
 
 interface StudentProfile {
@@ -53,7 +56,8 @@ interface StudentProfile {
   coopAdvisorId?: number | null;
   coop?: {
     company: StudentCompany;
-    mentors?: Mentor[];
+    mentors?: Mentor[]; // พี่เลี้ยง — มาจากแบบฟอร์ม T002 ข้อ 3
+    contacts?: CompanyContact[];
     status?: string;
   };
 }
@@ -73,7 +77,8 @@ interface StudentCompany {
   contactPosition?: string;
   phone?: string;
   mentors: Mentor[];
-  selectedMentors?: Mentor[];
+  contacts?: CompanyContact[]; // ผู้ติดต่อทั้งหมดของบริษัท
+  selectedContacts?: CompanyContact[]; // ผู้ติดต่อที่นักศึกษาเลือก (บังคับอย่างน้อย 1 คนก่อนยื่นคำร้อง)
 }
 /* ================= ADVISOR ROW ================= */
 function AdvisorRow({
@@ -126,9 +131,8 @@ export default function S_ProfilePage() {
   const [openStudentModal, setOpenStudentModal] = useState(false);
   const [openPasswordModal, setOpenPasswordModal] = useState(false);
   const [loading, setLoading] = useState(true);
-  // นักศึกษาเลือก "ยังไม่มีพี่เลี้ยง" — บริษัทยังไม่ระบุพี่เลี้ยง กรอกทีหลังได้ในแบบฟอร์ม T002 ข้อ 3
-  // ไม่ได้เก็บเป็นฟิลด์แยก: บันทึกบริษัทไว้แล้วแต่ไม่มีพี่เลี้ยง = ยังไม่มีพี่เลี้ยง
-  const [noMentorYet, setNoMentorYet] = useState(false);
+  // กล่องเพิ่มผู้ติดต่อใหม่ของบริษัทที่เลือก
+  const [addingContact, setAddingContact] = useState(false);
   // ── KKU REG Sync ──────────────────────────────
   const [kkuModalOpen, setKkuModalOpen] = useState(false);
   const [kkuUser, setKkuUser] = useState("");
@@ -194,9 +198,8 @@ export default function S_ProfilePage() {
           const profileData = profileResult.value;
           const emails = profileData.emails?.length > 0 ? profileData.emails : [{ email: "", primary: false }];
           // ต้องเช็ค coop.company ด้วย — ถ้า companyId เป็น null การ spread จะได้ object ว่างที่ truthy
-          const company = profileData.coop?.company ? { ...profileData.coop.company, selectedMentors: profileData.coop.mentors || [] } : profileData.company;
+          const company = profileData.coop?.company ? { ...profileData.coop.company, selectedContacts: profileData.coop.contacts || [] } : profileData.company;
           setProfile({ ...profileData, emails, company });
-          setNoMentorYet(!!profileData.coop?.company && (profileData.coop.mentors || []).length === 0);
         } else {
           console.error("Error fetching profile:", profileResult.reason);
         }
@@ -253,9 +256,8 @@ export default function S_ProfilePage() {
       if (fresh.ok) {
         const data = await fresh.json();
         const emails = data.emails?.length > 0 ? data.emails : [{ email: "", primary: false }];
-        const company = data.coop?.company ? { ...data.coop.company, selectedMentors: data.coop.mentors || [] } : data.company;
+        const company = data.coop?.company ? { ...data.coop.company, selectedContacts: data.coop.contacts || [] } : data.company;
         setProfile({ ...data, emails, company });
-        setNoMentorYet(!!data.coop?.company && (data.coop.mentors || []).length === 0);
       }
 
       notify.success("บันทึกข้อมูลเรียบร้อย");
@@ -273,7 +275,7 @@ export default function S_ProfilePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           companyId: profile.company?.id || null,
-          mentorIds: profile.company?.selectedMentors?.map((m: any) => m.id) || [],
+          contactIds: (profile.company?.selectedContacts || []).map((c) => c.id),
         }),
       });
       if (res.ok) {
@@ -283,7 +285,9 @@ export default function S_ProfilePage() {
           ...result.student,
           company: profile.company // คงค่าไว้ไม่ให้ UI กระพริบ
         }));
-        notify.success("บันทึกข้อมูลสถานที่ฝึกเรียบร้อย");
+        notify.success((profile.company?.selectedContacts || []).length === 0 && profile.company
+          ? "บันทึกสถานที่ฝึกแล้ว — อย่าลืมเลือกผู้ติดต่อ (HR) ก่อนยื่นคำร้อง"
+          : "บันทึกข้อมูลสถานที่ฝึกเรียบร้อย");
       } else {
         const err = await res.json().catch(() => ({}));
         notify.error(err.message || "บันทึกไม่สำเร็จ กรุณาลองใหม่");
@@ -323,16 +327,20 @@ export default function S_ProfilePage() {
     ...companies.map(c => ({ id: c.id, label: c.name, rawData: c }))
   ];
 
-  const selectedMentorIds = new Set((profile.company?.selectedMentors || []).map((m: any) => m.id));
-  const mentorOptions = profile.company ? [
-    // ตัวเลือกนี้แสดงเสมอ (pinned) แม้พิมพ์ค้นหา — บริษัทที่ยังไม่มีพี่เลี้ยงในระบบจะได้มีอะไรให้กด
-    ...(!noMentorYet ? [{ id: "none", label: "➖ ยังไม่มีพี่เลี้ยง (กรอกทีหลังในแบบฟอร์ม T002 ข้อ 3)", rawData: null, pinned: true }] : []),
-    ...(profile.company.mentors?.filter(m => !selectedMentorIds.has(m.id)).map(m => ({
-      id: m.id,
-      label: `${m.firstName} ${m.lastName} ${m.position ? `(${m.position})` : ''}`,
-      rawData: m
-    })) || [])
-  ] : [];
+  const selectedContacts: CompanyContact[] = profile.company?.selectedContacts || [];
+  const selectedContactIds = new Set(selectedContacts.map((c) => c.id));
+  const contactOptions = profile.company
+    ? (profile.company.contacts || []).filter((c) => !selectedContactIds.has(c.id)).map((c) => ({ id: c.id, label: contactLine(c), rawData: c }))
+    : [];
+  const setSelectedContacts = (next: CompanyContact[]) =>
+    setProfile({ ...profile, company: { ...profile.company!, selectedContacts: next } });
+  // ผู้ติดต่อใหม่ที่เพิ่ม — ใส่ทั้งในรายการของบริษัท (หน้านี้ + รายการบริษัทที่โหลดไว้) และเลือกให้เลย
+  const onContactAdded = (c: CompanyContact) => {
+    const company = profile.company!;
+    setProfile({ ...profile, company: { ...company, contacts: [...(company.contacts || []), c], selectedContacts: [...selectedContacts, c] } });
+    setCompanies((prev) => prev.map((x) => (x.id === company.id ? { ...x, contacts: [...(x.contacts || []), c] } : x)));
+    setAddingContact(false);
+  };
 
   return (
     <div style={{ padding: 24, marginLeft: 35 }}>
@@ -446,7 +454,7 @@ export default function S_ProfilePage() {
           <div className="card-head">
             <div>
               <h3 className="profile-title">สถานที่ฝึกสหกิจ</h3>
-              <div className="profile-sub">เลือกบริษัทและพี่เลี้ยง</div>
+              <div className="profile-sub">เลือกบริษัทและผู้ติดต่อ (HR)</div>
             </div>
           </div>
           <div className="divider" style={{ marginTop: 0 }} />
@@ -461,11 +469,12 @@ export default function S_ProfilePage() {
                 noOptionText="ไม่พบบริษัทที่ค้นหา"
                 onAddClick={() => navigate("/student/company")}
                 onChange={(id: string, rawData: any) => {
-                  setNoMentorYet(false);
+                  // เปลี่ยนบริษัท = ผู้ติดต่อที่เลือกไว้เป็นของบริษัทเก่า ต้องล้าง
+                  setAddingContact(false);
                   if (id === "clear") {
                     setProfile({ ...profile, company: undefined });
                   } else {
-                    setProfile({ ...profile, company: { ...rawData, mentors: rawData.mentors, mentor: undefined } });
+                    setProfile({ ...profile, company: { ...rawData, contacts: rawData.contacts || [], selectedContacts: [] } });
                   }
                 }}
               />
@@ -473,52 +482,50 @@ export default function S_ProfilePage() {
           </div>
 
           <div style={{ marginBottom: 15 }}>
-            <label className="label">พี่เลี้ยง (เลือกได้หลายคน)</label>
-            {/* chips ของพี่เลี้ยงที่เลือกแล้ว */}
-            {(profile.company?.selectedMentors || []).length > 0 && (
+            <label className="label">ผู้ติดต่อ (HR) — เลือกได้หลายคน *</label>
+            {selectedContacts.length > 0 && (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8, marginTop: 4 }}>
-                {(profile.company!.selectedMentors as Mentor[]).map(m => (
-                  <span key={m.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#dbeafe', color: '#1e40af', borderRadius: 16, padding: '3px 10px', fontSize: 13 }}>
-                    {m.firstName} {m.lastName} {m.position ? `(${m.position})` : ''}
-                    <button type="button" onClick={() => setProfile({ ...profile, company: { ...profile.company!, selectedMentors: (profile.company!.selectedMentors as Mentor[]).filter(x => x.id !== m.id) } })} style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#1e40af', fontWeight: 700, fontSize: 14, padding: 0, lineHeight: 1 }}>×</button>
+                {selectedContacts.map(c => (
+                  <span key={c.id} className="contact-chip" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#dbeafe', color: '#1e40af', borderRadius: 16, padding: '3px 10px', fontSize: 13 }}>
+                    {contactName(c)}{c.position ? ` (${c.position})` : ''}
+                    <button type="button" aria-label={`เอา ${contactName(c)} ออก`} onClick={() => setSelectedContacts(selectedContacts.filter(x => x.id !== c.id))} style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#1e40af', fontWeight: 700, fontSize: 14, padding: 0, lineHeight: 1 }}>×</button>
                   </span>
                 ))}
               </div>
             )}
-            {profile.company && noMentorYet && (
-              <div style={{ marginBottom: 8, marginTop: 4 }}>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#f1f5f9', color: '#475569', borderRadius: 16, padding: '3px 10px', fontSize: 13 }}>
-                  ➖ ยังไม่มีพี่เลี้ยง
-                  <button type="button" onClick={() => setNoMentorYet(false)} title="ยกเลิก" style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#475569', fontWeight: 700, fontSize: 14, padding: 0, lineHeight: 1 }}>×</button>
-                </span>
-                <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>
-                  กรอกข้อมูลพี่เลี้ยงภายหลังได้ในแบบฟอร์ม T002 ข้อ 3 (พนักงานที่ปรึกษา) หรือกลับมาเลือกที่นี่เมื่อบริษัทแจ้งแล้ว
-                </div>
-              </div>
-            )}
             <div style={{ marginTop: 4 }}>
               <SearchableDropdown
-                options={mentorOptions}
+                options={contactOptions}
                 value=""
                 placeholder={
                   !profile.company ? "กรุณาเลือกบริษัทก่อน"
-                    : (profile.company.mentors?.length ?? 0) === 0
-                      ? (noMentorYet ? "บริษัทนี้ยังไม่มีพี่เลี้ยงในระบบ" : "บริษัทนี้ยังไม่มีพี่เลี้ยงในระบบ — กดเพื่อเลือก \"ยังไม่มีพี่เลี้ยง\"")
-                    : mentorOptions.some(o => o.id !== "none") ? "พิมพ์ค้นหาเพื่อเพิ่มพี่เลี้ยง..."
+                    : (profile.company.contacts?.length ?? 0) === 0 ? "บริษัทนี้ยังไม่มีผู้ติดต่อในระบบ — กด + เพิ่มผู้ติดต่อ"
+                    : contactOptions.length > 0 ? "พิมพ์ค้นหาเพื่อเลือกผู้ติดต่อ..."
                     : "เลือกครบแล้ว"
                 }
-                noOptionText="ไม่พบพี่เลี้ยงในบริษัทนี้"
-                onChange={(id: string, rawData: any) => {
-                  if (id === "none") {
-                    setNoMentorYet(true);
-                    setProfile({ ...profile, company: { ...profile.company!, selectedMentors: [] } });
-                    return;
-                  }
+                noOptionText="ไม่พบผู้ติดต่อในบริษัทนี้"
+                onChange={(_id: string, rawData: any) => {
                   if (!rawData) return;
-                  setNoMentorYet(false);
-                  setProfile({ ...profile, company: { ...profile.company!, selectedMentors: [...(profile.company!.selectedMentors as Mentor[] || []), rawData] } });
+                  setSelectedContacts([...selectedContacts, rawData]);
                 }}
               />
+            </div>
+            {profile.company && selectedContacts.length === 0 && (
+              <div className="contact-required" style={{ fontSize: 12, color: '#b45309', marginTop: 6 }}>
+                ต้องเลือกผู้ติดต่ออย่างน้อย 1 คนก่อนยื่นคำร้อง — ใช้เป็นผู้รับหนังสือจากวิทยาลัย
+              </div>
+            )}
+            {profile.company?.id && !addingContact && (
+              <button type="button" className="btn-secondary" style={{ marginTop: 8 }} onClick={() => setAddingContact(true)}>+ เพิ่มผู้ติดต่อ</button>
+            )}
+            {profile.company?.id && addingContact && (
+              <div style={{ marginTop: 10, padding: 14, border: '1px solid #bfdbfe', borderRadius: 12, background: '#f8fbff' }}>
+                <div style={{ fontWeight: 700, marginBottom: 10, color: '#1e3a8a' }}>เพิ่มผู้ติดต่อของ {profile.company.name}</div>
+                <ContactForm companyId={profile.company.id} onSaved={onContactAdded} onCancel={() => setAddingContact(false)} />
+              </div>
+            )}
+            <div style={{ fontSize: 12, color: '#64748b', marginTop: 8 }}>
+              พี่เลี้ยงกรอกในแบบฟอร์ม T002 ข้อ 3 (ระบบบันทึกให้เมื่อส่ง T002)
             </div>
           </div>
 
@@ -536,18 +543,34 @@ export default function S_ProfilePage() {
               <h4 className="profile-sub">รายละเอียดบริษัท</h4>
               <Info label="ชื่อ" value={profile.company.name || "-"} />
               <Info label="ที่อยู่" value={getFullAddress(profile.company)} />
-              <Info label="ผู้ติดต่อ" value={`${profile.company.contactPerson || "-"} ${profile.company.contactPosition ? `(${profile.company.contactPosition})` : ""}`} />
               <Info label="เบอร์โทร" value={profile.company.phone || "-"} />
             </div>
           )}
 
-          {(profile.company?.selectedMentors || []).length > 0 && (
+          {selectedContacts.length > 0 && (
             <div style={{ marginTop: 20 }}>
               <div className="divider" />
-              <h4 className="profile-sub">รายละเอียดพี่เลี้ยง</h4>
-              {(profile.company!.selectedMentors as Mentor[]).map((m, i) => (
+              <h4 className="profile-sub">รายละเอียดผู้ติดต่อ</h4>
+              {selectedContacts.map((c, i) => (
+                <div key={c.id} style={{ marginBottom: 8 }}>
+                  {selectedContacts.length > 1 && <div style={{ fontSize: 12, fontWeight: 600, color: '#64748b', marginBottom: 2 }}>คนที่ {i + 1}</div>}
+                  <Info label="ชื่อ" value={contactName(c) || "-"} />
+                  <Info label="ตำแหน่ง" value={[c.position, c.department].filter(Boolean).join(" · ") || "-"} />
+                  <Info label="เบอร์โทร" value={c.phone || "-"} />
+                  <Info label="อีเมล" value={c.email || "-"} />
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* พี่เลี้ยง — แสดงอย่างเดียว มาจากแบบฟอร์ม T002 ข้อ 3 */}
+          {(profile.coop?.mentors || []).length > 0 && (
+            <div style={{ marginTop: 20 }}>
+              <div className="divider" />
+              <h4 className="profile-sub">พี่เลี้ยง (จากแบบฟอร์ม T002)</h4>
+              {(profile.coop!.mentors as Mentor[]).map((m, i) => (
                 <div key={m.id} style={{ marginBottom: 8 }}>
-                  {(profile.company!.selectedMentors as Mentor[]).length > 1 && <div style={{ fontSize: 12, fontWeight: 600, color: '#64748b', marginBottom: 2 }}>คนที่ {i + 1}</div>}
+                  {(profile.coop!.mentors as Mentor[]).length > 1 && <div style={{ fontSize: 12, fontWeight: 600, color: '#64748b', marginBottom: 2 }}>คนที่ {i + 1}</div>}
                   <Info label="ชื่อพี่เลี้ยง" value={`${m.firstName} ${m.lastName}`} />
                   <Info label="ตำแหน่ง" value={m.position || "-"} />
                   <Info label="เบอร์โทร" value={m.phone || "-"} />
