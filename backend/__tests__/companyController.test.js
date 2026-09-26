@@ -280,6 +280,19 @@ describe('updateCompany', () => {
     expect(res.json).toHaveBeenCalledWith({ ok: true, company: updatedCompany });
   });
 
+  // หน้าเว็บเอาบริษัทที่ตอบกลับไปแทนของเดิมในรายการ — ต้องมีพี่เลี้ยง/ผู้ติดต่อมาด้วย
+  // (เดิมไม่มี: แก้ไขบริษัทแล้วเปิดรายละเอียด ผู้ติดต่อ/พี่เลี้ยงหายจนกว่าจะรีโหลด)
+  test('200 – ตอบกลับบริษัทพร้อมพี่เลี้ยงและผู้ติดต่อ', async () => {
+    prisma.company.findUnique.mockResolvedValue({ id: 'c1', createdById: 99 });
+    prisma.company.update.mockResolvedValue({ id: 'c1' });
+    const res = makeRes();
+    await updateCompany({ params: { id: 'c1' }, user: { id: 5 }, body: { name: 'Corp' } }, res);
+    expect(prisma.company.update.mock.calls[0][0].include).toEqual({
+      mentors: true,
+      contacts: { orderBy: { createdAt: 'asc' } },
+    });
+  });
+
   test('200 – แก้ไขบริษัท website ไม่มี https:// → เติมให้ (เดิมได้ 400)', async () => {
     prisma.company.findUnique.mockResolvedValue({ id: 'c1', createdById: 99 });
     prisma.company.update.mockResolvedValue({ id: 'c1' });

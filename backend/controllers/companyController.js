@@ -163,6 +163,8 @@ exports.updateCompany = async (req, res) => {
           email, phone, fax, website: safeUrl(website) ?? null, pastYears,
           contactPerson, contactPosition
         },
+        // หน้าเว็บเอาบริษัทที่ตอบกลับไปแทนของเดิมในรายการ — ต้องมีพี่เลี้ยง/ผู้ติดต่อ ไม่งั้นหายจนกว่าจะรีโหลด
+        include: { mentors: true, contacts: { orderBy: { createdAt: 'asc' } } },
       });
     });
 
