@@ -12,6 +12,7 @@ import LoadMoreFooter from "./LoadMoreFooter";
 import { useInfinitePages } from "../utils/useInfinitePages";
 import { toggleSelectAllShown, allShownSelected } from "../utils/useLoadMore";
 import { notify, askConfirm } from "../utils/notify";
+import { contactName, contactLine } from "../utils/contacts";
 
 function safeHref(url: string | null | undefined): string | undefined {
   if (!url) return undefined;
@@ -854,6 +855,8 @@ function StudentModal({
   const companyData = student.coop?.company || student.company;
   // เดิมอ่าน student.coop?.mentor (เอกพจน์) ซึ่งไม่มีอยู่จริง (เก็บเป็น mentors อาเรย์ เพราะเลือกพี่เลี้ยงได้หลายคน) — ทำให้ขึ้น "-" เสมอ
   const mentorList: any[] = student.coop?.mentors || [];
+  // ผู้ติดต่อ (HR) ที่นักศึกษาเลือก — ผู้รับหนังสือจากวิทยาลัย
+  const contactList: any[] = (student.coop as any)?.contacts || [];
 
   const fullName = `${getThaiPrefix(student.prefix)} ${student.firstName} ${student.lastName}`.trim();
 
@@ -900,6 +903,7 @@ function StudentModal({
                 <InfoRow label="ช่วงฝึกงาน" value={student.coop?.actualStartDate ? `${fmtDate(student.coop.actualStartDate)} – ${fmtDate(student.coop.actualEndDate)}` : undefined} />
                 <InfoRow label="ที่ปรึกษาทั่วไป" value={teacherFullName(student.generalAdvisor) || student.advisorName} />
                 <InfoRow label="ที่ปรึกษาโครงงาน" value={teacherFullName(student.coopAdvisor)} />
+                <InfoRow label="ผู้ติดต่อ (HR)" value={contactList.length ? contactList.map((c) => contactLine(c)).join(" / ") : "-"} />
               </Section>
               <Section title="การนิเทศ">
                 {student.supervisionAppointment ? (
@@ -922,12 +926,22 @@ function StudentModal({
                   <>
                     <InfoRow label="ชื่อบริษัท" value={companyData.name} />
                     <InfoRow label="ที่อยู่" value={getFullAddress(companyData)} />
-                    <InfoRow label="ผู้ติดต่อ" value={[companyData.contactPerson, companyData.contactPosition].filter(Boolean).join(" · ")} />
                     <InfoRow label="อีเมล" value={companyData.email} />
                     <InfoRow label="เบอร์โทร" value={companyData.phone} />
                     <InfoRow label="เว็บไซต์" value={safeHref(companyData.website) ? <a href={safeHref(companyData.website)} target="_blank" rel="noreferrer" style={{ color: "#0074B7" }}>{companyData.website}</a> : companyData.website} />
                   </>
                 ) : <div>-</div>}
+              </Section>
+              <Section title="ผู้ติดต่อ (HR)">
+                {contactList.length > 0 ? contactList.map((c: any, i: number) => (
+                  <div key={c.id || i} style={i > 0 ? { marginTop: 10, paddingTop: 10, borderTop: "1px dashed #e2e8f0" } : undefined}>
+                    {contactList.length > 1 && <div style={{ fontSize: 12, fontWeight: 600, color: "#64748b" }}>คนที่ {i + 1}</div>}
+                    <InfoRow label="ชื่อ-นามสกุล" value={contactName(c) || "-"} />
+                    <InfoRow label="ตำแหน่ง / ทีม" value={[c.position, c.department].filter(Boolean).join(" · ") || "-"} />
+                    <InfoRow label="เบอร์โทร" value={c.phone || "-"} />
+                    <InfoRow label="อีเมล" value={c.email || "-"} />
+                  </div>
+                )) : <div className="no-contact-note" style={{ color: "#b45309", padding: "8px 0" }}>⚠️ ยังไม่มีผู้ติดต่อ — นักศึกษายังไม่ได้เลือกผู้ติดต่อ (HR)</div>}
               </Section>
               <Section title="ข้อมูลพี่เลี้ยง">
                 {mentorList.length > 0 ? (

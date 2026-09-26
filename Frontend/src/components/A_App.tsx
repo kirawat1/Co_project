@@ -6,6 +6,7 @@ import Sidebar from "./A_Sidebar";
 import Dashboard from "./A_Dashboard";
 import Students from "./A_Students";
 import Mentors from "./A_Mentors";
+import Contacts from "./A_Contacts";
 import Docs from "./A_Docs";
 import Daily from "./A_Daily";
 import Announcements from "./A_Announcements";
@@ -114,6 +115,7 @@ export default function AdminApp() {
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="students" element={<Students />} />
             <Route path="mentors" element={<Mentors />} />
+            <Route path="contacts" element={<Contacts />} />
             <Route path="company" element={<Companies />} />
             <Route path="docs" element={<Docs />} />
             <Route path="daily" element={<Daily />} />

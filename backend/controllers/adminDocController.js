@@ -112,7 +112,8 @@ exports.getStudentsForT000 = async (req, res) => {
             orderBy: { uploadedAt: 'desc' }
         },
         coop: {
-            include: { company: true }
+            // contacts = ผู้ติดต่อ (HR) ของคำร้อง — ผู้รับหนังสือ ("เรียน …")
+            include: { company: true, contacts: true }
         },
         coopApplicationForm: true,
         generalAdvisor: { select: { id: true, prefix: true, firstName: true, lastName: true } },

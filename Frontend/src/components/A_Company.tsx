@@ -8,6 +8,8 @@ import A_CompanyImport from "./A_CompanyImport";
 import LoadMoreFooter from "./LoadMoreFooter";
 import { useLoadMore, toggleSelectAllShown, allShownSelected } from "../utils/useLoadMore";
 import { notify, askConfirm } from "../utils/notify";
+import ContactForm from "./ContactForm";
+import { contactName, type CompanyContact } from "../utils/contacts";
 
 /* ----------------------------------------------------
    Types
@@ -33,6 +35,7 @@ export interface AdminCompanyRecord {
   contactPerson?: string;
   pastYears: string;
   mentors: MentorRecord[];
+  contacts?: CompanyContact[]; // ผู้ติดต่อ (HR)
 }
 
 interface MentorRecord {
@@ -62,6 +65,8 @@ export default function A_Companies() {
   const [showImport, setShowImport] = useState(false);
   const [viewCompany, setViewCompany] = useState<AdminCompanyRecord | null>(null);
   const [showAddMentor, setShowAddMentor] = useState(false);
+  // ฟอร์มผู้ติดต่อ: null = ปิด · "new" = เพิ่ม · object = แก้ไข
+  const [contactModal, setContactModal] = useState<CompanyContact | "new" | null>(null);
   const [editingMentor, setEditingMentor] = useState<any>(null);
   const [justCreatedCompany, setJustCreatedCompany] = useState<AdminCompanyRecord | null>(null);
   const [quickAddMentor, setQuickAddMentor] = useState(false);
@@ -307,6 +312,27 @@ export default function A_Companies() {
     }
   }
 
+  /* ---------- ผู้ติดต่อ (HR) ---------- */
+  function patchContacts(companyId: string, update: (list: CompanyContact[]) => CompanyContact[]) {
+    setViewCompany(prev => prev && prev.id === companyId ? { ...prev, contacts: update(prev.contacts || []) } : prev);
+    setItems(prev => prev.map(c => c.id === companyId ? { ...c, contacts: update(c.contacts || []) } : c));
+  }
+  function onContactSaved(saved: CompanyContact) {
+    if (!viewCompany) return;
+    patchContacts(viewCompany.id, list => list.some(c => c.id === saved.id) ? list.map(c => c.id === saved.id ? saved : c) : [...list, saved]);
+    setContactModal(null);
+  }
+  async function removeContact(contact: CompanyContact) {
+    if (!(await askConfirm(`ลบผู้ติดต่อ "${contactName(contact)}"? นักศึกษาที่เลือกคนนี้ไว้จะถูกถอดออก และหนังสือจะใช้ผู้ติดต่อเดิมของบริษัทแทน`, { confirmLabel: "ลบผู้ติดต่อ", danger: true }))) return;
+    try {
+      const res = await apiFetch(`/api/companies/contacts/${contact.id}`, { method: "DELETE" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) return notify.error(data.message || "ลบผู้ติดต่อไม่สำเร็จ");
+      if (viewCompany) patchContacts(viewCompany.id, list => list.filter(c => c.id !== contact.id));
+      notify.success("ลบผู้ติดต่อแล้ว");
+    } catch { notify.error("ลบผู้ติดต่อไม่สำเร็จ: เชื่อมต่อเซิร์ฟเวอร์ไม่ได้"); }
+  }
+
   async function removeMentor(mentorId: string) {
     if (!(await askConfirm("ลบพี่เลี้ยงคนนี้หรือไม่?", { confirmLabel: "ลบพี่เลี้ยง", danger: true }))) return;
 
@@ -433,7 +459,9 @@ export default function A_Companies() {
                 <td style={{ fontWeight: 600, color: '#1e293b' }} data-label="ชื่อบริษัท">{c.name}</td>
                 <td data-label="จังหวัด">{c.province || "-"}</td>
                 <td data-label="อีเมล">{c.email || "-"}</td>
-                <td data-label="ผู้ติดต่อ">{c.contactPerson || "-"}<br /><span style={{ fontSize: 12, color: '#64748b' }}>{c.contactPosition}</span></td>
+                <td data-label="ผู้ติดต่อ">{(c.contacts || []).length > 0
+                  ? <>{contactName(c.contacts![0])}{c.contacts!.length > 1 ? <span style={{ color: '#64748b' }}> +{c.contacts!.length - 1}</span> : null}<br /><span style={{ fontSize: 12, color: '#64748b' }}>{c.contacts![0].position}</span></>
+                  : <>{c.contactPerson || "-"}<br /><span style={{ fontSize: 12, color: '#64748b' }}>{c.contactPosition}</span></>}</td>
                 <td data-label="ปีที่รับ">{c.pastYears}</td>
                 <td style={{ ...td, textAlign: 'right' }}>
                   <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
@@ -509,10 +537,41 @@ export default function A_Companies() {
             <div><b>โทรศัพท์:</b> {viewCompany.phone || "-"}</div>
             <div><b>โทรสาร (Fax):</b> {viewCompany.fax || "-"}</div>
 
-            <div style={{ gridColumn: '1 / -1', borderTop: '1px solid #eee', paddingTop: 10 }}>
-              <b>ผู้ติดต่อ:</b> {viewCompany.contactPerson || "-"} ({viewCompany.contactPosition || "-"})
-            </div>
           </div>
+
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 24, marginBottom: 12 }}>
+            <h4 style={{ margin: 0, color: '#1e3a8a' }}>📇 ผู้ติดต่อ (HR)</h4>
+            <button className="btn" style={saveBtn} onClick={() => setContactModal("new")}>+ เพิ่มผู้ติดต่อ</button>
+          </div>
+          {(viewCompany.contacts || []).length === 0 ? (
+            <p style={{ color: "#b45309", fontSize: 13, textAlign: 'center', background: '#fffbeb', padding: 16, borderRadius: 8 }}>
+              ยังไม่มีผู้ติดต่อ — หนังสือจะใช้ผู้ติดต่อเดิมของบริษัท: {viewCompany.contactPerson || "ไม่มี"}
+            </p>
+          ) : (
+            <table className="responsive-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+              <thead style={{ background: '#f8fafc' }}>
+                <tr>
+                  <th style={{ borderBottom: "2px solid #e2e8f0", textAlign: "left", padding: '10px 8px', color: '#475569' }}>ชื่อ-นามสกุล</th>
+                  <th style={{ borderBottom: "2px solid #e2e8f0", textAlign: "left", padding: '10px 8px', color: '#475569' }}>ตำแหน่ง / ทีม</th>
+                  <th style={{ borderBottom: "2px solid #e2e8f0", textAlign: "left", padding: '10px 8px', color: '#475569' }}>ติดต่อ</th>
+                  <th style={{ borderBottom: "2px solid #e2e8f0", textAlign: "center", padding: '10px 8px', color: '#475569' }}>จัดการ</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(viewCompany.contacts || []).map((c) => (
+                  <tr key={c.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                    <td style={{ padding: '10px 8px' }} data-label="ชื่อ-นามสกุล"><b>{contactName(c)}</b></td>
+                    <td style={{ padding: '10px 8px' }} data-label="ตำแหน่ง / ทีม">{c.position || "-"} <br /><span style={{ color: '#64748b', fontSize: 12 }}>{c.department}</span></td>
+                    <td style={{ padding: '10px 8px' }} data-label="ติดต่อ">{c.phone || "-"} <br /><span style={{ color: '#64748b', fontSize: 12 }}>{c.email}</span></td>
+                    <td style={{ textAlign: "center", padding: '10px 8px' }}>
+                      <button style={{ ...ghostBtn, height: 30, fontSize: 12 }} onClick={() => setContactModal(c)}>✏️ แก้ไข</button>
+                      <button style={{ ...dangerBtn, height: 30, fontSize: 12 }} onClick={() => removeContact(c)}>🗑️ ลบ</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
 
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 24, marginBottom: 12 }}>
             <h4 style={{ margin: 0, color: '#4c1d95' }}>👥 ข้อมูลพี่เลี้ยง (Mentors)</h4>
@@ -546,6 +605,12 @@ export default function A_Companies() {
               </tbody>
             </table>
           )}
+        </Modal>
+      )}
+
+      {contactModal && viewCompany && (
+        <Modal title={contactModal === "new" ? `➕ เพิ่มผู้ติดต่อของ ${viewCompany.name}` : "✏️ แก้ไขผู้ติดต่อ"} onClose={() => setContactModal(null)}>
+          <ContactForm companyId={viewCompany.id} contact={contactModal === "new" ? null : contactModal} onSaved={onContactSaved} onCancel={() => setContactModal(null)} />
         </Modal>
       )}
 

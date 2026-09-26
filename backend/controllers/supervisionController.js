@@ -85,7 +85,7 @@ exports.getAllSupervisions = async (_req, res) => {
             where: { student: { deletedAt: null } },
             include: {
                 student: {
-                    include: { coop: { include: { company: true } } }
+                    include: { coop: { include: { company: true, contacts: true } } }
                 },
                 teacher: true
             },
@@ -475,7 +475,7 @@ exports.getSupervisionsForTeacher = async (req, res) => {
             include: {
                 student: {
                     include: {
-                        coop: { include: { company: true } }
+                        coop: { include: { company: true, contacts: true } }
                     }
                 },
                 teacher: true // ข้อมูลของอาจารย์หลัก

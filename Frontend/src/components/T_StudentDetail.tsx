@@ -4,7 +4,8 @@ import StatusBadge from "../components/StatusBadge";
 import { apiFetch } from "../utils/apiFetch";
 import { fmtDate } from '../utils/dateFormat';
 import DateInput from './DateInput';
-import { notify, askConfirm } from "../utils/notify";
+import { notify, askConfirm } from "../utils/notify";
+import { contactName } from "../utils/contacts";
 
 /* =========================
    Types
@@ -152,6 +153,7 @@ export default function T_StudentDetail() {
   const companyData = student?.coop?.company || student?.company;
   // เดิมอ่าน student.coop?.mentor (เอกพจน์) ซึ่งไม่มีอยู่จริง (เก็บเป็น mentors อาเรย์ เพราะเลือกพี่เลี้ยงได้หลายคน) — ทำให้ขึ้น "ยังไม่ได้ระบุ" เสมอ
   const mentorList: any[] = student?.coop?.mentors || [];
+  const contactList: any[] = (student?.coop as any)?.contacts || [];
 
   const handleViewFile = (doc: StudentDocument) => {
     const url = `/uploads/${doc.path}`;
@@ -330,6 +332,18 @@ export default function T_StudentDetail() {
                   <InfoRow label="เว็บไซต์" value={companyData.website ? <a href={safeHref(companyData.website)} target="_blank" rel="noreferrer" style={{ color: '#0ea5e9' }}>{companyData.website}</a> : "-"} />
                 </div>
               ) : (<div style={{ color: '#94a3b8', textAlign: 'center', padding: 20 }}>นักศึกษายังไม่ได้ระบุข้อมูลสถานประกอบการ</div>)}
+            </Section>
+
+            <Section title="ผู้ติดต่อ (HR)">
+              {contactList.length > 0 ? contactList.map((c: any, i: number) => (
+                  <div key={c.id || i} style={i > 0 ? { marginTop: 10, paddingTop: 10, borderTop: "1px dashed #e2e8f0" } : undefined}>
+                    {contactList.length > 1 && <div style={{ fontSize: 12, fontWeight: 600, color: "#64748b" }}>คนที่ {i + 1}</div>}
+                    <InfoRow label="ชื่อ-นามสกุล" value={contactName(c) || "-"} />
+                    <InfoRow label="ตำแหน่ง / ทีม" value={[c.position, c.department].filter(Boolean).join(" · ") || "-"} />
+                    <InfoRow label="เบอร์โทร" value={c.phone || "-"} />
+                    <InfoRow label="อีเมล" value={c.email || "-"} />
+                  </div>
+                )) : <div className="no-contact-note" style={{ color: "#b45309", padding: "8px 0" }}>⚠️ ยังไม่มีผู้ติดต่อ — นักศึกษายังไม่ได้เลือกผู้ติดต่อ (HR)</div>}
             </Section>
 
             <Section title="ข้อมูลพี่เลี้ยง (Mentor)">

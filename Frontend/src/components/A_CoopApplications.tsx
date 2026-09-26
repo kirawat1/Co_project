@@ -5,6 +5,7 @@ import StatusBadge from "./StatusBadge";
 import AutoTextarea from "./AutoTextarea";
 import { useToast } from "./Toast";
 import ConfirmDialog from "./ConfirmDialog";
+import { contactLine, missingContact, type CompanyContact } from "../utils/contacts";
 import Spinner from "./Spinner";
 import { useDebounce } from "../hooks/useDebounce";
 import LoadMoreFooter from "./LoadMoreFooter";
@@ -33,6 +34,8 @@ type CoopApp = {
     id: number;
     student: Student;
     company: Company | null;
+    companyId?: string | null;
+    contacts?: CompanyContact[]; // ผู้ติดต่อ (HR) ที่นักศึกษาเลือก
     mentor: Mentor | null;
     jobPosition: string;
     status: string;
@@ -313,6 +316,7 @@ export default function A_CoopApplications() {
                                 </td>
                                 <td style={td} data-label="หน่วยงาน / ตำแหน่ง">
                                     <div style={{ fontWeight: 600, color: '#1e293b' }}>{app.company?.name || "-"}</div>
+                                    {missingContact(app) && <span className="badge-no-contact" style={noContactBadge}>⚠️ ยังไม่มีผู้ติดต่อ</span>}
                                     <div style={{ fontSize: 12, color: '#0ea5e9', marginTop: 2 }}>{app.jobPosition}</div>
                                 </td>
                                 <td style={td} data-label="สถานะ">
@@ -398,7 +402,11 @@ export default function A_CoopApplications() {
                                     <div style={{ fontWeight: 800, marginBottom: 10, borderBottom: '1px solid #eee', paddingBottom: 8, color: '#334155' }}>👤 ข้อมูลผู้สมัคร</div>
                                     <div style={{ fontSize: 13, lineHeight: 2, color: '#475569' }}>
                                         <b>ชื่อ:</b> {selectedApp.student.firstName} {selectedApp.student.lastName}<br />
-                                        <b>รหัสนักศึกษา:</b> {selectedApp.student.studentId}
+                                        <b>รหัสนักศึกษา:</b> {selectedApp.student.studentId}<br />
+                                        <b>ผู้ติดต่อ (HR):</b>{" "}
+                                        {(selectedApp.contacts || []).length > 0
+                                            ? (selectedApp.contacts || []).map(c => contactLine(c)).join(" / ")
+                                            : <span className="no-contact-note" style={{ color: "#b45309" }}>ยังไม่ได้เลือกผู้ติดต่อ (HR) — หนังสือจะใช้ผู้ติดต่อเดิมของบริษัท: {selectedApp.company?.contactPerson || "ไม่มี"}</span>}
                                     </div>
                                 </div>
 
@@ -453,4 +461,10 @@ function isReviewedPass(status?: string | null) {
 const reviewedBadge: React.CSSProperties = {
     display: "inline-flex", alignItems: "center", padding: "4px 12px", borderRadius: 99, fontSize: 12, fontWeight: 700,
     whiteSpace: "nowrap", color: "#166534", backgroundColor: "#dcfce7", border: "1px solid #16653430",
+};
+
+// ป้ายเตือนคำร้องที่ยังไม่มีผู้ติดต่อ (คำร้องที่ยื่นก่อนมีฟีเจอร์นี้) — แค่เตือน ไม่ขวางการตรวจ
+const noContactBadge: React.CSSProperties = {
+    display: "inline-block", marginTop: 4, fontSize: 11, fontWeight: 700, color: "#b45309",
+    background: "#fffbeb", border: "1px solid #fcd34d", borderRadius: 99, padding: "1px 8px",
 };

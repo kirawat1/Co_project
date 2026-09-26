@@ -83,6 +83,7 @@ describe('buildStudentExportWorkbook', () => {
       'สถานะสหกิจ': 'ออกฝึกสหกิจ',
       'บริษัทที่ไปฝึกงาน': 'บริษัท ทดสอบ จำกัด',
       'ที่อยู่บริษัท': '123/4 หมู่ 5 ซอยสุขใจ ถนนมิตรภาพ ตำบลในเมือง อำเภอเมืองขอนแก่น จังหวัดขอนแก่น 40000',
+      'ผู้ติดต่อ (HR)': '-',
       'พี่เลี้ยง': 'พี่เลี้ยง หนึ่ง (0899999999), พี่เลี้ยง สอง',
       'วันเริ่มฝึกงาน': '1 พ.ย. 2569',
       'วันสิ้นสุดฝึกงาน': '28 ก.พ. 2570',
@@ -126,6 +127,7 @@ describe('buildStudentExportWorkbook', () => {
       'สถานะสหกิจ': 'ยังไม่ยื่นสหกิจ',
       'บริษัทที่ไปฝึกงาน': '-',
       'ที่อยู่บริษัท': '-',
+      'ผู้ติดต่อ (HR)': '-',
       'พี่เลี้ยง': '-',
       'วันเริ่มฝึกงาน': '-',
       'วันสิ้นสุดฝึกงาน': '-',
@@ -155,6 +157,7 @@ describe('buildStudentExportWorkbook', () => {
       'หลักสูตร': 'AI',
       'รูปแบบการศึกษา': 'ภาคปกติ',
       'อีเมล': 'student@kku.ac.th',
+      'ผู้ติดต่อ (HR)': '-',
       'พี่เลี้ยง': '-',
       'วันนิเทศ': '-',
       'รูปแบบนิเทศ': 'ออนไลน์',
@@ -238,5 +241,22 @@ describe('exportBaseUrl', () => {
     expect(exportBaseUrl(req({ referer: 'https://coop.computing.kku.ac.th/admin/dashboard' }))).toBe('https://coop.computing.kku.ac.th');
     process.env.FRONTEND_URL = 'https://a.example, https://b.example';
     expect(exportBaseUrl(req({}))).toBe('https://a.example');
+  });
+});
+
+describe('คอลัมน์ผู้ติดต่อ (HR)', () => {
+  test('แสดงชื่อ ตำแหน่ง เบอร์ อีเมล ทุกคน · คนที่ข้อมูลไม่ครบแสดงเท่าที่มี', () => {
+    const rows = sheetToRows(buildStudentExportWorkbook([{
+      studentId: '1', firstName: 'ก', lastName: 'ข',
+      coop: { status: 'APPLYING', contacts: [
+        { firstName: 'สมศรี', lastName: '', position: 'HR', phone: '0811111111', email: 'hr@x.co' },
+        { firstName: 'คุณเอ', lastName: 'บี' },
+      ] },
+    }]));
+    expect(rows[0]['ผู้ติดต่อ (HR)']).toBe('สมศรี · HR · 0811111111 · hr@x.co, คุณเอ บี');
+  });
+
+  test('คอลัมน์ผู้ติดต่ออยู่ก่อนพี่เลี้ยง', () => {
+    expect(EXPORT_HEADERS.indexOf('ผู้ติดต่อ (HR)')).toBe(EXPORT_HEADERS.indexOf('พี่เลี้ยง') - 1);
   });
 });
