@@ -107,10 +107,20 @@ const submitCoopApplication = async (req, res) => {
         throw Object.assign(new Error('ไม่พบข้อมูลนักศึกษา'), { is404: true });
       }
 
-      const freshCoop = await tx.studentCoop.findUnique({ where: { studentId: student.id }, select: { status: true } });
+      const freshCoop = await tx.studentCoop.findUnique({
+        where: { studentId: student.id },
+        select: { status: true, companyId: true, contacts: { select: { id: true, companyId: true } } },
+      });
       if (freshCoop && !REAPPLY_ALLOWED.has(freshCoop.status)) {
         reapplyBlocked = true;
         return;
+      }
+      // ผู้ติดต่อ (HR) บังคับ — ใช้เป็นผู้รับหนังสือขอความอนุเคราะห์ ("เรียน …")
+      // บังคับเฉพาะตอนยื่น คำร้องเก่าที่ยื่นก่อนมีฟีเจอร์นี้ยังตรวจ/ออกหนังสือได้ตามปกติ
+      const hasContact = !!freshCoop?.companyId
+        && (freshCoop.contacts || []).some((c) => c.companyId === freshCoop.companyId);
+      if (!hasContact) {
+        throw Object.assign(new Error('กรุณาเลือกผู้ติดต่อ (HR) ของบริษัทอย่างน้อย 1 คนก่อนยื่นคำร้อง'), { is400: true });
       }
 
       // 2.1 บันทึกไฟล์ลง Table Document
