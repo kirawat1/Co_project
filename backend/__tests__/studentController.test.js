@@ -750,6 +750,43 @@ describe('updateMyProfile', () => {
     expect(res.status).not.toHaveBeenCalledWith(400);
     expect(prisma.student.upsert.mock.calls[0][0].update.coopAdvisorId).toBe(7);
   });
+
+  // ผู้ติดต่อ (HR) มาแทนการเลือกพี่เลี้ยง — ต้องเป็นของบริษัทที่เลือก (เปลี่ยนบริษัทแล้วผู้ติดต่อเก่าต้องหลุด)
+  test('400 — contactIds มีผู้ติดต่อที่ไม่ใช่ของบริษัทที่เลือก', async () => {
+    setupUpsert();
+    prisma.companyContact.findMany.mockResolvedValue([{ id: 'k1', companyId: 'c1' }, { id: 'k9', companyId: 'OTHER' }]);
+    const res = makeRes();
+
+    await updateMyProfile({ userId: 1, body: { firstName: 'ก', companyId: 'c1', contactIds: ['k1', 'k9'] } }, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(prisma.studentCoop.upsert).not.toHaveBeenCalled();
+  });
+
+  test('400 — contactIds มี id ที่ไม่มีอยู่จริง', async () => {
+    setupUpsert();
+    prisma.companyContact.findMany.mockResolvedValue([{ id: 'k1', companyId: 'c1' }]);
+    const res = makeRes();
+
+    await updateMyProfile({ userId: 1, body: { firstName: 'ก', companyId: 'c1', contactIds: ['k1', 'ghost'] } }, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+  });
+
+  test('บันทึกผู้ติดต่อด้วย set (แทนที่ของเดิม) และไม่แตะพี่เลี้ยง', async () => {
+    setupUpsert();
+    prisma.companyContact.findMany.mockResolvedValue([{ id: 'k1', companyId: 'c1' }]);
+    prisma.studentCoop.upsert.mockResolvedValue({ company: { id: 'c1' }, contacts: [{ id: 'k1' }], mentors: [] });
+    const res = makeRes();
+
+    await updateMyProfile({ userId: 1, body: { firstName: 'ก', companyId: 'c1', contactIds: ['k1', 'k1'] } }, res);
+
+    const arg = prisma.studentCoop.upsert.mock.calls[0][0];
+    expect(arg.update.contacts).toEqual({ set: [{ id: 'k1' }] });
+    expect(arg.update).not.toHaveProperty('mentors');
+    expect(arg.create.contacts).toEqual({ connect: [{ id: 'k1' }] });
+    expect(res.json.mock.calls[0][0].company.selectedContacts).toEqual([{ id: 'k1' }]);
+  });
 });
 
 // =====================

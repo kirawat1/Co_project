@@ -17,8 +17,9 @@ exports.getMyProfile = async (req, res) => {
         emails: true,
         coop: {
           include: {
-            company: { include: { mentors: true } },
+            company: { include: { mentors: true, contacts: { orderBy: { createdAt: 'asc' } } } },
             mentors: true,
+            contacts: true,
           },
         },
         coopApplicationForm: true,
@@ -70,7 +71,8 @@ exports.getMyProfile = async (req, res) => {
       ...student,
       majorNameTh: resolveMajorNameTh(student.major, criteria),
       company: (student.coop && student.coop.company)
-        ? { ...student.coop.company, mentors: student.coop.mentors } // เดิมใช้ mentor (เอกพจน์) ซึ่งไม่มีอยู่จริง — เป็น mentors อาเรย์ เพราะเลือกพี่เลี้ยงได้หลายคน
+        // mentors = พี่เลี้ยงของนักศึกษา (จาก T002) · contacts = ผู้ติดต่อทั้งหมดของบริษัท · selectedContacts = ผู้ติดต่อที่นักศึกษาเลือก
+        ? { ...student.coop.company, mentors: student.coop.mentors, selectedContacts: student.coop.contacts }
         : null, // ถ้าไม่มีบริษัทให้เป็น null ไปเลย
       userEmail: student.user?.email || "",
     });
@@ -205,24 +207,31 @@ exports.updateMyProfile = async (req, res) => {
       // เช็คจาก 'undefined' แทนการเช็ค truthy value
       // เพื่อให้ทำงานได้แม้มีการส่ง { companyId: null } มาก็ตาม
       if (data.companyId !== undefined) {
-        const mentorConnect = Array.isArray(data.mentorIds) && data.mentorIds.length > 0
-          ? { set: data.mentorIds.map(id => ({ id })) }
-          : { set: [] };
+        // ผู้ติดต่อ (HR) ต้องเป็นของบริษัทที่เลือกเท่านั้น — เปลี่ยนบริษัทแล้วผู้ติดต่อเก่าต้องหลุด
+        // พี่เลี้ยงไม่รับจากหน้านี้แล้ว (กรอกใน T002 ข้อ 3) — ไม่แตะรายการพี่เลี้ยงเดิม
+        const contactIds = Array.isArray(data.contactIds) ? [...new Set(data.contactIds.map(String))] : [];
+        if (contactIds.length > 0) {
+          const found = await tx.companyContact.findMany({ where: { id: { in: contactIds } }, select: { id: true, companyId: true } });
+          if (found.length !== contactIds.length || found.some((c) => c.companyId !== data.companyId)) {
+            throw Object.assign(new Error('ผู้ติดต่อที่เลือกไม่ใช่ของบริษัทนี้ กรุณาเลือกใหม่'), { is400: true });
+          }
+        }
         updatedCoop = await tx.studentCoop.upsert({
           where: { studentId: student.id },
           update: {
             companyId: data.companyId,
-            mentors: mentorConnect,
+            contacts: { set: contactIds.map((id) => ({ id })) },
           },
           create: {
             studentId: student.id,
             companyId: data.companyId,
-            mentors: { connect: Array.isArray(data.mentorIds) ? data.mentorIds.map(id => ({ id })) : [] },
+            contacts: { connect: contactIds.map((id) => ({ id })) },
             status: "NOT_SUBMITTED",
           },
           include: {
-            company: { include: { mentors: true } },
+            company: { include: { mentors: true, contacts: { orderBy: { createdAt: 'asc' } } } },
             mentors: true,
+            contacts: true,
           },
         });
       }
@@ -236,7 +245,7 @@ exports.updateMyProfile = async (req, res) => {
       student: student,
       emails: finalEmails,
       company: updatedCoop && updatedCoop.company
-                 ? { ...updatedCoop.company, mentors: updatedCoop.mentors } // เดิมใช้ mentor (เอกพจน์) ซึ่งไม่มีอยู่จริง — เป็น mentors อาเรย์ เพราะเลือกพี่เลี้ยงได้หลายคน
+                 ? { ...updatedCoop.company, mentors: updatedCoop.mentors, selectedContacts: updatedCoop.contacts }
                  : null,
       userEmail: user ? user.email : "",
     });
@@ -328,7 +337,7 @@ exports.getStudents = async (req, res) => {
         where,
         include: {
           user: { select: { email: true, username: true } },
-          coop: { include: { company: true, mentors: true, coopPeriod: { select: { semester: true, academicYear: true } } } },
+          coop: { include: { company: true, mentors: true, contacts: true, coopPeriod: { select: { semester: true, academicYear: true } } } },
           documents: true,
           coopApplicationForm: { select: { gradeSheetUrl: true } },
           // หน้าดูข้อมูลนักศึกษา (admin/students) — ที่ปรึกษา + การนิเทศ
