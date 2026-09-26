@@ -14,6 +14,7 @@ interface ProfileData {
   coop?: {
     company: any;
     mentors?: any[];
+    contacts?: any[];
   };
 }
 
@@ -169,9 +170,9 @@ export const createCoopPDF = async (
   doc.text("โครงการสหกิจกับ", leftMargin, y);
 
   // Company Info
-  // เดิมอ่าน profile.mentor / profile.coop?.mentor (เอกพจน์) ซึ่งไม่มีอยู่จริง (เก็บเป็น mentors อาเรย์ เพราะเลือกได้หลายคน) → mentor เป็น undefined เสมอ
   const company = profile.company || profile.coop?.company;
-  const mentor = (profile.coop?.mentors || [])[0];
+  // ผู้ประสานงาน = ผู้ติดต่อ (HR) คนแรกที่นักศึกษาเลือก (เดิมใช้พี่เลี้ยงคนแรก — พี่เลี้ยงตอนนี้กรอกใน T002)
+  const contact = (profile.coop?.contacts || [])[0];
 
   // Line 6
   y += lineSpace;
@@ -184,15 +185,15 @@ export const createCoopPDF = async (
   // Line 7
   y += lineSpace;
   doc.text("ชื่อผู้ประสานงาน", leftMargin, y);
-  const mentorName = mentor ? `${mentor.firstName} ${mentor.lastName}` : "-";
+  const coordinatorName = contact ? [contact.firstName, contact.lastName].filter(Boolean).join(" ") || "-" : "-";
   doc.setFont("THSarabun", "bold");
-  doc.text(mentorName, leftMargin + 26, y);
+  doc.text(coordinatorName, leftMargin + 26, y);
 
   doc.setFont("THSarabun", "normal");
   const posLabelX = 110;
   doc.text("ตำแหน่ง", posLabelX, y);
   doc.setFont("THSarabun", "bold");
-  doc.text(mentor?.position || "-", posLabelX + 15, y);
+  doc.text(contact?.position || "-", posLabelX + 15, y);
   doc.setFont("THSarabun", "normal");
 
   // Line 8-9 (Address)
@@ -227,7 +228,7 @@ export const createCoopPDF = async (
   // Line 11
   y += lineSpace;
   doc.text("EMail address", leftMargin, y);
-  const email = mentor?.email || company?.email || "-";
+  const email = contact?.email || company?.email || "-";
   doc.setFont("THSarabun", "bold");
   doc.text(email, leftMargin + 30, y);
   doc.setFont("THSarabun", "normal");

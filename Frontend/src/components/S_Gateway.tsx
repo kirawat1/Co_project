@@ -7,6 +7,7 @@ import StatusBadge from "../components/StatusBadge";
 import { useToast } from "../components/Toast";
 import AutoTextarea from "./AutoTextarea";
 import ConfirmDialog from "../components/ConfirmDialog";
+import { contactName, type CompanyContact } from "../utils/contacts";
 import Spinner from "../components/Spinner";
 
 const CURRICULUM_DISPLAY: Record<string, string> = {
@@ -39,6 +40,7 @@ interface Company {
 interface CoopInfo {
   company: Company;
   mentors?: Mentor[];
+  contacts?: CompanyContact[]; // ผู้ติดต่อ (HR) ที่เลือก — บังคับก่อนยื่น
   status?: string;
   teacherCheckComment?: string;
   t000Comment?: string;
@@ -225,8 +227,12 @@ export default function CoopRequestPage() {
     }
     const hasCompany = profile?.coop?.company || profile?.company;
     if (!hasCompany) {
-      // ยื่นได้แม้ยังไม่มีพี่เลี้ยง (กรอกทีหลังใน T002 ข้อ 3) — บังคับแค่บริษัท
       toast.warning("กรุณาเลือกบริษัทก่อนยื่นคำร้อง");
+      return;
+    }
+    // ผู้ติดต่อ (HR) บังคับ — ใช้เป็นผู้รับหนังสือจากวิทยาลัย (พี่เลี้ยงกรอกทีหลังใน T002 ข้อ 3)
+    if ((profile?.coop?.contacts || []).length === 0) {
+      toast.warning("กรุณาเลือกผู้ติดต่อ (HR) ของบริษัทที่หน้าข้อมูลนักศึกษาก่อนยื่นคำร้อง");
       return;
     }
     const hasExistingDocs = gatewayDocs.length > 0;
@@ -266,7 +272,7 @@ export default function CoopRequestPage() {
         setUploadedFiles([]);
         fetchData();
       } else {
-        toast.error("เกิดข้อผิดพลาด: " + data.message);
+        toast.error(data.message || "ยื่นคำร้องไม่สำเร็จ กรุณาลองใหม่");
       }
     } catch { toast.error("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้"); }
     finally { setSubmitting(false); }
@@ -295,9 +301,8 @@ export default function CoopRequestPage() {
   const canSubmit = canEdit && isTimeValid();
 
   const displayCompany = profile.coop?.company || profile.company;
-  // เดิมอ่าน profile.coop?.mentor (เอกพจน์) ซึ่งไม่มีอยู่จริงในข้อมูล (เป็น mentors อาเรย์ เพราะเลือกพี่เลี้ยงได้หลายคน)
-  // ทำให้หน้านี้ขึ้น "ยังไม่ได้ระบุพี่เลี้ยง" เสมอ ทั้งที่บันทึกพี่เลี้ยงไว้แล้วที่หน้าข้อมูลนักศึกษา
-  const displayMentors: any[] = profile.coop?.mentors || [];
+  // ผู้ติดต่อ (HR) ที่นักศึกษาเลือกในหน้าข้อมูลนักศึกษา — พี่เลี้ยงไม่แสดงที่นี่แล้ว (กรอกใน T002 ข้อ 3)
+  const displayContacts: CompanyContact[] = profile.coop?.contacts || [];
   const hasCompany = !!displayCompany;
 
   return (
@@ -425,7 +430,7 @@ export default function CoopRequestPage() {
 
         <div className="profile-card">
           <div className="card-head">
-            <h2 className="profile-title">ข้อมูลหน่วยงานและพี่เลี้ยง</h2>
+            <h2 className="profile-title">ข้อมูลหน่วยงานและผู้ติดต่อ</h2>
           </div>
           <div className="divider"></div>
 
@@ -434,27 +439,27 @@ export default function CoopRequestPage() {
               <h4 style={{ margin: '0 0 10px 0', color: '#1e293b', fontSize: 15 }}>🏢 ข้อมูลบริษัท</h4>
               <div className="info-row"><span className="label">ชื่อหน่วยงาน:</span><span className="value">{displayCompany.name}</span></div>
               <div className="info-row"><span className="label">ที่อยู่:</span><span className="value">{displayCompany.address || "-"}</span></div>
-              <div className="info-row"><span className="label">ผู้ติดต่อ (HR):</span><span className="value">{displayCompany.contactPerson || "-"}</span></div>
               <div className="info-row"><span className="label">เบอร์โทรศัพท์:</span><span className="value">{displayCompany.phone || "-"}</span></div>
 
               <div className="divider" style={{ margin: '15px 0' }}></div>
-              <h4 style={{ margin: '0 0 10px 0', color: '#1e293b', fontSize: 15 }}>👤 ข้อมูลพี่เลี้ยง (Mentor)</h4>
+              <h4 style={{ margin: '0 0 10px 0', color: '#1e293b', fontSize: 15 }}>📇 ผู้ติดต่อ (HR)</h4>
 
-              {displayMentors.length > 0 ? (
-                displayMentors.map((m, i) => (
-                  <div key={m.id || i} style={i > 0 ? { marginTop: 10, paddingTop: 10, borderTop: '1px dashed #e2e8f0' } : undefined}>
-                    {displayMentors.length > 1 && <div style={{ fontSize: 12, fontWeight: 600, color: '#64748b', marginBottom: 2 }}>คนที่ {i + 1}</div>}
-                    <div className="info-row"><span className="label">ชื่อพี่เลี้ยง:</span><span className="value">{m.firstName} {m.lastName}</span></div>
-                    <div className="info-row"><span className="label">ตำแหน่ง:</span><span className="value">{m.position || "-"}</span></div>
-                    <div className="info-row"><span className="label">เบอร์โทรศัพท์:</span><span className="value">{m.phone || "-"}</span></div>
-                    <div className="info-row"><span className="label">อีเมล:</span><span className="value">{m.email || "-"}</span></div>
+              {displayContacts.length > 0 ? (
+                displayContacts.map((c, i) => (
+                  <div key={c.id || i} style={i > 0 ? { marginTop: 10, paddingTop: 10, borderTop: '1px dashed #e2e8f0' } : undefined}>
+                    {displayContacts.length > 1 && <div style={{ fontSize: 12, fontWeight: 600, color: '#64748b', marginBottom: 2 }}>คนที่ {i + 1}</div>}
+                    <div className="info-row"><span className="label">ชื่อ:</span><span className="value">{contactName(c) || "-"}</span></div>
+                    <div className="info-row"><span className="label">ตำแหน่ง:</span><span className="value">{[c.position, c.department].filter(Boolean).join(" · ") || "-"}</span></div>
+                    <div className="info-row"><span className="label">เบอร์โทรศัพท์:</span><span className="value">{c.phone || "-"}</span></div>
+                    <div className="info-row"><span className="label">อีเมล:</span><span className="value">{c.email || "-"}</span></div>
                   </div>
                 ))
               ) : (
-                <div style={{ padding: '10px', background: '#f1f5f9', borderRadius: '8px', color: '#475569', fontSize: 14 }}>
-                  ➖ ยังไม่มีพี่เลี้ยง — ยื่นคำร้องได้ตามปกติ กรอกข้อมูลพี่เลี้ยงภายหลังได้ในแบบฟอร์ม T002 ข้อ 3 (พนักงานที่ปรึกษา) หรือเพิ่มที่หน้าข้อมูลนักศึกษา
+                <div className="gateway-no-contact" style={{ padding: '10px', background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: '8px', color: '#92400e', fontSize: 14 }}>
+                  ⚠️ ยังไม่ได้เลือกผู้ติดต่อ — ต้องเลือกที่<a href="/student/profile" style={{ color: '#92400e', fontWeight: 700 }}>หน้าข้อมูลนักศึกษา</a>ก่อนยื่นคำร้อง
                 </div>
               )}
+              <div style={{ fontSize: 12, color: '#64748b', marginTop: 8 }}>พี่เลี้ยงกรอกในแบบฟอร์ม T002 ข้อ 3 หลังเริ่มฝึกงาน</div>
             </>
           ) : (
             <div style={{ textAlign: 'center', padding: '30px 10px', background: '#fee2e2', borderRadius: '12px', border: '1px dashed #fca5a5' }}>

@@ -7,6 +7,8 @@ import { applyAddressChange } from "../utils/addressAutofill";
 import LoadMoreFooter from "./LoadMoreFooter";
 import { useLoadMore } from "../utils/useLoadMore";
 import { notify, askConfirm } from "../utils/notify";
+import ContactForm from "./ContactForm";
+import { contactName, type CompanyContact } from "../utils/contacts";
 
 interface MentorRecord {
     id: string;
@@ -44,6 +46,7 @@ interface CompanyRecord {
     contactPerson?: string;
     createdById: number;
     mentors: MentorRecord[];
+    contacts?: CompanyContact[]; // ผู้ติดต่อ (HR)
 }
 
 export default function Company({ profile }: { profile: any }) {
@@ -58,13 +61,11 @@ export default function Company({ profile }: { profile: any }) {
     const [showEdit, setShowEdit] = useState(false);
     const [viewCompany, setViewCompany] = useState<CompanyRecord | null>(null);
 
-    const [showAddMentor, setShowAddMentor] = useState(false);
-    const [editingMentor, setEditingMentor] = useState<MentorRecord | null>(null);
+    // ฟอร์มผู้ติดต่อ: null = ปิด · "new" = เพิ่มใหม่ · object = แก้ไขคนนั้น
+    const [contactModal, setContactModal] = useState<CompanyContact | "new" | null>(null);
     const [justCreatedCompany, setJustCreatedCompany] = useState<CompanyRecord | null>(null);
-    const [quickAddMentor, setQuickAddMentor] = useState(false);
 
     const [form, setForm] = useState<any>(emptyCompany());
-    const [mentorForm, setMentorForm] = useState<any>(emptyMentor());
 
     // 🟢 เพิ่ม State สำหรับเก็บปีการศึกษาที่ดึงจาก Backend
     const [coopPeriods, setCoopPeriods] = useState<any[]>([]);
@@ -158,7 +159,7 @@ export default function Company({ profile }: { profile: any }) {
 
     async function removeCompany(id: string) {
         // ใครก็ลบได้ — ถ้ามีนักศึกษาคนอื่นเลือกบริษัทนี้อยู่ ระบบจะไม่ให้ลบ (ให้กดแก้ไขแทน)
-        if (!(await askConfirm("ลบบริษัทนี้หรือไม่? (พี่เลี้ยงของบริษัทนี้จะถูกลบด้วย)", { confirmLabel: "ลบบริษัท", danger: true }))) return;
+        if (!(await askConfirm("ลบบริษัทนี้หรือไม่? (ผู้ติดต่อและพี่เลี้ยงของบริษัทนี้จะถูกลบด้วย)", { confirmLabel: "ลบบริษัท", danger: true }))) return;
         if (!token) return notify.warning("กรุณาเข้าสู่ระบบ");
 
         try {
@@ -171,88 +172,28 @@ export default function Company({ profile }: { profile: any }) {
         } catch (err) { console.error(err); notify.error("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้"); }
     }
 
-    /* ---------------- Mentor Functions ---------------- */
-    async function saveMentor(e: React.FormEvent) {
-        e.preventDefault();
-        if (!viewCompany) return;
-
-        const { firstName, lastName, department, position, email, phone } = mentorForm;
-        if (!firstName || !lastName || !department || !position || !email || !phone) return notify.warning("กรุณากรอกให้ครบ");
-        if (!/^\S+@\S+\.\S+$/.test(email)) return notify.warning("รูปแบบอีเมลไม่ถูกต้อง");
-
-        if (!token) return notify.warning("กรุณาเข้าสู่ระบบ");
-
-        try {
-            if (!editingMentor) {
-                const res = await apiFetch(`/api/companies/${viewCompany.id}/mentors`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(mentorForm)
-                });
-                const data = await res.json();
-                if (!data.ok) return notify.error("เพิ่มพี่เลี้ยงไม่สำเร็จ");
-
-                setViewCompany(prev => prev ? { ...prev, mentors: [...(prev.mentors || []), data.mentor] } : prev);
-                setItems(prev => prev.map(c => c.id === viewCompany?.id ? { ...c, mentors: [...(c.mentors || []), data.mentor] } : c));
-            } else {
-                const res = await apiFetch(`/api/companies/mentors/${editingMentor.id}`, {
-                    method: "PUT",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(mentorForm)
-                });
-                const data = await res.json();
-                if (!data.ok) return notify.error("แก้ไขพี่เลี้ยงไม่สำเร็จ");
-
-                setViewCompany(prev => prev ? { ...prev, mentors: (prev.mentors || []).map(m => m.id === editingMentor.id ? data.mentor : m) } : prev);
-                setItems(prev => prev.map(c => c.id === viewCompany?.id ? { ...c, mentors: (c.mentors || []).map(m => m.id === editingMentor.id ? data.mentor : m) } : c));
-            }
-
-            setEditingMentor(null);
-            setMentorForm(emptyMentor());
-            setShowAddMentor(false);
-
-            if (quickAddMentor) {
-                setViewCompany(null);
-                setQuickAddMentor(false);
-            }
-        } catch (err) { console.error(err); notify.error("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้"); }
+    /* ---------------- ผู้ติดต่อ (HR) ---------------- */
+    // อัปเดตรายการผู้ติดต่อของบริษัทที่เปิดดูอยู่ ทั้งในหน้าต่างและในรายการบริษัท
+    function patchContacts(companyId: string, update: (list: CompanyContact[]) => CompanyContact[]) {
+        setViewCompany(prev => prev && prev.id === companyId ? { ...prev, contacts: update(prev.contacts || []) } : prev);
+        setItems(prev => prev.map(c => c.id === companyId ? { ...c, contacts: update(c.contacts || []) } : c));
     }
 
-    async function saveMentorAndNext(e: React.FormEvent) {
-        e.preventDefault();
+    function onContactSaved(saved: CompanyContact) {
         if (!viewCompany) return;
-
-        const { firstName, lastName, department, position, email, phone } = mentorForm;
-        if (!firstName || !lastName || !department || !position || !email || !phone) return notify.warning("กรุณากรอกให้ครบ");
-        if (!/^\S+@\S+\.\S+$/.test(email)) return notify.warning("รูปแบบอีเมลไม่ถูกต้อง");
-
-        try {
-            const res = await apiFetch(`/api/companies/${viewCompany.id}/mentors`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(mentorForm)
-            });
-            const data = await res.json();
-            if (!data.ok) return notify.error("เพิ่มพี่เลี้ยงไม่สำเร็จ");
-
-            setViewCompany(prev => prev ? { ...prev, mentors: [...(prev.mentors || []), data.mentor] } : prev);
-            setItems(prev => prev.map(c => c.id === viewCompany?.id ? { ...c, mentors: [...(c.mentors || []), data.mentor] } : c));
-            setMentorForm(emptyMentor()); // reset form แต่ modal ยังเปิดอยู่
-        } catch (err) { console.error(err); notify.error("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้"); }
+        patchContacts(viewCompany.id, list => list.some(c => c.id === saved.id) ? list.map(c => c.id === saved.id ? saved : c) : [...list, saved]);
+        setContactModal(null);
     }
 
-    async function removeMentor(mentorId: string) {
-        if (!(await askConfirm("ลบพี่เลี้ยงคนนี้หรือไม่?", { confirmLabel: "ลบพี่เลี้ยง", danger: true }))) return;
-        if (!token) return notify.warning("กรุณาเข้าสู่ระบบ");
-
+    async function removeContact(contact: CompanyContact) {
+        if (!(await askConfirm(`ลบผู้ติดต่อ "${contactName(contact)}"? นักศึกษาที่เลือกคนนี้ไว้จะต้องเลือกใหม่`, { confirmLabel: "ลบผู้ติดต่อ", danger: true }))) return;
         try {
-            const res = await apiFetch(`/api/companies/mentors/${mentorId}`, { method: "DELETE" });
-            const data = await res.json();
-            if (!data.ok) return notify.error(data.message);
-
-            setViewCompany(prev => prev ? { ...prev, mentors: (prev.mentors || []).filter(m => m.id !== mentorId) } : prev);
-            setItems(prev => prev.map(c => c.id === viewCompany?.id ? { ...c, mentors: (c.mentors || []).filter(m => m.id !== mentorId) } : c));
-        } catch (err) { console.error(err); notify.error("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้"); }
+            const res = await apiFetch(`/api/companies/contacts/${contact.id}`, { method: "DELETE" });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || !data.ok) return notify.error(data.message || "ลบผู้ติดต่อไม่สำเร็จ");
+            if (viewCompany) patchContacts(viewCompany.id, list => list.filter(c => c.id !== contact.id));
+            notify.success("ลบผู้ติดต่อแล้ว");
+        } catch { notify.error("ลบผู้ติดต่อไม่สำเร็จ: เชื่อมต่อเซิร์ฟเวอร์ไม่ได้"); }
     }
 
     /* ---------------- UI ---------------- */
@@ -328,50 +269,62 @@ export default function Company({ profile }: { profile: any }) {
                     <div><b>โทรศัพท์:</b> {viewCompany.phone || "-"}</div>
                     <div><b>โทรสาร (Fax):</b> {viewCompany.fax || "-"}</div>
 
-                    <div style={{ gridColumn: '1 / -1', borderTop: '1px solid #eee', paddingTop: 10 }}>
-                        <b>ผู้ติดต่อ:</b> {viewCompany.contactPerson || "-"} ({viewCompany.contactPosition || "-"})
-                    </div>
                 </div>
 
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 20, marginBottom: 10 }}>
-                    <h4 style={{ margin: 0 }}>👥 ข้อมูลพี่เลี้ยง (Mentors)</h4>
-                    <button className="btn-secondary small" onClick={() => { setQuickAddMentor(false); setShowAddMentor(true); }}>+ เพิ่มพี่เลี้ยง</button>
+                    <h4 style={{ margin: 0 }}>📇 ผู้ติดต่อ (HR)</h4>
+                    <button className="btn-secondary small" onClick={() => setContactModal("new")}>+ เพิ่มผู้ติดต่อ</button>
                 </div>
-
-                {(!viewCompany.mentors || viewCompany.mentors.length === 0) ? <p style={{ color: "#6b7280", fontSize: 13 }}>ยังไม่มีข้อมูลพี่เลี้ยงในระบบ</p> :
+                {(viewCompany.contacts || []).length === 0 ? <p style={{ color: "#b45309", fontSize: 13 }}>ยังไม่มีผู้ติดต่อ — นักศึกษาต้องเลือกผู้ติดต่ออย่างน้อย 1 คนก่อนยื่นคำร้อง</p> :
                     <table className="responsive-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                         <thead style={{ background: '#f1f5f9' }}>
                             <tr>
                                 <th style={{ padding: 8, textAlign: 'left' }}>ชื่อ-นามสกุล</th>
-                                <th style={{ padding: 8, textAlign: 'left' }}>ตำแหน่ง / แผนก</th>
+                                <th style={{ padding: 8, textAlign: 'left' }}>ตำแหน่ง / ทีม</th>
                                 <th style={{ padding: 8, textAlign: 'left' }}>ติดต่อ</th>
                                 <th style={{ padding: 8, textAlign: "center" }}>จัดการ</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {(viewCompany.mentors || []).map(m =>
-                                <tr key={m.id} style={{ borderBottom: '1px solid #eee' }}>
-                                    <td style={{ padding: 8 }} data-label="ชื่อ-นามสกุล">{m.firstName} {m.lastName}</td>
-                                    <td style={{ padding: 8 }} data-label="ตำแหน่ง / แผนก">{m.position} <br /><span style={{ color: '#64748b', fontSize: 12 }}>{m.department}</span></td>
-                                    <td style={{ padding: 8 }} data-label="ติดต่อ">{m.phone} <br /><span style={{ color: '#64748b', fontSize: 12 }}>{m.email}</span></td>
+                            {(viewCompany.contacts || []).map(c =>
+                                <tr key={c.id} style={{ borderBottom: '1px solid #eee' }}>
+                                    <td style={{ padding: 8 }} data-label="ชื่อ-นามสกุล">{contactName(c)}</td>
+                                    <td style={{ padding: 8 }} data-label="ตำแหน่ง / ทีม">{c.position || "-"} <br /><span style={{ color: '#64748b', fontSize: 12 }}>{c.department}</span></td>
+                                    <td style={{ padding: 8 }} data-label="ติดต่อ">{c.phone || "-"} <br /><span style={{ color: '#64748b', fontSize: 12 }}>{c.email}</span></td>
                                     <td style={{ textAlign: "center", padding: 8 }}>
-                                        <button className="btn-secondary small" onClick={() => { setEditingMentor(m); setMentorForm(m); setShowAddMentor(true) }}>แก้ไข</button>
-                                        <button className="btn-danger small" onClick={() => removeMentor(m.id)}>ลบ</button>
+                                        <button className="btn-secondary small" onClick={() => setContactModal(c)}>แก้ไข</button>
+                                        <button className="btn-danger small" onClick={() => removeContact(c)}>ลบ</button>
                                     </td>
                                 </tr>
                             )}
                         </tbody>
                     </table>
                 }
+
+                {/* พี่เลี้ยง — แสดงอย่างเดียว นักศึกษากรอกในแบบฟอร์ม T002 ข้อ 3 */}
+                <h4 style={{ margin: "20px 0 6px" }}>👥 พี่เลี้ยง</h4>
+                <p style={{ color: "#64748b", fontSize: 12, margin: "0 0 8px" }}>พี่เลี้ยงกรอกในแบบฟอร์ม T002 ข้อ 3 (ระบบบันทึกให้เมื่อส่ง T002)</p>
+                {(viewCompany.mentors || []).length === 0 ? <p style={{ color: "#6b7280", fontSize: 13 }}>ยังไม่มีข้อมูลพี่เลี้ยงในระบบ</p> :
+                    <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, color: '#334155' }}>
+                        {(viewCompany.mentors || []).map(m => (
+                            <li key={m.id}>{m.firstName} {m.lastName}{m.position ? ` · ${m.position}` : ""}{m.phone ? ` · ${m.phone}` : ""}</li>
+                        ))}
+                    </ul>
+                }
             </Modal>}
 
-            {showAddMentor && <Modal title={editingMentor ? "แก้ไขพี่เลี้ยง" : "เพิ่มพี่เลี้ยง"} onClose={() => { setShowAddMentor(false); setEditingMentor(null) }}>
-                <MentorForm form={mentorForm} setForm={setMentorForm} onSubmit={saveMentor} onSubmitAndNext={editingMentor ? undefined : saveMentorAndNext} />
+            {contactModal && viewCompany && <Modal title={contactModal === "new" ? `เพิ่มผู้ติดต่อของ ${viewCompany.name}` : "แก้ไขผู้ติดต่อ"} onClose={() => setContactModal(null)}>
+                <ContactForm
+                    companyId={viewCompany.id}
+                    contact={contactModal === "new" ? null : contactModal}
+                    onSaved={onContactSaved}
+                    onCancel={() => setContactModal(null)}
+                />
             </Modal>}
 
             {justCreatedCompany && <Modal title="✅ เพิ่มบริษัทสำเร็จ" onClose={() => setJustCreatedCompany(null)}>
                 <p style={{ fontSize: 14, color: '#475569' }}>
-                    เพิ่มบริษัท <b>{justCreatedCompany.name}</b> สำเร็จ! ต้องการเพิ่มข้อมูลพี่เลี้ยงตอนนี้เลยหรือไม่?
+                    เพิ่มบริษัท <b>{justCreatedCompany.name}</b> สำเร็จ! ต้องการเพิ่มผู้ติดต่อ (HR) ตอนนี้เลยหรือไม่? (ต้องมีผู้ติดต่อก่อนยื่นคำร้อง)
                 </p>
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
                     <button className="btn-secondary" onClick={() => setJustCreatedCompany(null)}>
@@ -381,12 +334,11 @@ export default function Company({ profile }: { profile: any }) {
                         className="btn"
                         onClick={() => {
                             setViewCompany(justCreatedCompany);
-                            setQuickAddMentor(true);
-                            setShowAddMentor(true);
+                            setContactModal("new");
                             setJustCreatedCompany(null);
                         }}
                     >
-                        เพิ่มพี่เลี้ยงเลย
+                        เพิ่มผู้ติดต่อเลย
                     </button>
                 </div>
             </Modal>}
@@ -412,7 +364,6 @@ function emptyCompany() {
         email: "", phone: "", fax: "", website: "", pastYears: "", contactPerson: "", contactPosition: "", mentors: []
     }
 }
-function emptyMentor() { return { firstName: "", lastName: "", department: "", position: "", email: "", phone: "" } }
 
 // UI Modal
 function Modal({ title, onClose, children }: any) {
@@ -633,37 +584,6 @@ function CompanyForm({ form, setForm, onSubmit, coopPeriods }: any) {
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10, borderTop: '1px solid #e2e8f0', paddingTop: 20 }}>
                 <button type="submit" className="btn" style={{ padding: '12px 24px', fontSize: 15 }}>💾 บันทึกข้อมูลบริษัท</button>
-            </div>
-        </form>
-    )
-}
-
-function MentorForm({ form, setForm, onSubmit, onSubmitAndNext }: any) {
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setForm({ ...form, [e.target.name]: e.target.value });
-    };
-
-    return (
-        <form onSubmit={onSubmit} style={{ display: "grid", gap: 12 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <div><label style={lbl}>ชื่อ <span style={{ color: 'red' }}>*</span></label><input required className="input" name="firstName" value={form.firstName || ""} onChange={handleChange} /></div>
-                <div><label style={lbl}>นามสกุล <span style={{ color: 'red' }}>*</span></label><input required className="input" name="lastName" value={form.lastName || ""} onChange={handleChange} /></div>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <div><label style={lbl}>ตำแหน่ง <span style={{ color: 'red' }}>*</span></label><input required className="input" name="position" value={form.position || ""} onChange={handleChange} /></div>
-                <div><label style={lbl}>แผนก <span style={{ color: 'red' }}>*</span></label><input required className="input" name="department" value={form.department || ""} onChange={handleChange} /></div>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <div><label style={lbl}>อีเมล <span style={{ color: 'red' }}>*</span></label><input required type="email" className="input" name="email" value={form.email || ""} onChange={handleChange} /></div>
-                <div><label style={lbl}>เบอร์โทร <span style={{ color: 'red' }}>*</span></label><input required className="input" name="phone" value={form.phone || ""} onChange={handleChange} /></div>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 10 }}>
-                {onSubmitAndNext && (
-                    <button type="button" className="btn-secondary" onClick={onSubmitAndNext}>
-                        + บันทึกและเพิ่มคนถัดไป
-                    </button>
-                )}
-                <button type="submit" className="btn">💾 บันทึกพี่เลี้ยง</button>
             </div>
         </form>
     )
