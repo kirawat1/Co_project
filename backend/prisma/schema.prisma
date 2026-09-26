@@ -26,6 +26,7 @@ model User {
   staffProfile  StaffProfile?
   companies     Company[]
   mentors       Mentor[]
+  createdContacts CompanyContact[] @relation("ContactCreatedBy")
   notifications Notification[]
   feedbacks     Feedback[]
 
@@ -139,6 +140,8 @@ model StudentCoop {
 
   // Mentor (พี่เลี้ยง) อาจจะมาใส่ทีหลังตอนเริ่มฝึกงานแล้ว (many-to-many)
   mentors Mentor[]
+  // ผู้ติดต่อ (HR) ที่นักศึกษาเลือก — บังคับอย่างน้อย 1 คนก่อนยื่นคำร้อง
+  contacts CompanyContact[] @relation("CoopContacts")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -261,6 +264,7 @@ model Company {
   contactPosition String?
 
   mentors      Mentor[]
+  contacts     CompanyContact[]
   studentCoops StudentCoop[]
 
   createdById Int?
@@ -283,6 +287,25 @@ model Mentor {
   studentCoops StudentCoop[]
   createdById  Int?
   createdBy    User?         @relation(fields: [createdById], references: [id])
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+// ผู้ติดต่อฝั่งบริษัท (HR / ผู้ประสานงาน) — นักศึกษาเลือกตอนกรอกข้อมูลบริษัท ใช้เป็นผู้รับหนังสือ ("เรียน …")
+// พี่เลี้ยง (Mentor) แยกกัน — กรอกในแบบฟอร์ม T002 ข้อ 3
+model CompanyContact {
+  id           String        @id @default(uuid())
+  firstName    String
+  lastName     String        @default("")
+  position     String?
+  department   String? // ทีม/แผนก — บริษัทใหญ่มี HR แยกตามทีม
+  email        String?
+  phone        String?
+  companyId    String
+  company      Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  studentCoops StudentCoop[] @relation("CoopContacts")
+  createdById  Int?
+  createdBy    User?         @relation("ContactCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 }
