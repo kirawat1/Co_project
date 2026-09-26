@@ -103,6 +103,13 @@ const prismaMock = {
     findUnique: jest.fn(),
     upsert: jest.fn(),
   },
+  companyContact: {
+    findMany: jest.fn(),
+    findUnique: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+  },
   mentor: {
     findMany: jest.fn(),
     findUnique: jest.fn(),

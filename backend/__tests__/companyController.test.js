@@ -38,7 +38,7 @@ describe('getCompanies', () => {
     await getCompanies(req, res);
 
     expect(prisma.company.findMany).toHaveBeenCalledWith({
-      include: { mentors: true },
+      include: { mentors: true, contacts: { orderBy: { createdAt: 'asc' } } },
       orderBy: { id: 'desc' },
     });
     expect(res.json).toHaveBeenCalledWith({ ok: true, data: fakeCompanies });

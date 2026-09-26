@@ -96,6 +96,9 @@ const RULES = [
   ['POST', '/api/companies/:x/mentors', 'เพิ่มพี่เลี้ยง', 'บริษัท', ':1'],
   ['PUT', '/api/companies/mentors/:x', 'แก้ไขพี่เลี้ยง', 'พี่เลี้ยง', ':1'],
   ['DELETE', '/api/companies/mentors/:x', 'ลบพี่เลี้ยง', 'พี่เลี้ยง', ':1'],
+  ['POST', '/api/companies/:x/contacts', 'เพิ่มผู้ติดต่อบริษัท', 'บริษัท', ':1'],
+  ['PUT', '/api/companies/contacts/:x', 'แก้ไขผู้ติดต่อบริษัท', 'ผู้ติดต่อ', ':1'],
+  ['DELETE', '/api/companies/contacts/:x', 'ลบผู้ติดต่อบริษัท', 'ผู้ติดต่อ', ':1'],
 
   ['POST', '/api/admin/staff', 'เพิ่มบัญชีเจ้าหน้าที่', 'ผู้ใช้', null],
   ['PATCH', '/api/admin/staff/:x/password', 'รีเซ็ตรหัสผ่านเจ้าหน้าที่', 'ผู้ใช้', ':1'],

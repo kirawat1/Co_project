@@ -117,6 +117,12 @@ async function resolveTargetName(targetType, targetId, targetKey = 'id') {
         const name = `${m.firstName || ''} ${m.lastName || ''}`.trim();
         return m.company?.name ? `${name} (${m.company.name})` : name || null;
       }
+      case 'ผู้ติดต่อ': {
+        const c = await prisma.companyContact.findUnique({ where: { id: raw }, select: { firstName: true, lastName: true, company: { select: { name: true } } } });
+        if (!c) return null;
+        const name = `${c.firstName || ''} ${c.lastName || ''}`.trim();
+        return c.company?.name ? `${name} (${c.company.name})` : name || null;
+      }
       case 'อาจารย์': {
         if (id == null) return null;
         const t = await prisma.teacher.findUnique({ where: { id }, select: { prefix: true, firstName: true, lastName: true } });
