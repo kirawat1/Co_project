@@ -744,7 +744,7 @@ exports.getMyStudents = async (req, res) => {
 
     const include = {
       user: { select: { email: true } },
-      coop: { include: { company: true } },
+      coop: { include: { company: true, mentors: true, contacts: true } }, // พี่เลี้ยง + ผู้ติดต่อ (HR) — เดิมไม่ส่งพี่เลี้ยงมา หน้าอาจารย์ขึ้น "ยังไม่ระบุ" เสมอ
       generalAdvisor: { select: { prefix: true, firstName: true, lastName: true, email: true } },
       coopAdvisor: { select: { prefix: true, firstName: true, lastName: true, email: true } },
       coopApplicationForm: { select: { gradeSheetUrl: true } },

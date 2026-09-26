@@ -15,6 +15,7 @@ const ADMIN_ROUTES = [
   { path: "/admin/dashboard",           label: "TC-A-01: Dashboard หน้าหลัก Admin" },
   { path: "/admin/students",            label: "TC-A-02: หน้าจัดการนักศึกษา" },
   { path: "/admin/mentors",             label: "TC-A-03: หน้าจัดการพี่เลี้ยง" },
+  { path: "/admin/contacts",            label: "TC-A-03b: หน้าจัดการผู้ติดต่อ" },
   { path: "/admin/company",             label: "TC-A-04: หน้าจัดการบริษัท" },
   { path: "/admin/docs",                label: "TC-A-05: หน้าเอกสาร" },
   { path: "/admin/daily",               label: "TC-A-06: หน้าบันทึกประจำวัน Admin" },

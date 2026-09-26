@@ -74,6 +74,7 @@ export default function A_Sidebar({ isOpen = false, onClose = () => {} }: Sideba
         <NavItem to="/admin/students" label="นักศึกษา" icon={<IcUsers />} onClick={nav} />
         <NavItem to="/admin/teachers" label="อาจารย์" icon={<IcTeacher />} onClick={nav} />
         <NavItem to="/admin/mentors" label="พี่เลี้ยง" icon={<IcUser />} onClick={nav} />
+        <NavItem to="/admin/contacts" label="ผู้ติดต่อ (HR)" icon={<IcUser />} onClick={nav} />
 
         <div className="sec-label">ข้อมูลสถานประกอบการ</div>
 

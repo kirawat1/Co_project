@@ -19,7 +19,7 @@ const TEACHER_NAME_SELECT = { select: { prefix: true, firstName: true, lastName:
 // include ของ prisma.student.findMany ที่ใช้กับไฟล์ export (เจ้าหน้าที่ + อาจารย์ใช้ชุดเดียวกัน)
 const STUDENT_EXPORT_INCLUDE = {
   user: { select: { email: true } },
-  coop: { include: { company: true, coopPeriod: true, mentors: true } },
+  coop: { include: { company: true, coopPeriod: true, mentors: true, contacts: true } },
   generalAdvisor: TEACHER_NAME_SELECT,
   coopAdvisor: TEACHER_NAME_SELECT,
   supervisionAppointment: {
@@ -66,6 +66,7 @@ const COLUMNS = [
   ['สถานะสหกิจ', 26],
   ['บริษัทที่ไปฝึกงาน', 32],
   ['ที่อยู่บริษัท', 50],
+  ['ผู้ติดต่อ (HR)', 40],
   ['พี่เลี้ยง', 32],
   ['วันเริ่มฝึกงาน', 14],
   ['วันสิ้นสุดฝึกงาน', 14],
@@ -180,6 +181,15 @@ function companyAddress(company) {
   return dash(String(company.address || '').replace(/\s+/g, ' '));
 }
 
+// ผู้ติดต่อ (HR) ของคำร้อง — ชื่อ · ตำแหน่ง · เบอร์ · อีเมล (เท่าที่มี) คั่นหลายคนด้วย ", "
+function contactsText(contacts) {
+  if (!Array.isArray(contacts) || contacts.length === 0) return '-';
+  return contacts.map((c) => [
+    [c.firstName, c.lastName].map((s) => String(s || '').trim()).filter(Boolean).join(' '),
+    c.position, c.phone, c.email,
+  ].map((s) => String(s || '').trim()).filter(Boolean).join(' · ')).join(', ');
+}
+
 function mentorsText(mentors) {
   if (!Array.isArray(mentors) || mentors.length === 0) return '-';
   return mentors
@@ -207,6 +217,7 @@ function studentToExportRow(student, criteria) {
     'สถานะสหกิจ': getStatusLabelTh(coop?.status),
     'บริษัทที่ไปฝึกงาน': dash(coop?.company?.name),
     'ที่อยู่บริษัท': companyAddress(coop?.company),
+    'ผู้ติดต่อ (HR)': contactsText(coop?.contacts),
     'พี่เลี้ยง': mentorsText(coop?.mentors),
     'วันเริ่มฝึกงาน': thaiDate(coop?.actualStartDate),
     'วันสิ้นสุดฝึกงาน': thaiDate(coop?.actualEndDate),
