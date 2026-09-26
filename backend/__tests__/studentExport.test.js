@@ -26,7 +26,7 @@ describe('buildStudentExportWorkbook', () => {
     expect(workbook.SheetNames).toEqual(['นักศึกษา', 'เอกสารทั้งหมด']);
     expect(sheetHeaders(buffer)).toEqual(EXPORT_HEADERS);
     expect(EXPORT_HEADERS).toEqual(expect.arrayContaining([
-      'ระบบการศึกษา', 'อาจารย์ที่ปรึกษาโครงงานสหกิจ', 'อาจารย์นิเทศ', 'อาจารย์นิเทศร่วม', 'วันนิเทศ', 'สถานะนิเทศ',
+      'รูปแบบการศึกษา', 'อาจารย์ที่ปรึกษาโครงงานสหกิจ', 'อาจารย์นิเทศ', 'อาจารย์นิเทศร่วม', 'วันนิเทศ', 'สถานะนิเทศ',
     ]));
   });
 
@@ -74,8 +74,8 @@ describe('buildStudentExportWorkbook', () => {
     expect(rows).toEqual([{
       'รหัสนักศึกษา': '643021218',
       'ชื่อ-นามสกุล': 'นาย สมชาย ใจดี',
-      'สาขา': 'วิทยาการคอมพิวเตอร์',
-      'ระบบการศึกษา': 'ภาคพิเศษ',
+      'หลักสูตร': 'วิทยาการคอมพิวเตอร์',
+      'รูปแบบการศึกษา': 'ภาคพิเศษ',
       'ชั้นปี': '4',
       'อีเมล': 'somchai@kkumail.com',
       'เบอร์โทร': '0812345678',
@@ -117,8 +117,8 @@ describe('buildStudentExportWorkbook', () => {
     expect(rows[0]).toEqual({
       'รหัสนักศึกษา': '643021219',
       'ชื่อ-นามสกุล': 'นางสาว สมหญิง ใจงาม',
-      'สาขา': '-',
-      'ระบบการศึกษา': '-',
+      'หลักสูตร': '-',
+      'รูปแบบการศึกษา': '-',
       'ชั้นปี': '-',
       'อีเมล': '-',
       'เบอร์โทร': '-',
@@ -141,7 +141,7 @@ describe('buildStudentExportWorkbook', () => {
     });
   });
 
-  test('สาขา: ไม่มีชื่อไทยใน criteria ใช้ค่าเดิม · ระบบการศึกษาภาคปกติ · อีเมลนักศึกษามาก่อนอีเมลบัญชี · นัดออนไลน์ยังไม่ยืนยันวัน', () => {
+  test('หลักสูตร: ไม่มีชื่อไทยใน criteria ใช้ค่าเดิม · รูปแบบการศึกษาภาคปกติ · อีเมลนักศึกษามาก่อนอีเมลบัญชี · นัดออนไลน์ยังไม่ยืนยันวัน', () => {
     const rows = sheetToRows(buildStudentExportWorkbook([{
       studentId: '1', prefix: null, firstName: 'ก', lastName: 'ข', major: 'AI', studyProgram: 'normal',
       email: 'student@kku.ac.th', user: { email: 'login@kku.ac.th' },
@@ -152,8 +152,8 @@ describe('buildStudentExportWorkbook', () => {
     expect(rows[0]).toMatchObject({
       'บริษัทที่ไปฝึกงาน': '-',
       'ที่อยู่บริษัท': '-',
-      'สาขา': 'AI',
-      'ระบบการศึกษา': 'ภาคปกติ',
+      'หลักสูตร': 'AI',
+      'รูปแบบการศึกษา': 'ภาคปกติ',
       'อีเมล': 'student@kku.ac.th',
       'พี่เลี้ยง': '-',
       'วันนิเทศ': '-',

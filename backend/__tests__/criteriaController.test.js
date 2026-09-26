@@ -142,7 +142,7 @@ describe('updateCriteria', () => {
     expect(prisma.coopCriteria.update).not.toHaveBeenCalled();
   });
 
-  test('404 – P2025 (ไม่พบสาขาที่จะแก้)', async () => {
+  test('404 – P2025 (ไม่พบหลักสูตรที่จะแก้)', async () => {
     const err = new Error('not found');
     err.code = 'P2025';
     prisma.coopCriteria.update.mockRejectedValue(err);
@@ -150,9 +150,10 @@ describe('updateCriteria', () => {
     const res = makeRes();
     await updateCriteria({ params: { id: '99' }, body: { major: 'IT' } }, res);
     expect(res.status).toHaveBeenCalledWith(404);
+    expect(res.json.mock.calls[0][0].message).toMatch(/ไม่พบหลักสูตร/);
   });
 
-  test('409 – P2002 (ชื่อสาขาซ้ำ)', async () => {
+  test('409 – P2002 (ชื่อหลักสูตรซ้ำ)', async () => {
     const err = new Error('duplicate');
     err.code = 'P2002';
     prisma.coopCriteria.update.mockRejectedValue(err);
@@ -160,6 +161,7 @@ describe('updateCriteria', () => {
     const res = makeRes();
     await updateCriteria({ params: { id: '7' }, body: { major: 'CS' } }, res);
     expect(res.status).toHaveBeenCalledWith(409);
+    expect(res.json.mock.calls[0][0].message).toMatch(/ชื่อหลักสูตรนี้มีอยู่แล้ว/);
   });
 });
 

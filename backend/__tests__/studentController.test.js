@@ -887,7 +887,7 @@ describe('createStudentSingle — major', () => {
     await createStudentSingle({ body: { ...baseBody, major: 'สาขาพิมพ์ผิด' } }, res);
 
     expect(res.status).toHaveBeenCalledWith(400);
-    expect(res.json.mock.calls[0][0].message).toMatch(/ไม่พบสาขาวิชา/);
+    expect(res.json.mock.calls[0][0].message).toMatch(/ไม่พบหลักสูตร/);
     expect(prisma.user.create).not.toHaveBeenCalled();
   });
 
