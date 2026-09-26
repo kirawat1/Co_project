@@ -1,5 +1,6 @@
 import { jsPDF } from "jspdf";
-import { thaiPrefix, supervisionSupervisorNames, joinThaiNames } from "./docGeneratorUtils";
+import { thaiPrefix, supervisionSupervisorNames, joinThaiNames } from "./docGeneratorUtils";
+import { letterRecipient, recipientText } from "./letterRecipient";
 
 // --- Helpers ---
 const getFontBase64 = async (url: string): Promise<string> => {
@@ -138,12 +139,9 @@ export const createSupervisionLetterPDF = async (
   const company = appt.student?.coop?.company || {};
   const companyName =
     company.name || "........................................................";
-  const contactName = company.contactPerson || "ผู้จัดการ / ผู้อำนวยการ";
-  const contactPos = company.contactPersonPosition
-    ? ` ${company.contactPersonPosition}`
-    : "";
-
-  doc.text(`เรียน ${contactName}${contactPos}`, margin, y);
+  // ผู้รับ = ผู้ติดต่อ (HR) ของคำร้อง → ผู้ติดต่อเดิมของบริษัท → ผู้จัดการ (เดิมอ่านตำแหน่งผิดช่อง ตำแหน่งไม่เคยขึ้น)
+  const recipient = recipientText(letterRecipient(appt.student?.coop)) || "ผู้จัดการ / ผู้อำนวยการ";
+  doc.text(`เรียน ${recipient}`, margin, y);
 
   // เตรียมตัวแปรข้อความ
   const student = appt.student || {};

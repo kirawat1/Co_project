@@ -4,6 +4,8 @@ import React, { useState } from "react";
 import { apiFetch } from "../utils/apiFetch";
 import { fmtDate, fmtDateTime } from "../utils/dateFormat";
 import { notify, askConfirm } from "../utils/notify";
+import { letterRecipient, recipientText } from "../utils/letterRecipient";
+import { missingContact } from "../utils/contacts";
 
 // ================= รอลงนาม =================
 // ดาวน์โหลดร่างหนังสือไปเสนอลงนาม → ป้าย "รอลงนาม" (เห็นเฉพาะเจ้าหน้าที่/อาจารย์ สถานะหลักไม่เปลี่ยน)
@@ -104,7 +106,23 @@ function buildAddressLine(c: any): string {
     return parts.length > 0 ? parts.join(' ') : (c.address || '');
 }
 
-export function CompanyAddressBox({ company }: { company: any }) {
+// ผู้รับหนังสือของคำร้องนี้ + ป้ายเตือนถ้ายังไม่มีผู้ติดต่อ (คำร้องเก่า) — เตือนอย่างเดียว ไม่ขวางการออกหนังสือ
+export function RecipientNotice({ coop }: { coop: any }) {
+    const r = letterRecipient(coop);
+    const text = recipientText(r);
+    return (
+        <div className="recipient-notice" style={{ marginBottom: 8, fontSize: 12, lineHeight: 1.6 }}>
+            <div>เรียน: <b>{text || "(ใช้ค่าเริ่มต้นของหนังสือ)"}</b></div>
+            {missingContact(coop) && (
+                <div className="badge-no-contact" style={{ display: 'inline-block', marginTop: 4, fontWeight: 700, color: '#b45309', background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 99, padding: '1px 8px' }}>
+                    ⚠️ ยังไม่มีผู้ติดต่อ — ช่อง "เรียน" ใช้ผู้ติดต่อเดิมของบริษัท
+                </div>
+            )}
+        </div>
+    );
+}
+
+export function CompanyAddressBox({ company, coop }: { company: any; coop?: any }) {
     const base: React.CSSProperties = {
         marginTop: 8, padding: '12px 14px', borderRadius: 8, fontSize: 12,
         background: 'rgba(14,165,233,0.12)', border: '1px solid rgba(14,165,233,0.35)',
@@ -121,7 +139,7 @@ export function CompanyAddressBox({ company }: { company: any }) {
             <div style={{ fontWeight: 700, marginBottom: 6, color: '#38bdf8' }}>📦 ที่อยู่จัดส่ง</div>
             <div style={{ fontWeight: 700, marginBottom: 4 }}>{company.name}</div>
             {addrLine && <div style={{ opacity: 0.85, marginBottom: 2, lineHeight: 1.5 }}>{addrLine}</div>}
-            {company.contactPerson && <div style={{ opacity: 0.85, marginBottom: 2 }}>เรียน: {company.contactPerson}</div>}
+            {recipientText(letterRecipient(coop ?? { company })) && <div style={{ opacity: 0.85, marginBottom: 2 }}>เรียน: {recipientText(letterRecipient(coop ?? { company }))}</div>}
             {company.phone && <div style={{ opacity: 0.85, marginBottom: 2 }}>โทร: {company.phone}</div>}
             {company.fax && <div style={{ opacity: 0.85 }}>แฟกซ์: {company.fax}</div>}
         </div>
