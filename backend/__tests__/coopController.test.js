@@ -77,6 +77,8 @@ describe('submitCoopApplication', () => {
     prisma.$transaction.mockImplementation((fn) => fn(prisma));
     prisma.document.createMany.mockResolvedValue({});
     prisma.studentCoop.upsert.mockResolvedValue({ studentId: 10, status: 'APPLYING' });
+    // มีผู้ติดต่อ (HR) ของบริษัทที่เลือกแล้ว — บังคับก่อนยื่น
+    prisma.studentCoop.findUnique.mockResolvedValue({ status: 'NOT_SUBMITTED', companyId: 'c1', contacts: [{ id: 'k1', companyId: 'c1' }] });
 
     const req = {
       user: { id: 1 },
@@ -88,6 +90,43 @@ describe('submitCoopApplication', () => {
     await submitCoopApplication(req, res);
 
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: true }));
+    expect(prisma.studentCoop.upsert).toHaveBeenCalled();
+  });
+
+  // ผู้ติดต่อ (HR) บังคับก่อนยื่น — backend ต้องตรวจเอง (ยิง API ตรงข้ามหน้าเว็บได้)
+  const setupSubmittable = () => {
+    prisma.coopPeriod.findUnique.mockResolvedValue({ id: 1, isActive: true });
+    prisma.student.findUnique.mockResolvedValue({ id: 10, userId: 1 });
+    prisma.$transaction.mockImplementation((fn) => fn(prisma));
+    prisma.document.createMany.mockResolvedValue({});
+    prisma.studentCoop.upsert.mockResolvedValue({ studentId: 10, status: 'APPLYING' });
+  };
+  const validReq = () => ({ user: { id: 1 }, body: { coopPeriodId: '1', jobPosition: 'Backend Dev' }, files: [] });
+
+  test('400 — ยังไม่มีผู้ติดต่อ (HR)', async () => {
+    setupSubmittable();
+    prisma.studentCoop.findUnique.mockResolvedValue({ status: 'NOT_SUBMITTED', companyId: 'c1', contacts: [] });
+    const res = makeRes();
+    await submitCoopApplication(validReq(), res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json.mock.calls[0][0].message).toMatch(/ผู้ติดต่อ/);
+    expect(prisma.studentCoop.upsert).not.toHaveBeenCalled();
+  });
+
+  test('400 — ผู้ติดต่อเป็นของบริษัทเก่า (เปลี่ยนบริษัทแล้ว)', async () => {
+    setupSubmittable();
+    prisma.studentCoop.findUnique.mockResolvedValue({ status: 'NOT_SUBMITTED', companyId: 'c2', contacts: [{ id: 'k1', companyId: 'c1' }] });
+    const res = makeRes();
+    await submitCoopApplication(validReq(), res);
+    expect(res.status).toHaveBeenCalledWith(400);
+  });
+
+  test('ผ่าน — มีผู้ติดต่อของบริษัทที่เลือก', async () => {
+    setupSubmittable();
+    prisma.studentCoop.findUnique.mockResolvedValue({ status: 'NOT_SUBMITTED', companyId: 'c1', contacts: [{ id: 'k1', companyId: 'c1' }] });
+    const res = makeRes();
+    await submitCoopApplication(validReq(), res);
+    expect(res.status).not.toHaveBeenCalledWith(400);
     expect(prisma.studentCoop.upsert).toHaveBeenCalled();
   });
 });
