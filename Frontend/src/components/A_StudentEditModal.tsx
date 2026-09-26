@@ -129,7 +129,7 @@ export default function A_StudentEditModal({ student, onClose, onSaved }: Props)
           <Field label="นามสกุล (English)">
             <input style={input} value={form.lastNameEn} onChange={e => update("lastNameEn", e.target.value)} />
           </Field>
-          <Field label="หลักสูตร">
+          <Field label="รูปแบบการศึกษา">
             <select style={input} value={form.studyProgram} onChange={e => update("studyProgram", e.target.value)}>
               <option value="">-</option>
               {Object.entries(CURRICULUM_TH).map(([k, v]) => <option key={k} value={k}>{v}</option>)}

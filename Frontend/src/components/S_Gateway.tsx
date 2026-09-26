@@ -417,7 +417,7 @@ export default function CoopRequestPage() {
           <div className="info-row"><span className="label">ชื่อ-นามสกุล (TH):</span><span className="value">{getThaiPrefix(profile.prefix)} {profile.firstName} {profile.lastName}</span></div>
           <div className="info-row"><span className="label">ชื่อ-นามสกุล (EN):</span><span className="value">{profile.firstNameEn || "-"} {profile.lastNameEn || "-"}</span></div>
           <div className="info-row"><span className="label">รหัสนักศึกษา:</span><span className="value">{profile.studentId}</span></div>
-          <div className="info-row"><span className="label">หลักสูตร:</span><span className="value">{CURRICULUM_DISPLAY[profile.studyProgram as string] || profile.studyProgram || "-"} (ปี {profile.year || "-"})</span></div>
+          <div className="info-row"><span className="label">รูปแบบการศึกษา:</span><span className="value">{CURRICULUM_DISPLAY[profile.studyProgram as string] || profile.studyProgram || "-"} (ปี {profile.year || "-"})</span></div>
           <div className="info-row"><span className="label">ที่ปรึกษา:</span><span className="value">{profile.advisorName || "-"}</span></div>
           <div className="info-row"><span className="label">เบอร์โทรศัพท์:</span><span className="value">{profile.phone || "-"}</span></div>
           <div className="info-row"><span className="label">อีเมลติดต่อ:</span><span className="value">{profile.email || "-"}</span></div>

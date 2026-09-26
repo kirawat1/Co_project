@@ -261,7 +261,7 @@ export default function A_Announcements() {
             onChange={e => setFilterMajor(e.target.value)}
           >
             <option value="">ทุกประกาศ</option>
-            <option value="ALL">ทุกสาขา (ไม่จำกัดสาขา)</option>
+            <option value="ALL">ทุกหลักสูตร (ไม่จำกัดหลักสูตร)</option>
             {availableMajors.map(m => (
               <option key={m} value={m}>{m}</option>
             ))}
@@ -295,7 +295,7 @@ export default function A_Announcements() {
                   <span style={textMuted}>📅 {fmtDate(a.date)}</span>
                   {/* Target badges */}
                   {(!a.targetMajors || a.targetMajors.length === 0) ? (
-                    <span style={{ background: "#f1f5f9", color: "#475569", padding: "3px 8px", borderRadius: 6, fontSize: 11, fontWeight: 700 }}>ทุกสาขา</span>
+                    <span style={{ background: "#f1f5f9", color: "#475569", padding: "3px 8px", borderRadius: 6, fontSize: 11, fontWeight: 700 }}>ทุกหลักสูตร</span>
                   ) : (
                     a.targetMajors.map(m => (
                       <span key={m} style={{ background: "#eff6ff", color: "#2563eb", padding: "3px 8px", borderRadius: 6, fontSize: 11, fontWeight: 700 }}>{m}</span>
@@ -376,16 +376,16 @@ export default function A_Announcements() {
                       checked={targetMajors.length === 0}
                       onChange={() => setTargetMajors([])}
                     />
-                    <span>ทุกสาขา</span>
+                    <span>ทุกหลักสูตร</span>
                   </label>
-                  <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: availableMajors.length > 0 ? "pointer" : "not-allowed", fontSize: 14, opacity: availableMajors.length === 0 ? 0.5 : 1 }} title={availableMajors.length === 0 ? "ยังไม่มีข้อมูลสาขา" : undefined}>
+                  <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: availableMajors.length > 0 ? "pointer" : "not-allowed", fontSize: 14, opacity: availableMajors.length === 0 ? 0.5 : 1 }} title={availableMajors.length === 0 ? "ยังไม่มีข้อมูลหลักสูตร" : undefined}>
                     <input
                       type="radio"
                       disabled={availableMajors.length === 0}
                       checked={targetMajors.length > 0}
                       onChange={() => { if (availableMajors.length > 0) setTargetMajors([availableMajors[0]]); }}
                     />
-                    <span>เลือกสาขา{availableMajors.length === 0 ? " (ยังไม่มีข้อมูลสาขา)" : ""}</span>
+                    <span>เลือกหลักสูตร{availableMajors.length === 0 ? " (ยังไม่มีข้อมูลหลักสูตร)" : ""}</span>
                   </label>
                   {targetMajors.length > 0 && availableMajors.length > 0 && (
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 8, paddingLeft: 24 }}>

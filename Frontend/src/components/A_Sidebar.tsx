@@ -173,7 +173,7 @@ export default function A_Sidebar({ isOpen = false, onClose = () => {} }: Sideba
           onClick={nav}
         >
           <span className="ico"><IcSettings /></span>
-          <span className="text">จัดการสาขาวิชา</span>
+          <span className="text">จัดการหลักสูตร</span>
         </NavLink>
 
         <NavLink
