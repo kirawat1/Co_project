@@ -321,6 +321,7 @@ function contactData(body) {
 
 function contactError(res, err, fallback) {
   if (err.is400) return res.status(400).json({ ok: false, message: err.message });
+  if (err.is409) return res.status(409).json({ ok: false, message: err.message });
   if (err.is404 || err.code === 'P2025') return res.status(404).json({ ok: false, message: err.is404 ? err.message : 'ไม่พบผู้ติดต่อ' });
   console.error(fallback, err);
   return res.status(500).json({ ok: false, message: fallback });
@@ -367,6 +368,16 @@ exports.deleteContact = async (req, res) => {
     await prisma.$transaction(async (tx) => {
       const found = await tx.companyContact.findUnique({ where: { id: String(req.params.id) } });
       if (!found) throw Object.assign(new Error('ไม่พบผู้ติดต่อ'), { is404: true });
+      // นักศึกษาห้ามลบผู้ติดต่อที่นักศึกษาคนอื่นเลือกอยู่ — ผู้ติดต่อเป็นผู้รับหนังสือของคำร้องคนอื่น (กฎเดียวกับการลบบริษัท)
+      // เจ้าหน้าที่ลบได้ (หน้าเมนูผู้ติดต่อเตือนจำนวนนักศึกษาก่อน)
+      if (req.user?.role !== 'staff') {
+        const usedByOthers = await tx.studentCoop.count({
+          where: { contacts: { some: { id: found.id } }, student: { userId: { not: Number(req.user?.id) } } },
+        });
+        if (usedByOthers > 0) {
+          throw Object.assign(new Error(`ลบไม่ได้ — มีนักศึกษาคนอื่นเลือกผู้ติดต่อคนนี้อยู่ ${usedByOthers} คน ถ้าข้อมูลเปลี่ยนให้กด "แก้ไข" แทน`), { is409: true });
+        }
+      }
       // ถอดออกจากคำร้องที่เคยเลือกไว้ด้วย (ตาราง _CoopContacts ลบตาม) — หนังสือถอยไปใช้ผู้ติดต่อของบริษัท
       await tx.companyContact.delete({ where: { id: found.id } });
     });
