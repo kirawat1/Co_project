@@ -57,8 +57,8 @@ const DOC_STATUS_LABEL_TH = {
 const COLUMNS = [
   ['รหัสนักศึกษา', 14],
   ['ชื่อ-นามสกุล', 28],
-  ['สาขา', 22],
-  ['ระบบการศึกษา', 13],
+  ['หลักสูตร', 22],
+  ['รูปแบบการศึกษา', 13],
   ['ชั้นปี', 7],
   ['อีเมล', 28],
   ['เบอร์โทร', 13],
@@ -198,8 +198,8 @@ function studentToExportRow(student, criteria) {
     'รหัสนักศึกษา': student.studentId,
     'ชื่อ-นามสกุล': fullName,
     // major เก็บเป็นรหัสสาขา (CS) — ใช้ชื่อไทยจาก criteria ถ้ามี
-    'สาขา': dash(resolveMajorNameTh(student.major, criteria) || student.major),
-    'ระบบการศึกษา': STUDY_PROGRAM_LABEL_TH[student.studyProgram] || '-',
+    'หลักสูตร': dash(resolveMajorNameTh(student.major, criteria) || student.major),
+    'รูปแบบการศึกษา': STUDY_PROGRAM_LABEL_TH[student.studyProgram] || '-',
     'ชั้นปี': dash(student.year),
     'อีเมล': dash(student.email || student.user?.email),
     'เบอร์โทร': dash(student.phone),

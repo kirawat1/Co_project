@@ -742,7 +742,7 @@ exports.createStudentSingle = async (req, res) => {
         select: { major: true },
       });
       if (!criteria) {
-        return res.status(400).json({ ok: false, message: `ไม่พบสาขาวิชา "${majorInput}" ในระบบ — เพิ่มที่หน้าจัดการสาขาวิชาก่อน` });
+        return res.status(400).json({ ok: false, message: `ไม่พบหลักสูตร "${majorInput}" ในระบบ — เพิ่มที่เมนูจัดการหลักสูตรก่อน` });
       }
       majorCode = criteria.major;
     }
