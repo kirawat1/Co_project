@@ -19,7 +19,7 @@ exports.getMyProfile = async (req, res) => {
           include: {
             company: { include: { mentors: true, contacts: { orderBy: { createdAt: 'asc' } } } },
             mentors: true,
-            contacts: true,
+            contacts: { orderBy: { createdAt: 'asc' } },
           },
         },
         coopApplicationForm: true,
@@ -231,7 +231,7 @@ exports.updateMyProfile = async (req, res) => {
           include: {
             company: { include: { mentors: true, contacts: { orderBy: { createdAt: 'asc' } } } },
             mentors: true,
-            contacts: true,
+            contacts: { orderBy: { createdAt: 'asc' } },
           },
         });
       }
@@ -337,7 +337,7 @@ exports.getStudents = async (req, res) => {
         where,
         include: {
           user: { select: { email: true, username: true } },
-          coop: { include: { company: true, mentors: true, contacts: true, coopPeriod: { select: { semester: true, academicYear: true } } } },
+          coop: { include: { company: true, mentors: true, contacts: { orderBy: { createdAt: 'asc' } }, coopPeriod: { select: { semester: true, academicYear: true } } } },
           documents: true,
           coopApplicationForm: { select: { gradeSheetUrl: true } },
           // หน้าดูข้อมูลนักศึกษา (admin/students) — ที่ปรึกษา + การนิเทศ

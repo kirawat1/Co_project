@@ -113,7 +113,7 @@ exports.getStudentsForT000 = async (req, res) => {
         },
         coop: {
             // contacts = ผู้ติดต่อ (HR) ของคำร้อง — ผู้รับหนังสือ ("เรียน …")
-            include: { company: true, contacts: true }
+            include: { company: true, contacts: { orderBy: { createdAt: 'asc' } } }
         },
         coopApplicationForm: true,
         generalAdvisor: { select: { id: true, prefix: true, firstName: true, lastName: true } },
@@ -694,7 +694,7 @@ exports.getCoopApplications = async (req, res) => {
         },
         company: true,
         mentors: true,
-        contacts: true,
+        contacts: { orderBy: { createdAt: 'asc' } },
       },
       orderBy: { updatedAt: "desc" }
     });

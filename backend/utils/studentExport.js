@@ -19,7 +19,7 @@ const TEACHER_NAME_SELECT = { select: { prefix: true, firstName: true, lastName:
 // include ของ prisma.student.findMany ที่ใช้กับไฟล์ export (เจ้าหน้าที่ + อาจารย์ใช้ชุดเดียวกัน)
 const STUDENT_EXPORT_INCLUDE = {
   user: { select: { email: true } },
-  coop: { include: { company: true, coopPeriod: true, mentors: true, contacts: true } },
+  coop: { include: { company: true, coopPeriod: true, mentors: true, contacts: { orderBy: { createdAt: 'asc' } } } },
   generalAdvisor: TEACHER_NAME_SELECT,
   coopAdvisor: TEACHER_NAME_SELECT,
   supervisionAppointment: {
