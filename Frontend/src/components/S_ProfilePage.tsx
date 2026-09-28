@@ -138,6 +138,9 @@ export default function S_ProfilePage() {
   const saveChain = useRef<Promise<void>>(Promise.resolve());
   const saveSeq = useRef(0);
   const [companySave, setCompanySave] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  // บริษัท/ผู้ติดต่อ "ล่าสุดจริง" แบบ synchronous — คลิก × สองปุ่มติดกันเร็วมาก (ก่อน React re-render)
+  // ยังต้องเห็นผลของคลิกแรกได้ ตัวแปร state/closure ธรรมดาจะยังเป็นค่าเก่าตอนคลิกที่สองทำงาน
+  const companyRef = useRef<StudentCompany | undefined>(undefined);
   // ── KKU REG Sync ──────────────────────────────
   const [kkuModalOpen, setKkuModalOpen] = useState(false);
   const [kkuUser, setKkuUser] = useState("");
@@ -204,6 +207,7 @@ export default function S_ProfilePage() {
           const emails = profileData.emails?.length > 0 ? profileData.emails : [{ email: "", primary: false }];
           // ต้องเช็ค coop.company ด้วย — ถ้า companyId เป็น null การ spread จะได้ object ว่างที่ truthy
           const company = profileData.coop?.company ? { ...profileData.coop.company, selectedContacts: profileData.coop.contacts || [] } : profileData.company;
+          companyRef.current = company;
           setProfile({ ...profileData, emails, company });
         } else {
           console.error("Error fetching profile:", profileResult.reason);
@@ -262,6 +266,7 @@ export default function S_ProfilePage() {
         const data = await fresh.json();
         const emails = data.emails?.length > 0 ? data.emails : [{ email: "", primary: false }];
         const company = data.coop?.company ? { ...data.coop.company, selectedContacts: data.coop.contacts || [] } : data.company;
+        companyRef.current = company;
         setProfile({ ...data, emails, company });
       }
 
@@ -301,9 +306,19 @@ export default function S_ProfilePage() {
   }
 
   // เปลี่ยนบริษัท/ผู้ติดต่อบนหน้าจอ แล้วบันทึกทันที
+  // อัปเดต companyRef ก่อน setProfile เสมอ — ให้ handler ถัดไป (แม้กดรัวก่อน re-render) อ่านค่านี้ได้ค่าล่าสุดจริง
   function applyCompany(next: StudentCompany | undefined) {
+    companyRef.current = next;
     setProfile((prev) => ({ ...prev!, company: next }));
     persistCompany(next);
+  }
+
+  // ต่อยอดผู้ติดต่อที่เลือกจากค่าล่าสุดจริง (companyRef) ไม่ใช่จากตัวแปรที่ปิดล้อมไว้ตอน render
+  // (ปิดล้อมตอน render จะยังเป็นค่าเก่าถ้าคลิกสองปุ่มติดกันเร็วมากก่อน re-render รอบแรกทัน — พิสูจน์แล้วด้วย native double-click)
+  function updateSelectedContacts(updater: (prev: CompanyContact[]) => CompanyContact[]) {
+    const base = companyRef.current;
+    if (!base) return;
+    applyCompany({ ...base, selectedContacts: updater(base.selectedContacts || []) });
   }
 
   // ฟังก์ชันประกอบร่างที่อยู่
@@ -343,13 +358,12 @@ export default function S_ProfilePage() {
   const contactOptions = profile.company
     ? (profile.company.contacts || []).filter((c) => !selectedContactIds.has(c.id)).map((c) => ({ id: c.id, label: contactLine(c), rawData: c }))
     : [];
-  const setSelectedContacts = (next: CompanyContact[]) =>
-    applyCompany({ ...profile.company!, selectedContacts: next });
   // ผู้ติดต่อใหม่ที่เพิ่ม — ใส่ทั้งในรายการของบริษัท (หน้านี้ + รายการบริษัทที่โหลดไว้) และเลือกให้เลย
   const onContactAdded = (c: CompanyContact) => {
-    const company = profile.company!;
-    applyCompany({ ...company, contacts: [...(company.contacts || []), c], selectedContacts: [...selectedContacts, c] });
-    setCompanies((prev) => prev.map((x) => (x.id === company.id ? { ...x, contacts: [...(x.contacts || []), c] } : x)));
+    const base = companyRef.current;
+    if (!base) return;
+    applyCompany({ ...base, contacts: [...(base.contacts || []), c], selectedContacts: [...(base.selectedContacts || []), c] });
+    setCompanies((prev) => prev.map((x) => (x.id === base.id ? { ...x, contacts: [...(x.contacts || []), c] } : x)));
     setAddingContact(false);
   };
 
@@ -504,7 +518,7 @@ export default function S_ProfilePage() {
                 {selectedContacts.map(c => (
                   <span key={c.id} className="contact-chip" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#dbeafe', color: '#1e40af', borderRadius: 16, padding: '3px 10px', fontSize: 13 }}>
                     {contactName(c)}{c.position ? ` (${c.position})` : ''}
-                    <button type="button" aria-label={`เอา ${contactName(c)} ออก`} onClick={() => setSelectedContacts(selectedContacts.filter(x => x.id !== c.id))} style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#1e40af', fontWeight: 700, fontSize: 14, padding: 0, lineHeight: 1 }}>×</button>
+                    <button type="button" aria-label={`เอา ${contactName(c)} ออก`} onClick={() => updateSelectedContacts(list => list.filter(x => x.id !== c.id))} style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#1e40af', fontWeight: 700, fontSize: 14, padding: 0, lineHeight: 1 }}>×</button>
                   </span>
                 ))}
               </div>
@@ -522,7 +536,7 @@ export default function S_ProfilePage() {
                 noOptionText="ไม่พบผู้ติดต่อในบริษัทนี้"
                 onChange={(_id: string, rawData: any) => {
                   if (!rawData) return;
-                  setSelectedContacts([...selectedContacts, rawData]);
+                  updateSelectedContacts(list => [...list, rawData]);
                 }}
               />
             </div>
