@@ -1,11 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { IcEdit, IcSave } from "./icons";
+import { IcEdit } from "./icons";
 import { useToast } from "./Toast";
 import Spinner from "./Spinner";
 import { apiFetch } from "../utils/apiFetch";
 import S_ChangePasswordModal from "./S_ChangePasswordModal";
-import { notify } from "../utils/notify";
+import { notify, askConfirm } from "../utils/notify";
 import ContactForm from "./ContactForm";
 import { contactName, contactLine, type CompanyContact } from "../utils/contacts";
 
@@ -133,6 +133,11 @@ export default function S_ProfilePage() {
   const [loading, setLoading] = useState(true);
   // กล่องเพิ่มผู้ติดต่อใหม่ของบริษัทที่เลือก
   const [addingContact, setAddingContact] = useState(false);
+  // บันทึกสถานที่ฝึกอัตโนมัติทุกครั้งที่เลือก — เรียงคิวทีละคำขอ (กดเร็วๆ ค่าเก่าจะไม่ทับค่าใหม่)
+  // สถานะแสดงเฉพาะของคำขอล่าสุด
+  const saveChain = useRef<Promise<void>>(Promise.resolve());
+  const saveSeq = useRef(0);
+  const [companySave, setCompanySave] = useState<"idle" | "saving" | "saved" | "error">("idle");
   // ── KKU REG Sync ──────────────────────────────
   const [kkuModalOpen, setKkuModalOpen] = useState(false);
   const [kkuUser, setKkuUser] = useState("");
@@ -267,32 +272,38 @@ export default function S_ProfilePage() {
     }
   }
 
-  async function saveStudentCompany() {
-    if (!profile) return;
-    try {
-      const res = await apiFetch("/api/students/me", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          companyId: profile.company?.id || null,
-          contactIds: (profile.company?.selectedContacts || []).map((c) => c.id),
-        }),
-      });
-      if (res.ok) {
-        const result = await res.json();
-        setProfile(prev => ({
-          ...prev!,
-          ...result.student,
-          company: profile.company // คงค่าไว้ไม่ให้ UI กระพริบ
-        }));
-        notify.success((profile.company?.selectedContacts || []).length === 0 && profile.company
-          ? "บันทึกสถานที่ฝึกแล้ว — อย่าลืมเลือกผู้ติดต่อ (HR) ก่อนยื่นคำร้อง"
-          : "บันทึกข้อมูลสถานที่ฝึกเรียบร้อย");
-      } else {
-        const err = await res.json().catch(() => ({}));
-        notify.error(err.message || "บันทึกไม่สำเร็จ กรุณาลองใหม่");
+  // บันทึกบริษัท + ผู้ติดต่อที่เลือก (ค่าที่ส่งมา ไม่อ่านจาก state ที่อาจยังไม่อัปเดต)
+  function persistCompany(next: StudentCompany | undefined) {
+    const seq = ++saveSeq.current;
+    setCompanySave("saving");
+    saveChain.current = saveChain.current.then(async () => {
+      try {
+        const res = await apiFetch("/api/students/me", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            companyId: next?.id || null,
+            contactIds: (next?.selectedContacts || []).map((c) => c.id),
+          }),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          if (seq === saveSeq.current) setCompanySave("error");
+          notify.error(err.message || "บันทึกสถานที่ฝึกไม่สำเร็จ กรุณาลองใหม่");
+          return;
+        }
+        if (seq === saveSeq.current) setCompanySave("saved");
+      } catch {
+        if (seq === saveSeq.current) setCompanySave("error");
+        notify.error("บันทึกสถานที่ฝึกไม่สำเร็จ: เชื่อมต่อเซิร์ฟเวอร์ไม่ได้");
       }
-    } catch (err) { notify.error("เกิดข้อผิดพลาดในการบันทึกบริษัท"); }
+    });
+  }
+
+  // เปลี่ยนบริษัท/ผู้ติดต่อบนหน้าจอ แล้วบันทึกทันที
+  function applyCompany(next: StudentCompany | undefined) {
+    setProfile((prev) => ({ ...prev!, company: next }));
+    persistCompany(next);
   }
 
   // ฟังก์ชันประกอบร่างที่อยู่
@@ -333,11 +344,11 @@ export default function S_ProfilePage() {
     ? (profile.company.contacts || []).filter((c) => !selectedContactIds.has(c.id)).map((c) => ({ id: c.id, label: contactLine(c), rawData: c }))
     : [];
   const setSelectedContacts = (next: CompanyContact[]) =>
-    setProfile({ ...profile, company: { ...profile.company!, selectedContacts: next } });
+    applyCompany({ ...profile.company!, selectedContacts: next });
   // ผู้ติดต่อใหม่ที่เพิ่ม — ใส่ทั้งในรายการของบริษัท (หน้านี้ + รายการบริษัทที่โหลดไว้) และเลือกให้เลย
   const onContactAdded = (c: CompanyContact) => {
     const company = profile.company!;
-    setProfile({ ...profile, company: { ...company, contacts: [...(company.contacts || []), c], selectedContacts: [...selectedContacts, c] } });
+    applyCompany({ ...company, contacts: [...(company.contacts || []), c], selectedContacts: [...selectedContacts, c] });
     setCompanies((prev) => prev.map((x) => (x.id === company.id ? { ...x, contacts: [...(x.contacts || []), c] } : x)));
     setAddingContact(false);
   };
@@ -468,14 +479,19 @@ export default function S_ProfilePage() {
                 placeholder="พิมพ์ค้นหาชื่อบริษัท..."
                 noOptionText="ไม่พบบริษัทที่ค้นหา"
                 onAddClick={() => navigate("/student/company")}
-                onChange={(id: string, rawData: any) => {
-                  // เปลี่ยนบริษัท = ผู้ติดต่อที่เลือกไว้เป็นของบริษัทเก่า ต้องล้าง
-                  setAddingContact(false);
-                  if (id === "clear") {
-                    setProfile({ ...profile, company: undefined });
-                  } else {
-                    setProfile({ ...profile, company: { ...rawData, contacts: rawData.contacts || [], selectedContacts: [] } });
+                onChange={async (id: string, rawData: any) => {
+                  const current = profile.company;
+                  if (current?.id === id) return;
+                  // บันทึกทันที — เปลี่ยนจากบริษัทที่เลือกไว้แล้วต้องยืนยันก่อน (กันเผลอเลือกผิด ผู้ติดต่อที่เลือกไว้จะหาย)
+                  if (current?.id) {
+                    const msg = id === "clear"
+                      ? `ยกเลิกบริษัท "${current.name}"? ผู้ติดต่อที่เลือกไว้จะถูกล้าง`
+                      : `เปลี่ยนบริษัทจาก "${current.name}" เป็น "${rawData?.name}"? ผู้ติดต่อที่เลือกไว้จะถูกล้าง ต้องเลือกใหม่`;
+                    if (!(await askConfirm(msg, { title: "เปลี่ยนบริษัท", confirmLabel: "เปลี่ยนบริษัท", icon: "🏢" }))) return;
                   }
+                  setAddingContact(false);
+                  // เปลี่ยนบริษัท = ผู้ติดต่อที่เลือกไว้เป็นของบริษัทเก่า ต้องล้าง
+                  applyCompany(id === "clear" ? undefined : { ...rawData, contacts: rawData.contacts || [], selectedContacts: [] });
                 }}
               />
             </div>
@@ -529,11 +545,17 @@ export default function S_ProfilePage() {
             </div>
           </div>
 
-          <div className="action-row">
-            <button className="btn" onClick={saveStudentCompany}>
-              <IcSave width={16} height={16} style={{ marginRight: 8 }} />
-              บันทึกสถานที่ฝึก
-            </button>
+          {/* บันทึกอัตโนมัติ — แสดงสถานะแทนปุ่มบันทึก */}
+          <div className="company-save-status" aria-live="polite" style={{ fontSize: 13, minHeight: 20 }}>
+            {companySave === "saving" && <span style={{ color: '#64748b' }}>⏳ กำลังบันทึก...</span>}
+            {companySave === "saved" && <span style={{ color: '#15803d' }}>✓ บันทึกแล้ว</span>}
+            {companySave === "error" && (
+              <span style={{ color: '#b91c1c' }}>
+                บันทึกไม่สำเร็จ{" "}
+                <button type="button" className="btn-secondary" style={{ padding: '2px 10px', fontSize: 12 }} onClick={() => persistCompany(profile.company)}>ลองอีกครั้ง</button>
+              </span>
+            )}
+            {companySave === "idle" && <span style={{ color: '#94a3b8' }}>เลือกแล้วระบบบันทึกให้ทันที</span>}
           </div>
 
           {/* รายละเอียดบริษัท / พี่เลี้ยงที่ถูกเลือก */}
