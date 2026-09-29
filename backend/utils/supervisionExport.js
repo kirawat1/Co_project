@@ -1,5 +1,6 @@
 const XLSX = require('xlsx');
 const { resolveSlotEnd, dateKey, timeKey } = require('./supervisionClash');
+const { fileUrl } = require('./studentExport');
 
 const SUPERVISION_TYPE_LABEL_TH = { ONLINE: 'ออนไลน์', ONSITE: 'ออนไซต์' };
 const SUPERVISION_STATUS_LABEL_TH = {
@@ -37,6 +38,36 @@ const SUPERVISION_SCHEDULE_SELECT = {
     },
   },
 };
+
+// ไฟล์ Excel ต้องการไฟล์เอกสารด้วย — แยก select ไว้ ไม่ให้ตารางบนหน้าเว็บโหลดเอกสารโดยไม่จำเป็น
+const SUPERVISION_EXPORT_SELECT = {
+  ...SUPERVISION_SCHEDULE_SELECT,
+  officialLetterPath: true,
+  student: {
+    select: {
+      ...SUPERVISION_SCHEDULE_SELECT.student.select,
+      coop: { select: { ...SUPERVISION_SCHEDULE_SELECT.student.select.coop.select, placeLetterUrl: true } },
+      documents: {
+        where: { type: { in: ['PLACEMENT_LETTER', 'T002_FORM', 'T003_FORM'] } },
+        select: { type: true, path: true },
+        orderBy: { uploadedAt: 'asc' },
+      },
+    },
+  },
+};
+
+// [หัวคอลัมน์, หาไฟล์จาก appointment]
+const latestDocPath = (appt, type) => {
+  const docs = (appt.student?.documents || []).filter((d) => d.type === type && d.path);
+  return docs.length ? docs[docs.length - 1].path : null;
+};
+const DOC_COLUMNS = [
+  // หนังสือขอนิเทศเก็บในโฟลเดอร์ uploads/supervision/ (ไฟล์อื่นอยู่ที่ uploads/ ตรงๆ)
+  ['ไฟล์: หนังสือขอนิเทศ', (a) => (a.officialLetterPath ? `supervision/${a.officialLetterPath}` : null)],
+  ['ไฟล์: หนังสือส่งตัว', (a) => latestDocPath(a, 'PLACEMENT_LETTER') || a.student?.coop?.placeLetterUrl || null],
+  ['ไฟล์: T002', (a) => latestDocPath(a, 'T002_FORM')],
+  ['ไฟล์: T003', (a) => latestDocPath(a, 'T003_FORM')],
+];
 
 const dash = (v) => {
   const s = String(v ?? '').trim();
@@ -103,7 +134,8 @@ const COLUMNS = [
 const LINK_HEADER = 'ลิงก์นิเทศ (ออนไลน์)';
 // ใส่ลิงก์เฉพาะ http/https — ค่าอื่นแสดงเป็นข้อความ ไม่ทำเป็นลิงก์ให้กด
 const SAFE_LINK_RE = /^https?:///i;
-const EXPORT_HEADERS = COLUMNS.map(([h]) => h);
+const EXPORT_HEADERS = [...COLUMNS.map(([h]) => h), ...DOC_COLUMNS.map(([h]) => h)];
+const COLUMN_WIDTHS = [...COLUMNS.map(([, wch]) => wch), ...DOC_COLUMNS.map(() => 18)];
 
 function rowToExcel(row) {
   return {
@@ -125,14 +157,34 @@ function rowToExcel(row) {
 }
 
 // เรียงตามวันแล้วเวลา — ตารางนิเทศอ่านตามลำดับวันเสมอ
+const compareRows = (a, b) => (a.date === b.date ? a.start.localeCompare(b.start) : a.date.localeCompare(b.date));
 function sortSchedule(rows) {
-  return [...rows].sort((a, b) => (a.date === b.date ? a.start.localeCompare(b.start) : a.date.localeCompare(b.date)));
+  return [...rows].sort(compareRows);
 }
 
-function buildSupervisionScheduleWorkbook(appointments) {
-  const rows = sortSchedule(appointments.map(toScheduleRow)).map(rowToExcel);
+/**
+ * @param baseUrl  โดเมนของเว็บ — ใช้ทำลิงก์เปิดไฟล์ (ไม่ส่ง = แสดง "มีไฟล์" แต่กดเปิดไม่ได้)
+ */
+function buildSupervisionScheduleWorkbook(appointments, { baseUrl } = {}) {
+  const sorted = appointments
+    .map((appt) => ({ appt, row: toScheduleRow(appt) }))
+    .sort((a, b) => compareRows(a.row, b.row));
+  const docPaths = sorted.map(({ appt }) => DOC_COLUMNS.map(([, pick]) => pick(appt)));
+  const rows = sorted.map(({ row }, i) => ({
+    ...rowToExcel(row),
+    ...Object.fromEntries(DOC_COLUMNS.map(([h], c) => [h, docPaths[i][c] ? 'เปิดไฟล์' : '-'])),
+  }));
   const worksheet = XLSX.utils.json_to_sheet(rows, { header: EXPORT_HEADERS });
-  worksheet['!cols'] = COLUMNS.map(([, wch]) => ({ wch }));
+  worksheet['!cols'] = COLUMN_WIDTHS.map((wch) => ({ wch }));
+
+  DOC_COLUMNS.forEach(([h], c) => {
+    const col = EXPORT_HEADERS.indexOf(h);
+    docPaths.forEach((paths, i) => {
+      const url = fileUrl(baseUrl, paths[c]);
+      const cell = url && worksheet[XLSX.utils.encode_cell({ r: i + 1, c: col })];
+      if (cell) cell.l = { Target: url, Tooltip: 'เปิดไฟล์' };
+    });
+  });
 
   // ทำให้ลิงก์กดเปิดได้ใน Excel
   const linkCol = EXPORT_HEADERS.indexOf(LINK_HEADER);
@@ -149,6 +201,7 @@ function buildSupervisionScheduleWorkbook(appointments) {
 
 module.exports = {
   SUPERVISION_SCHEDULE_SELECT,
+  SUPERVISION_EXPORT_SELECT,
   toScheduleRow,
   sortSchedule,
   rowToExcel,

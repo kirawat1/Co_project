@@ -5,7 +5,8 @@ const { createNotifications, getStaffAndCoopTeacherIds } = require('../utils/not
 const { normalizeDocNumber, isPlaceholderDocNo, parseDateOr400 } = require('../utils/docNumber');
 const { setAuditDetail, letterPendingActionText, supervisionLetterActionText } = require('../utils/auditActions');
 const { resolveSlotEnd, assertNoTeacherClash, findTeacherClash, dateKey, timeKey, parseProposedList } = require('../utils/supervisionClash');
-const { SUPERVISION_SCHEDULE_SELECT, toScheduleRow, sortSchedule, buildSupervisionScheduleWorkbook } = require('../utils/supervisionExport');
+const { SUPERVISION_SCHEDULE_SELECT, SUPERVISION_EXPORT_SELECT, toScheduleRow, sortSchedule, buildSupervisionScheduleWorkbook } = require('../utils/supervisionExport');
+const { exportBaseUrl } = require('../utils/studentExport');
 const { resolveMajorNameTh } = require('../utils/majorName');
 
 const CLEARED_LETTER_PENDING = { letterPendingAt: null, letterDraftNumber: null, letterDraftDate: null };
@@ -1075,11 +1076,11 @@ exports.exportSupervisionSchedule = async (req, res) => {
                     ...(coopPeriodId ? { coop: { coopPeriodId } } : {}),
                 },
             },
-            select: SUPERVISION_SCHEDULE_SELECT,
+            select: SUPERVISION_EXPORT_SELECT,
             orderBy: { confirmedDate: 'asc' },
         });
 
-        const buffer = buildSupervisionScheduleWorkbook(appointments);
+        const buffer = buildSupervisionScheduleWorkbook(appointments, { baseUrl: exportBaseUrl(req) });
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         res.setHeader('Content-Disposition', `attachment; filename="supervision_schedule_${coopPeriodId || 'all'}.xlsx"`);
         res.send(buffer);
