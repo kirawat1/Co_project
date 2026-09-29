@@ -2,6 +2,11 @@ const prisma = require("../config/prismaClient");
 const { createNotifications } = require('../utils/notificationHelper');
 const { buildStudentExportWorkbook, exportBaseUrl, STUDENT_EXPORT_INCLUDE } = require('../utils/studentExport');
 const { changeUserEmail } = require('../utils/userEmail');
+const { parseCoopMajors, setCoopMajors } = require('../utils/coopMajors');
+
+// หลักสูตรที่อาจารย์ประจำวิชาดูแล → ส่งให้หน้าเว็บเป็น coopMajors: ['CS', ...]
+const TEACHER_COOP_MAJORS = { coopMajors: { select: { major: true }, orderBy: { major: 'asc' } } };
+const withCoopMajors = (t) => (t ? { ...t, coopMajors: (t.coopMajors || []).map((m) => m.major) } : t);
 
 // ✅ 1. getProfile: เลียนแบบ logic ของ Student
 exports.getProfile = async (req, res) => {
@@ -15,8 +20,9 @@ exports.getProfile = async (req, res) => {
     // หา Teacher พร้อมดึง email จากตาราง User
     const teacher = await prisma.teacher.findUnique({
       where: { userId: userId },
-      include: { 
-        user: { select: { email: true } } 
+      include: {
+        user: { select: { email: true } },
+        ...TEACHER_COOP_MAJORS,
       }
     });
 
@@ -42,7 +48,7 @@ exports.getProfile = async (req, res) => {
 
     // กรณี: มีข้อมูลแล้ว
     res.json({
-      ...teacher,
+      ...withCoopMajors(teacher),
       email: teacher.user ? teacher.user.email : "",
     });
 
@@ -146,14 +152,15 @@ exports.getAllTeachers = async (req, res) => {
       // เฉพาะบัญชีที่เป็นอาจารย์จริง — กันข้อมูลอาจารย์ที่ค้างอยู่บนบัญชีนักศึกษาโผล่ในหน้าอาจารย์/ตัวเลือกอาจารย์ที่ปรึกษา
       where: { user: { role: 'teacher' } },
       include: {
-        user: { select: { email: true } } // ดึงอีเมลจากตาราง User
+        user: { select: { email: true } }, // ดึงอีเมลจากตาราง User
+        ...TEACHER_COOP_MAJORS,
       },
       orderBy: { id: 'asc' }
     });
 
     // Map ข้อมูลจัดรูปแบบให้ Frontend ใช้ง่าย
     const result = teachers.map(t => ({
-      ...t,
+      ...withCoopMajors(t),
       email: t.user ? t.user.email : ""
     }));
 
@@ -171,7 +178,8 @@ exports.updateTeacherById = async (req, res) => {
     const parsedTeacherId = parseInt(id, 10);
     if (isNaN(parsedTeacherId) || parsedTeacherId <= 0)
       return res.status(400).json({ ok: false, message: 'id ไม่ถูกต้อง' });
-    const { firstName, lastName, phone, major, prefix, isCoopTeacher } = req.body;
+    // สถานะอาจารย์ประจำวิชาแก้ที่ PUT /api/admin/teachers/:id (coopMajors) เท่านั้น
+    const { firstName, lastName, phone, major, prefix } = req.body;
 
     const updated = await prisma.teacher.update({
       where: { id: parsedTeacherId },
@@ -181,7 +189,6 @@ exports.updateTeacherById = async (req, res) => {
         phone,
         major,
         prefix: prefix || null,
-        ...(isCoopTeacher !== undefined && { isCoopTeacher: Boolean(isCoopTeacher) }),
       },
       include: {
         user: { select: { email: true } }
@@ -533,6 +540,7 @@ exports.createTeacher = async (req, res) => {
     if (!firstName || !lastName || !email || !password) {
       return res.status(400).json({ ok: false, message: "กรุณากรอก ชื่อ นามสกุล อีเมล และรหัสผ่าน" });
     }
+    const coopMajors = parseCoopMajors(req.body.coopMajors);
     const pwError = validatePassword(password);
     if (pwError) return res.status(400).json({ ok: false, message: pwError });
 
@@ -557,10 +565,12 @@ exports.createTeacher = async (req, res) => {
           prefix: prefix || null,
         },
       });
+      if (coopMajors?.length) await setCoopMajors(tx, teacher.id, coopMajors);
     });
 
     res.json({ ok: true, teacher });
   } catch (err) {
+    if (err.is400) return res.status(400).json({ ok: false, message: err.message });
     if (err.is409) return res.status(409).json({ ok: false, message: err.message });
     console.error("CREATE TEACHER ERROR:", err);
     res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดที่ Server" });
@@ -668,7 +678,8 @@ exports.adminUpdateTeacher = async (req, res) => {
     const parsedId = parseInt(id, 10);
     if (isNaN(parsedId) || parsedId <= 0)
       return res.status(400).json({ ok: false, message: 'id ไม่ถูกต้อง' });
-    const { firstName, lastName, email, phone, major, prefix, isCoopTeacher } = req.body;
+    const { firstName, lastName, email, phone, major, prefix } = req.body;
+    const coopMajors = parseCoopMajors(req.body.coopMajors);
 
     const teacher = await prisma.teacher.findUnique({ where: { id: parsedId } });
     if (!teacher) return res.status(404).json({ ok: false, message: "ไม่พบอาจารย์" });
@@ -678,19 +689,21 @@ exports.adminUpdateTeacher = async (req, res) => {
       // อาจารย์ login ด้วยอีเมล (ไม่ได้เข้าผ่าน SSO) — เปลี่ยนอีเมลแล้ว username (= อีเมล) เปลี่ยนตาม
       // ใช้ตัวกลางเดียวกับนักศึกษา: เปลี่ยนเฉพาะเมื่ออีเมลเปลี่ยนจริง และเช็คชนทั้งอีเมลและ username
       const emailChange = await changeUserEmail(tx, teacher.userId, email);
-      updated = await tx.teacher.update({
+      await tx.teacher.update({
         where: { id: parsedId },
         data: {
           firstName, lastName, phone, major,
           ...(emailChange.changed && { email: emailChange.email }),
           prefix: prefix || null,
-          ...(isCoopTeacher !== undefined && { isCoopTeacher: Boolean(isCoopTeacher) }),
         },
       });
+      if (coopMajors !== undefined) await setCoopMajors(tx, parsedId, coopMajors);
+      updated = await tx.teacher.findUnique({ where: { id: parsedId }, include: TEACHER_COOP_MAJORS });
     });
 
-    res.json({ ok: true, data: updated });
+    res.json({ ok: true, data: withCoopMajors(updated) });
   } catch (err) {
+    if (err.is400) return res.status(400).json({ ok: false, message: err.message });
     if (err.is409) return res.status(409).json({ ok: false, message: err.message });
     if (err.is404) return res.status(404).json({ ok: false, message: err.message });
     if (err.code === 'P2025') return res.status(404).json({ ok: false, message: 'ไม่พบอาจารย์' });

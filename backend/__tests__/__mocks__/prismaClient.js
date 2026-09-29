@@ -159,6 +159,11 @@ const prismaMock = {
     update: jest.fn(),
     createMany: jest.fn(),
   },
+  coopTeacherMajor: {
+    findMany: jest.fn(),
+    createMany: jest.fn(),
+    deleteMany: jest.fn(),
+  },
   visit: {
     findMany: jest.fn(),
     findUnique: jest.fn(),
