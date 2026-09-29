@@ -655,11 +655,6 @@ export default function S_Docs({ profile, setProfile }: { profile: LocalStudentP
           <CountdownTimer endDate={config?.endDate} isOpen={config?.isOpen} />
         </div>
 
-        {/* คำแนะนำถาวร ไม่ผูกกับหัวข้อเอกสารที่เจ้าหน้าที่กำหนด — เอกสารกลุ่มนี้ส่วนใหญ่เป็นสำเนา (บัตรประชาชน/บัตรนักศึกษา/ทรานสคริปต์) ต้องเซ็นรับรองก่อนอัปโหลดทุกแผ่น */}
-        <div style={{ marginBottom: 16, padding: '10px 14px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, fontSize: 12.5, color: '#92400e', lineHeight: 1.6 }}>
-          📝 <b>เอกสารที่เป็นสำเนา</b> (เช่น สำเนาบัตรประชาชน, สำเนาบัตรนักศึกษา, สำเนาทรานสคริปต์) ต้องเซ็นรับรองสำเนาถูกต้องก่อนอัปโหลดทุกแผ่น โดยเขียนคำว่า <b>"สำเนาถูกต้อง"</b> พร้อมลงลายมือชื่อและวันที่กำกับไว้บนเอกสาร
-        </div>
-
         {requiredDocs.length === 0 ? (
           <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8', background: '#f8fafc', borderRadius: 12, border: '1px dashed #cbd5e1' }}>
             <div style={{ fontSize: 32, marginBottom: 10 }}>⏳</div>
