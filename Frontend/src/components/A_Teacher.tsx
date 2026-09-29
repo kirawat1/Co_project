@@ -20,7 +20,10 @@ interface Teacher {
   phone: string;
   major: string;
   userId?: number;
-  isCoopTeacher: boolean;
+  // หลักสูตรที่ดูแลในฐานะอาจารย์ประจำวิชาสหกิจ (ว่าง = ไม่ใช่อาจารย์ประจำวิชา)
+  coopMajors: string[];
+  // สวิตช์เปิดอยู่แต่ยังไม่ได้ติ๊กหลักสูตร (ใช้บนฟอร์มเท่านั้น)
+  coopOn?: boolean;
 }
 
 const TEACHER_PREFIXES_DEFAULT = ['ผศ.', 'ผศ. ดร.', 'รศ.', 'รศ. ดร.', 'ศ.', 'ศ. ดร.', 'อ.', 'อ. ดร.', 'ดร.'];
@@ -28,8 +31,11 @@ const TEACHER_PREFIXES_DEFAULT = ['ผศ.', 'ผศ. ดร.', 'รศ.', 'ร�
 const EMPTY_TEACHER: Omit<Teacher, "id"> = {
   prefix: '', firstName: "", lastName: "", email: "",
   phone: "", major: "",
-  isCoopTeacher: false,
+  coopMajors: [],
 };
+
+// สวิตช์อาจารย์ประจำวิชาเปิด แต่ยังไม่ได้เลือกหลักสูตร → บันทึกไม่ได้ (จะกลายเป็นไม่ใช่อาจารย์ประจำวิชาโดยไม่รู้ตัว)
+const coopMajorsMissing = (f: Omit<Teacher, "id">) => !!f.coopOn && f.coopMajors.length === 0;
 
 /* =========================
    Main Component
@@ -70,7 +76,7 @@ export default function A_Teacher() {
         const data = await res.json();
         setItems((Array.isArray(data) ? data : []).map((t: any) => ({
           ...t, email: t.user?.email || t.email || "", major: t.major || t.department,
-          isCoopTeacher: t.isCoopTeacher ?? false,
+          coopMajors: t.coopMajors ?? [],
         })));
         setSelectedIds(new Set());
       }
@@ -109,6 +115,7 @@ export default function A_Teacher() {
       toast.warning("กรุณากรอกชื่อ นามสกุล อีเมล และรหัสผ่าน");
       return;
     }
+    if (coopMajorsMissing(createForm)) { toast.warning("กรุณาเลือกหลักสูตรที่ดูแลอย่างน้อย 1 หลักสูตร"); return; }
     setSaving(true);
     try {
       const res = await apiFetch("/api/admin/teachers", {
@@ -131,6 +138,7 @@ export default function A_Teacher() {
   };
 
   const handleUpdate = async (updated: Teacher) => {
+    if (coopMajorsMissing(updated)) { toast.warning("กรุณาเลือกหลักสูตรที่ดูแลอย่างน้อย 1 หลักสูตร"); return; }
     setSaving(true);
     try {
       const res = await apiFetch(`/api/admin/teachers/${updated.id}`, {
@@ -381,9 +389,9 @@ export default function A_Teacher() {
                       <IcUser width={16} height={16} style={{ color: "#0074B7" }} />
                     </div>
                     <span style={{ fontWeight: 600, color: "#1e293b" }}>{[t.prefix, t.firstName, t.lastName].filter(Boolean).join(' ')}</span>
-                    {t.isCoopTeacher && (
+                    {t.coopMajors.length > 0 && (
                       <span style={{ background: '#eff6ff', color: '#2563eb', fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 6, marginLeft: 6 }}>
-                        ประจำวิชาสหกิจ
+                        ประจำวิชาสหกิจ · {t.coopMajors.join(", ")}
                       </span>
                     )}
                   </div>
@@ -556,6 +564,7 @@ function TeacherFields({ form, setForm, prefixOptions, departments, allowEmailEd
   departments: string[];
   allowEmailEdit?: boolean;
 }) {
+  const coopOn = !!form.coopOn || form.coopMajors.length > 0;
   return (
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
       <div>
@@ -597,31 +606,55 @@ function TeacherFields({ form, setForm, prefixOptions, departments, allowEmailEd
           {departments.map(d => <option key={d} value={d}>{d}</option>)}
         </select>
       </div>
-      {/* อาจารย์ประจำวิชาสหกิจ */}
-      <div style={{ gridColumn: "span 2", display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0', borderTop: '1px solid #f1f5f9', marginTop: 8 }}>
-        <div>
-          <div style={{ fontWeight: 700, fontSize: 14, color: '#334155' }}>อาจารย์ประจำวิชาสหกิจ</div>
-          <div style={{ fontSize: 12, color: '#94a3b8' }}>เห็นนักศึกษาทั้งหมดและจัดการนิเทศได้</div>
+      {/* อาจารย์ประจำวิชาสหกิจ + หลักสูตรที่ดูแล */}
+      <div style={{ gridColumn: "span 2", padding: '10px 0', borderTop: '1px solid #f1f5f9', marginTop: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 14, color: '#334155' }}>อาจารย์ประจำวิชาสหกิจ</div>
+            <div style={{ fontSize: 12, color: '#94a3b8' }}>จัดการนักศึกษาและการตั้งค่าของหลักสูตรที่ดูแล</div>
+          </div>
+          <label style={{ position: 'relative', display: 'inline-block', width: 44, height: 24, cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              aria-label="อาจารย์ประจำวิชาสหกิจ"
+              checked={coopOn}
+              onChange={e => setForm(e.target.checked
+                // เปิดครั้งแรก → ติ๊กหลักสูตรของอาจารย์เองให้ก่อน (ส่วนใหญ่ดูแลหลักสูตรเดียว)
+                ? { ...form, coopOn: true, coopMajors: form.major && departments.includes(form.major) ? [form.major] : [] }
+                : { ...form, coopOn: false, coopMajors: [] })}
+              style={{ opacity: 0, width: 0, height: 0 }}
+            />
+            <span style={{ position: 'absolute', inset: 0, borderRadius: 24, background: coopOn ? '#2563eb' : '#cbd5e1', transition: '0.2s' }}>
+              <span style={{
+                position: 'absolute', top: 2, left: coopOn ? 22 : 2,
+                width: 20, height: 20, borderRadius: '50%', background: '#fff',
+                transition: '0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+              }} />
+            </span>
+          </label>
         </div>
-        <label style={{ position: 'relative', display: 'inline-block', width: 44, height: 24, cursor: 'pointer' }}>
-          <input
-            type="checkbox"
-            checked={form.isCoopTeacher ?? false}
-            onChange={e => setForm({ ...form, isCoopTeacher: e.target.checked })}
-            style={{ opacity: 0, width: 0, height: 0 }}
-          />
-          <span style={{
-            position: 'absolute', inset: 0, borderRadius: 24,
-            background: form.isCoopTeacher ? '#2563eb' : '#cbd5e1',
-            transition: '0.2s',
-          }}>
-            <span style={{
-              position: 'absolute', top: 2, left: form.isCoopTeacher ? 22 : 2,
-              width: 20, height: 20, borderRadius: '50%', background: '#fff',
-              transition: '0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
-            }} />
-          </span>
-        </label>
+        {coopOn && (
+          <div style={{ marginTop: 10 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: '#475569', marginBottom: 6 }}>หลักสูตรที่ดูแล *</div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {departments.map(d => {
+                const checked = form.coopMajors.includes(d);
+                return (
+                  <label key={d} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 8, cursor: 'pointer', fontSize: 13, border: `1px solid ${checked ? '#3b82f6' : '#cbd5e1'}`, background: checked ? '#eff6ff' : '#fff', color: checked ? '#1e40af' : '#334155', fontWeight: checked ? 700 : 400 }}>
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => setForm({ ...form, coopOn: true, coopMajors: checked ? form.coopMajors.filter((m: string) => m !== d) : [...form.coopMajors, d] })}
+                      style={{ accentColor: '#2563eb' }}
+                    />
+                    {d}
+                  </label>
+                );
+              })}
+            </div>
+            {form.coopMajors.length === 0 && <div style={{ fontSize: 12, color: '#b45309', marginTop: 6 }}>⚠️ เลือกอย่างน้อย 1 หลักสูตร</div>}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -649,7 +682,7 @@ function FilterBox({ title, items, values, onChange }: { title: string; items: R
 /* =========================
    Styles
 ========================= */
-import React from "react";
+import React from "react";
 import { TABLE_TH, TABLE_TD, TABLE_HEADER_ROW } from "../utils/tableStyles";
 const card: React.CSSProperties = { background: "#fff", borderRadius: 14, padding: 24, border: "1px solid #e5e7eb" };
 const filterRow: React.CSSProperties = { display: "flex", gap: 24, flexWrap: "wrap", alignItems: "flex-end" };

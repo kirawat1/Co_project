@@ -230,10 +230,22 @@ model CoopApplicationForm {
 // 4. Admin Configuration (คงเดิม)
 // ==========================================
 model CoopCriteria {
-  id        String   @id @default(uuid())
-  major     String   @unique
-  nameTh    String?
-  updatedAt DateTime @updatedAt
+  id           String             @id @default(uuid())
+  major        String             @unique
+  nameTh       String?
+  updatedAt    DateTime           @updatedAt
+  coopTeachers CoopTeacherMajor[]
+}
+
+// อาจารย์ประจำวิชาสหกิจ ↔ หลักสูตรที่ดูแล (ปกติ 1 หลักสูตร) — Teacher.isCoopTeacher ตามมาจากตารางนี้เสมอ (มีอย่างน้อย 1 แถว = true)
+model CoopTeacherMajor {
+  teacherId Int
+  major     String
+  teacher   Teacher      @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  criteria  CoopCriteria @relation(fields: [major], references: [major], onDelete: Cascade, onUpdate: Cascade)
+
+  @@id([teacherId, major])
+  @@index([major])
 }
 
 // ==========================================
@@ -327,6 +339,7 @@ model Teacher {
   updatedAt               DateTime                 @updatedAt
   supervisionAppointments SupervisionAppointment[]
   coSupervisions          SupervisionCoTeacher[]
+  coopMajors              CoopTeacherMajor[]
   generalAdvisees         Student[]                @relation("GeneralAdvisor")
   coopAdvisees            Student[]                @relation("CoopAdvisor")
 }

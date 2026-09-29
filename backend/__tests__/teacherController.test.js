@@ -424,3 +424,61 @@ describe('exportMyStudents', () => {
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: false }));
   });
 });
+
+// =====================
+// หลักสูตรที่อาจารย์ประจำวิชาดูแล (coopMajors) — isCoopTeacher ตามรายการนี้เสมอ
+// =====================
+describe('adminUpdateTeacher — coopMajors', () => {
+  const { adminUpdateTeacher } = require('../controllers/teacherController');
+  const body = { firstName: 'ก', lastName: 'ข', email: 't@kku.ac.th', phone: '', major: 'CS', prefix: 'อ.' };
+  beforeEach(() => {
+    prisma.teacher.findUnique.mockResolvedValue({ id: 9, userId: 90, email: 't@kku.ac.th' });
+    prisma.user.findUnique.mockResolvedValue({ id: 90, email: 't@kku.ac.th', username: 't@kku.ac.th' });
+    prisma.user.findFirst.mockResolvedValue(null);
+    prisma.teacher.update.mockResolvedValue({});
+  });
+
+  test('กำหนดหลักสูตรที่ดูแล → แทนที่รายการเดิม และ isCoopTeacher = true', async () => {
+    prisma.coopCriteria.findMany.mockResolvedValue([{ major: 'CS' }, { major: 'AI' }]);
+    const res = makeRes();
+    await adminUpdateTeacher({ params: { id: '9' }, body: { ...body, coopMajors: ['CS', 'AI', 'CS'] } }, res);
+    expect(prisma.coopTeacherMajor.deleteMany).toHaveBeenCalledWith({ where: { teacherId: 9 } });
+    expect(prisma.coopTeacherMajor.createMany).toHaveBeenCalledWith({ data: [{ teacherId: 9, major: 'CS' }, { teacherId: 9, major: 'AI' }] });
+    expect(prisma.teacher.update).toHaveBeenCalledWith({ where: { id: 9 }, data: { isCoopTeacher: true } });
+  });
+
+  test('ล้างรายการ → isCoopTeacher = false', async () => {
+    const res = makeRes();
+    await adminUpdateTeacher({ params: { id: '9' }, body: { ...body, coopMajors: [] } }, res);
+    expect(prisma.coopTeacherMajor.createMany).not.toHaveBeenCalled();
+    expect(prisma.teacher.update).toHaveBeenCalledWith({ where: { id: 9 }, data: { isCoopTeacher: false } });
+  });
+
+  test('ไม่ส่ง coopMajors → ไม่แตะสถานะอาจารย์ประจำวิชา · ส่ง isCoopTeacher ตรงๆ ก็ไม่มีผล', async () => {
+    const res = makeRes();
+    await adminUpdateTeacher({ params: { id: '9' }, body: { ...body, isCoopTeacher: true } }, res);
+    expect(prisma.coopTeacherMajor.deleteMany).not.toHaveBeenCalled();
+    for (const [arg] of prisma.teacher.update.mock.calls) expect(arg.data).not.toHaveProperty('isCoopTeacher');
+  });
+
+  test('400 — หลักสูตรที่ไม่มีในระบบ', async () => {
+    prisma.coopCriteria.findMany.mockResolvedValue([{ major: 'CS' }]);
+    const res = makeRes();
+    await adminUpdateTeacher({ params: { id: '9' }, body: { ...body, coopMajors: ['CS', 'XX'] } }, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(prisma.coopTeacherMajor.createMany).not.toHaveBeenCalled();
+  });
+
+  test('400 — coopMajors ไม่ใช่รายการ', async () => {
+    const res = makeRes();
+    await adminUpdateTeacher({ params: { id: '9' }, body: { ...body, coopMajors: 'CS' } }, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+  });
+});
+
+test('getAllTeachers ส่ง coopMajors เป็นรายการรหัส', async () => {
+  prisma.teacher.findMany.mockResolvedValue([{ id: 1, firstName: 'ก', user: { email: 'a@kku.ac.th' }, coopMajors: [{ major: 'AI' }, { major: 'CS' }] }]);
+  const res = makeRes();
+  await getAllTeachers({}, res);
+  expect(res.json.mock.calls[0][0][0].coopMajors).toEqual(['AI', 'CS']);
+});
