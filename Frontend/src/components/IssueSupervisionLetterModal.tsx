@@ -72,6 +72,7 @@ export default function IssueSupervisionLetterModal({ supervision, onClose, onSu
             const html = buildSupervisionLetterHtml({
                 docNumber, docDate, studentName,
                 studentId: student.studentId || "",
+                major: student.major, majorNameTh: student.majorNameTh,
                 companyName, supervisorNames, visitDate, visitTime, visitMode, deanName, deanPosition,
                 companyRecipient: recipientText(letterRecipient(student.coop)) || undefined,
             });

@@ -27,8 +27,19 @@ const OLD_TERMS = /สาขา|ระบบการศึกษา|แผน�
   test('หนังสือราชการยังใช้ถ้อยคำทางการเดิม (ไม่ถูกเปลี่ยนตาม)', () => {
     const read = (f) => fs.readFileSync(path.join(SRC, 'utils', f), 'utf8');
     expect(read('pdfGeneratorParentalConsent.ts')).toMatch(/หลักสูตร \$\{curriculum\} สาขาวิชา \$\{major\}/);
-    expect(read('pdfSupervisionLetterGenerator.ts')).toMatch(/สาขาวิชาวิทยาการคอมพิวเตอร์/);
+    // คำว่า "สาขาวิชา" (ถ้อยคำทางการ) ต้องคงอยู่ — แต่ชื่อหลักสูตรที่ตามหลังต้องเป็นค่าจริงของนักศึกษา (ตัวแปร)
+    // ไม่ใช่ฮาร์ดโค้ด "วิทยาการคอมพิวเตอร์" ตรงๆ (บั๊กเดิม: นักศึกษาสาขาอื่น เช่น AI ก็ขึ้นว่า "วิทยาการคอมพิวเตอร์" ในหนังสือทุกฉบับ)
+    const supervisionSrc = read('pdfSupervisionLetterGenerator.ts');
+    expect(supervisionSrc).toMatch(/สาขาวิชา\$\{majorName\}/);
+    expect(supervisionSrc).not.toMatch(/สาขาวิชาวิทยาการคอมพิวเตอร์/);
     expect(read('pdfGeneratorT000.ts')).toMatch(/drawText\("สาขาวิชา"/);
+  });
+
+  test('หนังสือส่งตัว/หนังสือขอนิเทศ (.docx) ไม่ฮาร์ดโค้ดชื่อหลักสูตร — ต้องดึงจากข้อมูลนักศึกษาจริง', () => {
+    const read = (f) => fs.readFileSync(path.join(SRC, 'utils', f), 'utf8');
+    const docGen = read('docGeneratorUtils.ts');
+    expect(docGen).not.toMatch(/สาขาวิชาวิทยาการคอมพิวเตอร์/);
+    expect(docGen).not.toMatch(/รับนักศึกษาหลักสูตรวิทยาการคอมพิวเตอร์/);
   });
 });
 

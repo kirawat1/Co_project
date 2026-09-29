@@ -112,16 +112,25 @@ describe('saveSupervisionPeriod', () => {
 // getAllSupervisions
 // ===========================
 describe('getAllSupervisions', () => {
-  test('200 — returns supervisions array', async () => {
+  test('200 — returns supervisions array with student.majorNameTh resolved', async () => {
     const supervisions = [
-      { id: 1, status: 'PENDING_TEACHER', student: { firstName: 'ก', lastName: 'ข' }, teacher: { id: 5 } },
+      { id: 1, status: 'PENDING_TEACHER', student: { firstName: 'ก', lastName: 'ข', major: 'CS' }, teacher: { id: 5 } },
+      { id: 2, status: 'DATE_CONFIRMED', student: { firstName: 'ค', lastName: 'ง', major: null }, teacher: { id: 6 } },
     ];
     prisma.supervisionAppointment.findMany.mockResolvedValue(supervisions);
+    prisma.coopCriteria.findMany.mockResolvedValue([{ major: 'CS', nameTh: 'วิทยาการคอมพิวเตอร์' }]);
 
     const res = makeRes();
     await getAllSupervisions({}, res);
 
-    expect(res.json).toHaveBeenCalledWith({ ok: true, supervisions });
+    // หนังสือนิเทศต้องใช้ชื่อหลักสูตรภาษาไทยจริง ไม่ใช่ฮาร์ดโค้ด — major เป็นรหัส (CS) ต้อง resolve เป็นชื่อไทย
+    expect(res.json).toHaveBeenCalledWith({
+      ok: true,
+      supervisions: [
+        { id: 1, status: 'PENDING_TEACHER', student: { firstName: 'ก', lastName: 'ข', major: 'CS', majorNameTh: 'วิทยาการคอมพิวเตอร์' }, teacher: { id: 5 } },
+        { id: 2, status: 'DATE_CONFIRMED', student: { firstName: 'ค', lastName: 'ง', major: null, majorNameTh: null }, teacher: { id: 6 } },
+      ],
+    });
   });
 
   test('500 — DB error returns server error', async () => {

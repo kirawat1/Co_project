@@ -159,6 +159,8 @@ export function buildDispatchLetterHtml(opts: {
   studentName: string;
   studentId: string;
   studyProgram?: string;
+  major?: string | null;
+  majorNameTh?: string | null;
   companyName: string;
   companyContact?: string;   // ชื่อผู้ติดต่อ เช่น "คุณวิราภาณ์ต กาวิชัย  Talent Acquisition Partner"
   startDate: string;
@@ -166,9 +168,11 @@ export function buildDispatchLetterHtml(opts: {
   deanName: string;
   deanPosition: string;
 }): string {
-  const { docNumber, docDate, studentName, studentId, studyProgram, companyName,
+  const { docNumber, docDate, studentName, studentId, studyProgram, major, majorNameTh, companyName,
           companyContact, startDate, endDate, deanName, deanPosition } = opts;
   const spLabel = studyProgramLabel(studyProgram);
+  // major เป็นรหัสสาขา (CS/AI) — หนังสือส่งตัวต้องใช้ชื่อหลักสูตรภาษาไทยจริงของนักศึกษา ไม่ใช่ค่าคงที่
+  const majorName = formMajorName({ major, majorNameTh }, "วิทยาการคอมพิวเตอร์");
   const dateStr = toThaiDate(docDate);
   const startStr = toThaiDate(startDate);
   const endStr = toThaiDate(endDate);
@@ -210,7 +214,7 @@ export function buildDispatchLetterHtml(opts: {
   </tr>
 </table>
 <p>&nbsp;</p>
-<p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ตามที่ ${companyName} ได้เข้าร่วมโครงการสหกิจศึกษากับมหาวิทยาลัยขอนแก่น วิทยาลัยการคอมพิวเตอร์ และยินดีรับนักศึกษาหลักสูตรวิทยาการคอมพิวเตอร์ เข้าปฏิบัติงานสหกิจศึกษากับบริษัทของท่าน ซึ่งมีกำหนดช่วงเวลาปฏิบัติงาน ระหว่างวันที่ ${startStr} ถึงวันที่ ${endStr} นั้น ในการนี้ ทางวิทยาลัยการคอมพิวเตอร์ จึงใคร่ขอให้ท่านพิจารณานักศึกษาเข้าร่วมโครงการสหกิจศึกษากับทาง ${companyName} จำนวน 1 คน ดังมีรายชื่อต่อไปนี้</p>
+<p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ตามที่ ${companyName} ได้เข้าร่วมโครงการสหกิจศึกษากับมหาวิทยาลัยขอนแก่น วิทยาลัยการคอมพิวเตอร์ และยินดีรับนักศึกษาหลักสูตร${majorName} เข้าปฏิบัติงานสหกิจศึกษากับบริษัทของท่าน ซึ่งมีกำหนดช่วงเวลาปฏิบัติงาน ระหว่างวันที่ ${startStr} ถึงวันที่ ${endStr} นั้น ในการนี้ ทางวิทยาลัยการคอมพิวเตอร์ จึงใคร่ขอให้ท่านพิจารณานักศึกษาเข้าร่วมโครงการสหกิจศึกษากับทาง ${companyName} จำนวน 1 คน ดังมีรายชื่อต่อไปนี้</p>
 <p>&nbsp;</p>
 <p class="center">${studentName}&nbsp;&nbsp;&nbsp;&nbsp;รหัสประจำตัว ${studentId}${spLabel ? `&nbsp;&nbsp;&nbsp;&nbsp;${spLabel}` : ''}</p>
 <p>&nbsp;</p>
@@ -302,6 +306,8 @@ export function buildSupervisionLetterHtml(opts: {
   docDate: string;
   studentName: string;
   studentId: string;
+  major?: string | null;
+  majorNameTh?: string | null;
   companyName: string;
   companyRecipient?: string;  // เช่น "เจ้าหน้าที่ฝ่ายทรัพยากรบุคคล"
   supervisorNames: string[];  // อาจารย์นิเทศ 1-2 คน
@@ -311,7 +317,7 @@ export function buildSupervisionLetterHtml(opts: {
   deanName: string;
   deanPosition: string;
 }): string {
-  const { docNumber, docDate, studentName, studentId, companyName,
+  const { docNumber, docDate, studentName, studentId, major, majorNameTh, companyName,
           companyRecipient, supervisorNames, visitDate, visitTime,
           visitMode, deanName, deanPosition } = opts;
   const dateStr = toThaiDate(docDate);
@@ -320,6 +326,8 @@ export function buildSupervisionLetterHtml(opts: {
   const timeStr = visitTime || "13.30 น.";
   const modeStr = visitMode || "ณ สถานประกอบการ";
   const supervisorStr = joinThaiNames(supervisorNames);
+  // major เป็นรหัสสาขา (CS/AI) — หนังสือนิเทศต้องใช้ชื่อหลักสูตรภาษาไทยจริงของนักศึกษา ไม่ใช่ค่าคงที่
+  const majorName = letterMajorName({ major, majorNameTh });
 
   return `
 <table style="width:100%;margin-bottom:4pt">
@@ -338,9 +346,9 @@ export function buildSupervisionLetterHtml(opts: {
 <p><b>เรื่อง</b>&nbsp;&nbsp;&nbsp;ขอเข้านิเทศงานนักศึกษาปฏิบัติงานสหกิจศึกษา</p>
 <p><b>เรียน</b>&nbsp;&nbsp;&nbsp;${recipient}</p>
 <p>&nbsp;</p>
-<p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ตามที่ท่านให้ความอนุเคราะห์รับนักศึกษาสาขาวิชาวิทยาการคอมพิวเตอร์ จำนวน 1 คน คือ ${studentName} รหัสประจำตัว ${studentId} เข้าปฏิบัติงานสหกิจศึกษากับทาง${companyName} นั้น ในการนี้ สาขาวิชาวิทยาการคอมพิวเตอร์ วิทยาลัยการคอมพิวเตอร์ มหาวิทยาลัยขอนแก่น ใคร่ขอเข้านิเทศนักศึกษาปฏิบัติงานสหกิจศึกษา ในหน่วยงานของท่าน เพื่อแนะนำแนวทางการจัดทำรายงานสหกิจศึกษาและรับทราบปัญหาอุปสรรคของนักศึกษาในรูปแบบ${modeStr} โดยนิเทศงานใน<u>วันที่ ${visitStr} เวลา ${timeStr}</u> โดยมีอาจารย์ผู้นิเทศงานคือ ${supervisorStr}</p>
+<p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ตามที่ท่านให้ความอนุเคราะห์รับนักศึกษาสาขาวิชา${majorName} จำนวน 1 คน คือ ${studentName} รหัสประจำตัว ${studentId} เข้าปฏิบัติงานสหกิจศึกษากับทาง${companyName} นั้น ในการนี้ สาขาวิชา${majorName} วิทยาลัยการคอมพิวเตอร์ มหาวิทยาลัยขอนแก่น ใคร่ขอเข้านิเทศนักศึกษาปฏิบัติงานสหกิจศึกษา ในหน่วยงานของท่าน เพื่อแนะนำแนวทางการจัดทำรายงานสหกิจศึกษาและรับทราบปัญหาอุปสรรคของนักศึกษาในรูปแบบ${modeStr} โดยนิเทศงานใน<u>วันที่ ${visitStr} เวลา ${timeStr}</u> โดยมีอาจารย์ผู้นิเทศงานคือ ${supervisorStr}</p>
 <p>&nbsp;</p>
-<p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;สาขาวิชาวิทยาการคอมพิวเตอร์ วิทยาลัยการคอมพิวเตอร์ มหาวิทยาลัยขอนแก่น ใคร่ขอขอบคุณท่านที่ให้ความอนุเคราะห์เข้านิเทศงาน และร่วมประเมินเบื้องต้นและแจ้งลักษณะการมอบหมายงานของนักศึกษาในครั้งนี้ด้วย จักขอบพระคุณยิ่ง</p>
+<p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;สาขาวิชา${majorName} วิทยาลัยการคอมพิวเตอร์ มหาวิทยาลัยขอนแก่น ใคร่ขอขอบคุณท่านที่ให้ความอนุเคราะห์เข้านิเทศงาน และร่วมประเมินเบื้องต้นและแจ้งลักษณะการมอบหมายงานของนักศึกษาในครั้งนี้ด้วย จักขอบพระคุณยิ่ง</p>
 <p>&nbsp;</p>
 <p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;จึงเรียนมาเพื่อโปรดทราบ</p>
 <div class="sig-block">
@@ -352,7 +360,7 @@ export function buildSupervisionLetterHtml(opts: {
 <table class="footer-table">
   <tr>
     <td style="width:60%">
-      <p>สาขาวิชาวิทยาการคอมพิวเตอร์</p>
+      <p>สาขาวิชา${majorName}</p>
       <p>วิทยาลัยการคอมพิวเตอร์</p>
       <p>โทรศัพท์ 0 4300 9700 ต่อ 50523</p>
       <p>Email: wijika@kku.ac.th</p>
