@@ -4,6 +4,7 @@ import type { StudentProfile } from "./store";
 import AutoTextarea from "./AutoTextarea";
 import { notify, askConfirm } from "../utils/notify";
 import Modal from "./Modal";
+import { TABLE_TH, TABLE_TD, TABLE_HEADER_ROW } from "../utils/tableStyles";
 
 function safeHref(url: string | undefined): string | undefined {
   if (!url) return undefined;
@@ -222,31 +223,31 @@ export default function T_Exams() {
 
       {/* -------- Table -------- */}
       <section className="card" style={{ padding: 20, overflowX: "auto" }}>
-        <table className="tbl" style={{ width: "100%", minWidth: 920 }}>
+        <table style={{ width: "100%", minWidth: 920, borderCollapse: "collapse" }}>
           <thead>
-            <tr>
-              <th>วันที่ / เวลา</th>
-              <th>รหัสนักศึกษา</th>
-              <th>ชื่อ-นามสกุล</th>
-              <th>รอบ</th>
-              <th>สถานที่</th>
-              <th>หมายเหตุ</th>
-              <th style={{ textAlign: "right" }}>การทำงาน</th>
+            <tr style={TABLE_HEADER_ROW}>
+              <th style={TABLE_TH}>วันที่ / เวลา</th>
+              <th style={TABLE_TH}>รหัสนักศึกษา</th>
+              <th style={TABLE_TH}>ชื่อ-นามสกุล</th>
+              <th style={TABLE_TH}>รอบ</th>
+              <th style={TABLE_TH}>สถานที่</th>
+              <th style={TABLE_TH}>หมายเหตุ</th>
+              <th style={{ ...TABLE_TH, textAlign: "right" }}>การทำงาน</th>
             </tr>
           </thead>
           <tbody>
             {rows.map((x) => (
-              <tr key={x.id}>
-                <td>
+              <tr key={x.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                <td style={TABLE_TD}>
                   <div style={{ fontWeight: 700 }}>{x.date}</div>
                   <div style={{ fontSize: 12, color: "#6b7280" }}>
                     {x.time || "-"}
                   </div>
                 </td>
-                <td>{x.studentId}</td>
-                <td className="cell-ellipsis">{x._name}</td>
-                <td>{x.round || "-"}</td>
-                <td className="cell-ellipsis">
+                <td style={TABLE_TD}>{x.studentId}</td>
+                <td className="cell-ellipsis" style={TABLE_TD}>{x._name}</td>
+                <td style={TABLE_TD}>{x.round || "-"}</td>
+                <td className="cell-ellipsis" style={TABLE_TD}>
                   {x.mode === "online" ? (
                     <a href={safeHref(x.onlineUrl)} target="_blank" rel="noreferrer">
                       ออนไลน์
@@ -255,8 +256,8 @@ export default function T_Exams() {
                     x.location || "-"
                   )}
                 </td>
-                <td className="cell-ellipsis">{x.note || "-"}</td>
-                <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+                <td className="cell-ellipsis" style={TABLE_TD}>{x.note || "-"}</td>
+                <td style={{ ...TABLE_TD, textAlign: "right", whiteSpace: "nowrap" }}>
                   <button
                     className="btn-secondary small"
                     onClick={() => openEdit(x)}
@@ -274,7 +275,7 @@ export default function T_Exams() {
             ))}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={7} style={{ color: "#6b7280" }}>
+                <td colSpan={7} style={{ ...TABLE_TD, textAlign: "center", padding: 20, color: "#94a3b8" }}>
                   — ยังไม่มีรายการ —
                 </td>
               </tr>
