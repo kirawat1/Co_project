@@ -95,6 +95,10 @@ export default function TeacherApp() {
     navigate("/", { replace: true });
   }
 
+  // null = ยังไม่รู้สถานะ (รอ /api/teacher/me) — อย่าเพิ่ง redirect ไม่งั้นรีเฟรชหน้าแล้วโดนเด้งทุกครั้ง
+  const coopOnly = (el: React.ReactElement) =>
+    isCoopTeacher === null ? null : isCoopTeacher ? el : <Navigate to="/teacher/dashboard" replace />;
+
   return (
     <div className="app-bg">
       <header className="topbar">
@@ -139,27 +143,13 @@ export default function TeacherApp() {
             <Route path="review-t002" element={<T_T002Review />} />
             <Route path="review-t003" element={<T_T003Review />} />
             <Route path="review-supervision" element={<T_SupervisionReview />} />
-            <Route path="doc-t005-006" element={<A_DocT005_006 />} />
-            <Route path="doc-t007" element={<A_DocT007 />} />
-            <Route path="doc-t008" element={<A_DocT008 />} />
-            <Route path="gateway-settings" element={<A_GatewaySettings />} />
-            {/* เขียนประกาศได้เฉพาะอาจารย์ประจำวิชาสหกิจ — backend กันซ้ำด้วย verifyCoopTeacherOrStaff */}
-            <Route
-              path="announcements"
-              element={
-                isCoopTeacher === null ? null // ยังไม่รู้สถานะ — รอ /api/teacher/me ก่อน อย่าเพิ่ง redirect
-                  : isCoopTeacher ? <A_Announcements />
-                  : <Navigate to="/teacher/dashboard" replace />
-              }
-            />
-            <Route
-              path="supervision-eval"
-              element={
-                isCoopTeacher === null ? null
-                  : isCoopTeacher ? <A_SupervisionEval />
-                  : <Navigate to="/teacher/dashboard" replace />
-              }
-            />
+            {/* หน้าตั้งค่า/ประกาศ — เฉพาะอาจารย์ประจำวิชาสหกิจ (backend กันซ้ำด้วย verifyCoopTeacherOrStaff) */}
+            <Route path="doc-t005-006" element={coopOnly(<A_DocT005_006 />)} />
+            <Route path="doc-t007" element={coopOnly(<A_DocT007 />)} />
+            <Route path="doc-t008" element={coopOnly(<A_DocT008 />)} />
+            <Route path="gateway-settings" element={coopOnly(<A_GatewaySettings />)} />
+            <Route path="announcements" element={coopOnly(<A_Announcements />)} />
+            <Route path="supervision-eval" element={coopOnly(<A_SupervisionEval />)} />
 
             <Route path="*" element={<Navigate to="/teacher/dashboard" replace />} />
           </Routes>

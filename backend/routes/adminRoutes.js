@@ -22,16 +22,19 @@ const studentController = require('../controllers/studentController');
 const staffController = require('../controllers/staffController');
 const multerMemory = require('multer')({ storage: require('multer').memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
-// สิทธิ์ที่อนุญาตจัดการระบบ (ต้องตรงกับ Prisma enum — lowercase)
+// สิทธิ์ 3 ระดับ (role ตรงกับ Prisma enum — lowercase):
+//   STAFF_ONLY              — ออกหนังสือ, รหัสผ่าน, เกณฑ์/หลักสูตร, ตั้งค่าระบบ (ผู้ลงนาม/แม่แบบ), บัญชีเจ้าหน้าที่, logs
+//   verifyCoopTeacherOrStaff — งานจัดการ (อาจารย์ประจำวิชาทำแทนเจ้าหน้าที่ได้)
+//   ADMIN_ROLES             — อ่านอย่างเดียวที่หน้าอาจารย์ทั่วไปต้องใช้ (รอบสหกิจ, รายชื่อหลักสูตร, นักศึกษาที่ตัวเองดูแล)
 const ADMIN_ROLES = ['teacher', 'staff'];
 const STAFF_ONLY = ['staff'];
 
 // ==========================================
 // T000 — เอกสารใบสมัคร
 // ==========================================
-router.get('/config/t000', verifyToken, verifyRole(...ADMIN_ROLES), adminDocController.getT000Config);
-router.post('/config/t000', verifyToken, verifyRole(...ADMIN_ROLES), adminDocController.saveT000Config);
-router.get('/t000/students', verifyToken, verifyRole(...ADMIN_ROLES), adminDocController.getStudentsForT000);
+router.get('/config/t000', verifyToken, verifyCoopTeacherOrStaff, adminDocController.getT000Config);
+router.post('/config/t000', verifyToken, verifyCoopTeacherOrStaff, adminDocController.saveT000Config);
+router.get('/t000/students', verifyToken, verifyCoopTeacherOrStaff, adminDocController.getStudentsForT000);
 
 // บันทึกการใช้งาน (ใครทำอะไร) — เจ้าหน้าที่เท่านั้น
 // เรื่องที่ผู้ใช้แจ้งเข้ามา (ปุ่มแจ้งปัญหา)
@@ -42,7 +45,7 @@ router.patch('/feedback/:id', verifyToken, verifyRole(...STAFF_ONLY), feedbackCo
 router.get('/logs/export', verifyToken, verifyRole(...STAFF_ONLY), auditLogController.exportAuditLogs);
 router.get('/logs/actors', verifyToken, verifyRole(...STAFF_ONLY), auditLogController.getAuditActors);
 router.get('/logs', verifyToken, verifyRole(...STAFF_ONLY), auditLogController.getAuditLogs);
-router.put('/doc/:id/status', verifyToken, verifyRole(...ADMIN_ROLES), adminDocController.updateDocStatus);
+router.put('/doc/:id/status', verifyToken, verifyCoopTeacherOrStaff, adminDocController.updateDocStatus);
 router.post('/t000/approve-all', verifyToken, verifyRole(...STAFF_ONLY), adminDocController.approveAllDocs);
 router.put('/t000/review', verifyToken, verifyRole(...STAFF_ONLY), upload.single('file'), adminDocController.reviewStudentStatus);
 router.post('/t000/acceptance-received', verifyToken, verifyRole(...STAFF_ONLY), upload.single('file'), adminDocController.markAcceptanceReceived);
@@ -51,27 +54,27 @@ router.put('/t000/letter-pending', verifyToken, verifyRole(...STAFF_ONLY), admin
 
 // System Assets (ไม่ต้องการ auth — เป็นข้อมูล public เช่น โลโก้)
 router.get('/assets', systemAssetController.getAllAssets);
-router.post('/assets', verifyToken, verifyRole(...ADMIN_ROLES), systemUpload.single('file'), systemAssetController.updateAsset);
-router.delete('/assets/:key', verifyToken, verifyRole(...ADMIN_ROLES), systemAssetController.deleteAsset);
+router.post('/assets', verifyToken, verifyRole(...STAFF_ONLY), systemUpload.single('file'), systemAssetController.updateAsset);
+router.delete('/assets/:key', verifyToken, verifyRole(...STAFF_ONLY), systemAssetController.deleteAsset);
 
 // Coop Period
 router.get("/coop-periods", verifyToken, verifyRole(...ADMIN_ROLES), coopPeriodController.getPeriods);
-router.post("/coop-periods", verifyToken, verifyRole(...ADMIN_ROLES), coopPeriodController.createPeriod);
-router.put("/coop-periods/:id", verifyToken, verifyRole(...ADMIN_ROLES), coopPeriodController.updatePeriod);
-router.patch("/coop-periods/:id/toggle", verifyToken, verifyRole(...ADMIN_ROLES), coopPeriodController.togglePeriod);
-router.delete("/coop-periods/:id", verifyToken, verifyRole(...ADMIN_ROLES), coopPeriodController.deletePeriod);
+router.post("/coop-periods", verifyToken, verifyCoopTeacherOrStaff, coopPeriodController.createPeriod);
+router.put("/coop-periods/:id", verifyToken, verifyCoopTeacherOrStaff, coopPeriodController.updatePeriod);
+router.patch("/coop-periods/:id/toggle", verifyToken, verifyCoopTeacherOrStaff, coopPeriodController.togglePeriod);
+router.delete("/coop-periods/:id", verifyToken, verifyCoopTeacherOrStaff, coopPeriodController.deletePeriod);
 router.get("/coop-periods/active", verifyToken, verifyRole(...ADMIN_ROLES), coopPeriodController.getActivePeriod);
 router.get("/coop-periods/all", verifyToken, verifyRole(...ADMIN_ROLES), coopPeriodController.getAllCoopPeriods);
 
 // Dashboard
-router.get('/dashboard-stats', verifyToken, verifyRole(...ADMIN_ROLES), adminDashboardController.getDashboardStats);
+router.get('/dashboard-stats', verifyToken, verifyCoopTeacherOrStaff, adminDashboardController.getDashboardStats);
 
 // Criteria
 router.get('/majors', verifyToken, verifyRole(...ADMIN_ROLES), criteriaController.getMajorList);
-router.get('/criteria', verifyToken, verifyRole(...ADMIN_ROLES), criteriaController.getAllCriteria);
-router.post('/criteria', verifyToken, verifyRole(...ADMIN_ROLES), criteriaController.createCriteria);
-router.put('/criteria/:id', verifyToken, verifyRole(...ADMIN_ROLES), criteriaController.updateCriteria);
-router.delete('/criteria/:id', verifyToken, verifyRole(...ADMIN_ROLES), criteriaController.deleteCriteria);
+router.get('/criteria', verifyToken, verifyCoopTeacherOrStaff, criteriaController.getAllCriteria);
+router.post('/criteria', verifyToken, verifyRole(...STAFF_ONLY), criteriaController.createCriteria);
+router.put('/criteria/:id', verifyToken, verifyRole(...STAFF_ONLY), criteriaController.updateCriteria);
+router.delete('/criteria/:id', verifyToken, verifyRole(...STAFF_ONLY), criteriaController.deleteCriteria);
 
 // POST /api/admin/students/import-preview — parse Excel และคืน preview โดยไม่เขียน DB
 router.post(
@@ -100,7 +103,7 @@ router.get(
 );
 
 // GET /api/admin/students/majors — distinct majors for announcement targeting
-router.get('/students/majors', verifyToken, verifyRole(...ADMIN_ROLES), async (req, res) => {
+router.get('/students/majors', verifyToken, verifyCoopTeacherOrStaff, async (req, res) => {
   try {
     const rows = await prisma.student.findMany({
       where: { major: { not: null }, deletedAt: null },
@@ -131,18 +134,18 @@ router.post('/students/:id/restore', verifyToken, verifyRole(...STAFF_ONLY), stu
 router.delete('/students/:id/permanent', verifyToken, verifyRole(...STAFF_ONLY), studentController.permanentlyDeleteStudent);
 
 // Coop Applications
-router.get('/coop-applications', verifyToken, verifyRole(...ADMIN_ROLES), adminDocController.getCoopApplications);
-router.patch('/coop-applications/:id/status', verifyToken, verifyRole(...ADMIN_ROLES), adminDocController.updateCoopApplicationStatus);
+router.get('/coop-applications', verifyToken, verifyCoopTeacherOrStaff, adminDocController.getCoopApplications);
+router.patch('/coop-applications/:id/status', verifyToken, verifyCoopTeacherOrStaff, adminDocController.updateCoopApplicationStatus);
 
 // Doc Requirements
-router.get('/doc-requirements', verifyToken, verifyRole(...ADMIN_ROLES), docReqController.getAllRequirements);
-router.post('/doc-requirements', verifyToken, verifyRole(...ADMIN_ROLES), docReqController.createRequirement);
-router.put('/doc-requirements/:id', verifyToken, verifyRole(...ADMIN_ROLES), docReqController.updateRequirement);
-router.delete('/doc-requirements/:id', verifyToken, verifyRole(...ADMIN_ROLES), docReqController.deleteRequirement);
+router.get('/doc-requirements', verifyToken, verifyCoopTeacherOrStaff, docReqController.getAllRequirements);
+router.post('/doc-requirements', verifyToken, verifyCoopTeacherOrStaff, docReqController.createRequirement);
+router.put('/doc-requirements/:id', verifyToken, verifyCoopTeacherOrStaff, docReqController.updateRequirement);
+router.delete('/doc-requirements/:id', verifyToken, verifyCoopTeacherOrStaff, docReqController.deleteRequirement);
 
 // Dean Info
 router.get('/config/dean-info', systemAssetController.getDeanInfo);
-router.post('/config/dean-info', verifyToken, verifyRole(...ADMIN_ROLES), systemAssetController.saveDeanInfo);
+router.post('/config/dean-info', verifyToken, verifyRole(...STAFF_ONLY), systemAssetController.saveDeanInfo);
 
 // Students Review
 router.get('/students', verifyToken, verifyRole(...ADMIN_ROLES), adminDocController.getAllStudentsForReview);
@@ -150,26 +153,26 @@ router.put('/documents/review-t002', verifyToken, verifyRole(...STAFF_ONLY), adm
 router.put('/documents/review-t003', verifyToken, verifyRole(...STAFF_ONLY), adminDocController.reviewT003);
 
 // Config
-router.get('/config/t002', verifyToken, verifyRole(...ADMIN_ROLES), configController.getT002Config);
-router.post('/config/t002', verifyToken, verifyRole(...ADMIN_ROLES), configController.saveT002Config);
+router.get('/config/t002', verifyToken, verifyCoopTeacherOrStaff, configController.getT002Config);
+router.post('/config/t002', verifyToken, verifyCoopTeacherOrStaff, configController.saveT002Config);
 
-router.get('/config/t003', verifyToken, verifyRole(...ADMIN_ROLES), configController.getT003Config);
-router.post('/config/t003', verifyToken, verifyRole(...ADMIN_ROLES), configController.saveT003Config);
+router.get('/config/t003', verifyToken, verifyCoopTeacherOrStaff, configController.getT003Config);
+router.post('/config/t003', verifyToken, verifyCoopTeacherOrStaff, configController.saveT003Config);
 // ช่วงเวลายื่นคำร้องสหกิจ — แก้ได้เฉพาะเจ้าหน้าที่
-router.get('/config/apply', verifyToken, verifyRole(...ADMIN_ROLES), configController.getApplyConfig);
+router.get('/config/apply', verifyToken, verifyCoopTeacherOrStaff, configController.getApplyConfig);
 router.post('/config/apply', verifyToken, verifyRole(...STAFF_ONLY), configController.saveApplyConfig);
 
-router.get('/config/evaluation', verifyToken, verifyRole(...ADMIN_ROLES), configController.getEvaluationConfig);
-router.put('/config/evaluation', verifyToken, verifyRole(...ADMIN_ROLES), configController.updateEvaluationConfig);
+router.get('/config/evaluation', verifyToken, verifyCoopTeacherOrStaff, configController.getEvaluationConfig);
+router.put('/config/evaluation', verifyToken, verifyCoopTeacherOrStaff, configController.updateEvaluationConfig);
 
-router.get('/config/t007', verifyToken, verifyRole(...ADMIN_ROLES), configController.getT007Config);
-router.put('/config/t007', verifyToken, verifyRole(...ADMIN_ROLES), configController.updateT007Config);
+router.get('/config/t007', verifyToken, verifyCoopTeacherOrStaff, configController.getT007Config);
+router.put('/config/t007', verifyToken, verifyCoopTeacherOrStaff, configController.updateT007Config);
 
-router.get('/config/t008', verifyToken, verifyRole(...ADMIN_ROLES), configController.getT008Config);
-router.put('/config/t008', verifyToken, verifyRole(...ADMIN_ROLES), systemUpload.single('image'), configController.updateT008Config);
+router.get('/config/t008', verifyToken, verifyCoopTeacherOrStaff, configController.getT008Config);
+router.put('/config/t008', verifyToken, verifyCoopTeacherOrStaff, systemUpload.single('image'), configController.updateT008Config);
 
-router.get('/config/gateway', verifyToken, verifyRole(...ADMIN_ROLES), configController.getGatewaySettings);
-router.put('/config/gateway', verifyToken, verifyRole(...ADMIN_ROLES), configController.updateGatewaySettings);
+router.get('/config/gateway', verifyToken, verifyCoopTeacherOrStaff, configController.getGatewaySettings);
+router.put('/config/gateway', verifyToken, verifyCoopTeacherOrStaff, configController.updateGatewaySettings);
 
 // Supervision
 router.put('/supervisions/:id/co-teachers', verifyToken, verifyCoopTeacherOrStaff, supervisionController.assignCoTeachers);
@@ -177,10 +180,10 @@ router.put('/supervisions/:id/co-teachers', verifyToken, verifyCoopTeacherOrStaf
 // ==========================================
 // STAFF MANAGEMENT — จัดการบัญชีเจ้าหน้าที่
 // ==========================================
-router.get('/staff', verifyToken, verifyRole(...ADMIN_ROLES), staffController.listStaff);
-router.post('/staff', verifyToken, verifyRole(...ADMIN_ROLES), staffController.createStaff);
-router.patch('/staff/:id/password', verifyToken, verifyRole(...ADMIN_ROLES), staffController.resetPassword);
-router.delete('/staff/:id', verifyToken, verifyRole(...ADMIN_ROLES), staffController.deleteStaff);
+router.get('/staff', verifyToken, verifyRole(...STAFF_ONLY), staffController.listStaff);
+router.post('/staff', verifyToken, verifyRole(...STAFF_ONLY), staffController.createStaff);
+router.patch('/staff/:id/password', verifyToken, verifyRole(...STAFF_ONLY), staffController.resetPassword);
+router.delete('/staff/:id', verifyToken, verifyRole(...STAFF_ONLY), staffController.deleteStaff);
 
 // ==========================================
 // TEACHER MANAGEMENT — เจ้าหน้าที่จัดการอาจารย์
