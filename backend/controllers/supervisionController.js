@@ -91,7 +91,8 @@ exports.getAllSupervisions = async (_req, res) => {
                     student: {
                         include: { coop: { include: { company: true, contacts: { orderBy: { createdAt: 'asc' } } } } }
                     },
-                    teacher: true
+                    teacher: true,
+                    coTeachers: { select: { teacherId: true } },
                 },
                 orderBy: { updatedAt: 'desc' }
             }),
@@ -264,7 +265,8 @@ exports.getStudentSupervision = async (req, res) => {
 
 exports.proposeSupervisionDate = async (req, res) => {
     try {
-        const { proposedDates, supervisionType, onlineLink, coTeacherName } = req.body;
+        // อาจารย์ร่วมกำหนดโดยเจ้าหน้าที่/อาจารย์ประจำวิชาเท่านั้น (assignCoTeachers) — ไม่รับจากนักศึกษา
+        const { proposedDates, supervisionType, onlineLink } = req.body;
         if (supervisionType !== undefined && supervisionType !== 'ONLINE' && supervisionType !== 'ONSITE') {
             return res.status(400).json({ ok: false, message: 'supervisionType ต้องเป็น ONLINE หรือ ONSITE เท่านั้น' });
         }
@@ -345,7 +347,6 @@ exports.proposeSupervisionDate = async (req, res) => {
                     proposedDates,
                     supervisionType: resolvedType,
                     onlineLink,
-                    coTeacherName,
                     status: 'PENDING_TEACHER',
                     rejectReason: null
                 },
@@ -355,7 +356,6 @@ exports.proposeSupervisionDate = async (req, res) => {
                     proposedDates,
                     supervisionType: resolvedType,
                     onlineLink,
-                    coTeacherName,
                     status: 'PENDING_TEACHER'
                 }
             });
@@ -414,11 +414,18 @@ exports.proposeSupervisionDate = async (req, res) => {
 exports.assignCoTeachers = async (req, res) => {
     try {
         const { id } = req.params;
-        const { coTeacherName } = req.body; // รับเป็น String เช่น "ผศ.ดร.ก, อ.ข"
+        const { coTeacherIds } = req.body; // id อาจารย์ร่วม เช่น [7, 68]
 
         const parsedId = parseInt(id, 10);
         if (isNaN(parsedId) || parsedId <= 0) {
             return res.status(400).json({ ok: false, message: 'id ไม่ถูกต้อง' });
+        }
+        if (!Array.isArray(coTeacherIds)) {
+            return res.status(400).json({ ok: false, message: 'coTeacherIds ต้องเป็นรายการ id อาจารย์' });
+        }
+        const ids = [...new Set(coTeacherIds.map(n => parseInt(n, 10)))];
+        if (ids.some(n => isNaN(n) || n <= 0)) {
+            return res.status(400).json({ ok: false, message: 'coTeacherIds ไม่ถูกต้อง' });
         }
 
         const appt = await prisma.supervisionAppointment.findUnique({ where: { id: parsedId } });
@@ -426,24 +433,41 @@ exports.assignCoTeachers = async (req, res) => {
             return res.status(404).json({ ok: false, message: 'ไม่พบข้อมูลการนัดหมาย' });
         }
 
+        const coIds = ids.filter(n => n !== appt.teacherId); // อาจารย์หลักไม่นับเป็นอาจารย์ร่วม
+        const teachers = await prisma.teacher.findMany({
+            where: { id: { in: coIds } },
+            select: { id: true, prefix: true, firstName: true, lastName: true },
+        });
+        if (teachers.length !== coIds.length) {
+            return res.status(400).json({ ok: false, message: 'ไม่พบอาจารย์บางท่านในระบบ' });
+        }
+
         // อาจารย์ร่วมที่เพิ่มเข้ามาต้องว่างในเวลานั้น — เช็คเมื่อรายการนี้ยืนยันวันแล้วเท่านั้น
-        if (coTeacherName && appt.confirmedDate && ['DATE_CONFIRMED', 'LETTER_UPLOADED'].includes(appt.status)) {
+        if (coIds.length && appt.confirmedDate && ['DATE_CONFIRMED', 'LETTER_UPLOADED'].includes(appt.status)) {
             const start = new Date(appt.confirmedDate);
             const end = resolveSlotEnd(start, appt);
             const clash = await findTeacherClash(prisma, {
                 start,
                 end,
-                teacher: null,
-                coTeacherName,
+                teacherIds: coIds,
                 excludeIds: [parsedId],
             });
             if (clash) return res.status(409).json({ ok: false, message: clash.message });
         }
 
-        await prisma.supervisionAppointment.update({
-            where: { id: parsedId },
-            data: { coTeacherName: coTeacherName } // บันทึกลงฐานข้อมูล
-        });
+        // coTeacherName = ชื่อสำหรับแสดงผล/หนังสือ (รูปแบบเดิม) สร้างจากบัญชีจริงตามลำดับที่เลือก
+        const byId = new Map(teachers.map(t => [t.id, t]));
+        const coTeacherName = coIds.length
+            ? coIds.map(n => byId.get(n)).map(t => `${t.prefix || ''}${t.firstName} ${t.lastName}`).join(', ')
+            : null;
+
+        await prisma.$transaction([
+            prisma.supervisionCoTeacher.deleteMany({ where: { appointmentId: parsedId } }),
+            ...(coIds.length
+                ? [prisma.supervisionCoTeacher.createMany({ data: coIds.map(teacherId => ({ appointmentId: parsedId, teacherId })) })]
+                : []),
+            prisma.supervisionAppointment.update({ where: { id: parsedId }, data: { coTeacherName } }),
+        ]);
 
         res.json({ ok: true, message: "อัปเดตอาจารย์นิเทศร่วมสำเร็จ" });
     } catch (error) {
@@ -477,10 +501,8 @@ exports.getSupervisionsForTeacher = async (req, res) => {
                     // 🟢 เงื่อนไขที่ 1: เป็นที่ปรึกษาหลัก (ดูจาก teacherId ตรงๆ ได้เลย!)
                     { teacherId: teacher.id },
 
-                    // 🟢 เงื่อนไขที่ 2: เป็นอาจารย์นิเทศร่วม (ค้นหาจากชื่อ-นามสกุลใน coTeacherName)
-                    ...(teacher.firstName && teacher.lastName
-                        ? [{ coTeacherName: { contains: `${teacher.firstName} ${teacher.lastName}` } }]
-                        : [])
+                    // 🟢 เงื่อนไขที่ 2: เป็นอาจารย์นิเทศร่วม
+                    { coTeachers: { some: { teacherId: teacher.id } } },
                 ]
             },
             include: {
@@ -596,7 +618,7 @@ exports.reviewSupervision = async (req, res) => {
             await prisma.$transaction(async (tx) => {
                 const current = await tx.supervisionAppointment.findUnique({
                     where: { id: parsedId },
-                    select: { status: true, teacherId: true }
+                    select: { status: true, teacherId: true, coTeachers: { select: { teacherId: true } } }
                 });
                 if (!current) {
                     throw Object.assign(new Error('ไม่พบข้อมูลการนัดหมาย'), { is404: true });
@@ -615,8 +637,7 @@ exports.reviewSupervision = async (req, res) => {
                 await assertNoTeacherClash(tx, {
                     start: chosenDate,
                     end: slotEnd,
-                    teacher: { id: teacher.id, prefix: teacher.prefix, firstName: teacher.firstName, lastName: teacher.lastName },
-                    coTeacherName: supervision.coTeacherName,
+                    teacherIds: [teacher.id, ...current.coTeachers.map(c => c.teacherId)],
                     excludeIds: [parsedId],
                 });
 
@@ -772,7 +793,10 @@ exports.updateConfirmedDate = async (req, res) => {
 
         let updated;
         await prisma.$transaction(async (tx) => {
-            const fresh = await tx.supervisionAppointment.findUnique({ where: { id: parsedId } });
+            const fresh = await tx.supervisionAppointment.findUnique({
+                where: { id: parsedId },
+                include: { coTeachers: { select: { teacherId: true } } },
+            });
             if (!fresh) {
                 throw Object.assign(new Error('ไม่พบข้อมูลการนัดหมาย'), { is404: true });
             }
@@ -790,15 +814,10 @@ exports.updateConfirmedDate = async (req, res) => {
             const slotEnd = prevStart && prevEnd > prevStart
                 ? new Date(chosenDate.getTime() + (prevEnd.getTime() - prevStart.getTime()))
                 : resolveSlotEnd(chosenDate, { proposedDates: fresh.proposedDates });
-            const apptTeacher = await tx.teacher.findUnique({
-                where: { id: fresh.teacherId },
-                select: { id: true, prefix: true, firstName: true, lastName: true },
-            });
             await assertNoTeacherClash(tx, {
                 start: chosenDate,
                 end: slotEnd,
-                teacher: apptTeacher,
-                coTeacherName: fresh.coTeacherName,
+                teacherIds: [fresh.teacherId, ...fresh.coTeachers.map(c => c.teacherId)],
                 excludeIds: [parsedId],
             });
 
@@ -943,6 +962,7 @@ exports.confirmGroupSupervision = async (req, res) => {
     // หน้าต่างบอกว่า "ตามลำดับที่ติ๊ก" แต่คิวจริงเรียงตาม id)
     const fetched = await prisma.supervisionAppointment.findMany({
       where: { id: { in: ids } },
+      include: { coTeachers: { select: { teacherId: true } } },
     });
     const byId = new Map(fetched.map(a => [a.id, a]));
     const appts = ids.map(id => byId.get(id)).filter(Boolean);
@@ -993,22 +1013,17 @@ exports.confirmGroupSupervision = async (req, res) => {
       const start = new Date(cursor);
       const end = resolveSlotEnd(start, { proposedDates: a.proposedDates });
       cursor = end;
-      return { id: a.id, coTeacherName: a.coTeacherName, start, end, sType };
+      return { id: a.id, coTeacherIds: (a.coTeachers || []).map(c => c.teacherId), start, end, sType };
     });
 
     const groupIds = appts.map(a => a.id);
     try {
       await prisma.$transaction(async (tx) => {
-        const teacherRec = await tx.teacher.findUnique({
-          where: { id: teacher.id },
-          select: { id: true, prefix: true, firstName: true, lastName: true },
-        });
         for (const slot of plan) {
           await assertNoTeacherClash(tx, {
             start: slot.start,
             end: slot.end,
-            teacher: teacherRec,
-            coTeacherName: slot.coTeacherName,
+            teacherIds: [teacher.id, ...slot.coTeacherIds],
             excludeIds: groupIds,
           });
         }

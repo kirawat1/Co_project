@@ -127,6 +127,11 @@ const prismaMock = {
     delete: jest.fn(),
     count: jest.fn(),
   },
+  supervisionCoTeacher: {
+    findMany: jest.fn(),
+    createMany: jest.fn(),
+    deleteMany: jest.fn(),
+  },
   systemConfig: {
     findUnique: jest.fn(),
     findMany: jest.fn(),

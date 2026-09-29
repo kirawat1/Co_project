@@ -14,7 +14,7 @@ import Spinner from "./Spinner";
 import DateInput from './DateInput';
 import LoadMoreFooter from "./LoadMoreFooter";
 import { useLoadMore } from "../utils/useLoadMore";
-import { askConfirm } from "../utils/notify";
+import { askConfirm } from "../utils/notify";
 import { TABLE_TH, TABLE_TD, TABLE_HEADER_ROW } from "../utils/tableStyles";
 
 // --- Types ---
@@ -60,6 +60,7 @@ interface Supervision {
     supervisionType: "ONLINE" | "ONSITE";
     confirmedDate: string | null;
     coTeacherName?: string | null;
+    coTeachers?: { teacherId: number }[];
     status: SupervisionStatus;
     officialLetterPath: string | null;
     // ป้าย "รอลงนาม" — ตั้งตอนดาวน์โหลดร่างหนังสือขอนิเทศ ล้างตอนอัปโหลดฉบับลงนาม
@@ -101,7 +102,7 @@ export default function A_SupervisionManage() {
     // Modals State
     const [selectedSupForModal, setSelectedSupForModal] = useState<Supervision | null>(null);
     const [assignTeacherModalOpen, setAssignTeacherModalOpen] = useState(false);
-    const [selectedCoTeachers, setSelectedCoTeachers] = useState<string[]>([]);
+    const [selectedCoTeachers, setSelectedCoTeachers] = useState<number[]>([]);
 
     // Edit confirmed date modal
     const [editDateSup, setEditDateSup] = useState<Supervision | null>(null);
@@ -322,21 +323,16 @@ export default function A_SupervisionManage() {
     // ─── ฟังก์ชันเปิด Modal จัดการอาจารย์
     const openAssignTeacherModal = (sup: Supervision) => {
         setSelectedSupForModal(sup);
-        // แปลง string ชื่ออาจารย์ร่วม ให้เป็น array เพื่อนำไปติ๊กถูกใน checkbox
-        if (sup.coTeacherName) {
-            setSelectedCoTeachers(sup.coTeacherName.split(',').map(name => name.trim()));
-        } else {
-            setSelectedCoTeachers([]);
-        }
+        setSelectedCoTeachers((sup.coTeachers ?? []).map(c => c.teacherId));
         setAssignTeacherModalOpen(true);
     };
 
     // 🟢 ติ๊กเลือก/เอาออก อาจารย์นิเทศร่วม
-    const toggleCoTeacher = (teacherFullName: string) => {
+    const toggleCoTeacher = (teacherId: number) => {
         setSelectedCoTeachers(prev =>
-            prev.includes(teacherFullName)
-                ? prev.filter(t => t !== teacherFullName)
-                : [...prev, teacherFullName]
+            prev.includes(teacherId)
+                ? prev.filter(t => t !== teacherId)
+                : [...prev, teacherId]
         );
     };
 
@@ -344,11 +340,8 @@ export default function A_SupervisionManage() {
     const handleSaveCoTeachers = async () => {
         if (!selectedSupForModal) return;
         try {
-            // รวมชื่ออาจารย์ที่เลือกด้วยลูกน้ำ
-            const coTeacherString = selectedCoTeachers.length > 0 ? selectedCoTeachers.join(', ') : null;
-
             await axios.put(`/api/admin/supervisions/${selectedSupForModal.id}/co-teachers`, {
-                coTeacherName: coTeacherString
+                coTeacherIds: selectedCoTeachers
             }, { headers: { Authorization: `Bearer ${token}` } });
 
             toast.success("บันทึกรายชื่ออาจารย์นิเทศเรียบร้อยแล้ว");
@@ -699,13 +692,13 @@ export default function A_SupervisionManage() {
                                     .filter(t => t.id !== selectedSupForModal.teacherId)
                                     .map(t => {
                                         const fullName = `${t.prefix || ''}${t.firstName} ${t.lastName}`;
-                                        const isChecked = selectedCoTeachers.includes(fullName);
+                                        const isChecked = selectedCoTeachers.includes(t.id);
                                         return (
                                             <label key={t.id} className="teacher-checkbox-label" style={{ borderColor: isChecked ? '#3b82f6' : '#cbd5e1', background: isChecked ? '#eff6ff' : 'white' }}>
                                                 <input
                                                     type="checkbox"
                                                     checked={isChecked}
-                                                    onChange={() => toggleCoTeacher(fullName)}
+                                                    onChange={() => toggleCoTeacher(t.id)}
                                                     style={{ width: 16, height: 16, accentColor: '#2563eb' }}
                                                 />
                                                 <span style={{ fontWeight: isChecked ? 'bold' : 'normal', color: isChecked ? '#1e40af' : '#334155' }}>

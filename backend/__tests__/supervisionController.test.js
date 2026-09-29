@@ -523,7 +523,7 @@ describe('reviewSupervision', () => {
   const teacherRecord = { id: 5, userId: 2, prefix: 'ผศ.', firstName: 'ก', lastName: 'ข' };
   // นักศึกษาเสนอ 15 มี.ค. 2024 ช่วง 10:00-12:00 — คิวนิเทศเป็นช่วงเวลา
   const supervision = {
-    id: 1, teacherId: 5, status: 'PENDING_TEACHER', coTeacherName: null,
+    id: 1, teacherId: 5, status: 'PENDING_TEACHER', coTeacherName: null, coTeachers: [],
     proposedDates: JSON.stringify(['2024-03-15|10:00-12:00|ONSITE']),
   };
   // รายการที่อาจารย์คนเดียวกันจองไว้แล้ว ใช้จำลองการชนเวลา
@@ -533,8 +533,8 @@ describe('reviewSupervision', () => {
     confirmedEndDate: new Date('2024-03-15T13:00:00'),
     proposedDates: null,
     teacherId: 5,
-    coTeacherName: null,
     teacher: teacherRecord,
+    coTeachers: [],
     student: { studentId: 'u640099', firstName: 'จ', lastName: 'ฉ' },
   };
 
@@ -856,34 +856,16 @@ describe('getSupervisionsForTeacher', () => {
     expect(res.status).toHaveBeenCalledWith(404);
   });
 
-  test('ชื่ออาจารย์สั้นกว่า 2 ตัวอักษร — ไม่เพิ่มเงื่อนไข coTeacherName (กัน false-positive)', async () => {
-    // No lastName → condition (firstName && lastName) is false → coTeacherName not added
-    prisma.teacher.findUnique.mockResolvedValue({ id: 5, firstName: 'ก' });
-    prisma.supervisionAppointment.findMany.mockResolvedValue([]);
-
-    const req = { user: { id: 1 } };
-    const res = makeRes();
-    await getSupervisionsForTeacher(req, res);
-
-    expect(prisma.supervisionAppointment.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { OR: [{ teacherId: 5 }], student: { deletedAt: null } },
-      })
-    );
-  });
-
-  test('ชื่ออาจารย์ปกติ — เพิ่มเงื่อนไข coTeacherName ค้นหาอาจารย์นิเทศร่วม', async () => {
-    // Both firstName + lastName present → coTeacherName: { contains: 'firstName lastName' }
+  test('หานัดที่เป็นอาจารย์หลัก หรือเป็นอาจารย์ร่วม (ผูกด้วย id ไม่ใช่ค้นจากชื่อ)', async () => {
     prisma.teacher.findUnique.mockResolvedValue({ id: 5, firstName: 'สมชาย', lastName: 'ใจดี' });
     prisma.supervisionAppointment.findMany.mockResolvedValue([]);
 
-    const req = { user: { id: 1 } };
     const res = makeRes();
-    await getSupervisionsForTeacher(req, res);
+    await getSupervisionsForTeacher({ user: { id: 1 } }, res);
 
     expect(prisma.supervisionAppointment.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { OR: [{ teacherId: 5 }, { coTeacherName: { contains: 'สมชาย ใจดี' } }], student: { deletedAt: null } },
+        where: { OR: [{ teacherId: 5 }, { coTeachers: { some: { teacherId: 5 } } }], student: { deletedAt: null } },
       })
     );
   });
@@ -898,7 +880,7 @@ describe('updateConfirmedDate — สมาชิกนัดกลุ่ม', (
   const { updateConfirmedDate } = require('../controllers/supervisionController');
   const grouped = {
     id: 21, studentId: 7, teacherId: 5, status: 'DATE_CONFIRMED', officialLetterPath: null,
-    groupId: 'group-uuid-1', coTeacherName: null,
+    groupId: 'group-uuid-1', coTeacherName: null, coTeachers: [],
     confirmedDate: new Date('2026-12-10T09:00:00'),
     proposedDates: JSON.stringify(['2026-12-10|09:00-10:00|ONSITE']),
   };
@@ -975,7 +957,7 @@ describe('updateConfirmedDate — ย้ายวันแล้วความ�
   const { updateConfirmedDate } = require('../controllers/supervisionController');
   test('นัด 10:00-12:00 ย้ายไปวันที่ไม่อยู่ในรายการเสนอ → ยังยาว 2 ชม.', async () => {
     prisma.supervisionAppointment.findUnique.mockResolvedValue({
-      id: 31, studentId: 7, teacherId: 5, status: 'DATE_CONFIRMED', officialLetterPath: null, groupId: null, coTeacherName: null,
+      id: 31, studentId: 7, teacherId: 5, status: 'DATE_CONFIRMED', officialLetterPath: null, groupId: null, coTeacherName: null, coTeachers: [],
       confirmedDate: new Date('2026-12-18T10:00:00'), confirmedEndDate: new Date('2026-12-18T12:00:00'),
       proposedDates: JSON.stringify(['2026-12-18|10:00-12:00|ONSITE']),
     });
@@ -1005,5 +987,93 @@ describe('confirmGroupSupervision — คิวเรียงตามลำด
     await confirmGroupSupervision({ user: { id: 2 }, body: { appointmentIds: [2, 1], confirmedDate: '2026-12-22T09:00:00' } }, res);
     const updates = prisma.supervisionAppointment.update.mock.calls.map((c) => ({ id: c[0].where.id, start: c[0].data.confirmedDate.getHours() }));
     expect(updates).toEqual([{ id: 2, start: 9 }, { id: 1, start: 10 }]);
+  });
+});
+
+// ===========================
+// อาจารย์นิเทศร่วม — ผูกกับบัญชีอาจารย์ (SupervisionCoTeacher) ไม่ใช่ข้อความชื่อ
+// ===========================
+describe('assignCoTeachers — เลือกอาจารย์ร่วมด้วย id', () => {
+  const { assignCoTeachers } = require('../controllers/supervisionController');
+  const appt = { id: 4, teacherId: 5, status: 'PENDING_TEACHER', confirmedDate: null, proposedDates: null };
+  const T7 = { id: 7, prefix: 'ผศ. ดร.', firstName: 'ชิตสุธา', lastName: 'สุ่มเล็ก' };
+  const T68 = { id: 68, prefix: 'อ. ดร.', firstName: 'ญานิกา', lastName: 'คงโสรส' };
+
+  test('ผูกอาจารย์ร่วมตาม id และสร้างชื่อแสดงผลจากบัญชีจริง (ตัดอาจารย์หลักออก)', async () => {
+    prisma.supervisionAppointment.findUnique.mockResolvedValue(appt);
+    prisma.teacher.findMany.mockResolvedValue([T68, T7]); // DB คืนคนละลำดับกับที่เลือก
+    const res = makeRes();
+    await assignCoTeachers({ params: { id: '4' }, body: { coTeacherIds: [7, 5, 68, 7] } }, res);
+
+    expect(prisma.teacher.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { id: { in: [7, 68] } } }));
+    expect(prisma.supervisionCoTeacher.deleteMany).toHaveBeenCalledWith({ where: { appointmentId: 4 } });
+    expect(prisma.supervisionCoTeacher.createMany).toHaveBeenCalledWith({
+      data: [{ appointmentId: 4, teacherId: 7 }, { appointmentId: 4, teacherId: 68 }],
+    });
+    expect(prisma.supervisionAppointment.update).toHaveBeenCalledWith({
+      where: { id: 4 }, data: { coTeacherName: 'ผศ. ดร.ชิตสุธา สุ่มเล็ก, อ. ดร.ญานิกา คงโสรส' },
+    });
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: true }));
+  });
+
+  test('ล้างอาจารย์ร่วมทั้งหมด → ลบความเชื่อมโยง และชื่อเป็น null', async () => {
+    prisma.supervisionAppointment.findUnique.mockResolvedValue(appt);
+    prisma.teacher.findMany.mockResolvedValue([]);
+    const res = makeRes();
+    await assignCoTeachers({ params: { id: '4' }, body: { coTeacherIds: [] } }, res);
+    expect(prisma.supervisionCoTeacher.deleteMany).toHaveBeenCalled();
+    expect(prisma.supervisionCoTeacher.createMany).not.toHaveBeenCalled();
+    expect(prisma.supervisionAppointment.update).toHaveBeenCalledWith({ where: { id: 4 }, data: { coTeacherName: null } });
+  });
+
+  test('400 — ส่งชื่อแบบเดิม (ไม่ใช่รายการ id)', async () => {
+    const res = makeRes();
+    await assignCoTeachers({ params: { id: '4' }, body: { coTeacherName: 'อ.ก ข' } }, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(prisma.supervisionAppointment.update).not.toHaveBeenCalled();
+  });
+
+  test('400 — มี id อาจารย์ที่ไม่มีในระบบ', async () => {
+    prisma.supervisionAppointment.findUnique.mockResolvedValue(appt);
+    prisma.teacher.findMany.mockResolvedValue([T7]);
+    const res = makeRes();
+    await assignCoTeachers({ params: { id: '4' }, body: { coTeacherIds: [7, 999] } }, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(prisma.supervisionCoTeacher.createMany).not.toHaveBeenCalled();
+  });
+
+  test('409 — อาจารย์ร่วมติดนิเทศรายการอื่นเวลาเดียวกัน (เทียบด้วย id)', async () => {
+    prisma.supervisionAppointment.findUnique.mockResolvedValue({
+      ...appt, status: 'DATE_CONFIRMED',
+      confirmedDate: new Date('2026-12-10T10:00:00'), confirmedEndDate: new Date('2026-12-10T11:00:00'),
+    });
+    prisma.teacher.findMany.mockResolvedValue([T7]);
+    prisma.supervisionAppointment.findMany.mockResolvedValue([{
+      id: 50, teacherId: 9, confirmedDate: new Date('2026-12-10T10:30:00'), confirmedEndDate: new Date('2026-12-10T11:30:00'),
+      proposedDates: null, teacher: { prefix: 'อ.', firstName: 'อื่น', lastName: 'คน' },
+      coTeachers: [{ teacherId: 7, teacher: T7 }], student: { firstName: 'ก', lastName: 'ข' },
+    }]);
+    const res = makeRes();
+    await assignCoTeachers({ params: { id: '4' }, body: { coTeacherIds: [7] } }, res);
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringContaining('ชิตสุธา') }));
+  });
+});
+
+describe('proposeSupervisionDate — นักศึกษากำหนดอาจารย์ร่วมเองไม่ได้', () => {
+  test('coTeacherName ที่แนบมาใน body ไม่ถูกบันทึก', async () => {
+    prisma.student.findUnique.mockResolvedValue({ id: 10, userId: 1, deletedAt: null, coopAdvisorId: 5, coop: { coopPeriodId: 2, status: 'INTERNSHIP_STARTED' } });
+    prisma.coopPeriod.findUnique.mockResolvedValue({ id: 2, isSupervisionOpen: true });
+    prisma.teacher.findUnique.mockResolvedValue({ id: 5, userId: 2 });
+    prisma.supervisionAppointment.findUnique.mockResolvedValue(null);
+    prisma.supervisionAppointment.upsert.mockResolvedValue({ id: 1, status: 'PENDING_TEACHER' });
+    const res = makeRes();
+    await proposeSupervisionDate({
+      user: { id: 1 },
+      body: { proposedDates: JSON.stringify(['2099-12-01|10:00-11:00|ONSITE']), supervisionType: 'ONSITE', coTeacherName: 'อ.ใครก็ได้ ที่นักศึกษาใส่เอง' },
+    }, res);
+    const { create, update } = prisma.supervisionAppointment.upsert.mock.calls[0][0];
+    expect(create).not.toHaveProperty('coTeacherName');
+    expect(update).not.toHaveProperty('coTeacherName');
   });
 });

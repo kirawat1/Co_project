@@ -21,14 +21,14 @@ model User {
   provider       String  @default("credentials")
   kkuAccessToken String? @db.Text
 
-  student       Student?
-  teacher       Teacher?
-  staffProfile  StaffProfile?
-  companies     Company[]
-  mentors       Mentor[]
+  student         Student?
+  teacher         Teacher?
+  staffProfile    StaffProfile?
+  companies       Company[]
+  mentors         Mentor[]
   createdContacts CompanyContact[] @relation("ContactCreatedBy")
-  notifications Notification[]
-  feedbacks     Feedback[]
+  notifications   Notification[]
+  feedbacks       Feedback[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -139,7 +139,7 @@ model StudentCoop {
   placeLetterDelivery    String? // STUDENT | STAFF (เหมือน reqLetterDelivery)
 
   // Mentor (พี่เลี้ยง) อาจจะมาใส่ทีหลังตอนเริ่มฝึกงานแล้ว (many-to-many)
-  mentors Mentor[]
+  mentors  Mentor[]
   // ผู้ติดต่อ (HR) ที่นักศึกษาเลือก — บังคับอย่างน้อย 1 คนก่อนยื่นคำร้อง
   contacts CompanyContact[] @relation("CoopContacts")
 
@@ -326,6 +326,7 @@ model Teacher {
   createdAt               DateTime                 @default(now())
   updatedAt               DateTime                 @updatedAt
   supervisionAppointments SupervisionAppointment[]
+  coSupervisions          SupervisionCoTeacher[]
   generalAdvisees         Student[]                @relation("GeneralAdvisor")
   coopAdvisees            Student[]                @relation("CoopAdvisor")
 }
@@ -619,8 +620,20 @@ model SupervisionAppointment {
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
-  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  teacher Teacher @relation(fields: [teacherId], references: [id])
+  student    Student                @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  teacher    Teacher                @relation(fields: [teacherId], references: [id])
+  // อาจารย์นิเทศร่วม (ตัวจริง) — coTeacherName ข้างบนเก็บไว้เป็นชื่อสำหรับแสดงผล/หนังสือ
+  coTeachers SupervisionCoTeacher[]
+}
+
+model SupervisionCoTeacher {
+  appointmentId Int
+  teacherId     Int
+  appointment   SupervisionAppointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  teacher       Teacher                @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  @@id([appointmentId, teacherId])
+  @@index([teacherId])
 }
 
 model Notification {

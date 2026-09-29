@@ -289,8 +289,6 @@ export default function S_Supervision() {
                 proposedDates: JSON.stringify(validDates),
                 supervisionType: getSlotType(validDates[0]),
                 onlineLink: hasOnlineSlot ? onlineLink : null,
-                // ส่งชื่อ Co-Teacher เดิมไปด้วยเพื่อไม่ให้ข้อมูลหาย
-                coTeacherName: appointment?.coTeacherName || null
             }, { headers: { Authorization: `Bearer ${token}` } });
 
             notify.success("บันทึกและส่งข้อมูลการนัดหมายเรียบร้อยแล้ว");
