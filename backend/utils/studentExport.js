@@ -292,6 +292,6 @@ function exportBaseUrl(req) {
 }
 
 module.exports = {
-  buildStudentExportWorkbook, studentToExportRow, exportBaseUrl,
+  buildStudentExportWorkbook, studentToExportRow, exportBaseUrl, fileUrl,
   STUDENT_EXPORT_INCLUDE, EXPORT_HEADERS, ALL_DOCS_HEADERS, DOC_COLUMNS,
 };

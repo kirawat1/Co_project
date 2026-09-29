@@ -69,3 +69,46 @@ describe('ลิงก์นิเทศในไฟล์ export', () => {
     expect(ws[XLSX.utils.encode_cell({ r: 2, c: col })].l.Target).toBe('https://zoom.us/j/222');
   });
 });
+
+describe('ลิงก์เอกสารในไฟล์ export', () => {
+  const BASE = 'https://coop.example.ac.th';
+  const withDocs = (over = {}) => appt({
+    officialLetterPath: 'SUPERVISION_LETTER_1.pdf',
+    student: {
+      ...appt().student,
+      coop: { ...appt().student.coop, placeLetterUrl: 'place-old.pdf' },
+      documents: [
+        { type: 'T002_FORM', path: 't002-old.pdf' },
+        { type: 'T002_FORM', path: 't002-new.pdf' },
+        { type: 'T003_FORM', path: 't003.pdf' },
+      ],
+    },
+    ...over,
+  });
+  const linkAt = (ws, header, r = 1) => ws[XLSX.utils.encode_cell({ r, c: EXPORT_HEADERS.indexOf(header) })]?.l?.Target;
+
+  test('มีคอลัมน์ไฟล์ หนังสือขอนิเทศ / หนังสือส่งตัว / T002 / T003 กดเปิดได้', () => {
+    const { ws, rows } = readSheet(buildSupervisionScheduleWorkbook([withDocs()], { baseUrl: BASE }));
+    expect(rows[0]['ไฟล์: หนังสือขอนิเทศ']).toBe('เปิดไฟล์');
+    expect(linkAt(ws, 'ไฟล์: หนังสือขอนิเทศ')).toBe(`${BASE}/uploads/supervision/SUPERVISION_LETTER_1.pdf`);
+    // ไม่มี Document ชนิด PLACEMENT_LETTER → ใช้ placeLetterUrl ใน StudentCoop
+    expect(linkAt(ws, 'ไฟล์: หนังสือส่งตัว')).toBe(`${BASE}/uploads/place-old.pdf`);
+    // หลายไฟล์ชนิดเดียวกัน → ใช้ไฟล์ล่าสุด
+    expect(linkAt(ws, 'ไฟล์: T002')).toBe(`${BASE}/uploads/t002-new.pdf`);
+    expect(linkAt(ws, 'ไฟล์: T003')).toBe(`${BASE}/uploads/t003.pdf`);
+  });
+
+  test('ยังไม่มีไฟล์: แสดง "-" ไม่มีลิงก์', () => {
+    const { ws, rows } = readSheet(buildSupervisionScheduleWorkbook([appt()], { baseUrl: BASE }));
+    expect(rows[0]['ไฟล์: T003']).toBe('-');
+    expect(linkAt(ws, 'ไฟล์: T003')).toBeUndefined();
+  });
+
+  test('หลายแถว: ลิงก์เอกสารตามคนถูกแถวหลังเรียงตามวัน', () => {
+    const later = withDocs({ id: 2, confirmedDate: new Date('2026-10-06T02:00:00Z'), confirmedEndDate: new Date('2026-10-06T03:00:00Z'), officialLetterPath: 'later.pdf' });
+    const earlier = withDocs({ id: 3, officialLetterPath: 'earlier.pdf' });
+    const { ws } = readSheet(buildSupervisionScheduleWorkbook([later, earlier], { baseUrl: BASE }));
+    expect(linkAt(ws, 'ไฟล์: หนังสือขอนิเทศ', 1)).toBe(`${BASE}/uploads/supervision/earlier.pdf`);
+    expect(linkAt(ws, 'ไฟล์: หนังสือขอนิเทศ', 2)).toBe(`${BASE}/uploads/supervision/later.pdf`);
+  });
+});
