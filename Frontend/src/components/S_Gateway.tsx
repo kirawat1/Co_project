@@ -527,6 +527,11 @@ export default function CoopRequestPage() {
           <label className="label" style={{ fontSize: 15 }}>อัปโหลดเอกสารประกอบ <span style={{ color: 'red' }}>*</span></label>
           <p style={{ fontSize: 13, color: '#64748b', margin: '4px 0 10px 0' }}>{gatewaySettings.uploadDescription}</p>
 
+          {/* คำแนะนำถาวร ไม่ผูกกับข้อความที่เจ้าหน้าที่แก้ไขได้ — กันเผลอแก้/ลบแล้วนักศึกษาไม่รู้วิธีเซ็นรับรองสำเนา */}
+          <div style={{ marginBottom: 12, padding: '10px 14px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, fontSize: 12.5, color: '#92400e', lineHeight: 1.6 }}>
+            📝 <b>เอกสารที่เป็นสำเนา</b> (เช่น สำเนาบัตรประชาชน, สำเนาทรานสคริปต์) ต้องเซ็นรับรองสำเนาถูกต้องก่อนอัปโหลดทุกแผ่น โดยเขียนคำว่า <b>"สำเนาถูกต้อง"</b> พร้อมลงลายมือชื่อและวันที่กำกับไว้บนเอกสาร
+          </div>
+
           {/* ไฟล์ที่อยู่ในระบบแล้ว */}
           {gatewayDocs.length > 0 && (
             <div style={{ marginBottom: 15, padding: 15, background: '#f0fdf4', borderRadius: 10, border: '1px solid #bbf7d0' }}>
