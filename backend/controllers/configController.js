@@ -319,10 +319,10 @@ exports.saveApplyConfig = async (req, res) => {
 // Gateway Settings — ข้อความและลิงก์ใน S_Gateway
 // ==========================================
 const GATEWAY_DEFAULTS = {
-    gradeSheetDescription: 'กรุณา Make a Copy แบบฟอร์มด้านล่าง กรอกข้อมูลให้ครบ แล้วนำลิงก์ที่แชร์มาใส่ในช่องด้านล่าง',
+    gradeSheetDescription: 'กรุณา Make a Copy แบบฟอร์มด้านล่าง แล้วแนบภาพหน้าจอ (Screenshot) หน้าตรวจสอบการสำเร็จการศึกษาจากระบบ REG ลงในแบบฟอร์มนี้ด้วย จากนั้นกรอกข้อมูลให้ครบ แล้วนำลิงก์ที่แชร์มาใส่ในช่องด้านล่าง',
     gradeSheetUrl: 'https://docs.google.com/spreadsheets/d/1HGWTsoScRc3XU0abUn6J9TgyFksAoi1V/copy',
     gradeSheetLinkText: '📋 Make a Copy แบบฟอร์ม',
-    uploadDescription: 'เช่น ใบคำร้อง, ทรานสคริปต์, หนังสือรับรอง ฯลฯ (รองรับ PDF, รูปภาพ)'
+    uploadDescription: 'เช่น ใบคำร้อง, ทรานสคริปต์, หนังสือรับรอง ฯลฯ (รองรับ PDF, รูปภาพ) — เอกสารที่เป็นสำเนาต้องเซ็นรับรองสำเนาถูกต้องก่อนอัปโหลด'
 };
 
 const ALLOWED_URL_PROTOCOLS = ['https:', 'http:'];
