@@ -17,6 +17,7 @@ import coopLogo from "../assets/COOP_Logo.png";
 import T_SupervisionReview from "./T_SupervisionReview";
 import A_DocT005_006 from "./A_DocT005_006";
 import A_DocT007 from "./A_DocT007";
+import A_SupervisionEval from "./A_SupervisionEval";
 import A_DocT008 from "./A_DocT008";
 import A_GatewaySettings from "./A_GatewaySettings";
 import A_Announcements from "./A_Announcements";
@@ -148,6 +149,14 @@ export default function TeacherApp() {
               element={
                 isCoopTeacher === null ? null // ยังไม่รู้สถานะ — รอ /api/teacher/me ก่อน อย่าเพิ่ง redirect
                   : isCoopTeacher ? <A_Announcements />
+                  : <Navigate to="/teacher/dashboard" replace />
+              }
+            />
+            <Route
+              path="supervision-eval"
+              element={
+                isCoopTeacher === null ? null
+                  : isCoopTeacher ? <A_SupervisionEval />
                   : <Navigate to="/teacher/dashboard" replace />
               }
             />

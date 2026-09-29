@@ -4,6 +4,8 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const supervisionController = require('../controllers/supervisionController');
+const supervisionEvalController = require('../controllers/supervisionEvalController');
+const configController = require('../controllers/configController');
 const { verifyToken, verifyRole, verifyCoopTeacherOrStaff } = require('../middlewares/authMiddleware');
 const { pdfOrImageFileFilter } = require('../utils/fileFilters');
 
@@ -33,6 +35,12 @@ router.put('/admin/supervisions/:id/confirmed-date', verifyToken, verifyCoopTeac
 router.post('/admin/supervisions/:id/upload-letter', verifyToken, verifyRole('staff'), upload.single('file'), supervisionController.uploadOfficialLetter);
 router.put('/admin/supervisions/:id/letter-pending', verifyToken, verifyRole('staff'), supervisionController.markSupervisionLetterPending);
 router.put('/admin/supervisions/:id/complete', verifyToken, verifyCoopTeacherOrStaff, supervisionController.completeSupervision);
+
+// แบบประเมินการนิเทศ (ลิงก์ให้อาจารย์ผู้นิเทศ) — อาจารย์ประจำวิชา/เจ้าหน้าที่
+router.get('/admin/supervision-eval/config', verifyToken, verifyCoopTeacherOrStaff, configController.getSupervisionEvalConfig);
+router.put('/admin/supervision-eval/config', verifyToken, verifyCoopTeacherOrStaff, configController.updateSupervisionEvalConfig);
+router.get('/admin/supervision-eval', verifyToken, verifyCoopTeacherOrStaff, supervisionEvalController.listEvalAppointments);
+router.post('/admin/supervision-eval/send', verifyToken, verifyCoopTeacherOrStaff, supervisionEvalController.sendEval);
 
 
 // NOTE: Student supervision routes (/coop/supervision/me, /coop/supervision/propose)

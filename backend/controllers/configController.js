@@ -2,6 +2,7 @@
 const prisma = require('../config/prismaClient');
 const path = require('path');
 const fs = require('fs');
+const { getEvalConfig, CONFIG_KEY: SUPERVISION_EVAL_KEY } = require('../utils/supervisionEval');
 
 // 1. ดึง Config
 exports.getDocConfig = async (req, res) => {
@@ -136,6 +137,41 @@ exports.updateT007Config = async (req, res) => {
         res.json({ ok: true, message: "บันทึกการตั้งค่าเรียบร้อยแล้ว" });
     } catch (err) {
         console.error("Error updating T007 config:", err);
+        res.status(500).json({ ok: false, message: "Server error" });
+    }
+};
+
+// ==========================================
+// แบบประเมินการนิเทศ (สำหรับอาจารย์ผู้นิเทศ) — ลิงก์เดียว + โหมดส่งเอง/อัตโนมัติ
+// ==========================================
+exports.getSupervisionEvalConfig = async (req, res) => {
+    try {
+        res.json({ ok: true, config: await getEvalConfig() });
+    } catch (err) {
+        console.error("Error getting supervision eval config:", err);
+        res.status(500).json({ ok: false, message: "Server error" });
+    }
+};
+
+exports.updateSupervisionEvalConfig = async (req, res) => {
+    try {
+        const { instructionText, evalLink, autoSend } = req.body;
+        if (evalLink && !safeUrl(evalLink)) {
+            return res.status(400).json({ ok: false, message: 'ลิงก์แบบประเมินต้องเป็น URL แบบ http/https เท่านั้น' });
+        }
+        const payload = {
+            instructionText: typeof instructionText === 'string' ? instructionText.slice(0, 2000) : '',
+            evalLink: safeUrl(evalLink) || null,
+            autoSend: autoSend === true,
+        };
+        await prisma.systemConfig.upsert({
+            where: { key: SUPERVISION_EVAL_KEY },
+            update: { value: JSON.stringify(payload) },
+            create: { key: SUPERVISION_EVAL_KEY, value: JSON.stringify(payload) }
+        });
+        res.json({ ok: true, message: "บันทึกการตั้งค่าเรียบร้อยแล้ว", config: payload });
+    } catch (err) {
+        console.error("Error updating supervision eval config:", err);
         res.status(500).json({ ok: false, message: "Server error" });
     }
 };

@@ -615,6 +615,7 @@ model SupervisionAppointment {
   letterDraftDate    DateTime?
   onlineLink         String?   @db.Text
   groupId            String? // UUID เชื่อม appointment ที่นัดพร้อมกัน (null = นัดเดี่ยว)
+  evalSentAt         DateTime? // ส่งลิงก์แบบประเมินการนิเทศให้อาจารย์ผู้นิเทศแล้วเมื่อไร (null = ยังไม่ส่ง)
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 

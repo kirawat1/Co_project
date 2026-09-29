@@ -27,6 +27,7 @@ import A_DocRequirements from "./A_DocRequirements";
 import A_SupervisionManager from "./A_SupervisionManage";
 import A_DocT005_006 from "./A_DocT005_006";
 import A_DocT007 from "./A_DocT007";
+import A_SupervisionEval from "./A_SupervisionEval";
 import A_DocT008 from "./A_DocT008";
 import A_GatewaySettings from "./A_GatewaySettings";
 import A_StaffManage from "./A_StaffManage";
@@ -134,6 +135,7 @@ export default function AdminApp() {
             <Route path="feedback" element={<A_Feedback />} />
             <Route path="doc-t005-006" element={<A_DocT005_006 />} />
             <Route path="doc-t007" element={<A_DocT007 />} />
+            <Route path="supervision-eval" element={<A_SupervisionEval />} />
             <Route path="doc-t008" element={<A_DocT008 />} />
             {/* ✅ ย้ายขึ้นมา และลบ /admin/ ออก */}
             <Route path="doc-requirements" element={<A_DocRequirements />} />
