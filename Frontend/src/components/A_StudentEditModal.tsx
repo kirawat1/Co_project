@@ -16,6 +16,11 @@ interface TeacherOption {
   email?: string;
 }
 
+interface Department {
+  major: string;
+  nameTh: string | null;
+}
+
 interface Props {
   student: StudentProfile;
   onClose: () => void;
@@ -30,6 +35,7 @@ export default function A_StudentEditModal({ student, onClose, onSaved }: Props)
     firstNameEn: student.firstNameEn ?? "",
     lastNameEn: student.lastNameEn ?? "",
     studentId: student.studentId ?? "",
+    major: student.major ?? "",
     studyProgram: student.studyProgram ?? "",
     year: student.year ?? "",
     phone: student.phone ?? "",
@@ -43,6 +49,7 @@ export default function A_StudentEditModal({ student, onClose, onSaved }: Props)
     student.coopAdvisorId ?? student.coopAdvisor?.id ?? null
   );
   const [teachers, setTeachers] = useState<TeacherOption[]>([]);
+  const [departments, setDepartments] = useState<Department[] | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [resetting, setResetting] = useState(false);
@@ -54,6 +61,10 @@ export default function A_StudentEditModal({ student, onClose, onSaved }: Props)
       .then(res => { if (!res.ok) return null; return res.json(); })
       .then(data => data && setTeachers(Array.isArray(data) ? data : []))
       .catch(() => setTeachers([]));
+    apiFetch("/api/coop/departments")
+      .then(res => (res.ok ? res.json() : null))
+      .then(data => setDepartments(data?.ok && Array.isArray(data.departments) ? data.departments : []))
+      .catch(() => setDepartments([]));
   }, []);
 
   function update<K extends keyof typeof form>(key: K, value: string) {
@@ -127,6 +138,14 @@ export default function A_StudentEditModal({ student, onClose, onSaved }: Props)
           </Field>
           <Field label="นามสกุล (English)">
             <input className="input" value={form.lastNameEn} onChange={e => update("lastNameEn", e.target.value)} />
+          </Field>
+          <Field label="หลักสูตร">
+            <select className="input" value={form.major} onChange={e => update("major", e.target.value)} disabled={departments === null}>
+              <option value="">{departments === null ? "กำลังโหลด..." : "-- ยังไม่ระบุหลักสูตร --"}</option>
+              {(departments ?? []).map(d => (
+                <option key={d.major} value={d.major}>{d.nameTh && d.nameTh !== d.major ? `${d.nameTh} (${d.major})` : d.major}</option>
+              ))}
+            </select>
           </Field>
           <Field label="รูปแบบการศึกษา">
             <select className="input" value={form.studyProgram} onChange={e => update("studyProgram", e.target.value)}>
