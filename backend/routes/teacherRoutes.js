@@ -1,7 +1,6 @@
 const express = require("express");
 const router = express.Router();
 const teacherController = require("../controllers/teacherController");
-const configController = require('../controllers/configController');
 const { verifyToken, verifyRole } = require('../middlewares/authMiddleware');
 const supervisionController = require('../controllers/supervisionController');
 
@@ -18,13 +17,6 @@ router.get('/students/export', verifyToken, verifyRole('teacher'), teacherContro
 router.get("/", verifyToken, teacherController.getAllTeachers);
 // PUT /:id แก้ข้อมูลอาจารย์คนอื่น — staff เท่านั้น
 router.put("/:id", verifyToken, verifyRole('staff'), teacherController.updateTeacherById);
-
-// --- Config Routes ---
-router.get('/config/t002', verifyToken, verifyRole('teacher', 'staff'), configController.getT002Config);
-router.post('/config/t002', verifyToken, verifyRole('teacher', 'staff'), configController.saveT002Config);
-
-router.get('/config/t003', verifyToken, verifyRole('teacher', 'staff'), configController.getT003Config);
-router.post('/config/t003', verifyToken, verifyRole('teacher', 'staff'), configController.saveT003Config);
 
 // --- Review Documents Routes ---
 router.put('/documents/review-t002', verifyToken, verifyRole('teacher', 'staff'), teacherController.reviewT002);

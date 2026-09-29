@@ -82,45 +82,17 @@ export default function T_Sidebar({ isOpen = false, onClose = () => {}, isCoopTe
         <NavItem to="/teacher/review-supervision" label="นัดหมายนิเทศ" icon={<IcCalendar />}
           {...badge(["SUPERVISION_PROPOSED"])} />
 
-        <NavLink
-          to="/teacher/doc-t005-006"
-          className={({ isActive }) => "item" + (isActive ? " active" : "")}
-          onClick={nav}
-        >
-          <span className="ico"><IcStar /></span>
-          <span className="text">T005/T006 ประเมิน</span>
-        </NavLink>
-
-        <NavLink
-          to="/teacher/doc-t007"
-          className={({ isActive }) => "item" + (isActive ? " active" : "")}
-          onClick={nav}
-        >
-          <span className="ico"><IcClipboardCheck /></span>
-          <span className="text">T007 ประเมิน</span>
-        </NavLink>
-
+        {/* หน้าตั้งค่า — งานของอาจารย์ประจำวิชา/เจ้าหน้าที่ (backend กันด้วย verifyCoopTeacherOrStaff) */}
         {isCoopTeacher && (
-          <NavItem to="/teacher/supervision-eval" label="แบบประเมินการนิเทศ" icon={<IcClipboardCheck />} onClick={nav} />
+          <>
+            <div className="sec-label">ตั้งค่า (อาจารย์ประจำวิชา)</div>
+            <NavItem to="/teacher/doc-t005-006" label="T005/T006 ประเมิน" icon={<IcStar />} onClick={nav} />
+            <NavItem to="/teacher/doc-t007" label="T007 ประเมิน" icon={<IcClipboardCheck />} onClick={nav} />
+            <NavItem to="/teacher/supervision-eval" label="แบบประเมินการนิเทศ" icon={<IcClipboardCheck />} onClick={nav} />
+            <NavItem to="/teacher/doc-t008" label="T008 เล่มรายงานสหกิจ" icon={<IcBook />} onClick={nav} />
+            <NavItem to="/teacher/gateway-settings" label="ตั้งค่าฟอร์มคำร้อง" icon={<IcSettings />} onClick={nav} />
+          </>
         )}
-
-        <NavLink
-          to="/teacher/doc-t008"
-          className={({ isActive }) => "item" + (isActive ? " active" : "")}
-          onClick={nav}
-        >
-          <span className="ico"><IcBook /></span>
-          <span className="text">T008 เล่มรายงานสหกิจ </span>
-        </NavLink>
-
-        <NavLink
-          to="/teacher/gateway-settings"
-          className={({ isActive }) => "item" + (isActive ? " active" : "")}
-          onClick={nav}
-        >
-          <span className="ico"><IcSettings /></span>
-          <span className="text">ตั้งค่าฟอร์มคำร้อง</span>
-        </NavLink>
 
       </nav>
 
