@@ -15,7 +15,7 @@ interface EvalRow {
   companyName: string;
   teacherName: string;
   coTeacherName: string;
-  unmatchedCoTeachers: string[];
+  unlinkedCoTeachers: string[];
 }
 
 const fmtDate = (v: string | null) =>
@@ -78,9 +78,9 @@ export default function A_SupervisionEval() {
     setSending(true);
     try {
       const res = await axios.post("/api/admin/supervision-eval/send", { ids }, { headers });
-      const unmatched = (res.data.results || []).flatMap((r: { unmatched: string[] }) => r.unmatched);
+      const unmatched = (res.data.results || []).flatMap((r: { unlinked: string[] }) => r.unlinked);
       notify.success(`ส่งแล้ว ${res.data.sent} รายการ`);
-      if (unmatched.length) notify.warning(`ไม่พบบัญชีในระบบของ: ${[...new Set(unmatched)].join(", ")} — ใช้ปุ่มคัดลอกข้อความส่งเองแทน`);
+      if (unmatched.length) notify.warning(`ยังไม่ผูกบัญชี: ${[...new Set(unmatched)].join(", ")} — เลือกอาจารย์ร่วมใหม่ หรือใช้ปุ่มคัดลอกข้อความส่งเองแทน`);
       await load();
     } catch (err: any) {
       notify.error(err?.response?.data?.message || "ส่งไม่สำเร็จ");
@@ -192,9 +192,9 @@ export default function A_SupervisionEval() {
                   <td style={td}>{r.teacherName || "-"}</td>
                   <td style={td}>
                     {r.coTeacherName || "-"}
-                    {r.unmatchedCoTeachers.length > 0 && (
+                    {r.unlinkedCoTeachers.length > 0 && (
                       <div style={{ fontSize: 12, color: "#b45309", marginTop: 2 }}>
-                        ⚠️ ไม่พบบัญชี: {r.unmatchedCoTeachers.join(", ")} (ส่งแจ้งเตือนไม่ได้)
+                        ⚠️ ยังไม่ผูกบัญชี: {r.unlinkedCoTeachers.join(", ")} (ข้อมูลเก่า — เลือกอาจารย์ร่วมใหม่ที่หน้าจัดการนิเทศ จึงจะส่งแจ้งเตือนได้)
                       </div>
                     )}
                   </td>

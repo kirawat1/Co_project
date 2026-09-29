@@ -2,8 +2,6 @@ const {
   resolveSlotEnd,
   rangesOverlap,
   parseProposedEntry,
-  teacherNameKeys,
-  coTeacherKeys,
   findTeacherClash,
   assertNoTeacherClash,
   timeKey,
@@ -75,16 +73,6 @@ describe('rangesOverlap', () => {
   });
 });
 
-describe('ชื่ออาจารย์', () => {
-  test('จับคู่ได้ทั้งแบบมีและไม่มีคำนำหน้า', () => {
-    expect(teacherNameKeys(teacherA)).toEqual(['ผศดรชิตสุธาสุ่มเล็ก', 'ชิตสุธาสุ่มเล็ก']);
-  });
-
-  test('แยกอาจารย์ร่วมที่คั่นด้วยลูกน้ำ', () => {
-    expect(coTeacherKeys('อ. ดร.ญานิกา คงโสรส, ผศ. ดร.สิลดา อินทรโสธรฉันท์')).toHaveLength(2);
-  });
-});
-
 describe('findTeacherClash', () => {
   const booked = (over) => ({
     id: 99,
@@ -92,8 +80,8 @@ describe('findTeacherClash', () => {
     confirmedEndDate: at(2026, 4, 11, 12, 0),
     proposedDates: proposed('2026-04-11|10:00-12:00|ONSITE'),
     teacherId: teacherA.id,
-    coTeacherName: null,
     teacher: teacherA,
+    coTeachers: [],
     student: student('ไอรินทร์'),
     ...over,
   });
@@ -102,7 +90,7 @@ describe('findTeacherClash', () => {
     const clash = await findTeacherClash(fakeTx([booked()]), {
       start: at(2026, 4, 11, 11, 0),
       end: at(2026, 4, 11, 13, 0),
-      teacher: teacherA,
+      teacherIds: [teacherA.id],
     });
     expect(clash).not.toBeNull();
     expect(clash.appointmentId).toBe(99);
@@ -115,7 +103,7 @@ describe('findTeacherClash', () => {
     const clash = await findTeacherClash(fakeTx([booked()]), {
       start: at(2026, 4, 11, 12, 0),
       end: at(2026, 4, 11, 13, 0),
-      teacher: teacherA,
+      teacherIds: [teacherA.id],
     });
     expect(clash).toBeNull();
   });
@@ -124,7 +112,7 @@ describe('findTeacherClash', () => {
     const clash = await findTeacherClash(fakeTx([booked()]), {
       start: at(2026, 4, 11, 10, 0),
       end: at(2026, 4, 11, 12, 0),
-      teacher: teacherB,
+      teacherIds: [teacherB.id],
     });
     expect(clash).toBeNull();
   });
@@ -133,28 +121,38 @@ describe('findTeacherClash', () => {
     const clash = await findTeacherClash(fakeTx([booked()]), {
       start: at(2026, 4, 11, 10, 0),
       end: at(2026, 4, 11, 12, 0),
-      teacher: teacherA,
+      teacherIds: [teacherA.id],
     });
     expect(clash).not.toBeNull();
   });
 
   test('อาจารย์ร่วมของรายการอื่นก็นับเป็นคิวที่ไม่ว่าง', async () => {
-    const rows = [booked({ teacherId: teacherB.id, teacher: teacherB, coTeacherName: 'ผศ. ดร.ชิตสุธา สุ่มเล็ก' })];
+    const rows = [booked({ teacherId: teacherB.id, teacher: teacherB, coTeachers: [{ teacherId: teacherA.id, teacher: teacherA }] })];
     const clash = await findTeacherClash(fakeTx(rows), {
       start: at(2026, 4, 11, 11, 0),
       end: at(2026, 4, 11, 13, 0),
-      teacher: teacherA,
+      teacherIds: [teacherA.id],
     });
     expect(clash).not.toBeNull();
     expect(clash.message).toContain('ชิตสุธา');
+  });
+
+  test('ชื่อเหมือนกันแต่คนละบัญชี → ไม่ชน (เทียบด้วย id ไม่ใช่ชื่อ)', async () => {
+    const twin = { ...teacherA, id: 77 };
+    const rows = [booked({ teacherId: teacherB.id, teacher: teacherB, coTeachers: [{ teacherId: twin.id, teacher: twin }] })];
+    const clash = await findTeacherClash(fakeTx(rows), {
+      start: at(2026, 4, 11, 11, 0),
+      end: at(2026, 4, 11, 13, 0),
+      teacherIds: [teacherA.id],
+    });
+    expect(clash).toBeNull();
   });
 
   test('เพิ่มอาจารย์ร่วมที่ติดนิเทศของตัวเองเวลานั้น → ชน (ไม่ต้องส่งอาจารย์หลัก)', async () => {
     const clash = await findTeacherClash(fakeTx([booked()]), {
       start: at(2026, 4, 11, 11, 0),
       end: at(2026, 4, 11, 13, 0),
-      teacher: null,
-      coTeacherName: 'ผศ. ดร.ชิตสุธา สุ่มเล็ก',
+      teacherIds: [teacherA.id],
     });
     expect(clash).not.toBeNull();
   });
@@ -163,7 +161,7 @@ describe('findTeacherClash', () => {
     const clash = await findTeacherClash(fakeTx([booked()]), {
       start: at(2026, 4, 11, 10, 0),
       end: at(2026, 4, 11, 12, 0),
-      teacher: teacherA,
+      teacherIds: [teacherA.id],
       excludeIds: [99],
     });
     expect(clash).toBeNull();
@@ -172,10 +170,10 @@ describe('findTeacherClash', () => {
   test('ข้อมูลเก่าที่ไม่มีเวลาสิ้นสุด ถือว่ายาว 1 ชม.', async () => {
     const rows = [booked({ confirmedEndDate: null, proposedDates: proposed('2026-04-11T10:00') })];
     const overlap = await findTeacherClash(fakeTx(rows), {
-      start: at(2026, 4, 11, 10, 30), end: at(2026, 4, 11, 11, 30), teacher: teacherA,
+      start: at(2026, 4, 11, 10, 30), end: at(2026, 4, 11, 11, 30), teacherIds: [teacherA.id],
     });
     const after = await findTeacherClash(fakeTx(rows), {
-      start: at(2026, 4, 11, 11, 0), end: at(2026, 4, 11, 12, 0), teacher: teacherA,
+      start: at(2026, 4, 11, 11, 0), end: at(2026, 4, 11, 12, 0), teacherIds: [teacherA.id],
     });
     expect(overlap).not.toBeNull();
     expect(after).toBeNull();
@@ -190,18 +188,18 @@ describe('assertNoTeacherClash', () => {
       confirmedEndDate: at(2026, 4, 11, 12, 0),
       proposedDates: null,
       teacherId: teacherA.id,
-      coTeacherName: null,
       teacher: teacherA,
+      coTeachers: [],
       student: student('ธนธรณ์'),
     }];
     await expect(assertNoTeacherClash(fakeTx(rows), {
-      start: at(2026, 4, 11, 11, 0), end: at(2026, 4, 11, 12, 30), teacher: teacherA,
+      start: at(2026, 4, 11, 11, 0), end: at(2026, 4, 11, 12, 30), teacherIds: [teacherA.id],
     })).rejects.toMatchObject({ is409: true });
   });
 
   test('ไม่ชน = ผ่าน', async () => {
     await expect(assertNoTeacherClash(fakeTx([]), {
-      start: at(2026, 4, 11, 11, 0), end: at(2026, 4, 11, 12, 0), teacher: teacherA,
+      start: at(2026, 4, 11, 11, 0), end: at(2026, 4, 11, 12, 0), teacherIds: [teacherA.id],
     })).resolves.toBeUndefined();
   });
 });

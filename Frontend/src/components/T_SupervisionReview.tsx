@@ -39,6 +39,7 @@ interface SupervisionAppt {
     isPrimaryAdvisor?: boolean;
     coopPeriodId?: number;
     coTeacherName?: string | null;
+    coTeachers?: { teacherId: number }[];
     student: {
         studentId: string;
         firstName: string;
@@ -167,7 +168,7 @@ export default function T_SupervisionReview() {
     const [savingConfig, setSavingConfig] = useState(false);
     // modals
     const [assignSup, setAssignSup] = useState<SupervisionAppt | null>(null);
-    const [coTeachers, setCoTeachers] = useState<string[]>([]);
+    const [coTeachers, setCoTeachers] = useState<number[]>([]);
     const [editDateSup, setEditDateSup] = useState<SupervisionAppt | null>(null);
     const [editDateVal, setEditDateVal] = useState("");
     const [editDateTime, setEditDateTime] = useState("09:00");
@@ -377,13 +378,13 @@ export default function T_SupervisionReview() {
 
     const openAssignModal = (sup: SupervisionAppt) => {
         setAssignSup(sup);
-        setCoTeachers(sup.coTeacherName ? sup.coTeacherName.split(',').map(n => n.trim()) : []);
+        setCoTeachers((sup.coTeachers ?? []).map(c => c.teacherId));
     };
-    const toggleCoTeacher = (name: string) => setCoTeachers(prev => prev.includes(name) ? prev.filter(t => t !== name) : [...prev, name]);
+    const toggleCoTeacher = (id: number) => setCoTeachers(prev => prev.includes(id) ? prev.filter(t => t !== id) : [...prev, id]);
     const handleSaveCoTeachers = async () => {
         if (!assignSup) return;
         try {
-            await axios.put(`/api/admin/supervisions/${assignSup.id}/co-teachers`, { coTeacherName: coTeachers.length > 0 ? coTeachers.join(', ') : null }, { headers: { Authorization: `Bearer ${token}` } });
+            await axios.put(`/api/admin/supervisions/${assignSup.id}/co-teachers`, { coTeacherIds: coTeachers }, { headers: { Authorization: `Bearer ${token}` } });
             toast.success("บันทึกรายชื่ออาจารย์นิเทศเรียบร้อย"); setAssignSup(null); fetchAll();
         } catch (err: any) { toast.error(err?.response?.data?.message || "เกิดข้อผิดพลาดในการบันทึก"); } // เช่น อาจารย์ร่วมติดนิเทศเวลานั้น (409)
     };
@@ -796,10 +797,10 @@ export default function T_SupervisionReview() {
                             <div className="teacher-checkbox-grid">
                                 {teachersList.filter(t => t.id !== (assignSup as any).teacherId).map(t => {
                                     const fullName = `${t.prefix || ''}${t.firstName} ${t.lastName}`;
-                                    const checked = coTeachers.includes(fullName);
+                                    const checked = coTeachers.includes(t.id);
                                     return (
                                         <label key={t.id} className="teacher-checkbox-label" style={{ borderColor: checked ? '#3b82f6' : '#cbd5e1', background: checked ? '#eff6ff' : 'white' }}>
-                                            <input type="checkbox" checked={checked} onChange={() => toggleCoTeacher(fullName)} style={{ width: 16, height: 16, accentColor: '#2563eb' }} />
+                                            <input type="checkbox" checked={checked} onChange={() => toggleCoTeacher(t.id)} style={{ width: 16, height: 16, accentColor: '#2563eb' }} />
                                             <span style={{ fontWeight: checked ? 'bold' : 'normal', color: checked ? '#1e40af' : '#334155' }}>{fullName}</span>
                                         </label>
                                     );

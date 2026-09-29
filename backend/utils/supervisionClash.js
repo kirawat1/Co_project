@@ -77,26 +77,6 @@ function rangesOverlap(aStart, aEnd, bStart, bEnd) {
   return aStart < bEnd && bStart < aEnd;
 }
 
-const normalizeName = (name) => String(name || '').replace(/[\s.]/g, '').toLowerCase();
-
-// หน้าเว็บบันทึกอาจารย์ร่วมเป็นชื่อ "คำนำหน้า+ชื่อ สกุล" (ไม่ใช่ FK) จึงต้องจับคู่ด้วยชื่อ
-// เก็บแบบไม่มีคำนำหน้าด้วย เผื่อข้อมูลเก่าที่พิมพ์คนละรูปแบบ
-function teacherNameKeys(teacher) {
-  if (!teacher) return [];
-  const { prefix = '', firstName = '', lastName = '' } = teacher;
-  return [
-    normalizeName(`${prefix}${firstName}${lastName}`),
-    normalizeName(`${firstName}${lastName}`),
-  ].filter(Boolean);
-}
-
-function coTeacherKeys(coTeacherName) {
-  return String(coTeacherName || '')
-    .split(',')
-    .map(normalizeName)
-    .filter(Boolean);
-}
-
 function fullTeacherName(teacher) {
   if (!teacher) return 'อาจารย์';
   return `${teacher.prefix || ''}${teacher.firstName || ''} ${teacher.lastName || ''}`.trim();
@@ -108,16 +88,17 @@ function thaiDateTimeRange(start, end) {
   return `${d} เวลา ${timeKey(start)}-${timeKey(end)} น.`;
 }
 
+const TEACHER_NAME = { select: { prefix: true, firstName: true, lastName: true } };
+
 /**
- * หารายการที่ชนกับช่วงเวลาที่กำลังจะบันทึก
- * opts: { start, end, teacher: {id,prefix,firstName,lastName}|null, coTeacherName, excludeIds }
+ * หารายการที่ชนกับช่วงเวลาที่กำลังจะบันทึก — เทียบด้วย id อาจารย์ (อาจารย์หลัก + อาจารย์ร่วมของทั้งสองฝั่ง)
+ * opts: { start, end, teacherIds: number[], excludeIds }
  * คืน null ถ้าไม่ชน หรือ { appointmentId, message }
  */
-async function findTeacherClash(tx, { start, end, teacher = null, coTeacherName = null, excludeIds = [] }) {
+async function findTeacherClash(tx, { start, end, teacherIds = [], excludeIds = [] }) {
   if (!start || !end) return null;
-  const myTeacherId = teacher && teacher.id != null ? teacher.id : null;
-  const myKeys = new Set([...teacherNameKeys(teacher), ...coTeacherKeys(coTeacherName)]);
-  if (myTeacherId == null && myKeys.size === 0) return null;
+  const myIds = new Set(teacherIds.filter((id) => id != null));
+  if (myIds.size === 0) return null;
 
   const candidates = await tx.supervisionAppointment.findMany({
     where: {
@@ -128,8 +109,9 @@ async function findTeacherClash(tx, { start, end, teacher = null, coTeacherName 
     },
     select: {
       id: true, confirmedDate: true, confirmedEndDate: true, proposedDates: true,
-      teacherId: true, coTeacherName: true,
-      teacher: { select: { prefix: true, firstName: true, lastName: true } },
+      teacherId: true,
+      teacher: TEACHER_NAME,
+      coTeachers: { select: { teacherId: true, teacher: TEACHER_NAME } },
       student: { select: { studentId: true, firstName: true, lastName: true } },
     },
   });
@@ -139,18 +121,11 @@ async function findTeacherClash(tx, { start, end, teacher = null, coTeacherName 
     const cEnd = resolveSlotEnd(cStart, c);
     if (!rangesOverlap(start, end, cStart, cEnd)) continue;
 
-    const cKeys = new Set([...teacherNameKeys(c.teacher), ...coTeacherKeys(c.coTeacherName)]);
-    const sameTeacherId = myTeacherId != null && c.teacherId === myTeacherId;
-    const sharedName = [...myKeys].some((k) => cKeys.has(k));
-    if (!sameTeacherId && !sharedName) continue;
-
     // บอกชื่ออาจารย์ที่ชนจริง — ถ้าชนที่อาจารย์ร่วม ผู้นิเทศหลักของอีกฝั่งอาจเป็นคนละคน
-    const mainMatched = sameTeacherId || teacherNameKeys(c.teacher).some((k) => myKeys.has(k));
-    const coMatched = String(c.coTeacherName || '')
-      .split(',')
-      .map((s) => s.trim())
-      .find((n) => myKeys.has(normalizeName(n)));
-    const clashTeacher = mainMatched ? fullTeacherName(c.teacher) : (coMatched || fullTeacherName(c.teacher));
+    const people = [{ teacherId: c.teacherId, teacher: c.teacher }, ...(c.coTeachers || [])];
+    const shared = people.find((x) => myIds.has(x.teacherId));
+    if (!shared) continue;
+    const clashTeacher = fullTeacherName(shared.teacher);
     const who = `${c.student.firstName} ${c.student.lastName}`;
     return {
       appointmentId: c.id,
@@ -172,8 +147,6 @@ module.exports = {
   parseProposedList,
   resolveSlotEnd,
   rangesOverlap,
-  teacherNameKeys,
-  coTeacherKeys,
   thaiDateTimeRange,
   findTeacherClash,
   assertNoTeacherClash,

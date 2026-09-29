@@ -1,6 +1,6 @@
 // แบบประเมินการนิเทศ — รายการนัดที่ส่ง/ยังไม่ส่งลิงก์ (อาจารย์ประจำวิชา/เจ้าหน้าที่) และฝั่งอาจารย์ผู้นิเทศ
 const prisma = require('../config/prismaClient');
-const { getEvalConfig, matchCoTeachers, sendEvalForAppointments, SENDABLE_STATUSES } = require('../utils/supervisionEval');
+const { getEvalConfig, unlinkedCoTeacherNames, sendEvalForAppointments, SENDABLE_STATUSES } = require('../utils/supervisionEval');
 
 const TEACHER_NAME = { select: { prefix: true, firstName: true, lastName: true } };
 const teacherName = (t) => (t ? `${t.prefix || ''}${t.firstName || ''} ${t.lastName || ''}`.trim() : '');
@@ -9,6 +9,7 @@ const studentName = (s) => [s?.firstName, s?.lastName].filter(Boolean).join(' ')
 const APPT_SELECT = {
   id: true, status: true, confirmedDate: true, coTeacherName: true, evalSentAt: true, teacherId: true,
   teacher: TEACHER_NAME,
+  coTeachers: { select: { teacherId: true, teacher: TEACHER_NAME } },
   student: {
     select: {
       studentId: true, firstName: true, lastName: true,
@@ -17,7 +18,7 @@ const APPT_SELECT = {
   },
 };
 
-const toRow = (a, teachers) => ({
+const toRow = (a) => ({
   id: a.id,
   status: a.status,
   confirmedDate: a.confirmedDate,
@@ -28,22 +29,27 @@ const toRow = (a, teachers) => ({
   coopPeriodId: a.student?.coop?.coopPeriodId ?? null,
   teacherName: teacherName(a.teacher),
   coTeacherName: a.coTeacherName || '',
-  unmatchedCoTeachers: matchCoTeachers(a.coTeacherName, teachers).unmatched,
 });
 
 // GET /api/admin/supervision-eval
 exports.listEvalAppointments = async (_req, res) => {
   try {
-    const [appts, teachers, config] = await Promise.all([
+    const [appts, config] = await Promise.all([
       prisma.supervisionAppointment.findMany({
         where: { status: { in: SENDABLE_STATUSES }, student: { deletedAt: null } },
         select: APPT_SELECT,
         orderBy: { confirmedDate: 'asc' },
       }),
-      prisma.teacher.findMany({ select: { prefix: true, firstName: true, lastName: true } }),
       getEvalConfig(),
     ]);
-    res.json({ ok: true, config, appointments: appts.map((a) => toRow(a, teachers)) });
+    res.json({
+      ok: true,
+      config,
+      appointments: appts.map((a) => ({
+        ...toRow(a),
+        unlinkedCoTeachers: unlinkedCoTeacherNames(a.coTeacherName, a.coTeachers.map((c) => c.teacher)),
+      })),
+    });
   } catch (err) {
     console.error('listEvalAppointments error:', err);
     res.status(500).json({ ok: false, message: 'ไม่สามารถโหลดรายการนิเทศได้' });
@@ -64,29 +70,29 @@ exports.sendEval = async (req, res) => {
   }
 };
 
-// GET /api/teacher/supervision-eval — นัดที่ส่งลิงก์ให้ "ฉัน" แล้ว (เป็นอาจารย์หลัก หรือมีชื่อเป็นอาจารย์ร่วม)
+// GET /api/teacher/supervision-eval — นัดที่ส่งลิงก์ให้ "ฉัน" แล้ว (เป็นอาจารย์หลัก หรืออาจารย์ร่วม)
 exports.getMyEval = async (req, res) => {
   try {
-    const me = await prisma.teacher.findUnique({
-      where: { userId: req.user.id },
-      select: { id: true, prefix: true, firstName: true, lastName: true },
-    });
+    const me = await prisma.teacher.findUnique({ where: { userId: req.user.id }, select: { id: true } });
     if (!me) return res.json({ ok: true, config: null, appointments: [] });
 
     const [appts, config] = await Promise.all([
       prisma.supervisionAppointment.findMany({
-        where: { evalSentAt: { not: null }, student: { deletedAt: null } },
+        where: {
+          evalSentAt: { not: null },
+          student: { deletedAt: null },
+          OR: [{ teacherId: me.id }, { coTeachers: { some: { teacherId: me.id } } }],
+        },
         select: APPT_SELECT,
         orderBy: { confirmedDate: 'asc' },
       }),
       getEvalConfig(),
     ]);
-    const mine = appts.filter((a) => a.teacherId === me.id || matchCoTeachers(a.coTeacherName, [me]).matched.length > 0);
-    if (!config.evalLink || mine.length === 0) return res.json({ ok: true, config: null, appointments: [] });
+    if (!config.evalLink || appts.length === 0) return res.json({ ok: true, config: null, appointments: [] });
     res.json({
       ok: true,
       config: { instructionText: config.instructionText, evalLink: config.evalLink },
-      appointments: mine.map((a) => ({ ...toRow(a, []), unmatchedCoTeachers: undefined, isPrimary: a.teacherId === me.id })),
+      appointments: appts.map((a) => ({ ...toRow(a), isPrimary: a.teacherId === me.id })),
     });
   } catch (err) {
     console.error('getMyEval error:', err);
