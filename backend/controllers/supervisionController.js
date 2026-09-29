@@ -7,6 +7,7 @@ const { setAuditDetail, letterPendingActionText, supervisionLetterActionText } =
 const { resolveSlotEnd, assertNoTeacherClash, findTeacherClash, dateKey, timeKey, parseProposedList } = require('../utils/supervisionClash');
 const { SUPERVISION_SCHEDULE_SELECT, SUPERVISION_EXPORT_SELECT, toScheduleRow, sortSchedule, buildSupervisionScheduleWorkbook } = require('../utils/supervisionExport');
 const { exportBaseUrl } = require('../utils/studentExport');
+const { getEvalConfig, sendEvalForAppointments } = require('../utils/supervisionEval');
 const { resolveMajorNameTh } = require('../utils/majorName');
 
 const CLEARED_LETTER_PENDING = { letterPendingAt: null, letterDraftNumber: null, letterDraftDate: null };
@@ -723,6 +724,11 @@ exports.completeSupervision = async (req, res) => {
         });
 
         res.json({ ok: true, message: "บันทึกผลนิเทศเสร็จสิ้นสำเร็จ" });
+
+        // โหมดส่งอัตโนมัติ: นิเทศเสร็จ → ส่งลิงก์แบบประเมินให้อาจารย์ผู้นิเทศทันที (ถ้ายังไม่เคยส่ง)
+        getEvalConfig()
+          .then(cfg => (cfg.autoSend && cfg.evalLink && !supervision.evalSentAt ? sendEvalForAppointments([parsedId]) : null))
+          .catch(console.error);
 
         prisma.student.findUnique({ where: { id: supervision.studentId }, select: { userId: true, deletedAt: true } })
           .then(student => {

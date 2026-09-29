@@ -100,6 +100,10 @@ export default function T_Sidebar({ isOpen = false, onClose = () => {}, isCoopTe
           <span className="text">T007 ประเมิน</span>
         </NavLink>
 
+        {isCoopTeacher && (
+          <NavItem to="/teacher/supervision-eval" label="แบบประเมินการนิเทศ" icon={<IcClipboardCheck />} onClick={nav} />
+        )}
+
         <NavLink
           to="/teacher/doc-t008"
           className={({ isActive }) => "item" + (isActive ? " active" : "")}

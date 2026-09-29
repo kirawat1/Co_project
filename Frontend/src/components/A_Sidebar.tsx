@@ -112,6 +112,14 @@ export default function A_Sidebar({ isOpen = false, onClose = () => {} }: Sideba
           <span className="text">T007 ประเมิน</span>
         </NavLink>
 
+        <NavLink
+          to="/admin/supervision-eval"
+          className={({ isActive }) => "item" + (isActive ? " active" : "")}
+          onClick={nav}
+        >
+          <span className="ico"><IcClipboardCheck /></span>
+          <span className="text">แบบประเมินการนิเทศ</span>
+        </NavLink>
 
         <NavLink
           to="/admin/doc-t008"
