@@ -9,6 +9,7 @@ import AutoTextarea from "./AutoTextarea";
 import ConfirmDialog from "../components/ConfirmDialog";
 import { contactName, type CompanyContact } from "../utils/contacts";
 import Spinner from "../components/Spinner";
+import Modal from "./Modal";
 
 const CURRICULUM_DISPLAY: Record<string, string> = {
   normal: "ภาคปกติ",
@@ -593,19 +594,15 @@ export default function CoopRequestPage() {
 
       {/* PDF POPUP */}
       {showPDFPopup && (
-        <div className="modal-backdrop">
-          <div className="modal-card">
-            <div className="card-head">
-              <h2 className="profile-title">ตรวจสอบเอกสาร (Preview)</h2>
-              <button onClick={() => setShowPDFPopup(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '28px' }}>&times;</button>
-            </div>
-            <iframe src={pdfDataUrl} style={{ flex: 1, border: "1px solid #e5e7eb", borderRadius: "12px", marginTop: '15px', colorScheme: 'light' }} title="Preview" />
+        <Modal title="ตรวจสอบเอกสาร (Preview)" onClose={() => setShowPDFPopup(false)} maxWidth={900} height="90vh" noBodyPadding>
+          <div style={{ height: "100%", display: "flex", flexDirection: "column", padding: "0 20px 20px" }}>
+            <iframe src={pdfDataUrl} style={{ flex: 1, border: "1px solid #e5e7eb", borderRadius: "12px", colorScheme: 'light' }} title="Preview" />
             <div className="action-row" style={{ marginTop: 20 }}>
               <button className="btn-secondary" onClick={() => setShowPDFPopup(false)}>ปิดหน้าต่าง</button>
-              <button className="btn" style={{ background: '#2563eb' }} onClick={() => handleGeneratePDF("download")}>ดาวน์โหลด PDF</button>
+              <button className="btn" onClick={() => handleGeneratePDF("download")}>ดาวน์โหลด PDF</button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   );
@@ -629,14 +626,10 @@ const PROFILE_CSS = `
 /* 🟢 ปรับ CSS ให้เส้นคั่น, ระยะห่าง และฟอนต์ เหมือนหน้า Profile 100% */
 .info-row { display: grid; grid-template-columns: 160px 1fr; padding: 10px 0; border-bottom: 1px solid #f8fafc; align-items: start; }
 .info-row:last-child { border-bottom: none; }
-.label { color: #64748b; font-weight: 700; font-size: 14px; }
+.label { display: block; color: #64748b; font-weight: 700; font-size: 14px; margin-bottom: 8px; }
 .value { font-weight: 600; color: #1e293b; font-size: 14px; }
 
-.input { padding: 12px 16px; border-radius: 10px; border: 1px solid #cbd5e1; width: 100%; margin-top: 8px; box-sizing: border-box; font-family: inherit; font-size: 14px; transition: 0.2s; font-weight: 600; }
-.input:focus { border-color: #3b82f6; outline: none; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
 .file-list { margin: 12px 0; list-style: none; padding: 0; }
 .file-item { padding: 12px 16px; border-radius: 10px; margin-bottom: 8px; font-size: 14px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #e2e8f0; }
 .action-row { display: flex; justify-content: flex-end; gap: 12px; }
-.modal-backdrop { position: fixed; inset: 0; background: rgba(15, 23, 42, .6); display: flex; align-items: center; justify-content: center; z-index: 50; backdrop-filter: blur(4px); }
-.modal-card { background: #fff; border-radius: 20px; padding: 32px; width: 900px; max-width: 95%; height: 90vh; display: flex; flex-direction: column; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); }
 `;

@@ -11,6 +11,8 @@ import { useDebounce } from "../hooks/useDebounce";
 import LoadMoreFooter from "./LoadMoreFooter";
 import A_ApplyWindowCard from "./A_ApplyWindowCard";
 import { useLoadMore } from "../utils/useLoadMore";
+import { TABLE_TH, TABLE_TD, TABLE_HEADER_ROW } from "../utils/tableStyles";
+import Modal, { ModalCloseButton } from "./Modal";
 
 function safeHref(url: string | null | undefined): string | undefined {
   if (!url) return undefined;
@@ -334,7 +336,7 @@ export default function A_CoopApplications() {
                                 </td>
 
                                 <td style={{ ...td, textAlign: 'right' }}>
-                                    <button className={isReviewedPass(app.status) ? "btn-secondary" : "btn"} style={{ padding: '8px 16px', fontSize: 13 }} onClick={() => openReviewModal(app)}>
+                                    <button className={isReviewedPass(app.status) ? "btn-secondary small" : "btn small"} onClick={() => openReviewModal(app)}>
                                         {isReviewedPass(app.status) ? "📄 ดูคำร้อง" : "🔍 ตรวจคำร้อง"}
                                     </button>
                                 </td>
@@ -347,15 +349,19 @@ export default function A_CoopApplications() {
 
             {/* MODAL: SPLIT SCREEN */}
             {selectedApp && (
-                <div className="modal-backdrop">
-                    <div className="modal-card-split">
-                        {/* Header */}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '16px 24px', borderBottom: '1px solid #e2e8f0' }}>
+                <Modal
+                    maxWidth={1400}
+                    height="90vh"
+                    noBodyPadding
+                    onClose={closeAndResetModal}
+                    header={
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', borderBottom: '1px solid #e2e8f0' }}>
                             <h3 style={{ margin: 0, color: '#0f172a' }}>พิจารณาคำร้อง: {selectedApp.student.studentId}</h3>
-                            <button onClick={closeAndResetModal} style={{ border: 'none', background: 'none', fontSize: 24, cursor: 'pointer', color: '#64748b' }}>&times;</button>
+                            <ModalCloseButton onClose={closeAndResetModal} />
                         </div>
-
-                        <div className="split-pane" style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+                    }
+                >
+                        <div className="split-pane" style={{ height: '100%', display: 'flex', overflow: 'hidden' }}>
                             {/* LEFT: PREVIEW */}
                             <div className="preview-pane" style={{ flex: '0 0 60%', background: '#334155' }}>
                                 {previewUrl ? (
@@ -427,8 +433,7 @@ export default function A_CoopApplications() {
                                 </div>
                             </div>
                         </div>
-                    </div>
-                </div>
+                </Modal>
             )}
 
             <style>{STYLES}</style>
@@ -437,10 +442,6 @@ export default function A_CoopApplications() {
 }
 
 const STYLES = `
-    .input { padding: 10px 14px; border-radius: 8px; border: 1px solid #cbd5e1; outline: none; font-size: 14px; font-family: inherit; }
-    .input:focus { border-color: #0ea5e9; box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.15); }
-    .modal-backdrop { position: fixed; inset: 0; background: rgba(15, 23, 42, .6); display: flex; align-items: center; justify-content: center; z-index: 999; backdrop-filter: blur(3px); }
-    .modal-card-split { background: #fff; border-radius: 16px; width: 95vw; max-width: 1400px; height: 90vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); }
     @media (max-width: 768px) {
         .split-pane { flex-direction: column !important; overflow-y: auto !important; }
         .preview-pane { flex: 0 0 280px !important; }
@@ -449,10 +450,10 @@ const STYLES = `
 
 const card: CSSProperties = { background: "#fff", borderRadius: 16, padding: 24, boxShadow: "0 4px 6px -1px rgba(0,0,0,0.05)", border: '1px solid #f1f5f9' };
 const table: CSSProperties = { width: "100%", borderCollapse: "collapse" };
-const thRow: CSSProperties = { background: "#f8fafc", borderBottom: "2px solid #e2e8f0" };
-const th: CSSProperties = { padding: "14px 16px", textAlign: "left", fontSize: 13, fontWeight: 700, color: "#64748b" };
+const thRow: CSSProperties = TABLE_HEADER_ROW;
+const th: CSSProperties = TABLE_TH;
 const tr: CSSProperties = { borderBottom: "1px solid #f1f5f9" };
-const td: CSSProperties = { padding: "14px 16px", verticalAlign: "middle", fontSize: 14 };
+const td: CSSProperties = TABLE_TD;
 // คำร้องที่ตรวจผ่านเกณฑ์แล้ว — ผ่านแล้วนักศึกษาเดินต่อไปขั้น T000/หนังสือ/ฝึกงาน สถานะจริงจึงเปลี่ยนไปเรื่อยๆ
 const APPLICATION_OPEN_STATUSES = ["NOT_SUBMITTED", "APPLYING", "PENDING_GRADE", "APPLICATION_EDITS_REQUIRED", "QUALIFICATION_FAILED"];
 function isReviewedPass(status?: string | null) {

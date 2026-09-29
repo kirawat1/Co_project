@@ -4,6 +4,7 @@ import type { CSSProperties } from "react";
 import { fmtDate } from '../utils/dateFormat';
 import DateInput from './DateInput';
 import { notify, askConfirm } from "../utils/notify";
+import Modal from "./Modal";
 
 // --- Type สำหรับ CoopPeriod ---
 type CoopPeriod = {
@@ -143,7 +144,7 @@ export default function A_CoopPeriod() {
                     <h2 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: '#1e293b' }}>📅 จัดการรอบรับสมัครสหกิจศึกษา</h2>
                     <div style={{ color: "#64748b", fontSize: 14, marginTop: 4 }}>กำหนดวันเปิด-ปิด ระบบรับสมัครแยกตามปีการศึกษาและภาคเรียน</div>
                 </div>
-                <button className="btn" onClick={openAddModal} style={{ padding: '10px 20px' }}>
+                <button className="btn" onClick={openAddModal}>
                     + สร้างรอบใหม่
                 </button>
             </section>
@@ -178,14 +179,13 @@ export default function A_CoopPeriod() {
 
                                     <div style={{ display: "flex", gap: 8, alignItems: 'center' }}>
                                         <button
-                                            className="btn"
-                                            style={p.isActive ? ghostBtnDanger : ghostBtnSuccess}
+                                            className={p.isActive ? "btn-danger" : "btn-success"}
                                             onClick={() => toggleStatus(p.id, p.isActive)}
                                         >
                                             {p.isActive ? 'ปิดรับสมัคร' : 'เปิดรับสมัคร'}
                                         </button>
-                                        <button className="btn" style={ghostBtn} onClick={() => openEditModal(p)}>แก้ไข</button>
-                                        <button className="btn" style={delBtn} onClick={() => remove(p.id)}>ลบ</button>
+                                        <button className="btn-secondary" onClick={() => openEditModal(p)}>แก้ไข</button>
+                                        <button className="btn-danger" onClick={() => remove(p.id)}>ลบ</button>
                                     </div>
                                 </div>
                             );
@@ -196,53 +196,43 @@ export default function A_CoopPeriod() {
 
             {/* MODAL */}
             {modalOpen && (
-                <div style={modalOverlay}>
-                    <div style={modalContent}>
-                        <h3 style={{ marginTop: 0, color: '#1e293b' }}>
-                            {editingId ? "✏️ แก้ไขรอบรับสมัคร" : "✨ สร้างรอบรับสมัครใหม่"}
-                        </h3>
-
-                        <form onSubmit={save} style={formGrid}>
-                            <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-                                <div style={field}>
-                                    <label style={label}>ปีการศึกษา (เช่น 2569)</label>
-                                    <input className="input" required value={academicYear} onChange={e => setAcademicYear(e.target.value)} />
-                                </div>
-                                <div style={field}>
-                                    <label style={label}>ภาคเรียน</label>
-                                    <select className="input" value={semester} onChange={e => setSemester(Number(e.target.value))}>
-                                        <option value={1}>เทอม 1</option>
-                                        <option value={2}>เทอม 2</option>
-                                        <option value={3}>เทอม 3 (ฤดูร้อน)</option>
-                                    </select>
-                                </div>
+                <Modal title={editingId ? "✏️ แก้ไขรอบรับสมัคร" : "✨ สร้างรอบรับสมัครใหม่"} onClose={() => setModalOpen(false)}>
+                    <form onSubmit={save} style={formGrid}>
+                        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+                            <div style={field}>
+                                <label style={label}>ปีการศึกษา (เช่น 2569)</label>
+                                <input className="input" required value={academicYear} onChange={e => setAcademicYear(e.target.value)} />
                             </div>
-
-                            <div style={{ display: 'flex', gap: 16 }}>
-                                <div style={field}>
-                                    <label style={label}>วันที่เปิดรับสมัคร</label>
-                                    <DateInput required className="input" value={startDate} onChange={e => setStartDate(e.target.value)} />
-                                </div>
-                                <div style={field}>
-                                    <label style={label}>วันที่ปิดรับสมัคร</label>
-                                    <DateInput required className="input" value={endDate} onChange={e => setEndDate(e.target.value)} />
-                                </div>
+                            <div style={field}>
+                                <label style={label}>ภาคเรียน</label>
+                                <select className="input" value={semester} onChange={e => setSemester(Number(e.target.value))}>
+                                    <option value={1}>เทอม 1</option>
+                                    <option value={2}>เทอม 2</option>
+                                    <option value={3}>เทอม 3 (ฤดูร้อน)</option>
+                                </select>
                             </div>
+                        </div>
 
-                            <div style={{ display: "flex", gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
-                                <button type="button" className="btn" style={ghostBtn} onClick={() => setModalOpen(false)}>ยกเลิก</button>
-                                <button className="btn" type="submit">บันทึกข้อมูล</button>
+                        <div style={{ display: 'flex', gap: 16 }}>
+                            <div style={field}>
+                                <label style={label}>วันที่เปิดรับสมัคร</label>
+                                <DateInput required className="input" value={startDate} onChange={e => setStartDate(e.target.value)} />
                             </div>
-                        </form>
-                    </div>
-                </div>
+                            <div style={field}>
+                                <label style={label}>วันที่ปิดรับสมัคร</label>
+                                <DateInput required className="input" value={endDate} onChange={e => setEndDate(e.target.value)} />
+                            </div>
+                        </div>
+
+                        <div style={{ display: "flex", gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
+                            <button type="button" className="btn-secondary" onClick={() => setModalOpen(false)}>ยกเลิก</button>
+                            <button className="btn" type="submit">บันทึกข้อมูล</button>
+                        </div>
+                    </form>
+                </Modal>
             )}
 
             {/* CSS Styles แบบเดียวกับ Settings */}
-            <style>{`
-        .input { padding: 10px 14px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 14px; outline: none; }
-        .input:focus { border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59,130,246,.2); }
-      `}</style>
         </div>
     );
 }
@@ -261,12 +251,3 @@ const meta: CSSProperties = { fontSize: 14, color: "#64748b", marginTop: 8 };
 const badgeActive: CSSProperties = { background: '#dcfce7', color: '#166534', padding: '4px 10px', borderRadius: 999, fontSize: 12, fontWeight: 700, border: '1px solid #bbf7d0' };
 const badgeInactive: CSSProperties = { background: '#f1f5f9', color: '#475569', padding: '4px 10px', borderRadius: 999, fontSize: 12, fontWeight: 700, border: '1px solid #e2e8f0' };
 
-// Buttons
-const ghostBtn: CSSProperties = { background: "#fff", color: "#3b82f6", boxShadow: "none", border: "1px solid rgba(59,130,246,.3)", height: 38 };
-const ghostBtnSuccess: CSSProperties = { background: "#fff", color: "#16a34a", boxShadow: "none", border: "1px solid rgba(22,163,74,.3)", height: 38 };
-const ghostBtnDanger: CSSProperties = { background: "#fff", color: "#dc2626", boxShadow: "none", border: "1px solid rgba(220,38,38,.3)", height: 38 };
-const delBtn: CSSProperties = { background: "#fff", color: "#dc2626", boxShadow: "none", border: "1px solid rgba(220,38,38,.3)", height: 38, cursor: "pointer" };
-
-// Modal
-const modalOverlay: CSSProperties = { position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(15, 23, 42, 0.5)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 9999, backdropFilter: 'blur(2px)' };
-const modalContent: CSSProperties = { background: "#fff", borderRadius: 16, padding: 28, width: 600, maxWidth: "90%", boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1)" };

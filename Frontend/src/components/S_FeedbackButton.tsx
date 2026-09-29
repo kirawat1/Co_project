@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { CSSProperties } from "react";
 import { useLocation } from "react-router-dom";
 import { apiFetch } from "../utils/apiFetch";
+import Modal from "./Modal";
 
 /**
  * ปุ่มแจ้งปัญหา — ลอยมุมขวาล่างของหน้านักศึกษา
@@ -100,12 +101,7 @@ export default function S_FeedbackButton({ coopStatus }: { coopStatus?: string |
             </button>
 
             {open && (
-                <div style={overlay} onClick={close}>
-                    <div style={panel} onClick={(e) => e.stopPropagation()}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                            <h3 style={{ margin: 0, fontSize: 18 }}>แจ้งปัญหา / ข้อเสนอแนะ</h3>
-                            <button type="button" onClick={close} style={closeBtn} aria-label="ปิด">✕</button>
-                        </div>
+                <Modal title="แจ้งปัญหา / ข้อเสนอแนะ" onClose={close} maxWidth={520}>
                         <p style={{ margin: "0 0 14px", fontSize: 13, color: "#64748b" }}>
                             เจออะไรผิดปกติบอกได้เลย ระบบจะแนบหน้าที่คุณเปิดอยู่ไปให้เจ้าหน้าที่ด้วย
                         </p>
@@ -114,7 +110,7 @@ export default function S_FeedbackButton({ coopStatus }: { coopStatus?: string |
                             <div style={{ ...noteBox, background: "#dcfce7", color: "#166534" }}>
                                 ✅ ส่งเรื่องเรียบร้อย ขอบคุณที่ช่วยแจ้ง เจ้าหน้าที่จะตอบกลับผ่านแจ้งเตือนในระบบ
                                 <div style={{ marginTop: 10 }}>
-                                    <button type="button" style={ghostBtn} onClick={() => setDone(false)}>แจ้งเรื่องอื่นอีก</button>
+                                    <button type="button" className="btn-secondary" onClick={() => setDone(false)}>แจ้งเรื่องอื่นอีก</button>
                                 </div>
                             </div>
                         ) : (
@@ -163,8 +159,8 @@ export default function S_FeedbackButton({ coopStatus }: { coopStatus?: string |
                                 {error && <div role="alert" style={{ ...noteBox, background: "#fef2f2", color: "#b91c1c" }}>{error}</div>}
 
                                 <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 14 }}>
-                                    <button type="button" style={ghostBtn} onClick={close}>ยกเลิก</button>
-                                    <button type="button" style={sendBtn} onClick={submit} disabled={sending}>
+                                    <button type="button" className="btn-secondary" onClick={close}>ยกเลิก</button>
+                                    <button type="button" className="btn" onClick={submit} disabled={sending}>
                                         {sending ? "กำลังส่ง..." : "ส่งเรื่อง"}
                                     </button>
                                 </div>
@@ -194,8 +190,7 @@ export default function S_FeedbackButton({ coopStatus }: { coopStatus?: string |
                                 </div>
                             </div>
                         )}
-                    </div>
-                </div>
+                </Modal>
             )}
         </>
     );
@@ -207,15 +202,6 @@ const fab: CSSProperties = {
     background: "#0f766e", color: "#fff", fontWeight: 700, fontSize: 14,
     boxShadow: "0 6px 18px rgba(15,118,110,0.35)", cursor: "pointer",
 };
-const overlay: CSSProperties = {
-    position: "fixed", inset: 0, background: "rgba(15,23,42,0.5)", zIndex: 950,
-    display: "flex", alignItems: "center", justifyContent: "center", padding: 16,
-};
-const panel: CSSProperties = {
-    background: "#fff", borderRadius: 16, padding: 22, width: "100%", maxWidth: 520,
-    maxHeight: "90vh", overflowY: "auto", boxShadow: "0 25px 50px -12px rgba(0,0,0,0.25)",
-};
-const closeBtn: CSSProperties = { background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "#94a3b8" };
 const label: CSSProperties = { display: "block", fontSize: 13, fontWeight: 600, color: "#334155", marginBottom: 6 };
 const textarea: CSSProperties = {
     width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid #cbd5e1",
@@ -231,14 +217,6 @@ const ctxBox: CSSProperties = {
     border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 12px",
 };
 const noteBox: CSSProperties = { marginTop: 12, padding: "10px 14px", borderRadius: 10, fontSize: 13.5, lineHeight: 1.6 };
-const ghostBtn: CSSProperties = {
-    padding: "9px 16px", borderRadius: 10, border: "1px solid #e2e8f0",
-    background: "#f8fafc", color: "#334155", fontWeight: 600, cursor: "pointer",
-};
-const sendBtn: CSSProperties = {
-    padding: "9px 20px", borderRadius: 10, border: "none",
-    background: "#0f766e", color: "#fff", fontWeight: 700, cursor: "pointer",
-};
 const mineItem: CSSProperties = { border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 12px" };
 const statusChip: CSSProperties = { fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 999 };
 const replyBox: CSSProperties = {

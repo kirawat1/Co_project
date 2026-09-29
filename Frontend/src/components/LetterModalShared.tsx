@@ -150,7 +150,7 @@ export function FileReady({ label, onDownload }: { label: string; onDownload: ()
     return (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', background: '#f0fdf4', borderRadius: 8, border: '1px solid #bbf7d0' }}>
             <span style={{ fontSize: 12, color: '#166534', flex: 1 }}>✅ {label}</span>
-            <button className="btn" style={{ background: '#3b82f6', color: 'white', padding: '4px 10px', fontSize: 11 }} onClick={onDownload}>⬇️ โหลด</button>
+            <button className="btn small" onClick={onDownload}>⬇️ โหลด</button>
         </div>
     );
 }
@@ -174,19 +174,18 @@ export function DeliveryPicker({ value, onChange, name }: {
     );
 }
 
+// ชื่อคลาสตั้งใจไม่ให้ชนกับ .modal-backdrop/.modal-card กลาง (S_Theme.tsx) — โมดัลออกหนังสือ 3 ไฟล์นี้
+// ต้อง "บังคับโหมดสว่างเสมอ" (พรีวิวเอกสารต้องไม่ถูกธีมมืดของแอปกระทบ) ซึ่งต่างจากโมดัลทั่วไป จึงแยกเป็นสไตล์ของตัวเอง
 export const MODAL_CSS = `
   .input { width: 100%; padding: 7px 9px; border: 1px solid #cbd5e1; border-radius: 6px; font-family: inherit; font-size: 13px; box-sizing: border-box; }
-  .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; justify-content: center; align-items: center; z-index: 10000; padding: 12px; }
-  .modal-card { background: white; padding: 20px; border-radius: 16px; display: flex; flex-direction: column; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); }
+  .letter-modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; justify-content: center; align-items: center; z-index: 10000; padding: 12px; color-scheme: light; }
+  .letter-modal-card { background: #ffffff; padding: 20px; border-radius: 16px; display: flex; flex-direction: column; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); color: #1e293b; }
   @media (max-width: 768px) {
     .letter-split { flex-direction: column !important; }
     .letter-preview { flex: none !important; min-height: 280px !important; }
     .letter-sidebar { width: 100% !important; }
   }
-  /* Force light mode — document preview must not be affected by app dark theme */
-  .modal-backdrop { color-scheme: light; }
-  .modal-card { background: #ffffff !important; color: #1e293b !important; }
-  .modal-card .input, .modal-card select, .modal-card textarea { background: #f8fafc !important; color: #1e293b !important; border-color: #e2e8f0 !important; }
-  .modal-card label { color: #374151 !important; }
-  .modal-card h2, .modal-card h3 { color: #0f172a !important; }
+  .letter-modal-card .input, .letter-modal-card select, .letter-modal-card textarea { background: #f8fafc !important; color: #1e293b !important; border-color: #e2e8f0 !important; }
+  .letter-modal-card label { color: #374151 !important; }
+  .letter-modal-card h2, .letter-modal-card h3 { color: #0f172a !important; }
 `;

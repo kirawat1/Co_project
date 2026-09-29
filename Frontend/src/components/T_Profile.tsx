@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { IcUser, IcEdit, IcSave } from "./icons";
 import { apiFetch } from "../utils/apiFetch";
 import { notify } from "../utils/notify";
+import Modal from "./Modal";
 
 /* =========================
    Types & Enums
@@ -176,7 +177,7 @@ export default function T_Profile() {
                   </div>
                 </div>
               </div>
-              <button className="btn-edit" onClick={() => { setForm({ ...profile, prefix: profile.prefix ?? "" }); setIsModalOpen(true); }} style={editBtnStyle}>
+              <button className="btn-secondary" onClick={() => { setForm({ ...profile, prefix: profile.prefix ?? "" }); setIsModalOpen(true); }}>
                 <IcEdit width={16} height={16} /> แก้ไขข้อมูล
               </button>
             </div>
@@ -215,11 +216,7 @@ export default function T_Profile() {
 
       {/* Modal แก้ไขข้อมูล */}
       {isModalOpen && (
-        <div className="modal-backdrop">
-          <div className="modal-card">
-            <h3 className="profile-title" style={{ fontSize: "22px" }}>
-              {isFirstTime ? "ตั้งค่าโปรไฟล์ครั้งแรก" : "แก้ไขข้อมูลโปรไฟล์"}
-            </h3>
+        <Modal title={isFirstTime ? "ตั้งค่าโปรไฟล์ครั้งแรก" : "แก้ไขข้อมูลโปรไฟล์"} onClose={() => setIsModalOpen(false)} maxWidth={720}>
             <p className="profile-sub" style={{ marginBottom: '20px' }}>กรุณากรอกข้อมูลส่วนตัวของคุณเพื่อใช้ในการนิเทศนักศึกษา</p>
 
             <div className="form-grid">
@@ -284,15 +281,13 @@ export default function T_Profile() {
               <button className="btn-secondary" onClick={() => setIsModalOpen(false)}>ยกเลิก</button>
               <button className="btn" onClick={handleSave}>บันทึกข้อมูล</button>
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
     </div>
   );
 }
 
 // ... Styles
-const editBtnStyle = { background: "#f1f5f9", border: "none", padding: "8px 16px", borderRadius: "10px", fontSize: "13px", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: "6px", color: "#475569" };
 const PROFILE_CSS = `
 .profile-card{ background:#fff; border-radius:24px; padding:40px; box-shadow:0 10px 30px rgba(15,23,42,.08); border: 1px solid #f1f5f9; }
 .card-head{ display:flex; justify-content:space-between; align-items:center; }
@@ -305,11 +300,8 @@ const PROFILE_CSS = `
 .label{ color:#64748b; font-weight:700; font-size:14px; }
 .value{ font-weight:600; color:#1e293b; font-size:15px; }
 .email-pill{ display:inline-block; padding:6px 14px; border-radius:999px; background:#f0f7ff; border:1px solid #e0efff; color:#0369a1; font-size:14px; font-weight:700; }
-.input{ padding:12px 16px; border-radius:12px; border:1px solid #e2e8f0; font-weight:600; width:100%; margin-top:8px; box-sizing:border-box; font-family:inherit; transition: 0.2s; }
-.input:focus{ border-color: #2563eb; outline: none; box-shadow: 0 0 0 4px rgba(37,99,235,0.1); }
 .form-grid{ display:grid; grid-template-columns:1fr 1fr; gap:16px 24px; }
+.form-grid .label{ display:block; margin-bottom:8px; }
 @media (max-width: 480px) { .form-grid { grid-template-columns: 1fr !important; } }
 .action-row{ display:flex; justify-content:flex-end; gap:12px; margin-top:32px; }
-.modal-backdrop{ position:fixed; inset:0; background:rgba(15,23,42,.6); display:flex; align-items:center; justify-content:center; z-index:100; backdrop-filter: blur(8px); }
-.modal-card{ background:#fff; border-radius:24px; padding:40px; width:720px; max-width:95%; box-shadow:0 25px 50px -12px rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.3); }
 `;

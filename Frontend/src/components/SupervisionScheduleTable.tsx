@@ -3,7 +3,8 @@ import type { CSSProperties } from "react";
 import type { CalendarEvent } from "./SupervisionCalendar";
 import { fmtDate } from "../utils/dateFormat";
 import { apiFetch } from "../utils/apiFetch";
-import { notify } from "../utils/notify";
+import { notify } from "../utils/notify";
+import { TABLE_TH, TABLE_TD, TABLE_HEADER_ROW } from "../utils/tableStyles";
 
 /**
  * ตารางนิเทศเรียงตามวัน-เวลา — ใครนิเทศ เมื่อไหร่ ใครเป็นผู้นิเทศ
@@ -143,7 +144,7 @@ export default function SupervisionScheduleTable({ events, canExport = false, ex
                 <div style={{ overflowX: "auto" }}>
                     <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                         <thead>
-                            <tr style={{ background: "#f8fafc", color: "#475569", textAlign: "left" }}>
+                            <tr style={TABLE_HEADER_ROW}>
                                 <th style={th}>วันที่</th>
                                 <th style={th}>ช่วง</th>
                                 <th style={th}>เวลา</th>
@@ -184,5 +185,5 @@ export default function SupervisionScheduleTable({ events, canExport = false, ex
     );
 }
 
-const th: CSSProperties = { padding: "10px", fontWeight: 700, whiteSpace: "nowrap" };
-const td: CSSProperties = { padding: "10px", color: "#334155", verticalAlign: "top" };
+const th: CSSProperties = { ...TABLE_TH, whiteSpace: "nowrap" };
+const td: CSSProperties = { ...TABLE_TD, verticalAlign: "top" };

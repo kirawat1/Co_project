@@ -13,6 +13,8 @@ import { useInfinitePages } from "../utils/useInfinitePages";
 import { toggleSelectAllShown, allShownSelected } from "../utils/useLoadMore";
 import { notify, askConfirm } from "../utils/notify";
 import { contactName, contactLine } from "../utils/contacts";
+import { TABLE_TH, TABLE_TD, TABLE_HEADER_ROW } from "../utils/tableStyles";
+import Modal, { ModalCloseButton } from "./Modal";
 
 function safeHref(url: string | null | undefined): string | undefined {
   if (!url) return undefined;
@@ -522,7 +524,7 @@ export default function A_Students() {
           <div style={{ overflowX: "auto", borderRadius: 10, border: "1px solid #e2e8f0" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
               <thead>
-                <tr style={{ background: "#f8fafc", borderBottom: "2px solid #e2e8f0" }}>
+                <tr style={TABLE_HEADER_ROW}>
                   {["แถว", "รหัส", "ชื่อ-นามสกุล", "อีเมล", "หลักสูตร", "รูปแบบการศึกษา", "อาจารย์ที่ปรึกษา", "สถานะ"].map(h => (
                     <th key={h} style={{ padding: "8px 12px", textAlign: "left", fontWeight: 700, color: "#475569", whiteSpace: "nowrap" }}>{h}</th>
                   ))}
@@ -583,13 +585,13 @@ export default function A_Students() {
 
       <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
         <button
-          style={pageTab === "list" ? saveBtn : ghostBtn}
+          className={pageTab === "list" ? "btn" : "btn-secondary"}
           onClick={() => setPageTab("list")}
         >
           รายชื่อนักศึกษา
         </button>
         <button
-          style={pageTab === "trash" ? saveBtn : ghostBtn}
+          className={pageTab === "trash" ? "btn" : "btn-secondary"}
           onClick={() => setPageTab("trash")}
         >
           ถังขยะ
@@ -664,7 +666,7 @@ export default function A_Students() {
       {/* ================= Bulk action bar ================= */}
       {!selectMode ? (
         <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 16 }}>
-          <button className="btn" style={ghostBtn} onClick={() => setSelectMode(true)}>
+          <button className="btn-secondary" onClick={() => setSelectMode(true)}>
             ☑️ เลือกหลายคน
           </button>
         </div>
@@ -677,20 +679,19 @@ export default function A_Students() {
             เลือกแล้ว {selectedIds.size} คน
           </span>
           {/* อยู่ในแถบนี้แทนหัวตาราง เพราะจอ ≤1024px ซ่อน thead ทั้งแถว (S_Theme.tsx) */}
-          <button className="btn" style={ghostBtn} onClick={toggleSelectAll} disabled={bulkDeleting || filtered.length === 0}>
+          <button className="btn-secondary" onClick={toggleSelectAll} disabled={bulkDeleting || filtered.length === 0}>
             {isAllShownSelected ? "ยกเลิกเลือกทั้งหมด" : `เลือกทั้งหมดที่โหลดแล้ว (${filtered.length})`}
           </button>
           <button
-            className="btn"
-            style={{ ...ghostBtn, color: "#ef4444", borderColor: "#ef4444", opacity: bulkDeleting || selectedIds.size === 0 ? 0.6 : 1, cursor: bulkDeleting || selectedIds.size === 0 ? "not-allowed" : "pointer" }}
+            className="btn-danger"
             onClick={handleBulkDeleteStudents}
             disabled={bulkDeleting || selectedIds.size === 0}
           >
             🗑️ {bulkDeleting ? "กำลังลบ..." : `ย้ายไปถังขยะ (${selectedIds.size})`}
           </button>
           <button
-            className="btn"
-            style={{ ...ghostBtn, marginLeft: "auto" }}
+            className="btn-secondary"
+            style={{ marginLeft: "auto" }}
             onClick={exitSelectMode}
             disabled={bulkDeleting}
           >
@@ -769,22 +770,19 @@ export default function A_Students() {
                   <td style={td} data-label="รายละเอียด">
                     <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                       <button
-                        className="btn"
-                        style={ghostBtn}
+                        className="btn-secondary small"
                         onClick={() => setModalStudent(s)}
                       >
                         ดูข้อมูล
                       </button>
                       <button
-                        className="btn"
-                        style={ghostBtn}
+                        className="btn-secondary small"
                         onClick={() => setEditStudent(s)}
                       >
                         ✏️ แก้ไข
                       </button>
                       <button
-                        className="btn"
-                        style={{ ...ghostBtn, color: "#ef4444", borderColor: "#ef4444" }}
+                        className="btn-danger small"
                         onClick={() => handleDeleteStudent(s)}
                       >
                         🗑️ ลบ
@@ -794,7 +792,7 @@ export default function A_Students() {
                           href={safeHref(s.coopApplicationForm.gradeSheetUrl)}
                           target="_blank"
                           rel="noreferrer"
-                          style={{ ...ghostBtn, padding: "5px 10px", borderRadius: 7, fontSize: 12, background: "#eff6ff", color: "#2563eb", border: "1px solid #bfdbfe", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4, fontWeight: 700 }}
+                          style={{ background: "#eff6ff", color: "#2563eb", border: "1px solid #bfdbfe", height: 34, padding: "5px 10px", borderRadius: 7, fontSize: 12, cursor: "pointer", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4, fontWeight: 700 }}
                         >
                           📊 แบบฟอร์มเกรด
                         </a>
@@ -861,19 +859,24 @@ function StudentModal({
   const fullName = `${getThaiPrefix(student.prefix)} ${student.firstName} ${student.lastName}`.trim();
 
   return (
-    <div style={overlay}>
-      <div style={modal}>
-        {/* Header */}
-        <div style={{ marginBottom: 16 }}>
-          <h2 style={{ margin: 0 }}>{fullName}</h2>
-          <div style={{ color: "#64748b" }}>รหัสนักศึกษา: {student.studentId}</div>
+    <Modal
+      maxWidth={700}
+      header={
+        <div className="modal-card-header" style={{ alignItems: "flex-start" }}>
+          <div>
+            <h2 style={{ margin: 0 }}>{fullName}</h2>
+            <div style={{ color: "#64748b" }}>รหัสนักศึกษา: {student.studentId}</div>
+          </div>
+          <ModalCloseButton onClose={onClose} />
         </div>
-
+      }
+      onClose={onClose}
+    >
         {/* Tab Buttons */}
         <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
-          <button style={tab === "profile" ? saveBtn : ghostBtn} onClick={() => setTab("profile")}>ข้อมูลนักศึกษา</button>
-          <button style={tab === "company" ? saveBtn : ghostBtn} onClick={() => setTab("company")}>ข้อมูลบริษัท</button>
-          <button style={tab === "docs" ? saveBtn : ghostBtn} onClick={() => setTab("docs")}>เอกสาร</button>
+          <button className={tab === "profile" ? "btn" : "btn-secondary"} onClick={() => setTab("profile")}>ข้อมูลนักศึกษา</button>
+          <button className={tab === "company" ? "btn" : "btn-secondary"} onClick={() => setTab("company")}>ข้อมูลบริษัท</button>
+          <button className={tab === "docs" ? "btn" : "btn-secondary"} onClick={() => setTab("docs")}>เอกสาร</button>
         </div>
 
         {/* Content */}
@@ -970,25 +973,20 @@ function StudentModal({
         </div>
 
         <div style={modalFooter}>
-          <button className="btn" style={saveBtn} onClick={onClose}>
+          <button className="btn-secondary" onClick={onClose}>
             ปิด
           </button>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }
 
 // UI Helpers & Styles
-const ghostBtn: React.CSSProperties = { background: "#fff", color: "#0074B7", boxShadow: "none", border: "1px solid rgba(10,132,255,.25)", height: 34, borderRadius: 8, padding: '0 12px', cursor: 'pointer', fontWeight: 600, fontSize: 13 };
-const saveBtn: React.CSSProperties = { background: "#0074B7", color: "#fff", boxShadow: "none", border: "1px solid rgba(10,132,255,.25)", height: 36, borderRadius: 8, padding: '0 16px', cursor: 'pointer' };
 const card: React.CSSProperties = { background: "#fff", borderRadius: 14, padding: 20, border: "1px solid #e5e7eb" };
 const filterRow: React.CSSProperties = { display: "flex", gap: 16, flexWrap: "wrap", alignItems: "flex-end" };
 const clearBtn: React.CSSProperties = { height: 28, padding: '0 10px', fontSize: 12, background: 'transparent', border: '1px solid #cbd5e1', borderRadius: 6, color: '#64748b', cursor: 'pointer', alignSelf: 'flex-end', marginBottom: 2 };
-const th: React.CSSProperties = { textAlign: "left", paddingBottom: 8, fontSize: 14, padding: "12px 10px", color: '#475569' };
-const td: React.CSSProperties = { padding: "12px 10px", fontSize: 14, color: '#1e293b' };
-const overlay: React.CSSProperties = { position: "fixed", inset: 0, background: "rgba(15,23,42,.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 };
-const modal: React.CSSProperties = { background: "#fff", borderRadius: 16, padding: 28, width: "100%", maxWidth: 700, border: "1px solid #e5e7eb" };
+const th: React.CSSProperties = TABLE_TH;
+const td: React.CSSProperties = TABLE_TD;
 const modalFooter: React.CSSProperties = { display: "flex", justifyContent: "flex-end", marginTop: 24 };
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) { return (<div style={sectionCard}><div style={sectionTitle}>{title}</div>{children}</div>); }

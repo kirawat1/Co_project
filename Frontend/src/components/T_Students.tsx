@@ -4,8 +4,9 @@ import StatusBadge from "../components/StatusBadge";
 import StatusFilterChips, { STATUS_GROUPS } from "./StatusFilterChips";
 import { useDebounce } from "../hooks/useDebounce";
 import LoadMoreFooter from "./LoadMoreFooter";
-import { useInfinitePages } from "../utils/useInfinitePages";
+import { useInfinitePages } from "../utils/useInfinitePages";
 import { contactName } from "../utils/contacts";
+import Modal, { ModalCloseButton } from "./Modal";
 
 function safeHref(url: string | null | undefined): string | undefined {
   if (!url) return undefined;
@@ -220,7 +221,7 @@ export default function T_Students({ isCoopTeacher = false }: Props) {
             </div>
           </div>
           <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-            <button className="btn-ghost" onClick={fetchData}>🔄 รีเฟรช</button>
+            <button className="btn-secondary" onClick={fetchData}>🔄 รีเฟรช</button>
             <div style={{ background: '#f0f9ff', color: '#0284c7', padding: '8px 16px', borderRadius: 8, fontWeight: 700, border: '1px solid #bae6fd' }}>
               ทั้งหมด {totalCount} คน
             </div>
@@ -294,7 +295,7 @@ export default function T_Students({ isCoopTeacher = false }: Props) {
                   <td style={{ textAlign: 'right' }}>
                     {/* ✅ เปลี่ยนเป็นปุ่มเปิด Modal แทน Link */}
                     <div style={{ display: "flex", gap: 6, justifyContent: "flex-end", flexWrap: "wrap" }}>
-                      <button className="btn-edit" onClick={() => setModalStudent(s)}>
+                      <button className="btn-secondary small" onClick={() => setModalStudent(s)}>
                         🔍 ดูข้อมูล
                       </button>
                       {s.coopApplicationForm?.gradeSheetUrl ? (
@@ -344,12 +345,7 @@ export default function T_Students({ isCoopTeacher = false }: Props) {
         .student-table td:last-child { border-right: 1px solid #f1f5f9; border-radius: 0 12px 12px 0; }
         .student-row:hover td { background: #f8fafc; border-color: #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02); }
 
-        .btn-edit { background: #f0f9ff; color: #0284c7; border: 1px solid #bae6fd; border-radius: 8px; padding: 8px 16px; font-weight: 700; cursor: pointer; transition: 0.2s; font-family: inherit; font-size: 13px; }
-        .btn-edit:hover { background: #e0f2fe; }
-
         /* Modal Styles */
-        .modal-backdrop { position: fixed; inset: 0; background: rgba(15,23,42,.6); display: flex; align-items: center; justify-content: center; z-index: 50; backdrop-filter: blur(4px); }
-        .modal-card { background: #fff; width: 100%; max-width: 850px; border-radius: 24px; padding: 32px; box-shadow: 0 25px 50px -12px rgba(0,0,0,.25); display: flex; flex-direction: column; max-height: 90vh; }
         .tab-btn { padding: 10px 20px; border-radius: 12px; font-weight: 700; cursor: pointer; border: none; background: transparent; color: #64748b; transition: 0.2s; font-size: 14px; }
         .tab-btn.active { background: #eff6ff; color: #0ea5e9; }
         .tab-btn:hover:not(.active) { background: #f8fafc; }
@@ -413,9 +409,10 @@ function StudentViewModal({
   const st = student.coop?.status || student.docStatus || "WAITING";
 
   return (
-    <div className="modal-backdrop">
-      <div className="modal-card">
-        {/* Header */}
+    <Modal
+      maxWidth={850}
+      onClose={onClose}
+      header={
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
           <div>
             <h2 style={{ margin: '0 0 4px 0', color: '#0f172a', fontSize: 22, fontWeight: 800 }}>
@@ -427,9 +424,10 @@ function StudentViewModal({
               <StatusBadge status={st} />
             </div>
           </div>
-          <button onClick={onClose} style={{ background: '#f1f5f9', border: 'none', width: 36, height: 36, borderRadius: '50%', fontSize: 20, cursor: 'pointer', color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>&times;</button>
+          <ModalCloseButton onClose={onClose} variant="circle" />
         </div>
-
+      }
+    >
         {/* Tab Buttons */}
         <div style={{ display: "flex", gap: 8, marginBottom: 24, background: '#f8fafc', padding: 6, borderRadius: 16 }}>
           <button className={`tab-btn ${tab === "profile" ? "active" : ""}`} onClick={() => setTab("profile")}>📝 ข้อมูลนักศึกษา</button>
@@ -438,7 +436,7 @@ function StudentViewModal({
         </div>
 
         {/* Content Area */}
-        <div style={{ flex: 1, overflowY: 'auto', paddingRight: 8 }}>
+        <div style={{ maxHeight: '55vh', overflowY: 'auto', paddingRight: 8 }}>
           {tab === "profile" && (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 20 }}>
               <div style={{ background: '#f8fafc', padding: 20, borderRadius: 16, border: '1px solid #e2e8f0' }}>
@@ -518,12 +516,11 @@ function StudentViewModal({
 
         {/* Footer Actions */}
         <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 24, borderTop: '1px solid #e2e8f0', paddingTop: 24 }}>
-          <button className="btn-ghost" style={{ padding: '10px 24px' }} onClick={onClose}>
+          <button className="btn-secondary" onClick={onClose}>
             ปิดหน้าต่าง
           </button>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }
 

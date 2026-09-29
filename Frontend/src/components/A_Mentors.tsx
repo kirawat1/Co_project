@@ -3,7 +3,8 @@ import { IcSave, IcUser } from "./icons"; // อย่าลืมเช็ค p
 import { apiFetch } from "../utils/apiFetch";
 import LoadMoreFooter from "./LoadMoreFooter";
 import { useLoadMore } from "../utils/useLoadMore";
-import { notify, askConfirm } from "../utils/notify";
+import { notify, askConfirm } from "../utils/notify";
+import { TABLE_TH, TABLE_TD, TABLE_HEADER_ROW } from "../utils/tableStyles";
 
 /* =========================
    Types
@@ -150,7 +151,7 @@ export default function A_Mentors() {
       <section style={{ ...card, marginTop: 20, padding: 0, overflow: 'hidden' }}>
         <table width="100%" className="responsive-table" style={{ borderCollapse: 'collapse' }}>
           <thead>
-            <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+            <tr style={TABLE_HEADER_ROW}>
               {["ชื่อ-นามสกุล", "อีเมล", "บริษัท", "แผนก/ตำแหน่ง", "เบอร์โทร", "จัดการ"].map((h) => (
                 <th key={h} style={th}>{h}</th>
               ))}
@@ -310,8 +311,8 @@ function MentorModal({ data, onClose, onSave }: { data: Mentor, onClose: () => v
 ========================= */
 const card: React.CSSProperties = { background: "#fff", borderRadius: 14, padding: 24, border: "1px solid #e5e7eb" };
 const filterRow: React.CSSProperties = { display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" };
-const th: React.CSSProperties = { textAlign: "left", fontSize: 14, fontWeight: 700, padding: "12px 16px", color: '#475569' };
-const td: React.CSSProperties = { padding: "14px 16px", fontSize: 14, color: '#334155', verticalAlign: 'middle' };
+const th: React.CSSProperties = TABLE_TH;
+const td: React.CSSProperties = TABLE_TD;
 
 const ghostBtn: React.CSSProperties = { background: "#fff", color: "#0074B7", boxShadow: "none", border: "1px solid rgba(10,132,255,.25)", height: 34, borderRadius: 8, padding: '0 12px', cursor: 'pointer', fontWeight: 600, fontSize: 13 };
 const saveBtn: React.CSSProperties = { background: "#0074B7", color: "#fff", boxShadow: "none", border: "1px solid rgba(10,132,255,.25)", height: 36, borderRadius: 8, padding: '0 16px', cursor: 'pointer', fontWeight: 600, fontSize: 14 };

@@ -18,6 +18,8 @@ import DateInput from './DateInput';
 import LoadMoreFooter from "./LoadMoreFooter";
 import { useLoadMore } from "../utils/useLoadMore";
 import { notify, askConfirm } from "../utils/notify";
+import { TABLE_TH, TABLE_TD, TABLE_HEADER_ROW } from "../utils/tableStyles";
+import Modal, { ModalCloseButton } from "./Modal";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -441,7 +443,7 @@ export default function T_SupervisionReview() {
                                 <option value="all">📚 ทุกปีการศึกษา</option>
                                 {periods.map(p => <option key={p.id} value={p.id}>เทอม {p.semester} / {p.academicYear}</option>)}
                             </select>
-                            <button className="btn-ghost" style={{ padding: "10px 16px" }} onClick={fetchMine} disabled={myLoading}>{myLoading ? "⏳" : "🔄"} รีเฟรช</button>
+                            <button className="btn-secondary" onClick={fetchMine} disabled={myLoading}>{myLoading ? "⏳" : "🔄"} รีเฟรช</button>
                             <div style={{ background: "#ecfdf5", color: "#047857", padding: "10px 16px", borderRadius: 8, fontWeight: 700, border: "1px solid #a7f3d0" }}>
                                 ทั้งหมด: {totalMine} รายการ
                             </div>
@@ -520,16 +522,22 @@ export default function T_SupervisionReview() {
 
                     {/* Modal พิจารณาวัน */}
                     {selectedAppt && (
-                        <div className="modal-backdrop">
-                            <div className="modal-card-split" style={{ maxWidth: 1000 }}>
+                        <Modal
+                            maxWidth={1000}
+                            height="85vh"
+                            noBodyPadding
+                            onClose={closeModal}
+                            header={
                                 <div style={{ flexShrink: 0, display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px", borderBottom: "1px solid #e2e8f0", background: "#fff" }}>
                                     <div>
                                         <h3 style={{ margin: 0, fontSize: 18, color: "#1e293b" }}>{selectedAppt.isPrimaryAdvisor === false ? "ดูรายละเอียด: " : "พิจารณาวันนิเทศ: "}{selectedAppt.student.firstName} {selectedAppt.student.lastName}</h3>
                                         <div style={{ fontSize: 13, color: "#64748b", marginTop: 4 }}>รหัส: {selectedAppt.student.studentId} | <StatusBadge status={selectedAppt.status} /></div>
                                     </div>
-                                    <button onClick={closeModal} style={{ border: "none", background: "#fee2e2", color: "#dc2626", width: 32, height: 32, borderRadius: "50%", fontSize: 18, cursor: "pointer" }}>&times;</button>
+                                    <ModalCloseButton onClose={closeModal} variant="circle" />
                                 </div>
-                                <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+                            }
+                        >
+                                <div style={{ height: "100%", display: "flex", overflow: "hidden" }}>
                                     <div style={{ flex: 1, padding: 24, background: "#f8fafc", borderRight: "1px solid #e2e8f0", overflowY: "auto" }}>
                                         <div style={{ background: "#fff", padding: 16, borderRadius: 12, border: "1px solid #e2e8f0", marginBottom: 20 }}>
                                             <InfoRow label="รูปแบบ" value={<span style={{ color: selectedAppt.supervisionType === "ONLINE" ? "#2563eb" : "#ea580c" }}>{selectedAppt.supervisionType === "ONLINE" ? "🌐 ออนไลน์" : "🏢 ออนไซต์"}</span>} />
@@ -569,7 +577,7 @@ export default function T_SupervisionReview() {
                                                                         <div style={{ fontWeight: 800, color: isBooked ? "#991b1b" : "#166534", fontSize: 15 }}>{isBooked ? "🔒 " : ""}{parsed.dmy}</div>
                                                                         <div style={{ color: isBooked ? "#b91c1c" : "#15803d", fontSize: 14, marginTop: 4 }}>{parsed.time}</div>
                                                                     </div>
-                                                                    <button className={isBooked ? "btn" : "btn-success"} style={{ background: isBooked ? "#9ca3af" : undefined, padding: "10px 16px", cursor: isBooked ? "not-allowed" : "pointer" }} onClick={() => !isBooked && handleAction("APPROVE", dateStr)} disabled={isSubmitting || isBooked}>{isBooked ? "ถูกจองแล้ว" : "เลือกวันนี้"}</button>
+                                                                    <button className="btn-success" onClick={() => !isBooked && handleAction("APPROVE", dateStr)} disabled={isSubmitting || isBooked}>{isBooked ? "ถูกจองแล้ว" : "เลือกวันนี้"}</button>
                                                                 </div>
                                                             );
                                                         });
@@ -597,8 +605,7 @@ export default function T_SupervisionReview() {
                                         )}
                                     </div>
                                 </div>
-                            </div>
-                        </div>
+                        </Modal>
                     )}
                 </>
             )}
@@ -611,7 +618,7 @@ export default function T_SupervisionReview() {
                             <h2 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: '#1e293b' }}>🗂️ จัดการนิเทศสหกิจ (ทั้งหมด)</h2>
                             <div style={{ color: "#64748b", fontSize: 14, marginTop: 4 }}>ตั้งค่าช่วงเวลา และจัดการอาจารย์ร่วม (หนังสือขอนิเทศออกโดยเจ้าหน้าที่)</div>
                         </div>
-                        <button className="btn-ghost" onClick={fetchAll} disabled={allLoading}>{allLoading ? "⏳" : "🔄"} รีเฟรช</button>
+                        <button className="btn-secondary" onClick={fetchAll} disabled={allLoading}>{allLoading ? "⏳" : "🔄"} รีเฟรช</button>
                     </div>
 
                     {/* ── Period Config ── */}
@@ -738,11 +745,6 @@ export default function T_SupervisionReview() {
 
             {/* ── Shared Styles ── */}
             <style>{`
-                .input { padding: 10px 14px; border-radius: 8px; border: 1px solid #cbd5e1; outline: none; font-family: inherit; font-size: 14px; width: 100%; box-sizing: border-box; resize: vertical; }
-                .input:focus { border-color: #0ea5e9; box-shadow: 0 0 0 3px rgba(59,130,246,.15); }
-                .input:disabled { background: #f1f5f9; color: #94a3b8; cursor: not-allowed; }
-                .modal-backdrop { position: fixed; inset: 0; background: rgba(15,23,42,.6); display: flex; align-items: center; justify-content: center; z-index: 999; backdrop-filter: blur(4px); }
-                .modal-card-split { background: #fff; border-radius: 16px; width: 95vw; height: 85vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0,0,0,.25); }
                 .teacher-checkbox-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; max-height: 300px; overflow-y: auto; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px; background: #f8fafc; }
                 .teacher-checkbox-label { display: flex; align-items: center; gap: 8px; padding: 8px; background: white; border: 1px solid #cbd5e1; border-radius: 6px; cursor: pointer; font-size: 13px; }
                 .teacher-checkbox-label:hover { background: #f1f5f9; }
@@ -833,9 +835,9 @@ const InfoRow = ({ label, value }: { label: string; value: React.ReactNode }) =>
 const card: CSSProperties = { background: "#fff", borderRadius: 16, padding: 24, boxShadow: "0 4px 6px -1px rgba(0,0,0,0.05)", border: "1px solid #f1f5f9" };
 const labelStyle: CSSProperties = { fontSize: 13, fontWeight: 700, color: '#334155', display: 'block', marginBottom: 6 };
 const tableStyle: CSSProperties = { width: "100%", borderCollapse: "collapse" };
-const thRow: CSSProperties = { background: "#f8fafc", borderBottom: "2px solid #e2e8f0" };
-const th: CSSProperties = { padding: "14px 16px", textAlign: "left", fontSize: 13, fontWeight: 700, color: "#64748b", userSelect: "none" };
+const thRow: CSSProperties = TABLE_HEADER_ROW;
+const th: CSSProperties = { ...TABLE_TH, userSelect: "none" };
 const trStyle: CSSProperties = { borderBottom: "1px solid #f1f5f9" };
-const td: CSSProperties = { padding: "14px 16px", verticalAlign: "middle", fontSize: 14 };
+const td: CSSProperties = TABLE_TD;
 const modalOverlay: CSSProperties = { position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(15,23,42,0.6)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 999, backdropFilter: 'blur(3px)' };
 const modalContent: CSSProperties = { background: "#fff", borderRadius: 16, padding: 24, width: "95%", boxShadow: "0 25px 50px -12px rgba(0,0,0,0.25)", maxHeight: '90vh', overflowY: 'auto' };
