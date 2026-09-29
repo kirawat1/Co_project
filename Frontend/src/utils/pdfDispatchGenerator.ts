@@ -3,7 +3,7 @@
 import { jsPDF } from "jspdf";
 import { PDFDocument } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
-import { normalizeDocNumber } from "./docGeneratorUtils";
+import { normalizeDocNumber, formMajorName } from "./docGeneratorUtils";
 import { letterRecipient, recipientText } from "./letterRecipient";
 
 // --- Helpers ---
@@ -166,7 +166,9 @@ export const createDispatchPDF = async (
 
   const contentWidth = pageWidth - margin * 2;
 
-  const p1 = `       ตามที่ ${companyName} ได้เข้าร่วมโครงการสหกิจศึกษากับ มหาวิทยาลัยขอนแก่น วิทยาลัยการคอมพิวเตอร์ และยินดีรับนักศึกษาหลักสูตรวิทยาการคอมพิวเตอร์ เข้าปฏิบัติงานสหกิจศึกษากับบริษัทของท่าน ซึ่งมีกำหนดช่วงเวลาปฏิบัติงาน ระหว่างวันที่ ${startDate} ถึงวันที่ ${endDate} นั้น ในการนี้ ทางวิทยาลัยการคอมพิวเตอร์ จึงใคร่ขอให้ท่านพิจารณานักศึกษาเข้าร่วมโครงการสหกิจศึกษากับทาง ${companyName} จำนวน 1 คน ดังมีรายชื่อต่อไปนี้`;
+  // major เป็นรหัสสาขา (CS/AI) — หนังสือส่งตัวต้องใช้ชื่อหลักสูตรภาษาไทยจริงของนักศึกษา ไม่ใช่ค่าคงที่
+  const majorName = formMajorName(profile, "วิทยาการคอมพิวเตอร์");
+  const p1 = `       ตามที่ ${companyName} ได้เข้าร่วมโครงการสหกิจศึกษากับ มหาวิทยาลัยขอนแก่น วิทยาลัยการคอมพิวเตอร์ และยินดีรับนักศึกษาหลักสูตร${majorName} เข้าปฏิบัติงานสหกิจศึกษากับบริษัทของท่าน ซึ่งมีกำหนดช่วงเวลาปฏิบัติงาน ระหว่างวันที่ ${startDate} ถึงวันที่ ${endDate} นั้น ในการนี้ ทางวิทยาลัยการคอมพิวเตอร์ จึงใคร่ขอให้ท่านพิจารณานักศึกษาเข้าร่วมโครงการสหกิจศึกษากับทาง ${companyName} จำนวน 1 คน ดังมีรายชื่อต่อไปนี้`;
 
   const splitP1 = doc.splitTextToSize(p1, contentWidth);
   doc.text(splitP1, margin, y);

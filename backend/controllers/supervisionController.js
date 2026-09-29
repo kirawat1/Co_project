@@ -6,6 +6,7 @@ const { normalizeDocNumber, isPlaceholderDocNo, parseDateOr400 } = require('../u
 const { setAuditDetail, letterPendingActionText, supervisionLetterActionText } = require('../utils/auditActions');
 const { resolveSlotEnd, assertNoTeacherClash, findTeacherClash, dateKey, timeKey, parseProposedList } = require('../utils/supervisionClash');
 const { SUPERVISION_SCHEDULE_SELECT, toScheduleRow, sortSchedule, buildSupervisionScheduleWorkbook } = require('../utils/supervisionExport');
+const { resolveMajorNameTh } = require('../utils/majorName');
 
 const CLEARED_LETTER_PENDING = { letterPendingAt: null, letterDraftNumber: null, letterDraftDate: null };
 
@@ -81,17 +82,25 @@ exports.saveSupervisionPeriod = async (req, res) => {
 // ==========================================
 exports.getAllSupervisions = async (_req, res) => {
     try {
-        const supervisions = await prisma.supervisionAppointment.findMany({
-            where: { student: { deletedAt: null } },
-            include: {
-                student: {
-                    include: { coop: { include: { company: true, contacts: { orderBy: { createdAt: 'asc' } } } } }
+        const [supervisions, criteria] = await Promise.all([
+            prisma.supervisionAppointment.findMany({
+                where: { student: { deletedAt: null } },
+                include: {
+                    student: {
+                        include: { coop: { include: { company: true, contacts: { orderBy: { createdAt: 'asc' } } } } }
+                    },
+                    teacher: true
                 },
-                teacher: true
-            },
-            orderBy: { updatedAt: 'desc' }
-        });
-        res.json({ ok: true, supervisions });
+                orderBy: { updatedAt: 'desc' }
+            }),
+            prisma.coopCriteria.findMany({ select: { major: true, nameTh: true } }),
+        ]);
+        // major เป็นรหัสสาขา (CS/AI) — หนังสือนิเทศต้องใช้ชื่อหลักสูตรภาษาไทยจริง
+        const withMajorName = supervisions.map(s => ({
+            ...s,
+            student: s.student ? { ...s.student, majorNameTh: resolveMajorNameTh(s.student.major, criteria) } : s.student,
+        }));
+        res.json({ ok: true, supervisions: withMajorName });
     } catch (err) {
         console.error(err);
         res.status(500).json({ ok: false, message: 'Server error' });

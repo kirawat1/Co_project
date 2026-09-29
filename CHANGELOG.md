@@ -1,5 +1,18 @@
 # CHANGELOG — Co_project
 
+## [2026-09-29] fix: หนังสือราชการ (ส่งตัว/ขอความอนุเคราะห์/นิเทศ) ฮาร์โค้ดชื่อหลักสูตร "วิทยาการคอมพิวเตอร์" ทุกฉบับ
+
+### Fixed
+- หนังสือขอความอนุเคราะห์ (`IssueLetterModal.tsx`) และหนังสือขอนิเทศ (`IssueSupervisionLetterModal.tsx`) — ทั้งฉบับ PDF และ Word (.doc) ฮาร์ดโค้ดข้อความ "วิทยาการคอมพิวเตอร์" ไว้ตรงๆ ทำให้นักศึกษาหลักสูตรอื่น (เช่น ปัญญาประดิษฐ์ AI) ขึ้นชื่อหลักสูตรผิดในหนังสือทุกฉบับ — นี่คือบั๊กที่ผู้ใช้จำได้ลางๆ ว่า "มีเอกสารสักตัวที่ดึงสาขาไม่ขึ้น" เจอระหว่างตรวจสอบ commit ด้วย debug-mantra
+- แก้โดยดึงชื่อหลักสูตรจริงของนักศึกษา (`majorNameTh`/`major`) มาแทนค่าคงที่ ใน `pdfDispatchGenerator.ts`, `pdfSupervisionLetterGenerator.ts`, และ `buildDispatchLetterHtml`/`buildSupervisionLetterHtml` (`docGeneratorUtils.ts`)
+- **คงคำว่า "สาขาวิชา" ไว้ตามเดิม** (ไม่เปลี่ยนเป็น "หลักสูตร") เพราะเป็นถ้อยคำทางการของหนังสือราชการ แยกจากการเปลี่ยนชื่อเรียกในหน้าเว็บ — มีเทสต์ `terminology.test.js` guard เรื่องนี้อยู่แล้ว (รอบแรกที่แก้พลาดไปเปลี่ยนคำนี้ด้วย ตรวจพบเพราะเทสต์นี้ fail)
+- backend (`supervisionController.js` → `getAllSupervisions`) เดิมไม่ resolve `majorNameTh` ให้ ทำให้แก้ frontend อย่างเดียวไม่พอ (จะ fallback ไปโชว์ "วิทยาการคอมพิวเตอร์" เหมือนเดิมทุกคน) — เพิ่มการ resolve จาก `CoopCriteria` เหมือนกับที่ `getStudentsForT000`/`getStudents` ทำอยู่แล้ว
+
+### Tests
+- อัปเดต `supervisionController.test.js` (`getAllSupervisions`) ให้ตรวจว่า `majorNameTh` ถูก resolve ถูกต้องสำหรับนักศึกษาหลายหลักสูตร
+- อัปเดต `terminology.test.js` ให้ตรวจว่าคำว่า "สาขาวิชา" ยังอยู่ แต่ชื่อหลักสูตรที่ตามหลังไม่ใช่ค่าคงที่อีกต่อไป
+- unit 753/753 · e2e 104/104 · tsc คงที่ 23
+
 ## [2026-09-29] feat: แก้ไข "หลักสูตร" ของนักศึกษาได้จากหน้าแก้ไขข้อมูล (เจ้าหน้าที่)
 
 ### Added

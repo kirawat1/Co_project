@@ -1,5 +1,5 @@
 import { jsPDF } from "jspdf";
-import { thaiPrefix, supervisionSupervisorNames, joinThaiNames } from "./docGeneratorUtils";
+import { thaiPrefix, supervisionSupervisorNames, joinThaiNames, letterMajorName } from "./docGeneratorUtils";
 import { letterRecipient, recipientText } from "./letterRecipient";
 
 // --- Helpers ---
@@ -151,6 +151,8 @@ export const createSupervisionLetterPDF = async (
 
   // อาจารย์หลัก + อาจารย์นิเทศร่วม (coTeacherName)
   const teacherName = joinThaiNames(supervisionSupervisorNames(appt));
+  // major เป็นรหัสสาขา (CS/AI) — หนังสือนิเทศต้องใช้ชื่อหลักสูตรภาษาไทยจริงของนักศึกษา ไม่ใช่ค่าคงที่
+  const majorName = letterMajorName(student);
 
   const isOnline = appt.supervisionType === "ONLINE";
   const supFormat = isOnline ? "ออนไลน์" : "ออนไซต์";
@@ -174,19 +176,19 @@ export const createSupervisionLetterPDF = async (
   const contentWidth = pageWidth - margin * 2;
 
   // ย่อหน้า 1
-  const p1 = `       ตามที่ท่านให้ความอนุเคราะห์รับนักศึกษาสาขาวิชาวิทยาการคอมพิวเตอร์ จำนวน 1 คน คือ ${studentName} รหัสประจำตัว ${studentId} เข้าปฏิบัติงานสหกิจศึกษากับทางบริษัท ${companyName} นั้น`;
+  const p1 = `       ตามที่ท่านให้ความอนุเคราะห์รับนักศึกษาสาขาวิชา${majorName} จำนวน 1 คน คือ ${studentName} รหัสประจำตัว ${studentId} เข้าปฏิบัติงานสหกิจศึกษากับทางบริษัท ${companyName} นั้น`;
   const splitP1 = doc.splitTextToSize(p1, contentWidth);
   doc.text(splitP1, margin, y);
   y += splitP1.length * 7 + 2;
 
   // ย่อหน้า 2
-  const p2 = `       ในการนี้ สาขาวิชาวิทยาการคอมพิวเตอร์ วิทยาลัยการคอมพิวเตอร์ มหาวิทยาลัยขอนแก่น ใคร่ขอเข้านิเทศนักศึกษาปฏิบัติงานสหกิจศึกษา ในหน่วยงานของท่าน เพื่อแนะนำแนวทางการจัดทำรายงานสหกิจศึกษาและรับทราบปัญหาอุปสรรคของนักศึกษาในรูปแบบ${supFormat} โดยนิเทศงานใน${supDateStr} เวลา ${supTimeStr} น.${onlineLinkText} โดยมีอาจารย์ผู้นิเทศงานคือ ${teacherName}`;
+  const p2 = `       ในการนี้ สาขาวิชา${majorName} วิทยาลัยการคอมพิวเตอร์ มหาวิทยาลัยขอนแก่น ใคร่ขอเข้านิเทศนักศึกษาปฏิบัติงานสหกิจศึกษา ในหน่วยงานของท่าน เพื่อแนะนำแนวทางการจัดทำรายงานสหกิจศึกษาและรับทราบปัญหาอุปสรรคของนักศึกษาในรูปแบบ${supFormat} โดยนิเทศงานใน${supDateStr} เวลา ${supTimeStr} น.${onlineLinkText} โดยมีอาจารย์ผู้นิเทศงานคือ ${teacherName}`;
   const splitP2 = doc.splitTextToSize(p2, contentWidth);
   doc.text(splitP2, margin, y);
   y += splitP2.length * 7 + 2;
 
   // ย่อหน้า 3
-  const p3 = `       สาขาวิชาวิทยาการคอมพิวเตอร์ วิทยาลัยการคอมพิวเตอร์ มหาวิทยาลัยขอนแก่น ใคร่ขอขอบคุณท่านที่ให้ความอนุเคราะห์เข้านิเทศงาน และร่วมประเมินเบื้องต้นและแจ้งลักษณะการมอบหมายงานของนักศึกษาในครั้งนี้ด้วย จักขอบพระคุณยิ่ง`;
+  const p3 = `       สาขาวิชา${majorName} วิทยาลัยการคอมพิวเตอร์ มหาวิทยาลัยขอนแก่น ใคร่ขอขอบคุณท่านที่ให้ความอนุเคราะห์เข้านิเทศงาน และร่วมประเมินเบื้องต้นและแจ้งลักษณะการมอบหมายงานของนักศึกษาในครั้งนี้ด้วย จักขอบพระคุณยิ่ง`;
   const splitP3 = doc.splitTextToSize(p3, contentWidth);
   doc.text(splitP3, margin, y);
   y += splitP3.length * 7 + 15;
@@ -226,7 +228,7 @@ export const createSupervisionLetterPDF = async (
   // ==========================================================
   y = 265;
   doc.setFontSize(14);
-  doc.text(`สาขาวิชาวิทยาการคอมพิวเตอร์`, margin, y);
+  doc.text(`สาขาวิชา${majorName}`, margin, y);
   doc.text(`วิทยาลัยการคอมพิวเตอร์`, margin, y + 5);
   doc.text(`โทรศัพท์ 0 4300 9700 ต่อ 50523`, margin, y + 10);
   doc.text(`Email: wijika@kku.ac.th`, margin, y + 15);
