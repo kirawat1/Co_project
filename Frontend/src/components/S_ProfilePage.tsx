@@ -8,6 +8,7 @@ import S_ChangePasswordModal from "./S_ChangePasswordModal";
 import { notify, askConfirm } from "../utils/notify";
 import ContactForm from "./ContactForm";
 import { contactName, contactLine, type CompanyContact } from "../utils/contacts";
+import Modal from "./Modal";
 
 /* ================= TYPES ================= */
 interface Mentor {
@@ -393,10 +394,10 @@ export default function S_ProfilePage() {
                   🏫 {kkuAvailable ? "ดึงข้อมูลจาก KKU" : "KKU Sync (เร็วๆ นี้)"}
                 </button>
               )}
-              <button className="btn-edit" onClick={() => setOpenPasswordModal(true)} style={editBtnStyle}>
+              <button className="btn-secondary" onClick={() => setOpenPasswordModal(true)}>
                 🔑 เปลี่ยนรหัสผ่าน
               </button>
-              <button className="btn-edit" onClick={() => setOpenStudentModal(true)} style={editBtnStyle}>
+              <button className="btn-secondary" onClick={() => setOpenStudentModal(true)}>
                 <IcEdit width={16} height={16} /> แก้ไขข้อมูล
               </button>
             </div>
@@ -546,7 +547,7 @@ export default function S_ProfilePage() {
               </div>
             )}
             {profile.company?.id && !addingContact && (
-              <button type="button" className="btn-secondary" style={{ marginTop: 8 }} onClick={() => setAddingContact(true)}>+ เพิ่มผู้ติดต่อ</button>
+              <button type="button" className="btn" style={{ marginTop: 8 }} onClick={() => setAddingContact(true)}>+ เพิ่มผู้ติดต่อ</button>
             )}
             {profile.company?.id && addingContact && (
               <div style={{ marginTop: 10, padding: 14, border: '1px solid #bfdbfe', borderRadius: 12, background: '#f8fbff' }}>
@@ -648,9 +649,7 @@ function StudentModal({ profile, teachers, saveStudentInfo, closeModal, departme
   }));
 
   return (
-    <div className="modal-backdrop">
-      <div className="modal-card">
-        <h3 className="profile-title">แก้ไขข้อมูลนักศึกษา</h3>
+    <Modal title="แก้ไขข้อมูลนักศึกษา" onClose={closeModal} maxWidth={750}>
         <div className="form-grid" style={{ maxHeight: '70vh', overflowY: 'auto', paddingRight: 10 }}>
 
           <div><label className="label">คำนำหน้า</label>
@@ -739,8 +738,7 @@ function StudentModal({ profile, teachers, saveStudentInfo, closeModal, departme
           <button className="btn-secondary" onClick={closeModal}>ยกเลิก</button>
           <button className="btn" onClick={() => saveStudentInfo(form)}>บันทึก</button>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -815,8 +813,6 @@ function Info({ label, value, pill }: { label: string; value: string; pill?: boo
   );
 }
 
-const editBtnStyle = { background: "#2563eb", border: "none", padding: "6px 12px", borderRadius: "8px", fontSize: "13px", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: "6px", color: "#fff" };
-
 const PROFILE_CSS = `
 .profile-grid{ display:grid; grid-template-columns:1fr 1fr; gap:28px; }
 @media (max-width: 1024px){ .profile-grid{ grid-template-columns:1fr; } }
@@ -836,10 +832,7 @@ const PROFILE_CSS = `
 .label{ color:#64748b; font-weight:700; font-size: 14px; }
 .value{ font-weight:600; color: #1e293b; }
 .email-pill{ display:inline-block; padding:4px 12px; border-radius:999px; background:#eff6ff; border:1px solid #bfdbfe; color:#1e40af; font-size: 13px; }
-.input { padding:10px 14px; border-radius:10px; border:1px solid #e5e7eb; font-weight:600; width:100%; box-sizing:border-box; font-family: inherit; transition: 0.2s; }
-.input:focus { border-color: #3b82f6; outline: none; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
 .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:15px 20px; }
+.form-grid .label { display:block; margin-bottom:4px; }
 .action-row { display:flex; justify-content:flex-end; gap:10px; margin-top:25px; }
-.modal-backdrop { position:fixed; inset:0; background:rgba(15,23,42,.45); display:flex; align-items:center; justify-content:center; z-index:50; backdrop-filter: blur(4px); }
-.modal-card { background:#fff; border-radius:24px; padding:35px; width:750px; max-width:95%; box-shadow:0 20px 25px -5px rgba(0,0,0,0.1); }
 `;

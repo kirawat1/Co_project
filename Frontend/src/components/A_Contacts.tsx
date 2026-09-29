@@ -6,6 +6,7 @@ import { useLoadMore } from "../utils/useLoadMore";
 import { notify, askConfirm } from "../utils/notify";
 import ContactForm from "./ContactForm";
 import { contactName, type CompanyContact } from "../utils/contacts";
+import { TABLE_TH, TABLE_TD, TABLE_HEADER_ROW } from "../utils/tableStyles";
 
 /* =========================
    ผู้ติดต่อ (HR) ของทุกบริษัท — เจ้าหน้าที่ดู/เพิ่ม/แก้/ลบ
@@ -101,7 +102,7 @@ export default function A_Contacts() {
       <section style={{ ...card, marginTop: 20, padding: 0, overflow: "hidden" }}>
         <table width="100%" className="responsive-table" style={{ borderCollapse: "collapse" }}>
           <thead>
-            <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
+            <tr style={TABLE_HEADER_ROW}>
               {["ชื่อ-นามสกุล", "บริษัท", "ตำแหน่ง/ทีม", "ติดต่อ", "นักศึกษาที่เลือก", "จัดการ"].map((h) => <th key={h} style={th}>{h}</th>)}
             </tr>
           </thead>
@@ -171,8 +172,8 @@ export default function A_Contacts() {
 }
 
 const card: React.CSSProperties = { background: "#fff", borderRadius: 14, padding: 24, border: "1px solid #e5e7eb" };
-const th: React.CSSProperties = { textAlign: "left", fontSize: 14, fontWeight: 700, padding: "12px 16px", color: "#475569" };
-const td: React.CSSProperties = { padding: "14px 16px", fontSize: 14, color: "#334155", verticalAlign: "middle" };
+const th: React.CSSProperties = TABLE_TH;
+const td: React.CSSProperties = TABLE_TD;
 const ghostBtn: React.CSSProperties = { background: "#fff", color: "#0074B7", boxShadow: "none", border: "1px solid rgba(10,132,255,.25)", height: 34, borderRadius: 8, padding: "0 12px", cursor: "pointer", fontWeight: 600, fontSize: 13 };
 const saveBtn: React.CSSProperties = { background: "#0074B7", color: "#fff", boxShadow: "none", border: "1px solid rgba(10,132,255,.25)", height: 36, borderRadius: 8, padding: "0 16px", cursor: "pointer", fontWeight: 600, fontSize: 14 };
 const overlay: React.CSSProperties = { position: "fixed", inset: 0, background: "rgba(15,23,42,.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, backdropFilter: "blur(4px)", padding: 16 };

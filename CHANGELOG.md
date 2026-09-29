@@ -1,5 +1,29 @@
 # CHANGELOG — Co_project
 
+## [2026-09-29] refactor: รวม UI ที่หน้าตาไม่ตรงกันทั้งระบบ (โมดัล / ตาราง / ปุ่ม) ให้ใช้ของกลางชุดเดียว
+
+### Added
+- `Frontend/src/components/Modal.tsx` — คอมโพเนนต์โมดัลกลางของทั้งระบบ (แทนที่แต่ละไฟล์กำหนด `.modal-backdrop`/`.modal-card` เอง ~20 ไฟล์ มุมโค้ง/padding/เงาไม่ตรงกัน) รองรับหัวเรื่องข้อความล้วน, หัวเรื่องกำหนดเอง (เช่น มีป้ายสถานะ), เนื้อหาแบบ split-pane/เต็มจอ (พรีวิว PDF, ตัวตรวจเอกสาร)
+- `Frontend/src/utils/tableStyles.ts` — `TABLE_TH`/`TABLE_TD`/`TABLE_HEADER_ROW` ใช้แทนแต่ละไฟล์กำหนด th/td เอง ~15 ไฟล์ ระยะห่าง/เส้นขอบหัวตารางไม่ตรงกัน
+- `S_Theme.tsx` — เพิ่ม global modifier `.small` (ปุ่มขนาดย่อในแถวตาราง ต่อกับ `.btn`/`.btn-secondary`/`.btn-danger`/`.btn-ghost` ฯลฯ ได้ทุกแบบ), `.input:disabled`, และ `.detail-grid` responsive breakpoint
+
+### Changed
+- ปุ่ม "ลบ" ทั้งระบบ → `.btn-danger` (แดงทึบ) เดียวกันหมด (เดิมมี 3 สไตล์ปะปนกัน: แดงทึบ/แดงกรอบ/ฟ้ากรอบ)
+- ปุ่มรอง (ดูรายละเอียด/แก้ไข/ปิด) ในแถวตาราง → `.btn-secondary small` เดียวกันหมด
+- ปุ่ม "+ เพิ่ม..." หลัก → `.btn` (ฟ้าทึบ) ทั้งฝั่งเจ้าหน้าที่และนักศึกษา (เดิมฝั่งนักศึกษาบางหน้าใช้ปุ่มรองแทน)
+- โมดัลทั้งหมด ~20 ไฟล์ (บริษัท, นักเดี่ยว, นัดสอบ, คำร้อง, นิเทศ, โปรไฟล์, เปลี่ยนรหัสผ่าน, แจ้งปัญหา, นำเข้า Excel, ออกหนังสือ ฯลฯ) → ใช้ `<Modal>` กลางแทนของที่กำหนดเอง
+- ตาราง 15 ไฟล์ → ใช้ `TABLE_TH`/`TABLE_TD`/`TABLE_HEADER_ROW` กลาง คงเฉพาะส่วนต่างที่มีเหตุผลจริง (เช่น `whiteSpace:"nowrap"` คอลัมน์วันที่แคบ)
+
+### Fixed
+- **บั๊กจริง** T_Exams.tsx: ปุ่ม "ยกเลิก" ในโมดัลนัดสอบใช้ class `btn ghost` แต่ `.ghost` (ไม่มีขีด) ไม่เคยถูกกำหนด CSS ไว้เลย — ปุ่มจึงเผลอกลายเป็นสีฟ้าทึบเหมือนปุ่ม "บันทึก" ข้างๆ ทำให้แยกไม่ออกว่าปุ่มไหนคือปุ่มอันตราย/ยกเลิก
+- **CSS รั่วข้ามหน้า**: หลายไฟล์ (A_DocT000, S_Gateway, S_ProfilePage, T_Profile, T_StudentDetail, T_Students) ประกาศ `.modal-card`/`.modal-backdrop` ของตัวเองซ้ำชื่อกับคลาสกลางใน `<style>` แบบไม่ scope — ทำให้ขนาด/สีของโมดัลอื่นเพี้ยนไปทุกครั้งที่หน้านั้นถูก mount พร้อมกัน แก้โดยลบของซ้ำแล้วใช้ `<Modal>` กลางแทน
+- `LetterModalShared.tsx` + 3 ไฟล์ออกหนังสือ (IssueLetterModal, IssuePlacementLetterModal, IssueSupervisionLetterModal) ก็ชนชื่อ `.modal-card`/`.modal-backdrop` เดียวกัน — เปลี่ยนเป็น `.letter-modal-card`/`.letter-modal-backdrop` เฉพาะ (โมดัลกลุ่มนี้ต้องบังคับโหมดสว่างเสมอเพราะเป็นพรีวิวเอกสารทางการ จึงแยกสไตล์ของตัวเองแทนใช้ `<Modal>` กลาง)
+- ปุ่ม `.small` ที่ต่อกับ `.btn-ghost` ไม่มีสไตล์ย่อขนาดมาก่อน (นิยามแค่ `.btn.small`/`.btn-secondary.small`/ฯลฯ ตกหล่น `.btn-ghost.small`) — เพิ่มให้ครบ
+
+### Tests
+- แก้ `coop-lifecycle.e2e.spec.ts` (P5, P8) ให้ใช้ selector `.letter-modal-backdrop` ตามคลาสที่เปลี่ยน
+- unit 752/752 · e2e 104/104 · ตรวจ 48 หน้าไม่มี error · tsc คงที่ 23 · vite build ผ่าน
+
 ## [2026-09-29] fix: กดเอาผู้ติดต่อ (HR) ออกสองคนพร้อมกันเร็วมาก คนแรกที่ลบกลับมาโผล่ใหม่
 
 ### Fixed

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import type { CSSProperties } from "react";
 import axios from "axios";
 import { fmtDate } from '../utils/dateFormat';
+import { TABLE_TH, TABLE_TD, TABLE_HEADER_ROW } from "../utils/tableStyles";
 
 interface StaffProfile { firstName: string; lastName: string; phone: string | null; }
 interface StaffUser {
@@ -105,7 +106,7 @@ export default function A_StaffManage() {
         {loading ? <div style={{ padding: 32, textAlign: "center", color: "#64748b" }}>กำลังโหลด...</div> : (
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
-              <tr style={{ background: "#f8fafc", borderBottom: "2px solid #e2e8f0" }}>
+              <tr style={TABLE_HEADER_ROW}>
                 {["ชื่อ-นามสกุล", "Username", "อีเมล", "เบอร์โทร", "วันที่สร้าง", ""].map(h => (
                   <th key={h} style={th}>{h}</th>
                 ))}
@@ -217,8 +218,8 @@ function Field({ label, value, onChange, type = "text", autoComplete }: { label:
 }
 
 const card: CSSProperties = { background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(0,0,0,0.08)", border: "1px solid #e2e8f0", overflow: "hidden" };
-const th: CSSProperties = { padding: "12px 16px", textAlign: "left", fontSize: 13, fontWeight: 700, color: "#475569" };
-const td: CSSProperties = { padding: "12px 16px", fontSize: 14, color: "#1e293b" };
+const th: CSSProperties = TABLE_TH;
+const td: CSSProperties = TABLE_TD;
 const overlay: CSSProperties = { position: "fixed", inset: 0, background: "rgba(15,23,42,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 };
 const modal: CSSProperties = { background: "#fff", borderRadius: 16, padding: 28, width: "95%", maxWidth: 520, boxShadow: "0 25px 50px -12px rgba(0,0,0,0.25)" };
 const row2: CSSProperties = { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 };

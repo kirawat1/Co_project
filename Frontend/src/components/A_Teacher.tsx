@@ -343,7 +343,7 @@ export default function A_Teacher() {
         </div>
         <table width="100%" className="responsive-table" style={{ borderCollapse: "collapse" }}>
           <thead>
-            <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
+            <tr style={TABLE_HEADER_ROW}>
               {selectMode && (
                 <th style={{ ...th, width: 36 }}>
                   <input
@@ -649,11 +649,12 @@ function FilterBox({ title, items, values, onChange }: { title: string; items: R
 /* =========================
    Styles
 ========================= */
-import React from "react";
+import React from "react";
+import { TABLE_TH, TABLE_TD, TABLE_HEADER_ROW } from "../utils/tableStyles";
 const card: React.CSSProperties = { background: "#fff", borderRadius: 14, padding: 24, border: "1px solid #e5e7eb" };
 const filterRow: React.CSSProperties = { display: "flex", gap: 24, flexWrap: "wrap", alignItems: "flex-end" };
-const th: React.CSSProperties = { textAlign: "left", fontSize: 14, fontWeight: 700, padding: "12px 16px", color: "#475569" };
-const td: React.CSSProperties = { padding: "14px 16px", fontSize: 14, color: "#334155", verticalAlign: "middle" };
+const th: React.CSSProperties = TABLE_TH;
+const td: React.CSSProperties = TABLE_TD;
 const ghostBtn: React.CSSProperties = { background: "#fff", color: "#0074B7", border: "1px solid rgba(10,132,255,.25)", height: 34, borderRadius: 8, padding: "0 12px", cursor: "pointer", fontWeight: 600, fontSize: 13 };
 const saveBtn: React.CSSProperties = { background: "#0074B7", color: "#fff", border: "none", height: 38, borderRadius: 8, padding: "0 16px", cursor: "pointer", fontWeight: 600, fontSize: 14 };
 const addBtn: React.CSSProperties = { background: "#10b981", color: "#fff", border: "none", height: 38, borderRadius: 10, padding: "0 20px", cursor: "pointer", fontWeight: 700, fontSize: 14 };

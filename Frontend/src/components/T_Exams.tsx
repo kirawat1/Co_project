@@ -3,6 +3,7 @@ import DateInput from './DateInput';
 import type { StudentProfile } from "./store";
 import AutoTextarea from "./AutoTextarea";
 import { notify, askConfirm } from "../utils/notify";
+import Modal from "./Modal";
 
 function safeHref(url: string | undefined): string | undefined {
   if (!url) return undefined;
@@ -257,13 +258,13 @@ export default function T_Exams() {
                 <td className="cell-ellipsis">{x.note || "-"}</td>
                 <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
                   <button
-                    className="btn small ghost"
+                    className="btn-secondary small"
                     onClick={() => openEdit(x)}
                   >
                     แก้ไข
                   </button>{" "}
                   <button
-                    className="btn small danger"
+                    className="btn-danger small"
                     onClick={() => remove(x.id)}
                   >
                     ลบ
@@ -284,18 +285,11 @@ export default function T_Exams() {
 
       {/* -------- Modal -------- */}
       {open && edit && (
-        <div className="modal-backdrop">
-          <div className="modal">
-            <div className="modal-header">
-              <div className="modal-title">
-                {items.some((x) => x.id === edit.id)
-                  ? "แก้ไขนัดสอบนิเทศ"
-                  : "สร้างนัดสอบนิเทศ"}
-              </div>
-            </div>
-
-            <div className="divider" />
-
+        <Modal
+          title={items.some((x) => x.id === edit.id) ? "แก้ไขนัดสอบนิเทศ" : "สร้างนัดสอบนิเทศ"}
+          onClose={close}
+          maxWidth={860}
+        >
             <div className="exam-form">
               <div>
                 <label className="label">นักศึกษา</label>
@@ -409,40 +403,18 @@ export default function T_Exams() {
             </div>
 
             <div className="modal-actions">
-              <button className="btn ghost" onClick={close}>
+              <button className="btn-secondary" onClick={close}>
                 ยกเลิก
               </button>
               <button className="btn" onClick={save}>
                 บันทึก
               </button>
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {/* -------- Styles -------- */}
       <style>{`
-        .modal-backdrop{
-          position:fixed; inset:0;
-          background:rgba(15,23,42,.55);
-          display:flex; align-items:center; justify-content:center;
-          padding:18px; z-index:50;
-        }
-        .modal{
-          width:min(860px,100%);
-          max-height:92vh;
-          overflow:auto;
-          background:#fff;
-          border-radius:20px;
-          padding:24px;
-          box-shadow:0 24px 70px rgba(15,23,42,.28);
-        }
-        .modal-header{
-          display:flex; justify-content:space-between; align-items:center;
-        }
-        .modal-title{ font-size:20px; font-weight:800 }
-        .divider{ height:1px; background:rgba(0,0,0,.06); margin:16px 0 22px }
-
         .exam-form{
           display:grid;
           grid-template-columns:1fr 1fr;
@@ -470,15 +442,6 @@ export default function T_Exams() {
         .cell-ellipsis{
           max-width:26ch; overflow:hidden;
           text-overflow:ellipsis; white-space:nowrap;
-        }
-
-        .btn.small{ font-size:12px; padding:7px 10px }
-        .btn.small.danger{
-          background:#fff; color:#b91c1c;
-          border:1px solid rgba(185,28,28,.25);
-        }
-        .btn.small.danger:hover{
-          background:#fef2f2; border-color:#fca5a5;
         }
 
         @media(max-width:1024px){

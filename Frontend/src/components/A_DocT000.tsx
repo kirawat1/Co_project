@@ -10,6 +10,8 @@ import DateInput from './DateInput';
 import LoadMoreFooter from "./LoadMoreFooter";
 import { useLoadMore } from "../utils/useLoadMore";
 import { notify, askConfirm } from "../utils/notify";
+import { TABLE_TH, TABLE_TD, TABLE_HEADER_ROW } from "../utils/tableStyles";
+import Modal, { ModalCloseButton } from "./Modal";
 
 // --- Interfaces ---
 interface StudentDocument {
@@ -662,7 +664,7 @@ export default function A_DocT000() {
                 <div style={{ overflowX: "auto" }}>
                     <table className="responsive-table" style={{ width: "100%", borderCollapse: "separate", borderSpacing: "0 8px" }}>
                         <thead>
-                            <tr style={{ color: '#64748b', fontSize: 13, textAlign: 'left' }}>
+                            <tr style={TABLE_HEADER_ROW}>
                                 {/* 🟢 เพิ่ม onClick เพื่อเรียงลำดับ */}
                                 <th style={{ ...th, cursor: 'pointer' }} onClick={() => handleSort('studentId')}>รหัสนักศึกษา <SortIcon columnKey="studentId" /></th>
                                 <th style={{ ...th, cursor: 'pointer' }} onClick={() => handleSort('name')}>ชื่อ-สกุล <SortIcon columnKey="name" /></th>
@@ -757,17 +759,22 @@ export default function A_DocT000() {
             )}
 
             {showModal && selectedStudent && (
-                <div className="modal-backdrop">
-                    <div className="modal-card">
+                <Modal
+                    maxWidth={1400}
+                    height="90vh"
+                    noBodyPadding
+                    onClose={() => setShowModal(false)}
+                    header={
                         <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid #e2e8f0', background: '#fff' }}>
                             <div>
                                 <h3 style={{ margin: 0, fontSize: 18, color: '#1e293b' }}>{checkPhase === 1 ? 'ตรวจเอกสาร T000' : 'ตรวจสอบใบตอบรับ'}</h3>
                                 <div style={{ fontSize: 13, color: '#64748b', marginTop: 4 }}>{selectedStudent.studentId} - {selectedStudent.firstName} {selectedStudent.lastName}</div>
                             </div>
-                            <button onClick={() => setShowModal(false)} style={{ border: 'none', background: '#fee2e2', color: '#dc2626', width: 32, height: 32, borderRadius: '50%', fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>&times;</button>
+                            <ModalCloseButton onClose={() => setShowModal(false)} variant="circle" />
                         </div>
-
-                        <div className="split-pane" style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+                    }
+                >
+                        <div className="split-pane" style={{ height: '100%', display: 'flex', overflow: 'hidden' }}>
                             {/* LEFT: PDF PREVIEW */}
                             <div className="preview-pane" style={{ flex: '0 0 65%', background: '#334155', position: 'relative', overflow: 'hidden' }}>
                                 {previewType === 'pdf' ? (
@@ -840,16 +847,12 @@ export default function A_DocT000() {
                                 </div>
                             </div>
                         </div>
-                    </div>
-                </div>
+                </Modal>
             )}
 
             <style>{`
                 .card { background: #fff; padding: 20px; border-radius: 12px; border: 1px solid #e5e7eb; }
-                .input { padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-family: inherit; box-sizing: border-box; }
 
-                .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: flex; justify-content: center; alignItems: center; z-index: 9999; backdrop-filter: blur(4px); }
-                .modal-card { background: #fff; border-radius: 12px; width: 95vw; height: 90vh; max-width: 1400px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); }
                 @media (max-width: 768px) {
                     .split-pane { flex-direction: column !important; overflow-y: auto !important; }
                     .preview-pane { flex: 0 0 280px !important; }
@@ -878,8 +881,8 @@ export default function A_DocT000() {
     );
 }
 
-const td: React.CSSProperties = { padding: "12px 10px", borderTop: "1px solid #f3f4f6", fontSize: 14 };
-const th: React.CSSProperties = { padding: "10px", userSelect: 'none' };
+const td: React.CSSProperties = { ...TABLE_TD, borderTop: "1px solid #f3f4f6" };
+const th: React.CSSProperties = { ...TABLE_TH, userSelect: 'none' };
 const lbl: React.CSSProperties = { fontSize: 12, display: 'block', color: '#64748b', marginBottom: 4 };
 
 // บริษัทส่งใบตอบรับมาที่เจ้าหน้าที่โดยตรง — แนบไฟล์ (ถ้ามี) แล้วเปลี่ยนเป็น "ตรวจใบตอบรับแล้ว" ออกหนังสือส่งตัวต่อได้เลย
@@ -912,9 +915,7 @@ function AcceptanceReceivedModal({ student, onClose, onSuccess }: { student: Stu
     };
 
     return (
-        <div className="modal-backdrop" style={{ zIndex: 10000, alignItems: 'center' }}>
-            <div style={{ background: '#fff', borderRadius: 12, padding: 24, width: 'min(480px, 92vw)', boxShadow: '0 20px 40px rgba(0,0,0,.3)' }}>
-                <h3 style={{ margin: '0 0 4px', fontSize: 18, color: '#1e293b' }}>📥 ได้รับใบตอบรับจากบริษัทโดยตรง</h3>
+        <Modal title="📥 ได้รับใบตอบรับจากบริษัทโดยตรง" onClose={onClose} maxWidth={480} closeOnBackdropClick={!saving}>
                 <div style={{ fontSize: 13, color: '#64748b', marginBottom: 16 }}>{student.studentId} - {student.firstName} {student.lastName}</div>
 
                 <label style={lbl}>ไฟล์ใบตอบรับ (ถ้ามี)</label>
@@ -928,13 +929,12 @@ function AcceptanceReceivedModal({ student, onClose, onSuccess }: { student: Stu
                 </div>
 
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-                    <button className="btn" style={{ background: '#f1f5f9', color: '#475569' }} onClick={onClose} disabled={saving}>ยกเลิก</button>
-                    <button className="btn" style={{ background: '#0f766e', color: '#fff' }} onClick={submit} disabled={saving}>
+                    <button className="btn-secondary" onClick={onClose} disabled={saving}>ยกเลิก</button>
+                    <button className="btn" onClick={submit} disabled={saving}>
                         {saving ? 'กำลังบันทึก...' : 'บันทึก'}
                     </button>
                 </div>
-            </div>
-        </div>
+        </Modal>
     );
 }
 

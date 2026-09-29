@@ -156,11 +156,11 @@ export default function IssueLetterModal({ student, onClose, onSuccess }: Props)
     };
 
     return (
-        <div className="modal-backdrop" style={{ zIndex: 10000 }}>
-            <div className="modal-card" style={{ width: '95%', maxWidth: 1200, height: '90vh' }}>
+        <div className="letter-modal-backdrop" style={{ zIndex: 10000 }}>
+            <div className="letter-modal-card" style={{ width: '95%', maxWidth: 1200, height: '90vh' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: 12, borderBottom: '1px solid #eee', flexShrink: 0 }}>
                     <h3 style={{ margin: 0 }}>📄 ออกหนังสือขอความอนุเคราะห์</h3>
-                    <button onClick={onClose} style={{ border: 'none', background: 'none', fontSize: 24, cursor: 'pointer' }}>&times;</button>
+                    <button onClick={onClose} className="modal-close" aria-label="ปิด">&times;</button>
                 </div>
 
                 <div className="letter-split" style={{ display: 'flex', gap: 20, flex: 1, minHeight: 0, paddingTop: 16 }}>

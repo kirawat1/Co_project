@@ -4,6 +4,7 @@ import { apiFetch } from "../utils/apiFetch";
 import DateInput from "./DateInput";
 import LoadMoreFooter from "./LoadMoreFooter";
 import { notify } from "../utils/notify";
+import { TABLE_TH, TABLE_TD, TABLE_HEADER_ROW } from "../utils/tableStyles";
 
 /**
  * บันทึกการใช้งาน — ใครทำอะไรกับระบบ (เจ้าหน้าที่เท่านั้น)
@@ -233,7 +234,7 @@ export default function A_Logs() {
                 <div style={{ overflowX: "auto" }}>
                     <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                         <thead>
-                            <tr style={{ background: "#f8fafc", color: "#475569", textAlign: "left" }}>
+                            <tr style={TABLE_HEADER_ROW}>
                                 <th style={th}>เวลา</th>
                                 <th style={{ ...th, minWidth: 140 }}>ผู้ทำ</th>
                                 <th style={{ ...th, minWidth: 220 }}>การกระทำ</th>
@@ -296,5 +297,6 @@ export default function A_Logs() {
     );
 }
 
-const th: CSSProperties = { padding: "10px", fontWeight: 700, whiteSpace: "nowrap" };
-const td: CSSProperties = { padding: "10px", color: "#334155", verticalAlign: "top" };
+// nowrap กันหัวคอลัมน์ "เวลา/ผู้ทำ" ขึ้นบรรทัดใหม่ · verticalAlign top เพราะ "รายละเอียด" มีหลายบรรทัด
+const th: CSSProperties = { ...TABLE_TH, whiteSpace: "nowrap" };
+const td: CSSProperties = { ...TABLE_TD, verticalAlign: "top" };

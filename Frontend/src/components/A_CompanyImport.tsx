@@ -3,6 +3,7 @@ import React, { useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
 import { apiFetch } from "../utils/apiFetch";
 import { provinceFromZipcode } from "../utils/zipcodeProvince";
+import Modal from "./Modal";
 
 interface ParsedCompany {
   name: string;
@@ -245,21 +246,10 @@ export default function A_CompanyImport({ onClose, onImported }: Props) {
     }
   }
 
-  return (
-    <div
-      style={{
-        position: "fixed", inset: 0, background: "rgba(0,0,0,.5)",
-        display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000,
-      }}
-      onClick={(e) => { if (e.target === e.currentTarget && !loading) onClose(); }}
-    >
-      <div style={{
-        background: "var(--card-bg, #fff)", borderRadius: 12, padding: 28,
-        width: "min(1000px, 95vw)", maxHeight: "90vh", overflowY: "auto",
-        boxShadow: "0 8px 32px rgba(0,0,0,.18)",
-      }}>
-        <h2 style={{ margin: "0 0 16px", fontSize: 18 }}>📥 นำเข้าบริษัทจาก Excel</h2>
+  const handleClose = () => { if (!loading) onClose(); };
 
+  return (
+    <Modal title="📥 นำเข้าบริษัทจาก Excel" onClose={handleClose} maxWidth={1000}>
         <p style={{ margin: "0 0 12px", fontSize: 13, opacity: .7 }}>
           รูปแบบที่รองรับ: คอลัมน์ A=ลำดับ, B=ชื่อบริษัท, C=ที่อยู่ | แต่ละ sheet = ปีการศึกษา (เช่น "ปี 2558")
           <br />
@@ -365,25 +355,16 @@ export default function A_CompanyImport({ onClose, onImported }: Props) {
         )}
 
         <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
-          <button
-            style={{ padding: "8px 18px", borderRadius: 8, border: "1px solid #d1d5db", background: "transparent", cursor: loading ? "not-allowed" : "pointer" }}
-            onClick={onClose}
-            disabled={loading}
-          >
+          <button className="btn-secondary" onClick={onClose} disabled={loading}>
             ปิด
           </button>
           {rows.length > 0 && !result && (
-            <button
-              style={{ padding: "8px 18px", borderRadius: 8, background: "#2563eb", color: "#fff", border: "none", cursor: "pointer", opacity: loading ? .6 : 1 }}
-              onClick={handleImport}
-              disabled={loading}
-            >
+            <button className="btn" onClick={handleImport} disabled={loading}>
               {loading ? "กำลังนำเข้า..." : `นำเข้า ${rows.length} รายการ`}
             </button>
           )}
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }
 

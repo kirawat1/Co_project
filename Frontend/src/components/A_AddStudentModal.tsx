@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { apiFetch } from "../utils/apiFetch";
 import { notify } from "../utils/notify";
+import Modal from "./Modal";
 
 interface Props {
   onClose: () => void;
@@ -13,10 +14,6 @@ interface Department {
   nameTh: string | null;
 }
 
-const FIELD_STYLE: React.CSSProperties = {
-  width: "100%", padding: "7px 10px", border: "1px solid #cbd5e1",
-  borderRadius: 6, fontSize: 13, fontFamily: "inherit", boxSizing: "border-box",
-};
 const LBL: React.CSSProperties = { fontSize: 12, fontWeight: 600, color: "#334155", display: "block", marginBottom: 3 };
 const REQ: React.CSSProperties = { color: "#ef4444", marginLeft: 2 };
 
@@ -66,24 +63,18 @@ export default function A_AddStudentModal({ onClose, onSuccess }: Props) {
   };
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 10000, padding: 16 }}>
-      <div style={{ background: "#fff", borderRadius: 16, padding: 28, width: "100%", maxWidth: 560, maxHeight: "90vh", overflowY: "auto", boxShadow: "0 25px 50px -12px rgba(0,0,0,0.25)" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-          <h3 style={{ margin: 0, fontSize: 16, color: "#0f172a" }}>เพิ่มนักศึกษาทีละคน</h3>
-          <button onClick={onClose} style={{ border: "none", background: "none", fontSize: 22, cursor: "pointer", color: "#64748b" }}>&times;</button>
-        </div>
-
+    <Modal title="เพิ่มนักศึกษาทีละคน" onClose={onClose} maxWidth={560}>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px 16px" }}>
           {/* รหัสนักศึกษา */}
           <div style={{ gridColumn: "1/-1" }}>
             <label style={LBL}>รหัสนักศึกษา<span style={REQ}>*</span></label>
-            <input style={FIELD_STYLE} value={form.studentId} onChange={set("studentId")} placeholder="เช่น 643050001-8" />
+            <input className="input" value={form.studentId} onChange={set("studentId")} placeholder="เช่น 643050001-8" />
           </div>
 
           {/* คำนำหน้า + ชื่อไทย */}
           <div>
             <label style={LBL}>คำนำหน้า</label>
-            <select style={FIELD_STYLE} value={form.prefix} onChange={set("prefix")}>
+            <select className="input" value={form.prefix} onChange={set("prefix")}>
               <option value="MR">นาย</option>
               <option value="MS">นางสาว</option>
             </select>
@@ -92,38 +83,38 @@ export default function A_AddStudentModal({ onClose, onSuccess }: Props) {
 
           <div>
             <label style={LBL}>ชื่อ (ไทย)<span style={REQ}>*</span></label>
-            <input style={FIELD_STYLE} value={form.firstName} onChange={set("firstName")} placeholder="ชื่อ" />
+            <input className="input" value={form.firstName} onChange={set("firstName")} placeholder="ชื่อ" />
           </div>
           <div>
             <label style={LBL}>นามสกุล (ไทย)<span style={REQ}>*</span></label>
-            <input style={FIELD_STYLE} value={form.lastName} onChange={set("lastName")} placeholder="นามสกุล" />
+            <input className="input" value={form.lastName} onChange={set("lastName")} placeholder="นามสกุล" />
           </div>
 
           <div>
             <label style={LBL}>ชื่อ (อังกฤษ)</label>
-            <input style={FIELD_STYLE} value={form.firstNameEn} onChange={set("firstNameEn")} placeholder="First name" />
+            <input className="input" value={form.firstNameEn} onChange={set("firstNameEn")} placeholder="First name" />
           </div>
           <div>
             <label style={LBL}>นามสกุล (อังกฤษ)</label>
-            <input style={FIELD_STYLE} value={form.lastNameEn} onChange={set("lastNameEn")} placeholder="Last name" />
+            <input className="input" value={form.lastNameEn} onChange={set("lastNameEn")} placeholder="Last name" />
           </div>
 
           {/* อีเมล */}
           <div style={{ gridColumn: "1/-1" }}>
             <label style={LBL}>อีเมล (สำหรับ Google Login)<span style={REQ}>*</span></label>
-            <input style={FIELD_STYLE} type="email" value={form.email} onChange={set("email")} placeholder="xxxxx@kkumail.com หรือ @kku.ac.th" />
+            <input className="input" type="email" value={form.email} onChange={set("email")} placeholder="xxxxx@kkumail.com หรือ @kku.ac.th" />
           </div>
 
           {/* เบอร์โทร */}
           <div style={{ gridColumn: "1/-1" }}>
             <label style={LBL}>เบอร์โทรศัพท์</label>
-            <input style={FIELD_STYLE} value={form.phone} onChange={set("phone")} placeholder="0812345678" />
+            <input className="input" value={form.phone} onChange={set("phone")} placeholder="0812345678" />
           </div>
 
           {/* สาขา + แผนการศึกษา */}
           <div>
             <label style={LBL}>หลักสูตร</label>
-            <select style={FIELD_STYLE} value={form.major} onChange={set("major")} disabled={departments === null}>
+            <select className="input" value={form.major} onChange={set("major")} disabled={departments === null}>
               <option value="">{departments === null ? "กำลังโหลด..." : "-- เลือกหลักสูตร --"}</option>
               {(departments ?? []).map(d => (
                 <option key={d.major} value={d.major}>
@@ -137,7 +128,7 @@ export default function A_AddStudentModal({ onClose, onSuccess }: Props) {
           </div>
           <div>
             <label style={LBL}>รูปแบบการศึกษา</label>
-            <select style={FIELD_STYLE} value={form.studyProgram} onChange={set("studyProgram")}>
+            <select className="input" value={form.studyProgram} onChange={set("studyProgram")}>
               <option value="normal">ภาคปกติ</option>
               <option value="special">ภาคพิเศษ</option>
             </select>
@@ -146,29 +137,28 @@ export default function A_AddStudentModal({ onClose, onSuccess }: Props) {
           {/* ชั้นปี (ไม่เก็บ GPA แล้ว) */}
           <div>
             <label style={LBL}>ชั้นปี</label>
-            <input style={FIELD_STYLE} value={form.year} onChange={set("year")} placeholder="3 หรือ 4" />
+            <input className="input" value={form.year} onChange={set("year")} placeholder="3 หรือ 4" />
           </div>
 
           {/* อาจารย์ที่ปรึกษา */}
           <div style={{ gridColumn: "1/-1" }}>
             <label style={LBL}>ชื่ออาจารย์ที่ปรึกษา</label>
-            <input style={FIELD_STYLE} value={form.advisorName} onChange={set("advisorName")} placeholder="เช่น อ.ดร.สมชาย ใจดี" />
+            <input className="input" value={form.advisorName} onChange={set("advisorName")} placeholder="เช่น อ.ดร.สมชาย ใจดี" />
           </div>
         </div>
 
         <div style={{ marginTop: 20, display: "flex", gap: 10, justifyContent: "flex-end" }}>
-          <button onClick={onClose} style={{ padding: "9px 20px", border: "1px solid #cbd5e1", borderRadius: 8, background: "#fff", cursor: "pointer", fontSize: 13 }}>
+          <button className="btn-secondary" onClick={onClose}>
             ยกเลิก
           </button>
           <button
+            className="btn"
             onClick={handleSubmit}
             disabled={loading}
-            style={{ padding: "9px 24px", background: "#2563eb", color: "#fff", border: "none", borderRadius: 8, fontWeight: 700, cursor: loading ? "not-allowed" : "pointer", fontSize: 13, opacity: loading ? 0.7 : 1 }}
           >
             {loading ? "กำลังบันทึก..." : "เพิ่มนักศึกษา"}
           </button>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

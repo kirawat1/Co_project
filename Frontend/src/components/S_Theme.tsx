@@ -181,6 +181,7 @@ function css(IOS_BLUE: string) {
     font-variant-numeric: tabular-nums;
   }
   .input:focus { border-color: var(--ios-blue); box-shadow: 0 0 0 4px rgba(10,132,255,.18); }
+  .input:disabled { background: #f1f5f9; color: #94a3b8; cursor: not-allowed; }
   [data-theme="dark"] .input::placeholder { color: var(--text-sub); }
   .label { font-weight: 700; color: var(--text); font-size: 14px; }
 
@@ -248,6 +249,12 @@ function css(IOS_BLUE: string) {
   .btn-warning:hover { filter: brightness(.92); }
   .btn-warning:active { filter: brightness(.85); }
 
+  /* ── ปุ่มขนาดย่อ (แก้ไข/ลบ ในแถวตาราง) — ต่อกับ .btn ชนิดไหนก็ได้ เช่น "btn-secondary small", "btn-danger small" ── */
+  .btn.small, .btn-primary.small, .btn-secondary.small, .btn-outline.small,
+  .btn-success.small, .btn-danger.small, .btn-warning.small, .btn-ghost.small {
+    height: 30px; padding: 0 10px; font-size: 12px;
+  }
+
   /* ── Generic outlined action button (compact — used inline in table rows) ── */
   .action-btn {
     padding: 6px 10px; border-radius: 6px; font-size: 12px; font-weight: 600;
@@ -275,6 +282,40 @@ function css(IOS_BLUE: string) {
     transition: background-color .15s;
   }
   .close-btn:hover { background: #e2e8f0; }
+
+  /* ===== MODAL (ใช้ผ่าน <Modal> จาก components/Modal.tsx เสมอ — อย่ากำหนด .modal-backdrop/.modal-card ซ้ำในไฟล์อื่น) ===== */
+  .modal-backdrop {
+    position: fixed; inset: 0; z-index: 1000;
+    background: rgba(15,23,42,.55); backdrop-filter: blur(4px);
+    display: flex; align-items: center; justify-content: center; padding: 16px;
+  }
+  .modal-card {
+    background: #fff; width: 100%; max-width: 640px;
+    border-radius: 16px; padding: 24px;
+    box-shadow: 0 25px 50px -12px rgba(0,0,0,.25);
+    max-height: 90vh; overflow-y: auto;
+  }
+  /* โมดัลที่มีเนื้อหาแบบ split-pane/เต็มจอ (ตัวแก้ไข, ตัวอย่าง PDF) ใช้ maxWidth/height ของ <Modal> เอง
+     แต่ยังต้องไม่ scroll ทั้งการ์ด (เนื้อหาข้างในจัดการ scroll เอง) */
+  .modal-card.modal-card--flex { display: flex; flex-direction: column; overflow: hidden; }
+  .modal-card-header {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    border-bottom: 1px solid #e2e8f0; padding-bottom: 14px; margin-bottom: 16px;
+  }
+  .modal-card-header h2, .modal-card-header h3 { margin: 0; font-size: 20px; font-weight: 800; color: #0f172a; }
+  [data-theme="dark"] .modal-card-header { border-color: rgba(255,255,255,.1); }
+  /* ปุ่มปิดแบบตัวอักษร × ล้วน (มาตรฐานของหัวโมดัลทั่วไป) — ใช้ .close-btn ด้านบนสำหรับหัวโมดัลแบบวงกลม/กำหนดเอง */
+  .modal-close {
+    background: none; border: none; font-size: 24px; line-height: 1;
+    cursor: pointer; color: #64748b; padding: 0; flex-shrink: 0;
+    transition: color .15s;
+  }
+  .modal-close:hover { color: #0f172a; }
+
+  /* ── 2-column key/value grid used by "detail" modals (company, student, etc.) ── */
+  @media (max-width: 600px) {
+    .detail-grid { grid-template-columns: 1fr !important; }
+  }
 
   /* ── Inline text-style link action (not a full tap target by design) ── */
   .btn-link {
@@ -504,8 +545,7 @@ function css(IOS_BLUE: string) {
   [data-theme="dark"] [style*="border-bottom: 1px solid #e2e8f0"] { border-color: rgba(255,255,255,.1) !important; }
 
   /* 7. MODALS AND CARDS */
-  [data-theme="dark"] .modal-card,
-  [data-theme="dark"] .modal-card-split { background: #1e293b !important; color: #f1f5f9 !important; }
+  [data-theme="dark"] .modal-card { background: #1e293b !important; color: #f1f5f9 !important; }
 
   /* 8. TABLES */
   [data-theme="dark"] table { color: #f1f5f9; }
@@ -546,7 +586,6 @@ function css(IOS_BLUE: string) {
   [data-theme="dark"] .dash-card,
   [data-theme="dark"] .profile-card,
   [data-theme="dark"] .modal-card,
-  [data-theme="dark"] .modal-card-split,
   [data-theme="dark"] .modal-content,
   [data-theme="dark"] .pdf-modal-card,
   [data-theme="dark"] .popup-content {

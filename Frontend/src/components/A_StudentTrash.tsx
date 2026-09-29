@@ -4,6 +4,7 @@ import type { StudentProfile } from "./A_Students";
 import LoadMoreFooter from "./LoadMoreFooter";
 import { useLoadMore } from "../utils/useLoadMore";
 import { notify } from "../utils/notify";
+import { TABLE_TH, TABLE_TD, TABLE_HEADER_ROW } from "../utils/tableStyles";
 
 export default function A_StudentTrash() {
   const [items, setItems] = useState<StudentProfile[]>([]);
@@ -84,7 +85,7 @@ export default function A_StudentTrash() {
       ) : (
         <table width="100%" className="responsive-table" style={{ borderCollapse: "collapse" }}>
           <thead>
-            <tr>
+            <tr style={TABLE_HEADER_ROW}>
               {["รหัส", "ชื่อ–นามสกุล", "อีเมล", "การจัดการ"].map(h => (
                 <th key={h} style={th}>{h}</th>
               ))}
@@ -110,18 +111,18 @@ export default function A_StudentTrash() {
                           onKeyDown={e => { if (e.key === "Enter") handlePermanentDelete(s); if (e.key === "Escape") cancelConfirm(); }}
                         />
                         <button
-                          style={{ ...dangerSolidBtn, opacity: confirmText.trim() === s.studentId && !deleting ? 1 : 0.5, cursor: confirmText.trim() === s.studentId && !deleting ? "pointer" : "not-allowed" }}
+                          className="btn-danger small"
                           disabled={confirmText.trim() !== s.studentId || deleting}
                           onClick={() => handlePermanentDelete(s)}
                         >
                           {deleting ? "กำลังลบ..." : "ยืนยันลบถาวร"}
                         </button>
-                        <button style={ghostBtn} onClick={cancelConfirm} disabled={deleting}>ยกเลิก</button>
+                        <button className="btn-secondary small" onClick={cancelConfirm} disabled={deleting}>ยกเลิก</button>
                       </>
                     ) : (
                       <>
-                        <button style={ghostBtn} onClick={() => handleRestore(s)}>กู้คืน</button>
-                        <button style={dangerBtn} onClick={() => { setConfirmId(s.id); setConfirmText(""); }}>🗑️ ลบถาวร</button>
+                        <button className="btn-secondary small" onClick={() => handleRestore(s)}>กู้คืน</button>
+                        <button className="btn-danger small" onClick={() => { setConfirmId(s.id); setConfirmText(""); }}>🗑️ ลบถาวร</button>
                       </>
                     )}
                   </div>
@@ -137,8 +138,5 @@ export default function A_StudentTrash() {
 }
 
 const card: React.CSSProperties = { background: "#fff", borderRadius: 14, padding: 20, border: "1px solid #e5e7eb" };
-const th: React.CSSProperties = { textAlign: "left", paddingBottom: 8, fontSize: 14, padding: "12px 10px", color: "#475569" };
-const td: React.CSSProperties = { padding: "12px 10px", fontSize: 14, color: "#1e293b" };
-const ghostBtn: React.CSSProperties = { background: "#fff", color: "#0074B7", border: "1px solid rgba(10,132,255,.25)", height: 32, borderRadius: 8, padding: "0 12px", cursor: "pointer", fontSize: 13 };
-const dangerBtn: React.CSSProperties = { background: "#fff", color: "#dc2626", border: "1px solid #fecaca", height: 32, borderRadius: 8, padding: "0 12px", cursor: "pointer", fontSize: 13, fontWeight: 700 };
-const dangerSolidBtn: React.CSSProperties = { background: "#dc2626", color: "#fff", border: "1px solid #dc2626", height: 32, borderRadius: 8, padding: "0 12px", fontSize: 13, fontWeight: 700 };
+const th: React.CSSProperties = TABLE_TH;
+const td: React.CSSProperties = TABLE_TD;

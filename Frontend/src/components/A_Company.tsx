@@ -10,6 +10,8 @@ import { useLoadMore, toggleSelectAllShown, allShownSelected } from "../utils/us
 import { notify, askConfirm } from "../utils/notify";
 import ContactForm from "./ContactForm";
 import { contactName, type CompanyContact } from "../utils/contacts";
+import Modal from "./Modal";
+import { TABLE_TH, TABLE_TD, TABLE_HEADER_ROW } from "../utils/tableStyles";
 
 /* ----------------------------------------------------
    Types
@@ -364,10 +366,10 @@ export default function A_Companies() {
             onChange={(e) => setQ(e.target.value)}
             style={{ width: 320, maxWidth: "100%" }}
           />
-          <button className="btn" style={{ ...saveBtn, background: "#059669" }} onClick={() => setShowImport(true)}>
+          <button className="btn-success" onClick={() => setShowImport(true)}>
             📥 นำเข้า Excel
           </button>
-          <button className="btn" style={saveBtn} onClick={() => { setForm(emptyCompany()); setShowAdd(true); }}>
+          <button className="btn" onClick={() => { setForm(emptyCompany()); setShowAdd(true); }}>
             + เพิ่มบริษัท
           </button>
         </div>
@@ -376,7 +378,7 @@ export default function A_Companies() {
       {/* Bulk action bar */}
       {!selectMode ? (
         <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
-          <button className="btn" style={ghostBtn} onClick={() => setSelectMode(true)}>
+          <button className="btn-secondary" onClick={() => setSelectMode(true)}>
             ☑️ เลือกหลายแห่ง
           </button>
         </div>
@@ -389,20 +391,19 @@ export default function A_Companies() {
             เลือกแล้ว {selectedIds.size} แห่ง
           </span>
           {/* อยู่ในแถบนี้แทนหัวตาราง เพราะจอ ≤1024px ซ่อน thead ทั้งแถว (S_Theme.tsx) */}
-          <button className="btn" style={ghostBtn} onClick={toggleSelectAll} disabled={bulkDeleting || shownItems.length === 0}>
+          <button className="btn-secondary" onClick={toggleSelectAll} disabled={bulkDeleting || shownItems.length === 0}>
             {isAllShownSelected ? "ยกเลิกเลือกทั้งหมด" : `เลือกทั้งหมด (${shownItems.length})`}
           </button>
           <button
-            className="btn"
-            style={{ ...ghostBtn, color: "#ef4444", borderColor: "#ef4444", opacity: bulkDeleting || selectedIds.size === 0 ? 0.6 : 1, cursor: bulkDeleting || selectedIds.size === 0 ? "not-allowed" : "pointer" }}
+            className="btn-danger"
             onClick={handleBulkDeleteCompanies}
             disabled={bulkDeleting || selectedIds.size === 0}
           >
             🗑️ {bulkDeleting ? "กำลังลบ..." : `ลบที่เลือก (${selectedIds.size})`}
           </button>
           <button
-            className="btn"
-            style={{ ...ghostBtn, marginLeft: "auto" }}
+            className="btn-secondary"
+            style={{ marginLeft: "auto" }}
             onClick={exitSelectMode}
             disabled={bulkDeleting}
           >
@@ -413,11 +414,11 @@ export default function A_Companies() {
 
       {/* Table */}
       <section className="card" style={{ padding: 24 }}>
-        <table className="tbl responsive-table" style={{ width: "100%", borderCollapse: "collapse" }}>
+        <table className="responsive-table" style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
-            <tr>
+            <tr style={TABLE_HEADER_ROW}>
               {selectMode && (
-                <th style={{ width: 36 }}>
+                <th style={{ ...TABLE_TH, width: 36 }}>
                   <input
                     type="checkbox"
                     checked={isAllShownSelected}
@@ -427,12 +428,12 @@ export default function A_Companies() {
                   />
                 </th>
               )}
-              <th>ชื่อบริษัท</th>
-              <th>จังหวัด</th>
-              <th>อีเมล</th>
-              <th>ผู้ติดต่อ</th>
-              <th>ปีที่รับ</th>
-              <th style={{ ...td, textAlign: 'right' }}>การทำงาน</th>
+              <th style={TABLE_TH}>ชื่อบริษัท</th>
+              <th style={TABLE_TH}>จังหวัด</th>
+              <th style={TABLE_TH}>อีเมล</th>
+              <th style={TABLE_TH}>ผู้ติดต่อ</th>
+              <th style={TABLE_TH}>ปีที่รับ</th>
+              <th style={{ ...TABLE_TH, textAlign: "right" }}>การทำงาน</th>
             </tr>
           </thead>
           <tbody>
@@ -447,7 +448,7 @@ export default function A_Companies() {
             {shownItems.map((c, idx) => (
               <tr key={c.id} className={idx % 2 ? "row-odd" : "row-even"} style={selectedIds.has(c.id) ? { background: "#fff7ed" } : undefined}>
                 {selectMode && (
-                  <td>
+                  <td style={TABLE_TD}>
                     <input
                       type="checkbox"
                       checked={selectedIds.has(c.id)}
@@ -456,22 +457,22 @@ export default function A_Companies() {
                     />
                   </td>
                 )}
-                <td style={{ fontWeight: 600, color: '#1e293b' }} data-label="ชื่อบริษัท">{c.name}</td>
-                <td data-label="จังหวัด">{c.province || "-"}</td>
-                <td data-label="อีเมล">{c.email || "-"}</td>
-                <td data-label="ผู้ติดต่อ">{(c.contacts || []).length > 0
+                <td style={{ ...TABLE_TD, fontWeight: 600, color: '#1e293b' }} data-label="ชื่อบริษัท">{c.name}</td>
+                <td style={TABLE_TD} data-label="จังหวัด">{c.province || "-"}</td>
+                <td style={TABLE_TD} data-label="อีเมล">{c.email || "-"}</td>
+                <td style={TABLE_TD} data-label="ผู้ติดต่อ">{(c.contacts || []).length > 0
                   ? <>{contactName(c.contacts![0])}{c.contacts!.length > 1 ? <span style={{ color: '#64748b' }}> +{c.contacts!.length - 1}</span> : null}<br /><span style={{ fontSize: 12, color: '#64748b' }}>{c.contacts![0].position}</span></>
                   : <>{c.contactPerson || "-"}<br /><span style={{ fontSize: 12, color: '#64748b' }}>{c.contactPosition}</span></>}</td>
-                <td data-label="ปีที่รับ">{c.pastYears}</td>
-                <td style={{ ...td, textAlign: 'right' }}>
+                <td style={TABLE_TD} data-label="ปีที่รับ">{c.pastYears}</td>
+                <td style={{ ...TABLE_TD, textAlign: "right" }}>
                   <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                    <button className="btn" style={ghostBtn} onClick={() => setViewCompany(c)}>
+                    <button className="btn-secondary small" onClick={() => setViewCompany(c)}>
                       รายละเอียด
                     </button>
-                    <button className="btn" style={ghostBtn} onClick={() => { setForm(c); setShowEdit(true); }}>
+                    <button className="btn-secondary small" onClick={() => { setForm(c); setShowEdit(true); }}>
                       ✏️ แก้ไข
                     </button>
-                    <button className="btn" style={{ ...ghostBtn, color: '#ef4444', borderColor: '#ef4444' }} onClick={() => remove(c.id)}>
+                    <button className="btn-danger small" onClick={() => remove(c.id)}>
                       🗑️ ลบ
                     </button>
                   </div>
@@ -501,21 +502,21 @@ export default function A_Companies() {
       )}
 
       {showAdd && (
-        <Modal title="✨ เพิ่มบริษัทสถานประกอบการใหม่" onClose={() => setShowAdd(false)}>
+        <Modal title="✨ เพิ่มบริษัทสถานประกอบการใหม่" onClose={() => setShowAdd(false)} maxWidth={850}>
           {/* 🟢 ส่ง coopPeriods ลงไปให้แบบฟอร์มด้วย */}
           <CompanyForm form={form} setForm={setForm} onSubmit={saveAdd} coopPeriods={coopPeriods} />
         </Modal>
       )}
 
       {showEdit && (
-        <Modal title="✏️ แก้ไขข้อมูลบริษัท" onClose={() => setShowEdit(false)}>
+        <Modal title="✏️ แก้ไขข้อมูลบริษัท" onClose={() => setShowEdit(false)} maxWidth={850}>
           {/* 🟢 ส่ง coopPeriods ลงไปให้แบบฟอร์มด้วย */}
           <CompanyForm form={form} setForm={setForm} onSubmit={saveEdit} coopPeriods={coopPeriods} />
         </Modal>
       )}
 
       {viewCompany && (
-        <Modal title="🏢 รายละเอียดสถานประกอบการ" onClose={() => setViewCompany(null)}>
+        <Modal title="🏢 รายละเอียดสถานประกอบการ" onClose={() => setViewCompany(null)} maxWidth={850}>
           <div className="detail-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, fontSize: 14 }}>
             <div><b>ชื่อ (ไทย):</b> {viewCompany.name}</div>
             <div><b>ชื่อ (อังกฤษ):</b> {viewCompany.nameEn || "-"}</div>
@@ -541,7 +542,7 @@ export default function A_Companies() {
 
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 24, marginBottom: 12 }}>
             <h4 style={{ margin: 0, color: '#1e3a8a' }}>📇 ผู้ติดต่อ (HR)</h4>
-            <button className="btn" style={saveBtn} onClick={() => setContactModal("new")}>+ เพิ่มผู้ติดต่อ</button>
+            <button className="btn" onClick={() => setContactModal("new")}>+ เพิ่มผู้ติดต่อ</button>
           </div>
           {(viewCompany.contacts || []).length === 0 ? (
             <p style={{ color: "#b45309", fontSize: 13, textAlign: 'center', background: '#fffbeb', padding: 16, borderRadius: 8 }}>
@@ -549,23 +550,25 @@ export default function A_Companies() {
             </p>
           ) : (
             <table className="responsive-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-              <thead style={{ background: '#f8fafc' }}>
-                <tr>
-                  <th style={{ borderBottom: "2px solid #e2e8f0", textAlign: "left", padding: '10px 8px', color: '#475569' }}>ชื่อ-นามสกุล</th>
-                  <th style={{ borderBottom: "2px solid #e2e8f0", textAlign: "left", padding: '10px 8px', color: '#475569' }}>ตำแหน่ง / ทีม</th>
-                  <th style={{ borderBottom: "2px solid #e2e8f0", textAlign: "left", padding: '10px 8px', color: '#475569' }}>ติดต่อ</th>
-                  <th style={{ borderBottom: "2px solid #e2e8f0", textAlign: "center", padding: '10px 8px', color: '#475569' }}>จัดการ</th>
+              <thead>
+                <tr style={TABLE_HEADER_ROW}>
+                  <th style={TABLE_TH}>ชื่อ-นามสกุล</th>
+                  <th style={TABLE_TH}>ตำแหน่ง / ทีม</th>
+                  <th style={TABLE_TH}>ติดต่อ</th>
+                  <th style={{ ...TABLE_TH, textAlign: "center" }}>จัดการ</th>
                 </tr>
               </thead>
               <tbody>
                 {(viewCompany.contacts || []).map((c) => (
                   <tr key={c.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                    <td style={{ padding: '10px 8px' }} data-label="ชื่อ-นามสกุล"><b>{contactName(c)}</b></td>
-                    <td style={{ padding: '10px 8px' }} data-label="ตำแหน่ง / ทีม">{c.position || "-"} <br /><span style={{ color: '#64748b', fontSize: 12 }}>{c.department}</span></td>
-                    <td style={{ padding: '10px 8px' }} data-label="ติดต่อ">{c.phone || "-"} <br /><span style={{ color: '#64748b', fontSize: 12 }}>{c.email}</span></td>
-                    <td style={{ textAlign: "center", padding: '10px 8px' }}>
-                      <button style={{ ...ghostBtn, height: 30, fontSize: 12 }} onClick={() => setContactModal(c)}>✏️ แก้ไข</button>
-                      <button style={{ ...dangerBtn, height: 30, fontSize: 12 }} onClick={() => removeContact(c)}>🗑️ ลบ</button>
+                    <td style={TABLE_TD} data-label="ชื่อ-นามสกุล"><b>{contactName(c)}</b></td>
+                    <td style={TABLE_TD} data-label="ตำแหน่ง / ทีม">{c.position || "-"} <br /><span style={{ color: '#64748b', fontSize: 12 }}>{c.department}</span></td>
+                    <td style={TABLE_TD} data-label="ติดต่อ">{c.phone || "-"} <br /><span style={{ color: '#64748b', fontSize: 12 }}>{c.email}</span></td>
+                    <td style={{ ...TABLE_TD, textAlign: "center" }}>
+                      <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+                        <button className="btn-secondary small" onClick={() => setContactModal(c)}>✏️ แก้ไข</button>
+                        <button className="btn-danger small" onClick={() => removeContact(c)}>🗑️ ลบ</button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -575,30 +578,32 @@ export default function A_Companies() {
 
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 24, marginBottom: 12 }}>
             <h4 style={{ margin: 0, color: '#4c1d95' }}>👥 ข้อมูลพี่เลี้ยง (Mentors)</h4>
-            <button className="btn" style={saveBtn} onClick={() => { setQuickAddMentor(false); setShowAddMentor(true); }}>+ เพิ่มพี่เลี้ยง</button>
+            <button className="btn" onClick={() => { setQuickAddMentor(false); setShowAddMentor(true); }}>+ เพิ่มพี่เลี้ยง</button>
           </div>
 
           {(viewCompany.mentors || []).length === 0 ? (
             <p style={{ color: "#6b7280", fontSize: 13, textAlign: 'center', background: '#f1f5f9', padding: 20, borderRadius: 8 }}>ยังไม่มีข้อมูลพี่เลี้ยงในระบบ</p>
           ) : (
             <table className="responsive-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-              <thead style={{ background: '#f8fafc' }}>
-                <tr>
-                  <th style={{ borderBottom: "2px solid #e2e8f0", textAlign: "left", padding: '10px 8px', color: '#475569' }}>ชื่อ-นามสกุล</th>
-                  <th style={{ borderBottom: "2px solid #e2e8f0", textAlign: "left", padding: '10px 8px', color: '#475569' }}>ตำแหน่ง / แผนก</th>
-                  <th style={{ borderBottom: "2px solid #e2e8f0", textAlign: "left", padding: '10px 8px', color: '#475569' }}>ติดต่อ</th>
-                  <th style={{ borderBottom: "2px solid #e2e8f0", textAlign: "center", padding: '10px 8px', color: '#475569' }}>จัดการ</th>
+              <thead>
+                <tr style={TABLE_HEADER_ROW}>
+                  <th style={TABLE_TH}>ชื่อ-นามสกุล</th>
+                  <th style={TABLE_TH}>ตำแหน่ง / แผนก</th>
+                  <th style={TABLE_TH}>ติดต่อ</th>
+                  <th style={{ ...TABLE_TH, textAlign: "center" }}>จัดการ</th>
                 </tr>
               </thead>
               <tbody>
                 {(viewCompany.mentors || []).map((m) => (
                   <tr key={m.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                    <td style={{ padding: '10px 8px' }} data-label="ชื่อ-นามสกุล"><b>{m.firstName} {m.lastName}</b></td>
-                    <td style={{ padding: '10px 8px' }} data-label="ตำแหน่ง / แผนก">{m.position} <br /><span style={{ color: '#64748b', fontSize: 12 }}>{m.department}</span></td>
-                    <td style={{ padding: '10px 8px' }} data-label="ติดต่อ">{m.phone} <br /><span style={{ color: '#64748b', fontSize: 12 }}>{m.email}</span></td>
-                    <td style={{ textAlign: "center", padding: '10px 8px' }}>
-                      <button style={{ ...ghostBtn, height: 30, fontSize: 12 }} onClick={() => { setEditingMentor(m); setMentorForm(m); setShowAddMentor(true); }}>✏️ แก้ไข</button>
-                      <button style={{ ...dangerBtn, height: 30, fontSize: 12 }} onClick={() => removeMentor(m.id)}>🗑️ ลบ</button>
+                    <td style={TABLE_TD} data-label="ชื่อ-นามสกุล"><b>{m.firstName} {m.lastName}</b></td>
+                    <td style={TABLE_TD} data-label="ตำแหน่ง / แผนก">{m.position} <br /><span style={{ color: '#64748b', fontSize: 12 }}>{m.department}</span></td>
+                    <td style={TABLE_TD} data-label="ติดต่อ">{m.phone} <br /><span style={{ color: '#64748b', fontSize: 12 }}>{m.email}</span></td>
+                    <td style={{ ...TABLE_TD, textAlign: "center" }}>
+                      <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+                        <button className="btn-secondary small" onClick={() => { setEditingMentor(m); setMentorForm(m); setShowAddMentor(true); }}>✏️ แก้ไข</button>
+                        <button className="btn-danger small" onClick={() => removeMentor(m.id)}>🗑️ ลบ</button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -626,11 +631,11 @@ export default function A_Companies() {
             เพิ่มบริษัท <b>{justCreatedCompany.name}</b> สำเร็จ! ต้องการเพิ่มข้อมูลพี่เลี้ยงตอนนี้เลยหรือไม่?
           </p>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
-            <button style={ghostBtn} onClick={() => setJustCreatedCompany(null)}>
+            <button className="btn-secondary" onClick={() => setJustCreatedCompany(null)}>
               ข้ามไปก่อน
             </button>
             <button
-              style={saveBtn}
+              className="btn"
               onClick={() => {
                 setViewCompany(justCreatedCompany);
                 setQuickAddMentor(true);
@@ -648,12 +653,6 @@ export default function A_Companies() {
       <style>{`
         .row-even { background:#ffffff; }
         .row-odd { background:#f8fafc; }
-        .tbl th { text-align:left; font-size:13px; color:#475569; padding: 12px 6px; border-bottom: 2px solid #e2e8f0; }
-        .tbl td { padding:12px 6px; font-size:14px; border-bottom: 1px solid #f1f5f9; }
-        .btn-secondary.small { padding:4px 10px; font-size:12px; }
-        .btn-danger { margin-left:6px; }
-        .input { padding: 10px 14px; border-radius: 6px; border: 1px solid #cbd5e1; outline: none; font-family: inherit; font-size: 14px; width: 100%; box-sizing: border-box; }
-        .input:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1); }
       `}</style>
     </div>
   );
@@ -662,25 +661,6 @@ export default function A_Companies() {
 /* ----------------------------------------------------
    Sub Components
 ---------------------------------------------------- */
-function Modal({ title, onClose, children }: any) {
-  return (
-    <div className="modal-backdrop">
-      <div className="modal-card">
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e2e8f0", paddingBottom: 15 }}>
-          <h3 style={{ margin: 0, color: '#1e293b' }}>{title}</h3>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 24, cursor: 'pointer', color: '#64748b' }}>&times;</button>
-        </div>
-        <div style={{ marginTop: 20, maxHeight: '75vh', overflowY: 'auto', paddingRight: 5 }}>{children}</div>
-      </div>
-      <style>{`
-        .modal-backdrop { position:fixed; inset:0; background:rgba(15,23,42,.5); display:flex; align-items:center; justify-content:center; z-index:100; backdrop-filter: blur(2px); }
-        .modal-card { background:white; width:min(850px, 95vw); border-radius:16px; padding:24px; box-shadow:0 20px 25px -5px rgba(0,0,0,.1); }
-        @media (max-width: 600px) { .detail-grid { grid-template-columns: 1fr !important; } }
-      `}</style>
-    </div>
-  );
-}
-
 // 🟢 2. รับค่า coopPeriods เข้ามาใช้งาน
 function CompanyForm({ form, setForm, onSubmit, coopPeriods }: any) {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -751,7 +731,7 @@ function CompanyForm({ form, setForm, onSubmit, coopPeriods }: any) {
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10, borderTop: '1px solid #e2e8f0', paddingTop: 20 }}>
-        <button type="submit" className="btn" style={saveBtn}>💾 บันทึกข้อมูลบริษัท</button>
+        <button type="submit" className="btn">💾 บันทึกข้อมูลบริษัท</button>
       </div>
     </form>
   );
@@ -777,14 +757,10 @@ function MentorForm({ form, setForm, onSubmit }: any) {
         <div><label style={lbl}>เบอร์โทร <span style={{ color: 'red' }}>*</span></label><input required className="input" name="phone" value={form.phone || ""} onChange={handleChange} /></div>
       </div>
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
-        <button type="submit" className="btn" style={saveBtn}>💾 บันทึกข้อมูลพี่เลี้ยง</button>
+        <button type="submit" className="btn">💾 บันทึกข้อมูลพี่เลี้ยง</button>
       </div>
     </form>
   );
 }
 
-const ghostBtn: React.CSSProperties = { background: "#fff", color: "#0074B7", boxShadow: "none", border: "1px solid rgba(10,132,255,.25)", height: 34, borderRadius: 8, padding: '0 12px', cursor: 'pointer', fontWeight: 600, fontSize: 13 };
-const saveBtn: React.CSSProperties = { background: "#0074B7", color: "#fff", boxShadow: "none", border: "1px solid rgba(10,132,255,.25)", height: 36, borderRadius: 8, padding: '0 16px', cursor: 'pointer', fontWeight: 600, fontSize: 14 };
-const dangerBtn: React.CSSProperties = { ...ghostBtn, color: '#ef4444', borderColor: '#ef4444' } as React.CSSProperties;
-const td: React.CSSProperties = { padding: "14px 16px", fontSize: 14, color: '#334155', verticalAlign: 'middle' };
 const lbl = { display: 'block', fontSize: 12, fontWeight: 600, color: '#64748b', margin: "0 0 4px 0" };

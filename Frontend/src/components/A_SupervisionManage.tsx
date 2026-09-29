@@ -14,7 +14,8 @@ import Spinner from "./Spinner";
 import DateInput from './DateInput';
 import LoadMoreFooter from "./LoadMoreFooter";
 import { useLoadMore } from "../utils/useLoadMore";
-import { askConfirm } from "../utils/notify";
+import { askConfirm } from "../utils/notify";
+import { TABLE_TH, TABLE_TD, TABLE_HEADER_ROW } from "../utils/tableStyles";
 
 // --- Types ---
 type SupervisionStatus = "PENDING_TEACHER" | "TEACHER_REJECTED" | "DATE_CONFIRMED" | "LETTER_UPLOADED" | "COMPLETED";
@@ -734,10 +735,10 @@ export default function A_SupervisionManage() {
 const card: CSSProperties = { background: "#fff", borderRadius: 16, padding: 24, boxShadow: "0 4px 6px -1px rgba(0,0,0,0.05)", border: '1px solid #f1f5f9' };
 const labelStyle: CSSProperties = { fontSize: 13, fontWeight: 700, color: '#334155', display: 'block', marginBottom: 6 };
 const tableStyle: CSSProperties = { width: "100%", borderCollapse: "collapse" };
-const thRow: CSSProperties = { background: "#f8fafc", borderBottom: "2px solid #e2e8f0" };
-const th: CSSProperties = { padding: "14px 16px", textAlign: "left", fontSize: 13, fontWeight: 700, color: "#64748b" };
+const thRow: CSSProperties = TABLE_HEADER_ROW;
+const th: CSSProperties = TABLE_TH;
 const trStyle: CSSProperties = { borderBottom: "1px solid #f1f5f9" };
-const td: CSSProperties = { padding: "14px 16px", verticalAlign: "middle", fontSize: 14 };
+const td: CSSProperties = TABLE_TD;
 
 const modalOverlay: CSSProperties = { position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(15, 23, 42, 0.6)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 999, backdropFilter: 'blur(3px)' };
 const modalContentLarge: CSSProperties = { background: "#fff", borderRadius: 16, padding: 24, width: "95%", maxWidth: 1200, boxShadow: "0 25px 50px -12px rgba(0,0,0,0.25)", overflow: 'hidden' };

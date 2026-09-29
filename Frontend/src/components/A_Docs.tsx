@@ -1,6 +1,7 @@
 ﻿import { useState } from "react";
 import DateInput from './DateInput';
 import { loadDocPeriods, saveDocPeriods, loadAcademicYear } from "./store";
+import Modal from "./Modal";
 
 /* =========================
    Constants
@@ -122,8 +123,7 @@ export default function A_Docs() {
                 )}
               </div>
               <button
-                className="btn"
-                style={ghostBtn}
+                className="btn-secondary"
                 onClick={() => open(d.id)}
               >
                 แก้ไข
@@ -135,72 +135,67 @@ export default function A_Docs() {
 
       {/* ================= Modal ================= */}
       {editing && (
-        <div style={overlay}>
-          <div style={modal}>
-            <h3 style={modalTitle}>แก้ไขช่วงเวลาเอกสาร</h3>
-
+        <Modal title="แก้ไขช่วงเวลาเอกสาร" onClose={() => setEditing(null)} maxWidth={460}>
             <div style={formGrid}>
               <label style={field}>
                 วันที่เริ่ม
                 <DateInput
+                  className="input"
                   value={form.startDate}
                   onChange={(e) =>
                     setForm({ ...form, startDate: e.target.value })
                   }
-                  style={input}
                 />
               </label>
 
               <label style={field}>
                 เวลาเริ่ม
                 <input
+                  className="input"
                   type="time"
                   value={form.startTime}
                   onChange={(e) =>
                     setForm({ ...form, startTime: e.target.value })
                   }
-                  style={input}
                 />
               </label>
 
               <label style={field}>
                 วันที่สิ้นสุด
                 <DateInput
+                  className="input"
                   value={form.endDate}
                   onChange={(e) =>
                     setForm({ ...form, endDate: e.target.value })
                   }
-                  style={input}
                 />
               </label>
 
               <label style={field}>
                 เวลาสิ้นสุด
                 <input
+                  className="input"
                   type="time"
                   value={form.endTime}
                   onChange={(e) =>
                     setForm({ ...form, endTime: e.target.value })
                   }
-                  style={input}
                 />
               </label>
             </div>
 
             <div style={footer}>
               <button
-                className="btn"
-                style={ghostBtn}
+                className="btn-secondary"
                 onClick={() => setEditing(null)}
               >
                 ยกเลิก
               </button>
-              <button className="btn" onClick={save} style={saveBtn}>
+              <button className="btn" onClick={save}>
                 บันทึก
               </button>
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
     </div>
   );
@@ -254,33 +249,6 @@ const ROW_MOBILE_CSS = `
   }
 `;
 
-const overlay: React.CSSProperties = {
-  position: "fixed",
-  inset: 0,
-  background: "rgba(15,23,42,.4)",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  zIndex: 50,
-  padding: 16,
-};
-
-const modal: React.CSSProperties = {
-  background: "#fff",
-  borderRadius: 16,
-  padding: 28,
-  width: "100%",
-  maxWidth: 460,
-  boxShadow: "0 20px 50px rgba(15,23,42,.18)",
-};
-
-const modalTitle: React.CSSProperties = {
-  margin: 0,
-  marginBottom: 20,
-  fontSize: 18,
-  fontWeight: 700,
-};
-
 const formGrid: React.CSSProperties = {
   display: "grid",
   gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
@@ -296,34 +264,10 @@ const field: React.CSSProperties = {
   color: "#475569",
 };
 
-const input: React.CSSProperties = {
-  height: 38,
-  borderRadius: 10,
-  border: "1px solid #e5e7eb",
-  padding: "0 12px",
-  fontSize: 14,
-};
-
 const footer: React.CSSProperties = {
   display: "flex",
   justifyContent: "flex-end",
   gap: 10,
-};
-
-const ghostBtn: React.CSSProperties = {
-  background: "#fff",
-  color: "var(--ios-blue)",
-  boxShadow: "none",
-  border: "1px solid rgba(10,132,255,.25)",
-  height: 36,
-};
-
-const saveBtn: React.CSSProperties = {
-  background: "var(--ios-blue)",
-  color: "#fff",
-  boxShadow: "none",
-  border: "1px solid rgba(10,132,255,.25)",
-  height: 36,
 };
 
 const badgeOk: React.CSSProperties = {

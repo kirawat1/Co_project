@@ -292,7 +292,7 @@ test("P5: ออกหนังสือขอความอนุเครา�
   const row = page.locator("tbody tr", { hasText: fx.student.studentId });
   await row.getByRole("button", { name: /ออกหนังสือขอความอนุเคราะห์/ }).click();
 
-  const modal = page.locator(".modal-backdrop");
+  const modal = page.locator(".letter-modal-backdrop");
   await expect(modal).toBeVisible();
 
   // ช่องเลขที่หนังสือต้องกรอกเลขจริง — ค่าเริ่มต้นเป็นเทมเพลตที่ยังไม่มีเลขต่อท้าย
@@ -369,7 +369,7 @@ test("P8: ออกหนังสือส่งตัว → PLACEMENT_LETTER_
   const row = page.locator("tbody tr", { hasText: fx.student.studentId });
   await row.getByRole("button", { name: /ออกหนังสือส่งตัว/ }).click();
 
-  const modal = page.locator(".modal-backdrop");
+  const modal = page.locator(".letter-modal-backdrop");
   await expect(modal).toBeVisible();
 
   const placeDocNo = `660301.26.6.2/P${String(fx.stamp).slice(-5)}`;

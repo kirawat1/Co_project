@@ -136,7 +136,7 @@ export default function A_Feedback() {
                     onChange={(e) => setQ(e.target.value)}
                     style={{ minWidth: 220, marginLeft: "auto" }}
                 />
-                <button className="btn" style={ghostBtn} onClick={load}>🔄 รีเฟรช</button>
+                <button className="btn-secondary" onClick={load}>🔄 รีเฟรช</button>
             </div>
 
             {error && <div role="alert" style={errorBox}>❌ {error}</div>}
@@ -161,7 +161,7 @@ export default function A_Feedback() {
                                     <span style={{ fontSize: 12, color: "#94a3b8" }}>
                                         {ROLE_TH[f.reporterRole] || f.reporterRole} · {fmtDateTime(f.createdAt)}
                                     </span>
-                                    <button style={{ ...ghostBtn, marginLeft: "auto" }} onClick={() => setOpenId(open ? null : f.id)}>
+                                    <button className="btn-secondary" style={{ marginLeft: "auto" }} onClick={() => setOpenId(open ? null : f.id)}>
                                         {open ? "ย่อ" : "ดูรายละเอียด"}
                                     </button>
                                 </div>
@@ -193,8 +193,8 @@ export default function A_Feedback() {
                                         <div style={{ fontSize: 12, color: "#64748b", wordBreak: "break-all", marginBottom: 12 }}>{f.userAgent || "-"}</div>
 
                                         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
-                                            <a className="btn" style={ghostBtn} href={logLink(f)}>📋 ดูบันทึกการใช้งานของผู้แจ้งวันนั้น</a>
-                                            {f.pagePath && <a className="btn" style={ghostBtn} href={f.pagePath}>↗ เปิดหน้าที่แจ้ง</a>}
+                                            <a className="btn-secondary" href={logLink(f)}>📋 ดูบันทึกการใช้งานของผู้แจ้งวันนั้น</a>
+                                            {f.pagePath && <a className="btn-secondary" href={f.pagePath}>↗ เปิดหน้าที่แจ้ง</a>}
                                         </div>
 
                                         <div style={fieldLabel}>ตอบกลับผู้แจ้ง</div>
@@ -208,23 +208,21 @@ export default function A_Feedback() {
 
                                         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                                             <button
-                                                className="btn"
-                                                style={primaryBtn}
+                                                className="btn-success"
                                                 disabled={saving === f.id}
                                                 onClick={() => update(f.id, { staffReply: replyDraft[f.id] ?? f.staffReply ?? "", status: "RESOLVED" })}
                                             >
                                                 {saving === f.id ? "กำลังบันทึก..." : "✅ ตอบกลับและปิดเรื่อง"}
                                             </button>
                                             <button
-                                                className="btn"
-                                                style={ghostBtn}
+                                                className="btn-secondary"
                                                 disabled={saving === f.id}
                                                 onClick={() => update(f.id, { staffReply: replyDraft[f.id] ?? f.staffReply ?? "", status: "IN_PROGRESS" })}
                                             >
                                                 บันทึกและกำลังดูอยู่
                                             </button>
                                             {f.status !== "NEW" && (
-                                                <button className="btn" style={ghostBtn} disabled={saving === f.id} onClick={() => update(f.id, { status: "NEW" })}>
+                                                <button className="btn-secondary" disabled={saving === f.id} onClick={() => update(f.id, { status: "NEW" })}>
                                                     กลับเป็นเรื่องใหม่
                                                 </button>
                                             )}
@@ -253,15 +251,6 @@ const tabBtn: CSSProperties = {
     background: "#fff", color: "#475569", fontSize: 13.5, fontWeight: 600, cursor: "pointer",
 };
 const tabBtnOn: CSSProperties = { background: "#0f766e", borderColor: "#0f766e", color: "#fff" };
-const ghostBtn: CSSProperties = {
-    padding: "7px 14px", borderRadius: 10, border: "1px solid #e2e8f0",
-    background: "#f8fafc", color: "#334155", fontSize: 13, fontWeight: 600,
-    cursor: "pointer", textDecoration: "none", display: "inline-block",
-};
-const primaryBtn: CSSProperties = {
-    padding: "8px 18px", borderRadius: 10, border: "none",
-    background: "#0f766e", color: "#fff", fontSize: 13.5, fontWeight: 700, cursor: "pointer",
-};
 const textarea: CSSProperties = {
     width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid #cbd5e1",
     fontSize: 14, fontFamily: "inherit", resize: "vertical", marginBottom: 10, boxSizing: "border-box",

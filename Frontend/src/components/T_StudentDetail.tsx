@@ -4,8 +4,9 @@ import StatusBadge from "../components/StatusBadge";
 import { apiFetch } from "../utils/apiFetch";
 import { fmtDate } from '../utils/dateFormat';
 import DateInput from './DateInput';
-import { notify, askConfirm } from "../utils/notify";
+import { notify, askConfirm } from "../utils/notify";
 import { contactName } from "../utils/contacts";
+import Modal, { ModalCloseButton } from "./Modal";
 
 /* =========================
    Types
@@ -110,7 +111,7 @@ function DocsByGroup({ docs, onView }: { docs: StudentDocument[]; onView: (doc: 
                   <span>📄</span>
                   <span style={{ fontSize: 13 }}>{doc.name}</span>
                 </div>
-                <button className="btn-primary" onClick={() => onView(doc)} style={{ padding: '6px 14px', fontSize: 12 }}>
+                <button className="btn-primary small" onClick={() => onView(doc)}>
                   เปิดดู
                 </button>
               </li>
@@ -420,10 +421,12 @@ export default function T_StudentDetail() {
                       }
                     </td>
                     <td style={{ textAlign: 'right' }}>
-                      <button className="btn-ghost" style={{ fontSize: 12, padding: '6px 12px', marginRight: 8 }} onClick={() => toggleDone(v.id)}>
-                        {v.status === 'done' ? 'ยกเลิกสถานะ' : 'มาร์คว่าเสร็จแล้ว'}
-                      </button>
-                      <button className="btn-danger" style={{ fontSize: 12, padding: '6px 12px' }} onClick={() => removeVisit(v.id)}>ลบ</button>
+                      <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                        <button className="btn-ghost small" onClick={() => toggleDone(v.id)}>
+                          {v.status === 'done' ? 'ยกเลิกสถานะ' : 'มาร์คว่าเสร็จแล้ว'}
+                        </button>
+                        <button className="btn-danger small" onClick={() => removeVisit(v.id)}>ลบ</button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -437,24 +440,29 @@ export default function T_StudentDetail() {
 
       {/* ============ POPUP MODAL (แสดงไฟล์เต็มจอ) ============ */}
       {showPreviewModal && (
-        <div className="modal-backdrop">
-          <div className="modal-card" style={{ width: '95%', height: '95%', maxWidth: '1400px', padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+        <Modal
+          maxWidth={1400}
+          height="95%"
+          noBodyPadding
+          onClose={closePreview}
+          header={
             <div style={{ padding: '16px 24px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff' }}>
               <div>
                 <h3 style={{ margin: 0, fontSize: 18, color: '#0f172a' }}>📄 {currentDocName}</h3>
                 <a href={previewUrl} target="_blank" rel="noreferrer" style={{ fontSize: 13, color: '#0ea5e9', fontWeight: 600, textDecoration: 'none' }}>ดาวน์โหลด / เปิดในแท็บใหม่ ↗</a>
               </div>
-              <button onClick={closePreview} style={{ background: '#f1f5f9', border: 'none', width: 36, height: 36, borderRadius: '50%', fontSize: 20, cursor: 'pointer', color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>&times;</button>
+              <ModalCloseButton onClose={closePreview} variant="circle" />
             </div>
-            <div style={{ flex: 1, background: '#334155', display: 'flex', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' }}>
+          }
+        >
+            <div style={{ height: '100%', background: '#334155', display: 'flex', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' }}>
               {previewType === 'image' ? (
                 <img src={previewUrl} alt="Preview" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
               ) : (
                 <iframe src={previewUrl} style={{ width: '100%', height: '100%', border: 'none' }} title="Full Preview" />
               )}
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {/* ================= STYLES ================= */}
@@ -469,16 +477,11 @@ export default function T_StudentDetail() {
         .tab-btn:hover:not(.active) { background: #f1f5f9; }
 
         .input-label { display: block; font-size: 13px; font-weight: 700; color: #475569; margin-bottom: 6px; }
-        .input { width: 100%; padding: 10px 14px; border-radius: 10px; border: 1px solid #cbd5e1; font-family: inherit; font-size: 14px; box-sizing: border-box; outline: none; transition: 0.2s; }
-        .input:focus { border-color: #0ea5e9; box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1); }
 
         .student-table { width: 100%; border-collapse: separate; border-spacing: 0 8px; }
         .student-table th { padding: 10px 16px; color: #64748b; font-size: 13px; text-align: left; font-weight: 600; border-bottom: 2px solid #e2e8f0; }
         .student-table td { background: #fff; padding: 16px; font-size: 14px; color: #334155; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
         .student-row:hover td { background: #f8fafc; }
-
-        .modal-backdrop { position: fixed; inset: 0; background: rgba(15,23,42,.7); display: flex; align-items: center; justify-content: center; z-index: 9999; backdrop-filter: blur(4px); }
-        .modal-card { background: #fff; border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); }
       `}</style>
     </div>
   );

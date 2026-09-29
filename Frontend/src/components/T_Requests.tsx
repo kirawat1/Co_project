@@ -7,6 +7,8 @@ import AutoTextarea from "./AutoTextarea";
 import ConfirmDialog from "./ConfirmDialog";
 import LoadMoreFooter from "./LoadMoreFooter";
 import { useLoadMore } from "../utils/useLoadMore";
+import { TABLE_TH, TABLE_TD, TABLE_HEADER_ROW } from "../utils/tableStyles";
+import Modal, { ModalCloseButton } from "./Modal";
 
 // ================= TYPES =================
 interface StudentDocument { id: number; name: string; path: string; type?: string; }
@@ -283,7 +285,7 @@ export default function T_Requests() {
                 </td>
                 <td style={td} data-label="สถานะ"><StatusBadge status={s.coop?.status} /></td>
                 <td style={{ ...td, textAlign: 'right' }}>
-                  <button className="btn" style={{ padding: '6px 16px' }} onClick={() => handleViewRequest(s)}>พิจารณา</button>
+                  <button className="btn small" onClick={() => handleViewRequest(s)}>พิจารณา</button>
                 </td>
               </tr>
             ))}
@@ -294,9 +296,12 @@ export default function T_Requests() {
 
       {/* MODAL: SPLIT SCREEN */}
       {selectedStudent && (
-        <div className="modal-backdrop">
-          <div className="modal-card-split">
-
+        <Modal
+          maxWidth={1400}
+          height="90vh"
+          noBodyPadding
+          onClose={closeModal}
+          header={
             <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid #e2e8f0', background: '#fff' }}>
               <div>
                 <h3 style={{ margin: 0, fontSize: 18 }}>ตรวจสอบคำร้อง: {selectedStudent.studentId}</h3>
@@ -304,10 +309,11 @@ export default function T_Requests() {
                   {selectedStudent.firstName} {selectedStudent.lastName} | <StatusBadge status={selectedStudent.coop?.status} />
                 </div>
               </div>
-              <button onClick={closeModal} style={{ border: 'none', background: '#fee2e2', color: '#dc2626', width: 32, height: 32, borderRadius: '50%', fontSize: 18, cursor: 'pointer' }}>&times;</button>
+              <ModalCloseButton onClose={closeModal} variant="circle" />
             </div>
-
-            <div className="split-pane" style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+          }
+        >
+            <div className="split-pane" style={{ height: '100%', display: 'flex', overflow: 'hidden' }}>
               {/* LEFT: PREVIEW (60%) */}
               <div className="preview-pane" style={{ flex: '0 0 60%', background: '#334155' }}>
                 {previewUrl ? (
@@ -360,8 +366,7 @@ export default function T_Requests() {
 
               </div>
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
 
       <ConfirmDialog
@@ -380,10 +385,6 @@ export default function T_Requests() {
 }
 
 const STYLES = `
-    .input { padding: 10px 14px; border-radius: 8px; border: 1px solid #cbd5e1; outline: none; font-size: 14px; font-family: inherit; }
-    .input:focus { border-color: #0ea5e9; box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.15); }
-    .modal-backdrop { position: fixed; inset: 0; background: rgba(15, 23, 42, .6); display: flex; align-items: center; justify-content: center; z-index: 999; backdrop-filter: blur(3px); }
-    .modal-card-split { background: #fff; border-radius: 16px; width: 95vw; max-width: 1400px; height: 90vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); }
     @media (max-width: 768px) {
         .split-pane { flex-direction: column !important; overflow-y: auto !important; }
         .preview-pane { flex: 0 0 280px !important; }
@@ -392,7 +393,7 @@ const STYLES = `
 
 const card: CSSProperties = { background: "#fff", borderRadius: 16, padding: 24, boxShadow: "0 4px 6px -1px rgba(0,0,0,0.05)", border: '1px solid #f1f5f9' };
 const tableStyle: CSSProperties = { width: "100%", borderCollapse: "collapse" };
-const thRow: CSSProperties = { background: "#f8fafc", borderBottom: "2px solid #e2e8f0" };
-const th: CSSProperties = { padding: "14px 16px", textAlign: "left", fontSize: 13, fontWeight: 700, color: "#64748b" };
+const thRow: CSSProperties = TABLE_HEADER_ROW;
+const th: CSSProperties = TABLE_TH;
 const trStyle: CSSProperties = { borderBottom: "1px solid #f1f5f9" };
-const td: CSSProperties = { padding: "14px 16px", verticalAlign: "middle", fontSize: 14 };
+const td: CSSProperties = TABLE_TD;
