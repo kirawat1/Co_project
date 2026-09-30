@@ -15,6 +15,7 @@ import Modal, { ModalCloseButton } from "./Modal";
 import { useAdminRole } from "./adminRole";
 import { appliesTo } from "../utils/docRequirementScope";
 import MajorConfigTabs from "./MajorConfigTabs";
+import { downloadLetterZip, LETTER_LABEL, type LetterType } from "../utils/letterZip";
 
 // --- Interfaces ---
 interface StudentDocument {
@@ -162,6 +163,7 @@ export default function A_DocT000() {
     // State ปีการศึกษา
     const [coopPeriods, setCoopPeriods] = useState<any[]>([]);
     const [selectedPeriod, setSelectedPeriod] = useState<string>("all");
+    const [zipBusy, setZipBusy] = useState<LetterType | null>(null);
 
     const [issueModalData, setIssueModalData] = useState<StudentProfile | null>(null);
     const [checkPhase, setCheckPhase] = useState<1 | 2>(1);
@@ -643,6 +645,16 @@ export default function A_DocT000() {
                             <option key={p.id} value={p.id}>เทอม {p.semester} / {p.academicYear}</option>
                         ))}
                     </select>
+
+                    {/* ดาวน์โหลดหนังสือที่ออกแล้ว (ฉบับลงนาม) ทั้งรอบเป็น zip — ตามรอบที่เลือก + ตัวกรองหลักสูตรด้านบน */}
+                    <div style={{ marginLeft: "auto", display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        {(["REQ", "PLACE"] as const).map(t => (
+                            <button key={t} className="btn-secondary small" disabled={zipBusy !== null} title={`ดาวน์โหลด${LETTER_LABEL[t]}ที่ออกแล้วทั้งหมด (ตามรอบที่เลือก) เป็นไฟล์ zip`}
+                                onClick={async () => { setZipBusy(t); try { await downloadLetterZip(t, selectedPeriod); } finally { setZipBusy(null); } }}>
+                                {zipBusy === t ? "⏳ กำลังเตรียมไฟล์..." : `⬇️ ${LETTER_LABEL[t]} (zip)`}
+                            </button>
+                        ))}
+                    </div>
                 </div>
 
                 <div style={{ marginBottom: 16 }}>

@@ -3,6 +3,7 @@ import axios from "axios";
 import AutoTextarea from "./AutoTextarea";
 import { notify, askConfirm } from "../utils/notify";
 import MajorConfigTabs from "./MajorConfigTabs";
+import { DeadlineField } from "./DocDeadline";
 
 export default function A_DocT008() {
     const [isFetching, setIsFetching] = useState(true);
@@ -10,6 +11,7 @@ export default function A_DocT008() {
 
     const [instructionText, setInstructionText] = useState("");
     const [driveLink, setDriveLink] = useState("");
+    const [deadline, setDeadline] = useState("");
 
     // สำหรับจัดการรูปภาพ
     const [existingImage, setExistingImage] = useState(""); // ชื่อไฟล์รูปเดิมในระบบ
@@ -30,6 +32,7 @@ export default function A_DocT008() {
                     const cfg = res.data.config;
                     setInstructionText(cfg.instructionText || "");
                     setDriveLink(cfg.driveLink || "");
+                    setDeadline(cfg.deadline || "");
                     setExistingImage(cfg.imagePath || "");
                     if (cfg.imagePath) {
                         // กำหนด URL พรีวิวรูปเดิมที่อยู่บน Server
@@ -68,6 +71,7 @@ export default function A_DocT008() {
             const formData = new FormData();
             formData.append("instructionText", instructionText);
             formData.append("driveLink", driveLink);
+            formData.append("deadline", deadline);
             formData.append("existingImage", existingImage); // ส่งชื่อไฟล์เดิมไปด้วยเผื่อไม่ได้เปลี่ยนรูป
 
             if (imageFile) {
@@ -130,6 +134,8 @@ export default function A_DocT008() {
                             placeholder="https://drive.google.com/drive/folders/..."
                         />
                     </div>
+
+                    <DeadlineField value={deadline} onChange={setDeadline} />
 
                     {/* 3. อัปโหลดรูปภาพ */}
                     <div style={{ padding: 20, background: '#fffbeb', borderRadius: 12, border: '1px solid #fde68a' }}>

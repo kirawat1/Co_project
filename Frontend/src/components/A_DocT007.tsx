@@ -3,6 +3,7 @@ import axios from "axios";
 import AutoTextarea from "./AutoTextarea";
 import { notify, askConfirm } from "../utils/notify";
 import MajorConfigTabs from "./MajorConfigTabs";
+import { DeadlineField } from "./DocDeadline";
 
 export default function A_DocT007() {
     const [isFetching, setIsFetching] = useState(true);
@@ -11,6 +12,7 @@ export default function A_DocT007() {
     // State เก็บข้อมูลฟอร์ม T007
     const [instructionText, setInstructionText] = useState("");
     const [t007Link, setT007Link] = useState("");
+    const [deadline, setDeadline] = useState("");
 
     const token = localStorage.getItem("coop.token");
 
@@ -27,6 +29,7 @@ export default function A_DocT007() {
                     const cfg = res.data.config;
                     setInstructionText(cfg.instructionText || "");
                     setT007Link(cfg.t007Link || "");
+                    setDeadline(cfg.deadline || "");
                 }
             } catch (err) {
                 console.warn("ไม่พบข้อมูล T007 (จะแสดงฟอร์มเปล่า)");
@@ -43,7 +46,7 @@ export default function A_DocT007() {
 
         setIsSaving(true);
         try {
-            const payload = { instructionText, t007Link };
+            const payload = { instructionText, t007Link, deadline };
             await axios.put("/api/admin/config/t007", payload, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -99,6 +102,8 @@ export default function A_DocT007() {
                             />
                         </div>
                     </div>
+
+                    <DeadlineField value={deadline} onChange={setDeadline} />
 
                 </div>
 
