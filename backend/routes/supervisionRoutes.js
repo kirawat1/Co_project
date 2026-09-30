@@ -38,7 +38,7 @@ router.put('/admin/supervisions/:id/complete', verifyToken, verifyCoopTeacherOrS
 
 // แบบประเมินการนิเทศ (ลิงก์ให้อาจารย์ผู้นิเทศ) — อาจารย์ประจำวิชา/เจ้าหน้าที่
 router.get('/admin/supervision-eval/config', verifyToken, verifyCoopTeacherOrStaff, configController.getSupervisionEvalConfig);
-router.put('/admin/supervision-eval/config', verifyToken, verifyCoopTeacherOrStaff, configController.updateSupervisionEvalConfig);
+router.put('/admin/supervision-eval/config', verifyToken, verifyRole('staff'), configController.updateSupervisionEvalConfig); // ค่ากลาง — ค่าเฉพาะหลักสูตรที่ /admin/major-config
 router.get('/admin/supervision-eval', verifyToken, verifyCoopTeacherOrStaff, supervisionEvalController.listEvalAppointments);
 router.post('/admin/supervision-eval/send', verifyToken, verifyCoopTeacherOrStaff, supervisionEvalController.sendEval);
 

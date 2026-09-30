@@ -7,6 +7,7 @@ import AutoTextarea from "./AutoTextarea";
 import DateInput from './DateInput';
 import LoadMoreFooter from "./LoadMoreFooter";
 import { useLoadMore } from "../utils/useLoadMore";
+import MajorConfigTabs from "./MajorConfigTabs";
 
 // --- Types ---
 type Document = {
@@ -318,6 +319,8 @@ export default function A_DocT003Review() {
             </section>
 
             {/* ================= CONFIG SECTION ================= */}
+            {/* ค่ากลาง + ค่าเฉพาะหลักสูตร (แยกหลักสูตร Phase 4) */}
+            <MajorConfigTabs configKey="T003_CONFIG">
             <section className="card" style={{ marginBottom: 24, borderLeft: `5px solid ${isSystemOpen ? '#10b981' : '#ef4444'}`, background: '#f8fafc' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 20 }}>
 
@@ -351,6 +354,8 @@ export default function A_DocT003Review() {
                     </div>
                 </div>
             </section>
+
+            </MajorConfigTabs>
 
             {/* TABLE */}
             <section style={card}>

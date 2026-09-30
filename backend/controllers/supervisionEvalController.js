@@ -14,10 +14,18 @@ const APPT_SELECT = {
   student: {
     select: {
       studentId: true, firstName: true, lastName: true,
+      major: true,
       coop: { select: { coopPeriodId: true, company: { select: { name: true } } } },
     },
   },
 };
+
+// ค่าแบบประเมินของแต่ละหลักสูตรที่มีในรายการ (ตั้งแยกหลักสูตรได้)
+async function configsFor(appts) {
+  const map = new Map();
+  for (const m of new Set(appts.map((a) => a.student?.major || null))) map.set(m, await getEvalConfig(undefined, m));
+  return (a) => map.get(a.student?.major || null);
+}
 
 const toRow = (a) => ({
   id: a.id,
@@ -30,6 +38,7 @@ const toRow = (a) => ({
   coopPeriodId: a.student?.coop?.coopPeriodId ?? null,
   teacherName: teacherName(a.teacher),
   coTeacherName: a.coTeacherName || '',
+  major: a.student?.major || null,
 });
 
 // GET /api/admin/supervision-eval
@@ -44,11 +53,13 @@ exports.listEvalAppointments = async (req, res) => {
       }),
       getEvalConfig(),
     ]);
+    const cfgOf = await configsFor(appts);
     res.json({
       ok: true,
       config,
       appointments: appts.map((a) => ({
         ...toRow(a),
+        hasLink: !!cfgOf(a).evalLink, // หลักสูตรของนักศึกษามีลิงก์แบบประเมินแล้วหรือยัง
         unlinkedCoTeachers: unlinkedCoTeacherNames(a.coTeacherName, a.coTeachers.map((c) => c.teacher)),
       })),
     });
@@ -82,9 +93,9 @@ exports.sendEval = async (req, res) => {
 exports.getMyEval = async (req, res) => {
   try {
     const me = await prisma.teacher.findUnique({ where: { userId: req.user.id }, select: { id: true } });
-    if (!me) return res.json({ ok: true, config: null, appointments: [] });
+    if (!me) return res.json({ ok: true, groups: [] });
 
-    const [appts, config] = await Promise.all([
+    const [appts] = await Promise.all([
       prisma.supervisionAppointment.findMany({
         where: {
           evalSentAt: { not: null },
@@ -94,14 +105,17 @@ exports.getMyEval = async (req, res) => {
         select: APPT_SELECT,
         orderBy: { confirmedDate: 'asc' },
       }),
-      getEvalConfig(),
     ]);
-    if (!config.evalLink || appts.length === 0) return res.json({ ok: true, config: null, appointments: [] });
-    res.json({
-      ok: true,
-      config: { instructionText: config.instructionText, evalLink: config.evalLink },
-      appointments: appts.map((a) => ({ ...toRow(a), isPrimary: a.teacherId === me.id })),
-    });
+    // กลุ่มตามลิงก์แบบประเมิน — อาจารย์คนเดียวอาจนิเทศนักศึกษาหลายหลักสูตรที่ใช้แบบประเมินต่างกัน
+    const cfgOf = await configsFor(appts);
+    const groups = new Map();
+    for (const a of appts) {
+      const cfg = cfgOf(a);
+      if (!cfg.evalLink) continue;
+      if (!groups.has(cfg.evalLink)) groups.set(cfg.evalLink, { evalLink: cfg.evalLink, instructionText: cfg.instructionText, appointments: [] });
+      groups.get(cfg.evalLink).appointments.push({ ...toRow(a), isPrimary: a.teacherId === me.id });
+    }
+    res.json({ ok: true, groups: [...groups.values()] });
   } catch (err) {
     console.error('getMyEval error:', err);
     res.status(500).json({ ok: false, message: 'ไม่สามารถโหลดแบบประเมินได้' });

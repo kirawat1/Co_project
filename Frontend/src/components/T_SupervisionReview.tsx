@@ -187,10 +187,12 @@ export default function T_SupervisionReview() {
     }, []);
 
     // ── แบบประเมินการนิเทศที่ส่งมาให้ฉัน (อาจารย์หลักหรืออาจารย์ร่วม)
-    const [myEval, setMyEval] = useState<{ config: { instructionText: string; evalLink: string } | null; appointments: { id: number; studentName: string; studentCode: string; companyName: string; confirmedDate: string | null; isPrimary: boolean }[] }>({ config: null, appointments: [] });
+    // จัดกลุ่มตามลิงก์ — นักศึกษาต่างหลักสูตรอาจใช้แบบประเมินต่างกัน (ตั้งค่าแยกหลักสูตร)
+    type EvalGroup = { evalLink: string; instructionText: string; appointments: { id: number; studentName: string; studentCode: string; companyName: string; confirmedDate: string | null; isPrimary: boolean }[] };
+    const [evalGroups, setEvalGroups] = useState<EvalGroup[]>([]);
     useEffect(() => {
         axios.get('/api/teacher/supervision-eval', { headers: { Authorization: `Bearer ${token}` } })
-            .then(res => setMyEval({ config: res.data?.config ?? null, appointments: res.data?.appointments ?? [] }))
+            .then(res => setEvalGroups(res.data?.groups ?? []))
             .catch(() => {});
     }, []);
 
@@ -459,22 +461,22 @@ export default function T_SupervisionReview() {
                         </div>
                     </section>
 
-                    {myEval.config && myEval.appointments.length > 0 && (
-                        <section style={{ ...card, marginBottom: 16, background: "#eff6ff", border: "1px solid #bfdbfe" }}>
+                    {evalGroups.map(g => (
+                        <section key={g.evalLink} style={{ ...card, marginBottom: 16, background: "#eff6ff", border: "1px solid #bfdbfe" }}>
                             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
                                 <div style={{ flex: 1, minWidth: 240 }}>
                                     <div style={{ fontWeight: 800, fontSize: 15, color: "#1e40af", marginBottom: 6 }}>📋 แบบประเมินการนิเทศ</div>
-                                    {myEval.config.instructionText && (
-                                        <div style={{ fontSize: 13, color: "#334155", whiteSpace: "pre-wrap", marginBottom: 8 }}>{myEval.config.instructionText}</div>
+                                    {g.instructionText && (
+                                        <div style={{ fontSize: 13, color: "#334155", whiteSpace: "pre-wrap", marginBottom: 8 }}>{g.instructionText}</div>
                                     )}
                                     <div style={{ fontSize: 13, color: "#475569" }}>
-                                        นักศึกษาที่ต้องประเมิน: {myEval.appointments.map(a => `${a.studentName || a.studentCode}${a.companyName ? ` (${a.companyName})` : ""}${a.isPrimary ? "" : " · นิเทศร่วม"}`).join(", ")}
+                                        นักศึกษาที่ต้องประเมิน: {g.appointments.map(a => `${a.studentName || a.studentCode}${a.companyName ? ` (${a.companyName})` : ""}${a.isPrimary ? "" : " · นิเทศร่วม"}`).join(", ")}
                                     </div>
                                 </div>
-                                <a className="btn" href={myEval.config.evalLink} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none" }}>เปิดแบบประเมิน ↗</a>
+                                <a className="btn" href={g.evalLink} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none" }}>เปิดแบบประเมิน ↗</a>
                             </div>
                         </section>
-                    )}
+                    ))}
 
                     {bookedDayMap.size > 0 && (
                         <section style={{ ...card, marginBottom: 16, background: "#fffbeb", border: "1px solid #fde68a" }}>

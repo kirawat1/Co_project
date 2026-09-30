@@ -31,6 +31,7 @@ import A_SupervisionEval from "./A_SupervisionEval";
 import A_DocT008 from "./A_DocT008";
 import A_GatewaySettings from "./A_GatewaySettings";
 import A_StaffManage from "./A_StaffManage";
+import A_MajorConfigSummary from "./A_MajorConfigSummary";
 import { useMyScope } from "../hooks/useMyScope";
 import { AdminRoleContext } from "./adminRole";
 import { getMajorFilter, setMajorFilter, NO_MAJOR } from "../utils/majorFilter";
@@ -196,6 +197,7 @@ export default function AdminApp() {
             {/* ✅ ย้ายขึ้นมา และลบ /admin/ ออก */}
             <Route path="doc-requirements" element={<A_DocRequirements />} />
             <Route path="gateway-settings" element={<A_GatewaySettings />} />
+            <Route path="major-config" element={<A_MajorConfigSummary />} />
 
             {/* ✅ ใส่ /admin/ นำหน้า เพื่อป้องกัน Infinite Loop */}
             <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />

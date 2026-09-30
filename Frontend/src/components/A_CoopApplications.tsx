@@ -10,6 +10,7 @@ import Spinner from "./Spinner";
 import { useDebounce } from "../hooks/useDebounce";
 import LoadMoreFooter from "./LoadMoreFooter";
 import A_ApplyWindowCard from "./A_ApplyWindowCard";
+import MajorConfigTabs from "./MajorConfigTabs";
 import { useLoadMore } from "../utils/useLoadMore";
 import { TABLE_TH, TABLE_TD, TABLE_HEADER_ROW } from "../utils/tableStyles";
 import Modal, { ModalCloseButton } from "./Modal";
@@ -273,7 +274,8 @@ export default function A_CoopApplications() {
             </section>
 
             {/* ช่วงเวลายื่นคำร้อง — ตั้งแยกจากรอบรับสมัคร แบบเดียวกับ T000–T003 */}
-            <A_ApplyWindowCard />
+            {/* ค่ากลาง + ค่าเฉพาะหลักสูตร (แยกหลักสูตร Phase 4) */}
+            <MajorConfigTabs configKey="APPLY_CONFIG"><A_ApplyWindowCard /></MajorConfigTabs>
 
             {/* FILTER & LIST */}
             <section style={card}>

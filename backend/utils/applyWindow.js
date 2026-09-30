@@ -8,6 +8,7 @@
  * วันที่ตีความเป็นเวลาไทยเสมอ (เปิดตั้งแต่ 00:00 ของวันเปิด ถึง 23:59 ของวันปิด)
  */
 const prisma = require('../config/prismaClient');
+const { readEffective } = require('./majorConfig');
 
 const APPLY_CONFIG_KEY = 'APPLY_CONFIG';
 const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -39,19 +40,13 @@ function evaluateApplyWindow(config, now = new Date()) {
   return { ...base, open: true, reason: null };
 }
 
-async function readApplyConfig(db = prisma) {
-  const row = await db.systemConfig.findUnique({ where: { key: APPLY_CONFIG_KEY } });
-  if (!row) return null;
-  try {
-    const parsed = JSON.parse(row.value);
-    return parsed && typeof parsed === 'object' ? parsed : null;
-  } catch {
-    return null;
-  }
+// major = หลักสูตรของนักศึกษา → ค่ากลาง + ค่าเฉพาะหลักสูตร (แยกหลักสูตร Phase 4) · ไม่ระบุ = ค่ากลาง
+async function readApplyConfig(db = prisma, major = null) {
+  return readEffective(APPLY_CONFIG_KEY, major, db);
 }
 
-async function getApplyWindowState(db = prisma, now = new Date()) {
-  return evaluateApplyWindow(await readApplyConfig(db), now);
+async function getApplyWindowState(db = prisma, now = new Date(), major = null) {
+  return evaluateApplyWindow(await readApplyConfig(db, major), now);
 }
 
 // ข้อความบอกนักศึกษาว่าทำไมยื่นไม่ได้ — ใช้ทั้ง API และหน้าเว็บ

@@ -14,6 +14,7 @@ import { TABLE_TH, TABLE_TD, TABLE_HEADER_ROW } from "../utils/tableStyles";
 import Modal, { ModalCloseButton } from "./Modal";
 import { useAdminRole } from "./adminRole";
 import { appliesTo } from "../utils/docRequirementScope";
+import MajorConfigTabs from "./MajorConfigTabs";
 
 // --- Interfaces ---
 interface StudentDocument {
@@ -588,6 +589,8 @@ export default function A_DocT000() {
         <div className="page" style={{ padding: 28, marginLeft: 35 }}>
 
             {/* 1. CONFIG SECTION */}
+            {/* ค่ากลาง + ค่าเฉพาะหลักสูตร (แยกหลักสูตร Phase 4) */}
+            <MajorConfigTabs configKey="T000_CONFIG">
             <section className="card" style={{ marginBottom: 20, borderLeft: `5px solid ${isSystemOpen ? '#10b981' : '#ef4444'}` }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 15 }}>
                     <div>
@@ -609,6 +612,8 @@ export default function A_DocT000() {
                     </div>
                 </div>
             </section>
+
+            </MajorConfigTabs>
 
             {/* 2. TABLE LIST */}
             <section className="card">

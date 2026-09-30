@@ -3,6 +3,7 @@ const { createNotifications } = require('../utils/notificationHelper');
 const { removeUnreferencedUploads } = require('../utils/uploadCleanup');
 const { normalizeDocNumber, isPlaceholderDocNo, parseDateOr400 } = require('../utils/docNumber');
 const { resolveMajorNameTh } = require('../utils/majorName');
+const { readEffective, callerMajor } = require('../utils/majorConfig');
 const { getMajorScope, studentWhere, visibleStudentWhere, inScope, assertStudentInScope } = require('../utils/majorScope');
 const { setAuditDetail, reviewActionText, letterPendingActionText } = require('../utils/auditActions');
 const path = require('path');
@@ -67,11 +68,9 @@ async function assertDocNumberFree(tx, key, value, studentId) {
 // 1. ดึงค่า Config
 exports.getT000Config = async (req, res) => {
   try {
-    const config = await prisma.systemConfig.findUnique({
-      where: { key: "T000_CONFIG" }
-    });
-    const data = config ? JSON.parse(config.value) : { startDate: "", endDate: "", isOpen: false };
-    res.json(data);
+    // นักศึกษาได้ค่าของหลักสูตรตัวเอง (ค่ากลาง + ค่าเฉพาะหลักสูตร) · บทบาทอื่นได้ค่ากลาง
+    const config = await readEffective("T000_CONFIG", await callerMajor(req));
+    res.json(config || { startDate: "", endDate: "", isOpen: false });
   } catch (err) {
     res.status(500).json({ message: "Error fetching config" });
   }

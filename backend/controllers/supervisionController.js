@@ -8,6 +8,7 @@ const { resolveSlotEnd, assertNoTeacherClash, findTeacherClash, dateKey, timeKey
 const { SUPERVISION_SCHEDULE_SELECT, SUPERVISION_EXPORT_SELECT, toScheduleRow, sortSchedule, buildSupervisionScheduleWorkbook } = require('../utils/supervisionExport');
 const { exportBaseUrl } = require('../utils/studentExport');
 const { getEvalConfig, sendEvalForAppointments } = require('../utils/supervisionEval');
+const { studentMajor } = require('../utils/majorConfig');
 const { getMajorScope, studentWhere, assertStudentInScope } = require('../utils/majorScope');
 const { resolveMajorNameTh } = require('../utils/majorName');
 
@@ -751,7 +752,9 @@ exports.completeSupervision = async (req, res) => {
         res.json({ ok: true, message: "บันทึกผลนิเทศเสร็จสิ้นสำเร็จ" });
 
         // โหมดส่งอัตโนมัติ: นิเทศเสร็จ → ส่งลิงก์แบบประเมินให้อาจารย์ผู้นิเทศทันที (ถ้ายังไม่เคยส่ง)
-        getEvalConfig()
+        // ค่าของหลักสูตรนักศึกษาในนัดนี้ (แต่ละหลักสูตรตั้งส่งอัตโนมัติ/ลิงก์ต่างกันได้)
+        studentMajor(supervision.studentId)
+          .then(m => getEvalConfig(undefined, m))
           .then(cfg => (cfg.autoSend && cfg.evalLink && !supervision.evalSentAt ? sendEvalForAppointments([parsedId]) : null))
           .catch(console.error);
 

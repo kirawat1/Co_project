@@ -1,5 +1,6 @@
 // controllers/docController.js
 const { RULES_INCLUDE, withRules, appliesTo } = require('../utils/docRequirementScope');
+const { readEffective, callerMajor } = require('../utils/majorConfig');
 const prisma = require('../config/prismaClient');
 const { buildAddressData } = require('../utils/addressFormat');
 const fs = require('fs');
@@ -10,19 +11,18 @@ const { normalizeExtraSupervisors, syncT002SupervisorsToMentors } = require('../
 // ------------------------------------------------------------------
 // ✅ 1. Helper Function: เช็คว่าระบบเปิดรับเอกสารหรือไม่ (แก้ให้เช็คแยก T000, T002, T003)
 // ------------------------------------------------------------------
-const checkSystemOpen = async (docType) => {
+// major = หลักสูตรของนักศึกษา → ช่วงรับเอกสารของหลักสูตรนั้น (ค่ากลาง + ค่าเฉพาะหลักสูตร)
+const checkSystemOpen = async (docType, major = null) => {
   try {
     let configKey = "T000_CONFIG"; 
     if (docType === 'T002_FORM') configKey = "T002_CONFIG";
     else if (docType === 'T003_FORM') configKey = "T003_CONFIG";
 
-    const config = await prisma.systemConfig.findUnique({
-      where: { key: configKey }
-    });
+    const config = await readEffective(configKey, major);
     
     if (!config) return true; // ถ้าไม่มี Config ถือว่าเปิด
 
-    const { startDate, endDate, isOpen } = JSON.parse(config.value);
+    const { startDate, endDate, isOpen } = config;
 
     if (!isOpen) {
         console.warn(`❌ [Upload Blocked]: ${configKey} is set to isOpen = false`);
@@ -176,7 +176,7 @@ exports.uploadDocument = async (req, res) => {
     }
 
     // เช็คระบบเปิดรับ (ยกเว้นใบตอบรับ ให้ส่งได้ตลอด)
-    const isOpen = await checkSystemOpen(docType);
+    const isOpen = await checkSystemOpen(docType, await callerMajor(req));
     if (docType !== 'CP-ACCEPTANCE' && !isOpen) {
         if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
         
@@ -208,11 +208,11 @@ exports.uploadDocument = async (req, res) => {
                 let configKey = "T000_CONFIG";
                 if (dbType === 'T002_FORM') configKey = "T002_CONFIG";
                 else if (dbType === 'T003_FORM') configKey = "T003_CONFIG";
-                const config = await tx.systemConfig.findUnique({ where: { key: configKey } });
+                const config = await readEffective(configKey, student.major, tx);
                 let txIsOpen = !config;
                 if (config) {
                     try {
-                        const { startDate, endDate, isOpen } = JSON.parse(config.value);
+                        const { startDate, endDate, isOpen } = config;
                         if (isOpen) {
                             const now = new Date();
                             const withinStart = !startDate || startDate.trim() === '' || new Date(startDate) <= now;

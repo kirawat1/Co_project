@@ -38,14 +38,10 @@ exports.checkSystemOpen = async () => {
 
 exports.getEvaluationConfig = async (req, res) => {
     try {
-        // ค้นหาข้อมูลที่มี key ว่า EVALUATION_FORMS
-        const configRecord = await prisma.systemConfig.findUnique({
-            where: { key: 'EVALUATION_FORMS' }
-        });
-
-        // ถ้ามีข้อมูล ให้แปลงจาก String กลับเป็น JSON Object
-        if (configRecord && configRecord.value) {
-            return res.json({ ok: true, config: JSON.parse(configRecord.value) });
+        // นักศึกษาได้ค่าของหลักสูตรตัวเอง · บทบาทอื่นได้ค่ากลาง
+        const config = await readEffective('EVALUATION_FORMS', await callerMajor(req));
+        if (config) {
+            return res.json({ ok: true, config });
         } else {
             // ถ้ายังไม่มีข้อมูลในระบบเลย ส่ง null กลับไป (เดี๋ยว Frontend จะใช้ค่า Default เอง)
             return res.json({ ok: true, config: null });
@@ -102,12 +98,10 @@ exports.updateEvaluationConfig = async (req, res) => {
 // ==========================================
 exports.getT007Config = async (req, res) => {
     try {
-        const configRecord = await prisma.systemConfig.findUnique({
-            where: { key: 'CONFIG_T007' }
-        });
+        const config = await readEffective('CONFIG_T007', await callerMajor(req));
 
-        if (configRecord && configRecord.value) {
-            return res.json({ ok: true, config: JSON.parse(configRecord.value) });
+        if (config) {
+            return res.json({ ok: true, config });
         } else {
             return res.json({ ok: true, config: null });
         }
@@ -181,12 +175,10 @@ exports.updateSupervisionEvalConfig = async (req, res) => {
 // ==========================================
 exports.getT008Config = async (req, res) => {
     try {
-        const configRecord = await prisma.systemConfig.findUnique({
-            where: { key: 'CONFIG_T008' }
-        });
+        const config = await readEffective('CONFIG_T008', await callerMajor(req));
 
-        if (configRecord && configRecord.value) {
-            return res.json({ ok: true, config: JSON.parse(configRecord.value) });
+        if (config) {
+            return res.json({ ok: true, config });
         } else {
             return res.json({ ok: true, config: null });
         }
@@ -248,10 +240,8 @@ exports.updateT008Config = async (req, res) => {
 // ==========================================
 exports.getT002Config = async (req, res) => {
     try {
-        const config = await prisma.systemConfig.findUnique({
-            where: { key: "T002_CONFIG" }
-        });
-        const data = config ? JSON.parse(config.value) : { startDate: null, endDate: null, isOpen: false };
+        const config = await readEffective("T002_CONFIG", await callerMajor(req));
+        const data = config || { startDate: null, endDate: null, isOpen: false };
         res.json(data);
     } catch (err) {
         res.status(500).json({ message: "Error fetching T002 config" });
@@ -279,10 +269,8 @@ exports.saveT002Config = async (req, res) => {
 // ==========================================
 exports.getT003Config = async (req, res) => {
     try {
-        const config = await prisma.systemConfig.findUnique({
-            where: { key: "T003_CONFIG" }
-        });
-        const data = config ? JSON.parse(config.value) : { startDate: null, endDate: null, isOpen: false };
+        const config = await readEffective("T003_CONFIG", await callerMajor(req));
+        const data = config || { startDate: null, endDate: null, isOpen: false };
         res.json(data);
     } catch (err) {
         res.status(500).json({ message: "Error fetching T003 config" });
@@ -312,7 +300,7 @@ const { APPLY_CONFIG_KEY, readApplyConfig, evaluateApplyWindow, bangkokBound, ap
 
 exports.getApplyConfig = async (req, res) => {
     try {
-        const config = await readApplyConfig();
+        const config = await readApplyConfig(undefined, await callerMajor(req));
         const data = config || { startDate: null, endDate: null, isOpen: false };
         // สถานะ ณ ตอนนี้ (ตัดสินที่ server เวลาไทย) — หน้าเว็บใช้แสดงผลให้ตรงกับที่ server บังคับจริง
         const state = evaluateApplyWindow(config);
@@ -354,12 +342,8 @@ exports.saveApplyConfig = async (req, res) => {
 // ==========================================
 // Gateway Settings — ข้อความและลิงก์ใน S_Gateway
 // ==========================================
-const GATEWAY_DEFAULTS = {
-    gradeSheetDescription: 'กรุณา Make a Copy แบบฟอร์มด้านล่าง แล้วแนบภาพหน้าจอ (Screenshot) หน้าตรวจสอบการสำเร็จการศึกษาจากระบบ REG ลงในแบบฟอร์มนี้ด้วย จากนั้นกรอกข้อมูลให้ครบ แล้วนำลิงก์ที่แชร์มาใส่ในช่องด้านล่าง',
-    gradeSheetUrl: 'https://docs.google.com/spreadsheets/d/1HGWTsoScRc3XU0abUn6J9TgyFksAoi1V/copy',
-    gradeSheetLinkText: '📋 Make a Copy แบบฟอร์ม',
-    uploadDescription: 'เช่น ใบคำร้อง, ทรานสคริปต์, หนังสือรับรอง ฯลฯ (รองรับ PDF, รูปภาพ)'
-};
+// ค่าเริ่มต้นฟอร์มคำร้อง — อยู่ใน utils/majorConfig.js (หน้าตั้งค่าแยกหลักสูตรใช้ร่วม)
+const { GATEWAY_DEFAULTS, readEffective, callerMajor } = require('../utils/majorConfig');
 
 const ALLOWED_URL_PROTOCOLS = ['https:', 'http:'];
 function safeUrl(raw) {
@@ -372,15 +356,8 @@ function safeUrl(raw) {
 
 exports.getGatewaySettings = async (req, res) => {
     try {
-        const config = await prisma.systemConfig.findUnique({ where: { key: 'GATEWAY_SETTINGS' } });
-        let parsed = {};
-        if (config) {
-            try {
-                const p = JSON.parse(config.value);
-                if (p && typeof p === 'object' && !Array.isArray(p)) parsed = p;
-            } catch { /* corrupted value — fall back to defaults */ }
-        }
-        const data = { ...GATEWAY_DEFAULTS, ...parsed };
+        // ค่าเริ่มต้น + ค่ากลาง + ค่าเฉพาะหลักสูตรของนักศึกษา (ค่าที่เสียอ่านไม่ได้ → ใช้ค่าเริ่มต้น)
+        const data = { ...GATEWAY_DEFAULTS, ...((await readEffective('GATEWAY_SETTINGS', await callerMajor(req))) || {}) };
         res.json({ ok: true, data });
     } catch (err) {
         console.error('Error getting gateway settings:', err);
