@@ -71,8 +71,8 @@ exports.downloadLetters = async (req, res) => {
     for (const s of students) {
       const fp = spec.file(s);
       const who = `${s.studentId} ${[s.firstName, s.lastName].filter(Boolean).join(' ')}`.trim();
-      // กันหลุดออกนอกโฟลเดอร์ uploads (ชื่อไฟล์ใน DB มาจากระบบเอง แต่ตรวจไว้ก่อน)
-      if (!fp || !path.resolve(fp).startsWith(UPLOADS) || !fs.existsSync(fp)) { missing.push(who); continue; }
+      // กันหลุดออกนอกโฟลเดอร์ uploads (ชื่อไฟล์ใน DB มาจากระบบเอง แต่ตรวจไว้ก่อน) — ต่อ path.sep กันโฟลเดอร์ข้างๆ ชื่อขึ้นต้นเหมือนกัน เช่น uploads-old/
+      if (!fp || !path.resolve(fp).startsWith(UPLOADS + path.sep) || !fs.existsSync(fp)) { missing.push(who); continue; }
       const name = uniqueName(`${safeName(`${s.studentId}_${s.firstName || ''}_${s.lastName || ''}`)}_${spec.label}${path.extname(fp) || '.pdf'}`, used);
       entries.push({ fp, name });
     }

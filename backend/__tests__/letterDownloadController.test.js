@@ -69,6 +69,14 @@ test('ชื่อไฟล์ใน DB พาออกนอก uploads → ไ
   expect(res.status).toHaveBeenCalledWith(404);
 });
 
+test('โฟลเดอร์ข้างๆ ที่ชื่อขึ้นต้นด้วย uploads (uploads-old) → ไม่ใส่ใน zip', async () => {
+  prisma.student.findMany.mockResolvedValue([stu('1', { coop: { reqLetterUrl: '../uploads-old/x.pdf' } })]);
+  const res = makeRes();
+  await downloadLetters(req({ type: 'REQ' }), res);
+  expect(mockZip.file).not.toHaveBeenCalled();
+  expect(res.status).toHaveBeenCalledWith(404);
+});
+
 test('อาจารย์ประจำวิชา CS → กรองเฉพาะนักศึกษา CS', async () => {
   prisma.student.findMany.mockResolvedValue([]);
   await downloadLetters(req({ type: 'PLACE' }, { id: 2, role: 'teacher' }), makeRes());
