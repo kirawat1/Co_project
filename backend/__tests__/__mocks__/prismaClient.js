@@ -179,6 +179,11 @@ const prismaMock = {
     upsert: jest.fn(),
     update: jest.fn(),
   },
+  documentRequirementMajor: {
+    upsert: jest.fn(),
+    deleteMany: jest.fn(),
+    createMany: jest.fn(),
+  },
   documentRequirement: {
     findMany: jest.fn(),
     findUnique: jest.fn(),
