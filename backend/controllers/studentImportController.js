@@ -3,6 +3,7 @@ const prisma = require('../config/prismaClient');
 const { defaultStudentPassword, hashDefaultStudentPassword } = require('../utils/studentPassword');
 const { encryptPassword } = require('../utils/passwordVault');
 const { normalizeEmail } = require('../utils/userEmail');
+const { getMajorScope } = require('../utils/majorScope');
 
 const ROLE_TH = { teacher: 'อาจารย์', staff: 'เจ้าหน้าที่', student: 'นักศึกษา' };
 
@@ -99,6 +100,41 @@ function normalizeRow(row, isKkuFormat) {
   };
 }
 
+// หลักสูตรในไฟล์ (รหัส หรือชื่อไทย) → รหัสที่มีในระบบ
+async function loadMajorLookup(rows) {
+  const names = [...new Set(rows.map((r) => r.major).filter(Boolean))];
+  const map = new Map();
+  if (names.length) {
+    const found = await prisma.coopCriteria.findMany({
+      where: { OR: [{ major: { in: names } }, { nameTh: { in: names } }] },
+      select: { major: true, nameTh: true },
+    });
+    for (const c of found) { map.set(c.major, c.major); if (c.nameTh) map.set(c.nameTh, c.major); }
+  }
+  return { names, map };
+}
+
+/**
+ * อาจารย์ประจำวิชานำเข้าได้เฉพาะหลักสูตรที่ดูแล (เจ้าหน้าที่ไม่ผ่านฟังก์ชันนี้)
+ *   หลักสูตรในไฟล์ไม่มีในระบบ → ข้าม (สร้างหลักสูตรใหม่ = เจ้าหน้าที่)
+ *   ไฟล์ไม่ระบุหลักสูตร → ใช้หลักสูตรที่ดูแล ถ้าดูแลหลักสูตรเดียว
+ *   นักศึกษาที่มีอยู่แล้วแต่อยู่นอกหลักสูตรที่ดูแล (รวมยังไม่ระบุหลักสูตร) → ข้าม
+ * @returns {{ major?: string, error?: string }}
+ */
+function coopTeacherRowMajor(scope, rawMajor, map, existingStudent) {
+  let major = rawMajor ? map.get(rawMajor) : null;
+  if (rawMajor && !major) return { error: `ไม่พบหลักสูตร "${rawMajor}" ในระบบ — ให้เจ้าหน้าที่เพิ่มหลักสูตรก่อน` };
+  if (!major) {
+    if (scope.majors.length !== 1) return { error: 'ไฟล์ไม่ได้ระบุหลักสูตร (คุณดูแลหลายหลักสูตร)' };
+    major = scope.majors[0];
+  }
+  if (!scope.majors.includes(major)) return { error: `หลักสูตร ${major} ไม่อยู่ในหลักสูตรที่คุณดูแล` };
+  if (existingStudent && !scope.majors.includes(existingStudent.major)) {
+    return { error: `รหัสนี้เป็นนักศึกษา${existingStudent.major ? `หลักสูตร ${existingStudent.major}` : 'ที่ยังไม่ระบุหลักสูตร'} — ติดต่อเจ้าหน้าที่` };
+  }
+  return { major };
+}
+
 exports.previewStudents = async (req, res) => {
   try {
     if (!req.file) {
@@ -125,8 +161,10 @@ exports.previewStudents = async (req, res) => {
     const allStudentIds = [...new Set(normalizedRows.map(r => r.studentId).filter(Boolean))];
     const [prefetchedUsers, prefetchedStudents] = await Promise.all([
       prisma.user.findMany({ where: { email: { in: allEmails } } }),
-      prisma.student.findMany({ where: { studentId: { in: allStudentIds } }, select: { studentId: true, deletedAt: true } }),
+      prisma.student.findMany({ where: { studentId: { in: allStudentIds } }, select: { studentId: true, deletedAt: true, major: true } }),
     ]);
+    const scope = await getMajorScope(req, { ignoreFilter: true });
+    const { map: majorMap } = await loadMajorLookup(normalizedRows);
     const userByEmail        = new Map(prefetchedUsers.map(u => [normalizeEmail(u.email), u]));
     const studentByStudentId = new Map(prefetchedStudents.map(s => [s.studentId, s]));
 
@@ -169,6 +207,17 @@ exports.previewStudents = async (req, res) => {
         return { rowNum, studentId, name, email, major: norm.major, studyProgram, advisorName, action: 'skip', advisorStatus: 'empty', error: `รหัส ${studentId} อยู่ในถังขยะ — กรุณากู้คืนก่อน` };
       }
 
+      // อาจารย์ประจำวิชา: เฉพาะหลักสูตรที่ดูแล · เจ้าหน้าที่: หลักสูตรที่ไม่มีในระบบจะถูกสร้างใหม่ตอนนำเข้า
+      let major = norm.major;
+      if (!scope.all) {
+        const r = coopTeacherRowMajor(scope, norm.major, majorMap, existingStudent);
+        if (r.error) {
+          willSkip++;
+          return { rowNum, studentId, name, email, major: norm.major, studyProgram, advisorName, action: 'skip', advisorStatus: 'empty', error: r.error };
+        }
+        major = r.major;
+      }
+
       const action = userByEmail.has(normalizeEmail(email)) ? 'update' : 'create';
       if (action === 'create') willCreate++; else willUpdate++;
 
@@ -180,7 +229,7 @@ exports.previewStudents = async (req, res) => {
         else                            { advisorStatus = 'notFound'; advisorWarnings++; }
       }
 
-      return { rowNum, studentId, name, email, major: norm.major, studyProgram, advisorName, action, advisorStatus };
+      return { rowNum, studentId, name, email, major, studyProgram, advisorName, action, advisorStatus };
     });
 
     res.json({
@@ -230,7 +279,7 @@ exports.importStudents = async (req, res) => {
     const [prefetchedUsers, prefetchedByUsername, prefetchedStudents] = await Promise.all([
       prisma.user.findMany({ where: { email: { in: allEmails } }, include: { student: { select: { studentId: true } } } }),
       prisma.user.findMany({ where: { username: { in: allEmails } } }),
-      prisma.student.findMany({ where: { studentId: { in: allStudentIds } }, select: { studentId: true, deletedAt: true, userId: true, user: { select: { email: true } } } }),
+      prisma.student.findMany({ where: { studentId: { in: allStudentIds } }, select: { studentId: true, deletedAt: true, major: true, userId: true, user: { select: { email: true } } } }),
     ]);
     const userByEmail        = new Map(prefetchedUsers.map(u => [normalizeEmail(u.email), u]));
     const userByUsername     = new Map(prefetchedByUsername.map(u => [normalizeEmail(u.username), u]));
@@ -263,21 +312,11 @@ exports.importStudents = async (req, res) => {
     }
 
     // Resolve Thai major names → codes via CoopCriteria.nameTh lookup
-    const uniqueThaiMajors = [...new Set(normalizedRows.map(r => r.major).filter(Boolean))];
+    // หลักสูตรที่ไม่มีในระบบ: เจ้าหน้าที่ = สร้างใหม่ให้ · อาจารย์ประจำวิชา = ข้ามแถวนั้น (ดู coopTeacherRowMajor)
+    const scope = await getMajorScope(req, { ignoreFilter: true });
+    const { names: uniqueThaiMajors, map: nameThToCode } = await loadMajorLookup(normalizedRows);
     let autoCreatedMajors = 0;
-    // nameThToCode: thaiName → major code (for lookup during student upsert)
-    const nameThToCode = new Map();
-    if (uniqueThaiMajors.length > 0) {
-      const existing = await prisma.coopCriteria.findMany({
-        where: { OR: [{ major: { in: uniqueThaiMajors } }, { nameTh: { in: uniqueThaiMajors } }] },
-        select: { major: true, nameTh: true },
-      });
-      for (const c of existing) {
-        // map code → code (identity, for rows where major already is a code)
-        nameThToCode.set(c.major, c.major);
-        // map Thai name → code
-        if (c.nameTh) nameThToCode.set(c.nameTh, c.major);
-      }
+    if (scope.all && uniqueThaiMajors.length > 0) {
       const toCreate = uniqueThaiMajors.filter(m => !nameThToCode.has(m));
       if (toCreate.length > 0) {
         await prisma.coopCriteria.createMany({
@@ -307,6 +346,13 @@ exports.importStudents = async (req, res) => {
         const existingStudentRow = studentByStudentId.get(studentId);
         const usernameOwner = userByUsername.get(email);
         let user = existingUser || null;
+        // อาจารย์ประจำวิชา: ตรวจหลักสูตรก่อนอย่างอื่น (แถวนอกหลักสูตรข้ามทั้งแถว ไม่มีคำเตือนอื่นปน)
+        let coopRowMajor = null;
+        if (!scope.all) {
+          const r = coopTeacherRowMajor(scope, norm.major, nameThToCode, existingStudentRow);
+          if (r.error) throw new Error(r.error);
+          coopRowMajor = r.major;
+        }
         if (existingUser) {
           if (existingUser.role && existingUser.role !== 'student') {
             throw new Error(`อีเมล '${email}' เป็นบัญชี${ROLE_TH[existingUser.role] || existingUser.role}อยู่แล้ว`);
@@ -360,7 +406,7 @@ exports.importStudents = async (req, res) => {
                 year, phone, major, studyProgram, advisorName } = norm;
 
         // Resolve Thai major name → code (e.g. "วิทยาการคอมพิวเตอร์" → "cs")
-        const resolvedMajor = major ? (nameThToCode.get(major) ?? major) : null;
+        const resolvedMajor = coopRowMajor ?? (major ? (nameThToCode.get(major) ?? major) : null);
 
         // รหัสผ่านเริ่มต้น (รหัสนักศึกษา) ให้บัญชีใหม่ และบัญชีเดิมที่ยังไม่มีรหัสผ่าน
         // บัญชีที่มีรหัสผ่านแล้ว (นักศึกษาเปลี่ยนเอง) นำเข้าซ้ำจะไม่ทับ — hash นอก transaction
@@ -407,7 +453,7 @@ exports.importStudents = async (req, res) => {
           const createdUser = { ...user, email, username: email, role: 'student', student: { studentId } };
           userByEmail.set(email, createdUser);
           userByUsername.set(email, createdUser);
-          studentByStudentId.set(studentId, { studentId, deletedAt: null, userId: user.id, user: { email } });
+          studentByStudentId.set(studentId, { studentId, deletedAt: null, major: resolvedMajor, userId: user.id, user: { email } });
           created++;
           thisRowCountedAs = 'created';
         } else {

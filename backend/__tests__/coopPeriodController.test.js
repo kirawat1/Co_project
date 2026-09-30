@@ -22,7 +22,6 @@ const row = (periodId, major, over = {}) => ({
 });
 const period = (id, majors, over = {}) => ({
   id, academicYear: '2569', semester: id, startDate: new Date('2026-01-01'), endDate: FUTURE,
-  legacyIsActive: false, legacySupervisionStartDate: null, legacySupervisionEndDate: null, legacyIsSupervisionOpen: false,
   majors, ...over,
 });
 const lastJson = (res) => res.json.mock.calls[res.json.mock.calls.length - 1][0];
@@ -35,14 +34,13 @@ beforeEach(() => {
 });
 
 describe('getPeriods', () => {
-  test('เจ้าหน้าที่ — ค่าระดับบนรวมทุกหลักสูตร (เปิดถ้ามีหลักสูตรใดเปิด) + แถวของทุกหลักสูตร · ไม่ส่งคอลัมน์ legacy', async () => {
+  test('เจ้าหน้าที่ — ค่าระดับบนรวมทุกหลักสูตร (เปิดถ้ามีหลักสูตรใดเปิด) + แถวของทุกหลักสูตร', async () => {
     prisma.coopPeriod.findMany.mockResolvedValue([period(1, [row(1, 'AI'), row(1, 'CS', { isActive: true })])]);
     const res = makeRes();
     await getPeriods(req(STAFF), res);
     const [p] = lastJson(res).periods;
     expect(p.isActive).toBe(true);
     expect(p.majors.map((r) => r.major)).toEqual(['AI', 'CS']);
-    expect(p).not.toHaveProperty('legacyIsActive');
   });
 
   test('อาจารย์ประจำวิชา CS — ค่าระดับบน = ของ CS · หลักสูตรที่ยังไม่ตั้งรอบนี้ = ปิด (configured=false)', async () => {

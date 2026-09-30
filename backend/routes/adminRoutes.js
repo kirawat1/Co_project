@@ -83,7 +83,7 @@ router.delete('/criteria/:id', verifyToken, verifyRole(...STAFF_ONLY), criteriaC
 router.post(
   '/students/import-preview',
   verifyToken,
-  verifyRole(...STAFF_ONLY),
+  verifyCoopTeacherOrStaff, // อาจารย์ประจำวิชา = เฉพาะหลักสูตรที่ดูแล (ตรวจรายแถวใน controller)
   multerMemory.single('file'),
   studentImportController.previewStudents
 );
@@ -92,7 +92,7 @@ router.post(
 router.post(
   '/students/import-excel',
   verifyToken,
-  verifyRole(...STAFF_ONLY),
+  verifyCoopTeacherOrStaff, // อาจารย์ประจำวิชา = เฉพาะหลักสูตรที่ดูแล (ตรวจรายแถวใน controller)
   multerMemory.single('file'),
   studentImportController.importStudents
 );
