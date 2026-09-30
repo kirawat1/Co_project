@@ -8,6 +8,7 @@ const { resolveSlotEnd, assertNoTeacherClash, findTeacherClash, dateKey, timeKey
 const { SUPERVISION_SCHEDULE_SELECT, SUPERVISION_EXPORT_SELECT, toScheduleRow, sortSchedule, buildSupervisionScheduleWorkbook } = require('../utils/supervisionExport');
 const { exportBaseUrl } = require('../utils/studentExport');
 const { getEvalConfig, sendEvalForAppointments } = require('../utils/supervisionEval');
+const { getMajorScope, studentWhere, assertStudentInScope } = require('../utils/majorScope');
 const { resolveMajorNameTh } = require('../utils/majorName');
 
 const CLEARED_LETTER_PENDING = { letterPendingAt: null, letterDraftNumber: null, letterDraftDate: null };
@@ -82,11 +83,12 @@ exports.saveSupervisionPeriod = async (req, res) => {
 // ==========================================
 // 👩‍💼 [ADMIN] จัดการรายการนิเทศและอัปโหลดหนังสือ
 // ==========================================
-exports.getAllSupervisions = async (_req, res) => {
+exports.getAllSupervisions = async (req, res) => {
     try {
+        const scope = await getMajorScope(req);
         const [supervisions, criteria] = await Promise.all([
             prisma.supervisionAppointment.findMany({
-                where: { student: { deletedAt: null } },
+                where: { student: { deletedAt: null, ...studentWhere(scope) } },
                 include: {
                     student: {
                         include: { coop: { include: { company: true, contacts: { orderBy: { createdAt: 'asc' } } } } }
@@ -432,6 +434,7 @@ exports.assignCoTeachers = async (req, res) => {
         if (!appt) {
             return res.status(404).json({ ok: false, message: 'ไม่พบข้อมูลการนัดหมาย' });
         }
+        await assertStudentInScope(req, appt.studentId);
 
         const coIds = ids.filter(n => n !== appt.teacherId); // อาจารย์หลักไม่นับเป็นอาจารย์ร่วม
         const teachers = await prisma.teacher.findMany({
@@ -471,6 +474,7 @@ exports.assignCoTeachers = async (req, res) => {
 
         res.json({ ok: true, message: "อัปเดตอาจารย์นิเทศร่วมสำเร็จ" });
     } catch (error) {
+        if (error.is403) return res.status(403).json({ ok: false, message: error.message });
         if (error.code === 'P2025') return res.status(404).json({ ok: false, message: 'ไม่พบข้อมูลการนัดหมาย' });
         console.error("Assign Co-Teachers Error:", error);
         res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดในการบันทึกข้อมูล" });
@@ -797,6 +801,7 @@ exports.updateConfirmedDate = async (req, res) => {
                 where: { id: parsedId },
                 include: { coTeachers: { select: { teacherId: true } } },
             });
+            if (fresh) await assertStudentInScope(req, fresh.studentId, tx);
             if (!fresh) {
                 throw Object.assign(new Error('ไม่พบข้อมูลการนัดหมาย'), { is404: true });
             }
@@ -854,6 +859,7 @@ exports.updateConfirmedDate = async (req, res) => {
           })
           .catch(console.error);
     } catch (err) {
+        if (err.is403) return res.status(403).json({ ok: false, message: err.message });
         if (err.is404) return res.status(404).json({ ok: false, message: err.message });
         if (err.is400) return res.status(400).json({ ok: false, message: err.message });
         if (err.is409) return res.status(409).json({ ok: false, message: err.message });
@@ -1094,6 +1100,7 @@ exports.exportSupervisionSchedule = async (req, res) => {
                 status: { in: ['DATE_CONFIRMED', 'LETTER_UPLOADED', 'COMPLETED'] },
                 student: {
                     deletedAt: null,
+                    ...studentWhere(await getMajorScope(req)),
                     ...(coopPeriodId ? { coop: { coopPeriodId } } : {}),
                 },
             },

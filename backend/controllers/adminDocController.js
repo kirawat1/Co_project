@@ -3,6 +3,7 @@ const { createNotifications } = require('../utils/notificationHelper');
 const { removeUnreferencedUploads } = require('../utils/uploadCleanup');
 const { normalizeDocNumber, isPlaceholderDocNo, parseDateOr400 } = require('../utils/docNumber');
 const { resolveMajorNameTh } = require('../utils/majorName');
+const { getMajorScope, studentWhere, visibleStudentWhere, inScope, assertStudentInScope } = require('../utils/majorScope');
 const { setAuditDetail, reviewActionText, letterPendingActionText } = require('../utils/auditActions');
 const path = require('path');
 const fs = require('fs');
@@ -97,6 +98,7 @@ exports.saveT000Config = async (req, res) => {
 // 3. ดึงรายชื่อนักศึกษา (T000 + เอกสารอื่นๆ)
 exports.getStudentsForT000 = async (req, res) => {
   try {
+    const scope = await getMajorScope(req);
     const students = await prisma.student.findMany({
       where: {
         AND: [
@@ -105,6 +107,7 @@ exports.getStudentsForT000 = async (req, res) => {
               { documents: { some: { type: 'T000_SIGNED' } } }
           ] },
           { deletedAt: null },
+          studentWhere(scope),
         ],
       },
       include: {
@@ -167,6 +170,10 @@ exports.updateDocStatus = async (req, res) => {
       return res.status(400).json({ ok: false, message: 'id ไม่ถูกต้อง' });
     }
 
+    const doc = await prisma.document.findUnique({ where: { id: parsedId }, select: { studentId: true } });
+    if (!doc) return res.status(404).json({ ok: false, message: 'ไม่พบเอกสาร' });
+    await assertStudentInScope(req, doc.studentId);
+
     await prisma.document.update({
       where: { id: parsedId },
       data: { status: status }
@@ -174,6 +181,7 @@ exports.updateDocStatus = async (req, res) => {
 
     res.json({ ok: true, message: "Updated document status" });
   } catch (err) {
+    if (err.is403) return res.status(403).json({ ok: false, message: err.message });
     if (err.code === 'P2025') return res.status(404).json({ ok: false, message: 'ไม่พบเอกสาร' });
     console.error(err);
     res.status(500).json({ ok: false, message: "Error updating document" });
@@ -680,10 +688,11 @@ exports.approveAllDocs = async (req, res) => {
 
 exports.getCoopApplications = async (req, res) => {
   try {
+    const scope = await getMajorScope(req);
     const applications = await prisma.studentCoop.findMany({
       where: {
         status: { notIn: ["NOT_SUBMITTED"] },
-        student: { deletedAt: null },
+        student: { deletedAt: null, ...studentWhere(scope) },
       },
       include: {
         student: {
@@ -729,19 +738,19 @@ exports.updateCoopApplicationStatus = async (req, res) => {
     await prisma.$transaction(async (tx) => {
       const record = await tx.studentCoop.findUnique({
         where: { id: parsedId },
-        select: { status: true, student: { select: { deletedAt: true, id: true, coopAdvisorId: true } } }
+        select: { status: true, student: { select: { deletedAt: true, id: true, coopAdvisorId: true, major: true } } }
       });
       if (!record || record.student.deletedAt) {
         throw Object.assign(new Error('ไม่พบข้อมูลคำร้อง'), { is404: true });
       }
 
-      // Teacher callers must be an advisor of this student
-      // สิทธิ์ตรวจสอบ/อนุมัติผูกกับอาจารย์ที่ปรึกษาโครงงานสหกิจ (coopAdvisorId, นักศึกษาเลือกเอง) เท่านั้น
+      // อาจารย์: ต้องเป็นอาจารย์ที่ปรึกษาโครงงานสหกิจ (coopAdvisorId, นักศึกษาเลือกเอง) หรืออาจารย์ประจำวิชาของหลักสูตรนักศึกษา
       // ที่ปรึกษาทั่วไป (generalAdvisorId มาจากทะเบียน มข./Excel) เป็นแค่ข้อมูลอ้างอิง ไม่มีสิทธิ์ในระบบสหกิจ
       if (req.user.role === 'teacher') {
         const teacher = await tx.teacher.findUnique({ where: { userId: req.user.id }, select: { id: true } });
-        if (!teacher || record.student.coopAdvisorId !== teacher.id) {
-          throw Object.assign(new Error('คุณไม่ใช่อาจารย์ที่ปรึกษาของนักศึกษาคนนี้'), { is403: true });
+        const isAdvisor = !!teacher && record.student.coopAdvisorId === teacher.id;
+        if (!isAdvisor && !inScope(await getMajorScope(req), record.student.major)) {
+          throw Object.assign(new Error('คุณไม่ใช่อาจารย์ที่ปรึกษาหรืออาจารย์ประจำวิชาของนักศึกษาคนนี้'), { is403: true });
         }
       }
 
@@ -811,7 +820,8 @@ exports.getAllStudentsForReview = async (req, res) => {
             : 1000;
         const skip = (page - 1) * limit;
 
-        const conditions = [{ deletedAt: null }];
+        // route นี้เปิดให้อาจารย์ทุกคน (หน้าตรวจ T002/T003) — เดิมไม่กรองเลย อาจารย์ทุกคนได้นักศึกษา+เอกสารของทุกคน
+        const conditions = [{ deletedAt: null }, await visibleStudentWhere(req)];
         if (coopPeriodId) conditions.push({ coop: { coopPeriodId } });
         if (status) conditions.push({ coop: { status } });
         if (search) {

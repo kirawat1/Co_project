@@ -3,6 +3,7 @@ const { createNotifications } = require('../utils/notificationHelper');
 const { buildStudentExportWorkbook, exportBaseUrl, STUDENT_EXPORT_INCLUDE } = require('../utils/studentExport');
 const { changeUserEmail } = require('../utils/userEmail');
 const { parseCoopMajors, setCoopMajors } = require('../utils/coopMajors');
+const { visibleStudentWhere } = require('../utils/majorScope');
 
 // หลักสูตรที่อาจารย์ประจำวิชาดูแล → ส่งให้หน้าเว็บเป็น coopMajors: ['CS', ...]
 const TEACHER_COOP_MAJORS = { coopMajors: { select: { major: true }, orderBy: { major: 'asc' } } };
@@ -407,10 +408,8 @@ exports.getDashboardStats = async (req, res) => {
 
         // ใช้ FK coopAdvisorId แบบเดียวกับ getMyStudents (ที่ปรึกษาทั่วไป generalAdvisorId เป็นแค่ข้อมูลอ้างอิง ไม่มีสิทธิ์ในระบบสหกิจ)
         // เพื่อไม่ให้ตัวเลขในแดชบอร์ดไม่ตรงกับรายชื่อ นศ. ในดูแลจริง
-        // (อาจารย์ผู้ประสานงานสหกิจ isCoopTeacher เห็นทุกคน เหมือน getMyStudents)
-        const advisorFilter = teacher.isCoopTeacher
-            ? { deletedAt: null }
-            : { deletedAt: null, coopAdvisorId: teacher.id };
+        // (อาจารย์ประจำวิชาเห็นนักศึกษาในหลักสูตรที่ดูแลด้วย เหมือน getMyStudents)
+        const advisorFilter = { AND: [{ deletedAt: null }, await visibleStudentWhere(req)] };
 
         // 1. นับนักศึกษาทั้งหมดในดูแล
         let myStudentsCount = 0;
@@ -479,9 +478,7 @@ exports.getLatestRequests = async (req, res) => {
         const yearStr = year ? String(year) : undefined;
 
         // ที่ปรึกษาทั่วไป (generalAdvisorId) เป็นแค่ข้อมูลอ้างอิง ไม่มีสิทธิ์ในระบบสหกิจ — ใช้ coopAdvisorId เท่านั้น
-        const studentScope = teacher.isCoopTeacher
-            ? { deletedAt: null }
-            : { deletedAt: null, coopAdvisorId: teacher.id };
+        const studentScope = { AND: [{ deletedAt: null }, await visibleStudentWhere(req)] };
 
         // ดึงจากตาราง StudentCoop ตรงๆ จะได้ไม่ติด Error เรื่อง Relation
         const studentCoops = await prisma.studentCoop.findMany({
@@ -717,7 +714,7 @@ exports.getMyStudents = async (req, res) => {
   try {
     const teacher = await prisma.teacher.findUnique({
       where: { userId: req.userId },
-      select: { id: true, isCoopTeacher: true },
+      select: { id: true },
     });
 
     if (!teacher) {
@@ -744,16 +741,9 @@ exports.getMyStudents = async (req, res) => {
 
     const baseWhere = { AND: baseConditions };
 
-    // อาจารย์ปกติ — เฉพาะ advisees ของตัวเอง (coopAdvisorId, นักศึกษาเลือกเอง)
+    // advisees ของตัวเอง (coopAdvisorId, นักศึกษาเลือกเอง) + นักศึกษาในหลักสูตรที่ดูแล (ถ้าเป็นอาจารย์ประจำวิชา)
     // ที่ปรึกษาทั่วไป (generalAdvisorId มาจากทะเบียน มข./Excel) เป็นแค่ข้อมูลอ้างอิง ไม่มีสิทธิ์ในระบบสหกิจ
-    const where = teacher.isCoopTeacher
-      ? baseWhere
-      : {
-          AND: [
-            baseWhere,
-            { coopAdvisorId: teacher.id },
-          ],
-        };
+    const where = { AND: [baseWhere, await visibleStudentWhere(req)] };
 
     const include = {
       user: { select: { email: true } },
@@ -785,7 +775,7 @@ exports.exportMyStudents = async (req, res) => {
   try {
     const teacher = await prisma.teacher.findUnique({
       where: { userId: req.userId },
-      select: { id: true, isCoopTeacher: true },
+      select: { id: true },
     });
 
     if (!teacher) {
@@ -798,19 +788,10 @@ exports.exportMyStudents = async (req, res) => {
     if (coopPeriodId !== undefined && isNaN(coopPeriodId))
       return res.status(400).json({ ok: false, message: 'coopPeriodId ไม่ถูกต้อง' });
 
-    // ที่ปรึกษาทั่วไป (generalAdvisorId) เป็นแค่ข้อมูลอ้างอิง ไม่มีสิทธิ์ในระบบสหกิจ — export เฉพาะ advisees ของ coopAdvisorId
-    const advisorFilter = { coopAdvisorId: teacher.id };
-    const periodFilter = coopPeriodId ? { coop: { coopPeriodId } } : null;
-    const deletedFilter = { deletedAt: null };
-
-    let where;
-    if (teacher.isCoopTeacher) {
-      where = periodFilter ? { AND: [deletedFilter, periodFilter] } : deletedFilter;
-    } else {
-      where = periodFilter
-        ? { AND: [deletedFilter, periodFilter, advisorFilter] }
-        : { AND: [deletedFilter, advisorFilter] };
-    }
+    // advisees (coopAdvisorId) + นักศึกษาในหลักสูตรที่ดูแล — ที่ปรึกษาทั่วไป (generalAdvisorId) ไม่มีสิทธิ์ในระบบสหกิจ
+    const where = {
+      AND: [{ deletedAt: null }, await visibleStudentWhere(req), ...(coopPeriodId ? [{ coop: { coopPeriodId } }] : [])],
+    };
 
     const [students, criteria, requirements] = await Promise.all([
       prisma.student.findMany({ where, include: STUDENT_EXPORT_INCLUDE, orderBy: { studentId: 'asc' } }),

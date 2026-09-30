@@ -1,6 +1,7 @@
 // แบบประเมินการนิเทศ — รายการนัดที่ส่ง/ยังไม่ส่งลิงก์ (อาจารย์ประจำวิชา/เจ้าหน้าที่) และฝั่งอาจารย์ผู้นิเทศ
 const prisma = require('../config/prismaClient');
 const { getEvalConfig, unlinkedCoTeacherNames, sendEvalForAppointments, SENDABLE_STATUSES } = require('../utils/supervisionEval');
+const { getMajorScope, studentWhere } = require('../utils/majorScope');
 
 const TEACHER_NAME = { select: { prefix: true, firstName: true, lastName: true } };
 const teacherName = (t) => (t ? `${t.prefix || ''}${t.firstName || ''} ${t.lastName || ''}`.trim() : '');
@@ -32,11 +33,12 @@ const toRow = (a) => ({
 });
 
 // GET /api/admin/supervision-eval
-exports.listEvalAppointments = async (_req, res) => {
+exports.listEvalAppointments = async (req, res) => {
   try {
+    const scope = await getMajorScope(req);
     const [appts, config] = await Promise.all([
       prisma.supervisionAppointment.findMany({
-        where: { status: { in: SENDABLE_STATUSES }, student: { deletedAt: null } },
+        where: { status: { in: SENDABLE_STATUSES }, student: { deletedAt: null, ...studentWhere(scope) } },
         select: APPT_SELECT,
         orderBy: { confirmedDate: 'asc' },
       }),
@@ -61,6 +63,12 @@ exports.sendEval = async (req, res) => {
   try {
     const ids = Array.isArray(req.body?.ids) ? req.body.ids.map((n) => parseInt(n, 10)).filter((n) => n > 0) : [];
     if (ids.length === 0) return res.status(400).json({ ok: false, message: 'กรุณาเลือกรายการที่จะส่ง' });
+    // ส่งได้เฉพาะนัดของนักศึกษาในหลักสูตรที่ดูแล
+    const inScopeIds = (await prisma.supervisionAppointment.findMany({
+      where: { id: { in: ids }, student: studentWhere(await getMajorScope(req)) },
+      select: { id: true },
+    })).map((a) => a.id);
+    if (inScopeIds.length !== ids.length) return res.status(403).json({ ok: false, message: 'มีนักศึกษาที่ไม่อยู่ในหลักสูตรที่คุณดูแล' });
     const results = await sendEvalForAppointments(ids);
     res.json({ ok: true, sent: results.length, results });
   } catch (err) {

@@ -26,7 +26,7 @@ app.use('/api/admin', adminRouter);
 app.use((err, _req, res, _next) => res.status(500).json({ ok: false, message: String(err) }));
 
 // หน้าอาจารย์ทั่วไปต้องใช้ (อ่านอย่างเดียว)
-const ANY_TEACHER = ['GET /coop-periods', 'GET /coop-periods/active', 'GET /coop-periods/all', 'GET /majors', 'GET /students'];
+const ANY_TEACHER = ['GET /coop-periods', 'GET /coop-periods/active', 'GET /coop-periods/all', 'GET /majors', 'GET /students', 'GET /my-scope'];
 // อาจารย์ประจำวิชาห้าม — เจ้าหน้าที่เท่านั้น
 const STAFF_ONLY_SENSITIVE = [
   'GET /staff', 'POST /staff', 'PATCH /staff/:id/password', 'DELETE /staff/:id',

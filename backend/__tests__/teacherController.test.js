@@ -376,10 +376,10 @@ describe('exportMyStudents', () => {
   });
 
   test('200 — อาจารย์ปกติ: where filter เฉพาะ advisees ของตัวเอง (coopAdvisorId — ที่ปรึกษาทั่วไปไม่มีสิทธิ์)', async () => {
-    prisma.teacher.findUnique.mockResolvedValue({ id: 7, isCoopTeacher: false });
+    prisma.teacher.findUnique.mockResolvedValue({ id: 7, coopMajors: [] });
     prisma.student.findMany.mockResolvedValue([]);
 
-    const req = { userId: 1, query: {} };
+    const req = { userId: 1, user: { id: 1, role: 'teacher' }, query: {} };
     const res = { setHeader: jest.fn(), send: jest.fn(), status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() };
 
     await exportMyStudents(req, res);
@@ -387,7 +387,7 @@ describe('exportMyStudents', () => {
     const { STUDENT_EXPORT_INCLUDE } = require('../utils/studentExport');
     expect(prisma.student.findMany).toHaveBeenCalledWith(expect.objectContaining({
       where: {
-        AND: [{ deletedAt: null }, { coopAdvisorId: 7 }],
+        AND: [{ deletedAt: null }, { OR: [{ coopAdvisorId: 7 }] }],
       },
       include: STUDENT_EXPORT_INCLUDE,
     }));
@@ -398,17 +398,17 @@ describe('exportMyStudents', () => {
     );
   });
 
-  test('200 — อาจารย์ประจำวิชาสหกิจ (isCoopTeacher): ไม่ filter ตาม advisor', async () => {
-    prisma.teacher.findUnique.mockResolvedValue({ id: 7, isCoopTeacher: true });
+  test('200 — อาจารย์ประจำวิชาสหกิจ: advisees + นักศึกษาในหลักสูตรที่ดูแล (ไม่ใช่ทุกคน)', async () => {
+    prisma.teacher.findUnique.mockResolvedValue({ id: 7, coopMajors: [{ major: 'AI' }] });
     prisma.student.findMany.mockResolvedValue([]);
 
-    const req = { userId: 1, query: {} };
+    const req = { userId: 1, user: { id: 1, role: 'teacher' }, query: {} };
     const res = { setHeader: jest.fn(), send: jest.fn(), status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() };
 
     await exportMyStudents(req, res);
 
     expect(prisma.student.findMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: { deletedAt: null },
+      where: { AND: [{ deletedAt: null }, { OR: [{ coopAdvisorId: 7 }, { major: { in: ['AI'] } }] }] },
     }));
   });
 

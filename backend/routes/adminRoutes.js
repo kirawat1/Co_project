@@ -102,11 +102,25 @@ router.get(
   studentController.exportStudents
 );
 
+// GET /api/admin/my-scope — หลักสูตรที่ผู้ใช้จัดการได้ { all: เจ้าหน้าที่, majors: หลักสูตรที่อาจารย์ประจำวิชาดูแล }
+router.get('/my-scope', verifyToken, verifyRole(...ADMIN_ROLES), async (req, res) => {
+  try {
+    const { getMajorScope } = require('../utils/majorScope');
+    const scope = await getMajorScope(req);
+    res.json({ ok: true, all: scope.all, majors: scope.majors });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาด" });
+  }
+});
+
 // GET /api/admin/students/majors — distinct majors for announcement targeting
 router.get('/students/majors', verifyToken, verifyCoopTeacherOrStaff, async (req, res) => {
   try {
+    const { getMajorScope, studentWhere } = require('../utils/majorScope');
+    // อาจารย์ประจำวิชาประกาศได้เฉพาะหลักสูตรที่ดูแล
     const rows = await prisma.student.findMany({
-      where: { major: { not: null }, deletedAt: null },
+      where: { AND: [{ major: { not: null }, deletedAt: null }, studentWhere(await getMajorScope(req))] },
       select: { major: true },
       distinct: ['major'],
       orderBy: { major: 'asc' },

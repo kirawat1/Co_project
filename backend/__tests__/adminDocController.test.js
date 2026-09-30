@@ -35,13 +35,13 @@ describe('getAllStudentsForReview', () => {
   test('200 — คืนนักศึกษาทั้งหมดเมื่อไม่มี coopPeriodId', async () => {
     prisma.student.findMany.mockResolvedValue(mockStudents);
     prisma.student.count.mockResolvedValue(2);
-    const req = { query: {} };
+    const req = { user: { role: 'staff' }, query: {} };
     const res = makeRes();
 
     await getAllStudentsForReview(req, res);
 
     expect(prisma.student.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { AND: [{ deletedAt: null }] } })
+      expect.objectContaining({ where: { AND: [{ deletedAt: null }, {}] } })
     );
     expect(res.json.mock.calls[0][0].ok).toBe(true);
     expect(res.json.mock.calls[0][0].data).toHaveLength(2);
@@ -51,13 +51,13 @@ describe('getAllStudentsForReview', () => {
   test('200 — กรองตาม coopPeriodId=3', async () => {
     prisma.student.findMany.mockResolvedValue([mockStudents[1]]);
     prisma.student.count.mockResolvedValue(1);
-    const req = { query: { coopPeriodId: '3' } };
+    const req = { user: { role: 'staff' }, query: { coopPeriodId: '3' } };
     const res = makeRes();
 
     await getAllStudentsForReview(req, res);
 
     expect(prisma.student.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { AND: [{ deletedAt: null }, { coop: { coopPeriodId: 3 } }] } })
+      expect.objectContaining({ where: { AND: [{ deletedAt: null }, {}, { coop: { coopPeriodId: 3 } }] } })
     );
     expect(res.json.mock.calls[0][0].data).toHaveLength(1);
   });
@@ -65,14 +65,14 @@ describe('getAllStudentsForReview', () => {
   test('200 — กรองตาม status ที่ใช้ใน dashboard นับจำนวน', async () => {
     prisma.student.findMany.mockResolvedValue([mockStudents[0]]);
     prisma.student.count.mockResolvedValue(7);
-    const req = { query: { status: 'T002_SUBMITTED', limit: '1' } };
+    const req = { user: { role: 'staff' }, query: { status: 'T002_SUBMITTED', limit: '1' } };
     const res = makeRes();
 
     await getAllStudentsForReview(req, res);
 
     expect(prisma.student.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { AND: [{ deletedAt: null }, { coop: { status: 'T002_SUBMITTED' } }] },
+        where: { AND: [{ deletedAt: null }, {}, { coop: { status: 'T002_SUBMITTED' } }] },
         take: 1,
       })
     );
@@ -81,7 +81,7 @@ describe('getAllStudentsForReview', () => {
 
   test('500 — DB error คืน 500', async () => {
     prisma.student.findMany.mockRejectedValue(new Error('DB error'));
-    const req = { query: {} };
+    const req = { user: { role: 'staff' }, query: {} };
     const res = makeRes();
 
     await getAllStudentsForReview(req, res);
@@ -94,7 +94,7 @@ describe('getAllStudentsForReview', () => {
 describe('getCoopApplications', () => {
   test('200 — กรอง student ที่ถูก soft-delete ออก', async () => {
     prisma.studentCoop.findMany.mockResolvedValue([{ id: 1, status: 'QUALIFIED' }]);
-    const req = {};
+    const req = { user: { role: 'staff' } };
     const res = makeRes();
 
     await getCoopApplications(req, res);
