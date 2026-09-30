@@ -1,4 +1,5 @@
 // controllers/docController.js
+const { RULES_INCLUDE, withRules, appliesTo } = require('../utils/docRequirementScope');
 const prisma = require('../config/prismaClient');
 const { buildAddressData } = require('../utils/addressFormat');
 const fs = require('fs');
@@ -164,9 +165,11 @@ exports.uploadDocument = async (req, res) => {
     if (!SPECIAL_DOC_TYPES.has(docType)) {
       const validReq = await prisma.documentRequirement.findFirst({
         where: { docKey: docType, isActive: true },
-        select: { id: true }
+        select: { id: true, ...RULES_INCLUDE }
       });
-      if (!validReq) {
+      // หัวข้อต้องใช้กับหลักสูตรของนักศึกษาคนนี้ (หัวข้อเฉพาะหลักสูตรอื่น / หลักสูตรนี้ปิดหัวข้อกลางไว้ → ไม่รับ)
+      const me = validReq ? await prisma.student.findUnique({ where: { userId: parseInt(req.user.id) }, select: { major: true } }) : null;
+      if (!validReq || !appliesTo(withRules(validReq), me?.major)) {
         if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
         return res.status(400).json({ ok: false, message: "ประเภทเอกสารไม่ถูกต้อง" });
       }

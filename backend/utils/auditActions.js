@@ -120,6 +120,7 @@ const RULES = [
   ['POST', '/api/admin/doc-requirements', 'ตั้งค่าเอกสารที่ต้องส่ง', 'ตั้งค่า', null],
   ['PUT', '/api/admin/doc-requirements/:x', 'ตั้งค่าเอกสารที่ต้องส่ง (แก้ไขรายการ)', 'ตั้งค่า', null],
   ['DELETE', '/api/admin/doc-requirements/:x', 'ตั้งค่าเอกสารที่ต้องส่ง (ลบรายการ)', 'ตั้งค่า', null],
+  ['PUT', '/api/admin/doc-requirements/:x/exclusions', 'ตั้งค่าเอกสารที่ต้องส่ง (เปิด/ปิดรายหลักสูตร)', 'ตั้งค่า', null],
   ['PUT', '/api/admin/criteria/:x', 'ตั้งค่าเกณฑ์สหกิจ (แก้ไข)', 'ตั้งค่า', null],
   ['DELETE', '/api/admin/criteria/:x', 'ตั้งค่าเกณฑ์สหกิจ (ลบ)', 'ตั้งค่า', null],
   ['PATCH', '/api/admin/coop-periods/:x/toggle', 'เปิด/ปิดรอบสหกิจ', 'รอบสหกิจ', ':1'],

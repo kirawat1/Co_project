@@ -159,6 +159,8 @@ router.get('/doc-requirements', verifyToken, verifyCoopTeacherOrStaff, docReqCon
 router.post('/doc-requirements', verifyToken, verifyCoopTeacherOrStaff, docReqController.createRequirement);
 router.put('/doc-requirements/:id', verifyToken, verifyCoopTeacherOrStaff, docReqController.updateRequirement);
 router.delete('/doc-requirements/:id', verifyToken, verifyCoopTeacherOrStaff, docReqController.deleteRequirement);
+// เปิด/ปิดหัวข้อทุกหลักสูตรสำหรับหลักสูตรหนึ่ง (อาจารย์ประจำวิชาทำได้เฉพาะหลักสูตรที่ดูแล)
+router.put('/doc-requirements/:id/exclusions', verifyToken, verifyCoopTeacherOrStaff, docReqController.setExclusion);
 
 // Dean Info
 router.get('/config/dean-info', systemAssetController.getDeanInfo);

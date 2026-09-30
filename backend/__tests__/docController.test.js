@@ -224,6 +224,17 @@ describe('docController', () => {
       expect(prisma.student.findUnique).not.toHaveBeenCalled();
     });
 
+    test('400 — หัวข้อเฉพาะหลักสูตรอื่น / หัวข้อกลางที่หลักสูตรตัวเองปิดไว้ ถูก reject ก่อนบันทึกไฟล์', async () => {
+      prisma.student.findUnique.mockResolvedValue({ major: 'AI' });
+      for (const rules of [[{ major: 'CS', excluded: false }], [{ major: 'AI', excluded: true }]]) {
+        prisma.documentRequirement.findFirst.mockResolvedValueOnce({ id: 1, majorRules: rules });
+        const res = makeRes();
+        await docController.uploadDocument(makeUploadReq('CP-PORTFOLIO'), res);
+        expect(res.status).toHaveBeenCalledWith(400);
+      }
+      expect(prisma.document.create).not.toHaveBeenCalled();
+    });
+
     test('404 — ไม่พบนักศึกษา', async () => {
       prisma.documentRequirement.findFirst.mockResolvedValue({ id: 1 }); // valid docKey
       prisma.systemConfig.findUnique.mockResolvedValue(null); // ระบบเปิด (no config)

@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useMemo, useRef } from "react";
+﻿import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { apiFetch } from "../utils/apiFetch";
 import { fmtDate } from '../utils/dateFormat';
 import StatusBadge from "../components/StatusBadge";
@@ -13,6 +13,7 @@ import { notify, askConfirm } from "../utils/notify";
 import { TABLE_TH, TABLE_TD, TABLE_HEADER_ROW } from "../utils/tableStyles";
 import Modal, { ModalCloseButton } from "./Modal";
 import { useAdminRole } from "./adminRole";
+import { appliesTo } from "../utils/docRequirementScope";
 
 // --- Interfaces ---
 interface StudentDocument {
@@ -81,6 +82,8 @@ interface DocRequirement {
     docKey: string;
     title: string;
     isRequired: boolean;
+    majors?: string[];
+    excludedMajors?: string[];
 }
 
 // 🟢 Types สำหรับการเรียงลำดับ (Sorting)
@@ -182,11 +185,10 @@ export default function A_DocT000() {
     const [sortKey, setSortKey] = useState<SortKey>('submittedAt');
     const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
-    const phase1Docs = useMemo(() => {
-        return reqDocs
-            .filter(r => r.docKey !== 'CP-ACCEPTANCE')
-            .map(r => ({ key: r.docKey, label: r.title, isRequired: r.isRequired }));
-    }, [reqDocs]);
+    // เอกสารรอบแรกของนักศึกษาแต่ละคน — ตามหลักสูตรของคนนั้น (หัวข้อเฉพาะหลักสูตร / หัวข้อกลางที่หลักสูตรปิดไว้)
+    const phase1DocsFor = useCallback((major?: string | null) => reqDocs
+        .filter(r => r.docKey !== 'CP-ACCEPTANCE' && appliesTo(r, major))
+        .map(r => ({ key: r.docKey, label: r.title, isRequired: r.isRequired })), [reqDocs]);
 
     const phase2Docs = useMemo(() => {
         const hasAcceptance = reqDocs.find(r => r.docKey === 'CP-ACCEPTANCE');
@@ -237,7 +239,7 @@ export default function A_DocT000() {
         setCheckPhase(phase);
         setAdminComment(s.teacherComment || "");
 
-        const targetKeys = phase === 1 ? phase1Docs.map(doc => doc.key) : phase2Docs.map(doc => doc.key);
+        const targetKeys = phase === 1 ? phase1DocsFor(s.major).map(doc => doc.key) : phase2Docs.map(doc => doc.key);
         const firstDoc = s.documents?.find(d => targetKeys.some(reqKey => isMatch(d.type || '', reqKey)));
 
         if (firstDoc) handleSelectFile(firstDoc);
@@ -317,7 +319,7 @@ export default function A_DocT000() {
             }
 
             if (checkPhase === 1) {
-                const reqKeys = phase1Docs.filter(d => d.isRequired).map(r => r.key);
+                const reqKeys = phase1DocsFor(selectedStudent.major).filter(d => d.isRequired).map(r => r.key);
                 if (reqKeys.length > 0) {
                     const isAllPassed = reqKeys.every(key => {
                         const found = updatedDocs.find(d => isMatch(d.type || '', key));
@@ -515,7 +517,7 @@ export default function A_DocT000() {
         return config.isOpen && ((!start && !end) || (now >= start && now <= end));
     }, [config]);
 
-    const activeDocs = checkPhase === 1 ? phase1Docs : phase2Docs;
+    const activeDocs = checkPhase === 1 ? phase1DocsFor(selectedStudent?.major) : phase2Docs;
 
     // UI HELPER: แสดงลูกศรเรียงลำดับ
     const SortIcon = ({ columnKey }: { columnKey: SortKey }) => {

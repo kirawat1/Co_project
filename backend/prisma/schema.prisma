@@ -230,14 +230,27 @@ model CoopApplicationForm {
 // 4. Admin Configuration (คงเดิม)
 // ==========================================
 model CoopCriteria {
-  id           String             @id @default(uuid())
-  major        String             @unique
-  nameTh       String?
-  updatedAt    DateTime           @updatedAt
-  coopTeachers CoopTeacherMajor[]
+  id                  String                     @id @default(uuid())
+  major               String                     @unique
+  nameTh              String?
+  updatedAt           DateTime                   @updatedAt
+  coopTeachers        CoopTeacherMajor[]
+  docRequirementRules DocumentRequirementMajor[]
 }
 
 // อาจารย์ประจำวิชาสหกิจ ↔ หลักสูตรที่ดูแล (ปกติ 1 หลักสูตร) — Teacher.isCoopTeacher ตามมาจากตารางนี้เสมอ (มีอย่างน้อย 1 แถว = true)
+model DocumentRequirementMajor {
+  requirementId Int
+  major         String
+  // false = หัวข้อนี้ใช้กับหลักสูตรนี้ (เฉพาะหลักสูตร) · true = หลักสูตรนี้ปิดหัวข้อกลาง (ทุกหลักสูตร) นี้
+  excluded      Boolean             @default(false)
+  requirement   DocumentRequirement @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+  criteria      CoopCriteria        @relation(fields: [major], references: [major], onDelete: Cascade, onUpdate: Cascade)
+
+  @@id([requirementId, major])
+  @@index([major])
+}
+
 model CoopTeacherMajor {
   teacherId Int
   major     String
@@ -382,12 +395,14 @@ model Document {
 }
 
 model DocumentRequirement {
-  id          Int     @id @default(autoincrement())
-  docKey      String  @unique // เช่น "CP-T000", "CP-TRANSCRIPT"
+  id          Int                        @id @default(autoincrement())
+  docKey      String                     @unique // เช่น "CP-T000", "CP-TRANSCRIPT"
   title       String // เช่น "ใบสมัครงานสหกิจศึกษา (T000)"
   description String? // คำอธิบายเพิ่มเติม (ถ้ามี)
-  isRequired  Boolean @default(true) // บังคับอัปโหลดหรือไม่
-  isActive    Boolean @default(true) // เปิด/ปิด การใช้งาน
+  isRequired  Boolean                    @default(true) // บังคับอัปโหลดหรือไม่
+  isActive    Boolean                    @default(true) // เปิด/ปิด การใช้งาน
+  // หลักสูตรที่ใช้หัวข้อนี้: ไม่มีแถว excluded=false = ทุกหลักสูตร · excluded=true = หลักสูตรนั้นไม่ใช้หัวข้อกลางนี้
+  majorRules  DocumentRequirementMajor[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
