@@ -28,7 +28,7 @@ describe('getDashboardStats', () => {
     prisma.student.count.mockResolvedValue(150);
     prisma.announcement.count.mockResolvedValue(10);
 
-    const req = { query: { year: 'all' } };
+    const req = { user: { role: 'staff' }, query: { year: 'all' } };
     const res = makeRes();
 
     await getDashboardStats(req, res);
@@ -59,7 +59,7 @@ describe('getDashboardStats', () => {
     prisma.student.count.mockResolvedValue(200);
     prisma.announcement.count.mockResolvedValue(5);
 
-    const req = { query: {} };
+    const req = { user: { role: 'staff' }, query: {} };
     const res = makeRes();
 
     await getDashboardStats(req, res);
@@ -90,7 +90,7 @@ describe('getDashboardStats', () => {
     prisma.studentCoop.findMany.mockResolvedValue(fakeCoops);
     prisma.announcement.count.mockResolvedValue(3);
 
-    const req = { query: { year: '2567' } };
+    const req = { user: { role: 'staff' }, query: { year: '2567' } };
     const res = makeRes();
 
     await getDashboardStats(req, res);
@@ -140,7 +140,7 @@ describe('getDashboardStats', () => {
     prisma.student.count.mockResolvedValue(100);
     prisma.announcement.count.mockResolvedValue(0);
 
-    const req = { query: { year: 'all' } };
+    const req = { user: { role: 'staff' }, query: { year: 'all' } };
     const res = makeRes();
 
     await getDashboardStats(req, res);
@@ -160,7 +160,7 @@ describe('getDashboardStats', () => {
   test('500 – DB error returns { ok: false, error }', async () => {
     prisma.studentCoop.findMany.mockRejectedValue(new Error('DB fail'));
 
-    const req = { query: {} };
+    const req = { user: { role: 'staff' }, query: {} };
     const res = makeRes();
 
     await getDashboardStats(req, res);

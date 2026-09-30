@@ -884,7 +884,7 @@ describe('updateConfirmedDate — สมาชิกนัดกลุ่ม', (
     confirmedDate: new Date('2026-12-10T09:00:00'),
     proposedDates: JSON.stringify(['2026-12-10|09:00-10:00|ONSITE']),
   };
-  const req = (confirmedDate) => ({ params: { id: '21' }, body: { confirmedDate } });
+  const req = (confirmedDate) => ({ user: { role: 'staff' }, params: { id: '21' }, body: { confirmedDate } });
 
   beforeEach(() => {
     prisma.supervisionAppointment.findUnique.mockResolvedValue(grouped);
@@ -966,7 +966,7 @@ describe('updateConfirmedDate — ย้ายวันแล้วความ�
     prisma.supervisionAppointment.update.mockResolvedValue({ id: 31, studentId: 7 });
     prisma.student.findUnique.mockResolvedValue({ userId: 70 });
     const res = makeRes();
-    await updateConfirmedDate({ params: { id: '31' }, body: { confirmedDate: '2026-12-19T10:00:00' } }, res);
+    await updateConfirmedDate({ user: { role: 'staff' }, params: { id: '31' }, body: { confirmedDate: '2026-12-19T10:00:00' } }, res);
     const { data } = prisma.supervisionAppointment.update.mock.calls[0][0];
     expect((data.confirmedEndDate - data.confirmedDate) / 60000).toBe(120);
   });
@@ -1003,7 +1003,7 @@ describe('assignCoTeachers — เลือกอาจารย์ร่วม�
     prisma.supervisionAppointment.findUnique.mockResolvedValue(appt);
     prisma.teacher.findMany.mockResolvedValue([T68, T7]); // DB คืนคนละลำดับกับที่เลือก
     const res = makeRes();
-    await assignCoTeachers({ params: { id: '4' }, body: { coTeacherIds: [7, 5, 68, 7] } }, res);
+    await assignCoTeachers({ user: { role: 'staff' }, params: { id: '4' }, body: { coTeacherIds: [7, 5, 68, 7] } }, res);
 
     expect(prisma.teacher.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { id: { in: [7, 68] } } }));
     expect(prisma.supervisionCoTeacher.deleteMany).toHaveBeenCalledWith({ where: { appointmentId: 4 } });
@@ -1020,7 +1020,7 @@ describe('assignCoTeachers — เลือกอาจารย์ร่วม�
     prisma.supervisionAppointment.findUnique.mockResolvedValue(appt);
     prisma.teacher.findMany.mockResolvedValue([]);
     const res = makeRes();
-    await assignCoTeachers({ params: { id: '4' }, body: { coTeacherIds: [] } }, res);
+    await assignCoTeachers({ user: { role: 'staff' }, params: { id: '4' }, body: { coTeacherIds: [] } }, res);
     expect(prisma.supervisionCoTeacher.deleteMany).toHaveBeenCalled();
     expect(prisma.supervisionCoTeacher.createMany).not.toHaveBeenCalled();
     expect(prisma.supervisionAppointment.update).toHaveBeenCalledWith({ where: { id: 4 }, data: { coTeacherName: null } });
@@ -1028,7 +1028,7 @@ describe('assignCoTeachers — เลือกอาจารย์ร่วม�
 
   test('400 — ส่งชื่อแบบเดิม (ไม่ใช่รายการ id)', async () => {
     const res = makeRes();
-    await assignCoTeachers({ params: { id: '4' }, body: { coTeacherName: 'อ.ก ข' } }, res);
+    await assignCoTeachers({ user: { role: 'staff' }, params: { id: '4' }, body: { coTeacherName: 'อ.ก ข' } }, res);
     expect(res.status).toHaveBeenCalledWith(400);
     expect(prisma.supervisionAppointment.update).not.toHaveBeenCalled();
   });
@@ -1037,7 +1037,7 @@ describe('assignCoTeachers — เลือกอาจารย์ร่วม�
     prisma.supervisionAppointment.findUnique.mockResolvedValue(appt);
     prisma.teacher.findMany.mockResolvedValue([T7]);
     const res = makeRes();
-    await assignCoTeachers({ params: { id: '4' }, body: { coTeacherIds: [7, 999] } }, res);
+    await assignCoTeachers({ user: { role: 'staff' }, params: { id: '4' }, body: { coTeacherIds: [7, 999] } }, res);
     expect(res.status).toHaveBeenCalledWith(400);
     expect(prisma.supervisionCoTeacher.createMany).not.toHaveBeenCalled();
   });
@@ -1054,7 +1054,7 @@ describe('assignCoTeachers — เลือกอาจารย์ร่วม�
       coTeachers: [{ teacherId: 7, teacher: T7 }], student: { firstName: 'ก', lastName: 'ข' },
     }]);
     const res = makeRes();
-    await assignCoTeachers({ params: { id: '4' }, body: { coTeacherIds: [7] } }, res);
+    await assignCoTeachers({ user: { role: 'staff' }, params: { id: '4' }, body: { coTeacherIds: [7] } }, res);
     expect(res.status).toHaveBeenCalledWith(409);
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringContaining('ชิตสุธา') }));
   });

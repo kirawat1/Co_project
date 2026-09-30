@@ -4,6 +4,7 @@ const path = require("path");
 const fs = require("fs");
 const multer = require("multer");
 const { pdfOrImageFileFilter } = require('../utils/fileFilters');
+const { getMajorScope } = require('../utils/majorScope');
 
 // Storage multer — ใช้ absolute path เพื่อให้ทำงานได้ไม่ว่า CWD จะเป็นอะไร
 const UPLOAD_DIR = path.join(__dirname, '../uploads');
@@ -98,6 +99,15 @@ const addOrUpdateAnnouncement = async (req, res) => {
     if (rawTargetMajors) {
       try { targetMajors = JSON.parse(rawTargetMajors); } catch { targetMajors = []; }
     }
+    if (!Array.isArray(targetMajors)) targetMajors = [];
+
+    // อาจารย์ประจำวิชา: ต้องเลือกหลักสูตรเป้าหมาย และเลือกได้เฉพาะหลักสูตรที่ดูแล (ประกาศ "ทุกหลักสูตร" = งานเจ้าหน้าที่)
+    const scope = await getMajorScope(req);
+    const allowed = (majors) => scope.all || (majors.length > 0 && majors.every((m) => scope.majors.includes(m)));
+    if (!allowed(targetMajors)) {
+      files.forEach(f => { try { fs.unlinkSync(path.join(UPLOAD_DIR, f.filename)); } catch (_) {} });
+      return res.status(403).json({ ok: false, message: `ประกาศได้เฉพาะหลักสูตรที่คุณดูแล (${scope.majors.join(', ') || '-'})` });
+    }
 
     // แปลงชื่อไฟล์ใหม่
     const annFiles = files.map(f => ({
@@ -121,6 +131,10 @@ const addOrUpdateAnnouncement = async (req, res) => {
       if (!ann) {
         files.forEach(f => { try { fs.unlinkSync(path.join(UPLOAD_DIR, f.filename)); } catch (_) {} });
         return res.status(404).json({ ok: false, message: "ไม่พบประกาศ" });
+      }
+      if (!allowed(Array.isArray(ann.targetMajors) ? ann.targetMajors : [])) {
+        files.forEach(f => { try { fs.unlinkSync(path.join(UPLOAD_DIR, f.filename)); } catch (_) {} });
+        return res.status(403).json({ ok: false, message: 'แก้ได้เฉพาะประกาศของหลักสูตรที่คุณดูแล' });
       }
 
       let parsedKeepFileIds = [];
@@ -175,9 +189,14 @@ const deleteAnnouncement = async (req, res) => {
     const { id } = req.params;
     let filesToClean = [];
     let statusErr = null;
+    const scope = await getMajorScope(req);
     await prisma.$transaction(async (tx) => {
       const ann = await tx.announcement.findUnique({ where: { id }, include: { files: true } });
       if (!ann) { statusErr = { code: 404, msg: "ไม่พบประกาศ" }; throw new Error('not-found'); }
+      const targets = Array.isArray(ann.targetMajors) ? ann.targetMajors : [];
+      if (!scope.all && !(targets.length > 0 && targets.every((m) => scope.majors.includes(m)))) {
+        statusErr = { code: 403, msg: 'ลบได้เฉพาะประกาศของหลักสูตรที่คุณดูแล' }; throw new Error('forbidden');
+      }
       filesToClean = ann.files;
       await tx.announcement.delete({ where: { id } });
     }).catch((err) => { if (!statusErr) throw err; });

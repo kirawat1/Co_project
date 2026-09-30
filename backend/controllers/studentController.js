@@ -7,6 +7,7 @@ const { encryptPassword, revealPassword } = require('../utils/passwordVault');
 const { changeUserEmail, normalizeEmail } = require('../utils/userEmail');
 const { removeUnreferencedUploads } = require('../utils/uploadCleanup');
 const { resolveMajorNameTh } = require('../utils/majorName');
+const { visibleStudentWhere } = require('../utils/majorScope');
 
 // GET /api/students/me
 exports.getMyProfile = async (req, res) => {
@@ -314,18 +315,12 @@ exports.getStudents = async (req, res) => {
       });
     }
 
-    // Scope to advisees when caller is a teacher (non-coop-teacher sees only own students)
+    // อาจารย์: advisees (coopAdvisorId, นักศึกษาเลือกเอง) + นักศึกษาในหลักสูตรที่ดูแล (อาจารย์ประจำวิชา)
+    // ที่ปรึกษาทั่วไป (generalAdvisorId) เป็นแค่ข้อมูลอ้างอิง ไม่มีสิทธิ์ในระบบสหกิจ
     if (req.user?.role === 'teacher') {
-      const teacher = await prisma.teacher.findUnique({
-        where: { userId: req.userId },
-        select: { id: true, isCoopTeacher: true },
-      });
+      const teacher = await prisma.teacher.findUnique({ where: { userId: req.userId }, select: { id: true } });
       if (!teacher) return res.status(404).json({ ok: false, message: 'ไม่พบข้อมูลอาจารย์' });
-      if (!teacher.isCoopTeacher) {
-        // เห็นเฉพาะนักศึกษาที่ตนเป็นอาจารย์ที่ปรึกษาโครงงานสหกิจ (coopAdvisorId, นักศึกษาเลือกเอง)
-        // ที่ปรึกษาทั่วไป (generalAdvisorId) เป็นแค่ข้อมูลอ้างอิง ไม่มีสิทธิ์ในระบบสหกิจ
-        conditions.push({ coopAdvisorId: teacher.id });
-      }
+      conditions.push(await visibleStudentWhere(req));
     }
 
     const where = { AND: conditions };

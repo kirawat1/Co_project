@@ -177,8 +177,8 @@ describe('getStudents', () => {
     );
   });
 
-  test('200 — teacher role (non-coop) เพิ่ม advisor filter (เฉพาะ coopAdvisorId — ที่ปรึกษาทั่วไปไม่มีสิทธิ์)', async () => {
-    prisma.teacher.findUnique.mockResolvedValue({ id: 7, isCoopTeacher: false });
+  test('200 — อาจารย์ทั่วไป: เฉพาะนักศึกษาที่เป็นที่ปรึกษา (coopAdvisorId — ที่ปรึกษาทั่วไปไม่มีสิทธิ์)', async () => {
+    prisma.teacher.findUnique.mockResolvedValue({ id: 7, coopMajors: [] });
     prisma.student.findMany.mockResolvedValue([]);
     prisma.student.count.mockResolvedValue(0);
 
@@ -192,15 +192,15 @@ describe('getStudents', () => {
         where: {
           AND: [
             { deletedAt: null },
-            { coopAdvisorId: 7 },
+            { OR: [{ coopAdvisorId: 7 }] },
           ],
         },
       })
     );
   });
 
-  test('200 — teacher role (isCoopTeacher) ไม่เพิ่ม advisor filter', async () => {
-    prisma.teacher.findUnique.mockResolvedValue({ id: 7, isCoopTeacher: true });
+  test('200 — อาจารย์ประจำวิชา: นักศึกษาที่เป็นที่ปรึกษา หรืออยู่ในหลักสูตรที่ดูแล (ไม่ใช่ทุกคน)', async () => {
+    prisma.teacher.findUnique.mockResolvedValue({ id: 7, coopMajors: [{ major: 'CS' }] });
     prisma.student.findMany.mockResolvedValue([]);
     prisma.student.count.mockResolvedValue(0);
 
@@ -210,7 +210,7 @@ describe('getStudents', () => {
     await getStudents(req, res);
 
     expect(prisma.student.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { AND: [{ deletedAt: null }] } })
+      expect.objectContaining({ where: { AND: [{ deletedAt: null }, { OR: [{ coopAdvisorId: 7 }, { major: { in: ['CS'] } }] }] } })
     );
   });
 

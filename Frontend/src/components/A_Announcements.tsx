@@ -5,6 +5,7 @@ import { fmtDate } from '../utils/dateFormat';
 import AutoTextarea from "./AutoTextarea";
 import DateInput from "./DateInput";
 import { notify, askConfirm } from "../utils/notify";
+import { useMyScope } from "../hooks/useMyScope";
 
 function safeHref(url: string | null | undefined): string | undefined {
   if (!url) return undefined;
@@ -55,6 +56,10 @@ export default function A_Announcements() {
   const [availableMajors, setAvailableMajors] = useState<string[]>([]);
   const [targetMajors, setTargetMajors] = useState<string[]>([]);
   const [filterMajor, setFilterMajor] = useState<string>(""); // "" = ทั้งหมด, "ALL" = ทุกสาขา, "<major>" = เฉพาะสาขา
+  // อาจารย์ประจำวิชาประกาศได้เฉพาะหลักสูตรที่ดูแล (ไม่มี "ทุกหลักสูตร") — backend กันซ้ำ
+  const scope = useMyScope();
+  const limitedMajors = scope && !scope.all ? scope.majors : null;
+  const majorChoices = limitedMajors ?? availableMajors;
 
   /* ================= 0. LOAD MAJORS ================= */
   const fetchMajors = async () => {
@@ -208,7 +213,7 @@ export default function A_Announcements() {
   const resetForm = () => {
     setTitle(""); setBody(""); setDate(new Date().toISOString().slice(0, 10));
     setAttachments([]); setEditingId(null); setModalOpen(false); setLinkDraft(null); setLinkError("");
-    setTargetMajors([]);
+    setTargetMajors(limitedMajors ?? []);
   };
 
   const openEditModal = (a: Announcement) => {
@@ -320,10 +325,13 @@ export default function A_Announcements() {
                   </div>
                 )}
               </div>
-              <div style={annActions}>
-                <button style={btnIconEdit} onClick={() => openEditModal(a)}>แก้ไข</button>
-                <button style={btnIconDel} onClick={() => remove(a.id)}>ลบ</button>
-              </div>
+              {/* อาจารย์ประจำวิชาแก้/ลบได้เฉพาะประกาศที่ส่งถึงหลักสูตรที่ตัวเองดูแลเท่านั้น (ประกาศทุกหลักสูตรเป็นของเจ้าหน้าที่) */}
+              {(!limitedMajors || (a.targetMajors?.length > 0 && a.targetMajors.every(m => limitedMajors.includes(m)))) && (
+                <div style={annActions}>
+                  <button style={btnIconEdit} onClick={() => openEditModal(a)}>แก้ไข</button>
+                  <button style={btnIconDel} onClick={() => remove(a.id)}>ลบ</button>
+                </div>
+              )}
             </article>
           ))
         )}
@@ -370,33 +378,41 @@ export default function A_Announcements() {
               <div style={inputGroup}>
                 <label style={labelStyle}>ส่งถึง</label>
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                  <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 14 }}>
-                    <input
-                      type="radio"
-                      checked={targetMajors.length === 0}
-                      onChange={() => setTargetMajors([])}
-                    />
-                    <span>ทุกหลักสูตร</span>
-                  </label>
-                  <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: availableMajors.length > 0 ? "pointer" : "not-allowed", fontSize: 14, opacity: availableMajors.length === 0 ? 0.5 : 1 }} title={availableMajors.length === 0 ? "ยังไม่มีข้อมูลหลักสูตร" : undefined}>
-                    <input
-                      type="radio"
-                      disabled={availableMajors.length === 0}
-                      checked={targetMajors.length > 0}
-                      onChange={() => { if (availableMajors.length > 0) setTargetMajors([availableMajors[0]]); }}
-                    />
-                    <span>เลือกหลักสูตร{availableMajors.length === 0 ? " (ยังไม่มีข้อมูลหลักสูตร)" : ""}</span>
-                  </label>
-                  {targetMajors.length > 0 && availableMajors.length > 0 && (
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8, paddingLeft: 24 }}>
-                      {availableMajors.map(m => (
+                  {limitedMajors ? (
+                    <div style={{ fontSize: 12, color: "#64748b" }}>ประกาศได้เฉพาะหลักสูตรที่คุณดูแล</div>
+                  ) : (
+                    <>
+                      <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 14 }}>
+                        <input
+                          type="radio"
+                          checked={targetMajors.length === 0}
+                          onChange={() => setTargetMajors([])}
+                        />
+                        <span>ทุกหลักสูตร</span>
+                      </label>
+                      <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: availableMajors.length > 0 ? "pointer" : "not-allowed", fontSize: 14, opacity: availableMajors.length === 0 ? 0.5 : 1 }} title={availableMajors.length === 0 ? "ยังไม่มีข้อมูลหลักสูตร" : undefined}>
+                        <input
+                          type="radio"
+                          disabled={availableMajors.length === 0}
+                          checked={targetMajors.length > 0}
+                          onChange={() => { if (availableMajors.length > 0) setTargetMajors([availableMajors[0]]); }}
+                        />
+                        <span>เลือกหลักสูตร{availableMajors.length === 0 ? " (ยังไม่มีข้อมูลหลักสูตร)" : ""}</span>
+                      </label>
+                    </>
+                  )}
+                  {(limitedMajors || targetMajors.length > 0) && majorChoices.length > 0 && (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8, paddingLeft: limitedMajors ? 0 : 24 }}>
+                      {majorChoices.map(m => (
                         <label key={m} style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 13, background: targetMajors.includes(m) ? "#eff6ff" : "#f8fafc", border: `1px solid ${targetMajors.includes(m) ? "#2563eb" : "#e2e8f0"}`, borderRadius: 8, padding: "4px 12px" }}>
                           <input
                             type="checkbox"
                             checked={targetMajors.includes(m)}
-                            onChange={e => setTargetMajors(prev =>
-                              e.target.checked ? [...prev, m] : prev.filter(x => x !== m)
-                            )}
+                            onChange={e => setTargetMajors(prev => {
+                              const next = e.target.checked ? [...prev, m] : prev.filter(x => x !== m);
+                              // อาจารย์ประจำวิชา: เอาออกหมดไม่ได้ (ว่าง = ทุกหลักสูตร ซึ่งไม่มีสิทธิ์)
+                              return limitedMajors && next.length === 0 ? prev : next;
+                            })}
                           />
                           {m}
                         </label>

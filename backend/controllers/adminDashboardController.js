@@ -1,15 +1,17 @@
 const prisma = require('../config/prismaClient');
+const { getMajorScope, studentWhere } = require('../utils/majorScope');
 
 exports.getDashboardStats = async (req, res) => {
   try {
     // รับค่า year จาก Query String (?year=2569 หรือ ?year=all)
     const { year } = req.query;
+    const scoped = studentWhere(await getMajorScope(req)); // อาจารย์ประจำวิชาเห็นเฉพาะหลักสูตรที่ดูแล
 
     // 1. สร้างเงื่อนไขการกรอง (Filter)
     const coopFilter = year && year !== 'all' ? {
       coopPeriod: { academicYear: year },
-      student: { deletedAt: null }
-    } : { student: { deletedAt: null } }; // กรอง soft-deleted เสมอ
+      student: { deletedAt: null, ...scoped }
+    } : { student: { deletedAt: null, ...scoped } }; // กรอง soft-deleted เสมอ
 
     // 2. ดึงข้อมูลโครงการสหกิจตามเงื่อนไข
     const coops = await prisma.studentCoop.findMany({
@@ -23,7 +25,7 @@ exports.getDashboardStats = async (req, res) => {
       totalStudents = coops.length; 
     } else {
       // ถ้าเลือก "แสดงทั้งหมด" ให้นับนักศึกษาที่มีในระบบทั้งหมด
-      totalStudents = await prisma.student.count({ where: { deletedAt: null } });
+      totalStudents = await prisma.student.count({ where: { deletedAt: null, ...scoped } });
     }
 
     // 4. จำนวนประกาศ (กรองตามปีด้วยถ้ามีการเลือก)

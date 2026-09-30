@@ -47,7 +47,7 @@ describe('getAnnouncements', () => {
     ];
     prisma.announcement.findMany.mockResolvedValue(fakeList);
 
-    const req = { query: {} };
+    const req = { user: { role: 'staff' }, query: {} };
     const res = makeRes();
 
     await getAnnouncements(req, res);
@@ -74,7 +74,7 @@ describe('getAnnouncements', () => {
   test('200 – passes year filter when req.query.year is set', async () => {
     prisma.announcement.findMany.mockResolvedValue([]);
 
-    const req = { query: { year: '2568' } };
+    const req = { user: { role: 'staff' }, query: { year: '2568' } };
     const res = makeRes();
 
     await getAnnouncements(req, res);
@@ -99,7 +99,7 @@ describe('getAnnouncements', () => {
     ];
     prisma.announcement.findMany.mockResolvedValue(fakeList);
 
-    const req = { query: {} };
+    const req = { user: { role: 'staff' }, query: {} };
     const res = makeRes();
 
     await getAnnouncements(req, res);
@@ -113,7 +113,7 @@ describe('getAnnouncements', () => {
   test('500 – DB error', async () => {
     prisma.announcement.findMany.mockRejectedValue(new Error('DB fail'));
 
-    const req = { query: {} };
+    const req = { user: { role: 'staff' }, query: {} };
     const res = makeRes();
 
     await getAnnouncements(req, res);
@@ -130,7 +130,7 @@ describe('getAnnouncements', () => {
     ];
     prisma.announcement.findMany.mockResolvedValue(fakeList);
 
-    const req = { query: { major: 'CS' } };
+    const req = { user: { role: 'staff' }, query: { major: 'CS' } };
     const res = makeRes();
 
     await getAnnouncements(req, res);
@@ -149,7 +149,7 @@ describe('getAnnouncements', () => {
     ];
     prisma.announcement.findMany.mockResolvedValue(fakeList);
 
-    const req = { query: {} };
+    const req = { user: { role: 'staff' }, query: {} };
     const res = makeRes();
 
     await getAnnouncements(req, res);
@@ -165,7 +165,7 @@ describe('getAnnouncements', () => {
 describe('addOrUpdateAnnouncement', () => {
   // ---- validation ----
   test('400 – missing title', async () => {
-    const req = { body: { date: '2025-01-01', year: '2568' }, files: [] };
+    const req = { user: { role: 'staff' }, body: { date: '2025-01-01', year: '2568' }, files: [] };
     const res = makeRes();
 
     await addOrUpdateAnnouncement(req, res);
@@ -175,7 +175,7 @@ describe('addOrUpdateAnnouncement', () => {
   });
 
   test('400 – missing date', async () => {
-    const req = { body: { title: 'T', year: '2568' }, files: [] };
+    const req = { user: { role: 'staff' }, body: { title: 'T', year: '2568' }, files: [] };
     const res = makeRes();
 
     await addOrUpdateAnnouncement(req, res);
@@ -184,7 +184,7 @@ describe('addOrUpdateAnnouncement', () => {
   });
 
   test('400 – missing year', async () => {
-    const req = { body: { title: 'T', date: '2025-01-01' }, files: [] };
+    const req = { user: { role: 'staff' }, body: { title: 'T', date: '2025-01-01' }, files: [] };
     const res = makeRes();
 
     await addOrUpdateAnnouncement(req, res);
@@ -205,7 +205,7 @@ describe('addOrUpdateAnnouncement', () => {
     };
     prisma.announcement.create.mockResolvedValue(created);
 
-    const req = {
+    const req = { user: { role: 'staff' },
       body: { title: 'New Ann', body: 'Body', date: '2025-06-01', year: '2568' },
       files: [],
     };
@@ -226,7 +226,7 @@ describe('addOrUpdateAnnouncement', () => {
     const created = { id: 'uuid-f', title: 'T', files: [] };
     prisma.announcement.create.mockResolvedValue(created);
 
-    const req = {
+    const req = { user: { role: 'staff' },
       body: { title: 'T', date: '2025-06-01', year: '2568' },
       files: [
         { originalname: 'image.png', mimetype: 'image/png', filename: 'stored-image.png' },
@@ -245,7 +245,7 @@ describe('addOrUpdateAnnouncement', () => {
   test('404 – announcement not found on update', async () => {
     prisma.announcement.findUnique.mockResolvedValue(null);
 
-    const req = {
+    const req = { user: { role: 'staff' },
       body: { id: 'missing-uuid', title: 'T', date: '2025-01-01', year: '2568' },
       files: [],
     };
@@ -274,7 +274,7 @@ describe('addOrUpdateAnnouncement', () => {
     // File on disk exists for old-file-1
     fs.existsSync.mockImplementation((p) => p.includes('old1.pdf'));
 
-    const req = {
+    const req = { user: { role: 'staff' },
       body: {
         id: 'exist-uuid',
         title: 'Updated',
@@ -306,7 +306,7 @@ describe('addOrUpdateAnnouncement', () => {
     prisma.announcement.findUnique.mockResolvedValue(existing);
     prisma.announcement.update.mockResolvedValue(updated);
 
-    const req = {
+    const req = { user: { role: 'staff' },
       body: { id: 'exist-uuid', title: 'No Files', date: '2025-06-01', year: '2568' },
       files: [],
     };
@@ -323,7 +323,7 @@ describe('addOrUpdateAnnouncement', () => {
     const created = { id: 'new', title: 'Test', body: '', date: new Date(), year: '1/2569', linkUrl: null, targetMajors: ['CS','IT'], files: [] };
     prisma.announcement.create.mockResolvedValue(created);
 
-    const req = {
+    const req = { user: { role: 'staff' },
       body: { title: 'Test', date: '2026-05-29', year: '1/2569', targetMajors: JSON.stringify(['CS','IT']) },
       files: [],
     };
@@ -341,7 +341,7 @@ describe('addOrUpdateAnnouncement', () => {
   test('500 – DB error on create', async () => {
     prisma.announcement.create.mockRejectedValue(new Error('DB fail'));
 
-    const req = {
+    const req = { user: { role: 'staff' },
       body: { title: 'T', date: '2025-01-01', year: '2568' },
       files: [],
     };
@@ -357,7 +357,7 @@ describe('addOrUpdateAnnouncement', () => {
     prisma.announcement.findUnique.mockResolvedValue({ id: 'uuid', files: [] });
     prisma.announcement.update.mockRejectedValue(new Error('DB fail'));
 
-    const req = {
+    const req = { user: { role: 'staff' },
       body: { id: 'uuid', title: 'T', date: '2025-01-01', year: '2568' },
       files: [],
     };
@@ -376,7 +376,7 @@ describe('deleteAnnouncement', () => {
   test('404 – announcement not found', async () => {
     prisma.announcement.findUnique.mockResolvedValue(null);
 
-    const req = { params: { id: 'nonexistent-uuid' } };
+    const req = { user: { role: 'staff' }, params: { id: 'nonexistent-uuid' } };
     const res = makeRes();
 
     await deleteAnnouncement(req, res);
@@ -400,7 +400,7 @@ describe('deleteAnnouncement', () => {
     // Simulate both files existing on disk
     fs.existsSync.mockReturnValue(true);
 
-    const req = { params: { id: 'del-uuid' } };
+    const req = { user: { role: 'staff' }, params: { id: 'del-uuid' } };
     const res = makeRes();
 
     await deleteAnnouncement(req, res);
@@ -422,7 +422,7 @@ describe('deleteAnnouncement', () => {
     prisma.announcement.delete.mockResolvedValue({});
     fs.existsSync.mockReturnValue(true);
 
-    const req = { params: { id: 'del-uuid-abs' } };
+    const req = { user: { role: 'staff' }, params: { id: 'del-uuid-abs' } };
     const res = makeRes();
 
     await deleteAnnouncement(req, res);
@@ -437,7 +437,7 @@ describe('deleteAnnouncement', () => {
     prisma.announcement.findUnique.mockResolvedValue(ann);
     prisma.announcement.delete.mockResolvedValue({});
 
-    const req = { params: { id: 'del-uuid-no-files' } };
+    const req = { user: { role: 'staff' }, params: { id: 'del-uuid-no-files' } };
     const res = makeRes();
 
     await deleteAnnouncement(req, res);
@@ -454,7 +454,7 @@ describe('deleteAnnouncement', () => {
 
     fs.existsSync.mockReturnValue(false);
 
-    const req = { params: { id: 'del-uuid-2' } };
+    const req = { user: { role: 'staff' }, params: { id: 'del-uuid-2' } };
     const res = makeRes();
 
     await deleteAnnouncement(req, res);
@@ -468,7 +468,7 @@ describe('deleteAnnouncement', () => {
   test('500 – DB error on findUnique', async () => {
     prisma.announcement.findUnique.mockRejectedValue(new Error('DB fail'));
 
-    const req = { params: { id: 'some-uuid' } };
+    const req = { user: { role: 'staff' }, params: { id: 'some-uuid' } };
     const res = makeRes();
 
     await deleteAnnouncement(req, res);
@@ -481,7 +481,7 @@ describe('deleteAnnouncement', () => {
     prisma.announcement.findUnique.mockResolvedValue({ id: 'uuid', files: [] });
     prisma.announcement.delete.mockRejectedValue(new Error('DB fail'));
 
-    const req = { params: { id: 'uuid' } };
+    const req = { user: { role: 'staff' }, params: { id: 'uuid' } };
     const res = makeRes();
 
     await deleteAnnouncement(req, res);
