@@ -6,7 +6,7 @@ const path = require("path");
 const fs = require("fs");
 const multer = require("multer");
 const { createNotifications, getStaffAndCoopTeacherIds } = require('../utils/notificationHelper');
-const { autoCloseIfExpired } = require('../utils/coopPeriodHelper');
+const { getRow } = require('../utils/coopPeriodMajor');
 const { pdfOrImageFileFilter } = require('../utils/fileFilters');
 
 // 1. ตั้งค่าการเก็บไฟล์ (Multer)
@@ -42,14 +42,16 @@ const submitCoopApplication = async (req, res) => {
       return res.status(400).json({ ok: false, message: "coopPeriodId ไม่ถูกต้อง กรุณารีเฟรชหน้าเว็บแล้วลองใหม่" });
     }
 
-    // (Option เสริมเพื่อความปลอดภัย) เช็คว่ารอบรับสมัครนี้มีอยู่จริงและยังเปิดอยู่ไหม
-    let activePeriod = await prisma.coopPeriod.findUnique({
-      where: { id: parsedPeriodId }
-    });
-    activePeriod = await autoCloseIfExpired(activePeriod);
+    // รอบรับสมัครเปิด/ปิดแยกหลักสูตร — ยังไม่ระบุหลักสูตร = ไม่รู้ว่าใช้ช่วงของหลักสูตรไหน → ยื่นไม่ได้
+    const major = await callerMajor(req);
+    if (!major) {
+      files.forEach(f => { try { fs.unlinkSync(f.path); } catch (_) {} });
+      return res.status(400).json({ ok: false, message: 'ยังไม่ได้ระบุหลักสูตรของคุณ กรุณาติดต่อเจ้าหน้าที่ให้ระบุหลักสูตรก่อนยื่นคำร้อง' });
+    }
+    const activePeriod = await getRow(parsedPeriodId, major);
 
     // ช่วงเวลายื่นคำร้อง (ตั้งแยกแบบ T000–T003) — ยื่นได้ต้องผ่านทั้งช่วงนี้และรอบรับสมัครที่เปิดอยู่
-    const applyWindow = await getApplyWindowState(undefined, undefined, await callerMajor(req)); // ช่วงยื่นของหลักสูตรนักศึกษา
+    const applyWindow = await getApplyWindowState(undefined, undefined, major); // ช่วงยื่นของหลักสูตรนักศึกษา
     if (!applyWindow.open) {
       if (req.files?.length) req.files.forEach((f) => { try { fs.unlinkSync(f.path); } catch (_) { /* ignore */ } });
       return res.status(400).json({ ok: false, message: applyWindowMessage(applyWindow) });
@@ -98,7 +100,7 @@ const submitCoopApplication = async (req, res) => {
     await prisma.$transaction(async (tx) => {
       // 2.0 ตรวจสถานะ inside transaction เพื่อป้องกัน TOCTOU race
       // Re-verify period is still active inside the transaction
-      const freshPeriod = await tx.coopPeriod.findUnique({ where: { id: parsedPeriodId }, select: { isActive: true } });
+      const freshPeriod = await tx.coopPeriodMajor.findUnique({ where: { periodId_major: { periodId: parsedPeriodId, major } }, select: { isActive: true } });
       if (!freshPeriod || !freshPeriod.isActive) {
         throw Object.assign(new Error('ไม่สามารถยื่นคำร้องได้ เนื่องจากรอบรับสมัครนี้ถูกปิดไปแล้ว'), { is400: true });
       }

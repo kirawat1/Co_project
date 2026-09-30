@@ -19,7 +19,7 @@ if (process.env.SEED_ALLOW !== '1') {
 
 async function main() {
     // หา active period
-    const period = await prisma.coopPeriod.findFirst({ where: { isActive: true } });
+    const period = await prisma.coopPeriod.findFirst({ where: { majors: { some: { isActive: true } } } });
 
     // หา company แรกที่มีอยู่ (ถ้ามี)
     const company = await prisma.company.findFirst();

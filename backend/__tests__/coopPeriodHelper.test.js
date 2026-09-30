@@ -1,7 +1,7 @@
 // __tests__/coopPeriodHelper.test.js — รอบรับสมัครปิดเมื่อไหร่
 jest.mock('../config/prismaClient', () => require('./__mocks__/prismaClient'));
 const prisma = require('../config/prismaClient');
-const { periodCloseAt, isPeriodExpired, autoCloseIfExpired } = require('../utils/coopPeriodHelper');
+const { periodCloseAt, isPeriodExpired } = require('../utils/coopPeriodHelper');
 
 beforeEach(() => jest.clearAllMocks());
 
@@ -26,24 +26,5 @@ describe('isPeriodExpired', () => {
   });
   test('ไม่มีวันปิด → ไม่หมดเขต', () => {
     expect(isPeriodExpired({ endDate: null }, new Date())).toBe(false);
-  });
-});
-
-describe('autoCloseIfExpired', () => {
-  afterEach(() => jest.useRealTimers());
-
-  test('วันสุดท้ายตอนเย็น → ไม่ปิดอัตโนมัติ', async () => {
-    jest.useFakeTimers({ now: new Date('2026-09-13T19:00:00+07:00') });
-    const p = { id: 1, isActive: true, endDate: END };
-    expect(await autoCloseIfExpired(p)).toEqual(p);
-    expect(prisma.coopPeriod.update).not.toHaveBeenCalled();
-  });
-
-  test('เลยวันปิดแล้ว → ปิดใน DB และคืน isActive=false', async () => {
-    jest.useFakeTimers({ now: new Date('2026-09-14T00:30:00+07:00') });
-    prisma.coopPeriod.update.mockResolvedValue({});
-    const result = await autoCloseIfExpired({ id: 1, isActive: true, endDate: END });
-    expect(result.isActive).toBe(false);
-    expect(prisma.coopPeriod.update).toHaveBeenCalledWith({ where: { id: 1 }, data: { isActive: false } });
   });
 });

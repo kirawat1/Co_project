@@ -64,7 +64,8 @@ router.get("/coop-periods", verifyToken, verifyRole(...ADMIN_ROLES), coopPeriodC
 router.post("/coop-periods", verifyToken, verifyCoopTeacherOrStaff, coopPeriodController.createPeriod);
 router.put("/coop-periods/:id", verifyToken, verifyCoopTeacherOrStaff, coopPeriodController.updatePeriod);
 router.patch("/coop-periods/:id/toggle", verifyToken, verifyCoopTeacherOrStaff, coopPeriodController.togglePeriod);
-router.delete("/coop-periods/:id", verifyToken, verifyCoopTeacherOrStaff, coopPeriodController.deletePeriod);
+router.delete("/coop-periods/:id", verifyToken, verifyRole(...STAFF_ONLY), coopPeriodController.deletePeriod); // ลบทั้งปี/เทอม กระทบทุกหลักสูตร
+router.delete("/coop-periods/:id/majors/:major", verifyToken, verifyCoopTeacherOrStaff, coopPeriodController.removePeriodMajor);
 router.get("/coop-periods/active", verifyToken, verifyRole(...ADMIN_ROLES), coopPeriodController.getActivePeriod);
 router.get("/coop-periods/all", verifyToken, verifyRole(...ADMIN_ROLES), coopPeriodController.getAllCoopPeriods);
 
@@ -146,6 +147,7 @@ router.post('/students/:id/password/reveal', verifyToken, verifyRole(...STAFF_ON
 
 // Students: Trash — ย้ายไปถังขยะ / กู้คืน / ลบถาวร (ลบถาวรได้เฉพาะคนที่อยู่ในถังขยะแล้ว)
 router.delete('/students/:id', verifyToken, verifyCoopTeacherOrStaff, studentInScope((r) => r.params.id), studentController.softDeleteStudent);
+router.post('/students/:id/move-period', verifyToken, verifyCoopTeacherOrStaff, studentInScope((r) => r.params.id), coopPeriodController.moveStudentPeriod);
 router.get('/students/trash', verifyToken, verifyCoopTeacherOrStaff, studentController.getTrashedStudents);
 router.post('/students/:id/restore', verifyToken, verifyCoopTeacherOrStaff, studentInScope((r) => r.params.id), studentController.restoreStudent);
 router.delete('/students/:id/permanent', verifyToken, verifyCoopTeacherOrStaff, studentInScope((r) => r.params.id), studentController.permanentlyDeleteStudent);

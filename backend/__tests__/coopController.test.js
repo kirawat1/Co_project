@@ -14,6 +14,8 @@ function makeRes() {
   };
 }
 
+const FUTURE = new Date(Date.now() + 30 * 86400000);
+
 beforeEach(() => jest.clearAllMocks());
 
 // =====================
@@ -21,7 +23,7 @@ beforeEach(() => jest.clearAllMocks());
 // =====================
 describe('submitCoopApplication', () => {
   test('400 — ไม่มี coopPeriodId', async () => {
-    const req = { user: { id: 1 }, body: { jobPosition: 'Dev' }, files: [] };
+    const req = { user: { id: 1, role: 'student' }, body: { jobPosition: 'Dev' }, files: [] };
     const res = makeRes();
 
     await submitCoopApplication(req, res);
@@ -30,40 +32,51 @@ describe('submitCoopApplication', () => {
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: false }));
   });
 
-  test('400 — รอบรับสมัครปิดแล้ว', async () => {
-    prisma.coopPeriod.findUnique.mockResolvedValue({ id: 1, isActive: false });
-    const req = { user: { id: 1 }, body: { coopPeriodId: '1' }, files: [] };
+  test('400 — ยังไม่ระบุหลักสูตร → ยื่นไม่ได้ (รอบเปิดปิดแยกหลักสูตร)', async () => {
+    prisma.student.findUnique.mockResolvedValue({ id: 10, userId: 1, major: null });
+    const req = { user: { id: 1, role: 'student' }, body: { coopPeriodId: '1' }, files: [] };
     const res = makeRes();
 
     await submitCoopApplication(req, res);
 
     expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json.mock.calls[0][0].message).toMatch(/หลักสูตร/);
+    expect(prisma.coopPeriodMajor.findUnique).not.toHaveBeenCalled();
   });
 
-  test('400 — auto-close: isActive=true แต่ endDate ผ่านไปแล้ว (เจ้าหน้าที่ลืมกดปิด)', async () => {
-    prisma.coopPeriod.findUnique.mockResolvedValue({
-      id: 1,
-      isActive: true,
-      endDate: new Date('2020-01-01'),
-    });
-    prisma.coopPeriod.update.mockResolvedValue({});
-    const req = { user: { id: 1 }, body: { coopPeriodId: '1' }, files: [] };
+  test('400 — รอบรับสมัครของหลักสูตรนักศึกษาปิดอยู่', async () => {
+    prisma.student.findUnique.mockResolvedValue({ id: 10, userId: 1, major: 'CS' });
+    prisma.coopPeriodMajor.findUnique.mockResolvedValue({ periodId: 1, major: 'CS', isActive: false, endDate: FUTURE });
+    const req = { user: { id: 1, role: 'student' }, body: { coopPeriodId: '1' }, files: [] };
     const res = makeRes();
 
     await submitCoopApplication(req, res);
 
-    expect(prisma.coopPeriod.update).toHaveBeenCalledWith({
-      where: { id: 1 },
+    expect(prisma.coopPeriodMajor.findUnique).toHaveBeenCalledWith({ where: { periodId_major: { periodId: 1, major: 'CS' } } });
+    expect(res.status).toHaveBeenCalledWith(400);
+  });
+
+  test('400 — auto-close: isActive=true แต่ endDate ผ่านไปแล้ว (เจ้าหน้าที่ลืมกดปิด)', async () => {
+    prisma.student.findUnique.mockResolvedValue({ id: 10, userId: 1, major: 'CS' });
+    prisma.coopPeriodMajor.findUnique.mockResolvedValue({ periodId: 1, major: 'CS', isActive: true, endDate: new Date('2020-01-01') });
+    const req = { user: { id: 1, role: 'student' }, body: { coopPeriodId: '1' }, files: [] };
+    const res = makeRes();
+
+    await submitCoopApplication(req, res);
+
+    expect(prisma.coopPeriodMajor.updateMany).toHaveBeenCalledWith({
+      where: { OR: [{ periodId: 1, major: 'CS' }] },
       data: { isActive: false },
     });
     expect(res.status).toHaveBeenCalledWith(400);
   });
 
   test('404 — ไม่พบข้อมูลนักศึกษา', async () => {
-    prisma.coopPeriod.findUnique.mockResolvedValue({ id: 1, isActive: true });
-    prisma.student.findUnique.mockResolvedValue(null);
+    prisma.coopPeriodMajor.findUnique.mockResolvedValue({ periodId: 1, major: 'CS', isActive: true, endDate: FUTURE });
+    // ครั้งแรก = หาหลักสูตร (มี) · ครั้งที่สอง = หาข้อมูลนักศึกษา (ถูกลบไประหว่างนั้น)
+    prisma.student.findUnique.mockResolvedValueOnce({ major: 'CS' }).mockResolvedValueOnce(null);
 
-    const req = { user: { id: 1 }, body: { coopPeriodId: '1' }, files: [] };
+    const req = { user: { id: 1, role: 'student' }, body: { coopPeriodId: '1' }, files: [] };
     const res = makeRes();
 
     await submitCoopApplication(req, res);
@@ -72,8 +85,8 @@ describe('submitCoopApplication', () => {
   });
 
   test('200 — ยื่นคำร้องสำเร็จ', async () => {
-    prisma.coopPeriod.findUnique.mockResolvedValue({ id: 1, isActive: true });
-    prisma.student.findUnique.mockResolvedValue({ id: 10, userId: 1 });
+    prisma.coopPeriodMajor.findUnique.mockResolvedValue({ periodId: 1, major: 'CS', isActive: true, endDate: FUTURE });
+    prisma.student.findUnique.mockResolvedValue({ id: 10, userId: 1, major: 'CS' });
     prisma.$transaction.mockImplementation((fn) => fn(prisma));
     prisma.document.createMany.mockResolvedValue({});
     prisma.studentCoop.upsert.mockResolvedValue({ studentId: 10, status: 'APPLYING' });
@@ -81,7 +94,7 @@ describe('submitCoopApplication', () => {
     prisma.studentCoop.findUnique.mockResolvedValue({ status: 'NOT_SUBMITTED', companyId: 'c1', contacts: [{ id: 'k1', companyId: 'c1' }] });
 
     const req = {
-      user: { id: 1 },
+      user: { id: 1, role: 'student' },
       body: { coopPeriodId: '1', jobPosition: 'Backend Dev' },
       files: [],
     };
@@ -95,13 +108,13 @@ describe('submitCoopApplication', () => {
 
   // ผู้ติดต่อ (HR) บังคับก่อนยื่น — backend ต้องตรวจเอง (ยิง API ตรงข้ามหน้าเว็บได้)
   const setupSubmittable = () => {
-    prisma.coopPeriod.findUnique.mockResolvedValue({ id: 1, isActive: true });
-    prisma.student.findUnique.mockResolvedValue({ id: 10, userId: 1 });
+    prisma.coopPeriodMajor.findUnique.mockResolvedValue({ periodId: 1, major: 'CS', isActive: true, endDate: FUTURE });
+    prisma.student.findUnique.mockResolvedValue({ id: 10, userId: 1, major: 'CS' });
     prisma.$transaction.mockImplementation((fn) => fn(prisma));
     prisma.document.createMany.mockResolvedValue({});
     prisma.studentCoop.upsert.mockResolvedValue({ studentId: 10, status: 'APPLYING' });
   };
-  const validReq = () => ({ user: { id: 1 }, body: { coopPeriodId: '1', jobPosition: 'Backend Dev' }, files: [] });
+  const validReq = () => ({ user: { id: 1, role: 'student' }, body: { coopPeriodId: '1', jobPosition: 'Backend Dev' }, files: [] });
 
   test('400 — ยังไม่มีผู้ติดต่อ (HR)', async () => {
     setupSubmittable();

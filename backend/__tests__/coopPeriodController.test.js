@@ -1,359 +1,307 @@
-// backend/__tests__/coopPeriodController.test.js
-
-jest.mock('@prisma/client', () => {
-  const mocks = require('./__mocks__/prismaClient');
-  return { PrismaClient: jest.fn(() => mocks) };
-});
+// backend/__tests__/coopPeriodController.test.js — รอบสหกิจ: ปี/เทอมใช้ร่วมกัน · วันรับสมัคร/เปิดปิด/ช่วงนิเทศ แยกหลักสูตร (Phase 5)
+jest.mock('../config/prismaClient', () => require('./__mocks__/prismaClient'));
+jest.mock('../utils/notificationHelper', () => ({ createNotifications: jest.fn().mockResolvedValue() }));
 
 const prisma = require('./__mocks__/prismaClient');
+const { createNotifications } = require('../utils/notificationHelper');
 const {
-  getPeriods,
-  createPeriod,
-  updatePeriod,
-  togglePeriod,
-  deletePeriod,
-  getActivePeriod,
+  getPeriods, createPeriod, updatePeriod, togglePeriod, deletePeriod, removePeriodMajor, getActivePeriod, moveStudentPeriod,
 } = require('../controllers/coopPeriodController');
 
-function makeRes() {
-  return { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() };
-}
+const makeRes = () => ({ status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() });
+const STAFF = { id: 1, role: 'staff' };
+const COOP_CS = { id: 2, role: 'teacher' };
+const STUDENT = { id: 3, role: 'student' };
+const req = (user, extra = {}) => ({ user, method: 'GET', body: {}, params: {}, get: () => '', ...extra });
 
-beforeEach(() => jest.clearAllMocks());
+const FUTURE = new Date(Date.now() + 30 * 86400000);
+const PAST = new Date(Date.now() - 30 * 86400000);
+const row = (periodId, major, over = {}) => ({
+  periodId, major, startDate: new Date('2026-01-01'), endDate: FUTURE, isActive: false,
+  supervisionStartDate: null, supervisionEndDate: null, isSupervisionOpen: false, ...over,
+});
+const period = (id, majors, over = {}) => ({
+  id, academicYear: '2569', semester: id, startDate: new Date('2026-01-01'), endDate: FUTURE,
+  legacyIsActive: false, legacySupervisionStartDate: null, legacySupervisionEndDate: null, legacyIsSupervisionOpen: false,
+  majors, ...over,
+});
+const lastJson = (res) => res.json.mock.calls[res.json.mock.calls.length - 1][0];
 
-// ---------------------------------------------------------------------------
-// getPeriods
-// ---------------------------------------------------------------------------
+beforeEach(() => {
+  jest.clearAllMocks();
+  prisma.teacher.findUnique.mockResolvedValue({ id: 20, coopMajors: [{ major: 'CS' }] });
+  prisma.coopCriteria.findMany.mockResolvedValue([{ major: 'AI' }, { major: 'CS' }]);
+  prisma.coopPeriodMajor.updateMany.mockResolvedValue({ count: 0 });
+});
+
 describe('getPeriods', () => {
-  test('200 – returns { ok: true, periods }', async () => {
-    const fakePeriods = [
-      { id: 1, academicYear: '2567', semester: 1, isActive: true },
-      { id: 2, academicYear: '2566', semester: 2, isActive: false },
-    ];
-    prisma.coopPeriod.findMany.mockResolvedValue(fakePeriods);
-
-    const req = {};
+  test('เจ้าหน้าที่ — ค่าระดับบนรวมทุกหลักสูตร (เปิดถ้ามีหลักสูตรใดเปิด) + แถวของทุกหลักสูตร · ไม่ส่งคอลัมน์ legacy', async () => {
+    prisma.coopPeriod.findMany.mockResolvedValue([period(1, [row(1, 'AI'), row(1, 'CS', { isActive: true })])]);
     const res = makeRes();
-
-    await getPeriods(req, res);
-
-    expect(prisma.coopPeriod.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ orderBy: expect.any(Array) })
-    );
-    expect(res.json).toHaveBeenCalledWith({ ok: true, periods: fakePeriods });
-    expect(res.status).not.toHaveBeenCalled();
+    await getPeriods(req(STAFF), res);
+    const [p] = lastJson(res).periods;
+    expect(p.isActive).toBe(true);
+    expect(p.majors.map((r) => r.major)).toEqual(['AI', 'CS']);
+    expect(p).not.toHaveProperty('legacyIsActive');
   });
 
-  test('500 – DB error returns { ok: false, error }', async () => {
+  test('อาจารย์ประจำวิชา CS — ค่าระดับบน = ของ CS · หลักสูตรที่ยังไม่ตั้งรอบนี้ = ปิด (configured=false)', async () => {
+    prisma.coopPeriod.findMany.mockResolvedValue([
+      period(1, [row(1, 'AI', { isActive: true }), row(1, 'CS', { isSupervisionOpen: true })]),
+      period(2, [row(2, 'AI', { isActive: true })]),
+    ]);
+    const res = makeRes();
+    await getPeriods(req(COOP_CS), res);
+    const [p1, p2] = lastJson(res).periods;
+    expect(p1).toMatchObject({ major: 'CS', isActive: false, isSupervisionOpen: true, configured: true });
+    expect(p2).toMatchObject({ major: 'CS', isActive: false, configured: false });
+  });
+
+  test('เลยวันปิดแต่ยังเปิดค้าง → ปิดอัตโนมัติ (บันทึกลง DB) เฉพาะแถวนั้น', async () => {
+    prisma.coopPeriod.findMany.mockResolvedValue([period(1, [row(1, 'AI', { isActive: true, endDate: PAST }), row(1, 'CS', { isActive: true })])]);
+    const res = makeRes();
+    await getPeriods(req(STAFF), res);
+    expect(prisma.coopPeriodMajor.updateMany).toHaveBeenCalledWith({ where: { OR: [{ periodId: 1, major: 'AI' }] }, data: { isActive: false } });
+    const [p] = lastJson(res).periods;
+    expect(p.majors.find((r) => r.major === 'AI').isActive).toBe(false);
+    expect(p.majors.find((r) => r.major === 'CS').isActive).toBe(true);
+  });
+
+  test('500 เมื่อ DB ล้ม', async () => {
     prisma.coopPeriod.findMany.mockRejectedValue(new Error('DB fail'));
-
-    const req = {};
     const res = makeRes();
-
-    await getPeriods(req, res);
-
+    await getPeriods(req(STAFF), res);
     expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.json).toHaveBeenCalledWith(
-      expect.objectContaining({ ok: false })
-    );
   });
 });
 
-// ---------------------------------------------------------------------------
-// createPeriod
-// ---------------------------------------------------------------------------
 describe('createPeriod', () => {
-  test('409 – duplicate academicYear+semester returns error', async () => {
-    prisma.coopPeriod.findUnique.mockResolvedValue({ id: 1, academicYear: '2567', semester: 1 });
+  const b = { academicYear: '2570', semester: 1, startDate: '2027-01-01', endDate: '2027-03-01' };
 
-    const req = {
-      body: {
-        academicYear: '2567',
-        semester: '1',
-        startDate: '2024-06-01',
-        endDate: '2024-10-31',
-      },
-    };
+  test('เจ้าหน้าที่สร้างรอบใหม่ → ได้แถวของทุกหลักสูตร', async () => {
+    prisma.coopPeriod.findUnique.mockResolvedValue(null);
+    prisma.coopPeriod.create.mockResolvedValue({ id: 9 });
+    prisma.coopPeriodMajor.findMany.mockResolvedValue([]);
+    prisma.coopPeriod.findMany.mockResolvedValue([period(9, [row(9, 'AI'), row(9, 'CS')])]);
     const res = makeRes();
+    await createPeriod(req(STAFF, { method: 'POST', body: b }), res);
+    expect(prisma.coopPeriodMajor.createMany).toHaveBeenCalledWith({ data: [expect.objectContaining({ periodId: 9, major: 'AI' }), expect.objectContaining({ periodId: 9, major: 'CS' })] });
+    expect(lastJson(res)).toMatchObject({ ok: true, added: ['AI', 'CS'] });
+  });
 
-    await createPeriod(req, res);
-
+  test('ปี/เทอมมีแล้ว และทุกหลักสูตรตั้งแล้ว → 409', async () => {
+    prisma.coopPeriod.findUnique.mockResolvedValue({ id: 9 });
+    prisma.coopPeriodMajor.findMany.mockResolvedValue([{ major: 'AI' }, { major: 'CS' }]);
+    const res = makeRes();
+    await createPeriod(req(STAFF, { method: 'POST', body: b }), res);
     expect(res.status).toHaveBeenCalledWith(409);
-    expect(res.json).toHaveBeenCalledWith(
-      expect.objectContaining({ ok: false })
-    );
+    expect(prisma.coopPeriodMajor.createMany).not.toHaveBeenCalled();
+  });
+
+  test('อาจารย์ประจำวิชา CS กับปี/เทอมที่มีแล้ว → เพิ่มเฉพาะแถว CS ไม่สร้างปี/เทอมซ้ำ', async () => {
+    prisma.coopPeriod.findUnique.mockResolvedValue({ id: 9 });
+    prisma.coopPeriodMajor.findMany.mockResolvedValue([{ major: 'AI' }]);
+    prisma.coopPeriod.findMany.mockResolvedValue([period(9, [row(9, 'AI'), row(9, 'CS')])]);
+    const res = makeRes();
+    await createPeriod(req(COOP_CS, { method: 'POST', body: b }), res);
     expect(prisma.coopPeriod.create).not.toHaveBeenCalled();
+    expect(prisma.coopPeriodMajor.createMany).toHaveBeenCalledWith({ data: [expect.objectContaining({ major: 'CS' })] });
   });
 
-  test('200 – creates period and returns { ok: true, period }', async () => {
-    const newPeriod = { id: 3, academicYear: '2568', semester: 1 };
-    prisma.coopPeriod.findUnique.mockResolvedValue(null);
-    prisma.coopPeriod.create.mockResolvedValue(newPeriod);
-
-    const req = {
-      body: {
-        academicYear: '2568',
-        semester: '1',
-        startDate: '2025-06-01',
-        endDate: '2025-10-31',
-      },
-    };
+  test('อาจารย์ประจำวิชา CS ระบุ AI → 403', async () => {
     const res = makeRes();
-
-    await createPeriod(req, res);
-
-    expect(prisma.coopPeriod.findUnique).toHaveBeenCalledWith({
-      where: {
-        academicYear_semester: { academicYear: '2568', semester: 1 },
-      },
-    });
-    expect(prisma.coopPeriod.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({ academicYear: '2568', semester: 1 }),
-      })
-    );
-    expect(res.json).toHaveBeenCalledWith({ ok: true, period: newPeriod });
+    await createPeriod(req(COOP_CS, { method: 'POST', body: { ...b, major: 'AI' } }), res);
+    expect(res.status).toHaveBeenCalledWith(403);
   });
 
-  test('500 – DB error returns { ok: false, error }', async () => {
-    prisma.coopPeriod.findUnique.mockResolvedValue(null);
-    prisma.coopPeriod.create.mockRejectedValue(new Error('DB fail'));
-
-    const req = {
-      body: { academicYear: '2568', semester: '2', startDate: '2025-11-01', endDate: '2026-03-31' },
-    };
+  test('ไม่ระบุวัน → 400', async () => {
     const res = makeRes();
-
-    await createPeriod(req, res);
-
-    expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: false }));
-  });
-});
-
-// ---------------------------------------------------------------------------
-// updatePeriod
-// ---------------------------------------------------------------------------
-describe('updatePeriod', () => {
-  test('200 – updates period and returns { ok: true, period }', async () => {
-    const updated = { id: 1, academicYear: '2567', semester: 2 };
-    prisma.coopPeriod.update.mockResolvedValue(updated);
-
-    const req = {
-      params: { id: '1' },
-      body: {
-        academicYear: '2567',
-        semester: '2',
-        startDate: '2024-11-01',
-        endDate: '2025-03-31',
-      },
-    };
-    const res = makeRes();
-
-    await updatePeriod(req, res);
-
-    expect(prisma.coopPeriod.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: 1 },
-        data: expect.objectContaining({ academicYear: '2567', semester: 2 }),
-      })
-    );
-    expect(res.json).toHaveBeenCalledWith({ ok: true, period: updated });
-    expect(res.status).not.toHaveBeenCalled();
-  });
-
-  test('500 – DB error returns { ok: false, error }', async () => {
-    prisma.coopPeriod.update.mockRejectedValue(new Error('Not found'));
-
-    const req = {
-      params: { id: '99' },
-      body: { academicYear: '2567', semester: '1', startDate: '2024-06-01', endDate: '2024-10-31' },
-    };
-    const res = makeRes();
-
-    await updatePeriod(req, res);
-
-    expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: false }));
-  });
-});
-
-// ---------------------------------------------------------------------------
-// togglePeriod
-// ---------------------------------------------------------------------------
-describe('togglePeriod', () => {
-  test('400 – เปิดรอบที่เลยวันปิดรับสมัครแล้ว → ไม่เปิด (เดิมเปิดแล้วถูกปิดอัตโนมัติทันทีแบบเงียบๆ)', async () => {
-    prisma.coopPeriod.findUnique.mockResolvedValue({ id: 1, isActive: false, endDate: new Date('2020-01-31') });
-
-    const res = makeRes();
-    await togglePeriod({ params: { id: '1' }, body: { isActive: true } }, res);
-
+    await createPeriod(req(STAFF, { method: 'POST', body: { academicYear: '2570', semester: 1 } }), res);
     expect(res.status).toHaveBeenCalledWith(400);
-    expect(res.json.mock.calls[0][0].message).toMatch(/วันปิดรับสมัคร/);
+  });
+});
+
+describe('updatePeriod', () => {
+  const b = { startDate: '2027-01-01', endDate: '2027-03-01' };
+
+  test('อาจารย์ประจำวิชา CS → แก้วันของแถว CS (upsert) ไม่แตะปี/เทอม', async () => {
+    prisma.coopPeriod.findUnique.mockResolvedValue({ id: 1 });
+    prisma.coopPeriod.findMany.mockResolvedValue([period(1, [row(1, 'CS')])]);
+    const res = makeRes();
+    await updatePeriod(req(COOP_CS, { method: 'PUT', params: { id: '1' }, body: { ...b, academicYear: '2599' } }), res);
+    expect(prisma.coopPeriodMajor.upsert).toHaveBeenCalledWith(expect.objectContaining({ where: { periodId_major: { periodId: 1, major: 'CS' } } }));
     expect(prisma.coopPeriod.update).not.toHaveBeenCalled();
-    expect(prisma.coopPeriod.updateMany).not.toHaveBeenCalled();
   });
 
-  test('404 – เปิดรอบที่ไม่มีอยู่', async () => {
+  test('เจ้าหน้าที่ไม่ระบุหลักสูตร → แก้ปี/เทอมของรอบ', async () => {
+    prisma.coopPeriod.findUnique.mockResolvedValue({ id: 1 });
+    prisma.coopPeriod.findMany.mockResolvedValue([period(1, [])]);
+    const res = makeRes();
+    await updatePeriod(req(STAFF, { method: 'PUT', params: { id: '1' }, body: { ...b, academicYear: '2570', semester: 2 } }), res);
+    expect(prisma.coopPeriod.update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ academicYear: '2570', semester: 2 }) }));
+    expect(prisma.coopPeriodMajor.upsert).not.toHaveBeenCalled();
+  });
+
+  test('ไม่พบรอบ → 404', async () => {
     prisma.coopPeriod.findUnique.mockResolvedValue(null);
     const res = makeRes();
-    await togglePeriod({ params: { id: '99' }, body: { isActive: true } }, res);
+    await updatePeriod(req(STAFF, { method: 'PUT', params: { id: '1' }, body: b }), res);
     expect(res.status).toHaveBeenCalledWith(404);
-    expect(prisma.coopPeriod.update).not.toHaveBeenCalled();
-  });
-
-  test('200 – activating a period deactivates others first', async () => {
-    const updated = { id: 1, isActive: true };
-    prisma.coopPeriod.findUnique.mockResolvedValue({ id: 1, isActive: false, endDate: new Date('2999-12-31') });
-    prisma.coopPeriod.updateMany.mockResolvedValue({ count: 2 });
-    prisma.coopPeriod.update.mockResolvedValue(updated);
-
-    const req = { params: { id: '1' }, body: { isActive: true } };
-    const res = makeRes();
-
-    await togglePeriod(req, res);
-
-    // Should call updateMany to deactivate others
-    expect(prisma.coopPeriod.updateMany).toHaveBeenCalledWith({
-      where: { id: { not: 1 } },
-      data: { isActive: false },
-    });
-    // Then update the target
-    expect(prisma.coopPeriod.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: 1 },
-        data: { isActive: true },
-      })
-    );
-    expect(res.json).toHaveBeenCalledWith(
-      expect.objectContaining({ ok: true })
-    );
-  });
-
-  test('200 – deactivating a period does NOT call updateMany', async () => {
-    const updated = { id: 1, isActive: false };
-    prisma.coopPeriod.update.mockResolvedValue(updated);
-
-    const req = { params: { id: '1' }, body: { isActive: false } };
-    const res = makeRes();
-
-    await togglePeriod(req, res);
-
-    expect(prisma.coopPeriod.updateMany).not.toHaveBeenCalled();
-    expect(prisma.coopPeriod.update).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { id: 1 }, data: { isActive: false } })
-    );
-    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: true }));
-  });
-
-  test('500 – DB error returns { ok: false }', async () => {
-    prisma.coopPeriod.update.mockRejectedValue(new Error('DB fail'));
-
-    const req = { params: { id: '1' }, body: { isActive: false } };
-    const res = makeRes();
-
-    await togglePeriod(req, res);
-
-    expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: false }));
   });
 });
 
-// ---------------------------------------------------------------------------
-// deletePeriod
-// ---------------------------------------------------------------------------
-describe('deletePeriod', () => {
-  test('200 – deletes period and returns { ok: true }', async () => {
-    prisma.coopPeriod.delete.mockResolvedValue({});
-
-    const req = { params: { id: '1' } };
+describe('togglePeriod', () => {
+  test('อาจารย์ประจำวิชา CS เปิดรอบ → ปิดรอบอื่นของ CS เท่านั้น แล้วเปิดแถว CS', async () => {
+    prisma.coopPeriod.findUnique.mockResolvedValue(period(1, [row(1, 'AI'), row(1, 'CS')]));
+    prisma.coopPeriod.findMany.mockResolvedValue([period(1, [row(1, 'CS', { isActive: true })])]);
     const res = makeRes();
-
-    await deletePeriod(req, res);
-
-    expect(prisma.coopPeriod.delete).toHaveBeenCalledWith({ where: { id: 1 } });
-    expect(res.json).toHaveBeenCalledWith(
-      expect.objectContaining({ ok: true })
-    );
-    expect(res.status).not.toHaveBeenCalled();
+    await togglePeriod(req(COOP_CS, { method: 'PATCH', params: { id: '1' }, body: { isActive: true } }), res);
+    expect(prisma.coopPeriodMajor.updateMany).toHaveBeenCalledWith({ where: { major: { in: ['CS'] }, periodId: { not: 1 } }, data: { isActive: false } });
+    expect(prisma.coopPeriodMajor.updateMany).toHaveBeenCalledWith({ where: { periodId: 1, major: { in: ['CS'] } }, data: { isActive: true } });
   });
 
-  test('500 – DB error returns { ok: false }', async () => {
-    prisma.coopPeriod.delete.mockRejectedValue(new Error('DB fail'));
-
-    const req = { params: { id: '99' } };
+  test('เจ้าหน้าที่ไม่ระบุหลักสูตร → ทุกหลักสูตรที่ตั้งรอบนี้', async () => {
+    prisma.coopPeriod.findUnique.mockResolvedValue(period(1, [row(1, 'AI'), row(1, 'CS')]));
+    prisma.coopPeriod.findMany.mockResolvedValue([period(1, [])]);
     const res = makeRes();
+    await togglePeriod(req(STAFF, { method: 'PATCH', params: { id: '1' }, body: { isActive: false } }), res);
+    expect(prisma.coopPeriodMajor.updateMany).toHaveBeenCalledTimes(1);
+    expect(prisma.coopPeriodMajor.updateMany).toHaveBeenCalledWith({ where: { periodId: 1, major: { in: ['AI', 'CS'] } }, data: { isActive: false } });
+  });
 
-    await deletePeriod(req, res);
+  test('เปิดแถวที่เลยวันปิดรับสมัครแล้ว → 400 ไม่เปิด', async () => {
+    prisma.coopPeriod.findUnique.mockResolvedValue(period(1, [row(1, 'CS', { endDate: PAST })]));
+    const res = makeRes();
+    await togglePeriod(req(COOP_CS, { method: 'PATCH', params: { id: '1' }, body: { isActive: true } }), res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(prisma.coopPeriodMajor.updateMany).not.toHaveBeenCalled();
+  });
 
-    expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: false }));
+  test('หลักสูตรยังไม่ได้ตั้งรอบนี้ → 400', async () => {
+    prisma.coopPeriod.findUnique.mockResolvedValue(period(1, [row(1, 'AI')]));
+    const res = makeRes();
+    await togglePeriod(req(COOP_CS, { method: 'PATCH', params: { id: '1' }, body: { isActive: true } }), res);
+    expect(res.status).toHaveBeenCalledWith(400);
+  });
+
+  test('อาจารย์ประจำวิชา CS สั่ง AI → 403', async () => {
+    prisma.coopPeriod.findUnique.mockResolvedValue(period(1, [row(1, 'AI')]));
+    const res = makeRes();
+    await togglePeriod(req(COOP_CS, { method: 'PATCH', params: { id: '1' }, body: { isActive: true, major: 'AI' } }), res);
+    expect(res.status).toHaveBeenCalledWith(403);
+  });
+
+  test('isActive ไม่ใช่ boolean → 400', async () => {
+    const res = makeRes();
+    await togglePeriod(req(STAFF, { method: 'PATCH', params: { id: '1' }, body: { isActive: 'yes' } }), res);
+    expect(res.status).toHaveBeenCalledWith(400);
   });
 });
 
-// ---------------------------------------------------------------------------
-// getActivePeriod
-// ---------------------------------------------------------------------------
-describe('getActivePeriod', () => {
-  test('200 – returns { ok: true, period } when active period found', async () => {
-    const activePeriod = { id: 1, academicYear: '2567', semester: 1, isActive: true };
-    prisma.coopPeriod.findFirst.mockResolvedValue(activePeriod);
-
-    const req = {};
+describe('deletePeriod / removePeriodMajor', () => {
+  test('ลบรอบที่มีนักศึกษาอ้างอิง → 409', async () => {
+    prisma.coopPeriod.delete.mockRejectedValue(Object.assign(new Error('fk'), { code: 'P2003' }));
     const res = makeRes();
-
-    await getActivePeriod(req, res);
-
-    expect(prisma.coopPeriod.findFirst).toHaveBeenCalledWith({
-      where: { isActive: true },
-    });
-    expect(res.json).toHaveBeenCalledWith({ ok: true, period: activePeriod });
-    expect(res.status).not.toHaveBeenCalled();
+    await deletePeriod(req(STAFF, { method: 'DELETE', params: { id: '1' } }), res);
+    expect(res.status).toHaveBeenCalledWith(409);
   });
 
-  test('200 – returns { ok: true, period: null } when no active period', async () => {
-    prisma.coopPeriod.findFirst.mockResolvedValue(null);
-
-    const req = {};
+  test('เอารอบออกจากหลักสูตรที่ยังมีนักศึกษาอยู่ในรอบ → 409', async () => {
+    prisma.studentCoop.count.mockResolvedValue(3);
     const res = makeRes();
-
-    await getActivePeriod(req, res);
-
-    expect(res.json).toHaveBeenCalledWith({ ok: true, period: null });
+    await removePeriodMajor(req(COOP_CS, { method: 'DELETE', params: { id: '1', major: 'CS' } }), res);
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(prisma.coopPeriodMajor.delete).not.toHaveBeenCalled();
   });
 
-  test('500 – DB error returns { ok: false }', async () => {
-    prisma.coopPeriod.findFirst.mockRejectedValue(new Error('DB fail'));
-
-    const req = {};
+  test('เอารอบออกจากหลักสูตร (ไม่มีนักศึกษา) → ลบแถว', async () => {
+    prisma.studentCoop.count.mockResolvedValue(0);
+    prisma.coopPeriodMajor.findUnique.mockResolvedValue(row(1, 'CS'));
     const res = makeRes();
+    await removePeriodMajor(req(COOP_CS, { method: 'DELETE', params: { id: '1', major: 'CS' } }), res);
+    expect(prisma.coopPeriodMajor.delete).toHaveBeenCalledWith({ where: { periodId_major: { periodId: 1, major: 'CS' } } });
+  });
+});
 
-    await getActivePeriod(req, res);
-
-    expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: false }));
+describe('getActivePeriod (นักศึกษา)', () => {
+  test('ยังไม่ระบุหลักสูตร → period null + reason NO_MAJOR', async () => {
+    prisma.student.findUnique.mockResolvedValue({ major: null });
+    const res = makeRes();
+    await getActivePeriod(req(STUDENT), res);
+    expect(lastJson(res)).toMatchObject({ ok: true, period: null, reason: 'NO_MAJOR' });
   });
 
-  test('200 – auto-closes and returns period: null when endDate has passed but isActive still true', async () => {
-    const expiredPeriod = {
-      id: 5,
-      academicYear: '2566',
-      semester: 1,
-      isActive: true,
-      endDate: new Date('2020-01-01'),
-    };
-    prisma.coopPeriod.findFirst.mockResolvedValue(expiredPeriod);
-    prisma.coopPeriod.update.mockResolvedValue({});
-
-    const req = {};
+  test('CS เปิดอยู่ → นักศึกษา CS ได้รอบนั้น (ค่าของ CS)', async () => {
+    prisma.student.findUnique.mockResolvedValue({ major: 'CS' });
+    prisma.coopPeriod.findMany.mockResolvedValue([period(1, [row(1, 'AI'), row(1, 'CS', { isActive: true })])]);
     const res = makeRes();
+    await getActivePeriod(req(STUDENT), res);
+    expect(lastJson(res).period).toMatchObject({ id: 1, major: 'CS', isActive: true });
+  });
 
-    await getActivePeriod(req, res);
+  test('มีแต่ CS เปิด → นักศึกษา AI ไม่มีรอบเปิด', async () => {
+    prisma.student.findUnique.mockResolvedValue({ major: 'AI' });
+    prisma.coopPeriod.findMany.mockResolvedValue([period(1, [row(1, 'AI'), row(1, 'CS', { isActive: true })])]);
+    const res = makeRes();
+    await getActivePeriod(req(STUDENT), res);
+    expect(lastJson(res).period).toBeNull();
+  });
+});
 
-    expect(prisma.coopPeriod.update).toHaveBeenCalledWith({
-      where: { id: 5 },
-      data: { isActive: false },
-    });
-    expect(res.json).toHaveBeenCalledWith({ ok: true, period: null });
+describe('moveStudentPeriod', () => {
+  const stu = (status, over = {}) => ({ id: 5, userId: 50, major: 'CS', deletedAt: null, coop: { status, coopPeriodId: 1 }, supervisionAppointment: null, ...over });
+  const mv = (b) => req(COOP_CS, { method: 'POST', params: { id: '5' }, body: { periodId: 2, reason: 'บริษัทยกเลิก', ...b } });
+  beforeEach(() => {
+    prisma.coopPeriod.findUnique.mockResolvedValue({ id: 2, academicYear: '2569', semester: 2 });
+    prisma.coopPeriodMajor.findUnique.mockResolvedValue(row(2, 'CS'));
+    prisma.studentCoop.update.mockResolvedValue({});
+  });
+
+  test('ยังไม่ผ่านคุณสมบัติ + KEEP → ย้ายรอบอย่างเดียว + แจ้งนักศึกษา', async () => {
+    prisma.student.findUnique.mockResolvedValue(stu('APPLYING'));
+    const res = makeRes();
+    await moveStudentPeriod(mv({ resetTo: 'KEEP' }), res);
+    expect(prisma.studentCoop.update).toHaveBeenCalledWith({ where: { studentId: 5 }, data: { coopPeriodId: 2 } });
+    expect(createNotifications).toHaveBeenCalledWith([50], expect.objectContaining({ type: 'COOP_PERIOD_MOVED' }));
+  });
+
+  test('ออกหนังสือแล้ว + QUALIFIED → คงผ่านคุณสมบัติ ยกเลิกหนังสือ/ใบตอบรับ', async () => {
+    prisma.student.findUnique.mockResolvedValue(stu('PLACEMENT_LETTER_ISSUED'));
+    const res = makeRes();
+    await moveStudentPeriod(mv({ resetTo: 'QUALIFIED' }), res);
+    const { data } = prisma.studentCoop.update.mock.calls[0][0];
+    expect(data).toMatchObject({ coopPeriodId: 2, status: 'QUALIFIED', t000Status: 'WAITING', reqDocNumber: null, reqLetterUrl: null, placeDocNumber: null, placeLetterUrl: null, acceptanceFileUrl: null });
+    expect(data).not.toHaveProperty('teacherCheckComment');
+  });
+
+  test('NOT_SUBMITTED → ล้างผลตรวจคุณสมบัติด้วย', async () => {
+    prisma.student.findUnique.mockResolvedValue(stu('REQ_LETTER_ISSUED'));
+    const res = makeRes();
+    await moveStudentPeriod(mv({ resetTo: 'NOT_SUBMITTED' }), res);
+    expect(prisma.studentCoop.update.mock.calls[0][0].data).toMatchObject({ status: 'NOT_SUBMITTED', teacherCheckComment: null, reqDocNumber: null });
+  });
+
+  test.each([
+    ['ผ่านคุณสมบัติแล้วเลือก KEEP', stu('REQ_LETTER_ISSUED'), { resetTo: 'KEEP' }],
+    ['ยังไม่ผ่านคุณสมบัติเลือก QUALIFIED', stu('APPLYING'), { resetTo: 'QUALIFIED' }],
+    ['ออกฝึกแล้ว', stu('INTERNSHIP_STARTED'), { resetTo: 'NOT_SUBMITTED' }],
+    ['มีนัดนิเทศแล้ว', stu('PLACEMENT_LETTER_ISSUED', { supervisionAppointment: { id: 1 } }), { resetTo: 'QUALIFIED' }],
+    ['ไม่ใส่เหตุผล', stu('APPLYING'), { resetTo: 'KEEP', reason: '  ' }],
+    ['รอบเดิม', stu('APPLYING'), { resetTo: 'KEEP', periodId: 1 }],
+  ])('400 — %s', async (_n, s, b) => {
+    prisma.student.findUnique.mockResolvedValue(s);
+    const res = makeRes();
+    await moveStudentPeriod(mv(b), res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(prisma.studentCoop.update).not.toHaveBeenCalled();
+  });
+
+  test('หลักสูตรของนักศึกษายังไม่ได้ตั้งรอบปลายทาง → 400', async () => {
+    prisma.student.findUnique.mockResolvedValue(stu('APPLYING'));
+    prisma.coopPeriodMajor.findUnique.mockResolvedValue(null);
+    const res = makeRes();
+    await moveStudentPeriod(mv({ resetTo: 'KEEP' }), res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(prisma.studentCoop.update).not.toHaveBeenCalled();
   });
 });
