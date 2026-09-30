@@ -16,6 +16,7 @@ import LoadMoreFooter from "./LoadMoreFooter";
 import { useLoadMore } from "../utils/useLoadMore";
 import { askConfirm } from "../utils/notify";
 import { TABLE_TH, TABLE_TD, TABLE_HEADER_ROW } from "../utils/tableStyles";
+import { useAdminRole } from "./adminRole";
 
 // --- Types ---
 type SupervisionStatus = "PENDING_TEACHER" | "TEACHER_REJECTED" | "DATE_CONFIRMED" | "LETTER_UPLOADED" | "COMPLETED";
@@ -85,6 +86,7 @@ type SortKey = 'student' | 'company' | 'teacher' | 'datetime' | 'status';
 type SortDirection = 'asc' | 'desc';
 
 export default function A_SupervisionManage() {
+    const { isStaff } = useAdminRole();
     const toast = useToast();
     const [supervisions, setSupervisions] = useState<Supervision[]>([]);
     const [teachersList, setTeachersList] = useState<Teacher[]>([]);
@@ -564,7 +566,9 @@ export default function A_SupervisionManage() {
                                                     ✏️ แก้ไขวัน
                                                 </button>
                                             )}
-                                            {sup.status === "DATE_CONFIRMED" && (
+                                            {/* ออกหนังสือขอนิเทศ = เจ้าหน้าที่เท่านั้น */}
+                                            {!isStaff && sup.status === "DATE_CONFIRMED" && <span style={{ fontSize: 12, color: '#94a3b8', alignSelf: 'center' }}>🕒 รอเจ้าหน้าที่ออกหนังสือ</span>}
+                                            {isStaff && sup.status === "DATE_CONFIRMED" && (
                                                 <button className="btn" style={{ background: sup.letterPendingAt ? '#d97706' : '#2563eb', color: 'white', padding: '6px 10px', fontSize: 12 }} onClick={() => setSelectedSupForModal(sup)}>
                                                     {sup.letterPendingAt ? '✍️ อัปโหลดฉบับลงนาม' : '📄 ออกหนังสือ'}
                                                 </button>
@@ -574,7 +578,8 @@ export default function A_SupervisionManage() {
                                                     👁️ ดูเอกสาร
                                                 </button>
                                             )}
-                                            {sup.status === "LETTER_UPLOADED" && (
+                                            {/* จบนิเทศ: backend ให้อาจารย์ทำได้เฉพาะอาจารย์ผู้นิเทศหลัก (ทำที่หน้านัดหมายนิเทศของตัวเอง) */}
+                                            {isStaff && sup.status === "LETTER_UPLOADED" && (
                                                 <button className="btn" style={{ background: '#7c3aed', color: 'white', padding: '6px 10px', fontSize: 12 }} onClick={() => handleComplete(sup)}>
                                                     🏁 จบนิเทศ
                                                 </button>

@@ -3,6 +3,7 @@ import type { StudentProfile } from "./A_Students";
 import { apiFetch } from "../utils/apiFetch";
 import { askConfirm } from "../utils/notify";
 import Modal from "./Modal";
+import { useAdminRole } from "./adminRole";
 
 const CURRICULUM_TH: Record<string, string> = {
   normal: "ภาคปกติ",
@@ -28,6 +29,8 @@ interface Props {
 }
 
 export default function A_StudentEditModal({ student, onClose, onSaved }: Props) {
+  // อาจารย์ประจำวิชา: เลือกได้เฉพาะหลักสูตรที่ดูแล (backend กันซ้ำ)
+  const { isStaff, majors: myMajors } = useAdminRole();
   const [form, setForm] = useState({
     prefix: student.prefix ?? "",
     firstName: student.firstName ?? "",
@@ -142,7 +145,7 @@ export default function A_StudentEditModal({ student, onClose, onSaved }: Props)
           <Field label="หลักสูตร">
             <select className="input" value={form.major} onChange={e => update("major", e.target.value)} disabled={departments === null}>
               <option value="">{departments === null ? "กำลังโหลด..." : "-- ยังไม่ระบุหลักสูตร --"}</option>
-              {(departments ?? []).map(d => (
+              {(departments ?? []).filter(d => isStaff || myMajors.includes(d.major)).map(d => (
                 <option key={d.major} value={d.major}>{d.nameTh && d.nameTh !== d.major ? `${d.nameTh} (${d.major})` : d.major}</option>
               ))}
             </select>
@@ -183,7 +186,8 @@ export default function A_StudentEditModal({ student, onClose, onSaved }: Props)
           </Field>
         </div>
 
-        <div style={{ marginTop: 20, paddingTop: 16, borderTop: "1px solid #e5e7eb" }}>
+        {/* รหัสผ่าน = เจ้าหน้าที่เท่านั้น */}
+        {isStaff && <div style={{ marginTop: 20, paddingTop: 16, borderTop: "1px solid #e5e7eb" }}>
           <div style={{ fontSize: 13, color: "#64748b", marginBottom: 8, fontWeight: 600 }}>รหัสผ่านเข้าสู่ระบบ</div>
           <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
             <button type="button" className="btn-secondary" onClick={handleResetPassword} disabled={resetting || saving}>
@@ -194,7 +198,7 @@ export default function A_StudentEditModal({ student, onClose, onSaved }: Props)
           {resetResult && (
             <div style={{ marginTop: 8, fontSize: 13, color: resetResult.ok ? "#15803d" : "#dc2626" }}>{resetResult.message}</div>
           )}
-        </div>
+        </div>}
 
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 24 }}>
           <button type="button" className="btn-secondary" onClick={onClose} disabled={saving}>ยกเลิก</button>

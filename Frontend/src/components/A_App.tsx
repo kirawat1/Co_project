@@ -31,6 +31,8 @@ import A_SupervisionEval from "./A_SupervisionEval";
 import A_DocT008 from "./A_DocT008";
 import A_GatewaySettings from "./A_GatewaySettings";
 import A_StaffManage from "./A_StaffManage";
+import { useMyScope } from "../hooks/useMyScope";
+import { AdminRoleContext } from "./adminRole";
 
 
 const IOS_BLUE = "#0074B7";
@@ -49,7 +51,22 @@ export default function AdminApp() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
 
-  const displayName = profile?.email || "เจ้าหน้าที่";
+  // เจ้าหน้าที่ = ทุกหน้า · อาจารย์ประจำวิชา = หน้าจัดการหลักสูตรที่ดูแล (ยกเว้นหน้าเจ้าหน้าที่) · อื่นๆ กลับหน้าของตัวเอง
+  const scope = useMyScope();
+  const role = (profile?.role || "").toLowerCase();
+  const isStaff = role === "staff";
+  const coopMajors = role === "teacher" && scope && !scope.all ? scope.majors : [];
+  const isCoopTeacher = coopMajors.length > 0;
+  const roleReady = !!profile && (isStaff || role === "student" || scope !== null);
+  const displayName = isCoopTeacher ? `อาจารย์ประจำวิชา · ${coopMajors.join(", ")}` : (profile?.email || "เจ้าหน้าที่");
+
+  useEffect(() => {
+    if (!roleReady || isStaff || isCoopTeacher) return;
+    navigate(role === "teacher" ? "/teacher/dashboard" : role === "student" ? "/student/dashboard" : "/", { replace: true });
+  }, [roleReady, isStaff, isCoopTeacher, role, navigate]);
+
+  // หน้าเจ้าหน้าที่เท่านั้น — อาจารย์ประจำวิชาพิมพ์ URL ตรงก็เด้งกลับ
+  const staffOnly = (el: React.ReactElement) => (isStaff ? el : <Navigate to="/admin/dashboard" replace />);
 
   useEffect(() => {
     const token = localStorage.getItem("coop.token");
@@ -80,7 +97,7 @@ export default function AdminApp() {
     navigate("/", { replace: true });
   }
 
-  if (loading) {
+  if (loading || !roleReady || (!isStaff && !isCoopTeacher)) {
     return <div style={{ padding: 24 }}>กำลังโหลด...</div>;
   }
 
@@ -100,6 +117,11 @@ export default function AdminApp() {
             <div className="user-ava" />
             <div className="user-name">{displayName}</div>
           </div>
+          {isCoopTeacher && (
+            <button className="btn-secondary small" onClick={() => navigate("/teacher/dashboard")} title="กลับไปหน้าอาจารย์ (นักศึกษาในที่ปรึกษา นัดนิเทศของฉัน)">
+              👤 หน้าอาจารย์ของฉัน
+            </button>
+          )}
           <ThemeToggleBtn />
           <button className="btn-ico" onClick={onLogout} aria-label="ออกจากระบบ" title="ออกจากระบบ">
             <LogoutIcon />
@@ -109,8 +131,9 @@ export default function AdminApp() {
 
       <div className="layout">
         <div className={`sidebar-overlay${sidebarOpen ? " open" : ""}`} onClick={() => setSidebarOpen(false)} />
-        <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+        <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} isStaff={isStaff} roleLabel={isStaff ? "Staff" : `จัดการหลักสูตร ${coopMajors.join(", ")}`} />
         <main className="main">
+          <AdminRoleContext.Provider value={{ isStaff, majors: coopMajors }}>
           <Routes>
             <Route index element={<Navigate to="/admin/dashboard" replace />} />
             <Route path="dashboard" element={<Dashboard />} />
@@ -121,18 +144,18 @@ export default function AdminApp() {
             <Route path="docs" element={<Docs />} />
             <Route path="daily" element={<Daily />} />
             <Route path="announcements" element={<Announcements />} />
-            <Route path="settings" element={<Settings />} />
+            <Route path="settings" element={staffOnly(<Settings />)} />
             <Route path="teachers" element={<Teachers />} />
-            <Route path="criteria" element={<StaffCriteriaPage />} />
+            <Route path="criteria" element={staffOnly(<StaffCriteriaPage />)} />
             <Route path="doct000" element={<DocT000 />} />
             <Route path="doct002" element={<DocT002 />} />
             <Route path="doct003" element={<DocT003 />} />
             <Route path="coop-period" element={<Coopperiod />} />
-            <Route path="staff" element={<A_StaffManage />} />
+            <Route path="staff" element={staffOnly(<A_StaffManage />)} />
             <Route path="coop-applications" element={<CoopApplications />} />
             <Route path="supervision-manager" element={<A_SupervisionManager />} />
-            <Route path="logs" element={<A_Logs />} />
-            <Route path="feedback" element={<A_Feedback />} />
+            <Route path="logs" element={staffOnly(<A_Logs />)} />
+            <Route path="feedback" element={staffOnly(<A_Feedback />)} />
             <Route path="doc-t005-006" element={<A_DocT005_006 />} />
             <Route path="doc-t007" element={<A_DocT007 />} />
             <Route path="supervision-eval" element={<A_SupervisionEval />} />
@@ -144,6 +167,7 @@ export default function AdminApp() {
             {/* ✅ ใส่ /admin/ นำหน้า เพื่อป้องกัน Infinite Loop */}
             <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
           </Routes>
+          </AdminRoleContext.Provider>
         </main>
       </div>
 

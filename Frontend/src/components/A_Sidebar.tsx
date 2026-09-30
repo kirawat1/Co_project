@@ -19,7 +19,7 @@ import {
 } from "./icons";
 import { useNotifCounts } from "../hooks/useNotifCounts";
 
-interface SidebarProps { isOpen?: boolean; onClose?: () => void; }
+interface SidebarProps { isOpen?: boolean; onClose?: () => void; isStaff?: boolean; roleLabel?: string; }
 
 function NavItem({ to, label, icon, count, onClick }: {
   to: string; label: string; icon: React.ReactNode;
@@ -44,7 +44,7 @@ function NavItem({ to, label, icon, count, onClick }: {
   );
 }
 
-export default function A_Sidebar({ isOpen = false, onClose = () => {} }: SidebarProps) {
+export default function A_Sidebar({ isOpen = false, onClose = () => {}, isStaff = true, roleLabel = "Staff" }: SidebarProps) {
   const nav = () => onClose();
   const { markRead, sum } = useNotifCounts();
   // ป้ายแจ้งเตือนของเมนู = ชนิดที่ต้องไปทำที่หน้านั้น · กดแล้วอ่านเฉพาะชนิดของเมนูนั้น
@@ -57,7 +57,7 @@ export default function A_Sidebar({ isOpen = false, onClose = () => {} }: Sideba
 
         <div className="brand-main">
           <span className="brand-bullet" />
-          <span>Staff</span>
+          <span>{roleLabel}</span>
         </div>
 
         <div className="brand-underline" />
@@ -158,44 +158,43 @@ export default function A_Sidebar({ isOpen = false, onClose = () => {} }: Sideba
           <span className="text">รอบรับสมัครสหกิจ</span>
         </NavLink>
 
-        <NavLink
-          to="/admin/staff"
-          className={({ isActive }) => "item" + (isActive ? " active" : "")}
-          onClick={nav}
-        >
-          <span className="ico"><IcUser /></span>
-          <span className="text">จัดการบัญชีเจ้าหน้าที่</span>
-        </NavLink>
+        {/* เจ้าหน้าที่เท่านั้น — อาจารย์ประจำวิชาไม่เห็น (backend กันซ้ำ) */}
+        {isStaff && (
+          <>
+            <NavLink
+              to="/admin/staff"
+              className={({ isActive }) => "item" + (isActive ? " active" : "")}
+              onClick={nav}
+            >
+              <span className="ico"><IcUser /></span>
+              <span className="text">จัดการบัญชีเจ้าหน้าที่</span>
+            </NavLink>
 
-        {/* เรื่องที่ผู้ใช้แจ้งเข้ามาจากปุ่มแจ้งปัญหา — ป้ายนับเฉพาะเรื่องที่ยังไม่ได้อ่าน */}
-        <NavItem to="/admin/feedback" label="เรื่องที่ผู้ใช้แจ้ง" icon={<IcInbox />} {...badge(["FEEDBACK_NEW"])} />
+            {/* เรื่องที่ผู้ใช้แจ้งเข้ามาจากปุ่มแจ้งปัญหา — ป้ายนับเฉพาะเรื่องที่ยังไม่ได้อ่าน */}
+            <NavItem to="/admin/feedback" label="เรื่องที่ผู้ใช้แจ้ง" icon={<IcInbox />} {...badge(["FEEDBACK_NEW"])} />
 
-        {/* บันทึกการใช้งาน — ใครทำอะไรกับระบบ (เจ้าหน้าที่เท่านั้น) */}
-        <NavItem to="/admin/logs" label="บันทึกการใช้งาน" icon={<IcClipboard />} onClick={nav} />
+            {/* บันทึกการใช้งาน — ใครทำอะไรกับระบบ */}
+            <NavItem to="/admin/logs" label="บันทึกการใช้งาน" icon={<IcClipboard />} onClick={nav} />
 
+            <NavLink
+              to="/admin/criteria"
+              className={({ isActive }) => "item" + (isActive ? " active" : "")}
+              onClick={nav}
+            >
+              <span className="ico"><IcSettings /></span>
+              <span className="text">จัดการหลักสูตร</span>
+            </NavLink>
 
-
-
-        <NavLink
-          to="/admin/criteria"
-          className={({ isActive }) => "item" + (isActive ? " active" : "")}
-          onClick={nav}
-        >
-          <span className="ico"><IcSettings /></span>
-          <span className="text">จัดการหลักสูตร</span>
-        </NavLink>
-
-        <NavLink
-          to="/admin/settings"
-          className={({ isActive }) => "item" + (isActive ? " active" : "")}
-          onClick={nav}
-        >
-          <span className="ico"><IcSettings /></span>
-          <span className="text">ตั้งค่า</span>
-        </NavLink>
-
-
-
+            <NavLink
+              to="/admin/settings"
+              className={({ isActive }) => "item" + (isActive ? " active" : "")}
+              onClick={nav}
+            >
+              <span className="ico"><IcSettings /></span>
+              <span className="text">ตั้งค่า</span>
+            </NavLink>
+          </>
+        )}
 
       </nav>
 

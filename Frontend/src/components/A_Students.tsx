@@ -15,6 +15,7 @@ import { notify, askConfirm } from "../utils/notify";
 import { contactName, contactLine } from "../utils/contacts";
 import { TABLE_TH, TABLE_TD, TABLE_HEADER_ROW } from "../utils/tableStyles";
 import Modal, { ModalCloseButton } from "./Modal";
+import { useAdminRole } from "./adminRole";
 
 function safeHref(url: string | null | undefined): string | undefined {
   if (!url) return undefined;
@@ -183,6 +184,7 @@ function getFullAddress(c?: Company) {
    Main Component
 ========================= */
 export default function A_Students() {
+  const { isStaff } = useAdminRole();
   const [loading, setLoading] = useState(true);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [bulkDeleting, setBulkDeleting] = useState(false);
@@ -453,7 +455,8 @@ export default function A_Students() {
         >
           + เพิ่มทีละคน
         </button>
-        <label style={{ cursor: "pointer", fontSize: 12, padding: "6px 14px", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, fontWeight: 600, color: "#475569" }}>
+        {/* นำเข้าจาก Excel = เจ้าหน้าที่เท่านั้น (สร้างหลักสูตรใหม่ได้ + อัปเดตได้ทุกหลักสูตร) */}
+        {isStaff && <label style={{ cursor: "pointer", fontSize: 12, padding: "6px 14px", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, fontWeight: 600, color: "#475569" }}>
           เลือกไฟล์ Excel
           <input
             key={fileInputKey}
@@ -468,8 +471,8 @@ export default function A_Students() {
               setImportWarnings([]);
             }}
           />
-        </label>
-        {importFile && !importPreview && (
+        </label>}
+        {isStaff && importFile && !importPreview && (
           <>
             <span style={{ fontSize: 12, color: "#64748b" }}>📄 {importFile.name}</span>
             <button
@@ -848,6 +851,7 @@ function StudentModal({
   deptMap: Record<string, string>; // รหัสสาขา → ชื่อไทย (โหลดครั้งเดียวที่หน้ารายชื่อ)
   onClose: () => void;
 }) {
+  const isStaffView = useAdminRole().isStaff; // รหัสผ่าน = เจ้าหน้าที่เท่านั้น
   const [tab, setTab] = useState<"profile" | "company" | "docs">("profile");
 
   const companyData = student.coop?.company || student.company;
@@ -897,7 +901,7 @@ function StudentModal({
                   <InfoRow label="อีเมลเข้าระบบ" value={student.user.email} />
                 )}
                 {/* นักศึกษาลืมรหัสผ่านแล้วมาถาม — ปกติซ่อน กดแสดงเมื่อจำเป็น (ถูกบันทึกใน log) */}
-                <InfoRow label="รหัสผ่าน" value={<PasswordReveal endpoint={`/api/admin/students/${student.id}/password/reveal`} />} />
+                {isStaffView && <InfoRow label="รหัสผ่าน" value={<PasswordReveal endpoint={`/api/admin/students/${student.id}/password/reveal`} />} />}
               </Section>
               <Section title="ข้อมูลสหกิจ">
                 <InfoRow label="สถานะ" value={<StatusBadge status={student.coop?.status || "NOT_SUBMITTED"} />} />

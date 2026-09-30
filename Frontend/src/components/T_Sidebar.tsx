@@ -7,11 +7,7 @@ import {
   IcInbox,
   IcList,
   IcRoute,
-  IcStar,
-  IcClipboardCheck,
-  IcBook,
   IcSettings,
-  IcAnnounce,
 } from "./icons";
 import { useNotifCounts } from "../hooks/useNotifCounts";
 
@@ -66,10 +62,6 @@ export default function T_Sidebar({ isOpen = false, onClose = () => {}, isCoopTe
         <NavItem to="/teacher/students" label="นักศึกษาที่ดูแล" icon={<IcUsers />} onClick={nav} />
         <NavItem to="/teacher/profile" label="ข้อมูลอาจารย์" icon={<IcUser />} onClick={nav} />
 
-        {isCoopTeacher && (
-          <NavItem to="/teacher/announcements" label="ประกาศ" icon={<IcAnnounce />} onClick={nav} />
-        )}
-
         <div className="sec-label">เอกสารและบันทึก</div>
 
         {/* ใบตอบรับอาจารย์ไม่ได้ตรวจ (เจ้าหน้าที่ตรวจที่หน้า T000) — ไม่นับในป้าย */}
@@ -82,15 +74,11 @@ export default function T_Sidebar({ isOpen = false, onClose = () => {}, isCoopTe
         <NavItem to="/teacher/review-supervision" label="นัดหมายนิเทศ" icon={<IcCalendar />}
           {...badge(["SUPERVISION_PROPOSED"])} />
 
-        {/* หน้าตั้งค่า — งานของอาจารย์ประจำวิชา/เจ้าหน้าที่ (backend กันด้วย verifyCoopTeacherOrStaff) */}
+        {/* งานจัดการหลักสูตร (ตั้งค่า, ประกาศ, ตรวจเอกสารทั้งหลักสูตร) อยู่ที่หน้า "จัดการหลักสูตร" (/admin) */}
         {isCoopTeacher && (
           <>
-            <div className="sec-label">ตั้งค่า (อาจารย์ประจำวิชา)</div>
-            <NavItem to="/teacher/doc-t005-006" label="T005/T006 ประเมิน" icon={<IcStar />} onClick={nav} />
-            <NavItem to="/teacher/doc-t007" label="T007 ประเมิน" icon={<IcClipboardCheck />} onClick={nav} />
-            <NavItem to="/teacher/supervision-eval" label="แบบประเมินการนิเทศ" icon={<IcClipboardCheck />} onClick={nav} />
-            <NavItem to="/teacher/doc-t008" label="T008 เล่มรายงานสหกิจ" icon={<IcBook />} onClick={nav} />
-            <NavItem to="/teacher/gateway-settings" label="ตั้งค่าฟอร์มคำร้อง" icon={<IcSettings />} onClick={nav} />
+            <div className="sec-label">อาจารย์ประจำวิชา</div>
+            <NavItem to="/admin/dashboard" label="จัดการหลักสูตร" icon={<IcSettings />} onClick={nav} />
           </>
         )}
 
