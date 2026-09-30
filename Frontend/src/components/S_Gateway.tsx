@@ -85,6 +85,8 @@ export default function CoopRequestPage() {
   const [showPDFPopup, setShowPDFPopup] = useState(false);
   const [pdfDataUrl, setPdfDataUrl] = useState("");
   const [activePeriod, setActivePeriod] = useState<any>(null);
+  // รอบเปิดปิดแยกหลักสูตร — ยังไม่ระบุหลักสูตร = ยื่นไม่ได้ (ข้อความจาก server)
+  const [noMajorMessage, setNoMajorMessage] = useState<string>("");
   // ช่วงเวลายื่นคำร้อง (ตั้งแยกจากรอบรับสมัคร แบบ T000–T003) — ใช้สถานะที่ server ตัดสินให้ตรงกับที่บังคับจริง
   // ยังไม่โหลด/โหลดไม่ได้ = ถือว่าเปิด แล้วให้ server เป็นคนตัดสินตอนกดส่ง
   const [applyWindow, setApplyWindow] = useState<{ open: boolean; configured: boolean; startDate: string | null; endDate: string | null; message: string | null }>(
@@ -149,6 +151,7 @@ export default function CoopRequestPage() {
       const periodRes = await apiFetch("/api/students/coop-periods/active");
       if (periodRes.ok) {
         const pData = await periodRes.json();
+        setNoMajorMessage(pData?.reason === "NO_MAJOR" ? (pData.message || "ยังไม่ได้ระบุหลักสูตรของคุณ กรุณาติดต่อเจ้าหน้าที่") : "");
         if (pData.ok && pData.period) {
           setActivePeriod(pData.period);
         } else {
@@ -333,7 +336,7 @@ export default function CoopRequestPage() {
           <div>
             <strong style={{ fontSize: '18px' }}>ระบบปิดรับสมัคร หรือ นอกช่วงเวลาการยื่นคำร้อง</strong>
             <div style={{ marginTop: 4, fontSize: 14 }}>
-              {!applyWindow.open
+              {noMajorMessage ? noMajorMessage : !applyWindow.open
                 ? (applyWindow.message || "ขณะนี้ปิดรับคำร้องขอเข้าร่วมสหกิจศึกษา")
                 : activePeriod
                   ? `รอบการรับสมัครที่ตั้งไว้: เทอม ${activePeriod.semester}/${activePeriod.academicYear} (เปิดรับ: ${fmtDate(activePeriod.startDate)} - ${fmtDate(activePeriod.endDate)}) แต่สถานะระบบปิดใช้งาน หรือหมดเขตแล้ว`

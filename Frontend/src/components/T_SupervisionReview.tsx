@@ -1,5 +1,6 @@
 ﻿import React, { useState, useEffect, useMemo } from "react";
 import type { CSSProperties } from "react";
+import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { apiFetch } from "../utils/apiFetch";
 import { fmtDate, fmtDateTime } from '../utils/dateFormat';
@@ -64,6 +65,7 @@ interface CoopPeriod {
     supervisionEndDate: string | null;
     isSupervisionOpen: boolean;
     isActive: boolean;
+    majors?: { major: string; supervisionStartDate: string | null; supervisionEndDate: string | null; isSupervisionOpen: boolean; configured?: boolean }[];
 }
 
 interface Teacher {
@@ -137,6 +139,7 @@ export default function T_SupervisionReview() {
 
     // ── Profile / Tab
     const [isCoopTeacher, setIsCoopTeacher] = useState(false);
+    const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState<'mine' | 'all' | 'group'>('mine');
 
     // ══════════════ "ของฉัน" state ══════════════
@@ -160,12 +163,8 @@ export default function T_SupervisionReview() {
     const [allPeriodFilter, setAllPeriodFilter] = useState<string>("all");
     const [allSortKey, setAllSortKey] = useState<AllSortKey>('student');
     const [allSortDir, setAllSortDir] = useState<SortDirection>('asc');
-    // period config
+    // ช่วงนิเทศ (ดูอย่างเดียว — ตั้งแยกหลักสูตรที่หน้า "จัดการหลักสูตร → จัดการนิเทศ")
     const [selPeriodId, setSelPeriodId] = useState<number | "">("");
-    const [periodOpen, setPeriodOpen] = useState(false);
-    const [supStart, setSupStart] = useState("");
-    const [supEnd, setSupEnd] = useState("");
-    const [savingConfig, setSavingConfig] = useState(false);
     // modals
     const [assignSup, setAssignSup] = useState<SupervisionAppt | null>(null);
     const [coTeachers, setCoTeachers] = useState<number[]>([]);
@@ -236,15 +235,7 @@ export default function T_SupervisionReview() {
     useEffect(() => { fetchMine(); }, []);
     useEffect(() => { if (isCoopTeacher) fetchAll(); }, [isCoopTeacher]);
 
-    const selectAllPeriod = (id: number, ps = allPeriods) => {
-        setSelPeriodId(id);
-        const p = ps.find(x => x.id === id);
-        if (p) {
-            setPeriodOpen(p.isSupervisionOpen || false);
-            setSupStart(p.supervisionStartDate ? p.supervisionStartDate.split('T')[0] : "");
-            setSupEnd(p.supervisionEndDate ? p.supervisionEndDate.split('T')[0] : "");
-        }
-    };
+    const selectAllPeriod = (id: number, _ps = allPeriods) => setSelPeriodId(id);
 
     // ══════════════ "ของฉัน" handlers ══════════════
 
@@ -337,16 +328,6 @@ export default function T_SupervisionReview() {
         [mySupervisions]);
 
     // ══════════════ "ทั้งหมด" handlers ══════════════
-
-    const handleSaveConfig = async () => {
-        if (!selPeriodId) { toast.warning("กรุณาเลือกรอบสหกิจก่อน"); return; }
-        setSavingConfig(true);
-        try {
-            await axios.post("/api/admin/supervision-periods", { periodId: selPeriodId, isSupervisionOpen: periodOpen, supervisionStartDate: supStart || null, supervisionEndDate: supEnd || null }, { headers: { Authorization: `Bearer ${token}` } });
-            toast.success("บันทึกช่วงเวลานิเทศเรียบร้อยแล้ว"); fetchAll();
-        } catch { toast.error("เกิดข้อผิดพลาดในการบันทึก"); }
-        finally { setSavingConfig(false); }
-    };
 
     const handleAllSort = (key: AllSortKey) => {
         setAllSortDir(allSortKey === key && allSortDir === 'asc' ? 'desc' : 'asc');
@@ -649,34 +630,26 @@ export default function T_SupervisionReview() {
                         <button className="btn-secondary" onClick={fetchAll} disabled={allLoading}>{allLoading ? "⏳" : "🔄"} รีเฟรช</button>
                     </div>
 
-                    {/* ── Period Config ── */}
+                    {/* ── ช่วงนิเทศ (ดูอย่างเดียว · ตั้งแยกหลักสูตรที่หน้าจัดการหลักสูตร) ── */}
                     <section style={{ ...card, marginBottom: 24, background: '#f8fafc', border: '1px solid #e2e8f0' }}>
-                        <h3 style={{ margin: '0 0 16px 0', color: '#0f172a' }}>⚙️ ตั้งค่าช่วงเวลาการนัดหมายนิเทศ</h3>
-                        {selPeriodData && (
-                            <div style={{ background: '#fffbeb', border: '1px solid #fde68a', color: '#854d0e', padding: '12px 16px', borderRadius: 8, marginBottom: 16, display: 'flex', gap: 10, alignItems: 'center' }}>
-                                <span style={{ fontSize: 20 }}>📌</span>
-                                <div style={{ fontSize: 13 }}>ช่วงเวลาเปิดสหกิจ: <b>{fmtDate(selPeriodData.startDate)}</b> ถึง <b>{fmtDate(selPeriodData.endDate)}</b></div>
-                            </div>
-                        )}
-                        <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 1fr auto', gap: 15, alignItems: 'end' }}>
-                            <div>
-                                <label style={labelStyle}>เลือกรอบสหกิจ <span style={{ color: 'red' }}>*</span></label>
-                                <select className="input" style={{ fontWeight: 'bold', color: '#0369a1', background: '#f0f9ff' }} value={selPeriodId} onChange={e => selectAllPeriod(Number(e.target.value))}>
-                                    <option value="">-- เลือกรอบ --</option>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
+                            <h3 style={{ margin: 0, color: '#0f172a' }}>⚙️ ช่วงเวลาการนัดหมายนิเทศ</h3>
+                            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                                <select className="input" aria-label="รอบสหกิจ" style={{ width: 'auto', fontWeight: 'bold', color: '#0369a1', background: '#f0f9ff' }} value={selPeriodId} onChange={e => selectAllPeriod(Number(e.target.value))}>
                                     {allPeriods.map(p => <option key={p.id} value={p.id}>เทอม {p.semester}/{p.academicYear}{p.isActive ? " ⭐" : ""}</option>)}
                                 </select>
+                                <button className="btn-secondary small" onClick={() => navigate("/admin/supervision-manager")}>แก้ไขที่หน้าจัดการหลักสูตร →</button>
                             </div>
-                            <div><label style={labelStyle}>วันเริ่มนัดหมาย</label><DateInput className="input" value={supStart} onChange={e => setSupStart(e.target.value)} disabled={!selPeriodId} /></div>
-                            <div><label style={labelStyle}>วันสิ้นสุด</label><DateInput className="input" value={supEnd} onChange={e => setSupEnd(e.target.value)} disabled={!selPeriodId} /></div>
-                            <div>
-                                <label style={labelStyle}>สถานะระบบ</label>
-                                <select className="input" value={periodOpen ? "OPEN" : "CLOSED"} onChange={e => setPeriodOpen(e.target.value === "OPEN")} disabled={!selPeriodId}>
-                                    <option value="CLOSED">🔴 ปิดระบบ</option>
-                                    <option value="OPEN">🟢 เปิดระบบ</option>
-                                </select>
-                            </div>
-                            <button className="btn-success" onClick={handleSaveConfig} disabled={savingConfig || !selPeriodId}>{savingConfig ? "กำลังบันทึก..." : "💾 บันทึก"}</button>
                         </div>
+                        {(selPeriodData?.majors ?? []).length === 0
+                            ? <div style={{ fontSize: 13, color: '#94a3b8' }}>ยังไม่ได้ตั้งรอบนี้</div>
+                            : (selPeriodData?.majors ?? []).map(r => (
+                                <div key={r.major} style={{ fontSize: 14, color: '#334155', padding: '4px 0' }}>
+                                    <b>{r.major}</b> · {r.isSupervisionOpen ? '🟢 เปิดให้นัด' : '🔴 ปิด'}
+                                    {(r.supervisionStartDate || r.supervisionEndDate) && <> · {r.supervisionStartDate ? fmtDate(r.supervisionStartDate) : '…'} – {r.supervisionEndDate ? fmtDate(r.supervisionEndDate) : '…'}</>}
+                                    {r.configured === false && <span style={{ color: '#94a3b8' }}> (ยังไม่ได้ตั้งรอบนี้)</span>}
+                                </div>
+                            ))}
                     </section>
 
                     {/* ── Calendar ── */}

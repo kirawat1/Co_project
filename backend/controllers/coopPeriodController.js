@@ -121,13 +121,13 @@ exports.togglePeriod = async (req, res) => {
     if (!period) return fail(res, 404, 'ไม่พบรอบสหกิจ');
     const target = await targetMajors(req, major, { allowAll: true });
     const rows = period.majors.filter((r) => !target || target.includes(r.major));
-    if (!rows.length) return fail(res, 400, 'หลักสูตรนี้ยังไม่ได้ตั้งรอบนี้ — กด "แก้ไข" เพื่อตั้งวันรับสมัครก่อน');
+    if (!rows.length) return fail(res, 400, 'หลักสูตรนี้ยังไม่ได้ตั้งรอบนี้ — กด "ตั้งวันรับสมัคร" ก่อน');
 
     // เปิดรอบที่เลยวันปิดรับสมัครแล้วไม่ได้ — ถ้าปล่อยเปิด ระบบจะปิดกลับทันทีตอนโหลดรายการใหม่
     if (isActive) {
       const expired = rows.filter((r) => isPeriodExpired(r));
       if (expired.length) {
-        return fail(res, 400, `เปิดรับสมัครไม่ได้ เพราะเลยวันปิดรับสมัครแล้ว (${expired.map((r) => r.major).join(', ')}) กรุณากด "แก้ไข" เพื่อเลื่อนวันปิดรับสมัครก่อน`);
+        return fail(res, 400, `เปิดรับสมัครไม่ได้ เพราะเลยวันปิดรับสมัครแล้ว (${expired.map((r) => r.major).join(', ')}) กรุณากด "แก้วัน" เพื่อเลื่อนวันปิดรับสมัครก่อน`);
       }
     }
 
