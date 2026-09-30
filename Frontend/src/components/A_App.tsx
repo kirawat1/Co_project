@@ -33,6 +33,7 @@ import A_GatewaySettings from "./A_GatewaySettings";
 import A_StaffManage from "./A_StaffManage";
 import { useMyScope } from "../hooks/useMyScope";
 import { AdminRoleContext } from "./adminRole";
+import { getMajorFilter, setMajorFilter, NO_MAJOR } from "../utils/majorFilter";
 
 
 const IOS_BLUE = "#0074B7";
@@ -64,6 +65,23 @@ export default function AdminApp() {
     if (!roleReady || isStaff || isCoopTeacher) return;
     navigate(role === "teacher" ? "/teacher/dashboard" : role === "student" ? "/student/dashboard" : "/", { replace: true });
   }, [roleReady, isStaff, isCoopTeacher, role, navigate]);
+
+  // ตัวกรองหลักสูตร (ดูอย่างเดียว) — เจ้าหน้าที่เลือกได้ทุกหลักสูตร · อาจารย์ประจำวิชาที่ดูแลหลายหลักสูตรเลือกในหลักสูตรตัวเอง
+  const [allMajors, setAllMajors] = useState<string[]>([]);
+  const [majorFilter, setMajorFilterState] = useState<string>(getMajorFilter());
+  useEffect(() => {
+    if (!isStaff) return;
+    apiFetch("/api/admin/majors").then(r => (r.ok ? r.json() : null)).then(d => { if (d?.ok) setAllMajors(d.majors ?? []); }).catch(() => {});
+  }, [isStaff]);
+  const filterOptions = isStaff ? allMajors : coopMajors;
+  const showFilter = isStaff || coopMajors.length > 1;
+  const effectiveFilter = majorFilter === NO_MAJOR ? (isStaff ? NO_MAJOR : "") : (filterOptions.includes(majorFilter) ? majorFilter : "");
+  const changeFilter = (v: string) => { setMajorFilter(v); setMajorFilterState(v); };
+  // ค่าที่จำไว้ใช้ไม่ได้แล้ว (หลักสูตรถูกลบ / ไม่ได้ดูแลแล้ว) → ล้างทิ้ง ไม่งั้น header ยังกรองอยู่ทั้งที่หน้าจอบอก "ทุกหลักสูตร"
+  const optionsReady = isStaff ? allMajors.length > 0 : isCoopTeacher;
+  useEffect(() => {
+    if (optionsReady && majorFilter !== effectiveFilter) changeFilter(effectiveFilter);
+  }, [optionsReady, majorFilter, effectiveFilter]);
 
   // หน้าเจ้าหน้าที่เท่านั้น — อาจารย์ประจำวิชาพิมพ์ URL ตรงก็เด้งกลับ
   const staffOnly = (el: React.ReactElement) => (isStaff ? el : <Navigate to="/admin/dashboard" replace />);
@@ -113,6 +131,20 @@ export default function AdminApp() {
           </div>
         </div>
         <div className="topbar-right">
+          {showFilter && (
+            <select
+              className="input"
+              aria-label="กรองตามหลักสูตร"
+              title="กรองข้อมูลทุกหน้าตามหลักสูตร"
+              value={effectiveFilter}
+              onChange={e => changeFilter(e.target.value)}
+              style={{ width: "auto", height: 34, padding: "0 10px", fontSize: 13, fontWeight: 600, borderColor: effectiveFilter ? "#2563eb" : undefined, color: effectiveFilter ? "#1d4ed8" : undefined }}
+            >
+              <option value="">{isStaff ? "📚 ทุกหลักสูตร" : "📚 ทุกหลักสูตรที่ดูแล"}</option>
+              {filterOptions.map(m => <option key={m} value={m}>หลักสูตร {m}</option>)}
+              {isStaff && <option value={NO_MAJOR}>⚠️ ยังไม่ระบุหลักสูตร</option>}
+            </select>
+          )}
           <div className="user-mini">
             <div className="user-ava" />
             <div className="user-name">{displayName}</div>
@@ -134,7 +166,8 @@ export default function AdminApp() {
         <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} isStaff={isStaff} roleLabel={isStaff ? "Staff" : `จัดการหลักสูตร ${coopMajors.join(", ")}`} />
         <main className="main">
           <AdminRoleContext.Provider value={{ isStaff, majors: coopMajors }}>
-          <Routes>
+          {/* เปลี่ยนตัวกรองหลักสูตร → remount หน้าเพื่อโหลดข้อมูลใหม่ */}
+          <Routes key={effectiveFilter}>
             <Route index element={<Navigate to="/admin/dashboard" replace />} />
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="students" element={<Students />} />

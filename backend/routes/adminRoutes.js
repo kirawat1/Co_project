@@ -108,7 +108,8 @@ router.get(
 router.get('/my-scope', verifyToken, verifyRole(...ADMIN_ROLES), async (req, res) => {
   try {
     const { getMajorScope } = require('../utils/majorScope');
-    const scope = await getMajorScope(req);
+// สิทธิ์จริง (ไม่สนตัวกรองหลักสูตรบนแถบบน)
+    const scope = await getMajorScope(req, { ignoreFilter: true });
     res.json({ ok: true, all: scope.all, majors: scope.majors });
   } catch (err) {
     console.error(err);

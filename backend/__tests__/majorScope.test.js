@@ -23,7 +23,7 @@ describe('getMajorScope / studentWhere / visibleStudentWhere', () => {
   test('อาจารย์ประจำวิชา = หลักสูตรที่ดูแล · เห็นนักศึกษาในหลักสูตร หรือที่ตัวเองเป็นที่ปรึกษา', async () => {
     const req = coopReq(['CS', 'AI']);
     const scope = await getMajorScope(req);
-    expect(scope).toEqual({ all: false, majors: ['CS', 'AI'] });
+    expect(scope).toEqual({ all: false, majors: ['CS', 'AI'], noMajor: false });
     expect(studentWhere(scope)).toEqual({ major: { in: ['CS', 'AI'] } });
     expect(await visibleStudentWhere(req)).toEqual({ OR: [{ coopAdvisorId: 20 }, { major: { in: ['CS', 'AI'] } }] });
   });
@@ -133,5 +133,30 @@ describe('ประกาศ — อาจารย์ประจำวิช�
     await deleteAnnouncement({ ...coopReq(['CS']), params: { id: 'a1' } }, res);
     expect(res.status).toHaveBeenCalledWith(403);
     expect(prisma.announcement.delete).not.toHaveBeenCalled();
+  });
+});
+
+describe('ตัวกรองหลักสูตรบนแถบบน (X-Major-Filter) — ใช้ดูอย่างเดียว', () => {
+  const withFilter = (req, filter, method = 'GET') => ({ ...req, method, get: (h) => (h.toLowerCase() === 'x-major-filter' ? filter : undefined) });
+
+  test('เจ้าหน้าที่กรอง AI → เห็นเฉพาะ AI · กรอง "ยังไม่ระบุหลักสูตร" → major = null', async () => {
+    expect(studentWhere(await getMajorScope(withFilter({ ...STAFF }, 'AI')))).toEqual({ major: { in: ['AI'] } });
+    expect(studentWhere(await getMajorScope(withFilter({ ...STAFF }, '__none__')))).toEqual({ major: null });
+  });
+
+  test('ไม่ขยายสิทธิ์: อาจารย์ประจำวิชา CS กรอง AI → ยังเห็นแค่ CS', async () => {
+    expect(studentWhere(await getMajorScope(withFilter(coopReq(['CS']), 'AI')))).toEqual({ major: { in: ['CS'] } });
+  });
+
+  test('อาจารย์ที่ดูแลหลายหลักสูตรกรองเหลือหลักสูตรเดียวได้', async () => {
+    expect(studentWhere(await getMajorScope(withFilter(coopReq(['CS', 'AI']), 'AI')))).toEqual({ major: { in: ['AI'] } });
+  });
+
+  test('ไม่มีผลกับการกระทำ (POST/PUT) และ ignoreFilter คืนสิทธิ์จริง', async () => {
+    expect((await getMajorScope(withFilter({ ...STAFF }, 'AI', 'PUT'))).all).toBe(true);
+    expect((await getMajorScope(withFilter({ ...STAFF }, 'AI'), { ignoreFilter: true })).all).toBe(true);
+    // เจ้าหน้าที่กรอง CS อยู่ ยังทำกับนักศึกษา AI ได้
+    prisma.student.findUnique.mockResolvedValueOnce({ major: 'AI' });
+    await expect(assertStudentInScope(withFilter({ ...STAFF }, 'CS'), 5)).resolves.toBeUndefined();
   });
 });
