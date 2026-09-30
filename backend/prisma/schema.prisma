@@ -160,12 +160,6 @@ model CoopPeriod {
   startDate    DateTime
   endDate      DateTime
 
-  // คอลัมน์เดิมก่อนแยกหลักสูตร — เก็บไว้เผื่อย้อนกลับ ห้ามใช้ (ค่าจริงอยู่ที่ CoopPeriodMajor)
-  legacyIsActive             Boolean   @default(false) @map("isActive")
-  legacySupervisionStartDate DateTime? @map("supervisionStartDate")
-  legacySupervisionEndDate   DateTime? @map("supervisionEndDate")
-  legacyIsSupervisionOpen    Boolean   @default(false) @map("isSupervisionOpen")
-
   // ความสัมพันธ์: 1 รอบการรับสมัคร มีนักศึกษาเข้าโครงการหลายคน
   studentCoops         StudentCoop[]
   majors               CoopPeriodMajor[]

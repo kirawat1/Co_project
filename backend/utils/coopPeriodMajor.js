@@ -51,7 +51,7 @@ const maxDate = (ds) => { const v = ds.filter(Boolean).map((d) => new Date(d)); 
  */
 function viewPeriod(period, majors) {
   const all = (period.majors || []).map((r) => ({ ...r, configured: true }));
-  const { majors: _rows, legacyIsActive, legacySupervisionStartDate, legacySupervisionEndDate, legacyIsSupervisionOpen, ...base } = period;
+  const { majors: _rows, ...base } = period;
   if (majors && majors.length === 1) {
     const row = all.find((r) => r.major === majors[0]) || closedRow(period, majors[0]);
     return { ...base, ...pickRow(row), major: row.major, configured: row.configured, majors: [row] };

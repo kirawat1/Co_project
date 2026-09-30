@@ -4,7 +4,9 @@ jest.mock('xlsx');
 const prisma = require('./__mocks__/prismaClient');
 const XLSX = require('xlsx');
 const bcrypt = require('bcryptjs');
-const { importStudents } = require('../controllers/studentImportController');
+const { importStudents, previewStudents } = require('../controllers/studentImportController');
+
+const STAFF = { id: 1, role: 'staff' };
 
 function makeRes() {
   return { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() };
@@ -80,7 +82,7 @@ describe('importStudents', () => {
     XLSX.read = jest.fn().mockReturnValue({ SheetNames: ['Sheet1'], Sheets: { Sheet1: {} } });
     XLSX.utils = { sheet_to_json: jest.fn().mockReturnValue([['อะไรก็ไม่รู้'], ['อะไรก็ไม่รู้']]) };
 
-    const req = { file: { buffer: Buffer.from('fake') } };
+    const req = { user: STAFF, file: { buffer: Buffer.from('fake') } };
     const res = makeRes();
     await importStudents(req, res);
 
@@ -109,7 +111,7 @@ describe('importStudents', () => {
     prisma.student.upsert.mockResolvedValue({ id: 1 });
     prisma.teacher.findMany.mockResolvedValue([{ id: 10, firstName: 'สมหญิง', lastName: 'รักเรียน' }]);
 
-    const req = { file: { buffer: Buffer.from('fake') } };
+    const req = { user: STAFF, file: { buffer: Buffer.from('fake') } };
     const res = makeRes();
     await importStudents(req, res);
 
@@ -149,7 +151,7 @@ describe('importStudents', () => {
       'ชื่อ-นามสกุล (ภาษาไทย)': 'test',
     }]);
 
-    const req = { file: { buffer: Buffer.from('fake') } };
+    const req = { user: STAFF, file: { buffer: Buffer.from('fake') } };
     const res = makeRes();
     await importStudents(req, res);
 
@@ -172,7 +174,7 @@ describe('importStudents', () => {
     prisma.student.upsert.mockResolvedValue({ id: 2 });
     prisma.teacher.findMany.mockResolvedValue([]);
 
-    const req = { file: { buffer: Buffer.from('fake') } };
+    const req = { user: STAFF, file: { buffer: Buffer.from('fake') } };
     const res = makeRes();
     await importStudents(req, res);
 
@@ -199,7 +201,7 @@ describe('importStudents', () => {
     prisma.student.upsert.mockResolvedValue({ id: 2 });
     prisma.teacher.findMany.mockResolvedValue([]);
 
-    const req = { file: { buffer: Buffer.from('fake') } };
+    const req = { user: STAFF, file: { buffer: Buffer.from('fake') } };
     const res = makeRes();
     await importStudents(req, res);
 
@@ -223,7 +225,7 @@ describe('importStudents', () => {
       { id: 20, firstName: 'สมหญิง', lastName: 'รักเรียน' },
     ]);
 
-    const req = { file: { buffer: Buffer.from('fake') } };
+    const req = { user: STAFF, file: { buffer: Buffer.from('fake') } };
     const res = makeRes();
     await importStudents(req, res);
 
@@ -246,7 +248,7 @@ describe('importStudents', () => {
     prisma.student.upsert.mockResolvedValue({ id: 3 });
     prisma.teacher.findMany.mockResolvedValue([]);
 
-    const req = { file: { buffer: Buffer.from('fake') } };
+    const req = { user: STAFF, file: { buffer: Buffer.from('fake') } };
     const res = makeRes();
     await importStudents(req, res);
 
@@ -264,7 +266,7 @@ describe('importStudents', () => {
 
     prisma.student.findMany.mockResolvedValue([{ studentId: '645040005-1', deletedAt: new Date('2026-01-01') }]);
 
-    const req = { file: { buffer: Buffer.from('fake') } };
+    const req = { user: STAFF, file: { buffer: Buffer.from('fake') } };
     const res = makeRes();
     await importStudents(req, res);
 
@@ -297,7 +299,7 @@ describe('importStudents', () => {
     prisma.student.upsert.mockResolvedValue({ id: 1 });
     prisma.teacher.findMany.mockResolvedValue([{ id: 42, firstName: 'วิชาญ', lastName: 'ธรรมวิเศษ' }]);
 
-    const req = { file: { buffer: Buffer.from('fake') } };
+    const req = { user: STAFF, file: { buffer: Buffer.from('fake') } };
     const res = makeRes();
     await importStudents(req, res);
 
@@ -340,7 +342,7 @@ describe('importStudents', () => {
     prisma.user.upsert.mockResolvedValue({ id: 5 });
     prisma.student.upsert.mockResolvedValue({ id: 5 });
 
-    const req = { file: { buffer: Buffer.from('fake') } };
+    const req = { user: STAFF, file: { buffer: Buffer.from('fake') } };
     const res = makeRes();
     await importStudents(req, res);
 
@@ -364,7 +366,7 @@ describe('importStudents', () => {
     prisma.student.upsert.mockResolvedValue({ id: 6 });
     prisma.teacher.findMany.mockResolvedValue([]);
 
-    const req = { file: { buffer: Buffer.from('fake') } };
+    const req = { user: STAFF, file: { buffer: Buffer.from('fake') } };
     const res = makeRes();
     await importStudents(req, res);
 
@@ -390,7 +392,7 @@ describe('importStudents', () => {
     prisma.user.upsert.mockResolvedValue({ id: 7 });
     prisma.student.upsert.mockResolvedValue({ id: 7 });
 
-    const req = { file: { buffer: Buffer.from('fake') } };
+    const req = { user: STAFF, file: { buffer: Buffer.from('fake') } };
     const res = makeRes();
     await importStudents(req, res);
 
@@ -410,7 +412,7 @@ describe('importStudents', () => {
     prisma.teacher.findMany.mockResolvedValue([]);
 
     const res = makeRes();
-    await importStudents({ file: { buffer: Buffer.from('fake') } }, res);
+    await importStudents({ user: STAFF, file: { buffer: Buffer.from('fake') } }, res);
 
     const { create, where } = prisma.user.upsert.mock.calls[0][0];
     expect(where).toEqual({ username: 'new@kkumail.com' });
@@ -429,7 +431,7 @@ describe('importStudents', () => {
     prisma.teacher.findMany.mockResolvedValue([]);
 
     const res = makeRes();
-    await importStudents({ file: { buffer: Buffer.from('fake') } }, res);
+    await importStudents({ user: STAFF, file: { buffer: Buffer.from('fake') } }, res);
 
     expect(res.json.mock.calls[0][0].summary.updated).toBe(1);
     expect(prisma.user.update).toHaveBeenCalledTimes(1);
@@ -448,7 +450,7 @@ describe('importStudents', () => {
     prisma.teacher.findMany.mockResolvedValue([]);
 
     const res = makeRes();
-    await importStudents({ file: { buffer: Buffer.from('fake') } }, res);
+    await importStudents({ user: STAFF, file: { buffer: Buffer.from('fake') } }, res);
 
     expect(res.json.mock.calls[0][0].summary.updated).toBe(1);
     expect(prisma.user.update).toHaveBeenCalledWith({ where: { id: 13 }, data: { username: 'changed@kkumail.com' } });
@@ -463,7 +465,7 @@ describe('importStudents', () => {
     prisma.teacher.findMany.mockResolvedValue([]);
 
     const res = makeRes();
-    await importStudents({ file: { buffer: Buffer.from('fake') } }, res);
+    await importStudents({ user: STAFF, file: { buffer: Buffer.from('fake') } }, res);
 
     expect(res.json.mock.calls[0][0].summary.updated).toBe(1);
     expect(prisma.user.update).not.toHaveBeenCalled();
@@ -476,7 +478,7 @@ describe('importStudents', () => {
     prisma.teacher.findMany.mockResolvedValue([]);
 
     const res = makeRes();
-    await importStudents({ file: { buffer: Buffer.from('fake') } }, res);
+    await importStudents({ user: STAFF, file: { buffer: Buffer.from('fake') } }, res);
 
     const body = res.json.mock.calls[0][0];
     expect(body.summary.errors).toBe(1);
@@ -491,7 +493,7 @@ describe('importStudents', () => {
     prisma.teacher.findMany.mockResolvedValue([]);
 
     const res = makeRes();
-    await importStudents({ file: { buffer: Buffer.from('fake') } }, res);
+    await importStudents({ user: STAFF, file: { buffer: Buffer.from('fake') } }, res);
 
     const body = res.json.mock.calls[0][0];
     expect(body.summary.errors).toBe(1);
@@ -506,11 +508,84 @@ describe('importStudents', () => {
     prisma.teacher.findMany.mockResolvedValue([]);
 
     const res = makeRes();
-    await importStudents({ file: { buffer: Buffer.from('fake') } }, res);
+    await importStudents({ user: STAFF, file: { buffer: Buffer.from('fake') } }, res);
 
     const body = res.json.mock.calls[0][0];
     expect(body.summary.errors).toBe(1);
     expect(body.errorRows[0].reason).toMatch(/oldmail@kkumail\.com/);
     expect(prisma.user.upsert).not.toHaveBeenCalled();
+  });
+});
+
+// ── อาจารย์ประจำวิชานำเข้าได้เฉพาะหลักสูตรที่ดูแล ─────────────────────────────
+describe('นำเข้าโดยอาจารย์ประจำวิชา (CS)', () => {
+  const COOP = { id: 2, role: 'teacher' };
+  const row = (code, program) => ({ STUDENTCODE: code, STUDENTNAME: 'ก', STUDENTSURNAME: 'ข', KKUMAIL: `${code}@kkumail.com`, ...(program ? { PROGRAMNAME: program } : {}) });
+  const run = async (fn = importStudents) => { const res = makeRes(); await fn({ user: COOP, file: { buffer: Buffer.from('fake') } }, res); return res.json.mock.calls[0][0]; };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    prisma.teacher.findUnique.mockResolvedValue({ id: 20, coopMajors: [{ major: 'CS' }] });
+    prisma.teacher.findMany.mockResolvedValue([]);
+    prisma.user.findMany.mockResolvedValue([]);
+    prisma.student.findMany.mockResolvedValue([]);
+    prisma.coopCriteria.findMany.mockResolvedValue([{ major: 'CS', nameTh: 'วิทยาการคอมพิวเตอร์' }, { major: 'AI', nameTh: 'ปัญญาประดิษฐ์' }]);
+    prisma.user.upsert.mockResolvedValue({ id: 50 });
+    prisma.student.upsert.mockResolvedValue({ id: 50 });
+  });
+
+  test('หลักสูตรที่ดูแล (ชื่อไทย) → นำเข้าเป็นรหัส CS', async () => {
+    mockKkuSheet([row('660000001-1', 'วิทยาการคอมพิวเตอร์')]);
+    const body = await run();
+    expect(body.summary.created).toBe(1);
+    expect(prisma.student.upsert.mock.calls[0][0].create.major).toBe('CS');
+  });
+
+  test('ไฟล์ไม่ระบุหลักสูตร + ดูแลหลักสูตรเดียว → ใส่ CS ให้', async () => {
+    mockKkuSheet([row('660000002-1')]);
+    await run();
+    expect(prisma.student.upsert.mock.calls[0][0].create.major).toBe('CS');
+  });
+
+  test('หลักสูตรอื่น (AI) → ข้ามแถว ไม่บันทึก', async () => {
+    mockKkuSheet([row('660000003-1', 'ปัญญาประดิษฐ์')]);
+    const body = await run();
+    expect(body.summary).toMatchObject({ created: 0, errors: 1 });
+    expect(body.errorRows[0].reason).toMatch(/ไม่อยู่ในหลักสูตรที่คุณดูแล/);
+    expect(prisma.student.upsert).not.toHaveBeenCalled();
+  });
+
+  test('หลักสูตรที่ไม่มีในระบบ → ข้ามแถว และไม่สร้างหลักสูตรใหม่', async () => {
+    mockKkuSheet([row('660000004-1', 'ฟิสิกส์')]);
+    const body = await run();
+    expect(body.summary.errors).toBe(1);
+    expect(body.summary.autoCreatedMajors).toBe(0);
+    expect(prisma.coopCriteria.createMany).not.toHaveBeenCalled();
+    expect(prisma.student.upsert).not.toHaveBeenCalled();
+  });
+
+  test('รหัสที่เป็นนักศึกษาหลักสูตรอื่นอยู่แล้ว → ข้าม (ไม่ย้ายนักศึกษามาหลักสูตรตัวเอง)', async () => {
+    mockKkuSheet([row('660000005-1', 'วิทยาการคอมพิวเตอร์')]);
+    prisma.student.findMany.mockResolvedValue([{ studentId: '660000005-1', deletedAt: null, major: 'AI', userId: 70, user: { email: '660000005-1@kkumail.com' } }]);
+    prisma.user.findMany.mockResolvedValueOnce([{ id: 70, role: 'student', username: '660000005-1@kkumail.com', email: '660000005-1@kkumail.com', password: 'x', student: { studentId: '660000005-1' } }]).mockResolvedValueOnce([]);
+    const body = await run();
+    expect(body.errorRows[0].reason).toMatch(/หลักสูตร AI/);
+    expect(prisma.student.upsert).not.toHaveBeenCalled();
+  });
+
+  test('ตัวอย่างก่อนนำเข้า: แถวนอกหลักสูตร = ข้าม พร้อมเหตุผล · แถวในหลักสูตรแสดงรหัส CS', async () => {
+    mockKkuSheet([row('660000006-1', 'ปัญญาประดิษฐ์'), row('660000007-1', 'วิทยาการคอมพิวเตอร์')]);
+    const body = await run(previewStudents);
+    expect(body.rows[0]).toMatchObject({ action: 'skip', error: expect.stringMatching(/ไม่อยู่ในหลักสูตรที่คุณดูแล/) });
+    expect(body.rows[1]).toMatchObject({ action: 'create', major: 'CS' });
+    expect(body.summary).toMatchObject({ willCreate: 1, willSkip: 1 });
+  });
+
+  test('เจ้าหน้าที่: หลักสูตรที่ไม่มีในระบบยังสร้างใหม่ให้เหมือนเดิม', async () => {
+    mockKkuSheet([row('660000008-1', 'ฟิสิกส์')]);
+    const res = makeRes();
+    await importStudents({ user: STAFF, file: { buffer: Buffer.from('fake') } }, res);
+    expect(prisma.coopCriteria.createMany).toHaveBeenCalledWith(expect.objectContaining({ data: [{ major: 'ฟิสิกส์', nameTh: 'ฟิสิกส์' }] }));
+    expect(res.json.mock.calls[0][0].summary.created).toBe(1);
   });
 });

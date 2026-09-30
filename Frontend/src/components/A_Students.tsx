@@ -186,7 +186,7 @@ function getFullAddress(c?: Company) {
    Main Component
 ========================= */
 export default function A_Students() {
-  const { isStaff } = useAdminRole();
+  const { isStaff, majors: myMajors } = useAdminRole();
   const [loading, setLoading] = useState(true);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [bulkDeleting, setBulkDeleting] = useState(false);
@@ -457,8 +457,8 @@ export default function A_Students() {
         >
           + เพิ่มทีละคน
         </button>
-        {/* นำเข้าจาก Excel = เจ้าหน้าที่เท่านั้น (สร้างหลักสูตรใหม่ได้ + อัปเดตได้ทุกหลักสูตร) */}
-        {isStaff && <label style={{ cursor: "pointer", fontSize: 12, padding: "6px 14px", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, fontWeight: 600, color: "#475569" }}>
+        {/* นำเข้าจาก Excel — เจ้าหน้าที่: ทุกหลักสูตร (หลักสูตรใหม่ถูกสร้างให้) · อาจารย์ประจำวิชา: เฉพาะหลักสูตรที่ดูแล (แถวอื่นถูกข้าม) */}
+        <label style={{ cursor: "pointer", fontSize: 12, padding: "6px 14px", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, fontWeight: 600, color: "#475569" }}>
           เลือกไฟล์ Excel
           <input
             key={fileInputKey}
@@ -473,8 +473,11 @@ export default function A_Students() {
               setImportWarnings([]);
             }}
           />
-        </label>}
-        {isStaff && importFile && !importPreview && (
+        </label>
+        {!isStaff && myMajors.length > 0 && (
+          <span style={{ fontSize: 12, color: "#64748b" }}>นำเข้าได้เฉพาะนักศึกษาหลักสูตร {myMajors.join(", ")} · ไฟล์ไม่ระบุหลักสูตรจะใช้หลักสูตรที่คุณดูแล</span>
+        )}
+        {importFile && !importPreview && (
           <>
             <span style={{ fontSize: 12, color: "#64748b" }}>📄 {importFile.name}</span>
             <button
@@ -568,7 +571,7 @@ export default function A_Students() {
                       <td style={{ padding: "7px 12px", whiteSpace: "nowrap" }}>
                         {row.action === "create" && <span style={{ color: "#15803d", fontWeight: 700 }}>🟢 สร้างใหม่</span>}
                         {row.action === "update" && <span style={{ color: "#1d4ed8", fontWeight: 700 }}>🔵 อัปเดต</span>}
-                        {row.action === "skip"   && <span style={{ color: "#dc2626", fontWeight: 700 }} title={row.error}>🔴 ข้าม</span>}
+                        {row.action === "skip"   && <span style={{ color: "#dc2626", fontWeight: 700 }} title={row.error}>🔴 ข้าม{row.error && <span style={{ display: "block", fontWeight: 400, fontSize: 12, whiteSpace: "normal", maxWidth: 260 }}>{row.error}</span>}</span>}
                       </td>
                     </tr>
                   );
