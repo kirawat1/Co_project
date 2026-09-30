@@ -9,7 +9,7 @@ const { SUPERVISION_SCHEDULE_SELECT, SUPERVISION_EXPORT_SELECT, toScheduleRow, s
 const { exportBaseUrl } = require('../utils/studentExport');
 const { getEvalConfig, sendEvalForAppointments } = require('../utils/supervisionEval');
 const { studentMajor } = require('../utils/majorConfig');
-const { getMajorScope, studentWhere, assertStudentInScope } = require('../utils/majorScope');
+const { getMajorScope, studentWhere, assertStudentInScope, inScope } = require('../utils/majorScope');
 const { resolveMajorNameTh } = require('../utils/majorName');
 const { listPeriods, getRow, viewPeriod, viewerMajors, targetMajors } = require('../utils/coopPeriodMajor');
 
@@ -744,13 +744,16 @@ exports.completeSupervision = async (req, res) => {
             return res.status(404).json({ ok: false, message: "ไม่พบข้อมูลการนัดหมาย" });
         }
 
-        // อาจารย์ — ต้องเป็นอาจารย์ที่ปรึกษาหลักของนัดนี้เท่านั้น (เหมือน reviewSupervision)
+        // อาจารย์ — ผู้นิเทศหลักของนัดนี้ หรืออาจารย์ประจำวิชาของหลักสูตรนักศึกษา (ทำงานแทนเจ้าหน้าที่ในหลักสูตร — ปุ่มในหน้าจัดการนิเทศ)
         // admin/staff — ผ่านได้ทันที ไม่ต้องเช็คความเป็นเจ้าของ
         let teacherRecord = null;
+        let coopScoped = false;
         if (role === 'teacher') {
             teacherRecord = await prisma.teacher.findUnique({ where: { userId: req.user.id } });
-            if (!teacherRecord || supervision.teacherId !== teacherRecord.id) {
-                return res.status(403).json({ ok: false, message: "คุณไม่มีสิทธิ์ทำรายการนี้ เฉพาะอาจารย์ที่ปรึกษาหลักเท่านั้น" });
+            const scope = await getMajorScope(req, { ignoreFilter: true });
+            coopScoped = scope.majors.length > 0 && inScope(scope, await studentMajor(supervision.studentId));
+            if (!coopScoped && (!teacherRecord || supervision.teacherId !== teacherRecord.id)) {
+                return res.status(403).json({ ok: false, message: "คุณไม่มีสิทธิ์ทำรายการนี้ เฉพาะอาจารย์ผู้นิเทศหลัก หรืออาจารย์ประจำวิชาของหลักสูตรนี้" });
             }
         }
 
@@ -760,7 +763,7 @@ exports.completeSupervision = async (req, res) => {
                 select: { status: true, teacherId: true }
             });
             if (!fresh) throw Object.assign(new Error('ไม่พบข้อมูลการนัดหมาย'), { is404: true });
-            if (role === 'teacher' && fresh.teacherId !== teacherRecord.id) {
+            if (role === 'teacher' && !coopScoped && fresh.teacherId !== teacherRecord?.id) {
                 throw Object.assign(new Error('คุณไม่มีสิทธิ์ทำรายการนี้'), { is403: true });
             }
             if (fresh.status !== 'LETTER_UPLOADED') {
