@@ -321,6 +321,9 @@ exports.getStudents = async (req, res) => {
       const teacher = await prisma.teacher.findUnique({ where: { userId: req.userId }, select: { id: true } });
       if (!teacher) return res.status(404).json({ ok: false, message: 'ไม่พบข้อมูลอาจารย์' });
       conditions.push(await visibleStudentWhere(req));
+    } else if (req.user?.role === 'staff') {
+      // เจ้าหน้าที่: ตัวกรองหลักสูตรบนแถบบน (X-Major-Filter) — ไม่เลือก = ทุกหลักสูตร
+      conditions.push(studentWhere(await getMajorScope(req)));
     }
 
     const where = { AND: conditions };

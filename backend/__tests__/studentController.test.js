@@ -47,6 +47,23 @@ describe('getStudents', () => {
     expect(body.meta).toMatchObject({ total: 2, page: 1, limit: 50, totalPages: 1 });
   });
 
+  // ตัวกรองหลักสูตรบนแถบบน (X-Major-Filter) ต้องมีผลกับหน้านักศึกษาของเจ้าหน้าที่ด้วย — เดิมถูกข้ามเฉพาะ endpoint นี้
+  test('เจ้าหน้าที่ + X-Major-Filter: CS → กรองเฉพาะนักศึกษา CS', async () => {
+    prisma.student.findMany.mockResolvedValue([]);
+    prisma.student.count.mockResolvedValue(0);
+    const req = { query: {}, user: { id: 1, role: 'staff' }, method: 'GET', get: (h) => (h.toLowerCase() === 'x-major-filter' ? 'CS' : '') };
+    await getStudents(req, makeRes());
+    expect(prisma.student.findMany.mock.calls[0][0].where.AND).toContainEqual({ major: { in: ['CS'] } });
+  });
+
+  test('เจ้าหน้าที่ + ตัวกรอง "ยังไม่ระบุหลักสูตร" → major = null', async () => {
+    prisma.student.findMany.mockResolvedValue([]);
+    prisma.student.count.mockResolvedValue(0);
+    const req = { query: {}, user: { id: 1, role: 'staff' }, method: 'GET', get: (h) => (h.toLowerCase() === 'x-major-filter' ? '__none__' : '') };
+    await getStudents(req, makeRes());
+    expect(prisma.student.findMany.mock.calls[0][0].where.AND).toContainEqual({ major: null });
+  });
+
   test('200 — page 2 ส่ง skip ถูกต้อง', async () => {
     prisma.student.findMany.mockResolvedValue([]);
     prisma.student.count.mockResolvedValue(60);
