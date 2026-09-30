@@ -90,6 +90,8 @@ export default function S_Supervision() {
     const [coopAdvisor, setCoopAdvisor] = useState<{ prefix?: string; firstName: string; lastName: string } | null>(null);
 
     const [activePeriod, setActivePeriod] = useState<CoopPeriod | null>(null);
+    // ช่วงนิเทศแยกหลักสูตร — ยังไม่ระบุหลักสูตร = นัดไม่ได้ (ข้อความจาก server)
+    const [noMajorMessage, setNoMajorMessage] = useState("");
 
     // Form State — แต่ละวันที่เสนอ เก็บรูปแบบ (ONLINE/ONSITE) แยกกัน: "YYYY-MM-DD|HH:MM-HH:MM|TYPE"
     const [dates, setDates] = useState<string[]>([""]);
@@ -138,6 +140,7 @@ export default function S_Supervision() {
                 headers: { Authorization: `Bearer ${token}` }
             });
             if (apptRes.data?.supervisionPeriod) setActivePeriod(apptRes.data.supervisionPeriod);
+            setNoMajorMessage(apptRes.data?.reason === "NO_MAJOR" ? (apptRes.data.message || "ยังไม่ได้ระบุหลักสูตรของคุณ กรุณาติดต่อเจ้าหน้าที่") : "");
             if (apptRes.data?.appointment) {
                 const appt = apptRes.data.appointment;
                 setAppointment(appt);
@@ -358,6 +361,11 @@ export default function S_Supervision() {
                                     ? <span style={{ color: '#16a34a', fontWeight: 'bold' }}>🟢 เปิดให้จองคิว</span>
                                     : <span style={{ color: '#dc2626', fontWeight: 'bold' }}>🔴 ปิดระบบ</span>
                             } />
+                            {noMajorMessage && (
+                                <div role="alert" style={{ gridColumn: '1 / -1', background: '#fef2f2', border: '1px solid #fecaca', color: '#b91c1c', padding: 12, borderRadius: 8, fontWeight: 600 }}>
+                                    ⚠️ {noMajorMessage}
+                                </div>
+                            )}
                             <div style={{ gridColumn: '1 / -1', background: '#f8fafc', padding: 12, borderRadius: 8, border: '1px solid #e2e8f0', display: 'flex', gap: 20 }}>
                                 <div>
                                     <div style={{ fontSize: 13, color: '#64748b', fontWeight: 600 }}>เริ่มนิเทศตั้งแต่วันที่</div>

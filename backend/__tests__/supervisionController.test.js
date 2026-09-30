@@ -315,7 +315,7 @@ describe('getStudentSupervision', () => {
   });
 
   test('200 — returns appointment for existing student, supervisionPeriod null when no coopPeriodId', async () => {
-    const student = { id: 10, userId: 1, coop: { coopPeriodId: null } };
+    const student = { id: 10, userId: 1, major: 'CS', coop: { coopPeriodId: null } };
     const appointment = { id: 5, studentId: 10, status: 'PENDING_TEACHER' };
     prisma.student.findUnique.mockResolvedValue(student);
     prisma.supervisionAppointment.findUnique.mockResolvedValue(appointment);
@@ -363,6 +363,16 @@ describe('proposeSupervisionDate', () => {
   function baseReq(body) {
     return { user: { id: 1 }, body: { proposedDates: '["2026-11-10|09:00|ONSITE"]', supervisionType: 'ONSITE', ...body } };
   }
+
+  // ช่วงนิเทศแยกหลักสูตร — ยังไม่ระบุหลักสูตร = นัดไม่ได้ ต้องบอกสาเหตุจริง (เดิมขึ้น "ระบบยังไม่เปิด" ทำให้เข้าใจผิด)
+  test('403 — ยังไม่ระบุหลักสูตร → บอกให้ติดต่อเจ้าหน้าที่ (ไม่ใช่ "ระบบยังไม่เปิด")', async () => {
+    prisma.student.findUnique.mockResolvedValue({ ...student, major: null });
+    const res = makeRes();
+    await proposeSupervisionDate(baseReq(), res);
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(res.json.mock.calls[0][0].message).toMatch(/ยังไม่ได้ระบุหลักสูตร/);
+    expect(prisma.supervisionAppointment.upsert).not.toHaveBeenCalled();
+  });
 
   test('400 — invalid supervisionType', async () => {
     const res = makeRes();

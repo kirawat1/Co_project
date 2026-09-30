@@ -247,6 +247,8 @@ exports.markSupervisionLetterPending = async (req, res) => {
 // 👨‍🎓 [STUDENT] ฝั่งนักศึกษา
 // ==========================================
 // ช่วงนิเทศของนักศึกษา = แถวหลักสูตรของนักศึกษาในรอบที่ตัวเองสังกัด (StudentCoop.coopPeriodId) — ไม่มี = ยังไม่เปิด
+const NO_MAJOR_MESSAGE = 'ยังไม่ได้ระบุหลักสูตรของคุณ จึงยังนัดนิเทศไม่ได้ — กรุณาติดต่อเจ้าหน้าที่ให้ระบุหลักสูตร';
+
 async function studentSupervisionPeriod(student) {
     const periodId = student.coop?.coopPeriodId;
     if (!periodId || !student.major) return null;
@@ -276,7 +278,8 @@ exports.getStudentSupervision = async (req, res) => {
         // ตอนฝึกงานไปแล้วครึ่งทาง ซึ่งรอบรับสมัครของรุ่นตัวเองปิดไปนานแล้วเป็นปกติ
         const supervisionPeriod = await studentSupervisionPeriod(student);
 
-        res.json({ ok: true, appointment, supervisionPeriod });
+        // ยังไม่ระบุหลักสูตร → ไม่มีช่วงนิเทศให้ใช้ (ช่วงนิเทศแยกหลักสูตร) — บอกสาเหตุให้หน้าจอแสดงแทน "ยังไม่เปิด"
+        res.json({ ok: true, appointment, supervisionPeriod, ...(student.major ? {} : { reason: 'NO_MAJOR', message: NO_MAJOR_MESSAGE }) });
     } catch (err) {
         console.error(err);
         res.status(500).json({ ok: false, message: 'Server error' });
@@ -322,6 +325,7 @@ exports.proposeSupervisionDate = async (req, res) => {
         // — เรียก endpoint ตรงผ่านปุ่มที่ถูกปิดได้เสมอ ต้องดูรอบสหกิจของ นศ. คนนี้เอง ไม่ใช่ "รอบรับสมัคร
         // ที่เปิดอยู่ตอนนี้" (isActive ปิดอัตโนมัติเมื่อหมดเขตรับสมัคร ซึ่งมักปิดไปนานแล้วตอนเริ่มนิเทศ)
         // ช่วงนิเทศของหลักสูตรนักศึกษาในรอบของตัวเอง (แยกหลักสูตร)
+        if (!student.major) return res.status(403).json({ ok: false, message: '⛔ ' + NO_MAJOR_MESSAGE });
         const supervisionPeriod = await studentSupervisionPeriod(student);
         if (!supervisionPeriod || !supervisionPeriod.isSupervisionOpen) {
             return res.status(403).json({ ok: false, message: '⛔ ระบบยังไม่เปิดให้นัดหมายนิเทศในขณะนี้' });
