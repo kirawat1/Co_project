@@ -4,6 +4,7 @@
 // Auto-injects Authorization header from localStorage unless the caller
 // provides one explicitly (caller's headers always win).
 import { notify } from "./notify";
+import { majorFilterHeader } from "./majorFilter";
 
 export async function apiFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   const token = localStorage.getItem("coop.token");
@@ -11,6 +12,7 @@ export async function apiFetch(input: RequestInfo | URL, init?: RequestInit): Pr
     ...init,
     headers: {
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...majorFilterHeader(),
       ...init?.headers,
     },
   };

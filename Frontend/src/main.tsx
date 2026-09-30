@@ -9,6 +9,7 @@ import '@fontsource-variable/inter/index.css';
 import '@fontsource-variable/noto-sans-thai/index.css';
 import App from "./App";
 import { notify } from "./utils/notify";
+import { majorFilterHeader } from "./utils/majorFilter";
 
 // ── Global axios interceptors ────────────────────────────────
 // Request: inject Authorization header จาก localStorage โดยอัตโนมัติ
@@ -18,6 +19,7 @@ axios.interceptors.request.use((config) => {
   if (token && !config.headers["Authorization"]) {
     config.headers["Authorization"] = `Bearer ${token}`;
   }
+  for (const [k, v] of Object.entries(majorFilterHeader())) config.headers[k] = v;
   return config;
 });
 
