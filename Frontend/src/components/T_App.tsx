@@ -15,12 +15,6 @@ import T_T003Review from "./T_T003Review";
 import StudentTheme from "./S_Theme";
 import coopLogo from "../assets/COOP_Logo.png";
 import T_SupervisionReview from "./T_SupervisionReview";
-import A_DocT005_006 from "./A_DocT005_006";
-import A_DocT007 from "./A_DocT007";
-import A_SupervisionEval from "./A_SupervisionEval";
-import A_DocT008 from "./A_DocT008";
-import A_GatewaySettings from "./A_GatewaySettings";
-import A_Announcements from "./A_Announcements";
 const IOS_BLUE = "#0074B7";
 
 export default function TeacherApp() {
@@ -29,6 +23,7 @@ export default function TeacherApp() {
   // null = ยังไม่รู้ (รอ /api/teacher/me) — ต้องแยกจาก false ไม่งั้น route guard
   // จะ redirect ทิ้งก่อนที่ค่าจริงจะโหลดเสร็จ (เจอตอนเข้า /teacher/announcements ตรง ๆ)
   const [isCoopTeacher, setIsCoopTeacher] = useState<boolean | null>(null);
+  const [coopMajors, setCoopMajors] = useState<string[]>([]);
 
   /* =========================
      Display name (pattern เดียวกับ S_App)
@@ -63,6 +58,7 @@ export default function TeacherApp() {
             setDisplayName(name);
             localStorage.setItem("coop.teacher.displayName", name);
             setIsCoopTeacher(data.isCoopTeacher ?? false);
+            setCoopMajors(Array.isArray(data.coopMajors) ? data.coopMajors : []);
           } else {
             setIsCoopTeacher(false);
           }
@@ -96,8 +92,9 @@ export default function TeacherApp() {
   }
 
   // null = ยังไม่รู้สถานะ (รอ /api/teacher/me) — อย่าเพิ่ง redirect ไม่งั้นรีเฟรชหน้าแล้วโดนเด้งทุกครั้ง
-  const coopOnly = (el: React.ReactElement) =>
-    isCoopTeacher === null ? null : isCoopTeacher ? el : <Navigate to="/teacher/dashboard" replace />;
+  // หน้าตั้งค่า/ประกาศย้ายไปอยู่ "จัดการหลักสูตร" (/admin) แล้ว — URL เดิมพาไปหน้าเดียวกันฝั่งนั้น
+  const toAdmin = (path: string) =>
+    isCoopTeacher === null ? null : <Navigate to={isCoopTeacher ? `/admin/${path}` : "/teacher/dashboard"} replace />;
 
   return (
     <div className="app-bg">
@@ -115,6 +112,11 @@ export default function TeacherApp() {
             <div className="user-ava" />
             <div className="user-name">{displayName}</div>
           </div>
+          {isCoopTeacher && (
+            <button className="btn-secondary small" onClick={() => navigate("/admin/dashboard")} title="จัดการนักศึกษา เอกสาร และการตั้งค่าของหลักสูตรที่ดูแล">
+              ⚙️ จัดการหลักสูตร {coopMajors.join(", ")}
+            </button>
+          )}
           <ThemeToggleBtn />
           <button className="btn-ico" onClick={onLogout} aria-label="ออกจากระบบ" title="ออกจากระบบ">
             <LogoutIcon />
@@ -144,12 +146,12 @@ export default function TeacherApp() {
             <Route path="review-t003" element={<T_T003Review />} />
             <Route path="review-supervision" element={<T_SupervisionReview />} />
             {/* หน้าตั้งค่า/ประกาศ — เฉพาะอาจารย์ประจำวิชาสหกิจ (backend กันซ้ำด้วย verifyCoopTeacherOrStaff) */}
-            <Route path="doc-t005-006" element={coopOnly(<A_DocT005_006 />)} />
-            <Route path="doc-t007" element={coopOnly(<A_DocT007 />)} />
-            <Route path="doc-t008" element={coopOnly(<A_DocT008 />)} />
-            <Route path="gateway-settings" element={coopOnly(<A_GatewaySettings />)} />
-            <Route path="announcements" element={coopOnly(<A_Announcements />)} />
-            <Route path="supervision-eval" element={coopOnly(<A_SupervisionEval />)} />
+            <Route path="doc-t005-006" element={toAdmin("doc-t005-006")} />
+            <Route path="doc-t007" element={toAdmin("doc-t007")} />
+            <Route path="doc-t008" element={toAdmin("doc-t008")} />
+            <Route path="gateway-settings" element={toAdmin("gateway-settings")} />
+            <Route path="announcements" element={toAdmin("announcements")} />
+            <Route path="supervision-eval" element={toAdmin("supervision-eval")} />
 
             <Route path="*" element={<Navigate to="/teacher/dashboard" replace />} />
           </Routes>

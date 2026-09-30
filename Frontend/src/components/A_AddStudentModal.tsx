@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { apiFetch } from "../utils/apiFetch";
 import { notify } from "../utils/notify";
 import Modal from "./Modal";
+import { useAdminRole } from "./adminRole";
 
 interface Props {
   onClose: () => void;
@@ -18,6 +19,8 @@ const LBL: React.CSSProperties = { fontSize: 12, fontWeight: 600, color: "#33415
 const REQ: React.CSSProperties = { color: "#ef4444", marginLeft: 2 };
 
 export default function A_AddStudentModal({ onClose, onSuccess }: Props) {
+  // อาจารย์ประจำวิชา: เลือกได้เฉพาะหลักสูตรที่ดูแล (backend กันซ้ำ)
+  const { isStaff, majors: myMajors } = useAdminRole();
   const [form, setForm] = useState({
     studentId: "", prefix: "MS", firstName: "", lastName: "",
     firstNameEn: "", lastNameEn: "", email: "", phone: "",
@@ -116,7 +119,7 @@ export default function A_AddStudentModal({ onClose, onSuccess }: Props) {
             <label style={LBL}>หลักสูตร</label>
             <select className="input" value={form.major} onChange={set("major")} disabled={departments === null}>
               <option value="">{departments === null ? "กำลังโหลด..." : "-- เลือกหลักสูตร --"}</option>
-              {(departments ?? []).map(d => (
+              {(departments ?? []).filter(d => isStaff || myMajors.includes(d.major)).map(d => (
                 <option key={d.major} value={d.major}>
                   {d.nameTh && d.nameTh !== d.major ? `${d.nameTh} (${d.major})` : d.major}
                 </option>

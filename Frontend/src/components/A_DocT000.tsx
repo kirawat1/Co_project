@@ -12,6 +12,7 @@ import { useLoadMore } from "../utils/useLoadMore";
 import { notify, askConfirm } from "../utils/notify";
 import { TABLE_TH, TABLE_TD, TABLE_HEADER_ROW } from "../utils/tableStyles";
 import Modal, { ModalCloseButton } from "./Modal";
+import { useAdminRole } from "./adminRole";
 
 // --- Interfaces ---
 interface StudentDocument {
@@ -147,6 +148,7 @@ const isMatch = (docType: string, reqKey: string) => {
 };
 
 export default function A_DocT000() {
+    const { isStaff } = useAdminRole();
     const [loading, setLoading] = useState(false);
     const [students, setStudents] = useState<StudentProfile[]>([]);
     const [config, setConfig] = useState<DocConfig>({ startDate: "", endDate: "", isOpen: false });
@@ -701,7 +703,9 @@ export default function A_DocT000() {
                                         )}
                                     </td>
                                     <td style={td}>
-                                        {CAN_ISSUE_REQUEST_LETTER_STATUSES.includes(s.docStatus || '') && (
+                                        {/* ออกหนังสือ = เจ้าหน้าที่เท่านั้น — อาจารย์ประจำวิชาเห็นแค่สถานะ */}
+                                        {!isStaff && s.docStatus === 'DOCS_APPROVED' && <span style={{ fontSize: 12, color: '#94a3b8' }}>🕒 รอเจ้าหน้าที่ออกหนังสือ</span>}
+                                        {isStaff && CAN_ISSUE_REQUEST_LETTER_STATUSES.includes(s.docStatus || '') && (
                                             <button className="btn" style={{ background: s.coop?.reqLetterPendingAt ? '#d97706' : s.docStatus === 'DOCS_APPROVED' ? '#16a34a' : '#64748b', color: 'white', fontSize: 12 }} onClick={() => setIssueModalData(s)}>
                                                 {s.coop?.reqLetterPendingAt ? '✍️ อัปโหลดฉบับลงนาม' : s.docStatus === 'DOCS_APPROVED' ? '📄 ออกหนังสือขอความอนุเคราะห์' : '🖨️ พิมพ์ซ้ำ'}
                                             </button>
@@ -722,7 +726,8 @@ export default function A_DocT000() {
                                         </div>
                                     </td>
                                     <td style={td}>
-                                        {(s.docStatus === 'ACCEPTANCE_CHECKED' || s.docStatus === 'PLACEMENT_LETTER_ISSUED' || AFTER_PLACEMENT_STATUSES.includes(s.docStatus || '')) && (
+                                        {!isStaff && s.docStatus === 'ACCEPTANCE_CHECKED' && <span style={{ fontSize: 12, color: '#94a3b8' }}>🕒 รอเจ้าหน้าที่ออกหนังสือ</span>}
+                                        {isStaff && (s.docStatus === 'ACCEPTANCE_CHECKED' || s.docStatus === 'PLACEMENT_LETTER_ISSUED' || AFTER_PLACEMENT_STATUSES.includes(s.docStatus || '')) && (
                                             <button className="btn" style={{ background: s.coop?.placeLetterPendingAt ? '#d97706' : s.docStatus === 'ACCEPTANCE_CHECKED' ? '#0ea5e9' : '#64748b', color: 'white', fontSize: 12 }} onClick={() => setPlacementModalData(s)}>
                                                 {s.coop?.placeLetterPendingAt ? '✍️ อัปโหลดฉบับลงนาม' : s.docStatus === 'ACCEPTANCE_CHECKED' ? '📄 ออกหนังสือส่งตัว' : '🖨️ พิมพ์ซ้ำ'}
                                             </button>

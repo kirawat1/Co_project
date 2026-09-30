@@ -7,6 +7,7 @@ import Spinner from "./Spinner";
 import PasswordReveal from "./PasswordReveal";
 import LoadMoreFooter from "./LoadMoreFooter";
 import { useLoadMore, toggleSelectAllShown, allShownSelected } from "../utils/useLoadMore";
+import { useAdminRole } from "./adminRole";
 
 /* =========================
    Types
@@ -42,6 +43,9 @@ const coopMajorsMissing = (f: Omit<Teacher, "id">) => !!f.coopOn && f.coopMajors
 ========================= */
 export default function A_Teacher() {
   const toast = useToast();
+  // อาจารย์ประจำวิชา: ดูได้ทุกคน · แก้ได้เฉพาะอาจารย์ในหลักสูตรที่ดูแล · เพิ่ม/ลบ/รหัสผ่าน/กำหนดอาจารย์ประจำวิชา = เจ้าหน้าที่
+  const { isStaff, majors: myMajors } = useAdminRole();
+  const canEdit = (t: Teacher) => isStaff || myMajors.includes(t.major);
   const [items, setItems] = useState<Teacher[]>([]);
   const [loading, setLoading] = useState(true);
   const [prefixOptions, setPrefixOptions] = useState<string[]>(TEACHER_PREFIXES_DEFAULT);
@@ -287,9 +291,9 @@ export default function A_Teacher() {
       <section style={card}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
           <h2 style={{ margin: 0 }}>จัดการข้อมูลอาจารย์</h2>
-          <button style={addBtn} onClick={() => { setCreateForm(EMPTY_TEACHER); setCreatePassword(""); setCreateModal(true); }}>
+          {isStaff && <button style={addBtn} onClick={() => { setCreateForm(EMPTY_TEACHER); setCreatePassword(""); setCreateModal(true); }}>
             + เพิ่มอาจารย์
-          </button>
+          </button>}
         </div>
 
         <div style={filterRow}>
@@ -307,7 +311,7 @@ export default function A_Teacher() {
       </section>
 
       {/* ─── Bulk action bar ─── */}
-      {!selectMode ? (
+      {!isStaff ? null : !selectMode ? (
         <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 20 }}>
           <button className="btn" style={ghostBtn} onClick={() => setSelectMode(true)}>
             ☑️ เลือกหลายคน
@@ -405,15 +409,15 @@ export default function A_Teacher() {
                 </td>
                 <td style={{ ...td, whiteSpace: "nowrap" }}>
                   <div style={{ display: "flex", gap: 6 }}>
-                    <button style={ghostBtn} onClick={() => setEditModal(t)}>
+                    {canEdit(t) && <button style={ghostBtn} onClick={() => setEditModal(t)}>
                       ✏️ แก้ไข
-                    </button>
-                    <button style={{ ...ghostBtn, color: "#7c3aed", borderColor: "#7c3aed" }} onClick={() => { setPwModal(t); setNewPassword(""); }}>
+                    </button>}
+                    {isStaff && <button style={{ ...ghostBtn, color: "#7c3aed", borderColor: "#7c3aed" }} onClick={() => { setPwModal(t); setNewPassword(""); }}>
                       🔑 รหัสผ่าน
-                    </button>
-                    <button style={{ ...ghostBtn, color: "#ef4444", borderColor: "#ef4444" }} onClick={() => setConfirmDel(t)}>
+                    </button>}
+                    {isStaff && <button style={{ ...ghostBtn, color: "#ef4444", borderColor: "#ef4444" }} onClick={() => setConfirmDel(t)}>
                       🗑️ ลบ
-                    </button>
+                    </button>}
                   </div>
                 </td>
               </tr>
@@ -430,11 +434,12 @@ export default function A_Teacher() {
           title="แก้ไขข้อมูลอาจารย์"
           data={editModal}
           prefixOptions={prefixOptions}
-          departments={departments}
+          departments={isStaff ? departments : myMajors}
           saving={saving}
           onClose={() => setEditModal(null)}
           onSave={handleUpdate}
-          allowEmailEdit
+          allowEmailEdit={isStaff}
+          allowCoop={isStaff}
         />
       )}
 
@@ -524,7 +529,7 @@ export default function A_Teacher() {
 /* =========================
    TeacherFormModal
 ========================= */
-function TeacherFormModal({ title, data, prefixOptions, departments, saving, onClose, onSave, allowEmailEdit }: {
+function TeacherFormModal({ title, data, prefixOptions, departments, saving, onClose, onSave, allowEmailEdit, allowCoop = true }: {
   title: string;
   data: Teacher;
   prefixOptions: string[];
@@ -533,6 +538,7 @@ function TeacherFormModal({ title, data, prefixOptions, departments, saving, onC
   onClose: () => void;
   onSave: (d: Teacher) => void;
   allowEmailEdit?: boolean;
+  allowCoop?: boolean;
 }) {
   const [form, setForm] = useState<Teacher>(data);
   return (
@@ -542,7 +548,7 @@ function TeacherFormModal({ title, data, prefixOptions, departments, saving, onC
           <h2 style={{ margin: 0, fontSize: 20 }}>{title}</h2>
           <button onClick={onClose} style={closeBtn}>✕</button>
         </div>
-        <TeacherFields form={form} setForm={setForm} prefixOptions={prefixOptions} departments={departments} allowEmailEdit={allowEmailEdit} />
+        <TeacherFields form={form} setForm={setForm} prefixOptions={prefixOptions} departments={departments} allowEmailEdit={allowEmailEdit} allowCoop={allowCoop} />
         <div style={modalFooter}>
           <button style={ghostBtn} onClick={onClose}>ยกเลิก</button>
           <button style={{ ...saveBtn, display: "flex", alignItems: "center", gap: 8 }} onClick={() => onSave(form)} disabled={saving}>
@@ -557,12 +563,13 @@ function TeacherFormModal({ title, data, prefixOptions, departments, saving, onC
 /* =========================
    TeacherFields — form fields (shared)
 ========================= */
-function TeacherFields({ form, setForm, prefixOptions, departments, allowEmailEdit }: {
+function TeacherFields({ form, setForm, prefixOptions, departments, allowEmailEdit, allowCoop = true }: {
   form: any;
   setForm: (f: any) => void;
   prefixOptions: string[];
   departments: string[];
   allowEmailEdit?: boolean;
+  allowCoop?: boolean;
 }) {
   const coopOn = !!form.coopOn || form.coopMajors.length > 0;
   return (
@@ -606,8 +613,8 @@ function TeacherFields({ form, setForm, prefixOptions, departments, allowEmailEd
           {departments.map(d => <option key={d} value={d}>{d}</option>)}
         </select>
       </div>
-      {/* อาจารย์ประจำวิชาสหกิจ + หลักสูตรที่ดูแล */}
-      <div style={{ gridColumn: "span 2", padding: '10px 0', borderTop: '1px solid #f1f5f9', marginTop: 8 }}>
+      {/* อาจารย์ประจำวิชาสหกิจ + หลักสูตรที่ดูแล (กำหนดได้เฉพาะเจ้าหน้าที่) */}
+      {allowCoop && <div style={{ gridColumn: "span 2", padding: '10px 0', borderTop: '1px solid #f1f5f9', marginTop: 8 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
             <div style={{ fontWeight: 700, fontSize: 14, color: '#334155' }}>อาจารย์ประจำวิชาสหกิจ</div>
@@ -655,7 +662,7 @@ function TeacherFields({ form, setForm, prefixOptions, departments, allowEmailEd
             {form.coopMajors.length === 0 && <div style={{ fontSize: 12, color: '#b45309', marginTop: 6 }}>⚠️ เลือกอย่างน้อย 1 หลักสูตร</div>}
           </div>
         )}
-      </div>
+      </div>}
     </div>
   );
 }
