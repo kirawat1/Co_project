@@ -42,6 +42,7 @@ const RULES = [
   ['PATCH', '/api/admin/students/:x/reset-password', 'รีเซ็ตรหัสผ่านนักศึกษา', 'นักศึกษา', ':1'],
   ['POST', '/api/admin/students/:x/password/reveal', 'ดูรหัสผ่านนักศึกษา', 'นักศึกษา', ':1'],
   ['DELETE', '/api/admin/students/:x', 'ลบนักศึกษา (ย้ายไปถังขยะ)', 'นักศึกษา', ':1'],
+  ['POST', '/api/admin/students/:x/move-period', 'ย้ายรอบสหกิจของนักศึกษา', 'นักศึกษา', ':1'],
   ['POST', '/api/admin/students/:x/restore', 'กู้คืนนักศึกษา', 'นักศึกษา', ':1'],
   ['DELETE', '/api/admin/students/:x/permanent', 'ลบนักศึกษาถาวร', 'นักศึกษา', ':1'],
 
@@ -126,6 +127,7 @@ const RULES = [
   ['DELETE', '/api/admin/criteria/:x', 'ตั้งค่าเกณฑ์สหกิจ (ลบ)', 'ตั้งค่า', null],
   ['PATCH', '/api/admin/coop-periods/:x/toggle', 'เปิด/ปิดรอบสหกิจ', 'รอบสหกิจ', ':1'],
   ['DELETE', '/api/admin/coop-periods/:x', 'ลบรอบสหกิจ', 'รอบสหกิจ', ':1'],
+  ['DELETE', '/api/admin/coop-periods/:x/majors/:x', 'เอารอบสหกิจออกจากหลักสูตร', 'รอบสหกิจ', ':1'],
   ['POST', '/api/admin/assets', 'อัปโหลดไฟล์ระบบ (โลโก้/ลายเซ็น)', 'ตั้งค่า', null],
   ['DELETE', '/api/admin/assets/:x', 'ลบไฟล์ระบบ', 'ตั้งค่า', null],
   ['POST', '/api/admin/config/dean-info', 'ตั้งค่าข้อมูลคณบดี', 'ตั้งค่า', null],

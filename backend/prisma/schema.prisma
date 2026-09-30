@@ -155,15 +155,20 @@ model CoopPeriod {
   id           Int      @id @default(autoincrement())
   academicYear String // ปีการศึกษา เช่น "2569"
   semester     Int // ภาคการศึกษา เช่น 1, 2, 3
-  startDate    DateTime // วันที่เริ่มเปิดรับสมัคร (เช่น 25-เมษา-69)
-  endDate      DateTime // วันที่ปิดรับสมัคร (เช่น 25-ตุลา-69)
-  isActive     Boolean  @default(false) // สถานะให้เจ้าหน้าที่กด ปิด/เปิด รับสมัครแบบ Manual ได้
+  // วันเริ่มต้นตอนสร้างรอบ — ใช้เป็นค่าตั้งต้นของหลักสูตรที่เพิ่มเข้ามาทีหลัง
+  // วันรับสมัคร/เปิดปิด/ช่วงนิเทศจริงอยู่ที่ CoopPeriodMajor (แยกหลักสูตร)
+  startDate    DateTime
+  endDate      DateTime
 
-  supervisionStartDate DateTime?
-  supervisionEndDate   DateTime?
-  isSupervisionOpen    Boolean       @default(false)
+  // คอลัมน์เดิมก่อนแยกหลักสูตร — เก็บไว้เผื่อย้อนกลับ ห้ามใช้ (ค่าจริงอยู่ที่ CoopPeriodMajor)
+  legacyIsActive             Boolean   @default(false) @map("isActive")
+  legacySupervisionStartDate DateTime? @map("supervisionStartDate")
+  legacySupervisionEndDate   DateTime? @map("supervisionEndDate")
+  legacyIsSupervisionOpen    Boolean   @default(false) @map("isSupervisionOpen")
+
   // ความสัมพันธ์: 1 รอบการรับสมัคร มีนักศึกษาเข้าโครงการหลายคน
   studentCoops         StudentCoop[]
+  majors               CoopPeriodMajor[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -236,6 +241,26 @@ model CoopCriteria {
   updatedAt           DateTime                   @updatedAt
   coopTeachers        CoopTeacherMajor[]
   docRequirementRules DocumentRequirementMajor[]
+  coopPeriods         CoopPeriodMajor[]
+}
+
+// รอบสหกิจ (ปี/เทอม ใช้ร่วมกัน) × หลักสูตร — แต่ละหลักสูตรตั้งวันรับสมัคร เปิด/ปิด และช่วงนิเทศของตัวเอง
+// ไม่มีแถว = หลักสูตรนั้นยังไม่ได้ตั้งรอบนี้ (ถือว่าปิด)
+model CoopPeriodMajor {
+  periodId             Int
+  major                String
+  startDate            DateTime
+  endDate              DateTime
+  isActive             Boolean      @default(false)
+  supervisionStartDate DateTime?
+  supervisionEndDate   DateTime?
+  isSupervisionOpen    Boolean      @default(false)
+  updatedAt            DateTime     @updatedAt
+  period               CoopPeriod   @relation(fields: [periodId], references: [id], onDelete: Cascade)
+  criteria             CoopCriteria @relation(fields: [major], references: [major], onDelete: Cascade, onUpdate: Cascade)
+
+  @@id([periodId, major])
+  @@index([major])
 }
 
 // อาจารย์ประจำวิชาสหกิจ ↔ หลักสูตรที่ดูแล (ปกติ 1 หลักสูตร) — Teacher.isCoopTeacher ตามมาจากตารางนี้เสมอ (มีอย่างน้อย 1 แถว = true)

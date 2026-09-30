@@ -1,5 +1,3 @@
-const prisma = require('../config/prismaClient');
-
 // เวลาที่รอบรับสมัครปิดจริง = สิ้นวันปิดรับสมัครตามเวลาไทย (23:59:59.999 +07:00)
 // หน้าจอส่งวันปิดเป็น "YYYY-MM-DD" ซึ่งถูกเก็บเป็นเที่ยงคืน UTC (= 07:00 เวลาไทย)
 // เดิมเทียบกับค่านั้นตรงๆ รอบจึงปิดตั้งแต่ 07:00 ของวันสุดท้าย และกด "เปิดรับสมัคร" ในวันนั้นแล้ว
@@ -14,17 +12,6 @@ function isPeriodExpired(period, now = new Date()) {
   return now > periodCloseAt(period.endDate);
 }
 
-// ถ้า period.isActive=true แต่เลยวันปิดรับสมัครแล้ว (เจ้าหน้าที่ลืมกดปิด)
-// ให้ปิดอัตโนมัติ (persist ลง DB) แล้วคืน period ที่ isActive=false
-// เรียกใช้ทุกจุดที่เช็คว่ารอบรับสมัครเปิดอยู่หรือไม่ เพื่อกันยื่นเกินกำหนด
-async function autoCloseIfExpired(period) {
-  if (!period || !period.isActive || !isPeriodExpired(period)) return period;
+// การปิดอัตโนมัติเมื่อเลยวันปิด อยู่ที่ utils/coopPeriodMajor.js (autoCloseRows — แยกหลักสูตร)
 
-  await prisma.coopPeriod.update({
-    where: { id: period.id },
-    data: { isActive: false },
-  });
-  return { ...period, isActive: false };
-}
-
-module.exports = { autoCloseIfExpired, isPeriodExpired, periodCloseAt };
+module.exports = { isPeriodExpired, periodCloseAt };

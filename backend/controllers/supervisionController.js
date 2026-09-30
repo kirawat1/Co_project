@@ -11,6 +11,7 @@ const { getEvalConfig, sendEvalForAppointments } = require('../utils/supervision
 const { studentMajor } = require('../utils/majorConfig');
 const { getMajorScope, studentWhere, assertStudentInScope } = require('../utils/majorScope');
 const { resolveMajorNameTh } = require('../utils/majorName');
+const { listPeriods, getRow, viewPeriod, viewerMajors, targetMajors } = require('../utils/coopPeriodMajor');
 
 const CLEARED_LETTER_PENDING = { letterPendingAt: null, letterDraftNumber: null, letterDraftDate: null };
 
@@ -40,14 +41,11 @@ async function assertSupervisionDocNumberFree(tx, value, appointmentId) {
 // ==========================================
 // ⚙️ [ADMIN] จัดการ Config ช่วงเวลานิเทศ (ผูกกับ CoopPeriod)
 // ==========================================
-exports.getSupervisionPeriods = async (_req, res) => {
+// ช่วงนิเทศแยกหลักสูตร (CoopPeriodMajor) — รูปแบบรายการเหมือน /admin/coop-periods (ค่าระดับบน = หลักสูตรที่ดู)
+exports.getSupervisionPeriods = async (req, res) => {
     try {
-        const periods = await prisma.coopPeriod.findMany({
-            orderBy: [
-                { academicYear: 'desc' },
-                { semester: 'desc' } 
-            ]
-        });
+        const majors = await viewerMajors(req);
+        const periods = (await listPeriods()).map((p) => viewPeriod(p, majors));
         res.json({ ok: true, periods });
     } catch (err) {
         console.error(err);
@@ -55,27 +53,35 @@ exports.getSupervisionPeriods = async (_req, res) => {
     }
 };
 
+// บันทึกช่วงนิเทศของหลักสูตรหนึ่ง (ระบุ major · อาจารย์ประจำวิชาที่ดูแลหลักสูตรเดียวไม่ต้องระบุ)
+// หลักสูตรที่ยังไม่มีแถวรอบนี้ → สร้างให้ (วันรับสมัครตั้งต้นจากรอบ, ยังไม่เปิดรับสมัคร)
 exports.saveSupervisionPeriod = async (req, res) => {
     try {
-        const { periodId, isSupervisionOpen, supervisionStartDate, supervisionEndDate } = req.body;
+        const { periodId, major, isSupervisionOpen, supervisionStartDate, supervisionEndDate } = req.body;
 
         const parsedPeriodId = parseInt(periodId, 10);
         if (isNaN(parsedPeriodId) || parsedPeriodId <= 0) {
             return res.status(400).json({ ok: false, message: 'periodId ไม่ถูกต้อง' });
         }
+        const [m] = await targetMajors(req, major);
+        const period = await prisma.coopPeriod.findUnique({ where: { id: parsedPeriodId } });
+        if (!period) return res.status(404).json({ ok: false, message: 'ไม่พบรอบสหกิจ' });
 
-        const updatedPeriod = await prisma.coopPeriod.update({
-            where: { id: parsedPeriodId },
-            data: {
-                isSupervisionOpen,
-                supervisionStartDate: supervisionStartDate ? new Date(supervisionStartDate) : null,
-                supervisionEndDate: supervisionEndDate ? new Date(supervisionEndDate) : null
-            }
+        const data = {
+            isSupervisionOpen: !!isSupervisionOpen,
+            supervisionStartDate: supervisionStartDate ? new Date(supervisionStartDate) : null,
+            supervisionEndDate: supervisionEndDate ? new Date(supervisionEndDate) : null,
+        };
+        await prisma.coopPeriodMajor.upsert({
+            where: { periodId_major: { periodId: parsedPeriodId, major: m } },
+            update: data,
+            create: { periodId: parsedPeriodId, major: m, startDate: period.startDate, endDate: period.endDate, ...data },
         });
-
-        res.json({ ok: true, period: updatedPeriod });
+        const full = (await listPeriods()).find((p) => p.id === parsedPeriodId);
+        res.json({ ok: true, period: viewPeriod(full, [m]) });
     } catch (err) {
-        if (err.code === 'P2025') return res.status(404).json({ ok: false, message: 'ไม่พบรอบสหกิจ' });
+        if (err.status) return res.status(err.status).json({ ok: false, message: err.message });
+        if (err.code === 'P2003') return res.status(400).json({ ok: false, message: 'ไม่พบหลักสูตรนี้ในระบบ' });
         console.error(err);
         res.status(500).json({ ok: false, message: 'Server error' });
     }
@@ -240,6 +246,19 @@ exports.markSupervisionLetterPending = async (req, res) => {
 // ==========================================
 // 👨‍🎓 [STUDENT] ฝั่งนักศึกษา
 // ==========================================
+// ช่วงนิเทศของนักศึกษา = แถวหลักสูตรของนักศึกษาในรอบที่ตัวเองสังกัด (StudentCoop.coopPeriodId) — ไม่มี = ยังไม่เปิด
+async function studentSupervisionPeriod(student) {
+    const periodId = student.coop?.coopPeriodId;
+    if (!periodId || !student.major) return null;
+    const [period, row] = await Promise.all([
+        prisma.coopPeriod.findUnique({ where: { id: periodId }, select: { id: true, academicYear: true, semester: true } }),
+        getRow(periodId, student.major),
+    ]);
+    if (!period || !row) return null;
+    return { ...period, major: row.major, startDate: row.startDate, endDate: row.endDate, isActive: row.isActive,
+        supervisionStartDate: row.supervisionStartDate, supervisionEndDate: row.supervisionEndDate, isSupervisionOpen: row.isSupervisionOpen };
+}
+
 exports.getStudentSupervision = async (req, res) => {
     try {
         const student = await prisma.student.findUnique({
@@ -255,9 +274,7 @@ exports.getStudentSupervision = async (req, res) => {
         // ต้องดูรอบสหกิจของ นศ. คนนี้เอง (StudentCoop.coopPeriodId) ไม่ใช่ "รอบรับสมัครที่เปิดอยู่ตอนนี้"
         // (CoopPeriod.isActive) — isActive ปิดอัตโนมัติเมื่อหมดเขตรับสมัคร แต่ นศ. มักจะเริ่มนัดนิเทศ
         // ตอนฝึกงานไปแล้วครึ่งทาง ซึ่งรอบรับสมัครของรุ่นตัวเองปิดไปนานแล้วเป็นปกติ
-        const supervisionPeriod = student.coop?.coopPeriodId
-            ? await prisma.coopPeriod.findUnique({ where: { id: student.coop.coopPeriodId } })
-            : null;
+        const supervisionPeriod = await studentSupervisionPeriod(student);
 
         res.json({ ok: true, appointment, supervisionPeriod });
     } catch (err) {
@@ -304,9 +321,8 @@ exports.proposeSupervisionDate = async (req, res) => {
         // เดิม frontend ปิดปุ่มเองตาม isSupervisionOpen (S_Supervision.tsx) แต่ backend ไม่เคยเช็คซ้ำเลย
         // — เรียก endpoint ตรงผ่านปุ่มที่ถูกปิดได้เสมอ ต้องดูรอบสหกิจของ นศ. คนนี้เอง ไม่ใช่ "รอบรับสมัคร
         // ที่เปิดอยู่ตอนนี้" (isActive ปิดอัตโนมัติเมื่อหมดเขตรับสมัคร ซึ่งมักปิดไปนานแล้วตอนเริ่มนิเทศ)
-        const supervisionPeriod = student.coop?.coopPeriodId
-            ? await prisma.coopPeriod.findUnique({ where: { id: student.coop.coopPeriodId } })
-            : null;
+        // ช่วงนิเทศของหลักสูตรนักศึกษาในรอบของตัวเอง (แยกหลักสูตร)
+        const supervisionPeriod = await studentSupervisionPeriod(student);
         if (!supervisionPeriod || !supervisionPeriod.isSupervisionOpen) {
             return res.status(403).json({ ok: false, message: '⛔ ระบบยังไม่เปิดให้นัดหมายนิเทศในขณะนี้' });
         }
