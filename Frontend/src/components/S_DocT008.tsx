@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+import { DeadlineBanner } from "./DocDeadline";
 
 function safeHref(url: string | null | undefined): string | undefined {
   if (!url) return undefined;
@@ -11,6 +12,7 @@ interface T008Config {
     instructionText: string;
     driveLink: string;
     imagePath: string | null;
+    deadline?: string | null;
 }
 
 export default function S_DocT008() {
@@ -79,6 +81,8 @@ export default function S_DocT008() {
                 <h2 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: '#1e293b' }}>📚 การอัพโหลดเล่มรายงานสหกิจ (T008)</h2>
                 <div style={{ color: "#64748b", fontSize: 14, marginTop: 4 }}>ขั้นตอนการส่งเล่มรายงาน และการดำเนินการก่อน-หลังสอบ</div>
             </div>
+
+            <DeadlineBanner deadline={config.deadline} />
 
             <div className="card" style={{ marginBottom: 24, padding: 30, borderTop: '4px solid #f59e0b' }}>
                 <div style={{ display: 'flex', gap: 15, alignItems: 'flex-start' }}>

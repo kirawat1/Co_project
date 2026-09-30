@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+import { DeadlineBanner } from "./DocDeadline";
 
 function safeHref(url: string | null | undefined): string | undefined {
   if (!url) return undefined;
@@ -13,6 +14,7 @@ interface EvalConfig {
     t005Link: string;
     t006Link: string;
     templateLink: string;
+    deadline?: string | null;
 }
 
 interface StudentInfo {
@@ -86,6 +88,8 @@ export default function S_DocT005_006() {
                 <h2 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: '#1e293b' }}>📊 แบบประเมินสหกิจศึกษา T005, T006</h2>
                 <div style={{ color: "#64748b", fontSize: 14, marginTop: 4 }}>ขั้นตอนการขอความอนุเคราะห์ประเมินผลการปฏิบัติงานจากพี่เลี้ยง</div>
             </div>
+
+            <DeadlineBanner deadline={config.deadline} />
 
             <div className="card" style={{ marginBottom: 24, padding: 30, borderTop: '4px solid #3b82f6' }}>
                 <div style={{ display: 'flex', gap: 15, alignItems: 'flex-start' }}>

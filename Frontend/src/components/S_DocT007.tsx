@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+import { DeadlineBanner } from "./DocDeadline";
 
 function safeHref(url: string | null | undefined): string | undefined {
   if (!url) return undefined;
@@ -10,6 +11,7 @@ function safeHref(url: string | null | undefined): string | undefined {
 interface T007Config {
     instructionText: string;
     t007Link: string;
+    deadline?: string | null;
 }
 
 export default function S_DocT007() {
@@ -61,6 +63,8 @@ export default function S_DocT007() {
                 <h2 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: '#1e293b' }}>🏢 แบบประเมินสถานประกอบการ (T007)</h2>
                 <div style={{ color: "#64748b", fontSize: 14, marginTop: 4 }}>สำหรับนักศึกษาประเมินสถานประกอบการหลังเสร็จสิ้นการฝึกงาน</div>
             </div>
+
+            <DeadlineBanner deadline={config.deadline} />
 
             <div className="card" style={{ marginBottom: 24, padding: 30, borderTop: '4px solid #8b5cf6' }}>
                 <div style={{ display: 'flex', gap: 15, alignItems: 'flex-start' }}>

@@ -21,6 +21,7 @@ const teacherController = require('../controllers/teacherController');
 const studentImportController = require('../controllers/studentImportController');
 const studentController = require('../controllers/studentController');
 const staffController = require('../controllers/staffController');
+const letterDownloadController = require('../controllers/letterDownloadController');
 const multerMemory = require('multer')({ storage: require('multer').memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 // สิทธิ์ 3 ระดับ (role ตรงกับ Prisma enum — lowercase):
@@ -68,6 +69,9 @@ router.delete("/coop-periods/:id", verifyToken, verifyRole(...STAFF_ONLY), coopP
 router.delete("/coop-periods/:id/majors/:major", verifyToken, verifyCoopTeacherOrStaff, coopPeriodController.removePeriodMajor);
 router.get("/coop-periods/active", verifyToken, verifyRole(...ADMIN_ROLES), coopPeriodController.getActivePeriod);
 router.get("/coop-periods/all", verifyToken, verifyRole(...ADMIN_ROLES), coopPeriodController.getAllCoopPeriods);
+
+// ดาวน์โหลดหนังสือที่ออกแล้วหลายฉบับเป็น zip (อาจารย์ประจำวิชา = หลักสูตรที่ดูแล)
+router.get('/letters/download', verifyToken, verifyCoopTeacherOrStaff, letterDownloadController.downloadLetters);
 
 // Dashboard
 router.get('/dashboard-stats', verifyToken, verifyCoopTeacherOrStaff, adminDashboardController.getDashboardStats);

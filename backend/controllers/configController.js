@@ -55,10 +55,18 @@ exports.getEvaluationConfig = async (req, res) => {
 // ==========================================
 // 2. บันทึก/อัปเดตข้อมูลแบบประเมิน (เฉพาะเจ้าหน้าที่/แอดมินเรียกใช้)
 // ==========================================
+// กำหนดส่ง (YYYY-MM-DD) — ว่าง = ไม่มีกำหนดส่ง · undefined = รูปแบบผิด
+function parseDeadline(v) {
+    if (v === undefined || v === null || v === '') return null;
+    return /^\d{4}-\d{2}-\d{2}$/.test(String(v)) ? String(v) : undefined;
+}
+
 exports.updateEvaluationConfig = async (req, res) => {
     try {
         // รับค่ามาจากหน้า A_DocT005_006
         const { instructionText, ccEmails, t005Link, t006Link, templateLink } = req.body;
+        const deadline = parseDeadline(req.body.deadline);
+        if (deadline === undefined) return res.status(400).json({ ok: false, message: 'กำหนดส่งต้องเป็นวันที่ (YYYY-MM-DD)' });
 
         for (const [field, val] of [['t005Link', t005Link], ['t006Link', t006Link], ['templateLink', templateLink]]) {
             if (val && !safeUrl(val)) {
@@ -73,6 +81,7 @@ exports.updateEvaluationConfig = async (req, res) => {
             t005Link: safeUrl(t005Link) || null,
             t006Link: safeUrl(t006Link) || null,
             templateLink: safeUrl(templateLink) || null,
+            deadline,
         };
 
         // ใช้คำสั่ง upsert (ถ้ามีข้อมูลอยู่แล้วให้อัปเดต ถ้ายังไม่มีให้สร้างใหม่)
@@ -120,7 +129,9 @@ exports.updateT007Config = async (req, res) => {
         if (t007Link && !safeUrl(t007Link)) {
             return res.status(400).json({ ok: false, message: 't007Link ต้องเป็น URL แบบ http/https เท่านั้น' });
         }
-        const payload = { instructionText, t007Link: safeUrl(t007Link) || null };
+        const deadline = parseDeadline(req.body.deadline);
+        if (deadline === undefined) return res.status(400).json({ ok: false, message: 'กำหนดส่งต้องเป็นวันที่ (YYYY-MM-DD)' });
+        const payload = { instructionText, t007Link: safeUrl(t007Link) || null, deadline };
 
         await prisma.systemConfig.upsert({
             where: { key: 'CONFIG_T007' },
@@ -198,6 +209,11 @@ exports.updateT008Config = async (req, res) => {
             if (req.file) { try { fs.unlinkSync(path.join(__dirname, '../uploads/system', req.file.filename)); } catch(_){} }
             return res.status(400).json({ ok: false, message: 'driveLink ต้องเป็น URL แบบ http/https เท่านั้น' });
         }
+        const deadline = parseDeadline(req.body.deadline);
+        if (deadline === undefined) {
+            if (req.file) { try { fs.unlinkSync(path.join(__dirname, '../uploads/system', req.file.filename)); } catch(_){} }
+            return res.status(400).json({ ok: false, message: 'กำหนดส่งต้องเป็นวันที่ (YYYY-MM-DD)' });
+        }
 
         let imagePath = existingImage || null;
         if (req.file) {
@@ -205,7 +221,7 @@ exports.updateT008Config = async (req, res) => {
         }
 
         let oldImagePath = null;
-        const payload = { instructionText, driveLink: safeUrl(driveLink) || null, imagePath };
+        const payload = { instructionText, driveLink: safeUrl(driveLink) || null, imagePath, deadline };
 
         await prisma.$transaction(async (tx) => {
             if (req.file) {

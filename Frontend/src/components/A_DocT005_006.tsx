@@ -3,6 +3,7 @@ import axios from "axios";
 import AutoTextarea from "./AutoTextarea";
 import { notify, askConfirm } from "../utils/notify";
 import MajorConfigTabs from "./MajorConfigTabs";
+import { DeadlineField } from "./DocDeadline";
 
 export default function A_DocT005_006() {
     const [isFetching, setIsFetching] = useState(true); // ✅ State สำหรับตอนดึงข้อมูลครั้งแรก
@@ -14,6 +15,7 @@ export default function A_DocT005_006() {
     const [t005Link, setT005Link] = useState("");
     const [t006Link, setT006Link] = useState("");
     const [templateLink, setTemplateLink] = useState("");
+    const [deadline, setDeadline] = useState("");
 
     const token = localStorage.getItem("coop.token");
 
@@ -35,6 +37,7 @@ export default function A_DocT005_006() {
                     setT005Link(cfg.t005Link || "");
                     setT006Link(cfg.t006Link || "");
                     setTemplateLink(cfg.templateLink || "");
+                    setDeadline(cfg.deadline || "");
                 }
             } catch (err) {
                 console.warn("ไม่พบข้อมูลเดิม (จะแสดงฟอร์มเปล่า)");
@@ -51,7 +54,7 @@ export default function A_DocT005_006() {
 
         setIsSaving(true);
         try {
-            const payload = { instructionText, ccEmails, t005Link, t006Link, templateLink };
+            const payload = { instructionText, ccEmails, t005Link, t006Link, templateLink, deadline };
             await axios.put("/api/admin/config/evaluation", payload, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -124,6 +127,8 @@ export default function A_DocT005_006() {
                             <input type="text" className="input" value={templateLink} onChange={e => setTemplateLink(e.target.value)} placeholder="https://docs.google.com/..." />
                         </div>
                     </div>
+
+                    <DeadlineField value={deadline} onChange={setDeadline} />
 
                 </div>
 
