@@ -17,6 +17,7 @@ import { useLoadMore } from "../utils/useLoadMore";
 import { askConfirm } from "../utils/notify";
 import { TABLE_TH, TABLE_TD, TABLE_HEADER_ROW } from "../utils/tableStyles";
 import { useAdminRole } from "./adminRole";
+import { getMajorFilter, NO_MAJOR } from "../utils/majorFilter";
 
 // --- Types ---
 type SupervisionStatus = "PENDING_TEACHER" | "TEACHER_REJECTED" | "DATE_CONFIRMED" | "LETTER_UPLOADED" | "COMPLETED";
@@ -31,6 +32,8 @@ interface CoopPeriod {
     supervisionEndDate: string | null;
     isSupervisionOpen: boolean;
     isActive: boolean;
+    // ช่วงนิเทศแยกหลักสูตร — แถวของแต่ละหลักสูตรในรอบนี้
+    majors?: { major: string; supervisionStartDate: string | null; supervisionEndDate: string | null; isSupervisionOpen: boolean; configured?: boolean }[];
 }
 
 interface Teacher {
@@ -86,7 +89,7 @@ type SortKey = 'student' | 'company' | 'teacher' | 'datetime' | 'status';
 type SortDirection = 'asc' | 'desc';
 
 export default function A_SupervisionManage() {
-    const { isStaff } = useAdminRole();
+    const { isStaff, majors: myMajors } = useAdminRole();
     const toast = useToast();
     const [supervisions, setSupervisions] = useState<Supervision[]>([]);
     const [teachersList, setTeachersList] = useState<Teacher[]>([]);
@@ -100,6 +103,13 @@ export default function A_SupervisionManage() {
     const [startDate, setStartDate] = useState("");
     const [endDate, setEndDate] = useState("");
     const [savingConfig, setSavingConfig] = useState(false);
+    // ช่วงนิเทศตั้งแยกหลักสูตร — หลักสูตรที่ตั้งได้ = ตามตัวกรองด้านบน / ทุกหลักสูตร (เจ้าหน้าที่) / ที่ดูแล (อาจารย์ประจำวิชา)
+    const [allMajors, setAllMajors] = useState<string[]>([]);
+    const [configMajor, setConfigMajor] = useState<string>("");
+    const majorFilter = getMajorFilter();
+    const scopeMajors = isStaff ? allMajors : myMajors;
+    const configMajors = majorFilter && majorFilter !== NO_MAJOR && scopeMajors.includes(majorFilter) ? [majorFilter] : scopeMajors;
+    const activeConfigMajor = configMajors.includes(configMajor) ? configMajor : (configMajors[0] ?? "");
 
     // Modals State
     const [selectedSupForModal, setSelectedSupForModal] = useState<Supervision | null>(null);
@@ -137,12 +147,10 @@ export default function A_SupervisionManage() {
             if (periodRes.data?.periods) {
                 const periods: CoopPeriod[] = periodRes.data.periods;
                 setCoopPeriods(periods);
-                const activePeriod = periods.find(p => p.isActive === true);
-                if (activePeriod) {
-                    handleSelectPeriod(activePeriod.id, periods);
-                } else if (periods.length > 0) {
-                    handleSelectPeriod(periods[0].id, periods);
-                }
+                // โหลดใหม่หลังบันทึก → คงรอบที่เลือกไว้
+                const keep = selectedPeriodId ? periods.find(p => p.id === selectedPeriodId) : undefined;
+                const activePeriod = keep || periods.find(p => p.isActive === true) || periods[0];
+                if (activePeriod) handleSelectPeriod(activePeriod.id, periods);
             }
 
             // 2. ดึงรายชื่อการนิเทศ
@@ -171,31 +179,49 @@ export default function A_SupervisionManage() {
     };
 
     useEffect(() => { fetchData(); }, []);
+    useEffect(() => {
+        if (!isStaff) return;
+        axios.get("/api/admin/majors").then(r => { if (r.data?.ok) setAllMajors(r.data.majors ?? []); }).catch(() => {});
+    }, [isStaff]);
 
+    // เติมฟอร์มจากแถวของหลักสูตรที่เลือกในรอบนั้น (ยังไม่ได้ตั้ง = ว่าง + ปิด)
+    const fillConfig = (id: number, major: string, periodsList = coopPeriods) => {
+        const period = periodsList.find(p => p.id === id);
+        const row = period?.majors?.find(r => r.major === major && r.configured !== false);
+        setPeriodOpen(row?.isSupervisionOpen || false);
+        setStartDate(row?.supervisionStartDate ? row.supervisionStartDate.split('T')[0] : "");
+        setEndDate(row?.supervisionEndDate ? row.supervisionEndDate.split('T')[0] : "");
+    };
     const handleSelectPeriod = (id: number, periodsList = coopPeriods) => {
         setSelectedPeriodId(id);
-        const period = periodsList.find(p => p.id === id);
-        if (period) {
-            setPeriodOpen(period.isSupervisionOpen || false);
-            setStartDate(period.supervisionStartDate ? period.supervisionStartDate.split('T')[0] : "");
-            setEndDate(period.supervisionEndDate ? period.supervisionEndDate.split('T')[0] : "");
-        }
+        fillConfig(id, activeConfigMajor, periodsList);
     };
+    const handleSelectMajor = (major: string) => {
+        setConfigMajor(major);
+        if (selectedPeriodId) fillConfig(selectedPeriodId, major);
+    };
+    // รายชื่อหลักสูตรโหลดมาทีหลังรอบ → เติมฟอร์มของหลักสูตรแรกเมื่อพร้อม
+    useEffect(() => {
+        if (selectedPeriodId && activeConfigMajor) fillConfig(selectedPeriodId, activeConfigMajor);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeConfigMajor, coopPeriods]);
 
     const handleSaveConfig = async () => {
         if (!selectedPeriodId) { toast.warning("กรุณาเลือกรอบสหกิจศึกษาก่อน"); return; }
+        if (!activeConfigMajor) { toast.warning("กรุณาเลือกหลักสูตร"); return; }
         setSavingConfig(true);
         try {
             await axios.post("/api/admin/supervision-periods", {
                 periodId: selectedPeriodId,
+                major: activeConfigMajor,
                 isSupervisionOpen: periodOpen,
                 supervisionStartDate: startDate || null,
                 supervisionEndDate: endDate || null
             }, { headers: { Authorization: `Bearer ${token}` } });
-            toast.success("บันทึกช่วงเวลานิเทศเรียบร้อยแล้ว");
+            toast.success(`บันทึกช่วงเวลานิเทศของหลักสูตร ${activeConfigMajor} เรียบร้อยแล้ว`);
             fetchData();
-        } catch {
-            toast.error("เกิดข้อผิดพลาดในการบันทึก");
+        } catch (err: any) {
+            toast.error(err?.response?.data?.message || "เกิดข้อผิดพลาดในการบันทึก");
         } finally {
             setSavingConfig(false);
         }
@@ -382,6 +408,7 @@ export default function A_SupervisionManage() {
                     <h3 style={{ margin: 0, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 8 }}>
                         <span style={{ fontSize: 20 }}>⚙️</span> ตั้งค่าช่วงเวลาการนัดหมายนิเทศ
                     </h3>
+                    <span style={{ fontSize: 13, color: '#64748b' }}>ตั้งแยกแต่ละหลักสูตร — นักศึกษานัดนิเทศได้ตามช่วงของหลักสูตรตัวเอง</span>
                 </div>
 
                 {selectedPeriodData && (
@@ -399,7 +426,7 @@ export default function A_SupervisionManage() {
                     </div>
                 )}
 
-                <div className="config-grid" style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 1fr auto', gap: 15, alignItems: 'end' }}>
+                <div className="config-grid" style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr 1fr 1fr 1fr auto', gap: 15, alignItems: 'end' }}>
                     <div>
                         <label style={labelStyle}>เลือกรอบสหกิจศึกษา <span style={{ color: 'red' }}>*</span></label>
                         <select className="input" style={{ fontWeight: 'bold', color: '#0369a1', background: '#f0f9ff' }}
@@ -410,6 +437,14 @@ export default function A_SupervisionManage() {
                                     เทอม {p.semester}/{p.academicYear} {p.isActive ? " ⭐ (รอบปัจจุบัน)" : ""}
                                 </option>
                             ))}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label style={labelStyle}>หลักสูตร <span style={{ color: 'red' }}>*</span></label>
+                        <select className="input" aria-label="หลักสูตรที่ตั้งช่วงนิเทศ" value={activeConfigMajor} onChange={e => handleSelectMajor(e.target.value)} disabled={configMajors.length <= 1}>
+                            {configMajors.length === 0 && <option value="">—</option>}
+                            {configMajors.map(m => <option key={m} value={m}>{m}</option>)}
                         </select>
                     </div>
 

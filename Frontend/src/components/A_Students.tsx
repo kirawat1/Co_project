@@ -16,6 +16,7 @@ import { contactName, contactLine } from "../utils/contacts";
 import { TABLE_TH, TABLE_TD, TABLE_HEADER_ROW } from "../utils/tableStyles";
 import Modal, { ModalCloseButton } from "./Modal";
 import { useAdminRole } from "./adminRole";
+import A_MovePeriodModal, { MOVE_BLOCKED_STATUSES } from "./A_MovePeriodModal";
 
 function safeHref(url: string | null | undefined): string | undefined {
   if (!url) return undefined;
@@ -129,6 +130,7 @@ export interface StudentProfile {
     actualStartDate?: string | null;
     actualEndDate?: string | null;
     coopPeriod?: { semester: number; academicYear: string } | null;
+    coopPeriodId?: number | null;
   };
   documents?: StudentDocument[];
   coopApplicationForm?: { gradeSheetUrl?: string | null } | null;
@@ -819,7 +821,9 @@ export default function A_Students() {
         <StudentModal
           student={modalStudent}
           deptMap={deptMap}
+          periods={coopPeriods}
           onClose={() => setModalStudent(null)}
+          onMoved={() => { setModalStudent(null); reloadStudents(); }}
         />
       )}
       {editStudent && (
@@ -845,12 +849,19 @@ export default function A_Students() {
 function StudentModal({
   student,
   deptMap,
+  periods,
   onClose,
+  onMoved,
 }: {
   student: StudentProfile;
   deptMap: Record<string, string>; // รหัสสาขา → ชื่อไทย (โหลดครั้งเดียวที่หน้ารายชื่อ)
+  periods: CoopPeriod[];
   onClose: () => void;
+  onMoved: () => void;
 }) {
+  const [moveOpen, setMoveOpen] = useState(false);
+  // ย้ายรอบได้เมื่อมีข้อมูลสหกิจแล้วและยังไม่ออกฝึก (server ตรวจซ้ำ)
+  const canMove = !!student.coop && !MOVE_BLOCKED_STATUSES.includes(student.coop.status);
   const isStaffView = useAdminRole().isStaff; // รหัสผ่าน = เจ้าหน้าที่เท่านั้น
   const [tab, setTab] = useState<"profile" | "company" | "docs">("profile");
 
@@ -905,7 +916,12 @@ function StudentModal({
               </Section>
               <Section title="ข้อมูลสหกิจ">
                 <InfoRow label="สถานะ" value={<StatusBadge status={student.coop?.status || "NOT_SUBMITTED"} />} />
-                <InfoRow label="รอบสหกิจ" value={student.coop?.coopPeriod ? `เทอม ${student.coop.coopPeriod.semester}/${student.coop.coopPeriod.academicYear}` : undefined} />
+                <InfoRow label="รอบสหกิจ" value={
+                  <span style={{ display: "inline-flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                    {student.coop?.coopPeriod ? `เทอม ${student.coop.coopPeriod.semester}/${student.coop.coopPeriod.academicYear}` : "-"}
+                    {canMove && <button className="btn-secondary small" onClick={() => setMoveOpen(true)}>🔁 ย้ายรอบ</button>}
+                  </span>
+                } />
                 <InfoRow label="ตำแหน่งงาน" value={student.coop?.jobPosition || student.jobPosition} />
                 <InfoRow label="ช่วงฝึกงาน" value={student.coop?.actualStartDate ? `${fmtDate(student.coop.actualStartDate)} – ${fmtDate(student.coop.actualEndDate)}` : undefined} />
                 <InfoRow label="ที่ปรึกษาทั่วไป" value={teacherFullName(student.generalAdvisor) || student.advisorName} />
@@ -981,6 +997,14 @@ function StudentModal({
             ปิด
           </button>
         </div>
+        {moveOpen && student.coop && (
+          <A_MovePeriodModal
+            student={{ id: student.id, studentId: student.studentId, name: fullName, status: student.coop.status, coopPeriodId: student.coop.coopPeriodId }}
+            periods={periods}
+            onClose={() => setMoveOpen(false)}
+            onMoved={() => { setMoveOpen(false); onMoved(); }}
+          />
+        )}
     </Modal>
   );
 }

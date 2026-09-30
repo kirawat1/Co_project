@@ -93,16 +93,26 @@ export async function seedLifecycleFixture(): Promise<LifecycleFixture> {
 
   // ── รอบสหกิจ: เปิดรับสมัคร + เปิดนัดนิเทศ ───────────────
   // ใช้ semester เลขสูงกันชนกับรอบจริงที่ unique [academicYear, semester]
+  // วันรับสมัคร/เปิดปิด/ช่วงนิเทศ แยกหลักสูตร (CoopPeriodMajor) — นักศึกษาทดสอบเป็น CS
+  const openWindow = {
+    startDate: new Date(Date.now() - 86_400_000),
+    endDate: new Date(Date.now() + 86_400_000 * 30),
+  };
   const period = await prisma.coopPeriod.create({
     data: {
       academicYear: `E2E${String(stamp).slice(-6)}`,
       semester: 9,
-      isActive: true,
-      startDate: new Date(Date.now() - 86_400_000),
-      endDate: new Date(Date.now() + 86_400_000 * 30),
-      isSupervisionOpen: true,
-      supervisionStartDate: new Date(Date.now() - 86_400_000),
-      supervisionEndDate: new Date(Date.now() + 86_400_000 * 90),
+      ...openWindow,
+      majors: {
+        create: [{
+          major: "CS",
+          ...openWindow,
+          isActive: true,
+          isSupervisionOpen: true,
+          supervisionStartDate: new Date(Date.now() - 86_400_000),
+          supervisionEndDate: new Date(Date.now() + 86_400_000 * 90),
+        }],
+      },
     },
   });
 
