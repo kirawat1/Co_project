@@ -3,7 +3,7 @@ const { createNotifications } = require('../utils/notificationHelper');
 const { buildStudentExportWorkbook, exportBaseUrl, STUDENT_EXPORT_INCLUDE } = require('../utils/studentExport');
 const { changeUserEmail } = require('../utils/userEmail');
 const { parseCoopMajors, setCoopMajors } = require('../utils/coopMajors');
-const { visibleStudentWhere } = require('../utils/majorScope');
+const { visibleStudentWhere, getMajorScope, inScope } = require('../utils/majorScope');
 
 // หลักสูตรที่อาจารย์ประจำวิชาดูแล → ส่งให้หน้าเว็บเป็น coopMajors: ['CS', ...]
 const TEACHER_COOP_MAJORS = { coopMajors: { select: { major: true }, orderBy: { major: 'asc' } } };
@@ -675,11 +675,23 @@ exports.adminUpdateTeacher = async (req, res) => {
     const parsedId = parseInt(id, 10);
     if (isNaN(parsedId) || parsedId <= 0)
       return res.status(400).json({ ok: false, message: 'id ไม่ถูกต้อง' });
-    const { firstName, lastName, email, phone, major, prefix } = req.body;
-    const coopMajors = parseCoopMajors(req.body.coopMajors);
+    const { firstName, lastName, phone, major, prefix } = req.body;
+    let { email } = req.body;
+    let coopMajors = parseCoopMajors(req.body.coopMajors);
 
     const teacher = await prisma.teacher.findUnique({ where: { id: parsedId } });
     if (!teacher) return res.status(404).json({ ok: false, message: "ไม่พบอาจารย์" });
+
+    // อาจารย์ประจำวิชา: แก้ได้เฉพาะอาจารย์ในหลักสูตรที่ดูแล และย้ายไปหลักสูตรอื่นไม่ได้
+    // ไม่แตะอีเมล (= username เข้าระบบ) และการกำหนดอาจารย์ประจำวิชา — เจ้าหน้าที่เท่านั้น
+    const scope = await getMajorScope(req);
+    if (!scope.all) {
+      if (!inScope(scope, teacher.major) || (major !== undefined && !inScope(scope, major))) {
+        return res.status(403).json({ ok: false, message: 'แก้ได้เฉพาะอาจารย์ในหลักสูตรที่คุณดูแล' });
+      }
+      email = undefined;
+      coopMajors = undefined;
+    }
 
     let updated;
     await prisma.$transaction(async (tx) => {

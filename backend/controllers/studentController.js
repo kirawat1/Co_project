@@ -7,7 +7,7 @@ const { encryptPassword, revealPassword } = require('../utils/passwordVault');
 const { changeUserEmail, normalizeEmail } = require('../utils/userEmail');
 const { removeUnreferencedUploads } = require('../utils/uploadCleanup');
 const { resolveMajorNameTh } = require('../utils/majorName');
-const { visibleStudentWhere } = require('../utils/majorScope');
+const { visibleStudentWhere, getMajorScope, studentWhere } = require('../utils/majorScope');
 
 // GET /api/students/me
 exports.getMyProfile = async (req, res) => {
@@ -369,9 +369,10 @@ exports.exportStudents = async (req, res) => {
     if (coopPeriodId !== undefined && isNaN(coopPeriodId))
       return res.status(400).json({ ok: false, message: 'coopPeriodId ไม่ถูกต้อง' });
 
+    const scoped = studentWhere(await getMajorScope(req)); // อาจารย์ประจำวิชา: เฉพาะหลักสูตรที่ดูแล
     const where = coopPeriodId
-      ? { deletedAt: null, coop: { coopPeriodId } }
-      : { deletedAt: null };
+      ? { deletedAt: null, coop: { coopPeriodId }, ...scoped }
+      : { deletedAt: null, ...scoped };
 
     const [students, criteria, requirements] = await Promise.all([
       prisma.student.findMany({ where, include: STUDENT_EXPORT_INCLUDE, orderBy: { studentId: 'asc' } }),
@@ -505,7 +506,7 @@ exports.softDeleteStudent = async (req, res) => {
 exports.getTrashedStudents = async (req, res) => {
   try {
     const students = await prisma.student.findMany({
-      where: { deletedAt: { not: null } },
+      where: { deletedAt: { not: null }, ...studentWhere(await getMajorScope(req)) },
       include: { user: { select: { email: true } } },
       orderBy: { deletedAt: 'desc' },
     });
