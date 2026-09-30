@@ -3,6 +3,7 @@ const router = express.Router();
 
 const { verifyToken, verifyRole, verifyCoopTeacherOrStaff } = require('../middlewares/authMiddleware');
 const prisma = require('../config/prismaClient');
+const { studentInScope, majorFieldInScope, lettersStaffOnly } = require('../middlewares/majorScopeGuards');
 
 const upload = require('../middlewares/uploadMiddleware');
 const systemUpload = require('../middlewares/systemUploadMiddleware');
@@ -46,10 +47,11 @@ router.get('/logs/export', verifyToken, verifyRole(...STAFF_ONLY), auditLogContr
 router.get('/logs/actors', verifyToken, verifyRole(...STAFF_ONLY), auditLogController.getAuditActors);
 router.get('/logs', verifyToken, verifyRole(...STAFF_ONLY), auditLogController.getAuditLogs);
 router.put('/doc/:id/status', verifyToken, verifyCoopTeacherOrStaff, adminDocController.updateDocStatus);
-router.post('/t000/approve-all', verifyToken, verifyRole(...STAFF_ONLY), adminDocController.approveAllDocs);
-router.put('/t000/review', verifyToken, verifyRole(...STAFF_ONLY), upload.single('file'), adminDocController.reviewStudentStatus);
-router.post('/t000/acceptance-received', verifyToken, verifyRole(...STAFF_ONLY), upload.single('file'), adminDocController.markAcceptanceReceived);
-router.post('/t000/acceptance-replace', verifyToken, verifyRole(...STAFF_ONLY), upload.single('file'), adminDocController.replaceAcceptanceFile);
+router.post('/t000/approve-all', verifyToken, verifyCoopTeacherOrStaff, studentInScope((r) => r.body?.studentId), adminDocController.approveAllDocs);
+// ตรวจเอกสาร T000 — ออกหนังสือ (สถานะ/เลขที่/วันที่หนังสือ) เจ้าหน้าที่เท่านั้น (lettersStaffOnly)
+router.put('/t000/review', verifyToken, verifyCoopTeacherOrStaff, upload.single('file'), lettersStaffOnly, studentInScope((r) => r.body?.studentId), adminDocController.reviewStudentStatus);
+router.post('/t000/acceptance-received', verifyToken, verifyCoopTeacherOrStaff, upload.single('file'), studentInScope((r) => r.body?.studentId), adminDocController.markAcceptanceReceived);
+router.post('/t000/acceptance-replace', verifyToken, verifyCoopTeacherOrStaff, upload.single('file'), studentInScope((r) => r.body?.studentId), adminDocController.replaceAcceptanceFile);
 router.put('/t000/letter-pending', verifyToken, verifyRole(...STAFF_ONLY), adminDocController.markLetterPending);
 
 // System Assets (ไม่ต้องการ auth — เป็นข้อมูล public เช่น โลโก้)
@@ -98,7 +100,7 @@ router.post(
 router.get(
   '/students/export',
   verifyToken,
-  verifyRole(...STAFF_ONLY),
+  verifyCoopTeacherOrStaff,
   studentController.exportStudents
 );
 
@@ -133,19 +135,19 @@ router.get('/students/majors', verifyToken, verifyCoopTeacherOrStaff, async (req
 });
 
 // POST /api/admin/students/create — เพิ่มนักศึกษาทีละคน
-router.post('/students/create', verifyToken, verifyRole(...STAFF_ONLY), studentController.createStudentSingle);
+router.post('/students/create', verifyToken, verifyCoopTeacherOrStaff, majorFieldInScope('major', { required: true }), studentController.createStudentSingle);
 
 // Students: Edit basic info — staff only (ไม่ใช่ teacher แม้ ADMIN_ROLES ปกติจะรวม teacher ด้วย)
-router.put('/students/:id', verifyToken, verifyRole(...STAFF_ONLY), studentController.updateStudentBasicInfo);
+router.put('/students/:id', verifyToken, verifyCoopTeacherOrStaff, studentInScope((r) => r.params.id), majorFieldInScope('major'), studentController.updateStudentBasicInfo);
 // รีเซ็ตรหัสผ่านนักศึกษากลับเป็นรหัสนักศึกษา (ลืมรหัสผ่าน)
 router.patch('/students/:id/reset-password', verifyToken, verifyRole(...STAFF_ONLY), studentController.resetStudentPassword);
 router.post('/students/:id/password/reveal', verifyToken, verifyRole(...STAFF_ONLY), studentController.revealStudentPassword);
 
 // Students: Trash — ย้ายไปถังขยะ / กู้คืน / ลบถาวร (ลบถาวรได้เฉพาะคนที่อยู่ในถังขยะแล้ว)
-router.delete('/students/:id', verifyToken, verifyRole(...STAFF_ONLY), studentController.softDeleteStudent);
-router.get('/students/trash', verifyToken, verifyRole(...STAFF_ONLY), studentController.getTrashedStudents);
-router.post('/students/:id/restore', verifyToken, verifyRole(...STAFF_ONLY), studentController.restoreStudent);
-router.delete('/students/:id/permanent', verifyToken, verifyRole(...STAFF_ONLY), studentController.permanentlyDeleteStudent);
+router.delete('/students/:id', verifyToken, verifyCoopTeacherOrStaff, studentInScope((r) => r.params.id), studentController.softDeleteStudent);
+router.get('/students/trash', verifyToken, verifyCoopTeacherOrStaff, studentController.getTrashedStudents);
+router.post('/students/:id/restore', verifyToken, verifyCoopTeacherOrStaff, studentInScope((r) => r.params.id), studentController.restoreStudent);
+router.delete('/students/:id/permanent', verifyToken, verifyCoopTeacherOrStaff, studentInScope((r) => r.params.id), studentController.permanentlyDeleteStudent);
 
 // Coop Applications
 router.get('/coop-applications', verifyToken, verifyCoopTeacherOrStaff, adminDocController.getCoopApplications);
@@ -163,8 +165,8 @@ router.post('/config/dean-info', verifyToken, verifyRole(...STAFF_ONLY), systemA
 
 // Students Review
 router.get('/students', verifyToken, verifyRole(...ADMIN_ROLES), adminDocController.getAllStudentsForReview);
-router.put('/documents/review-t002', verifyToken, verifyRole(...STAFF_ONLY), adminDocController.reviewT002);
-router.put('/documents/review-t003', verifyToken, verifyRole(...STAFF_ONLY), adminDocController.reviewT003);
+router.put('/documents/review-t002', verifyToken, verifyCoopTeacherOrStaff, studentInScope((r) => r.body?.studentId), adminDocController.reviewT002);
+router.put('/documents/review-t003', verifyToken, verifyCoopTeacherOrStaff, studentInScope((r) => r.body?.studentId), adminDocController.reviewT003);
 
 // Config
 router.get('/config/t002', verifyToken, verifyCoopTeacherOrStaff, configController.getT002Config);
@@ -203,7 +205,8 @@ router.delete('/staff/:id', verifyToken, verifyRole(...STAFF_ONLY), staffControl
 // TEACHER MANAGEMENT — เจ้าหน้าที่จัดการอาจารย์
 // ==========================================
 router.post('/teachers', verifyToken, verifyRole(...STAFF_ONLY), teacherController.createTeacher);
-router.put('/teachers/:id', verifyToken, verifyRole(...STAFF_ONLY), teacherController.adminUpdateTeacher);
+// อาจารย์ประจำวิชาแก้ข้อมูลอาจารย์ในหลักสูตรที่ดูแลได้ (ไม่รวมรหัสผ่าน/การกำหนดอาจารย์ประจำวิชา — ดูใน controller)
+router.put('/teachers/:id', verifyToken, verifyCoopTeacherOrStaff, teacherController.adminUpdateTeacher);
 router.delete('/teachers/:id', verifyToken, verifyRole(...STAFF_ONLY), teacherController.deleteTeacher);
 router.put('/teachers/:id/password', verifyToken, verifyRole(...STAFF_ONLY), teacherController.resetTeacherPassword);
 router.post('/teachers/:id/password/reveal', verifyToken, verifyRole(...STAFF_ONLY), teacherController.revealTeacherPassword);

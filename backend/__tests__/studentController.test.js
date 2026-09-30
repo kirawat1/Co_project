@@ -279,7 +279,7 @@ describe('getTrashedStudents', () => {
   test('200 — คืนรายชื่อที่ deletedAt ไม่เป็น null', async () => {
     prisma.student.findMany.mockResolvedValue([{ id: 1, deletedAt: new Date() }]);
 
-    const req = {};
+    const req = { user: { role: 'staff' } };
     const res = makeRes();
 
     await getTrashedStudents(req, res);
@@ -808,7 +808,7 @@ describe('exportStudents', () => {
       },
     ]);
 
-    const req = { query: {} };
+    const req = { user: { role: 'staff' }, query: {} };
     const res = {
       setHeader: jest.fn(),
       send: jest.fn(),
@@ -847,7 +847,7 @@ describe('exportStudents', () => {
   test('200 — filter ตาม coopPeriodId เมื่อระบุ (ไม่ใช่ "all")', async () => {
     prisma.student.findMany.mockResolvedValue([]);
 
-    const req = { query: { coopPeriodId: '5' } };
+    const req = { user: { role: 'staff' }, query: { coopPeriodId: '5' } };
     const res = { setHeader: jest.fn(), send: jest.fn(), status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() };
 
     const { exportStudents } = require('../controllers/studentController');
@@ -861,7 +861,7 @@ describe('exportStudents', () => {
   test('500 — DB error คืน { ok: false }', async () => {
     prisma.student.findMany.mockRejectedValue(new Error('DB fail'));
 
-    const req = { query: {} };
+    const req = { user: { role: 'staff' }, query: {} };
     const res = { setHeader: jest.fn(), send: jest.fn(), status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() };
 
     const { exportStudents } = require('../controllers/studentController');
