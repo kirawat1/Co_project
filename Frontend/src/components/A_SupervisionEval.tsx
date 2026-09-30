@@ -3,6 +3,7 @@ import axios from "axios";
 import AutoTextarea from "./AutoTextarea";
 import { notify, askConfirm } from "../utils/notify";
 import { TABLE_TH as th, TABLE_TD as td, TABLE_HEADER_ROW } from "../utils/tableStyles";
+import MajorConfigTabs from "./MajorConfigTabs";
 
 interface EvalConfig { instructionText: string; evalLink: string | null; autoSend: boolean }
 interface EvalRow {
@@ -16,6 +17,7 @@ interface EvalRow {
   teacherName: string;
   coTeacherName: string;
   unlinkedCoTeachers: string[];
+  hasLink: boolean; // หลักสูตรของนักศึกษามีลิงก์แบบประเมินแล้ว (ค่ากลาง/ค่าเฉพาะหลักสูตร)
 }
 
 const fmtDate = (v: string | null) =>
@@ -73,13 +75,16 @@ export default function A_SupervisionEval() {
   };
 
   const send = async (ids: number[], label: string) => {
-    if (!savedLink) { notify.warning("กรุณาใส่ลิงก์แบบประเมินแล้วกดบันทึกก่อน"); return; }
+    if (!rows.some(r => ids.includes(r.id) && r.hasLink)) { notify.warning("หลักสูตรของนักศึกษายังไม่มีลิงก์แบบประเมิน — ตั้งค่าลิงก์ (ค่ากลางหรือค่าเฉพาะหลักสูตร) ก่อน"); return; }
     if (!(await askConfirm(`${label}? อาจารย์ผู้นิเทศจะได้รับแจ้งเตือนในระบบ`, { confirmLabel: "ส่ง" }))) return;
     setSending(true);
     try {
       const res = await axios.post("/api/admin/supervision-eval/send", { ids }, { headers });
-      const unmatched = (res.data.results || []).flatMap((r: { unlinked: string[] }) => r.unlinked);
-      notify.success(`ส่งแล้ว ${res.data.sent} รายการ`);
+      const results: { unlinked: string[]; skipped?: string }[] = res.data.results || [];
+      const unmatched = results.flatMap(r => r.unlinked);
+      const skipped = results.filter(r => r.skipped).length;
+      notify.success(`ส่งแล้ว ${results.length - skipped} รายการ`);
+      if (skipped) notify.warning(`ไม่ได้ส่ง ${skipped} รายการ — หลักสูตรของนักศึกษายังไม่มีลิงก์แบบประเมิน`);
       if (unmatched.length) notify.warning(`ยังไม่ผูกบัญชี: ${[...new Set(unmatched)].join(", ")} — เลือกอาจารย์ร่วมใหม่ หรือใช้ปุ่มคัดลอกข้อความส่งเองแทน`);
       await load();
     } catch (err: any) {
@@ -113,8 +118,11 @@ export default function A_SupervisionEval() {
         </div>
       </div>
 
+      {/* ── ตั้งค่า (ค่ากลาง + ค่าเฉพาะหลักสูตร) ── */}
+      <div style={{ marginBottom: 24 }}>
+      <MajorConfigTabs configKey="CONFIG_SUPERVISION_EVAL">
       {/* ── ตั้งค่า ── */}
-      <div className="card" style={{ padding: 24, display: "flex", flexDirection: "column", gap: 18, marginBottom: 24 }}>
+      <div className="card" style={{ padding: 24, display: "flex", flexDirection: "column", gap: 18, }}>
         <div>
           <label className="label" style={{ display: "block", marginBottom: 6 }}>📝 คำชี้แจงถึงอาจารย์</label>
           <AutoTextarea
@@ -144,6 +152,9 @@ export default function A_SupervisionEval() {
           <button className="btn-secondary" onClick={copyMessage} disabled={!savedLink}>📋 คัดลอกข้อความ</button>
           <button className="btn" onClick={handleSave} disabled={saving}>{saving ? "กำลังบันทึก..." : "💾 บันทึกการตั้งค่า"}</button>
         </div>
+      </div>
+
+      </MajorConfigTabs>
       </div>
 
       {/* ── รายการนัดนิเทศ ── */}
@@ -202,6 +213,7 @@ export default function A_SupervisionEval() {
                     {r.evalSentAt
                       ? <span style={{ color: "#047857", fontWeight: 700 }}>✅ ส่งแล้ว {fmtDate(r.evalSentAt)}</span>
                       : <span style={{ color: "#94a3b8" }}>ยังไม่ส่ง</span>}
+                    {!r.hasLink && <div style={{ fontSize: 12, color: "#b45309", marginTop: 2 }}>⚠️ หลักสูตรนี้ยังไม่มีลิงก์</div>}
                   </td>
                   <td style={{ ...td, textAlign: "right" }}>
                     <button

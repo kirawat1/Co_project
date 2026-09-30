@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import { useToast } from "./Toast";
+import MajorConfigTabs from "./MajorConfigTabs";
 
 interface GatewaySettings {
   gradeSheetDescription: string;
@@ -106,6 +107,8 @@ export default function A_GatewaySettings() {
         ข้อความและลิงก์ที่ตั้งค่าที่นี่จะแสดงในหน้า "ฟอร์มยื่นคำร้องและอัปโหลดเอกสาร" ของนักศึกษา
       </p>
 
+      {/* ค่ากลาง + ค่าเฉพาะหลักสูตร (แยกหลักสูตร Phase 4) */}
+      <MajorConfigTabs configKey="GATEWAY_SETTINGS">
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
         {/* Grade Sheet Section */}
@@ -205,6 +208,8 @@ export default function A_GatewaySettings() {
           {saving ? 'กำลังบันทึก...' : '💾 บันทึก'}
         </button>
       </div>
+
+      </MajorConfigTabs>
 
       <style>{`
         .gw-section {

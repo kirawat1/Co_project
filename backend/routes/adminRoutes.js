@@ -34,7 +34,7 @@ const STAFF_ONLY = ['staff'];
 // T000 — เอกสารใบสมัคร
 // ==========================================
 router.get('/config/t000', verifyToken, verifyCoopTeacherOrStaff, adminDocController.getT000Config);
-router.post('/config/t000', verifyToken, verifyCoopTeacherOrStaff, adminDocController.saveT000Config);
+router.post('/config/t000', verifyToken, verifyRole(...STAFF_ONLY), adminDocController.saveT000Config);
 router.get('/t000/students', verifyToken, verifyCoopTeacherOrStaff, adminDocController.getStudentsForT000);
 
 // บันทึกการใช้งาน (ใครทำอะไร) — เจ้าหน้าที่เท่านั้น
@@ -173,25 +173,31 @@ router.put('/documents/review-t003', verifyToken, verifyCoopTeacherOrStaff, stud
 
 // Config
 router.get('/config/t002', verifyToken, verifyCoopTeacherOrStaff, configController.getT002Config);
-router.post('/config/t002', verifyToken, verifyCoopTeacherOrStaff, configController.saveT002Config);
+router.post('/config/t002', verifyToken, verifyRole(...STAFF_ONLY), configController.saveT002Config);
 
 router.get('/config/t003', verifyToken, verifyCoopTeacherOrStaff, configController.getT003Config);
-router.post('/config/t003', verifyToken, verifyCoopTeacherOrStaff, configController.saveT003Config);
+router.post('/config/t003', verifyToken, verifyRole(...STAFF_ONLY), configController.saveT003Config);
 // ช่วงเวลายื่นคำร้องสหกิจ — แก้ได้เฉพาะเจ้าหน้าที่
 router.get('/config/apply', verifyToken, verifyCoopTeacherOrStaff, configController.getApplyConfig);
 router.post('/config/apply', verifyToken, verifyRole(...STAFF_ONLY), configController.saveApplyConfig);
 
 router.get('/config/evaluation', verifyToken, verifyCoopTeacherOrStaff, configController.getEvaluationConfig);
-router.put('/config/evaluation', verifyToken, verifyCoopTeacherOrStaff, configController.updateEvaluationConfig);
+router.put('/config/evaluation', verifyToken, verifyRole(...STAFF_ONLY), configController.updateEvaluationConfig);
 
 router.get('/config/t007', verifyToken, verifyCoopTeacherOrStaff, configController.getT007Config);
-router.put('/config/t007', verifyToken, verifyCoopTeacherOrStaff, configController.updateT007Config);
+router.put('/config/t007', verifyToken, verifyRole(...STAFF_ONLY), configController.updateT007Config);
 
 router.get('/config/t008', verifyToken, verifyCoopTeacherOrStaff, configController.getT008Config);
-router.put('/config/t008', verifyToken, verifyCoopTeacherOrStaff, systemUpload.single('image'), configController.updateT008Config);
+router.put('/config/t008', verifyToken, verifyRole(...STAFF_ONLY), systemUpload.single('image'), configController.updateT008Config);
 
 router.get('/config/gateway', verifyToken, verifyCoopTeacherOrStaff, configController.getGatewaySettings);
-router.put('/config/gateway', verifyToken, verifyCoopTeacherOrStaff, configController.updateGatewaySettings);
+router.put('/config/gateway', verifyToken, verifyRole(...STAFF_ONLY), configController.updateGatewaySettings);
+
+// การตั้งค่าแยกหลักสูตร — ค่ากลางแก้ที่ route เดิม (เจ้าหน้าที่) · ค่าเฉพาะหลักสูตรแก้ที่นี่ (อาจารย์ประจำวิชา = หลักสูตรที่ดูแล)
+const majorConfigController = require('../controllers/majorConfigController');
+router.get('/major-config', verifyToken, verifyCoopTeacherOrStaff, majorConfigController.getSummary);
+router.get('/major-config/:key', verifyToken, verifyCoopTeacherOrStaff, majorConfigController.getMajorConfig);
+router.put('/major-config/:key', verifyToken, verifyCoopTeacherOrStaff, majorConfigController.putMajorConfig);
 
 // Supervision
 router.put('/supervisions/:id/co-teachers', verifyToken, verifyCoopTeacherOrStaff, supervisionController.assignCoTeachers);

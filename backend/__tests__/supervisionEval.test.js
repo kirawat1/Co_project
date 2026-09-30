@@ -26,8 +26,9 @@ describe('unlinkedCoTeacherNames', () => {
 });
 
 describe('sendEvalForAppointments', () => {
-  test('ยังไม่ตั้งลิงก์ → 400 ไม่ส่งอะไร', async () => {
+  test('ยังไม่ตั้งลิงก์ (ทั้งค่ากลางและค่าหลักสูตร) → 400 ไม่ส่งอะไร', async () => {
     config(null);
+    prisma.supervisionAppointment.findMany.mockResolvedValue([{ id: 7, teacher: { userId: 11 }, coTeachers: [], student: { major: 'CS' } }]);
     await expect(sendEvalForAppointments([1])).rejects.toMatchObject({ is400: true });
     expect(createNotifications).not.toHaveBeenCalled();
   });
