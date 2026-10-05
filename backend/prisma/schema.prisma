@@ -113,7 +113,9 @@ model StudentCoop {
 
   // --- Step 5-6: เจ้าหน้าที่ตรวจเอกสาร & ออก "เอกสารยื่นสหกิจ" (ใบแรก) ---
   staffCheckComment    String?   @db.Text // เหตุผลที่ให้แก้เอกสาร (EDITS_REQUIRED)
-  reqDocNumber         String?   @unique // เลขที่หนังสือ "ที่ อว 660301..." — หนังสือราชการ ห้ามซ้ำ (NULL ซ้ำได้)
+  // เลขที่หนังสือ "ที่ อว 660301..." — ห้ามซ้ำข้ามฉบับ (ตรวจใน controller) · หนังสือรวมหลายคน = เลขเดียวกัน + reqLetterBatch เดียวกัน
+  reqDocNumber         String?
+  reqLetterBatch       String? // id หนังสือรวม (null = หนังสือเดี่ยว)
   reqDocDate           DateTime? // วันที่ออกหนังสือ
   reqLetterUrl         String? // ไฟล์ PDF ออกเอกสารยื่นสหกิจ
   // รอลงนาม (ป้ายสำหรับเจ้าหน้าที่) — ตั้งตอนดาวน์โหลดฉบับร่าง ล้างตอนอัปโหลดฉบับลงนาม · เลขที่/วันที่ร่างใช้เติมตอนกลับมาอัปโหลด
@@ -129,7 +131,9 @@ model StudentCoop {
   actualStartDate DateTime? // วันเริ่มงานจริง
   actualEndDate   DateTime? // วันจบงานจริง
 
-  placeDocNumber         String?   @unique // เลขที่หนังสือส่งตัว "ที่ อว..." — หนังสือราชการ ห้ามซ้ำ (NULL ซ้ำได้)
+  // เลขที่หนังสือส่งตัว — ห้ามซ้ำข้ามฉบับ (ตรวจใน controller) · หนังสือรวม = เลขเดียวกัน + placeLetterBatch เดียวกัน
+  placeDocNumber         String?
+  placeLetterBatch       String? // id หนังสือรวม (null = หนังสือเดี่ยว)
   placeDocDate           DateTime? // วันที่ออกหนังสือส่งตัว
   placeLetterUrl         String? // ไฟล์ PDF ส่งตัว
   // รอลงนามหนังสือส่งตัว (เหมือน reqLetter* ด้านบน)
@@ -149,6 +153,8 @@ model StudentCoop {
   // ความสัมพันธ์: นักศึกษาสหกิจ 1 คน อยู่ในรอบการรับสมัครสหกิจได้แค่รอบเดียว (ถ้าอยากสมัครรอบใหม่ ต้องลบอันเก่าออกก่อน)
   coopPeriod   CoopPeriod? @relation(fields: [coopPeriodId], references: [id])
   coopPeriodId Int?
+  @@index([reqDocNumber]) // ตรวจเลขที่ซ้ำ (เลิก unique เพราะหนังสือรวมใช้เลขเดียวกันหลายคน)
+  @@index([placeDocNumber])
 }
 
 model CoopPeriod {
@@ -655,7 +661,7 @@ model SupervisionAppointment {
 
   // ไฟล์หนังสือขอความอนุเคราะห์นิเทศ (ที่คณบดีเซ็นแล้ว)
   officialLetterPath String?
-  letterDocNumber    String?   @unique // เลขที่หนังสือขอนิเทศ เช่น "660301.26.6.2/1234" (บันทึกตอนอัปโหลดฉบับลงนาม)
+  letterDocNumber    String? // เลขที่หนังสือขอนิเทศ เช่น "660301.26.6.2/1234" — ห้ามซ้ำข้ามฉบับ (ตรวจใน controller) · หนังสือรวมของกลุ่มนัด (groupId) ใช้เลขเดียวกัน
   letterDocDate      DateTime?
   // รอลงนาม (ป้ายสำหรับเจ้าหน้าที่) — ตั้งตอนดาวน์โหลดร่าง ล้างตอนอัปโหลดฉบับลงนาม · เลขที่/วันที่ร่างใช้เติมตอนกลับมาอัปโหลด
   letterPendingAt    DateTime?
@@ -671,6 +677,7 @@ model SupervisionAppointment {
   teacher    Teacher                @relation(fields: [teacherId], references: [id])
   // อาจารย์นิเทศร่วม (ตัวจริง) — coTeacherName ข้างบนเก็บไว้เป็นชื่อสำหรับแสดงผล/หนังสือ
   coTeachers SupervisionCoTeacher[]
+  @@index([letterDocNumber]) // ตรวจเลขที่ซ้ำ (หนังสือรวมของกลุ่มใช้เลขเดียวกัน)
 }
 
 model SupervisionCoTeacher {

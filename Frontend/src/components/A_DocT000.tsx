@@ -43,6 +43,9 @@ interface StudentProfile {
     coop?: {
         coopPeriodId?: number;
         company?: { name: string };
+        companyId?: string | null;
+        reqLetterBatch?: string | null;   // หนังสือรวม (null = หนังสือเดี่ยว)
+        placeLetterBatch?: string | null;
         // ป้าย "รอลงนาม" — ตั้งตอนเจ้าหน้าที่ดาวน์โหลดร่างหนังสือ ล้างตอนอัปโหลดฉบับลงนาม
         reqLetterPendingAt?: string | null;
         reqLetterDraftNumber?: string | null;
@@ -121,6 +124,9 @@ const POST_LETTER_STATUSES = [
     'PLACEMENT_LETTER_ISSUED',
 ];
 
+// ออกหนังสือส่งตัวได้ (ครั้งแรก = ACCEPTANCE_CHECKED · ที่เหลือ = พิมพ์ซ้ำ)
+const CAN_ISSUE_PLACEMENT_LETTER_STATUSES = ['ACCEPTANCE_CHECKED', 'PLACEMENT_LETTER_ISSUED', ...AFTER_PLACEMENT_STATUSES];
+
 // ใช้แสดงปุ่ม "ตรวจสอบใบตอบรับ" (ดูย้อนหลังได้แม้เข้าสู่ช่วงฝึกงานแล้ว)
 const CAN_CHECK_ACCEPTANCE_STATUSES = [...POST_LETTER_STATUSES, ...AFTER_PLACEMENT_STATUSES];
 
@@ -172,6 +178,23 @@ export default function A_DocT000() {
     const [companyFilter, setCompanyFilter] = useState<string>("all");
     const [statusFilter, setStatusFilter] = useState<string[]>([]);
     const [placementModalData, setPlacementModalData] = useState<StudentProfile | null>(null);
+    // หนังสือรวมหลายคน (บริษัทเดียวกัน) — โหมดเลือกนักศึกษา แล้วเปิดหน้าต่างออกหนังสือพร้อมรายชื่อ
+    const [batchMode, setBatchMode] = useState(false);
+    const [batchIds, setBatchIds] = useState<number[]>([]);
+    const [batchLetter, setBatchLetter] = useState<{ type: "REQUEST" | "PLACEMENT"; members: StudentProfile[] } | null>(null);
+    const toggleBatchId = (id: number) => setBatchIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+    const openBatchLetter = (type: "REQUEST" | "PLACEMENT") => {
+        const members = students.filter(s => batchIds.includes(s.id));
+        if (members.length < 2) return notify.warning("เลือกนักศึกษาอย่างน้อย 2 คน");
+        const company = (m: StudentProfile) => m.coop?.companyId || m.coop?.company?.name || "";
+        if (!company(members[0]) || members.some(m => company(m) !== company(members[0]))) {
+            return notify.warning("หนังสือรวมต้องเป็นนักศึกษาบริษัทเดียวกัน");
+        }
+        const allowed = type === "REQUEST" ? CAN_ISSUE_REQUEST_LETTER_STATUSES : CAN_ISSUE_PLACEMENT_LETTER_STATUSES;
+        const notReady = members.filter(m => !allowed.includes(m.docStatus || ""));
+        if (notReady.length) return notify.warning(`ยังไม่ถึงขั้นออกหนังสือนี้: ${notReady.map(m => m.studentId).join(", ")}`);
+        setBatchLetter({ type, members });
+    };
     // บริษัทส่งใบตอบรับมาที่เจ้าหน้าที่โดยตรง
     const [acceptanceReceivedFor, setAcceptanceReceivedFor] = useState<StudentProfile | null>(null);
     // เจ้าหน้าที่เปลี่ยนไฟล์ใบตอบรับแทนนักศึกษา (บริษัทส่งฉบับแก้มาทีหลัง) — ทำในหน้าต่างตรวจสอบใบตอบรับ
@@ -648,6 +671,11 @@ export default function A_DocT000() {
 
                     {/* ดาวน์โหลดหนังสือที่ออกแล้ว (ฉบับลงนาม) ทั้งรอบเป็น zip — ตามรอบที่เลือก + ตัวกรองหลักสูตรด้านบน */}
                     <div style={{ marginLeft: "auto", display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        {isStaff && (
+                            <button className={batchMode ? "btn" : "btn-secondary small"} onClick={() => { setBatchMode(m => !m); setBatchIds([]); }}>
+                                {batchMode ? "✕ ปิดโหมดหนังสือรวม" : "👥 ออกหนังสือรวมหลายคน"}
+                            </button>
+                        )}
                         {(["REQ", "PLACE"] as const).map(t => (
                             <button key={t} className="btn-secondary small" disabled={zipBusy !== null} title={`ดาวน์โหลด${LETTER_LABEL[t]}ที่ออกแล้วทั้งหมด (ตามรอบที่เลือก) เป็นไฟล์ zip`}
                                 onClick={async () => { setZipBusy(t); try { await downloadLetterZip(t, selectedPeriod); } finally { setZipBusy(null); } }}>
@@ -682,6 +710,17 @@ export default function A_DocT000() {
                     </div>
                 </div>
 
+                {batchMode && (
+                    <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', padding: '10px 14px', marginBottom: 12, background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10, fontSize: 13 }}>
+                        <span style={{ fontWeight: 700, color: '#1e3a8a' }}>👥 หนังสือรวม: เลือกแล้ว {batchIds.length} คน</span>
+                        <span style={{ color: '#475569' }}>ติ๊กนักศึกษาบริษัทเดียวกัน (กรองด้วยช่อง "ทุกบริษัท" ด้านบนได้)</span>
+                        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                            <button className="btn" style={{ background: '#16a34a', color: 'white', fontSize: 12 }} disabled={batchIds.length < 2} onClick={() => openBatchLetter("REQUEST")}>📄 หนังสือขอความอนุเคราะห์รวม</button>
+                            <button className="btn" style={{ background: '#0ea5e9', color: 'white', fontSize: 12 }} disabled={batchIds.length < 2} onClick={() => openBatchLetter("PLACEMENT")}>📄 หนังสือส่งตัวรวม</button>
+                        </div>
+                    </div>
+                )}
+
                 <div style={{ overflowX: "auto" }}>
                     <table className="responsive-table" style={{ width: "100%", borderCollapse: "separate", borderSpacing: "0 8px" }}>
                         <thead>
@@ -701,7 +740,14 @@ export default function A_DocT000() {
                         <tbody>
                             {shownList.map(s => (
                                 <tr key={s.id} style={{ background: '#fff', borderBottom: '1px solid #eee' }}>
-                                    <td style={td} data-label="รหัสนักศึกษา">{s.studentId}</td>
+                                    <td style={td} data-label="รหัสนักศึกษา">
+                                        {batchMode ? (
+                                            <label style={{ display: 'flex', gap: 6, alignItems: 'center', cursor: 'pointer' }}>
+                                                <input type="checkbox" aria-label={`เลือก ${s.studentId} ในหนังสือรวม`} checked={batchIds.includes(s.id)} onChange={() => toggleBatchId(s.id)} />
+                                                {s.studentId}
+                                            </label>
+                                        ) : s.studentId}
+                                    </td>
                                     <td style={td} data-label="ชื่อ-สกุล">
                                         <div>{s.firstName} {s.lastName}</div>
                                         {s.coop?.company?.name && <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>🏢 {s.coop.company.name}</div>}
@@ -713,6 +759,11 @@ export default function A_DocT000() {
                                         <StatusBadge status={s.docStatus} />
                                         {s.coop?.reqLetterPendingAt && <PendingSignBadge label="รอลงนามหนังสือขอความอนุเคราะห์" at={s.coop.reqLetterPendingAt} draftNumber={s.coop.reqLetterDraftNumber} />}
                                         {s.coop?.placeLetterPendingAt && <PendingSignBadge label="รอลงนามหนังสือส่งตัว" at={s.coop.placeLetterPendingAt} draftNumber={s.coop.placeLetterDraftNumber} />}
+                                        {(s.coop?.reqLetterBatch || s.coop?.placeLetterBatch) && (
+                                            <div style={{ fontSize: 11, color: '#1e40af', marginTop: 4 }} title="ออกเป็นหนังสือฉบับเดียวกับนักศึกษาคนอื่นในบริษัทเดียวกัน">
+                                                👥 หนังสือรวม{[s.coop?.reqLetterBatch && 'ขอความอนุเคราะห์', s.coop?.placeLetterBatch && 'ส่งตัว'].filter(Boolean).join(' · ')}
+                                            </div>
+                                        )}
                                     </td>
                                     <td style={td}>
                                         {(s.documents?.length || 0) > 0 && !POST_LETTER_STATUSES.includes(s.docStatus || '') && (
@@ -768,6 +819,13 @@ export default function A_DocT000() {
             {/* 3. MODALS */}
             {issueModalData && (
                 <IssueLetterModal student={issueModalData} onClose={() => { setIssueModalData(null); refreshStudents(); }} onSuccess={() => { setIssueModalData(null); fetchAllData(); }} />
+            )}
+
+            {batchLetter?.type === "REQUEST" && (
+                <IssueLetterModal student={batchLetter.members[0]} group={batchLetter.members} onClose={() => setBatchLetter(null)} onSuccess={() => { setBatchLetter(null); setBatchIds([]); setBatchMode(false); fetchAllData(); }} />
+            )}
+            {batchLetter?.type === "PLACEMENT" && (
+                <IssuePlacementLetterModal student={batchLetter.members[0]} group={batchLetter.members} onClose={() => setBatchLetter(null)} onSuccess={() => { setBatchLetter(null); setBatchIds([]); setBatchMode(false); fetchAllData(); }} />
             )}
 
             {placementModalData && (

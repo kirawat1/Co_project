@@ -160,7 +160,7 @@ describe('uploadOfficialLetter', () => {
         data: expect.objectContaining({ officialLetterPath: 'letter.pdf', status: 'LETTER_UPLOADED' }),
       })
     );
-    expect(res.json).toHaveBeenCalledWith({ ok: true, appointment });
+    expect(res.json).toHaveBeenCalledWith({ ok: true, appointment, appointmentIds: [1] });
   });
 
   describe('เลขที่/วันที่หนังสือ + ป้ายรอลงนาม', () => {
@@ -184,7 +184,7 @@ describe('uploadOfficialLetter', () => {
         letterPendingAt: null, letterDraftNumber: null, letterDraftDate: null,
       });
       expect(data.letterDocDate.toISOString().slice(0, 10)).toBe('2026-09-15');
-      expect(prisma.supervisionAppointment.findFirst.mock.calls[0][0].where).toMatchObject({ id: { not: 1 } });
+      expect(prisma.supervisionAppointment.findFirst.mock.calls[0][0].where).toMatchObject({ id: { notIn: [1] } });
     });
 
     test('400 — เลขที่ยังเป็นเทมเพลต → ไม่บันทึก', async () => {
@@ -258,7 +258,7 @@ describe('markSupervisionLetterPending', () => {
     await markSupervisionLetterPending({ params: { id: '5' }, body: { docNumber: '660301.26.6.2/900' } }, res);
     expect(res.status).toHaveBeenCalledWith(409);
     expect(res.json.mock.calls[0][0].message).toMatch(/รอลงนาม/);
-    expect(prisma.supervisionAppointment.findFirst.mock.calls[0][0].where).toMatchObject({ id: { not: 5 } });
+    expect(prisma.supervisionAppointment.findFirst.mock.calls[0][0].where).toMatchObject({ id: { notIn: [5] } });
     expect(prisma.supervisionAppointment.update).not.toHaveBeenCalled();
   });
 

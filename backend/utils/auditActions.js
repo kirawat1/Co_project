@@ -63,6 +63,7 @@ const RULES = [
   ['POST', '/api/admin/t000/acceptance-received', 'บันทึกรับใบตอบรับจากบริษัท', 'นักศึกษา', 'studentId'],
   ['POST', '/api/admin/t000/acceptance-replace', 'เปลี่ยนไฟล์ใบตอบรับแทนนักศึกษา', 'นักศึกษา', 'studentId'],
   ['PUT', '/api/admin/t000/letter-pending', 'โหลดร่างหนังสือ (รอลงนาม)', 'นักศึกษา', 'studentId'],
+  ['PUT', '/api/admin/t000/letter-batch', 'ออกหนังสือรวมหลายคน', 'นักศึกษา', 'studentIds'],
   ['PUT', '/api/admin/doc/:x/status', 'เปลี่ยนสถานะเอกสาร', 'เอกสาร', ':1'],
   ['PATCH', '/api/admin/coop-applications/:x/status', 'เปลี่ยนสถานะคำร้องสหกิจ', 'คำร้องสหกิจ', ':1'],
   // ตรวจ T002/T003 — เจ้าหน้าที่และอาจารย์ใช้คนละเส้นทางแต่ความหมายเดียวกัน (/api/teachers เป็นชื่อพ้องของ /api/teacher)

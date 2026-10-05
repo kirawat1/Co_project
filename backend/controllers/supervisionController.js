@@ -24,10 +24,11 @@ const SUPERVISION_PROPOSE_STATUSES = [
 ];
 
 // เลขที่หนังสือขอนิเทศห้ามซ้ำกับฉบับที่ออกให้คนอื่นแล้ว หรือร่างที่รอลงนามของคนอื่น
-async function assertSupervisionDocNumberFree(tx, value, appointmentId) {
+// appointmentIds = นัดในหนังสือฉบับนี้ (หนังสือรวมของกลุ่มนิเทศใช้เลขเดียวกันได้) — เลิก unique ระดับ DB แล้ว
+async function assertSupervisionDocNumberFree(tx, value, appointmentIds) {
     if (!value) return;
     const clash = await tx.supervisionAppointment.findFirst({
-        where: { OR: [{ letterDocNumber: value }, { letterDraftNumber: value }], id: { not: appointmentId } },
+        where: { OR: [{ letterDocNumber: value }, { letterDraftNumber: value }], id: { notIn: [].concat(appointmentIds) } },
         select: { letterDocNumber: true, letterDraftNumber: true, student: { select: { studentId: true, firstName: true, lastName: true } } },
     });
     if (!clash) return;
@@ -123,6 +124,21 @@ exports.getAllSupervisions = async (req, res) => {
     }
 };
 
+// นัดในหนังสือฉบับนี้ — ไม่ส่ง appointmentIds = นัดเดียว · ส่งมา = หนังสือรวมของกลุ่มนิเทศ (ทุกนัดต้องอยู่ groupId เดียวกัน และรวมนัดนี้ด้วย)
+async function letterAppointmentIds(tx, id, raw) {
+    if (raw === undefined || raw === null || raw === '') return [id];
+    let arr = raw;
+    if (typeof raw === 'string') { try { arr = JSON.parse(raw); } catch (_) { arr = raw.split(','); } }
+    const ids = [...new Set([].concat(arr).map((x) => parseInt(x, 10)).filter((n) => Number.isInteger(n) && n > 0))];
+    if (!ids.includes(id)) ids.unshift(id);
+    if (ids.length === 1) return ids;
+    const rows = await tx.supervisionAppointment.findMany({ where: { id: { in: ids } }, select: { id: true, groupId: true } });
+    if (rows.length !== ids.length || !rows[0].groupId || rows.some((r) => r.groupId !== rows[0].groupId)) {
+        throw Object.assign(new Error('หนังสือรวมต้องเป็นนัดในกลุ่มนิเทศเดียวกัน'), { is400: true });
+    }
+    return ids;
+}
+
 exports.uploadOfficialLetter = async (req, res) => {
     try {
         const { id } = req.params;
@@ -136,6 +152,7 @@ exports.uploadOfficialLetter = async (req, res) => {
         }
 
         let appointment;
+        let letterIds = [parsedId];
         try {
             // เลขที่/วันที่หนังสือ (ไม่ส่งมา = ไม่บันทึก) · อัปโหลดฉบับลงนามแล้ว ป้าย "รอลงนาม" หมดหน้าที่
             const data = { officialLetterPath: req.file.filename, status: 'LETTER_UPLOADED', ...CLEARED_LETTER_PENDING };
@@ -149,12 +166,19 @@ exports.uploadOfficialLetter = async (req, res) => {
             if (req.body?.docDate) data.letterDocDate = parseDateOr400(req.body.docDate, 'วันที่ออกหนังสือขอนิเทศ');
 
             await prisma.$transaction(async (tx) => {
-                const current = await tx.supervisionAppointment.findUnique({ where: { id: parsedId } });
-                if (!current || current.status !== 'DATE_CONFIRMED') {
-                    throw Object.assign(new Error('สามารถออกหนังสือนิเทศได้เฉพาะเมื่อยืนยันวันแล้ว'), { is400: true });
+                letterIds = await letterAppointmentIds(tx, parsedId, req.body?.appointmentIds);
+                for (const aid of letterIds) {
+                    const current = await tx.supervisionAppointment.findUnique({ where: { id: aid } });
+                    if (!current || current.status !== 'DATE_CONFIRMED') {
+                        throw Object.assign(new Error('สามารถออกหนังสือนิเทศได้เฉพาะเมื่อยืนยันวันแล้ว'), { is400: true });
+                    }
                 }
-                await assertSupervisionDocNumberFree(tx, data.letterDocNumber, parsedId);
-                appointment = await tx.supervisionAppointment.update({ where: { id: parsedId }, data });
+                await assertSupervisionDocNumberFree(tx, data.letterDocNumber, letterIds);
+                // หนังสือรวม: ไฟล์ลงนามไฟล์เดียว เลขที่เดียว ผูกกับทุกนัดในกลุ่ม
+                for (const aid of letterIds) {
+                    const updated = await tx.supervisionAppointment.update({ where: { id: aid }, data });
+                    if (aid === parsedId) appointment = updated;
+                }
             });
         } catch (txErr) {
             if (req.file) {
@@ -169,26 +193,25 @@ exports.uploadOfficialLetter = async (req, res) => {
         }
 
         setAuditDetail(res, {
-            action: supervisionLetterActionText({ docNumber: appointment.letterDocNumber }),
+            action: `${supervisionLetterActionText({ docNumber: appointment.letterDocNumber })}${letterIds.length > 1 ? ` (หนังสือรวม ${letterIds.length} คน)` : ''}`,
             targetType: 'นัดนิเทศ',
-            targetId: parsedId,
+            targetId: letterIds.join(','),
         });
-        res.json({ ok: true, appointment });
+        res.json({ ok: true, appointment, appointmentIds: letterIds });
 
-        // Notify student
-        prisma.student.findUnique({ where: { id: appointment.studentId }, select: { userId: true } })
-          .then(student => {
-            if (student?.userId) {
-              return createNotifications([student.userId], {
+        // Notify students (ทุกคนในหนังสือ)
+        Promise.all(letterIds.map(async (aid) => {
+            const appt = aid === parsedId ? appointment : await prisma.supervisionAppointment.findUnique({ where: { id: aid }, select: { studentId: true } });
+            const student = appt && await prisma.student.findUnique({ where: { id: appt.studentId }, select: { userId: true } });
+            if (!student?.userId) return;
+            return createNotifications([student.userId], {
                 type: 'SUPERVISION_LETTER_UPLOADED',
                 title: 'หนังสือนิเทศอนุมัติแล้ว',
                 message: 'หนังสือนิเทศได้รับการอนุมัติ เตรียมพร้อมรับการนิเทศ',
                 link: '/student/supervision',
-                relatedId: String(appointment.studentId),
-              });
-            }
-          })
-          .catch(console.error);
+                relatedId: String(appt.studentId),
+            });
+        })).catch(console.error);
     } catch (err) {
         console.error(err);
         if (req.file) {
@@ -218,18 +241,19 @@ exports.markSupervisionLetterPending = async (req, res) => {
         }
 
         await prisma.$transaction(async (tx) => {
-            const current = await tx.supervisionAppointment.findUnique({
-                where: { id },
-                select: { status: true, student: { select: { deletedAt: true } } },
-            });
-            if (!current || current.student?.deletedAt) throw Object.assign(new Error('ไม่พบข้อมูลการนัดหมาย'), { is404: true });
-            if (!cancel) {
-                if (current.status !== 'DATE_CONFIRMED') {
+            const ids = await letterAppointmentIds(tx, id, req.body?.appointmentIds);
+            for (const aid of ids) {
+                const current = await tx.supervisionAppointment.findUnique({
+                    where: { id: aid },
+                    select: { status: true, student: { select: { deletedAt: true } } },
+                });
+                if (!current || current.student?.deletedAt) throw Object.assign(new Error('ไม่พบข้อมูลการนัดหมาย'), { is404: true });
+                if (!cancel && current.status !== 'DATE_CONFIRMED') {
                     throw Object.assign(new Error('ออกหนังสือนิเทศได้เฉพาะนัดหมายที่ยืนยันวันแล้ว'), { is400: true });
                 }
-                await assertSupervisionDocNumberFree(tx, data.letterDraftNumber, id);
             }
-            await tx.supervisionAppointment.update({ where: { id }, data });
+            if (!cancel) await assertSupervisionDocNumberFree(tx, data.letterDraftNumber, ids);
+            for (const aid of ids) await tx.supervisionAppointment.update({ where: { id: aid }, data });
         });
 
         setAuditDetail(res, {

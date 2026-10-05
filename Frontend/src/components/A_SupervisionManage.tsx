@@ -65,6 +65,7 @@ interface Supervision {
     supervisionType: "ONLINE" | "ONSITE";
     confirmedDate: string | null;
     coTeacherName?: string | null;
+    groupId?: string | null; // นัดที่ยืนยันพร้อมกัน (กลุ่มนิเทศ) — ออกหนังสือรวมได้
     // อาจารย์ร่วม + วันว่างที่ตอบแล้ว (null = ยังไม่ตอบ)
     coTeachers?: { teacherId: number; name?: string; availableDates?: string[] | null; respondedAt?: string | null }[];
     status: SupervisionStatus;
@@ -115,6 +116,9 @@ export default function A_SupervisionManage() {
 
     // Modals State
     const [selectedSupForModal, setSelectedSupForModal] = useState<Supervision | null>(null);
+    // หนังสือขอนิเทศรวมของกลุ่ม (นัดที่ยังรอออกหนังสือ groupId เดียวกัน)
+    const [letterGroup, setLetterGroup] = useState<Supervision[] | null>(null);
+    const pendingGroupOf = (sup: Supervision) => sup.groupId ? supervisions.filter(x => x.groupId === sup.groupId && x.status === "DATE_CONFIRMED") : [];
     const [assignTeacherModalOpen, setAssignTeacherModalOpen] = useState(false);
     const [selectedCoTeachers, setSelectedCoTeachers] = useState<number[]>([]);
 
@@ -627,13 +631,19 @@ export default function A_SupervisionManage() {
                                                     {sup.letterPendingAt ? '✍️ อัปโหลดฉบับลงนาม' : '📄 ออกหนังสือ'}
                                                 </button>
                                             )}
+                                            {/* กลุ่มนิเทศ (บริษัท/วันเดียวกัน ยืนยันพร้อมกัน) → หนังสือฉบับเดียวทั้งกลุ่ม */}
+                                            {isStaff && sup.status === "DATE_CONFIRMED" && pendingGroupOf(sup).length > 1 && (
+                                                <button className="btn" style={{ background: '#1e40af', color: 'white', padding: '6px 10px', fontSize: 12 }} onClick={() => { setLetterGroup(pendingGroupOf(sup)); setSelectedSupForModal(sup); }}>
+                                                    👥 หนังสือรวมทั้งกลุ่ม ({pendingGroupOf(sup).length})
+                                                </button>
+                                            )}
                                             {(sup.status === "LETTER_UPLOADED" || sup.status === "COMPLETED") && sup.officialLetterPath && (
                                                 <button className="btn-ghost" style={{ fontSize: 12, color: '#10b981', borderColor: '#10b981', padding: '6px 10px' }} onClick={() => window.open(`/uploads/supervision/${encodeURIComponent(sup.officialLetterPath!)}`, '_blank', 'noopener')}>
                                                     👁️ ดูเอกสาร
                                                 </button>
                                             )}
-                                            {/* จบนิเทศ: backend ให้อาจารย์ทำได้เฉพาะอาจารย์ผู้นิเทศหลัก (ทำที่หน้านัดหมายนิเทศของตัวเอง) */}
-                                            {isStaff && sup.status === "LETTER_UPLOADED" && (
+                                            {/* จบนิเทศ: เจ้าหน้าที่ + อาจารย์ประจำวิชา (รายการในหน้านี้กรองเฉพาะหลักสูตรที่ดูแลแล้ว) */}
+                                            {sup.status === "LETTER_UPLOADED" && (
                                                 <button className="btn" style={{ background: '#7c3aed', color: 'white', padding: '6px 10px', fontSize: 12 }} onClick={() => handleComplete(sup)}>
                                                     🏁 จบนิเทศ
                                                 </button>
@@ -715,9 +725,11 @@ export default function A_SupervisionManage() {
             {selectedSupForModal && !assignTeacherModalOpen && (
                 <IssueSupervisionLetterModal
                     supervision={selectedSupForModal}
-                    onClose={() => { setSelectedSupForModal(null); refreshSupervisions(); }}
+                    group={letterGroup ?? undefined}
+                    onClose={() => { setSelectedSupForModal(null); setLetterGroup(null); refreshSupervisions(); }}
                     onSuccess={() => {
                         setSelectedSupForModal(null);
+                        setLetterGroup(null);
                         fetchData();
                     }}
                 />

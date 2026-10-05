@@ -38,21 +38,39 @@ const LETTER_DELIVERY_NOTES = {
 
 // หนังสือสองฉบับที่ออกจากหน้า doct000 — ช่องใน StudentCoop ของแต่ละฉบับ
 const LETTERS = {
-  reqLetter: { numberField: 'reqDocNumber', label: 'เลขที่หนังสือขอความอนุเคราะห์', minStatus: 'DOCS_APPROVED' },
-  placeLetter: { numberField: 'placeDocNumber', label: 'เลขที่หนังสือส่งตัว', minStatus: 'ACCEPTANCE_CHECKED' },
+  reqLetter: { numberField: 'reqDocNumber', dateField: 'reqDocDate', label: 'เลขที่หนังสือขอความอนุเคราะห์', minStatus: 'DOCS_APPROVED', status: 'REQ_LETTER_ISSUED', docType: 'DISPATCH_LETTER' },
+  placeLetter: { numberField: 'placeDocNumber', dateField: 'placeDocDate', label: 'เลขที่หนังสือส่งตัว', minStatus: 'ACCEPTANCE_CHECKED', status: 'PLACEMENT_LETTER_ISSUED', docType: 'PLACEMENT_LETTER' },
 };
+
+// รายการ id จาก body: [1,2] · "1,2" · '[1,2]' → ตัวเลขไม่ซ้ำ
+function parseIdList(v) {
+  let arr = v;
+  if (typeof v === 'string') { try { arr = JSON.parse(v); } catch (_) { arr = v.split(','); } }
+  if (!Array.isArray(arr)) arr = [arr];
+  return [...new Set(arr.map((x) => parseInt(x, 10)).filter((n) => Number.isInteger(n) && n > 0))];
+}
+
+// ไฟล์หนังสือที่ลงนามใช้ร่วมกันได้หลายคน (หนังสือรวม) — ลบไฟล์เก่าได้เมื่อไม่มีใครอ้างอิงแล้วเท่านั้น
+async function deleteLetterFileIfUnused(filename) {
+  if (!filename) return;
+  const used = await prisma.studentCoop.count({ where: { OR: [{ reqLetterUrl: filename }, { placeLetterUrl: filename }] } });
+  if (used) return;
+  try { fs.unlinkSync(path.join(__dirname, '../uploads', filename)); } catch (_) {}
+}
 
 function clearedLetterPending(key) {
   return { [`${key}PendingAt`]: null, [`${key}DraftNumber`]: null, [`${key}DraftDate`]: null };
 }
 
 // เลขที่ห้ามซ้ำกับหนังสือที่ออกให้คนอื่นแล้ว หรือร่างที่รอลงนามของคนอื่น (หนังสือชนิดเดียวกัน)
-async function assertDocNumberFree(tx, key, value, studentId) {
+// studentIds = นักศึกษาในหนังสือฉบับนี้ (หนังสือรวม = หลายคน ใช้เลขเดียวกันได้) — เลิก unique ระดับ DB แล้ว ด่านนี้คือด่านเดียว
+async function assertDocNumberFree(tx, key, value, studentIds) {
   if (!value) return;
   const { numberField, label } = LETTERS[key];
   const draftField = `${key}DraftNumber`;
+  const ids = [].concat(studentIds);
   const clash = await tx.studentCoop.findFirst({
-    where: { OR: [{ [numberField]: value }, { [draftField]: value }], studentId: { not: studentId } },
+    where: { OR: [{ [numberField]: value }, { [draftField]: value }], studentId: { notIn: ids } },
     select: { [numberField]: true, [draftField]: true, student: { select: { studentId: true, firstName: true, lastName: true } } },
   });
   if (!clash) return;
@@ -262,12 +280,14 @@ exports.reviewStudentStatus = async (req, res) => {
     if (req.file) {
       if (status === 'REQ_LETTER_ISSUED') {
         updateData.reqLetterUrl = req.file.filename;
+        updateData.reqLetterBatch = null; // ออกเดี่ยว — ไม่อยู่ในหนังสือรวมฉบับเดิมแล้ว
         Object.assign(updateData, clearedLetterPending('reqLetter'));
         if (deliveryMethod) updateData.reqLetterDelivery = deliveryMethod;
       }
 
       if (status === 'PLACEMENT_LETTER_ISSUED') {
         updateData.placeLetterUrl = req.file.filename;
+        updateData.placeLetterBatch = null;
         Object.assign(updateData, clearedLetterPending('placeLetter'));
         if (deliveryMethod) updateData.placeLetterDelivery = deliveryMethod;
       }
@@ -365,11 +385,8 @@ exports.reviewStudentStatus = async (req, res) => {
     // statusKept = พิมพ์หนังสือซ้ำให้นักศึกษาที่ผ่านขั้นนั้นไปแล้ว (บันทึกหนังสือใหม่ แต่คงสถานะเดิม)
     res.json({ ok: true, statusKept });
 
-    // ลบ letter file เก่าออกจาก disk หลัง commit สำเร็จ
-    if (staleLetterFile) {
-      const fp = path.join(__dirname, '../uploads', staleLetterFile);
-      try { fs.unlinkSync(fp); } catch (_) {}
-    }
+    // ลบ letter file เก่าออกจาก disk หลัง commit สำเร็จ — ถ้าเป็นไฟล์หนังสือรวม คนอื่นยังใช้อยู่ ไม่ลบ
+    if (staleLetterFile) deleteLetterFileIfUnused(staleLetterFile).catch(console.error);
 
     // Notify student when their status changes
     const statusMessages = {
@@ -586,10 +603,111 @@ exports.replaceAcceptanceFile = async (req, res) => {
 // body: { studentId, letter: 'REQUEST' | 'PLACEMENT', docNumber?, docDate?, cancel? }
 const LETTER_KEY_BY_TYPE = { REQUEST: 'reqLetter', PLACEMENT: 'placeLetter' };
 
+// ==========================================
+// หนังสือรวมหลายคน (บริษัทเดียวกัน) — ขอความอนุเคราะห์ / ส่งตัว · เลขที่เดียว ไฟล์ลงนามไฟล์เดียว ผูกกับทุกคนในฉบับ
+// PUT /api/admin/t000/letter-batch (multipart) { letter: REQUEST|PLACEMENT, studentIds, docNumber, docDate, deliveryMethod, comment, file }
+// ==========================================
+exports.issueLetterBatch = async (req, res) => {
+  const dropUpload = () => { if (req.file) try { fs.unlinkSync(path.join(__dirname, '../uploads', req.file.filename)); } catch (_) {} };
+  try {
+    const key = LETTER_KEY_BY_TYPE[req.body?.letter];
+    if (!key) { dropUpload(); return res.status(400).json({ ok: false, message: 'letter ต้องเป็น REQUEST หรือ PLACEMENT' }); }
+    const ids = parseIdList(req.body?.studentIds);
+    if (ids.length < 2) { dropUpload(); return res.status(400).json({ ok: false, message: 'หนังสือรวมต้องมีนักศึกษาอย่างน้อย 2 คน' }); }
+    if (!req.file) return res.status(400).json({ ok: false, message: 'กรุณาอัปโหลดไฟล์ที่ลงนามแล้ว' });
+    const L = LETTERS[key];
+    const docNo = normalizeDocNumber(req.body.docNumber);
+    if (!docNo || isPlaceholderDocNo(docNo)) { dropUpload(); return res.status(400).json({ ok: false, message: `${L.label}ยังไม่ได้กรอก กรุณาระบุเลขที่จริง เช่น 660301.26.6.2/1234` }); }
+    const docDate = req.body.docDate ? parseDateOr400(req.body.docDate, 'วันที่ออกหนังสือ') : null;
+    const deliveryMethod = DELIVERY_METHODS.has(req.body.deliveryMethod) ? req.body.deliveryMethod : null;
+    const batch = require('crypto').randomUUID();
+    const targetRank = COOP_STATUS_ORDER.indexOf(L.status);
+
+    const stale = new Set();
+    const result = [];
+    await prisma.$transaction(async (tx) => {
+      const coops = await tx.studentCoop.findMany({
+        where: { studentId: { in: ids } },
+        select: { studentId: true, status: true, companyId: true, [`${key}Url`]: true, student: { select: { deletedAt: true } } },
+      });
+      if (coops.length !== ids.length || coops.some((c) => !c.student || c.student.deletedAt)) {
+        throw Object.assign(new Error('ไม่พบนักศึกษาบางคน'), { is404: true });
+      }
+      if (!coops[0].companyId || coops.some((c) => c.companyId !== coops[0].companyId)) {
+        throw Object.assign(new Error('หนังสือรวมต้องเป็นนักศึกษาบริษัทเดียวกัน'), { is400: true });
+      }
+      if (coops.some((c) => COOP_STATUS_ORDER.indexOf(c.status) < COOP_STATUS_ORDER.indexOf(L.minStatus))) {
+        throw Object.assign(new Error('มีนักศึกษาที่ยังไม่ถึงขั้นออกหนังสือนี้'), { is400: true });
+      }
+      await assertDocNumberFree(tx, key, docNo, ids);
+
+      for (const c of coops) {
+        const data = {
+          [L.numberField]: docNo,
+          [L.dateField]: docDate,
+          [`${key}Url`]: req.file.filename,
+          [`${key}Batch`]: batch,
+          ...clearedLetterPending(key),
+          ...(deliveryMethod ? { [`${key}Delivery`]: deliveryMethod } : {}),
+          ...(req.body.comment ? { t000Comment: req.body.comment } : {}),
+        };
+        // ห้ามสถานะย้อน (คนที่ผ่านขั้นนี้ไปแล้ว = พิมพ์ซ้ำ เก็บหนังสือใหม่ คงสถานะเดิม) — เหมือนออกหนังสือเดี่ยว
+        const kept = COOP_STATUS_ORDER.indexOf(c.status) > targetRank;
+        if (!kept) data.status = key === 'placeLetter' && deliveryMethod === 'STAFF' ? 'INTERNSHIP_STARTED' : L.status;
+        const old = c[`${key}Url`];
+        if (old && old !== req.file.filename) stale.add(old);
+
+        const existingDoc = await tx.document.findFirst({ where: { studentId: c.studentId, type: L.docType } });
+        if (existingDoc) {
+          await tx.document.update({ where: { id: existingDoc.id }, data: { path: req.file.filename, name: req.file.originalname, status: 'APPROVED' } });
+        } else {
+          await tx.document.create({ data: { studentId: c.studentId, type: L.docType, path: req.file.filename, name: req.file.originalname, status: 'APPROVED' } });
+        }
+        await tx.studentCoop.update({ where: { studentId: c.studentId }, data });
+        result.push({ studentId: c.studentId, statusKept: kept });
+      }
+    });
+
+    setAuditDetail(res, {
+      action: `${reviewActionText({ status: L.status, docNumber: docNo, deliveryMethod })} (หนังสือรวม ${ids.length} คน)`,
+      targetType: 'นักศึกษา',
+      targetId: ids.join(','),
+    });
+    res.json({ ok: true, batch, count: ids.length, students: result });
+
+    for (const f of stale) deleteLetterFileIfUnused(f).catch(console.error);
+
+    // แจ้งนักศึกษาทุกคนในหนังสือ (ข้อความเดียวกับออกหนังสือเดี่ยว)
+    const msgBase = L.status === 'REQ_LETTER_ISSUED' ? 'ออกหนังสือขอความอนุเคราะห์แล้ว' : 'ออกหนังสือส่งตัวแล้ว 🎉';
+    const notifyIds = result.filter((r) => !r.statusKept).map((r) => r.studentId);
+    if (notifyIds.length) {
+      const note = deliveryMethod ? LETTER_DELIVERY_NOTES[L.status][deliveryMethod] : '';
+      prisma.student.findMany({ where: { id: { in: notifyIds } }, select: { userId: true } })
+        .then((studs) => createNotifications(studs.map((x) => x.userId).filter(Boolean), {
+          type: 'DOCS_UPDATED',
+          title: 'สถานะสหกิจศึกษาอัปเดต',
+          message: `${msgBase}${note ? ` — ${note}` : ''}`,
+          link: '/student/docs',
+          relatedId: null,
+        }))
+        .catch(console.error);
+    }
+  } catch (err) {
+    dropUpload();
+    if (err.is404) return res.status(404).json({ ok: false, message: err.message });
+    if (err.is409) return res.status(409).json({ ok: false, message: err.message });
+    if (err.is400) return res.status(400).json({ ok: false, message: err.message });
+    console.error('[issueLetterBatch]', err);
+    res.status(500).json({ ok: false, message: 'ออกหนังสือรวมไม่สำเร็จ' });
+  }
+};
+
 exports.markLetterPending = async (req, res) => {
   try {
-    const studentId = parseInt(req.body?.studentId, 10);
-    if (isNaN(studentId) || studentId <= 0) {
+    // หนังสือรวม: studentIds (หลายคน) · หนังสือเดี่ยว: studentId
+    const ids = req.body?.studentIds !== undefined ? parseIdList(req.body.studentIds) : parseIdList(req.body?.studentId);
+    const studentId = ids[0];
+    if (!studentId) {
       return res.status(400).json({ ok: false, message: 'studentId ต้องเป็นตัวเลขที่ถูกต้อง' });
     }
     const key = LETTER_KEY_BY_TYPE[req.body?.letter];
@@ -609,18 +727,17 @@ exports.markLetterPending = async (req, res) => {
     }
 
     await prisma.$transaction(async (tx) => {
-      const student = await tx.student.findUnique({ where: { id: studentId }, select: { deletedAt: true } });
-      const coop = await tx.studentCoop.findUnique({ where: { studentId }, select: { status: true } });
-      if (!student || student.deletedAt || !coop) throw Object.assign(new Error('ไม่พบนักศึกษา'), { is404: true });
-
-      if (!cancel) {
-        const { minStatus } = LETTERS[key];
-        if (COOP_STATUS_ORDER.indexOf(coop.status) < COOP_STATUS_ORDER.indexOf(minStatus)) {
+      // ทีละคน (หนังสือรวม = หลายคน เลขที่ร่างเดียวกัน)
+      for (const sid of ids) {
+        const student = await tx.student.findUnique({ where: { id: sid }, select: { deletedAt: true } });
+        const coop = await tx.studentCoop.findUnique({ where: { studentId: sid }, select: { status: true } });
+        if (!student || student.deletedAt || !coop) throw Object.assign(new Error('ไม่พบนักศึกษา'), { is404: true });
+        if (!cancel && COOP_STATUS_ORDER.indexOf(coop.status) < COOP_STATUS_ORDER.indexOf(LETTERS[key].minStatus)) {
           throw Object.assign(new Error('นักศึกษายังไม่ถึงขั้นออกหนังสือนี้'), { is400: true });
         }
-        await assertDocNumberFree(tx, key, data[`${key}DraftNumber`], studentId);
       }
-      await tx.studentCoop.update({ where: { studentId }, data });
+      if (!cancel) await assertDocNumberFree(tx, key, data[`${key}DraftNumber`], ids);
+      for (const sid of ids) await tx.studentCoop.update({ where: { studentId: sid }, data });
     });
 
     setAuditDetail(res, {

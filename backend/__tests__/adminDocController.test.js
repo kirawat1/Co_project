@@ -711,7 +711,7 @@ describe('markLetterPending', () => {
 
     expect(res.status).toHaveBeenCalledWith(409);
     expect(res.json.mock.calls[0][0].message).toMatch(/663380111-1/);
-    expect(prisma.studentCoop.findFirst.mock.calls[0][0].where).toMatchObject({ studentId: { not: 1 } });
+    expect(prisma.studentCoop.findFirst.mock.calls[0][0].where).toMatchObject({ studentId: { notIn: [1] } });
     expect(prisma.studentCoop.update).not.toHaveBeenCalled();
   });
 

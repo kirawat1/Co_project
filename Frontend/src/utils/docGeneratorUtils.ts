@@ -1,5 +1,6 @@
 // Frontend/src/utils/docGeneratorUtils.ts
 // สร้างไฟล์ Word (.doc) ตามรูปแบบหนังสือราชการของวิทยาลัยการคอมพิวเตอร์ มข.
+import { isGroup, sameDates, studentListHtml, type LetterStudent } from "./letterGroup";
 
 const THAI_MONTHS = [
   "มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน",
@@ -167,9 +168,12 @@ export function buildDispatchLetterHtml(opts: {
   endDate: string;
   deanName: string;
   deanPosition: string;
+  students?: LetterStudent[]; // หนังสือรวมหลายคน (บริษัทเดียวกัน) — ไม่ส่ง/คนเดียว = หนังสือเดี่ยว
 }): string {
   const { docNumber, docDate, studentName, studentId, studyProgram, major, majorNameTh, companyName,
-          companyContact, startDate, endDate, deanName, deanPosition } = opts;
+          companyContact, startDate, endDate, deanName, deanPosition, students } = opts;
+  const group = isGroup(students) ? students : null;
+  const groupSameDates = group ? sameDates(group) : true;
   const spLabel = studyProgramLabel(studyProgram);
   // major เป็นรหัสสาขา (CS/AI) — หนังสือส่งตัวต้องใช้ชื่อหลักสูตรภาษาไทยจริงของนักศึกษา ไม่ใช่ค่าคงที่
   const majorName = formMajorName({ major, majorNameTh }, "วิทยาการคอมพิวเตอร์");
@@ -205,7 +209,7 @@ export function buildDispatchLetterHtml(opts: {
   <tr>
     <td></td>
     <td>2. ประวัตินักศึกษาและใบแสดงผลการเรียน</td>
-    <td style="text-align:right">จำนวน&nbsp;&nbsp;2&nbsp;&nbsp;ชุด</td>
+    <td style="text-align:right">จำนวน&nbsp;&nbsp;${group ? group.length : 2}&nbsp;&nbsp;ชุด</td>
   </tr>
   <tr>
     <td></td>
@@ -214,9 +218,11 @@ export function buildDispatchLetterHtml(opts: {
   </tr>
 </table>
 <p>&nbsp;</p>
-<p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ตามที่ ${companyName} ได้เข้าร่วมโครงการสหกิจศึกษากับมหาวิทยาลัยขอนแก่น วิทยาลัยการคอมพิวเตอร์ และยินดีรับนักศึกษาหลักสูตร${majorName} เข้าปฏิบัติงานสหกิจศึกษากับบริษัทของท่าน ซึ่งมีกำหนดช่วงเวลาปฏิบัติงาน ระหว่างวันที่ ${startStr} ถึงวันที่ ${endStr} นั้น ในการนี้ ทางวิทยาลัยการคอมพิวเตอร์ จึงใคร่ขอให้ท่านพิจารณานักศึกษาเข้าร่วมโครงการสหกิจศึกษากับทาง ${companyName} จำนวน 1 คน ดังมีรายชื่อต่อไปนี้</p>
+<p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ตามที่ ${companyName} ได้เข้าร่วมโครงการสหกิจศึกษากับมหาวิทยาลัยขอนแก่น วิทยาลัยการคอมพิวเตอร์ และยินดีรับนักศึกษาหลักสูตร${majorName} เข้าปฏิบัติงานสหกิจศึกษากับบริษัทของท่าน ${groupSameDates ? `ซึ่งมีกำหนดช่วงเวลาปฏิบัติงาน ระหว่างวันที่ ${group ? toThaiDate(group[0].startDate || undefined) : startStr} ถึงวันที่ ${group ? toThaiDate(group[0].endDate || undefined) : endStr}` : 'ซึ่งมีกำหนดช่วงเวลาปฏิบัติงานตามที่ระบุท้ายรายชื่อนักศึกษาแต่ละคน'} นั้น ในการนี้ ทางวิทยาลัยการคอมพิวเตอร์ จึงใคร่ขอให้ท่านพิจารณานักศึกษาเข้าร่วมโครงการสหกิจศึกษากับทาง ${companyName} จำนวน ${group ? group.length : 1} คน ดังมีรายชื่อต่อไปนี้</p>
 <p>&nbsp;</p>
-<p class="center">${studentName}&nbsp;&nbsp;&nbsp;&nbsp;รหัสประจำตัว ${studentId}${spLabel ? `&nbsp;&nbsp;&nbsp;&nbsp;${spLabel}` : ''}</p>
+${group
+  ? studentListHtml(group, { withProgram: true, withDates: !groupSameDates })
+  : `<p class="center">${studentName}&nbsp;&nbsp;&nbsp;&nbsp;รหัสประจำตัว ${studentId}${spLabel ? `&nbsp;&nbsp;&nbsp;&nbsp;${spLabel}` : ''}</p>`}
 <p>&nbsp;</p>
 <p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;จึงเรียนมาเพื่อโปรดพิจารณาให้ความอนุเคราะห์ในการรับนักศึกษาเข้าร่วมโครงการสหกิจศึกษา หากผลการพิจารณาเป็นประการใด กรุณาแจ้งผลกลับมายัง<u>วิทยาลัยการคอมพิวเตอร์ มหาวิทยาลัยขอนแก่น 40002</u> หรือ E-mail: wijika@kku.ac.th ด้วยจักขอบคุณยิ่ง</p>
 <div class="sig-block">
@@ -253,9 +259,12 @@ export function buildPlacementLetterHtml(opts: {
   endDate: string;
   deanName: string;
   deanPosition: string;
+  students?: LetterStudent[]; // หนังสือรวมหลายคน — วันฝึกต่างกันได้ (ใส่ท้ายชื่อแต่ละคน)
 }): string {
   const { docNumber, docDate, studentName, studentId, major, companyName,
-          companyRecipient, startDate, endDate, deanName, deanPosition } = opts;
+          companyRecipient, startDate, endDate, deanName, deanPosition, students } = opts;
+  const group = isGroup(students) ? students : null;
+  const groupSameDates = group ? sameDates(group) : true;
   const dateStr = toThaiDate(docDate);
   const startStr = toThaiDate(startDate);
   const endStr = toThaiDate(endDate);
@@ -278,7 +287,9 @@ export function buildPlacementLetterHtml(opts: {
 <p><b>เรื่อง</b>&nbsp;&nbsp;&nbsp;ขอส่งตัวนักศึกษาเข้ารับการปฏิบัติงานสหกิจศึกษา</p>
 <p><b>เรียน</b>&nbsp;&nbsp;&nbsp;${recipient}</p>
 <p>&nbsp;</p>
-<p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ตามแบบตอบรับนักศึกษาปฏิบัติงานสหกิจศึกษา ที่ทางบริษัท ${companyName} ยินดีรับนักศึกษาหลักสูตร${major} วิทยาลัยการคอมพิวเตอร์ เข้ารับการปฏิบัติงานสหกิจศึกษา จำนวน 1 คน คือ ${studentName} รหัสประจำตัว ${studentId} ในการนี้ มหาวิทยาลัยขอนแก่น วิทยาลัยการคอมพิวเตอร์ ใคร่ขอส่งตัวนักศึกษาปฏิบัติงานสหกิจศึกษาดังกล่าว เข้ารับการปฏิบัติงานในระหว่างวันที่ ${startStr} ถึงวันที่ ${endStr} และขอความอนุเคราะห์จากท่านตรวจสอบรายงานผลการปฏิบัติงานของนักศึกษาสหกิจศึกษา และส่งกลับมายัง วิทยาลัยการคอมพิวเตอร์ มหาวิทยาลัยขอนแก่น ภายหลังครบกำหนดระยะเวลาการปฏิบัติงานของนักศึกษา ภายใน 10 วัน เพื่อวิทยาลัยการคอมพิวเตอร์จักได้ดำเนินการประเมินผลการปฏิบัติงานสหกิจศึกษานักศึกษาดังกล่าวต่อไป ทั้งนี้ ใคร่ขอขอบพระคุณหน่วยงานของท่าน ที่ได้อนุเคราะห์ให้นักศึกษาเข้ารับการปฏิบัติงานสหกิจศึกษาในครั้งนี้ หวังเป็นอย่างยิ่งว่าจะได้รับความอนุเคราะห์จากท่านอีกในโอกาสต่อไป</p>
+${group ? `<p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ตามแบบตอบรับนักศึกษาปฏิบัติงานสหกิจศึกษา ที่ทางบริษัท ${companyName} ยินดีรับนักศึกษาหลักสูตร${major} วิทยาลัยการคอมพิวเตอร์ เข้ารับการปฏิบัติงานสหกิจศึกษา จำนวน ${group.length} คน ดังรายชื่อต่อไปนี้</p>
+${studentListHtml(group, { withDates: !groupSameDates })}
+<p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ในการนี้ มหาวิทยาลัยขอนแก่น วิทยาลัยการคอมพิวเตอร์ ใคร่ขอส่งตัวนักศึกษาปฏิบัติงานสหกิจศึกษาดังกล่าว เข้ารับการปฏิบัติงาน${groupSameDates ? `ในระหว่างวันที่ ${toThaiDate(group[0].startDate || undefined)} ถึงวันที่ ${toThaiDate(group[0].endDate || undefined)}` : 'ตามช่วงเวลาที่ระบุท้ายรายชื่อข้างต้น'} และขอความอนุเคราะห์` : `<p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ตามแบบตอบรับนักศึกษาปฏิบัติงานสหกิจศึกษา ที่ทางบริษัท ${companyName} ยินดีรับนักศึกษาหลักสูตร${major} วิทยาลัยการคอมพิวเตอร์ เข้ารับการปฏิบัติงานสหกิจศึกษา จำนวน 1 คน คือ ${studentName} รหัสประจำตัว ${studentId} ในการนี้ มหาวิทยาลัยขอนแก่น วิทยาลัยการคอมพิวเตอร์ ใคร่ขอส่งตัวนักศึกษาปฏิบัติงานสหกิจศึกษาดังกล่าว เข้ารับการปฏิบัติงานในระหว่างวันที่ ${startStr} ถึงวันที่ ${endStr} และขอความอนุเคราะห์`}จากท่านตรวจสอบรายงานผลการปฏิบัติงานของนักศึกษาสหกิจศึกษา และส่งกลับมายัง วิทยาลัยการคอมพิวเตอร์ มหาวิทยาลัยขอนแก่น ภายหลังครบกำหนดระยะเวลาการปฏิบัติงานของนักศึกษา ภายใน 10 วัน เพื่อวิทยาลัยการคอมพิวเตอร์จักได้ดำเนินการประเมินผลการปฏิบัติงานสหกิจศึกษานักศึกษาดังกล่าวต่อไป ทั้งนี้ ใคร่ขอขอบพระคุณหน่วยงานของท่าน ที่ได้อนุเคราะห์ให้นักศึกษาเข้ารับการปฏิบัติงานสหกิจศึกษาในครั้งนี้ หวังเป็นอย่างยิ่งว่าจะได้รับความอนุเคราะห์จากท่านอีกในโอกาสต่อไป</p>
 <p>&nbsp;</p>
 <p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;จึงเรียนมาเพื่อโปรดทราบ</p>
 <div class="sig-block">
@@ -316,10 +327,12 @@ export function buildSupervisionLetterHtml(opts: {
   visitMode?: string;         // เช่น "ออนไลน์" หรือ "ณ สถานประกอบการ"
   deanName: string;
   deanPosition: string;
+  students?: LetterStudent[]; // หนังสือรวมของกลุ่มนิเทศ (บริษัท/วันเดียวกัน)
 }): string {
   const { docNumber, docDate, studentName, studentId, major, majorNameTh, companyName,
           companyRecipient, supervisorNames, visitDate, visitTime,
-          visitMode, deanName, deanPosition } = opts;
+          visitMode, deanName, deanPosition, students } = opts;
+  const group = isGroup(students) ? students : null;
   const dateStr = toThaiDate(docDate);
   const visitStr = toThaiDate(visitDate);
   const recipient = companyRecipient || "เจ้าหน้าที่ฝ่ายทรัพยากรบุคคล";
@@ -346,7 +359,9 @@ export function buildSupervisionLetterHtml(opts: {
 <p><b>เรื่อง</b>&nbsp;&nbsp;&nbsp;ขอเข้านิเทศงานนักศึกษาปฏิบัติงานสหกิจศึกษา</p>
 <p><b>เรียน</b>&nbsp;&nbsp;&nbsp;${recipient}</p>
 <p>&nbsp;</p>
-<p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ตามที่ท่านให้ความอนุเคราะห์รับนักศึกษาสาขาวิชา${majorName} จำนวน 1 คน คือ ${studentName} รหัสประจำตัว ${studentId} เข้าปฏิบัติงานสหกิจศึกษากับทาง${companyName} นั้น ในการนี้ สาขาวิชา${majorName} วิทยาลัยการคอมพิวเตอร์ มหาวิทยาลัยขอนแก่น ใคร่ขอเข้านิเทศนักศึกษาปฏิบัติงานสหกิจศึกษา ในหน่วยงานของท่าน เพื่อแนะนำแนวทางการจัดทำรายงานสหกิจศึกษาและรับทราบปัญหาอุปสรรคของนักศึกษาในรูปแบบ${modeStr} โดยนิเทศงานใน<u>วันที่ ${visitStr} เวลา ${timeStr}</u> โดยมีอาจารย์ผู้นิเทศงานคือ ${supervisorStr}</p>
+<p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ตามที่ท่านให้ความอนุเคราะห์รับนักศึกษาสาขาวิชา${majorName} ${group ? `จำนวน ${group.length} คน ดังรายชื่อต่อไปนี้</p>
+${studentListHtml(group)}
+<p>เข้าปฏิบัติงานสหกิจศึกษากับทาง${companyName} นั้น ในการนี้` : `จำนวน 1 คน คือ ${studentName} รหัสประจำตัว ${studentId} เข้าปฏิบัติงานสหกิจศึกษากับทาง${companyName} นั้น ในการนี้`} สาขาวิชา${majorName} วิทยาลัยการคอมพิวเตอร์ มหาวิทยาลัยขอนแก่น ใคร่ขอเข้านิเทศนักศึกษาปฏิบัติงานสหกิจศึกษา ในหน่วยงานของท่าน เพื่อแนะนำแนวทางการจัดทำรายงานสหกิจศึกษาและรับทราบปัญหาอุปสรรคของนักศึกษาในรูปแบบ${modeStr} โดยนิเทศงานใน<u>วันที่ ${visitStr} เวลา ${timeStr}</u> โดยมีอาจารย์ผู้นิเทศงานคือ ${supervisorStr}</p>
 <p>&nbsp;</p>
 <p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;สาขาวิชา${majorName} วิทยาลัยการคอมพิวเตอร์ มหาวิทยาลัยขอนแก่น ใคร่ขอขอบคุณท่านที่ให้ความอนุเคราะห์เข้านิเทศงาน และร่วมประเมินเบื้องต้นและแจ้งลักษณะการมอบหมายงานของนักศึกษาในครั้งนี้ด้วย จักขอบพระคุณยิ่ง</p>
 <p>&nbsp;</p>

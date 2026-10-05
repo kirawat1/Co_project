@@ -7,11 +7,14 @@ import { FileReady, DeliveryPicker, CompanyAddressBox, RecipientNotice, MODAL_CS
 import DateInput from './DateInput';
 import { notify, askConfirm } from "../utils/notify";
 import { letterRecipient, recipientText } from "../utils/letterRecipient";
+import { toLetterStudent } from "../utils/letterGroup";
 
-interface Props { student: any; onClose: () => void; onSuccess: () => void; }
+// group = หนังสือรวมหลายคน (บริษัทเดียวกัน วันฝึกต่างกันได้) · student = คนแรกของกลุ่ม · ไม่ส่ง = หนังสือเดี่ยว
+interface Props { student: any; group?: any[]; onClose: () => void; onSuccess: () => void; }
 
-export default function IssuePlacementLetterModal({ student, onClose, onSuccess }: Props) {
-    const pending = useLetterPending({ record: student.coop, prefix: "placeLetter", endpoint: "/api/admin/t000/letter-pending", body: { studentId: student.id, letter: "PLACEMENT" } });
+export default function IssuePlacementLetterModal({ student, group, onClose, onSuccess }: Props) {
+    const members = group && group.length > 1 ? group : null;
+    const pending = useLetterPending({ record: student.coop, prefix: "placeLetter", endpoint: "/api/admin/t000/letter-pending", body: members ? { studentIds: members.map(m => m.id), letter: "PLACEMENT" } : { studentId: student.id, letter: "PLACEMENT" } });
     // เก็บเฉพาะตัวเลข — คำนำหน้า "ที่ อว" ถูกเติมในเทมเพลตหนังสือแล้ว · มีร่างที่รอลงนามอยู่ → เติมเลขที่/วันที่ของร่างนั้น
     const [placeDocNumber, setPlaceDocNumber] = useState(pending.draftNumber || "660301.26.6.2/");
     const [placeDocDate, setPlaceDocDate] = useState(pending.draftDate || new Date().toISOString().split("T")[0]);
@@ -48,7 +51,8 @@ export default function IssuePlacementLetterModal({ student, onClose, onSuccess 
             if (!krutUrl) return notify.error("⚠️ ไม่พบไฟล์ตราครุฑ (KRUT) กรุณาอัปโหลดในหน้าตั้งค่า");
             const doc = await createPlacementPDF(
                 student, { placeDocNumber, placeDocDate, actualStartDate: startDate, actualEndDate: endDate },
-                "", krutUrl, deanName, deanPosition
+                "", krutUrl, deanName, deanPosition,
+                members ? members.map(toLetterStudent) : undefined
             );
             const blob = doc.output("blob");
             setPdfDraft({ blob, docNumber: placeDocNumber, docDate: placeDocDate });
@@ -68,6 +72,7 @@ export default function IssuePlacementLetterModal({ student, onClose, onSuccess 
                 companyName: student.coop?.company?.name || "....",
                 companyRecipient: recipientText(letterRecipient(student.coop)) || undefined,
                 startDate, endDate, deanName, deanPosition,
+                students: members ? members.map(toLetterStudent) : undefined,
             });
             setDocDraft({ blob: createWordBlob(html), docNumber: placeDocNumber, docDate: placeDocDate });
             setPreviewUrl(URL.createObjectURL(createPreviewBlob(html)));
@@ -97,6 +102,12 @@ export default function IssuePlacementLetterModal({ student, onClose, onSuccess 
         if (!(await askConfirm("ยืนยันการบันทึกข้อมูล และอัปเดตสถานะให้นักศึกษา?", { confirmLabel: "บันทึก" }))) return;
         try {
             const formData = new FormData();
+            if (members) {
+                formData.append("letter", "PLACEMENT");
+                formData.append("studentIds", JSON.stringify(members.map(m => m.id)));
+                formData.append("docNumber", docNo);
+                formData.append("docDate", placeDocDate);
+            }
             formData.append("studentId", student.id);
             formData.append("status", "PLACEMENT_LETTER_ISSUED");
             formData.append("docType", "PLACEMENT_LETTER");
@@ -108,7 +119,7 @@ export default function IssuePlacementLetterModal({ student, onClose, onSuccess 
             formData.append("placeDocNumber", docNo);
             formData.append("placeDocDate", placeDocDate);
             formData.append("file", signedFile);
-            const res = await apiFetch("/api/admin/t000/review", { method: "PUT", body: formData });
+            const res = await apiFetch(members ? "/api/admin/t000/letter-batch" : "/api/admin/t000/review", { method: "PUT", body: formData });
             if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.message || `Server error ${res.status}`); }
             notify.success("✅ บันทึกเข้าระบบเรียบร้อย");
             onSuccess();
@@ -119,7 +130,7 @@ export default function IssuePlacementLetterModal({ student, onClose, onSuccess 
         <div className="letter-modal-backdrop" style={{ zIndex: 10000 }}>
             <div className="letter-modal-card" style={{ width: '95%', maxWidth: 1200, height: '90vh' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: 12, borderBottom: '1px solid #eee', flexShrink: 0 }}>
-                    <h3 style={{ margin: 0 }}>📄 ออกหนังสือส่งตัวฝึกสหกิจ</h3>
+                    <h3 style={{ margin: 0 }}>📄 ออกหนังสือส่งตัวฝึกสหกิจ{members ? ` (รวม ${members.length} คน)` : ""}</h3>
                     <button onClick={onClose} className="modal-close" aria-label="ปิด">&times;</button>
                 </div>
                 <div className="letter-split" style={{ display: 'flex', gap: 20, flex: 1, minHeight: 0, paddingTop: 16 }}>
@@ -135,6 +146,13 @@ export default function IssuePlacementLetterModal({ student, onClose, onSuccess 
                     </div>
                     <div className="letter-sidebar" style={{ width: 300, display: 'flex', flexDirection: 'column', gap: 14, flexShrink: 0, overflowY: 'auto' }}>
                         <LetterPendingBanner {...pending} onCancel={pending.cancelPending} />
+                        {members && (
+                            <div style={{ padding: '10px 12px', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8, fontSize: 12, color: '#1e3a8a' }}>
+                                <div style={{ fontWeight: 700, marginBottom: 4 }}>👥 หนังสือส่งตัวรวม {members.length} คน · {student.coop?.company?.name || ""}</div>
+                                {members.map((m: any) => <div key={m.id}>• {m.studentId} {m.firstName} {m.lastName}</div>)}
+                                <div style={{ marginTop: 4, color: '#475569' }}>เลขที่และไฟล์ลงนามเดียวกันทุกคน · วันฝึกของแต่ละคนอยู่ท้ายชื่อในหนังสือ</div>
+                            </div>
+                        )}
                         <div>
                             <div style={sec}>1. ข้อมูลหนังสือ</div>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
@@ -157,8 +175,8 @@ export default function IssuePlacementLetterModal({ student, onClose, onSuccess 
                             </div>
                             {(pdfDraft || docDraft) && (
                                 <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                                    {pdfDraft && <FileReady label="PDF" onDownload={() => downloadDraft(pdfDraft, `Placement_${student.studentId}.pdf`)} />}
-                                    {docDraft && <FileReady label="Word (.doc)" onDownload={() => downloadDraft(docDraft, `Placement_${student.studentId}.doc`)} />}
+                                    {pdfDraft && <FileReady label="PDF" onDownload={() => downloadDraft(pdfDraft, `Placement_${members ? `รวม${members.length}คน_${student.studentId}` : student.studentId}.pdf`)} />}
+                                    {docDraft && <FileReady label="Word (.doc)" onDownload={() => downloadDraft(docDraft, `Placement_${members ? `รวม${members.length}คน_${student.studentId}` : student.studentId}.doc`)} />}
                                 </div>
                             )}
                             <p style={{ fontSize: 11, color: '#94a3b8', margin: '6px 0 0' }}>ตัวอย่างแสดงด้านซ้าย · กดโหลดร่างไปเสนอลงนาม → ขึ้นสถานะ "รอลงนาม"</p>

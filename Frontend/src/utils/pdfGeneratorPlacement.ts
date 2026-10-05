@@ -3,6 +3,7 @@ import { jsPDF } from "jspdf";
 import { letterMajorName } from "./docGeneratorUtils";
 import { notify } from "./notify";
 import { letterRecipient, recipientText } from "./letterRecipient";
+import { isGroup, sameDates, studentLines, type LetterStudent } from "./letterGroup";
 
 // Helper: โหลด Font
 const getFontBase64 = async (url: string): Promise<string> => {
@@ -51,7 +52,10 @@ export const createPlacementPDF = async (
   krutUrl: string,
   deanName: string = "รองศาสตราจารย์สิรภัทร เชี่ยวชาญวัฒนา", // รับค่าชื่อ (มีค่า Default กันเหนียว)
   deanPosition: string = "คณบดีวิทยาลัยการคอมพิวเตอร์", // รับค่าตำแหน่ง
+  students?: LetterStudent[], // หนังสือรวมหลายคน — วันฝึกต่างกันได้ (ใส่ท้ายชื่อแต่ละคน)
 ): Promise<jsPDF> => {
+  const group = isGroup(students) ? students : null;
+  const groupSameDates = group ? sameDates(group) : true;
   const doc = new jsPDF({ unit: "mm", format: "a4" });
 
   // 1. Load Fonts
@@ -135,9 +139,34 @@ export const createPlacementPDF = async (
   let currentY = 102;
   const lineHeight = 7;
 
-  const mainLines = doc.splitTextToSize(mainPara, 165);
-  doc.text(mainLines, 20, currentY);
-  currentY += mainLines.length * lineHeight + 5;
+  if (group) {
+    // หนังสือรวม: ย่อหน้าแนะนำ → รายชื่อ → ย่อหน้าส่งตัว
+    const intro = `       ตามแบบตอบรับนักศึกษาปฏิบัติงานสหกิจศึกษา ที่ทางบริษัท ${companyName} ยินดีรับนักศึกษาหลักสูตร${majorName} วิทยาลัยการคอมพิวเตอร์ เข้ารับการปฏิบัติงานสหกิจศึกษา จำนวน ${group.length} คน ดังรายชื่อต่อไปนี้`;
+    const introLines = doc.splitTextToSize(intro, 165);
+    doc.text(introLines, 20, currentY);
+    currentY += introLines.length * lineHeight + 2;
+    for (const line of studentLines(group, { withDates: !groupSameDates })) {
+      const wrapped = doc.splitTextToSize(line, 150);
+      if (currentY + wrapped.length * lineHeight > 255) { doc.addPage(); currentY = 25; }
+      doc.text(wrapped, 35, currentY);
+      currentY += wrapped.length * lineHeight;
+    }
+    currentY += 2;
+    const period = groupSameDates
+      ? `ในระหว่างวันที่ ${formatDate(group[0].startDate as any)} ถึงวันที่ ${formatDate(group[0].endDate as any)}`
+      : "ตามช่วงเวลาที่ระบุท้ายรายชื่อข้างต้น";
+    const rest = `       ในการนี้ มหาวิทยาลัยขอนแก่น วิทยาลัยการคอมพิวเตอร์ ใคร่ขอส่งตัวนักศึกษาปฏิบัติงานสหกิจศึกษาดังกล่าว เข้ารับการปฏิบัติงาน${period} และขอความอนุเคราะห์จากท่านตรวจสอบรายงานผลการปฏิบัติงานของนักศึกษาสหกิจศึกษา และส่งกลับมายัง วิทยาลัยการคอมพิวเตอร์ มหาวิทยาลัยขอนแก่น ภายหลังครบกำหนดระยะเวลาการปฏิบัติงานของนักศึกษา ภายใน 10 วัน เพื่อวิทยาลัยการคอมพิวเตอร์จักได้ดำเนินการประเมินผลการปฏิบัติงานสหกิจศึกษานักศึกษาดังกล่าวต่อไป ทั้งนี้ ใคร่ขอขอบพระคุณหน่วยงานของท่าน ที่ได้อนุเคราะห์ให้นักศึกษาเข้ารับการปฏิบัติงานสหกิจศึกษาในครั้งนี้ หวังเป็นอย่างยิ่งว่าจะได้รับความอนุเคราะห์จากท่านอีกในโอกาสต่อไป`;
+    const restLines = doc.splitTextToSize(rest, 165);
+    if (currentY + restLines.length * lineHeight > 255) { doc.addPage(); currentY = 25; }
+    doc.text(restLines, 20, currentY);
+    currentY += restLines.length * lineHeight + 5;
+  } else {
+    const mainLines = doc.splitTextToSize(mainPara, 165);
+    doc.text(mainLines, 20, currentY);
+    currentY += mainLines.length * lineHeight + 5;
+  }
+  // หนังสือรวม: "จึงเรียนมา…" + ลายเซ็น (ราว 60 มม.) ต้องอยู่หน้าเดียวกัน · หนังสือเดี่ยวคงรูปแบบเดิม
+  if (group && currentY > 220) { doc.addPage(); currentY = 30; }
 
   doc.text(`       จึงเรียนมาเพื่อโปรดทราบ`, 20, currentY);
   currentY += lineHeight + 15;
