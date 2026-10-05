@@ -25,8 +25,10 @@ const SUPERVISION_PROPOSE_STATUSES = [
 
 // เลขที่หนังสือขอนิเทศห้ามซ้ำกับฉบับที่ออกให้คนอื่นแล้ว หรือร่างที่รอลงนามของคนอื่น
 // appointmentIds = นัดในหนังสือฉบับนี้ (หนังสือรวมของกลุ่มนิเทศใช้เลขเดียวกันได้) — เลิก unique ระดับ DB แล้ว
+const { lockDocNumber, DOC_NUMBER_TX } = require('../utils/docNumberLock');
 async function assertSupervisionDocNumberFree(tx, value, appointmentIds) {
     if (!value) return;
+    await lockDocNumber(tx, 'supervisionLetter', value);
     const clash = await tx.supervisionAppointment.findFirst({
         where: { OR: [{ letterDocNumber: value }, { letterDraftNumber: value }], id: { notIn: [].concat(appointmentIds) } },
         select: { letterDocNumber: true, letterDraftNumber: true, student: { select: { studentId: true, firstName: true, lastName: true } } },
@@ -179,7 +181,7 @@ exports.uploadOfficialLetter = async (req, res) => {
                     const updated = await tx.supervisionAppointment.update({ where: { id: aid }, data });
                     if (aid === parsedId) appointment = updated;
                 }
-            });
+            }, DOC_NUMBER_TX);
         } catch (txErr) {
             if (req.file) {
                 const fp = path.join(__dirname, '../uploads/supervision', req.file.filename);
@@ -254,7 +256,7 @@ exports.markSupervisionLetterPending = async (req, res) => {
             }
             if (!cancel) await assertSupervisionDocNumberFree(tx, data.letterDraftNumber, ids);
             for (const aid of ids) await tx.supervisionAppointment.update({ where: { id: aid }, data });
-        });
+        }, DOC_NUMBER_TX);
 
         setAuditDetail(res, {
             action: letterPendingActionText({ letter: 'SUPERVISION', cancel, docNumber: data.letterDraftNumber }),
@@ -1170,8 +1172,11 @@ exports.confirmGroupSupervision = async (req, res) => {
       return res.status(400).json({ ok: false, message: 'บางรายการไม่อยู่ในสถานะที่สามารถยืนยันได้' });
     }
 
-    // Fix 3: UTC date fix — slice directly to avoid timezone shift
-    const confirmKey = confirmedDate.slice(0, 10);
+    // วันตามเวลาท้องถิ่น (dateKey) เหมือนอนุมัติรายคน — frontend ส่ง toISOString() (UTC) มา
+    // เดิม slice(0,10) = วันของ UTC → นัดก่อน 07:00 เวลาไทยกลายเป็นวันก่อนหน้า (ไม่ตรงวันที่เสนอ/วันว่างอาจารย์ร่วม)
+    const confirmAt = new Date(confirmedDate);
+    if (isNaN(confirmAt.getTime())) return res.status(400).json({ ok: false, message: 'วันที่นิเทศไม่ถูกต้อง' });
+    const confirmKey = dateKey(confirmAt);
 
     // ตรวจว่า confirmedDate อยู่ใน proposedDates ของแต่ละคน
     for (const appt of appts) {

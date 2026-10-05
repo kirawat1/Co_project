@@ -833,6 +833,36 @@ describe('confirmGroupSupervision', () => {
     // ใช้ individual update (ผ่าน $transaction) แทน updateMany
     expect(prisma.supervisionAppointment.update).toHaveBeenCalledTimes(2);
   });
+
+  test('นัดก่อน 07:00 เวลาไทย (UTC ยังเป็นวันก่อนหน้า) → ตรงกับวันที่เสนอตามเวลาท้องถิ่น เหมือนอนุมัติรายคน', async () => {
+    const tz = process.env.TZ;
+    process.env.TZ = 'Asia/Bangkok';
+    try {
+      prisma.teacher.findUnique.mockResolvedValue({ id: 1 });
+      prisma.supervisionAppointment.findMany.mockResolvedValue([
+        { id: 1, teacherId: 1, status: 'PENDING_TEACHER', proposedDates: JSON.stringify(['2026-04-10|06:30|ONSITE']) },
+      ]);
+      prisma.supervisionAppointment.update.mockResolvedValue({ id: 1 });
+      const res = makeRes();
+      // 06:30 วันที่ 10 เวลาไทย = 23:30Z วันที่ 9 (frontend ส่ง toISOString())
+      await confirmGroupSupervision(makeReq({ appointmentIds: [1], confirmedDate: '2026-04-09T23:30:00.000Z' }), res);
+      expect(res.status).not.toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: true, updatedCount: 1 }));
+    } finally {
+      process.env.TZ = tz;
+      if (tz === undefined) delete process.env.TZ;
+    }
+  });
+
+  test('400 — confirmedDate ไม่ใช่วันที่', async () => {
+    prisma.teacher.findUnique.mockResolvedValue({ id: 1 });
+    prisma.supervisionAppointment.findMany.mockResolvedValue([
+      { id: 1, teacherId: 1, status: 'PENDING_TEACHER', proposedDates: JSON.stringify(['2026-04-10|10:00|ONSITE']) },
+    ]);
+    const res = makeRes();
+    await confirmGroupSupervision(makeReq({ appointmentIds: [1], confirmedDate: 'not-a-date' }), res);
+    expect(res.status).toHaveBeenCalledWith(400);
+  });
 });
 
 // ===========================

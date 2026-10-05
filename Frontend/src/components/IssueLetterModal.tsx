@@ -1,4 +1,5 @@
-﻿import React, { useState } from "react";
+﻿import LetterBatchNotice from "./LetterBatchNotice";
+import React, { useState } from "react";
 import { apiFetch } from "../utils/apiFetch";
 import { createDispatchPDF } from "../utils/pdfDispatchGenerator";
 import { createWordBlob, createPreviewBlob, buildDispatchLetterHtml, thaiPrefix, normalizeDocNumber } from "../utils/docGeneratorUtils";
@@ -12,11 +13,14 @@ interface Props {
     student: any;
     // หนังสือรวมหลายคน (บริษัทเดียวกัน) — student = คนแรกของกลุ่ม (ใช้บริษัท/ผู้รับ) · ไม่ส่ง = หนังสือเดี่ยว
     group?: any[];
+    // หนังสือเดี่ยวของคนที่อยู่ในหนังสือรวม — เพื่อนในฉบับเดิม + เปิดหนังสือรวมทั้งฉบับ
+    batchMates?: any[];
+    onOpenBatch?: () => void;
     onClose: () => void;
     onSuccess: () => void;
 }
 
-export default function IssueLetterModal({ student, group, onClose, onSuccess }: Props) {
+export default function IssueLetterModal({ student, group, batchMates, onOpenBatch, onClose, onSuccess }: Props) {
     const members = group && group.length > 1 ? group : null;
     const pending = useLetterPending({ record: student.coop, prefix: "reqLetter", endpoint: "/api/admin/t000/letter-pending", body: members ? { studentIds: members.map(m => m.id), letter: "REQUEST" } : { studentId: student.id, letter: "REQUEST" } });
     // เก็บเฉพาะตัวเลข — คำนำหน้า "ที่ อว" ถูกเติมในเทมเพลตหนังสือแล้ว · มีร่างที่รอลงนามอยู่ → เติมเลขที่/วันที่ของร่างนั้น
@@ -197,6 +201,7 @@ export default function IssueLetterModal({ student, group, onClose, onSuccess }:
                     {/* RIGHT: Controls */}
                     <div className="letter-sidebar" style={{ width: 300, display: 'flex', flexDirection: 'column', gap: 14, flexShrink: 0, overflowY: 'auto' }}>
                         <LetterPendingBanner {...pending} onCancel={pending.cancelPending} />
+                        {!members && batchMates && <LetterBatchNotice mates={batchMates} docNumber={student.coop?.reqDocNumber} onOpenBatch={onOpenBatch} />}
                         {members && (
                             <div style={{ padding: '10px 12px', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8, fontSize: 12, color: '#1e3a8a' }}>
                                 <div style={{ fontWeight: 700, marginBottom: 4 }}>👥 หนังสือขอความอนุเคราะห์รวม {members.length} คน · {student.coop?.company?.name || ""}</div>
