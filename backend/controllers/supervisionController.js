@@ -12,10 +12,12 @@ const { studentMajor } = require('../utils/majorConfig');
 const { getMajorScope, studentWhere, assertStudentInScope, inScope } = require('../utils/majorScope');
 const { resolveMajorNameTh } = require('../utils/majorName');
 const { listPeriods, getRow, viewPeriod, viewerMajors, targetMajors } = require('../utils/coopPeriodMajor');
+const { proposedDays, parseAvailable, unavailableOn, unavailableMessage, teacherName, CO_TEACHER_SELECT } = require('../utils/coTeacherAvailability');
 
 const CLEARED_LETTER_PENDING = { letterPendingAt: null, letterDraftNumber: null, letterDraftDate: null };
 
 // สถานะสหกิจที่ขอนัดนิเทศได้ (ออกฝึกแล้ว) — ต้องตรงกับ isInternshipPhase ใน Frontend/src/components/S_Supervision.tsx
+const MAX_PROPOSED_DATES = 30; // วันที่นักศึกษาเสนอได้ต่อครั้ง
 const SUPERVISION_PROPOSE_STATUSES = [
     'INTERNSHIP_STARTED', 'T002_SUBMITTED', 'T002_EDITS_REQUIRED',
     'T003_SUBMITTED', 'T003_EDITS_REQUIRED', 'T003_APPROVED',
@@ -101,7 +103,7 @@ exports.getAllSupervisions = async (req, res) => {
                         include: { coop: { include: { company: true, contacts: { orderBy: { createdAt: 'asc' } } } } }
                     },
                     teacher: true,
-                    coTeachers: { select: { teacherId: true } },
+                    coTeachers: { select: CO_TEACHER_SELECT },
                 },
                 orderBy: { updatedAt: 'desc' }
             }),
@@ -111,6 +113,8 @@ exports.getAllSupervisions = async (req, res) => {
         const withMajorName = supervisions.map(s => ({
             ...s,
             student: s.student ? { ...s.student, majorNameTh: resolveMajorNameTh(s.student.major, criteria) } : s.student,
+            // อาจารย์ร่วม + วันว่างที่ตอบแล้ว (null = ยังไม่ตอบ)
+            coTeachers: (s.coTeachers || []).map(c => ({ teacherId: c.teacherId, name: teacherName(c.teacher), availableDates: parseAvailable(c.availableDates), respondedAt: c.respondedAt })),
         }));
         res.json({ ok: true, supervisions: withMajorName });
     } catch (err) {
@@ -316,6 +320,10 @@ exports.proposeSupervisionDate = async (req, res) => {
 
         // ห้ามเสนอวันที่ผ่านมาแล้ว (เดิมไม่เช็คเลย ทั้งหน้าจอและ API)
         const todayKey = dateKey(new Date());
+        // เสนอได้หลายวัน (เดิมหน้าเว็บจำกัด 3) — เพดานกันข้อมูลบวม ตรงกับหน้าเว็บ
+        if (parseProposedList(proposedDates).length > MAX_PROPOSED_DATES) {
+            return res.status(400).json({ ok: false, message: `เสนอวันได้สูงสุด ${MAX_PROPOSED_DATES} ตัวเลือก` });
+        }
         const pastEntry = parseProposedList(proposedDates).find((e) => e.date < todayKey);
         if (pastEntry) {
             return res.status(400).json({ ok: false, message: `วันที่เสนอ ${pastEntry.date} ผ่านมาแล้ว กรุณาเลือกตั้งแต่วันนี้เป็นต้นไป` });
@@ -342,6 +350,7 @@ exports.proposeSupervisionDate = async (req, res) => {
         }
 
         const LOCKED_STATUSES = ['DATE_CONFIRMED', 'LETTER_UPLOADED', 'COMPLETED'];
+        let coUserIdsAtPropose = [];
 
         const appointment = await prisma.$transaction(async (tx) => {
             const existing = await tx.supervisionAppointment.findUnique({
@@ -363,7 +372,7 @@ exports.proposeSupervisionDate = async (req, res) => {
                 err.status = 400;
                 throw err;
             }
-            return tx.supervisionAppointment.upsert({
+            const saved = await tx.supervisionAppointment.upsert({
                 where: { studentId: student.id },
                 update: {
                     teacherId: teacher.id,
@@ -382,6 +391,14 @@ exports.proposeSupervisionDate = async (req, res) => {
                     status: 'PENDING_TEACHER'
                 }
             });
+            // วันที่เสนอใหม่ → วันว่างที่อาจารย์ร่วมเคยตอบใช้ไม่ได้แล้ว ต้องตอบใหม่
+            if (existing) {
+                await tx.supervisionCoTeacher.updateMany({ where: { appointmentId: saved.id }, data: { availableDates: null, respondedAt: null } });
+            }
+            // อาจารย์ร่วม ณ ตอนเสนอวัน — อ่านใน transaction (ถ้าอ่านทีหลังตอนส่งแจ้งเตือน อาจได้คนที่เพิ่งถูกเพิ่มหลังเสนอ ซึ่งได้แจ้งเตือนของการมอบหมายไปแล้ว)
+            coUserIdsAtPropose = (await tx.supervisionCoTeacher.findMany({ where: { appointmentId: saved.id }, select: { teacher: { select: { userId: true } } } }))
+                .map(c => c.teacher?.userId).filter(Boolean);
+            return saved;
         }).catch(err => {
             if (err.status === 403) {
                 res.status(403).json({ ok: false, message: 'ไม่สามารถแก้ไขได้ เนื่องจากอาจารย์ยืนยันวันนิเทศแล้ว' });
@@ -420,6 +437,17 @@ exports.proposeSupervisionDate = async (req, res) => {
               relatedId: String(appointment.id),
             });
           }
+          // อาจารย์ร่วม: ระบุวันที่ว่างจากวันที่นักศึกษาเสนอ
+          const coUserIds = coUserIdsAtPropose;
+          if (coUserIds.length) {
+            await createNotifications(coUserIds, {
+              type: 'SUPERVISION_CO_AVAILABILITY',
+              title: 'ระบุวันที่ว่างสำหรับนิเทศ',
+              message: 'นักศึกษาที่คุณเป็นอาจารย์นิเทศร่วมเสนอวันนิเทศ กรุณาติ๊กวันที่คุณว่าง',
+              link: '/teacher/review-supervision',
+              relatedId: String(appointment.id),
+            });
+          }
         }).catch(console.error);
     } catch (err) {
         console.error("Propose Supervision Error:", err);
@@ -434,6 +462,28 @@ exports.proposeSupervisionDate = async (req, res) => {
 // ==========================================
 // อัปเดตอาจารย์นิเทศร่วม (Co-Teachers)
 // ==========================================
+// แจ้งอาจารย์ร่วมที่ถูกเพิ่มใหม่: ยังไม่ยืนยันวัน → ขอให้ระบุวันว่าง · ยืนยันแล้ว → แจ้งวันที่ตกลงแล้ว
+async function notifyNewCoTeachers(appointmentId, prevIds) {
+    const appt = await prisma.supervisionAppointment.findUnique({
+        where: { id: appointmentId },
+        select: { status: true, confirmedDate: true, coTeachers: { select: { teacherId: true, teacher: { select: { userId: true } } } }, student: { select: { firstName: true, lastName: true, studentId: true } } },
+    });
+    if (!appt) return;
+    const added = appt.coTeachers.filter(c => !prevIds.includes(c.teacherId)).map(c => c.teacher?.userId).filter(Boolean);
+    if (!added.length) return;
+    const who = [appt.student?.firstName, appt.student?.lastName].filter(Boolean).join(' ') || appt.student?.studentId || '';
+    const pending = ['PENDING_TEACHER', 'TEACHER_REJECTED'].includes(appt.status);
+    await createNotifications(added, {
+        type: pending ? 'SUPERVISION_CO_AVAILABILITY' : 'SUPERVISION_CO_ASSIGNED',
+        title: 'คุณเป็นอาจารย์นิเทศร่วม',
+        message: pending
+            ? `คุณได้รับมอบหมายเป็นอาจารย์นิเทศร่วมของ ${who} กรุณาติ๊กวันที่คุณว่าง`
+            : `คุณได้รับมอบหมายเป็นอาจารย์นิเทศร่วมของ ${who} — วันนิเทศที่ตกลงแล้ว: ${appt.confirmedDate ? new Date(appt.confirmedDate).toLocaleString('th-TH', { timeZone: 'Asia/Bangkok', dateStyle: 'medium', timeStyle: 'short' }) : '-'}`,
+        link: '/teacher/review-supervision',
+        relatedId: String(appointmentId),
+    });
+}
+
 exports.assignCoTeachers = async (req, res) => {
     try {
         const { id } = req.params;
@@ -456,6 +506,7 @@ exports.assignCoTeachers = async (req, res) => {
             return res.status(404).json({ ok: false, message: 'ไม่พบข้อมูลการนัดหมาย' });
         }
         await assertStudentInScope(req, appt.studentId);
+        const prevCoIds = (await prisma.supervisionCoTeacher.findMany({ where: { appointmentId: parsedId }, select: { teacherId: true } })).map(c => c.teacherId);
 
         const coIds = ids.filter(n => n !== appt.teacherId); // อาจารย์หลักไม่นับเป็นอาจารย์ร่วม
         const teachers = await prisma.teacher.findMany({
@@ -494,6 +545,8 @@ exports.assignCoTeachers = async (req, res) => {
         ]);
 
         res.json({ ok: true, message: "อัปเดตอาจารย์นิเทศร่วมสำเร็จ" });
+
+        notifyNewCoTeachers(parsedId, prevCoIds).catch(console.error);
     } catch (error) {
         if (error.is403) return res.status(403).json({ ok: false, message: error.message });
         if (error.code === 'P2025') return res.status(404).json({ ok: false, message: 'ไม่พบข้อมูลการนัดหมาย' });
@@ -536,7 +589,8 @@ exports.getSupervisionsForTeacher = async (req, res) => {
                         coop: { include: { company: true, contacts: { orderBy: { createdAt: 'asc' } } } }
                     }
                 },
-                teacher: true // ข้อมูลของอาจารย์หลัก
+                teacher: true, // ข้อมูลของอาจารย์หลัก
+                coTeachers: { select: CO_TEACHER_SELECT },
             },
             orderBy: { id: 'desc' }
         });
@@ -546,7 +600,10 @@ exports.getSupervisionsForTeacher = async (req, res) => {
             return {
                 ...sup,
                 // ถ้า teacherId ในคิวนิเทศ ตรงกับ id ของอาจารย์ที่ล็อกอิน แปลว่าเป็น "อาจารย์หลัก" (ได้สิทธิ์กดยืนยันเวลา)
-                isPrimaryAdvisor: sup.teacherId === teacher.id 
+                isPrimaryAdvisor: sup.teacherId === teacher.id,
+                // วันว่างของอาจารย์ร่วม (อาจารย์หลักใช้ดูก่อนเลือกวัน) · myAvailableDates = ของฉันเอง (ถ้าเป็นอาจารย์ร่วม)
+                coTeachers: sup.coTeachers.map(c => ({ teacherId: c.teacherId, name: teacherName(c.teacher), availableDates: parseAvailable(c.availableDates), respondedAt: c.respondedAt })),
+                myAvailableDates: parseAvailable(sup.coTeachers.find(c => c.teacherId === teacher.id)?.availableDates),
             };
         });
 
@@ -561,6 +618,54 @@ exports.getSupervisionsForTeacher = async (req, res) => {
 // ==========================================
 // 2. พิจารณาวันนิเทศ (อนุมัติ / ตีกลับ)
 // ==========================================
+// ==========================================
+// อาจารย์นิเทศร่วมระบุวันที่ว่าง (จากวันที่นักศึกษาเสนอ) — PUT /api/teacher/supervisions/:id/availability
+// ==========================================
+exports.setCoTeacherAvailability = async (req, res) => {
+    try {
+        const parsedId = parseInt(req.params.id, 10);
+        if (isNaN(parsedId) || parsedId <= 0) return res.status(400).json({ ok: false, message: 'id ไม่ถูกต้อง' });
+        const days = req.body?.availableDates;
+        if (!Array.isArray(days) || days.some(d => typeof d !== 'string')) {
+            return res.status(400).json({ ok: false, message: 'availableDates ต้องเป็นรายการวันที่' });
+        }
+        const teacher = await prisma.teacher.findUnique({ where: { userId: req.user.id }, select: { id: true, prefix: true, firstName: true, lastName: true } });
+        if (!teacher) return res.status(404).json({ ok: false, message: 'ไม่พบข้อมูลอาจารย์' });
+        const appt = await prisma.supervisionAppointment.findUnique({
+            where: { id: parsedId },
+            select: { id: true, status: true, proposedDates: true, teacher: { select: { userId: true } }, coTeachers: { where: { teacherId: teacher.id }, select: { teacherId: true } }, student: { select: { firstName: true, lastName: true, studentId: true } } },
+        });
+        if (!appt) return res.status(404).json({ ok: false, message: 'ไม่พบข้อมูลการนัดหมาย' });
+        if (!appt.coTeachers.length) return res.status(403).json({ ok: false, message: 'คุณไม่ได้เป็นอาจารย์นิเทศร่วมของนัดนี้' });
+        if (appt.status !== 'PENDING_TEACHER') return res.status(400).json({ ok: false, message: 'ระบุวันว่างได้เฉพาะตอนรออาจารย์หลักเลือกวัน' });
+        const allowed = proposedDays(appt.proposedDates);
+        const unique = [...new Set(days)];
+        const bad = unique.filter(d => !allowed.includes(d));
+        if (bad.length) return res.status(400).json({ ok: false, message: `วันที่ไม่อยู่ในวันที่นักศึกษาเสนอ: ${bad.join(', ')}` });
+
+        await prisma.supervisionCoTeacher.update({
+            where: { appointmentId_teacherId: { appointmentId: parsedId, teacherId: teacher.id } },
+            data: { availableDates: JSON.stringify(unique), respondedAt: new Date() },
+        });
+        res.json({ ok: true, availableDates: unique });
+
+        // แจ้งอาจารย์หลักว่าอาจารย์ร่วมตอบแล้ว
+        if (appt.teacher?.userId) {
+            const who = [appt.student?.firstName, appt.student?.lastName].filter(Boolean).join(' ') || appt.student?.studentId;
+            createNotifications([appt.teacher.userId], {
+                type: 'SUPERVISION_CO_RESPONDED',
+                title: 'อาจารย์นิเทศร่วมระบุวันว่างแล้ว',
+                message: `${teacherName(teacher)} ระบุวันว่างสำหรับนิเทศ ${who} แล้ว (${unique.length ? `ว่าง ${unique.length} วัน` : 'ไม่ว่างทุกวันที่เสนอ'})`,
+                link: '/teacher/review-supervision',
+                relatedId: String(parsedId),
+            }).catch(console.error);
+        }
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ ok: false, message: 'บันทึกวันว่างไม่สำเร็จ' });
+    }
+};
+
 exports.reviewSupervision = async (req, res) => {
     try {
         const { id } = req.params;
@@ -606,6 +711,15 @@ exports.reviewSupervision = async (req, res) => {
             }
 
             const chosenDate = new Date(confirmedDate);
+            if (isNaN(chosenDate.getTime())) return res.status(400).json({ ok: false, message: 'วันที่นิเทศไม่ถูกต้อง' });
+
+            // อาจารย์ร่วมไม่ว่าง/ยังไม่ระบุวันว่าง → เตือนก่อน (อาจารย์หลักยืนยันซ้ำได้ด้วย acknowledgeUnavailable)
+            const coList = await prisma.supervisionCoTeacher.findMany({ where: { appointmentId: parsedId }, select: CO_TEACHER_SELECT });
+            const unavailable = unavailableOn(coList, dateKey(chosenDate));
+            if (unavailable.length && req.body.acknowledgeUnavailable !== true) {
+                return res.status(409).json({ ok: false, code: 'CO_TEACHER_UNAVAILABLE', unavailable, message: unavailableMessage(unavailable) });
+            }
+
             // คิวนิเทศเป็นช่วงเวลา — เวลาสิ้นสุดเอาจากช่วงที่นักศึกษาเสนอ (เช่น 10:00-12:00)
             const slotEnd = resolveSlotEnd(chosenDate, { proposedDates: supervision.proposedDates });
 
@@ -697,6 +811,21 @@ exports.reviewSupervision = async (req, res) => {
         }
 
         res.json({ ok: true, message: "บันทึกผลพิจารณาสำเร็จ" });
+
+        if (action === 'APPROVE') {
+            prisma.supervisionCoTeacher.findMany({ where: { appointmentId: parsedId }, select: { teacher: { select: { userId: true } } } })
+              .then(co => {
+                const ids = co.map(c => c.teacher?.userId).filter(Boolean);
+                if (!ids.length) return;
+                return createNotifications(ids, {
+                  type: 'SUPERVISION_DATE_CONFIRMED_CO',
+                  title: 'ยืนยันวันนิเทศแล้ว',
+                  message: `อาจารย์ผู้นิเทศหลักยืนยันวันนิเทศแล้ว: ${new Date(confirmedDate).toLocaleString('th-TH', { timeZone: 'Asia/Bangkok', dateStyle: 'medium', timeStyle: 'short' })}`,
+                  link: '/teacher/review-supervision',
+                  relatedId: String(parsedId),
+                });
+              }).catch(console.error);
+        }
 
         // Notify student
         const approved = action === 'APPROVE';
@@ -1030,6 +1159,14 @@ exports.confirmGroupSupervision = async (req, res) => {
           message: `วันที่เลือกไม่อยู่ในวันที่นักศึกษา appointment ${appt.id} เสนอมา`,
         });
       }
+    }
+
+    // อาจารย์ร่วมของนัดในกลุ่มไม่ว่าง/ยังไม่ตอบ → เตือนก่อน (เหมือนยืนยันทีละนัด)
+    const coRows = await prisma.supervisionCoTeacher.findMany({ where: { appointmentId: { in: ids } }, select: CO_TEACHER_SELECT });
+    const seen = new Set();
+    const groupUnavailable = unavailableOn(coRows, confirmKey).filter(u => (seen.has(u.teacherId) ? false : seen.add(u.teacherId)));
+    if (groupUnavailable.length && req.body.acknowledgeUnavailable !== true) {
+      return res.status(409).json({ ok: false, code: 'CO_TEACHER_UNAVAILABLE', unavailable: groupUnavailable, message: unavailableMessage(groupUnavailable) });
     }
 
     const groupId = appts.length > 1 ? require('crypto').randomUUID() : null;

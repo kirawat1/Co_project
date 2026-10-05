@@ -65,7 +65,8 @@ interface Supervision {
     supervisionType: "ONLINE" | "ONSITE";
     confirmedDate: string | null;
     coTeacherName?: string | null;
-    coTeachers?: { teacherId: number }[];
+    // อาจารย์ร่วม + วันว่างที่ตอบแล้ว (null = ยังไม่ตอบ)
+    coTeachers?: { teacherId: number; name?: string; availableDates?: string[] | null; respondedAt?: string | null }[];
     status: SupervisionStatus;
     officialLetterPath: string | null;
     // ป้าย "รอลงนาม" — ตั้งตอนดาวน์โหลดร่างหนังสือขอนิเทศ ล้างตอนอัปโหลดฉบับลงนาม
@@ -561,6 +562,17 @@ export default function A_SupervisionManage() {
                                         {sup.coTeacherName && (
                                             <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>
                                                 อาจารย์นิเทศร่วม: {sup.coTeacherName}
+                                            </div>
+                                        )}
+                                        {/* รออาจารย์หลักเลือกวัน — อาจารย์ร่วมตอบวันว่างแล้วหรือยัง */}
+                                        {sup.status === "PENDING_TEACHER" && (sup.coTeachers ?? []).some(c => c.name) && (
+                                            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 6 }}>
+                                                {(sup.coTeachers ?? []).map(c => (
+                                                    <span key={c.teacherId} title={c.availableDates ? `ว่าง ${c.availableDates.length} วัน` : 'ยังไม่ระบุวันว่าง'}
+                                                        style={{ fontSize: 11, fontWeight: 600, padding: '1px 7px', borderRadius: 999, border: '1px solid', ...(c.respondedAt ? { background: '#dcfce7', color: '#166534', borderColor: '#86efac' } : { background: '#fef3c7', color: '#92400e', borderColor: '#fcd34d' }) }}>
+                                                        {c.respondedAt ? `✓ ${c.name} ตอบแล้ว` : `⏳ ${c.name} ยังไม่ระบุวันว่าง`}
+                                                    </span>
+                                                ))}
                                             </div>
                                         )}
                                     </td>
