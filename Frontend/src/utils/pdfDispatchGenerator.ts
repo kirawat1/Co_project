@@ -5,6 +5,7 @@ import { PDFDocument } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
 import { normalizeDocNumber, formMajorName } from "./docGeneratorUtils";
 import { letterRecipient, recipientText } from "./letterRecipient";
+import { isGroup, sameDates, studentLines, type LetterStudent } from "./letterGroup";
 
 // --- Helpers ---
 const getFontBase64 = async (url: string): Promise<string> => {
@@ -67,7 +68,10 @@ export const createDispatchPDF = async (
   studentDocs: { type: string; url: string }[], // 8. ไฟล์เอกสารของนักศึกษา
   deanName: string = "รองศาสตราจารย์สิรภัทร เชี่ยวชาญวัฒนา", // รับค่าชื่อ
   deanPosition: string = "คณบดีวิทยาลัยการคอมพิวเตอร์", // รับค่าตำแหน่ง
+  students?: LetterStudent[], // หนังสือรวมหลายคน (บริษัทเดียวกัน) — ไม่ส่ง/คนเดียว = หนังสือเดี่ยว
 ) => {
+  const group = isGroup(students) ? students : null;
+  const groupSameDates = group ? sameDates(group) : true;
   // ---------------------------------------------------------
   // PART 1: สร้างหน้าปก (Cover Letter) ด้วย jsPDF
   // ---------------------------------------------------------
@@ -141,7 +145,7 @@ export const createDispatchPDF = async (
   doc.text(`จำนวน   1   ชุด`, pageWidth - margin - 35, y);
   y += 7;
   doc.text(`2. ประวัตินักศึกษาและใบแสดงผลการเรียน`, attachmentX + 28, y);
-  doc.text(`จำนวน   1   ชุด`, pageWidth - margin - 35, y);
+  doc.text(`จำนวน   ${group ? group.length : 1}   ชุด`, pageWidth - margin - 35, y);
   y += 7;
   doc.text(
     `3. แบบฟอร์มตอบรับนักศึกษาเข้าปฏิบัติงานในหน่วยงาน`,
@@ -168,21 +172,35 @@ export const createDispatchPDF = async (
 
   // major เป็นรหัสสาขา (CS/AI) — หนังสือส่งตัวต้องใช้ชื่อหลักสูตรภาษาไทยจริงของนักศึกษา ไม่ใช่ค่าคงที่
   const majorName = formMajorName(profile, "วิทยาการคอมพิวเตอร์");
-  const p1 = `       ตามที่ ${companyName} ได้เข้าร่วมโครงการสหกิจศึกษากับ มหาวิทยาลัยขอนแก่น วิทยาลัยการคอมพิวเตอร์ และยินดีรับนักศึกษาหลักสูตร${majorName} เข้าปฏิบัติงานสหกิจศึกษากับบริษัทของท่าน ซึ่งมีกำหนดช่วงเวลาปฏิบัติงาน ระหว่างวันที่ ${startDate} ถึงวันที่ ${endDate} นั้น ในการนี้ ทางวิทยาลัยการคอมพิวเตอร์ จึงใคร่ขอให้ท่านพิจารณานักศึกษาเข้าร่วมโครงการสหกิจศึกษากับทาง ${companyName} จำนวน 1 คน ดังมีรายชื่อต่อไปนี้`;
+  const p1 = `       ตามที่ ${companyName} ได้เข้าร่วมโครงการสหกิจศึกษากับ มหาวิทยาลัยขอนแก่น วิทยาลัยการคอมพิวเตอร์ และยินดีรับนักศึกษาหลักสูตร${majorName} เข้าปฏิบัติงานสหกิจศึกษากับบริษัทของท่าน ${groupSameDates ? `ซึ่งมีกำหนดช่วงเวลาปฏิบัติงาน ระหว่างวันที่ ${group ? toThaiDate(group[0].startDate || undefined) : startDate} ถึงวันที่ ${group ? toThaiDate(group[0].endDate || undefined) : endDate}` : "ซึ่งมีกำหนดช่วงเวลาปฏิบัติงานตามที่ระบุท้ายรายชื่อนักศึกษาแต่ละคน"} นั้น ในการนี้ ทางวิทยาลัยการคอมพิวเตอร์ จึงใคร่ขอให้ท่านพิจารณานักศึกษาเข้าร่วมโครงการสหกิจศึกษากับทาง ${companyName} จำนวน ${group ? group.length : 1} คน ดังมีรายชื่อต่อไปนี้`;
 
   const splitP1 = doc.splitTextToSize(p1, contentWidth);
   doc.text(splitP1, margin, y);
   y += splitP1.length * 7 + 5;
 
-  const nameLine = `1. ${studentName}        รหัสประจำตัว  ${studentId}`;
-  const nameX = pageWidth / 2 - doc.getTextWidth(nameLine) / 2;
-  doc.text(nameLine, nameX, y);
-  y += 10;
+  if (group) {
+    // รายชื่อหลายคน — ยาวเกินหน้าขึ้นหน้าใหม่
+    for (const line of studentLines(group, { withDates: !groupSameDates })) {
+      const wrapped = doc.splitTextToSize(line, contentWidth - 15);
+      if (y + wrapped.length * 7 > 250) { doc.addPage(); y = 25; }
+      doc.text(wrapped, margin + 15, y);
+      y += wrapped.length * 7;
+    }
+    y += 3;
+  } else {
+    const nameLine = `1. ${studentName}        รหัสประจำตัว  ${studentId}`;
+    const nameX = pageWidth / 2 - doc.getTextWidth(nameLine) / 2;
+    doc.text(nameLine, nameX, y);
+    y += 10;
+  }
 
   const p2 = `       จึงเรียนมาเพื่อโปรดพิจารณาให้ความอนุเคราะห์ในการรับนักศึกษาเข้าร่วมโครงการสหกิจศึกษา หากผลการพิจารณาเป็นประการใด กรุณาแจ้งผลกลับมายังวิทยาลัยการคอมพิวเตอร์ มหาวิทยาลัยขอนแก่น 40002 หรือ E-mail: wijika@kku.ac.th ด้วยจักขอบคุณยิ่ง`;
   const splitP2 = doc.splitTextToSize(p2, contentWidth);
+  if (group && y + splitP2.length * 7 > 255) { doc.addPage(); y = 25; }
   doc.text(splitP2, margin, y);
   y += splitP2.length * 7 + 20;
+  // หนังสือรวม: ลายเซ็น (ถึง y+32) ต้องไม่ทับท้ายกระดาษ (y = 275) · หนังสือเดี่ยวคงรูปแบบเดิม
+  if (group && y > 238) { doc.addPage(); y = 30; }
 
   // 8. คำลงท้าย & ลายเซ็น
   const signCenter = pageWidth / 2 + 25;

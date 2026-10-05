@@ -6,15 +6,19 @@ import { FileReady, DeliveryPicker, CompanyAddressBox, RecipientNotice, MODAL_CS
 import DateInput from './DateInput';
 import { notify, askConfirm } from "../utils/notify";
 import { letterRecipient, recipientText } from "../utils/letterRecipient";
+import { toLetterStudent } from "../utils/letterGroup";
 
 interface Props {
     student: any;
+    // หนังสือรวมหลายคน (บริษัทเดียวกัน) — student = คนแรกของกลุ่ม (ใช้บริษัท/ผู้รับ) · ไม่ส่ง = หนังสือเดี่ยว
+    group?: any[];
     onClose: () => void;
     onSuccess: () => void;
 }
 
-export default function IssueLetterModal({ student, onClose, onSuccess }: Props) {
-    const pending = useLetterPending({ record: student.coop, prefix: "reqLetter", endpoint: "/api/admin/t000/letter-pending", body: { studentId: student.id, letter: "REQUEST" } });
+export default function IssueLetterModal({ student, group, onClose, onSuccess }: Props) {
+    const members = group && group.length > 1 ? group : null;
+    const pending = useLetterPending({ record: student.coop, prefix: "reqLetter", endpoint: "/api/admin/t000/letter-pending", body: members ? { studentIds: members.map(m => m.id), letter: "REQUEST" } : { studentId: student.id, letter: "REQUEST" } });
     // เก็บเฉพาะตัวเลข — คำนำหน้า "ที่ อว" ถูกเติมในเทมเพลตหนังสือแล้ว · มีร่างที่รอลงนามอยู่ → เติมเลขที่/วันที่ของร่างนั้น
     const [docNumber, setDocNumber] = useState(pending.draftNumber || "660301.26.6.2/");
     const [docDate, setDocDate] = useState(pending.draftDate || new Date().toISOString().split('T')[0]);
@@ -29,6 +33,9 @@ export default function IssueLetterModal({ student, onClose, onSuccess }: Props)
 
     const startDate = student.coop?.actualStartDate || student.coopApplicationForm?.startDate || "";
     const endDate = student.coop?.actualEndDate || student.coopApplicationForm?.endDate || "";
+    // หนังสือรวม: ทุกคนต้องมีวันฝึก (วันต่างกันได้ — ใส่ท้ายชื่อแต่ละคน)
+    const missingDates = (members || [student]).filter(m => !(m.coop?.actualStartDate || m.coopApplicationForm?.startDate));
+    const missingDatesMsg = missingDates.length ? `ไม่พบวันที่เริ่มฝึกของ ${missingDates.map(m => m.studentId).join(", ")} — นักศึกษาต้องกรอกที่หน้าเอกสารก่อน` : "";
 
     const loadCommonData = async () => {
         const [resAssets, resDean] = await Promise.all([
@@ -51,7 +58,7 @@ export default function IssueLetterModal({ student, onClose, onSuccess }: Props)
     };
 
     const handleCreatePdf = async () => {
-        if (!startDate) return notify.warning("ไม่พบวันที่เริ่มฝึกในระบบ — นักศึกษาต้องกรอกที่หน้าเอกสารก่อน");
+        if (missingDatesMsg) return notify.warning(missingDatesMsg);
         setLoadingPdf(true);
         try {
             const { getAsset, deanName, deanPosition } = await loadCommonData();
@@ -61,7 +68,8 @@ export default function IssueLetterModal({ student, onClose, onSuccess }: Props)
             if (!krutUrl) return notify.error("⚠️ ไม่พบไฟล์ตราครุฑ (KRUT) กรุณาอัปโหลดในหน้าตั้งค่า");
 
             const profile = { ...student, coop: { ...student.coop, actualStartDate: startDate, actualEndDate: endDate } };
-            const allDocs = (student.documents || []).filter((d: any) => d.path);
+            // หนังสือรวม: แนบเอกสารของทุกคนเรียงตามรายชื่อ
+            const allDocs = (members || [student]).flatMap((m: any) => m.documents || []).filter((d: any) => d.path);
             // ตรวจสอบว่าไฟล์ยังอยู่บน server ก่อนส่ง
             const fileChecks = await Promise.all(
                 allDocs.map(async (d: any) => {
@@ -84,7 +92,8 @@ export default function IssueLetterModal({ student, onClose, onSuccess }: Props)
             const blob = await createDispatchPDF(
                 profile, docNumber, docDate, krutUrl, "",
                 projectUrl || "", acceptUrl || "",
-                studentFiles, deanName, deanPosition
+                studentFiles, deanName, deanPosition,
+                members ? members.map(toLetterStudent) : undefined
             );
             setPdfDraft({ blob, docNumber, docDate });
             const url = URL.createObjectURL(blob);
@@ -94,7 +103,7 @@ export default function IssueLetterModal({ student, onClose, onSuccess }: Props)
     };
 
     const handleCreateDoc = async () => {
-        if (!startDate) return notify.warning("ไม่พบวันที่เริ่มฝึกในระบบ — นักศึกษาต้องกรอกที่หน้าเอกสารก่อน");
+        if (missingDatesMsg) return notify.warning(missingDatesMsg);
         setLoadingDoc(true);
         try {
             const { deanName, deanPosition } = await loadCommonData();
@@ -108,6 +117,7 @@ export default function IssueLetterModal({ student, onClose, onSuccess }: Props)
                 companyName: student.coop?.company?.name || "....",
                 companyContact: recipientText(letterRecipient(student.coop)) || undefined,
                 startDate, endDate, deanName, deanPosition,
+                students: members ? members.map(toLetterStudent) : undefined,
             });
             setDocDraft({ blob: createWordBlob(html), docNumber, docDate });
             // preview doc ใน iframe ด้วย HTML blob
@@ -139,6 +149,12 @@ export default function IssueLetterModal({ student, onClose, onSuccess }: Props)
         if (!(await askConfirm("ยืนยันการบันทึกข้อมูล และอัปเดตสถานะให้นักศึกษา?", { confirmLabel: "บันทึก" }))) return;
         try {
             const formData = new FormData();
+            if (members) {
+                formData.append("letter", "REQUEST");
+                formData.append("studentIds", JSON.stringify(members.map(m => m.id)));
+                formData.append("docNumber", docNo);
+                formData.append("docDate", docDate);
+            }
             formData.append("studentId", student.id);
             formData.append("status", "REQ_LETTER_ISSUED");
             formData.append("docType", "DISPATCH_LETTER");
@@ -150,7 +166,7 @@ export default function IssueLetterModal({ student, onClose, onSuccess }: Props)
             formData.append("reqDocNumber", docNo);
             formData.append("reqDocDate", docDate);
             formData.append("file", signedFile);
-            const res = await apiFetch("/api/admin/t000/review", { method: "PUT", body: formData });
+            const res = await apiFetch(members ? "/api/admin/t000/letter-batch" : "/api/admin/t000/review", { method: "PUT", body: formData });
             if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.message || `Server error ${res.status}`); }
             notify.success("✅ บันทึกและจัดเก็บไฟล์เรียบร้อย");
             onSuccess();
@@ -161,7 +177,7 @@ export default function IssueLetterModal({ student, onClose, onSuccess }: Props)
         <div className="letter-modal-backdrop" style={{ zIndex: 10000 }}>
             <div className="letter-modal-card" style={{ width: '95%', maxWidth: 1200, height: '90vh' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: 12, borderBottom: '1px solid #eee', flexShrink: 0 }}>
-                    <h3 style={{ margin: 0 }}>📄 ออกหนังสือขอความอนุเคราะห์</h3>
+                    <h3 style={{ margin: 0 }}>📄 ออกหนังสือขอความอนุเคราะห์{members ? ` (รวม ${members.length} คน)` : ""}</h3>
                     <button onClick={onClose} className="modal-close" aria-label="ปิด">&times;</button>
                 </div>
 
@@ -181,9 +197,16 @@ export default function IssueLetterModal({ student, onClose, onSuccess }: Props)
                     {/* RIGHT: Controls */}
                     <div className="letter-sidebar" style={{ width: 300, display: 'flex', flexDirection: 'column', gap: 14, flexShrink: 0, overflowY: 'auto' }}>
                         <LetterPendingBanner {...pending} onCancel={pending.cancelPending} />
-                        {!startDate && (
+                        {members && (
+                            <div style={{ padding: '10px 12px', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8, fontSize: 12, color: '#1e3a8a' }}>
+                                <div style={{ fontWeight: 700, marginBottom: 4 }}>👥 หนังสือขอความอนุเคราะห์รวม {members.length} คน · {student.coop?.company?.name || ""}</div>
+                                {members.map((m: any) => <div key={m.id}>• {m.studentId} {m.firstName} {m.lastName}</div>)}
+                                <div style={{ marginTop: 4, color: '#475569' }}>เลขที่และไฟล์ลงนามเดียวกันทุกคน</div>
+                            </div>
+                        )}
+                        {missingDatesMsg && (
                             <div style={{ padding: '10px 14px', background: '#fee2e2', borderRadius: 8, border: '1px solid #fca5a5', fontSize: 13, color: '#991b1b', fontWeight: 600 }}>
-                                ⚠️ ไม่พบวันที่ฝึกงานในระบบ — นักศึกษาต้องกรอกที่หน้าเอกสารก่อนออกหนังสือได้
+                                ⚠️ {missingDatesMsg}
                             </div>
                         )}
 
@@ -214,8 +237,8 @@ export default function IssueLetterModal({ student, onClose, onSuccess }: Props)
                             </div>
                             {(pdfDraft || docDraft) && (
                                 <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                                    {pdfDraft && <FileReady label="PDF" onDownload={() => downloadDraft(pdfDraft, `Dispatch_${student.studentId}.pdf`)} />}
-                                    {docDraft && <FileReady label="Word (.doc)" onDownload={() => downloadDraft(docDraft, `Dispatch_${student.studentId}.doc`)} />}
+                                    {pdfDraft && <FileReady label="PDF" onDownload={() => downloadDraft(pdfDraft, `Dispatch_${members ? `รวม${members.length}คน_${student.studentId}` : student.studentId}.pdf`)} />}
+                                    {docDraft && <FileReady label="Word (.doc)" onDownload={() => downloadDraft(docDraft, `Dispatch_${members ? `รวม${members.length}คน_${student.studentId}` : student.studentId}.doc`)} />}
                                 </div>
                             )}
                             <p style={{ fontSize: 11, color: '#94a3b8', margin: '6px 0 0' }}>ตัวอย่างแสดงด้านซ้าย · กดโหลดร่างไปเสนอลงนาม → ขึ้นสถานะ "รอลงนาม"</p>

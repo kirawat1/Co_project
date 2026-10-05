@@ -6,11 +6,19 @@ import { FileReady, DeliveryPicker, CompanyAddressBox, RecipientNotice, MODAL_CS
 import DateInput from './DateInput';
 import { notify, askConfirm } from "../utils/notify";
 import { letterRecipient, recipientText } from "../utils/letterRecipient";
+import { toLetterStudent } from "../utils/letterGroup";
 
-interface Props { supervision: any; onClose: () => void; onSuccess: () => void; }
+// group = หนังสือรวมของกลุ่มนิเทศ (นัดที่ยืนยันพร้อมกัน groupId เดียวกัน) · ไม่ส่ง = หนังสือเดี่ยว
+interface Props { supervision: any; group?: any[]; onClose: () => void; onSuccess: () => void; }
 
-export default function IssueSupervisionLetterModal({ supervision, onClose, onSuccess }: Props) {
-    const pending = useLetterPending({ record: supervision, prefix: "letter", endpoint: `/api/admin/supervisions/${supervision.id}/letter-pending` });
+export default function IssueSupervisionLetterModal({ supervision: primary, group, onClose, onSuccess }: Props) {
+    const members = group && group.length > 1 ? [...group].sort((a, b) => String(a.confirmedDate).localeCompare(String(b.confirmedDate))) : null;
+    // หนังสือรวม: เวลานิเทศ = คิวแรกของกลุ่ม · อาจารย์ผู้นิเทศ = รวมทุกคนในกลุ่ม (ไม่ซ้ำ)
+    const supervision = members ? {
+        ...members[0],
+        coTeacherName: Array.from(new Set(members.flatMap(m => supervisionSupervisorNames(m)))).filter(n => !supervisionSupervisorNames({ teacher: members[0].teacher }).includes(n)).join(", "),
+    } : primary;
+    const pending = useLetterPending({ record: supervision, prefix: "letter", endpoint: `/api/admin/supervisions/${supervision.id}/letter-pending`, body: members ? { appointmentIds: members.map(m => m.id) } : undefined });
     // เก็บเฉพาะตัวเลข (ชุดเดียวกับหนังสือขอความอนุเคราะห์/ส่งตัว) — เจ้าหน้าที่ต่อเลขท้าย "/" เอง · มีร่างรอลงนาม → เติมเลขที่/วันที่ของร่าง
     const [docNumber, setDocNumber] = useState(pending.draftNumber || "660301.26.6.2/");
     const [docDate, setDocDate] = useState(pending.draftDate || new Date().toISOString().split('T')[0]);
@@ -58,7 +66,7 @@ export default function IssueSupervisionLetterModal({ supervision, onClose, onSu
             const { getAsset, deanName, deanPosition } = await loadCommonData();
             const krutUrl = getAsset("KRUT");
             if (!krutUrl) return notify.error("⚠️ ไม่พบไฟล์ตราครุฑ (KRUT) กรุณาอัปโหลดในหน้าตั้งค่า");
-            const blob = await createSupervisionLetterPDF(supervision, docNumber, docDate, krutUrl, "", deanName, deanPosition);
+            const blob = await createSupervisionLetterPDF(supervision, docNumber, docDate, krutUrl, "", deanName, deanPosition, members ? members.map(m => toLetterStudent(m.student)) : undefined);
             setPdfDraft({ blob, docNumber, docDate });
             setPreviewUrl(URL.createObjectURL(blob));
         } catch (err) { notify.error("สร้าง PDF ไม่สำเร็จ: " + err); }
@@ -75,6 +83,7 @@ export default function IssueSupervisionLetterModal({ supervision, onClose, onSu
                 major: student.major, majorNameTh: student.majorNameTh,
                 companyName, supervisorNames, visitDate, visitTime, visitMode, deanName, deanPosition,
                 companyRecipient: recipientText(letterRecipient(student.coop)) || undefined,
+                students: members ? members.map(m => toLetterStudent(m.student)) : undefined,
             });
             setDocDraft({ blob: createWordBlob(html), docNumber, docDate });
             setPreviewUrl(URL.createObjectURL(createPreviewBlob(html)));
@@ -109,6 +118,7 @@ export default function IssueSupervisionLetterModal({ supervision, onClose, onSu
             formData.append("docDate", docDate);
             formData.append("file", signedFile);
             formData.append("deliveryMethod", deliveryMethod);
+            if (members) formData.append("appointmentIds", JSON.stringify(members.map(m => m.id)));
             const res = await apiFetch(`/api/admin/supervisions/${supervision.id}/upload-letter`, {
                 method: 'POST',
                 body: formData,

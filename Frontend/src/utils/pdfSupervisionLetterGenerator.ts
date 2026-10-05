@@ -1,6 +1,7 @@
 import { jsPDF } from "jspdf";
 import { thaiPrefix, supervisionSupervisorNames, joinThaiNames, letterMajorName } from "./docGeneratorUtils";
 import { letterRecipient, recipientText } from "./letterRecipient";
+import { isGroup, studentLines, type LetterStudent } from "./letterGroup";
 
 // --- Helpers ---
 const getFontBase64 = async (url: string): Promise<string> => {
@@ -81,6 +82,7 @@ export const createSupervisionLetterPDF = async (
   signatureUrl: string,
   deanName: string = "รองศาสตราจารย์สิรภัทร เชี่ยวชาญวัฒนา",
   deanPosition: string = "คณบดีวิทยาลัยการคอมพิวเตอร์",
+  students?: LetterStudent[], // หนังสือรวมของกลุ่มนิเทศ
 ) => {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
 
@@ -175,11 +177,26 @@ export const createSupervisionLetterPDF = async (
   y += 12;
   const contentWidth = pageWidth - margin * 2;
 
-  // ย่อหน้า 1
-  const p1 = `       ตามที่ท่านให้ความอนุเคราะห์รับนักศึกษาสาขาวิชา${majorName} จำนวน 1 คน คือ ${studentName} รหัสประจำตัว ${studentId} เข้าปฏิบัติงานสหกิจศึกษากับทางบริษัท ${companyName} นั้น`;
-  const splitP1 = doc.splitTextToSize(p1, contentWidth);
-  doc.text(splitP1, margin, y);
-  y += splitP1.length * 7 + 2;
+  // ย่อหน้า 1 — หนังสือรวมของกลุ่มนิเทศ: รายชื่อทุกคน
+  const group = isGroup(students) ? students : null;
+  if (group) {
+    const intro = doc.splitTextToSize(`       ตามที่ท่านให้ความอนุเคราะห์รับนักศึกษาสาขาวิชา${majorName} จำนวน ${group.length} คน ดังรายชื่อต่อไปนี้`, contentWidth);
+    doc.text(intro, margin, y);
+    y += intro.length * 7;
+    for (const line of studentLines(group)) {
+      if (y > 250) { doc.addPage(); y = 25; }
+      doc.text(line, margin + 15, y);
+      y += 7;
+    }
+    const tail = doc.splitTextToSize(`เข้าปฏิบัติงานสหกิจศึกษากับทางบริษัท ${companyName} นั้น`, contentWidth);
+    doc.text(tail, margin, y);
+    y += tail.length * 7 + 2;
+  } else {
+    const p1 = `       ตามที่ท่านให้ความอนุเคราะห์รับนักศึกษาสาขาวิชา${majorName} จำนวน 1 คน คือ ${studentName} รหัสประจำตัว ${studentId} เข้าปฏิบัติงานสหกิจศึกษากับทางบริษัท ${companyName} นั้น`;
+    const splitP1 = doc.splitTextToSize(p1, contentWidth);
+    doc.text(splitP1, margin, y);
+    y += splitP1.length * 7 + 2;
+  }
 
   // ย่อหน้า 2
   const p2 = `       ในการนี้ สาขาวิชา${majorName} วิทยาลัยการคอมพิวเตอร์ มหาวิทยาลัยขอนแก่น ใคร่ขอเข้านิเทศนักศึกษาปฏิบัติงานสหกิจศึกษา ในหน่วยงานของท่าน เพื่อแนะนำแนวทางการจัดทำรายงานสหกิจศึกษาและรับทราบปัญหาอุปสรรคของนักศึกษาในรูปแบบ${supFormat} โดยนิเทศงานใน${supDateStr} เวลา ${supTimeStr} น.${onlineLinkText} โดยมีอาจารย์ผู้นิเทศงานคือ ${teacherName}`;
@@ -190,8 +207,11 @@ export const createSupervisionLetterPDF = async (
   // ย่อหน้า 3
   const p3 = `       สาขาวิชา${majorName} วิทยาลัยการคอมพิวเตอร์ มหาวิทยาลัยขอนแก่น ใคร่ขอขอบคุณท่านที่ให้ความอนุเคราะห์เข้านิเทศงาน และร่วมประเมินเบื้องต้นและแจ้งลักษณะการมอบหมายงานของนักศึกษาในครั้งนี้ด้วย จักขอบพระคุณยิ่ง`;
   const splitP3 = doc.splitTextToSize(p3, contentWidth);
+  if (group && y + splitP3.length * 7 > 255) { doc.addPage(); y = 25; }
   doc.text(splitP3, margin, y);
   y += splitP3.length * 7 + 15;
+  // หนังสือรวม: ลายเซ็น (ถึง y+32) ต้องไม่ทับท้ายกระดาษ (y = 265) · หนังสือเดี่ยวคงรูปแบบเดิม
+  if (group && y > 228) { doc.addPage(); y = 30; }
 
   // ==========================================================
   // 7. คำลงท้าย & ลายเซ็น
