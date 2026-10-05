@@ -1380,19 +1380,50 @@ exports.getCompanySupervisionQueue = async (req, res) => {
 // ปฏิทินนิเทศ — คืนรายการที่ยืนยันวันแล้วทั้งหมด
 // เข้าถึงได้ทุก role (student / teacher / admin)
 // ==========================================
-exports.getSupervisionCalendar = async (_req, res) => {
+// ปฏิทินนิเทศแยกตามหลักสูตร (อาจารย์แยกหลักสูตรอยู่แล้ว):
+//   เจ้าหน้าที่ = ทุกหลักสูตร (ตามตัวกรองบนแถบบน)
+//   อาจารย์   = หลักสูตรตัวเอง + หลักสูตรที่ดูแล (อาจารย์ประจำวิชา) + นัดที่ตัวเองนิเทศ/ร่วมนิเทศ
+//   นักศึกษา  = หลักสูตรตัวเอง + นัดของตัวเอง (ยังไม่มีหลักสูตร = เฉพาะนัดของตัวเอง)
+async function calendarScopeWhere(req) {
+    const role = String(req.user?.role || '').toLowerCase();
+    if (role === 'staff') return { student: studentWhere(await getMajorScope(req)) };
+    if (role === 'teacher') {
+        const teacher = await prisma.teacher.findUnique({ where: { userId: req.user.id }, select: { id: true, major: true } });
+        if (!teacher) return { id: -1 };
+        const { majors: coopMajors } = await getMajorScope(req, { ignoreFilter: true });
+        const majors = [...new Set([teacher.major, ...coopMajors].filter(Boolean))];
+        const or = [{ teacherId: teacher.id }, { coTeachers: { some: { teacherId: teacher.id } } }];
+        if (majors.length) or.push({ student: { major: { in: majors } } });
+        return { OR: or };
+    }
+    if (role === 'student') {
+        const student = await prisma.student.findUnique({ where: { userId: req.user.id }, select: { id: true, major: true } });
+        if (!student) return { id: -1 };
+        return student.major
+            ? { OR: [{ studentId: student.id }, { student: { major: student.major } }] }
+            : { studentId: student.id };
+    }
+    return { id: -1 };
+}
+
+exports.getSupervisionCalendar = async (req, res) => {
     try {
         const appointments = await prisma.supervisionAppointment.findMany({
             where: {
-                confirmedDate: { not: null },
-                status: { in: ['DATE_CONFIRMED', 'LETTER_UPLOADED', 'COMPLETED'] },
-                student: { deletedAt: null }
+                AND: [
+                    {
+                        confirmedDate: { not: null },
+                        status: { in: ['DATE_CONFIRMED', 'LETTER_UPLOADED', 'COMPLETED'] },
+                        student: { deletedAt: null },
+                    },
+                    await calendarScopeWhere(req),
+                ],
             },
             select: SUPERVISION_SCHEDULE_SELECT,
             orderBy: { confirmedDate: 'asc' }
         });
 
-        // ตารางเรียงวัน-เวลา ใช้ได้ทั้งปฏิทินและมุมมองตาราง — ทุก role ดูได้ว่านิเทศใคร เมื่อไหร่ ใครนิเทศ
+        // ตารางเรียงวัน-เวลา ใช้ได้ทั้งปฏิทินและมุมมองตาราง — เห็นได้ตามหลักสูตร (calendarScopeWhere)
         const rows = sortSchedule(appointments.map(toScheduleRow));
         const events = rows.map(r => ({
             id: r.id,
