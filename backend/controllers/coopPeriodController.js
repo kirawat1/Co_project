@@ -202,10 +202,10 @@ const EARLY_STATUSES = new Set(['NOT_SUBMITTED', 'APPLYING', 'PENDING_GRADE', 'Q
 const MOVE_BLOCKED = new Set(['INTERNSHIP_STARTED', 'T002_SUBMITTED', 'T002_EDITS_REQUIRED', 'T003_SUBMITTED', 'T003_EDITS_REQUIRED', 'T003_APPROVED']);
 const T000_RESET = {
   t000Status: 'WAITING', t000Comment: null, staffCheckComment: null,
-  reqDocNumber: null, reqDocDate: null, reqLetterUrl: null,
+  reqDocNumber: null, reqDocDate: null, reqLetterUrl: null, reqLetterBatch: null,
   reqLetterPendingAt: null, reqLetterDraftNumber: null, reqLetterDraftDate: null, reqLetterDelivery: null,
   acceptanceFileUrl: null, actualStartDate: null, actualEndDate: null,
-  placeDocNumber: null, placeDocDate: null, placeLetterUrl: null,
+  placeDocNumber: null, placeDocDate: null, placeLetterUrl: null, placeLetterBatch: null,
   placeLetterPendingAt: null, placeLetterDraftNumber: null, placeLetterDraftDate: null, placeLetterDelivery: null,
   mentors: { set: [] },
 };

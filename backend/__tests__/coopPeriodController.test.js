@@ -269,6 +269,8 @@ describe('moveStudentPeriod', () => {
     await moveStudentPeriod(mv({ resetTo: 'QUALIFIED' }), res);
     const { data } = prisma.studentCoop.update.mock.calls[0][0];
     expect(data).toMatchObject({ coopPeriodId: 2, status: 'QUALIFIED', t000Status: 'WAITING', reqDocNumber: null, reqLetterUrl: null, placeDocNumber: null, placeLetterUrl: null, acceptanceFileUrl: null });
+    // ยกเลิกหนังสือแล้ว ต้องไม่อยู่ในหนังสือรวมฉบับเดิม (ป้าย 👥 หนังสือรวม ค้าง)
+    expect(data).toMatchObject({ reqLetterBatch: null, placeLetterBatch: null });
     expect(data).not.toHaveProperty('teacherCheckComment');
   });
 

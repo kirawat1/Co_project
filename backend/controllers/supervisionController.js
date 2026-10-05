@@ -560,10 +560,11 @@ exports.assignCoTeachers = async (req, res) => {
             ? coIds.map(n => byId.get(n)).map(t => `${t.prefix || ''}${t.firstName} ${t.lastName}`).join(', ')
             : null;
 
+        // ลบเฉพาะคนที่เอาออก · คนเดิมคงไว้ (เดิมลบทั้งหมดแล้วสร้างใหม่ — วันว่างที่อาจารย์ร่วมตอบไว้หายทุกครั้งที่แก้รายชื่อ)
         await prisma.$transaction([
-            prisma.supervisionCoTeacher.deleteMany({ where: { appointmentId: parsedId } }),
+            prisma.supervisionCoTeacher.deleteMany({ where: { appointmentId: parsedId, teacherId: { notIn: coIds } } }),
             ...(coIds.length
-                ? [prisma.supervisionCoTeacher.createMany({ data: coIds.map(teacherId => ({ appointmentId: parsedId, teacherId })) })]
+                ? [prisma.supervisionCoTeacher.createMany({ data: coIds.map(teacherId => ({ appointmentId: parsedId, teacherId })), skipDuplicates: true })]
                 : []),
             prisma.supervisionAppointment.update({ where: { id: parsedId }, data: { coTeacherName } }),
         ]);
