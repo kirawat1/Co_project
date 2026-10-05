@@ -9,7 +9,12 @@ const { uploadOfficialLetter } = require('../controllers/supervisionController')
 
 const makeRes = () => ({ status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis(), locals: {} });
 const file = { filename: 'batch-signed.pdf', originalname: 'signed.pdf' };
-const coop = (studentId, status, over = {}) => ({ studentId, status, companyId: 'c1', reqLetterUrl: null, placeLetterUrl: null, student: { deletedAt: null }, ...over });
+const coop = (studentId, status, over = {}) => ({
+  studentId, status, companyId: 'c1', reqLetterUrl: null, placeLetterUrl: null,
+  actualStartDate: new Date('2026-11-01'), actualEndDate: new Date('2027-02-28'),
+  student: { deletedAt: null, studentId: `65000000${studentId}`, firstName: 'ชื่อ', lastName: `${studentId}`, coopApplicationForm: null },
+  ...over,
+});
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -80,6 +85,82 @@ describe('issueLetterBatch', () => {
     await issueLetterBatch(req(), res);
     expect(res.status).toHaveBeenCalledWith(409);
     expect(prisma.studentCoop.update).not.toHaveBeenCalled();
+  });
+
+  test('หนังสือส่งตัว: มีคนไม่มีวันฝึก (ทั้งวันฝึกจริงและใบสมัคร) → 400 บอกชื่อ ไม่บันทึก', async () => {
+    prisma.studentCoop.findMany.mockResolvedValue([
+      coop(1, 'ACCEPTANCE_CHECKED'),
+      coop(2, 'ACCEPTANCE_CHECKED', { actualStartDate: null, actualEndDate: null }),
+    ]);
+    const res = makeRes();
+    await issueLetterBatch(req({ letter: 'PLACEMENT' }), res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json.mock.calls[0][0].message).toContain('650000002');
+    expect(prisma.studentCoop.update).not.toHaveBeenCalled();
+  });
+
+  test('หนังสือส่งตัว: ไม่มีวันฝึกจริง แต่มีวันในใบสมัคร → ออกได้', async () => {
+    prisma.studentCoop.findMany.mockResolvedValue([
+      coop(1, 'ACCEPTANCE_CHECKED'),
+      coop(2, 'ACCEPTANCE_CHECKED', {
+        actualStartDate: null, actualEndDate: null,
+        student: { deletedAt: null, studentId: '650000002', firstName: 'ข', lastName: 'ค', coopApplicationForm: { startDate: new Date('2026-11-01'), endDate: new Date('2027-02-28') } },
+      }),
+    ]);
+    const res = makeRes();
+    await issueLetterBatch(req({ letter: 'PLACEMENT' }), res);
+    expect(res.status).not.toHaveBeenCalled();
+    expect(prisma.studentCoop.update).toHaveBeenCalledTimes(2);
+  });
+
+  test('หนังสือขอความอนุเคราะห์ไม่ต้องมีวันฝึก', async () => {
+    prisma.studentCoop.findMany.mockResolvedValue([coop(1, 'DOCS_APPROVED', { actualStartDate: null, actualEndDate: null }), coop(2, 'DOCS_APPROVED')]);
+    const res = makeRes();
+    await issueLetterBatch(req(), res);
+    expect(res.status).not.toHaveBeenCalled();
+  });
+});
+
+// ออกหนังสือเลขเดียวกันพร้อมกัน — ทดสอบจริงกับ MySQL ด้วยสคริปต์ race (ยิง 2 คำขอพร้อมกัน 10 รอบ ได้ 200+409 ทุกรอบ)
+// ที่นี่ตรวจเงื่อนไขที่ทำให้กันได้: ล็อกเลขที่ก่อนตรวจซ้ำ + transaction READ COMMITTED
+describe('ล็อกเลขที่หนังสือ (กันออกเลขเดียวกันพร้อมกัน)', () => {
+  const { DOC_NUMBER_TX } = require('../utils/docNumberLock');
+  const order = () => {
+    const seq = [];
+    prisma.$executeRaw.mockImplementation(async () => { seq.push('lock'); return 1; });
+    prisma.studentCoop.findFirst.mockImplementation(async () => { seq.push('check'); return null; });
+    prisma.supervisionAppointment.findFirst.mockImplementation(async () => { seq.push('check'); return null; });
+    return seq;
+  };
+
+  test('หนังสือรวม: ล็อก (REQ, เลขที่) ก่อนตรวจซ้ำ · transaction READ COMMITTED', async () => {
+    const seq = order();
+    prisma.studentCoop.findMany.mockResolvedValue([coop(1, 'DOCS_APPROVED'), coop(2, 'DOCS_APPROVED')]);
+    await issueLetterBatch({ body: { letter: 'REQUEST', studentIds: '[1,2]', docNumber: '660301.26.6.2/700' }, file, user: { id: 1, role: 'staff' } }, makeRes());
+    expect(seq.slice(0, 2)).toEqual(['lock', 'check']);
+    const [, kind, number] = prisma.$executeRaw.mock.calls[0];
+    expect([kind, number]).toEqual(['reqLetter', '660301.26.6.2/700']);
+    expect(prisma.$transaction.mock.calls[0][1]).toEqual(DOC_NUMBER_TX);
+    expect(DOC_NUMBER_TX.isolationLevel).toBe('ReadCommitted');
+  });
+
+  test('บันทึกร่างรอลงนาม: ล็อกเลขที่ร่างก่อนตรวจซ้ำ', async () => {
+    const seq = order();
+    prisma.student.findUnique.mockResolvedValue({ deletedAt: null });
+    prisma.studentCoop.findUnique.mockResolvedValue({ status: 'DOCS_APPROVED' });
+    await markLetterPending({ body: { studentIds: [1, 2], letter: 'REQUEST', docNumber: '660301.26.6.2/701' } }, makeRes());
+    expect(seq.slice(0, 2)).toEqual(['lock', 'check']);
+    expect(prisma.$transaction.mock.calls[0][1]).toEqual(DOC_NUMBER_TX);
+  });
+
+  test('หนังสือขอนิเทศ: ล็อก (supervisionLetter, เลขที่) ก่อนตรวจซ้ำ', async () => {
+    const seq = order();
+    prisma.supervisionAppointment.findUnique.mockResolvedValue({ id: 10, status: 'DATE_CONFIRMED', studentId: 1 });
+    prisma.supervisionAppointment.update.mockImplementation(async ({ where, data }) => ({ id: where.id, studentId: where.id, ...data }));
+    prisma.student.findUnique.mockResolvedValue({ userId: 9 });
+    await uploadOfficialLetter({ params: { id: '10' }, body: { docNumber: '660301.26.6.2/702' }, file: { filename: 'sup.pdf' }, user: { id: 1, role: 'staff' } }, makeRes());
+    expect(seq.slice(0, 2)).toEqual(['lock', 'check']);
+    expect(prisma.$executeRaw.mock.calls[0].slice(1)).toEqual(['supervisionLetter', '660301.26.6.2/702']);
   });
 });
 

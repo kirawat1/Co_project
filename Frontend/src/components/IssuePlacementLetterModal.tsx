@@ -1,4 +1,5 @@
 ﻿// Frontend/src/components/IssuePlacementLetterModal.tsx
+import LetterBatchNotice from "./LetterBatchNotice";
 import React, { useState } from "react";
 import { apiFetch } from "../utils/apiFetch";
 import { createPlacementPDF } from "../utils/pdfGeneratorPlacement";
@@ -10,9 +11,10 @@ import { letterRecipient, recipientText } from "../utils/letterRecipient";
 import { toLetterStudent } from "../utils/letterGroup";
 
 // group = หนังสือรวมหลายคน (บริษัทเดียวกัน วันฝึกต่างกันได้) · student = คนแรกของกลุ่ม · ไม่ส่ง = หนังสือเดี่ยว
-interface Props { student: any; group?: any[]; onClose: () => void; onSuccess: () => void; }
+// batchMates/onOpenBatch = หนังสือเดี่ยวของคนที่อยู่ในหนังสือรวม (ดู LetterBatchNotice)
+interface Props { student: any; group?: any[]; batchMates?: any[]; onOpenBatch?: () => void; onClose: () => void; onSuccess: () => void; }
 
-export default function IssuePlacementLetterModal({ student, group, onClose, onSuccess }: Props) {
+export default function IssuePlacementLetterModal({ student, group, batchMates, onOpenBatch, onClose, onSuccess }: Props) {
     const members = group && group.length > 1 ? group : null;
     const pending = useLetterPending({ record: student.coop, prefix: "placeLetter", endpoint: "/api/admin/t000/letter-pending", body: members ? { studentIds: members.map(m => m.id), letter: "PLACEMENT" } : { studentId: student.id, letter: "PLACEMENT" } });
     // เก็บเฉพาะตัวเลข — คำนำหน้า "ที่ อว" ถูกเติมในเทมเพลตหนังสือแล้ว · มีร่างที่รอลงนามอยู่ → เติมเลขที่/วันที่ของร่างนั้น
@@ -146,6 +148,7 @@ export default function IssuePlacementLetterModal({ student, group, onClose, onS
                     </div>
                     <div className="letter-sidebar" style={{ width: 300, display: 'flex', flexDirection: 'column', gap: 14, flexShrink: 0, overflowY: 'auto' }}>
                         <LetterPendingBanner {...pending} onCancel={pending.cancelPending} />
+                        {!members && batchMates && <LetterBatchNotice mates={batchMates} docNumber={student.coop?.placeDocNumber} onOpenBatch={onOpenBatch} />}
                         {members && (
                             <div style={{ padding: '10px 12px', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8, fontSize: 12, color: '#1e3a8a' }}>
                                 <div style={{ fontWeight: 700, marginBottom: 4 }}>👥 หนังสือส่งตัวรวม {members.length} คน · {student.coop?.company?.name || ""}</div>

@@ -53,6 +53,8 @@ function parseIdList(v) {
 // ไฟล์หนังสือที่ลงนามใช้ร่วมกันได้หลายคน (หนังสือรวม) — ลบไฟล์เก่าได้เมื่อไม่มีใครอ้างอิงแล้วเท่านั้น
 const deleteLetterFileIfUnused = (filename) => removeUnreferencedUploads([filename]);
 
+const { lockDocNumber, DOC_NUMBER_TX } = require('../utils/docNumberLock');
+
 function clearedLetterPending(key) {
   return { [`${key}PendingAt`]: null, [`${key}DraftNumber`]: null, [`${key}DraftDate`]: null };
 }
@@ -61,6 +63,7 @@ function clearedLetterPending(key) {
 // studentIds = นักศึกษาในหนังสือฉบับนี้ (หนังสือรวม = หลายคน ใช้เลขเดียวกันได้) — เลิก unique ระดับ DB แล้ว ด่านนี้คือด่านเดียว
 async function assertDocNumberFree(tx, key, value, studentIds) {
   if (!value) return;
+  await lockDocNumber(tx, key, value);
   const { numberField, label } = LETTERS[key];
   const draftField = `${key}DraftNumber`;
   const ids = [].concat(studentIds);
@@ -363,7 +366,7 @@ exports.reviewStudentStatus = async (req, res) => {
         update: updateData,
         create: { studentId: parsedStudentId, ...updateData }
       });
-    });
+    }, DOC_NUMBER_TX);
 
     // บันทึกการใช้งาน: บอกจากผลที่บันทึกจริง (เลขที่ที่จัดรูปแบบแล้ว, พิมพ์ซ้ำหรือไม่) ไม่ใช่เดาจาก request
     setAuditDetail(res, {
@@ -623,7 +626,10 @@ exports.issueLetterBatch = async (req, res) => {
     await prisma.$transaction(async (tx) => {
       const coops = await tx.studentCoop.findMany({
         where: { studentId: { in: ids } },
-        select: { studentId: true, status: true, companyId: true, [`${key}Url`]: true, student: { select: { deletedAt: true } } },
+        select: {
+          studentId: true, status: true, companyId: true, [`${key}Url`]: true, actualStartDate: true, actualEndDate: true,
+          student: { select: { deletedAt: true, studentId: true, firstName: true, lastName: true, coopApplicationForm: { select: { startDate: true, endDate: true } } } },
+        },
       });
       if (coops.length !== ids.length || coops.some((c) => !c.student || c.student.deletedAt)) {
         throw Object.assign(new Error('ไม่พบนักศึกษาบางคน'), { is404: true });
@@ -633,6 +639,17 @@ exports.issueLetterBatch = async (req, res) => {
       }
       if (coops.some((c) => COOP_STATUS_ORDER.indexOf(c.status) < COOP_STATUS_ORDER.indexOf(L.minStatus))) {
         throw Object.assign(new Error('มีนักศึกษาที่ยังไม่ถึงขั้นออกหนังสือนี้'), { is400: true });
+      }
+      // หนังสือส่งตัวพิมพ์วันฝึกของแต่ละคน (วันฝึกจริง → วันในใบสมัคร เหมือนหน้าเว็บ) — ไม่มีวัน = หนังสือมีช่องว่าง
+      if (key === 'placeLetter') {
+        const noDates = coops.filter((c) => {
+          const form = c.student.coopApplicationForm;
+          return !(c.actualStartDate || form?.startDate) || !(c.actualEndDate || form?.endDate);
+        });
+        if (noDates.length) {
+          const names = noDates.map((c) => `${c.student.studentId} ${c.student.firstName} ${c.student.lastName}`).join(', ');
+          throw Object.assign(new Error(`ยังไม่มีวันเริ่ม/สิ้นสุดฝึกงาน: ${names}`), { is400: true });
+        }
       }
       await assertDocNumberFree(tx, key, docNo, ids);
 
@@ -661,7 +678,7 @@ exports.issueLetterBatch = async (req, res) => {
         await tx.studentCoop.update({ where: { studentId: c.studentId }, data });
         result.push({ studentId: c.studentId, statusKept: kept });
       }
-    });
+    }, DOC_NUMBER_TX);
 
     setAuditDetail(res, {
       action: `${reviewActionText({ status: L.status, docNumber: docNo, deliveryMethod })} (หนังสือรวม ${ids.length} คน)`,
@@ -733,7 +750,7 @@ exports.markLetterPending = async (req, res) => {
       }
       if (!cancel) await assertDocNumberFree(tx, key, data[`${key}DraftNumber`], ids);
       for (const sid of ids) await tx.studentCoop.update({ where: { studentId: sid }, data });
-    });
+    }, DOC_NUMBER_TX);
 
     setAuditDetail(res, {
       action: letterPendingActionText({ letter: req.body.letter, cancel, docNumber: data[`${key}DraftNumber`] }),

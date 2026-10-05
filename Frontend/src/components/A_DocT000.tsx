@@ -195,6 +195,17 @@ export default function A_DocT000() {
         if (notReady.length) return notify.warning(`ยังไม่ถึงขั้นออกหนังสือนี้: ${notReady.map(m => m.studentId).join(", ")}`);
         setBatchLetter({ type, members });
     };
+    // เพื่อนในหนังสือรวมฉบับเดียวกัน (จากรายชื่อที่โหลดอยู่) — ใช้ในหน้าต่างหนังสือเดี่ยว
+    const batchMatesOf = (s: StudentProfile, type: "REQUEST" | "PLACEMENT") => {
+        const batch = type === "REQUEST" ? s.coop?.reqLetterBatch : s.coop?.placeLetterBatch;
+        if (!batch) return undefined;
+        return students.filter(m => (type === "REQUEST" ? m.coop?.reqLetterBatch : m.coop?.placeLetterBatch) === batch);
+    };
+    const reopenBatch = (type: "REQUEST" | "PLACEMENT", mates: StudentProfile[]) => {
+        setIssueModalData(null);
+        setPlacementModalData(null);
+        setBatchLetter({ type, members: mates });
+    };
     // บริษัทส่งใบตอบรับมาที่เจ้าหน้าที่โดยตรง
     const [acceptanceReceivedFor, setAcceptanceReceivedFor] = useState<StudentProfile | null>(null);
     // เจ้าหน้าที่เปลี่ยนไฟล์ใบตอบรับแทนนักศึกษา (บริษัทส่งฉบับแก้มาทีหลัง) — ทำในหน้าต่างตรวจสอบใบตอบรับ
@@ -818,7 +829,7 @@ export default function A_DocT000() {
 
             {/* 3. MODALS */}
             {issueModalData && (
-                <IssueLetterModal student={issueModalData} onClose={() => { setIssueModalData(null); refreshStudents(); }} onSuccess={() => { setIssueModalData(null); fetchAllData(); }} />
+                <IssueLetterModal student={issueModalData} batchMates={batchMatesOf(issueModalData, "REQUEST")} onOpenBatch={() => reopenBatch("REQUEST", batchMatesOf(issueModalData, "REQUEST") || [])} onClose={() => { setIssueModalData(null); refreshStudents(); }} onSuccess={() => { setIssueModalData(null); fetchAllData(); }} />
             )}
 
             {batchLetter?.type === "REQUEST" && (
@@ -829,7 +840,7 @@ export default function A_DocT000() {
             )}
 
             {placementModalData && (
-                <IssuePlacementLetterModal student={placementModalData} onClose={() => { setPlacementModalData(null); refreshStudents(); }} onSuccess={() => { setPlacementModalData(null); fetchAllData(); }} />
+                <IssuePlacementLetterModal student={placementModalData} batchMates={batchMatesOf(placementModalData, "PLACEMENT")} onOpenBatch={() => reopenBatch("PLACEMENT", batchMatesOf(placementModalData, "PLACEMENT") || [])} onClose={() => { setPlacementModalData(null); refreshStudents(); }} onSuccess={() => { setPlacementModalData(null); fetchAllData(); }} />
             )}
 
             {acceptanceReceivedFor && (

@@ -755,3 +755,14 @@ model Feedback {
   @@index([status, createdAt])
   @@index([userId])
 }
+
+// ล็อกเลขที่หนังสือราชการระหว่างออกหนังสือ — 1 แถวต่อ (ประเภท, เลขที่)
+// ทุก transaction ที่ออกหนังสือ/บันทึกร่างล็อกแถวนี้ก่อน (INSERT … ON DUPLICATE KEY UPDATE) → คำขอเลขเดียวกันที่มาพร้อมกันต้องรอคิว
+// แล้วตรวจซ้ำกับข้อมูลล่าสุด (แทน unique ที่เลิกไปเพราะหนังสือรวมใช้เลขเดียวกันหลายคน)
+model DocNumberLock {
+  kind      String // REQ | PLACE | SUPERVISION
+  number    String
+  createdAt DateTime @default(now())
+
+  @@id([kind, number])
+}
