@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { fmtDate } from '../utils/dateFormat';
 import Spinner from "./Spinner";
+import { askConfirm } from "../utils/notify";
 
 interface StudentAppointment {
   appointmentId: number;
@@ -106,11 +107,18 @@ export default function T_GroupSupervision() {
       const [dPart, tPart = "00:00"] = selectedDateEntry.split("|");
       const startTime = tPart.split("-")[0];
       const confirmedDate = new Date(`${dPart.slice(0, 10)}T${startTime}:00`).toISOString();
-      const res = await axios.post(
-        "/api/teacher/supervisions/confirm-group",
-        { appointmentIds: [...checkedIds], confirmedDate },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const body = { appointmentIds: [...checkedIds], confirmedDate };
+      const opts = { headers: { Authorization: `Bearer ${token}` } };
+      let res;
+      try {
+        res = await axios.post("/api/teacher/supervisions/confirm-group", body, opts);
+      } catch (err: any) {
+        // อาจารย์ร่วมของนัดในกลุ่มไม่ว่าง/ยังไม่ตอบวันนี้ → ถามก่อน แล้วยืนยันซ้ำได้
+        if (err?.response?.status !== 409 || err?.response?.data?.code !== "CO_TEACHER_UNAVAILABLE") throw err;
+        const ok = await askConfirm(`${err.response.data.message}\n\nยืนยันวันนี้ต่อหรือไม่?`, { title: "อาจารย์นิเทศร่วมอาจไม่สะดวก", confirmLabel: "ยืนยันวันนี้", icon: "⚠️" });
+        if (!ok) { setSubmitting(false); return; }
+        res = await axios.post("/api/teacher/supervisions/confirm-group", { ...body, acknowledgeUnavailable: true }, opts);
+      }
       if (res.data.ok) {
         setModal(null);
         fetchData();

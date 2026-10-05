@@ -674,8 +674,12 @@ model SupervisionAppointment {
 }
 
 model SupervisionCoTeacher {
-  appointmentId Int
-  teacherId     Int
+  appointmentId  Int
+  teacherId      Int
+  // วันที่อาจารย์ร่วมว่าง (JSON array ของวันที่ "YYYY-MM-DD" จากวันที่นักศึกษาเสนอ) — null = ยังไม่ตอบ
+  // นักศึกษาเสนอวันใหม่ → ล้างทิ้ง ให้ตอบใหม่
+  availableDates String?   @db.Text
+  respondedAt    DateTime?
   appointment   SupervisionAppointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
   teacher       Teacher                @relation(fields: [teacherId], references: [id], onDelete: Cascade)
 

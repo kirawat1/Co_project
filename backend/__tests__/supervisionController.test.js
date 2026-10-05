@@ -108,8 +108,8 @@ describe('getAllSupervisions', () => {
     expect(res.json).toHaveBeenCalledWith({
       ok: true,
       supervisions: [
-        { id: 1, status: 'PENDING_TEACHER', student: { firstName: 'ก', lastName: 'ข', major: 'CS', majorNameTh: 'วิทยาการคอมพิวเตอร์' }, teacher: { id: 5 } },
-        { id: 2, status: 'DATE_CONFIRMED', student: { firstName: 'ค', lastName: 'ง', major: null, majorNameTh: null }, teacher: { id: 6 } },
+        { id: 1, status: 'PENDING_TEACHER', student: { firstName: 'ก', lastName: 'ข', major: 'CS', majorNameTh: 'วิทยาการคอมพิวเตอร์' }, teacher: { id: 5 }, coTeachers: [] },
+        { id: 2, status: 'DATE_CONFIRMED', student: { firstName: 'ค', lastName: 'ง', major: null, majorNameTh: null }, teacher: { id: 6 }, coTeachers: [] },
       ],
     });
   });

@@ -137,9 +137,11 @@ const prismaMock = {
     count: jest.fn(),
   },
   supervisionCoTeacher: {
-    findMany: jest.fn(),
+    findMany: jest.fn(async () => []), // ไม่มีอาจารย์ร่วม (ค่าเริ่มต้น)
     createMany: jest.fn(),
     deleteMany: jest.fn(),
+    update: jest.fn(),
+    updateMany: jest.fn(),
   },
   systemConfig: {
     findUnique: jest.fn(),

@@ -26,6 +26,7 @@ router.get('/supervisions/by-company', verifyToken, verifyRole('teacher', 'staff
 router.post('/supervisions/confirm-group', verifyToken, verifyRole('teacher', 'staff'), supervisionController.confirmGroupSupervision);
 router.get('/supervisions', verifyToken, verifyRole('teacher', 'staff'), supervisionController.getSupervisionsForTeacher);
 router.put('/supervisions/:id/review', verifyToken, verifyRole('teacher', 'staff'), supervisionController.reviewSupervision);
+router.put('/supervisions/:id/availability', verifyToken, verifyRole('teacher'), supervisionController.setCoTeacherAvailability); // อาจารย์ร่วมระบุวันว่าง
 router.put('/supervisions/:id/complete', verifyToken, verifyRole('teacher', 'staff'), supervisionController.completeSupervision);
 router.get('/supervision-eval', verifyToken, verifyRole('teacher'), require('../controllers/supervisionEvalController').getMyEval);
 

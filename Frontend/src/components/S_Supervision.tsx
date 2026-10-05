@@ -8,6 +8,9 @@ import SupervisionScheduleTable from "./SupervisionScheduleTable";
 import type { CalendarEvent } from "./SupervisionCalendar";
 import { notify, askConfirm } from "../utils/notify";
 
+// เสนอวันนิเทศได้หลายวัน (เดิมจำกัด 3 วัน) — เพดานกันข้อมูลบวม ตรงกับ server
+const MAX_PROPOSED_DATES = 30;
+
 function safeHref(url: string | null | undefined): string | undefined {
   if (!url) return undefined;
   try { const u = new URL(url); return ['http:', 'https:'].includes(u.protocol) ? url : undefined; }
@@ -185,7 +188,8 @@ export default function S_Supervision() {
 
     // --- Handlers ---
     const handleAddDate = () => {
-        if (dates.length >= 3) return notify.warning("เสนอวันได้สูงสุด 3 วัน");
+        // เสนอได้หลายวันไม่จำกัด (server กันไว้ที่ MAX_PROPOSED_DATES)
+        if (dates.length >= MAX_PROPOSED_DATES) return notify.warning(`เสนอวันได้สูงสุด ${MAX_PROPOSED_DATES} ตัวเลือก`);
         setDates([...dates, ""]);
     };
 
@@ -195,14 +199,14 @@ export default function S_Supervision() {
     const handleJoinCompanyDate = (date: string) => {
         const sameDay = companyQueue.filter(q => q.date === date);
         const lastEnd = sameDay.reduce((max, q) => Math.max(max, toMinutes(q.end)), 0);
-        // เลือกช่องที่จะใส่: ตัวเลือกวันเดียวกันที่มีอยู่แล้ว → ช่องที่ยังว่าง → เพิ่มตัวเลือกใหม่ถ้ายังไม่ครบ 3
+        // เลือกช่องที่จะใส่: ตัวเลือกวันเดียวกันที่มีอยู่แล้ว → ช่องที่ยังว่าง → เพิ่มตัวเลือกใหม่
         // (เดิมถ้าไม่มีช่องว่างจะเขียนทับตัวเลือกที่ 1 — วันที่นักศึกษาเสนอไว้หายโดยไม่รู้ตัว)
         const next = [...dates];
         let idx = next.findIndex(d => (d || '').split('|')[0] === date);
         if (idx < 0) idx = next.findIndex(d => !d || !d.split('|')[0]);
         if (idx < 0) {
-            if (next.length >= 3) {
-                notify.warning('เสนอวันได้สูงสุด 3 ตัวเลือก — ลบตัวเลือกที่ไม่ต้องการก่อน แล้วกด "ขอนัดวันนี้" อีกครั้ง');
+            if (next.length >= MAX_PROPOSED_DATES) {
+                notify.warning(`เสนอวันได้สูงสุด ${MAX_PROPOSED_DATES} ตัวเลือก — ลบตัวเลือกที่ไม่ต้องการก่อน แล้วกด "ขอนัดวันนี้" อีกครั้ง`);
                 return;
             }
             next.push('');
@@ -555,7 +559,7 @@ export default function S_Supervision() {
                                             );
                                         })}
 
-                                        {dates.length < 3 && (
+                                        {dates.length < MAX_PROPOSED_DATES && (
                                             <button className="btn-secondary" onClick={handleAddDate} style={{ width: '100%', marginTop: 5, borderStyle: 'dashed' }}>
                                                 + เพิ่มตัวเลือกวันที่
                                             </button>

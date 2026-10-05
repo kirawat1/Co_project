@@ -24,6 +24,13 @@ import Modal, { ModalCloseButton } from "./Modal";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
+interface CoTeacherAvail {
+    teacherId: number;
+    name?: string;
+    availableDates?: string[] | null;
+    respondedAt?: string | null;
+}
+
 interface SupervisionAppt {
     id: number;
     studentId: number;
@@ -40,7 +47,10 @@ interface SupervisionAppt {
     isPrimaryAdvisor?: boolean;
     coopPeriodId?: number;
     coTeacherName?: string | null;
-    coTeachers?: { teacherId: number }[];
+    // อาจารย์ร่วม + วันที่ว่าง (จากวันที่นักศึกษาเสนอ) · null = ยังไม่ตอบ
+    coTeachers?: CoTeacherAvail[];
+    // วันว่างของฉันเอง (เมื่อฉันเป็นอาจารย์ร่วมของนัดนี้)
+    myAvailableDates?: string[] | null;
     student: {
         studentId: string;
         firstName: string;
@@ -286,8 +296,26 @@ export default function T_SupervisionReview() {
     // แสดงทีละ 30 รายการ เลื่อนถึงท้ายตารางแล้วแสดงเพิ่ม แทนโหลดทั้งหมดในตารางเดียว
     const { shown: shownMine, hasMore: hasMoreMine, sentinelRef: sentinelMineRef, showMore: showMoreMine, total: totalMine } = useLoadMore(processedMine, `${searchTerm}|${selectedPeriod}`);
 
-    const openReviewModal = (appt: SupervisionAppt) => { setSelectedAppt(appt); setRejectReason(appt.rejectReason || ""); };
+    const openReviewModal = (appt: SupervisionAppt) => { setSelectedAppt(appt); setRejectReason(appt.rejectReason || ""); setMyFreeDays(appt.myAvailableDates ?? []); };
     const closeModal = () => { setSelectedAppt(null); setRejectReason(""); };
+
+    // อาจารย์ร่วม: ติ๊กวันที่ว่างจากวันที่นักศึกษาเสนอ → อาจารย์หลักเห็นก่อนเลือกวัน
+    const [myFreeDays, setMyFreeDays] = useState<string[]>([]);
+    const saveAvailability = async () => {
+        if (!selectedAppt) return;
+        setIsSubmitting(true);
+        try {
+            await axios.put(`/api/teacher/supervisions/${selectedAppt.id}/availability`, { availableDates: myFreeDays }, { headers: { Authorization: `Bearer ${token}` } });
+            notify.success(myFreeDays.length ? `บันทึกวันว่าง ${myFreeDays.length} วันแล้ว — แจ้งอาจารย์ผู้นิเทศหลักแล้ว` : "บันทึกว่าไม่ว่างทุกวันที่เสนอแล้ว — แจ้งอาจารย์ผู้นิเทศหลักแล้ว");
+            closeModal(); fetchMine();
+        } catch (err: any) { notify.error(err?.response?.data?.message || "บันทึกวันว่างไม่สำเร็จ"); }
+        finally { setIsSubmitting(false); }
+    };
+    // วันในตัวเลือกนี้ อาจารย์ร่วมคนไหนว่าง/ไม่ว่าง/ยังไม่ตอบ
+    const coAvailabilityOn = (appt: SupervisionAppt, dayKey: string) => (appt.coTeachers ?? []).map(c => ({
+        name: c.name || "อาจารย์ร่วม",
+        state: !c.respondedAt || !c.availableDates ? "none" as const : c.availableDates.includes(dayKey) ? "free" as const : "busy" as const,
+    }));
 
     const handleAction = async (action: "APPROVE" | "REJECT", confirmedDateStr?: string) => {
         if (action === "REJECT" && !rejectReason.trim()) return notify.warning("กรุณาระบุเหตุผล เพื่อให้นักศึกษาทราบและเลือกวันใหม่");
@@ -304,10 +332,16 @@ export default function T_SupervisionReview() {
                 finalConfirmedDate = new Date(`${dPart}T${startTime}:00`).toISOString();
             }
             const supervisionType = (action === "APPROVE" && confirmedDateStr) ? parseProposed(confirmedDateStr).type ?? selectedAppt?.supervisionType : undefined;
-            await axios.put(`/api/teacher/supervisions/${selectedAppt?.id}/review`, {
-                action, confirmedDate: finalConfirmedDate,
-                rejectReason: action === "REJECT" ? rejectReason : null, supervisionType
-            }, { headers: { Authorization: `Bearer ${token}` } });
+            const body = { action, confirmedDate: finalConfirmedDate, rejectReason: action === "REJECT" ? rejectReason : null, supervisionType };
+            try {
+                await axios.put(`/api/teacher/supervisions/${selectedAppt?.id}/review`, body, { headers: { Authorization: `Bearer ${token}` } });
+            } catch (err: any) {
+                // อาจารย์ร่วมไม่ว่าง/ยังไม่ตอบวันนี้ → ถามก่อน แล้วยืนยันซ้ำได้
+                if (err?.response?.status !== 409 || err?.response?.data?.code !== "CO_TEACHER_UNAVAILABLE") throw err;
+                const ok = await askConfirm(`${err.response.data.message}\n\nยืนยันวันนี้ต่อหรือไม่?`, { title: "อาจารย์นิเทศร่วมอาจไม่สะดวก", confirmLabel: "ยืนยันวันนี้", icon: "⚠️" });
+                if (!ok) return;
+                await axios.put(`/api/teacher/supervisions/${selectedAppt?.id}/review`, { ...body, acknowledgeUnavailable: true }, { headers: { Authorization: `Bearer ${token}` } });
+            }
             notify.success("บันทึกผลการพิจารณาเรียบร้อยแล้ว");
             closeModal(); fetchMine();
         } catch (err: any) { notify.error(err?.response?.data?.message || "เกิดข้อผิดพลาดในการบันทึก"); }
@@ -514,9 +548,16 @@ export default function T_SupervisionReview() {
                                                     <td style={{ ...td, textAlign: "right" }}>
                                                         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
                                                             {sup.status === "LETTER_UPLOADED" && isPrimary && <button className="btn" style={{ background: "#7c3aed", padding: "8px 16px" }} onClick={() => handleMyComplete(sup.id)}>🏁 จบนิเทศ</button>}
-                                                            <button className={sup.status === "PENDING_TEACHER" && isPrimary ? "btn-success" : "btn"} style={{ padding: "8px 16px" }} onClick={() => openReviewModal(sup)}>
-                                                                {sup.status === "PENDING_TEACHER" && isPrimary ? "พิจารณาวันนิเทศ" : "🔍 ดูรายละเอียด"}
-                                                            </button>
+                                                            {(() => {
+                                                                // อาจารย์ร่วม + รออาจารย์หลักเลือกวัน → ปุ่มระบุวันว่าง (ยังไม่ตอบ = เด่น)
+                                                                const coAsk = sup.status === "PENDING_TEACHER" && !isPrimary;
+                                                                const answered = !!sup.myAvailableDates;
+                                                                return (
+                                                                    <button className={(sup.status === "PENDING_TEACHER" && isPrimary) || (coAsk && !answered) ? "btn-success" : "btn"} style={{ padding: "8px 16px" }} onClick={() => openReviewModal(sup)}>
+                                                                        {sup.status === "PENDING_TEACHER" && isPrimary ? "พิจารณาวันนิเทศ" : coAsk ? (answered ? "📅 แก้วันว่าง" : "📅 ระบุวันว่าง") : "🔍 ดูรายละเอียด"}
+                                                                    </button>
+                                                                );
+                                                            })()}
                                                         </div>
                                                     </td>
                                                 </tr>
@@ -580,11 +621,21 @@ export default function T_SupervisionReview() {
                                                             const parsed = parseProposed(dateStr);
                                                             const bookedEntry = bookedDayMap.get(parsed.dayKey);
                                                             const isBooked = !!bookedEntry && bookedEntry.studentId !== selectedAppt.student.studentId;
+                                                            const coAvail = coAvailabilityOn(selectedAppt, parsed.dayKey);
                                                             return (
-                                                                <div key={idx} style={{ padding: 16, background: isBooked ? "#fef2f2" : "#f0fdf4", border: `1px solid ${isBooked ? "#fca5a5" : "#bbf7d0"}`, borderRadius: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                                                <div key={idx} style={{ padding: 16, background: isBooked ? "#fef2f2" : "#f0fdf4", border: `1px solid ${isBooked ? "#fca5a5" : "#bbf7d0"}`, borderRadius: 12, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
                                                                     <div>
                                                                         <div style={{ fontWeight: 800, color: isBooked ? "#991b1b" : "#166534", fontSize: 15 }}>{isBooked ? "🔒 " : ""}{parsed.dmy}</div>
                                                                         <div style={{ color: isBooked ? "#b91c1c" : "#15803d", fontSize: 14, marginTop: 4 }}>{parsed.time}</div>
+                                                                        {coAvail.length > 0 && (
+                                                                            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }} aria-label="อาจารย์ร่วมว่างวันนี้หรือไม่">
+                                                                                {coAvail.map((c, i) => (
+                                                                                    <span key={i} style={{ fontSize: 12, fontWeight: 600, padding: "2px 8px", borderRadius: 999, border: "1px solid", ...(c.state === "free" ? { background: "#dcfce7", color: "#166534", borderColor: "#86efac" } : c.state === "busy" ? { background: "#fee2e2", color: "#b91c1c", borderColor: "#fca5a5" } : { background: "#f1f5f9", color: "#64748b", borderColor: "#e2e8f0" }) }}>
+                                                                                        {c.state === "free" ? "✓" : c.state === "busy" ? "✗" : "?"} {c.name}{c.state === "none" ? " (ยังไม่ตอบ)" : ""}
+                                                                                    </span>
+                                                                                ))}
+                                                                            </div>
+                                                                        )}
                                                                     </div>
                                                                     <button className="btn-success" onClick={() => !isBooked && handleAction("APPROVE", dateStr)} disabled={isSubmitting || isBooked}>{isBooked ? "ถูกจองแล้ว" : "เลือกวันนี้"}</button>
                                                                 </div>
@@ -599,10 +650,36 @@ export default function T_SupervisionReview() {
                                             </>
                                         )}
                                         {selectedAppt.status === "PENDING_TEACHER" && selectedAppt.isPrimaryAdvisor === false && (
-                                            <div style={{ textAlign: "center", marginTop: "10%" }}>
-                                                <div style={{ fontSize: 48, marginBottom: 10 }}>👀</div>
-                                                <h3 style={{ margin: "0 0 10px 0" }}>รออาจารย์ที่ปรึกษาหลักยืนยัน</h3>
-                                            </div>
+                                            <>
+                                                <h4 style={{ margin: "0 0 6px 0", color: "#0f172a" }}>📅 ติ๊กวันที่คุณว่าง</h4>
+                                                <div style={{ fontSize: 13, color: "#64748b", marginBottom: 12 }}>
+                                                    คุณเป็นอาจารย์นิเทศร่วม — อาจารย์ผู้นิเทศหลักจะเห็นว่าคุณว่างวันไหนก่อนเลือกวันนิเทศ
+                                                    {selectedAppt.myAvailableDates ? " · ตอบแล้ว แก้ได้จนกว่าจะยืนยันวัน" : ""}
+                                                </div>
+                                                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                                                    {(() => {
+                                                        let entries: string[] = [];
+                                                        try { entries = JSON.parse(selectedAppt.proposedDates || "[]"); } catch { entries = []; }
+                                                        // ติ๊กเป็นรายวัน — หลายช่วงเวลาในวันเดียวกันรวมเป็นตัวเลือกเดียว
+                                                        const days = Array.from(new Map(entries.map(e => [parseProposed(e).dayKey, entries.filter(x => parseProposed(x).dayKey === parseProposed(e).dayKey)])).entries());
+                                                        return days.map(([dayKey, slots]) => {
+                                                            const checked = myFreeDays.includes(dayKey);
+                                                            return (
+                                                                <label key={dayKey} style={{ display: "flex", gap: 12, alignItems: "center", padding: 14, borderRadius: 12, cursor: "pointer", border: `1px solid ${checked ? "#86efac" : "#e2e8f0"}`, background: checked ? "#f0fdf4" : "#fff" }}>
+                                                                    <input type="checkbox" checked={checked} onChange={() => setMyFreeDays(prev => checked ? prev.filter(d => d !== dayKey) : [...prev, dayKey])} style={{ width: 18, height: 18 }} />
+                                                                    <span>
+                                                                        <span style={{ fontWeight: 700, color: "#0f172a" }}>{parseProposed(slots[0]).dmy}</span>
+                                                                        <span style={{ display: "block", fontSize: 13, color: "#64748b" }}>{slots.map(s => parseProposed(s).time).filter(Boolean).join(" · ")}</span>
+                                                                    </span>
+                                                                </label>
+                                                            );
+                                                        });
+                                                    })()}
+                                                </div>
+                                                <button className="btn-success" style={{ marginTop: 16 }} onClick={saveAvailability} disabled={isSubmitting}>
+                                                    {isSubmitting ? "กำลังบันทึก..." : myFreeDays.length ? `💾 บันทึกวันว่าง (${myFreeDays.length} วัน)` : "💾 บันทึก — ไม่ว่างทุกวันที่เสนอ"}
+                                                </button>
+                                            </>
                                         )}
                                         {selectedAppt.status !== "PENDING_TEACHER" && (
                                             <div style={{ textAlign: "center", marginTop: "15%" }}>
