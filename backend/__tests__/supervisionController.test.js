@@ -659,7 +659,7 @@ describe('getSupervisionCalendar', () => {
     prisma.supervisionAppointment.findMany.mockResolvedValue(appointments);
 
     const res = makeRes();
-    await getSupervisionCalendar({}, res);
+    await getSupervisionCalendar({ user: { id: 1, role: 'staff' }, method: 'GET', get: () => '' }, res);
 
     const { events } = res.json.mock.calls[0][0];
     expect(events).toHaveLength(2);
@@ -691,21 +691,60 @@ describe('getSupervisionCalendar', () => {
       end: '08:00',
     });
 
-    expect(prisma.supervisionAppointment.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({
-          confirmedDate: { not: null },
-          status: { in: expect.arrayContaining(['DATE_CONFIRMED', 'LETTER_UPLOADED', 'COMPLETED']) },
-        }),
-      })
-    );
+    const { where } = prisma.supervisionAppointment.findMany.mock.calls[0][0];
+    expect(where.AND[0]).toMatchObject({
+      confirmedDate: { not: null },
+      status: { in: expect.arrayContaining(['DATE_CONFIRMED', 'LETTER_UPLOADED', 'COMPLETED']) },
+    });
+    // เจ้าหน้าที่ไม่มีตัวกรอง = ทุกหลักสูตร
+    expect(where.AND[1]).toEqual({ student: {} });
+  });
+
+  describe('แยกตามหลักสูตร', () => {
+    const scopeOf = async (user, header = '') => {
+      prisma.supervisionAppointment.findMany.mockResolvedValue([]);
+      await getSupervisionCalendar({ user, method: 'GET', get: () => header }, makeRes());
+      return prisma.supervisionAppointment.findMany.mock.calls[0][0].where.AND[1];
+    };
+
+    test('เจ้าหน้าที่ + ตัวกรองหลักสูตรบนแถบบน → เฉพาะหลักสูตรนั้น', async () => {
+      expect(await scopeOf({ id: 1, role: 'staff' }, 'AI')).toEqual({ student: { major: { in: ['AI'] } } });
+    });
+
+    test('นักศึกษา → หลักสูตรตัวเอง + นัดของตัวเอง', async () => {
+      prisma.student.findUnique.mockResolvedValue({ id: 5, major: 'CS' });
+      expect(await scopeOf({ id: 50, role: 'student' })).toEqual({ OR: [{ studentId: 5 }, { student: { major: 'CS' } }] });
+    });
+
+    test('นักศึกษายังไม่มีหลักสูตร → เฉพาะนัดของตัวเอง', async () => {
+      prisma.student.findUnique.mockResolvedValue({ id: 5, major: null });
+      expect(await scopeOf({ id: 50, role: 'student' })).toEqual({ studentId: 5 });
+    });
+
+    test('อาจารย์ทั่วไป → หลักสูตรตัวเอง + นัดที่นิเทศ/ร่วมนิเทศ', async () => {
+      prisma.teacher.findUnique.mockImplementation(async ({ select }) => (select.coopMajors ? { coopMajors: [] } : { id: 3, major: 'IT' }));
+      expect(await scopeOf({ id: 30, role: 'teacher' })).toEqual({
+        OR: [{ teacherId: 3 }, { coTeachers: { some: { teacherId: 3 } } }, { student: { major: { in: ['IT'] } } }],
+      });
+    });
+
+    test('อาจารย์ประจำวิชา → หลักสูตรตัวเอง + หลักสูตรที่ดูแล', async () => {
+      prisma.teacher.findUnique.mockImplementation(async ({ select }) => (select.coopMajors ? { coopMajors: [{ major: 'CS' }, { major: 'AI' }] } : { id: 3, major: 'CS' }));
+      const where = await scopeOf({ id: 30, role: 'teacher' });
+      expect(where.OR[2]).toEqual({ student: { major: { in: ['CS', 'AI'] } } });
+    });
+
+    test('ไม่พบโปรไฟล์ → ไม่เห็นนัดใคร', async () => {
+      prisma.student.findUnique.mockResolvedValue(null);
+      expect(await scopeOf({ id: 50, role: 'student' })).toEqual({ id: -1 });
+    });
   });
 
   test('500 — DB error returns server error', async () => {
     prisma.supervisionAppointment.findMany.mockRejectedValue(new Error('DB crash'));
 
     const res = makeRes();
-    await getSupervisionCalendar({}, res);
+    await getSupervisionCalendar({ user: { id: 1, role: 'staff' }, method: 'GET', get: () => '' }, res);
 
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: false }));

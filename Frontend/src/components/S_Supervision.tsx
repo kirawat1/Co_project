@@ -169,7 +169,7 @@ export default function S_Supervision() {
                 }
             } catch { /* ไม่ร้าย ถ้าดึงไม่ได้ */ }
 
-            // 3. ปฏิทินนิเทศ — วันที่จองทั้งหมดของทุกคน
+            // 3. ปฏิทินนิเทศ — นัดที่ยืนยันแล้วของหลักสูตรตัวเอง (server กรองให้)
             try {
                 const calRes = await axios.get("/api/coop/supervision/calendar", {
                     headers: { Authorization: `Bearer ${token}` }
@@ -673,13 +673,13 @@ export default function S_Supervision() {
                 .input:disabled { background: #f1f5f9; color: #64748b; cursor: not-allowed; }
             `}</style>
 
-            {/* ปฏิทินนิเทศ — แสดงวันที่จองทั้งหมด */}
+            {/* ปฏิทินนิเทศ — นัดที่ยืนยันแล้วในหลักสูตรของนักศึกษา */}
             <div style={{ marginTop: 24 }}>
                 <SupervisionCalendar
                     events={calendarEvents}
-                    title="📅 ปฏิทินนิเทศสหกิจ (วันที่ยืนยันแล้วทั้งหมด)"
+                    title="📅 ปฏิทินนิเทศสหกิจ หลักสูตรของคุณ (วันที่ยืนยันแล้ว)"
                 />
-                <SupervisionScheduleTable events={calendarEvents} title="🗓️ ตารางนิเทศทั้งหมด (เรียงตามวัน)" />
+                <SupervisionScheduleTable events={calendarEvents} title="🗓️ ตารางนิเทศหลักสูตรของคุณ (เรียงตามวัน)" />
             </div>
         </div>
     );

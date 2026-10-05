@@ -435,6 +435,8 @@ export default function T_SupervisionReview() {
 
     // ปฏิทิน + ตารางนิเทศ (ทั้งหมด) ใช้ข้อมูลจาก API ปฏิทิน (มีผู้นิเทศ/ช่วงเวลา) — โหลดเมื่อเป็นอาจารย์ประจำวิชา
     const { events: allCalendarEvents, degraded: scheduleDegraded } = useSupervisionSchedule(allSupervisions, isCoopTeacher);
+    // อาจารย์ทั่วไป: ปฏิทินหน้า "ของฉัน" = นัดทั้งหลักสูตรตัวเอง (รวมนัดที่ตัวเองนิเทศ) · อาจารย์ประจำวิชาดูทั้งหลักสูตรที่แท็บ "ทั้งหมด"
+    const { events: majorCalendarEvents } = useSupervisionSchedule(mySupervisions, !isCoopTeacher);
 
     const SortIcon = ({ col }: { col: SortKey }) => col === sortKey ? <span style={{ color: "#2563eb", marginLeft: 4 }}>{sortDir === "asc" ? "↑" : "↓"}</span> : <span style={{ color: "#cbd5e1", marginLeft: 4 }}>↕</span>;
     const AllSortIcon = ({ col }: { col: AllSortKey }) => col === allSortKey ? <span style={{ color: "#0ea5e9", marginLeft: 4 }}>{allSortDir === 'asc' ? '↑' : '↓'}</span> : <span style={{ color: '#cbd5e1', marginLeft: 4 }}>↕</span>;
@@ -508,7 +510,9 @@ export default function T_SupervisionReview() {
                     )}
 
                     <section style={{ marginBottom: 24 }}>
-                        <SupervisionCalendar events={myCalendarEvents} title="📅 ปฏิทินนิเทศของคุณ (วันที่ยืนยันแล้ว)" />
+                        {isCoopTeacher
+                            ? <SupervisionCalendar events={myCalendarEvents} title="📅 ปฏิทินนิเทศของคุณ (วันที่ยืนยันแล้ว)" />
+                            : <SupervisionCalendar events={majorCalendarEvents} title="📅 ปฏิทินนิเทศหลักสูตรของคุณ (วันที่ยืนยันแล้ว)" />}
                     </section>
 
                     {myLoading ? <div style={{ textAlign: 'center', padding: 40, color: '#0074B7' }}>กำลังโหลด...</div> : (
@@ -731,7 +735,7 @@ export default function T_SupervisionReview() {
 
                     {/* ── Calendar ── */}
                     <div style={{ marginBottom: 24 }}>
-                        <SupervisionCalendar events={allCalendarEvents} title="📅 ปฏิทินนิเทศสหกิจ (ทั้งหมด)" />
+                        <SupervisionCalendar events={allCalendarEvents} title="📅 ปฏิทินนิเทศสหกิจ (หลักสูตรที่ดูแล)" />
                         <SupervisionScheduleTable
                             events={allCalendarEvents}
                             notice={scheduleDegraded ? "โหลดตารางแบบละเอียดไม่สำเร็จ — แสดงข้อมูลเท่าที่มี (ไม่มีช่วงเวลาสิ้นสุด) ลองรีเฟรชหน้าอีกครั้ง" : undefined}
