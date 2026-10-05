@@ -51,12 +51,7 @@ function parseIdList(v) {
 }
 
 // ไฟล์หนังสือที่ลงนามใช้ร่วมกันได้หลายคน (หนังสือรวม) — ลบไฟล์เก่าได้เมื่อไม่มีใครอ้างอิงแล้วเท่านั้น
-async function deleteLetterFileIfUnused(filename) {
-  if (!filename) return;
-  const used = await prisma.studentCoop.count({ where: { OR: [{ reqLetterUrl: filename }, { placeLetterUrl: filename }] } });
-  if (used) return;
-  try { fs.unlinkSync(path.join(__dirname, '../uploads', filename)); } catch (_) {}
-}
+const deleteLetterFileIfUnused = (filename) => removeUnreferencedUploads([filename]);
 
 function clearedLetterPending(key) {
   return { [`${key}PendingAt`]: null, [`${key}DraftNumber`]: null, [`${key}DraftDate`]: null };

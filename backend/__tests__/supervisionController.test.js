@@ -999,9 +999,11 @@ describe('assignCoTeachers — เลือกอาจารย์ร่วม�
     await assignCoTeachers({ user: { role: 'staff' }, params: { id: '4' }, body: { coTeacherIds: [7, 5, 68, 7] } }, res);
 
     expect(prisma.teacher.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { id: { in: [7, 68] } } }));
-    expect(prisma.supervisionCoTeacher.deleteMany).toHaveBeenCalledWith({ where: { appointmentId: 4 } });
+    // ลบเฉพาะคนที่เอาออก · คนเดิมคงไว้ (วันว่างที่ตอบไว้ไม่หาย) · เพิ่มเฉพาะคนใหม่
+    expect(prisma.supervisionCoTeacher.deleteMany).toHaveBeenCalledWith({ where: { appointmentId: 4, teacherId: { notIn: [7, 68] } } });
     expect(prisma.supervisionCoTeacher.createMany).toHaveBeenCalledWith({
       data: [{ appointmentId: 4, teacherId: 7 }, { appointmentId: 4, teacherId: 68 }],
+      skipDuplicates: true,
     });
     expect(prisma.supervisionAppointment.update).toHaveBeenCalledWith({
       where: { id: 4 }, data: { coTeacherName: 'ผศ. ดร.ชิตสุธา สุ่มเล็ก, อ. ดร.ญานิกา คงโสรส' },
