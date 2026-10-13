@@ -1,4 +1,4 @@
-﻿import LetterBatchNotice from "./LetterBatchNotice";
+﻿import LetterBatchNotice, { sharesDraft } from "./LetterBatchNotice";
 import React, { useState } from "react";
 import { apiFetch } from "../utils/apiFetch";
 import { createDispatchPDF } from "../utils/pdfDispatchGenerator";
@@ -201,7 +201,9 @@ export default function IssueLetterModal({ student, group, batchMates, onOpenBat
                     {/* RIGHT: Controls */}
                     <div className="letter-sidebar" style={{ width: 300, display: 'flex', flexDirection: 'column', gap: 14, flexShrink: 0, overflowY: 'auto' }}>
                         <LetterPendingBanner {...pending} onCancel={pending.cancelPending} />
-                        {!members && batchMates && <LetterBatchNotice mates={batchMates} docNumber={student.coop?.reqDocNumber} onOpenBatch={onOpenBatch} />}
+                        {!members && batchMates && (sharesDraft(batchMates, student.coop?.reqLetterDraftNumber, "reqLetterDraftNumber")
+                            ? <LetterBatchNotice mates={batchMates} docNumber={student.coop?.reqLetterDraftNumber} draft onOpenBatch={onOpenBatch} />
+                            : <LetterBatchNotice mates={batchMates} docNumber={student.coop?.reqDocNumber} onOpenBatch={onOpenBatch} />)}
                         {members && (
                             <div style={{ padding: '10px 12px', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8, fontSize: 12, color: '#1e3a8a' }}>
                                 <div style={{ fontWeight: 700, marginBottom: 4 }}>👥 หนังสือขอความอนุเคราะห์รวม {members.length} คน · {student.coop?.company?.name || ""}</div>

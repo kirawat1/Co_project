@@ -196,7 +196,14 @@ export default function A_DocT000() {
         setBatchLetter({ type, members });
     };
     // เพื่อนในหนังสือรวมฉบับเดียวกัน (จากรายชื่อที่โหลดอยู่) — ใช้ในหน้าต่างหนังสือเดี่ยว
+    // ร่างหนังสือรวมที่รอลงนาม (เลขร่างเดียวกันหลายคน) มาก่อน — ใหม่กว่าหนังสือรวมที่ออกไปแล้ว
     const batchMatesOf = (s: StudentProfile, type: "REQUEST" | "PLACEMENT") => {
+        const draftOf = (m: StudentProfile) => type === "REQUEST" ? m.coop?.reqLetterDraftNumber : m.coop?.placeLetterDraftNumber;
+        const draft = draftOf(s);
+        if (draft) {
+            const mates = students.filter(m => draftOf(m) === draft);
+            if (mates.length > 1) return mates;
+        }
         const batch = type === "REQUEST" ? s.coop?.reqLetterBatch : s.coop?.placeLetterBatch;
         if (!batch) return undefined;
         return students.filter(m => (type === "REQUEST" ? m.coop?.reqLetterBatch : m.coop?.placeLetterBatch) === batch);
