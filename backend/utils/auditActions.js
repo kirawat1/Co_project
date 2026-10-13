@@ -24,7 +24,6 @@ const looksLikeEmail = (v) => EMAIL_RE.test(String(v || '').trim());
 // ':x' = ส่วนไหนก็ได้ 1 ชั้น
 const RULES = [
   ['POST', '/api/auth/signin', 'เข้าสู่ระบบ', null, null],
-  ['POST', '/api/auth/login/sso', 'เข้าสู่ระบบด้วย SSO', null, null],
   ['POST', '/api/auth/login/google', 'เข้าสู่ระบบด้วย Google', null, null],
   ['POST', '/api/auth/register', 'เพิ่มนักศึกษาใหม่', 'นักศึกษา', 'code:studentId'],
   ['PUT', '/api/auth/me/password', 'เปลี่ยนรหัสผ่าน', null, null],
@@ -32,7 +31,6 @@ const RULES = [
   ['PATCH', '/api/admin/feedback/:x', 'ตอบกลับ/อัปเดตเรื่องที่แจ้ง', 'เรื่องที่แจ้ง', ':1'],
 
   ['PUT', '/api/students/me', 'แก้ไขข้อมูลส่วนตัว', 'นักศึกษา', null],
-  ['POST', '/api/students/sync-from-reg', 'ซิงก์ข้อมูลจากทะเบียน KKU', 'นักศึกษา', null],
   ['POST', '/api/students/acknowledge-dispatch', 'รับทราบหนังสือขอความอนุเคราะห์', 'นักศึกษา', null],
   ['POST', '/api/students/download-placement-letter', 'ดาวน์โหลดหนังสือส่งตัว', 'นักศึกษา', null],
   ['POST', '/api/admin/students/import-preview', 'ตรวจไฟล์นำเข้านักศึกษา (ยังไม่บันทึก)', 'นักศึกษา', null],

@@ -1,5 +1,18 @@
 # CHANGELOG — Co_project
 
+## [2026-10-13] chore: ลบ KKU SSO และการดึงข้อมูลจากทะเบียน KKU (ไม่ได้ใช้แล้ว)
+
+### Removed
+- ข้อมูลนักศึกษาเข้าระบบด้วยการอัปโหลด Excel แทนแล้ว — ปิดช่องทางที่ยังเปิดค้างแต่ไม่มีหน้าเว็บเรียก:
+  - `POST /api/auth/login/sso` (ไม่ต้อง login ก่อน — ส่งต่อไป KKU API แล้วสร้าง/อัปเดตบัญชีผู้ใช้) + `loginWithSSO`
+  - `loginWithKKU` (route ปิดไว้แล้ว เหลือแต่โค้ด)
+  - `POST /api/students/sync-from-reg` (รับ username/password KKU ของนักศึกษา) + `GET /api/students/reg-status`, `/reg-semester` + `syncFromReg`
+  - `services/kkuRegService.js`, ตัวแปร `KKU_REG_*` / `KKU_API_TOKEN` ใน `.env.example`, ป้ายบันทึกการใช้งานของ route เหล่านี้
+- Google login ยังใช้อยู่ ไม่ได้แตะ
+
+### Deploy
+- ลบ `KKU_REG_*` / `KKU_API_TOKEN` ออกจาก `.env` บน VM ได้ (ไม่มีโค้ดใช้แล้ว ไม่ลบก็ไม่มีผล)
+
 ## [2026-10-13] fix: ย้ายรอบแล้วหนังสือรอบเก่ายังโชว์ + พิมพ์หนังสือขอความอนุเคราะห์ซ้ำแล้วฉบับเก่าติดมาในเล่ม
 
 ### Fixed

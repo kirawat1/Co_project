@@ -1,6 +1,5 @@
 // backend/controllers/studentController.js
 const prisma = require('../config/prismaClient');
-const kkuReg = require('../services/kkuRegService');
 const { buildStudentExportWorkbook, exportBaseUrl, STUDENT_EXPORT_INCLUDE } = require('../utils/studentExport');
 const { defaultStudentPassword, hashDefaultStudentPassword } = require('../utils/studentPassword');
 const { encryptPassword, revealPassword } = require('../utils/passwordVault');
@@ -420,67 +419,6 @@ exports.downloadPlacementLetter = async (req, res) => {
     if (err.is400) return res.status(400).json({ ok: false, message: err.message });
     console.error('downloadPlacementLetter error:', err);
     res.status(500).json({ ok: false });
-  }
-};
-
-exports.syncFromReg = async (req, res) => {
-  const { kkuUsername, kkuPassword } = req.body;
-
-  if (!kkuUsername || !kkuPassword ||
-      typeof kkuUsername !== 'string' || typeof kkuPassword !== 'string') {
-    return res.status(400).json({ ok: false, message: "กรุณาระบุ KKU Username และ Password" });
-  }
-
-  if (!kkuReg.isConfigured()) {
-    return res.status(503).json({
-      ok: false,
-      message: "ฟีเจอร์นี้ยังไม่พร้อมใช้ — รอการตั้งค่า API credentials จาก KKU",
-    });
-  }
-
-  try {
-    const student = await prisma.student.findUnique({ where: { userId: req.userId } });
-    if (!student || student.deletedAt) return res.status(404).json({ ok: false, message: "ไม่พบข้อมูลนักศึกษา" });
-
-    // 1. ดึงข้อมูลพื้นฐาน (syncStudentAll ทำ login 1 ครั้ง แล้วดึงทุกอย่างพร้อมกัน)
-    const result = await kkuReg.syncStudentAll(kkuUsername, kkuPassword);
-    if (!result.ok) return res.status(401).json(result);
-
-    const updateData = {};
-
-    if (result.info) {
-      const info = result.info;
-      if (info.first_name_th)   updateData.firstName   = info.first_name_th;
-      if (info.last_name_th)    updateData.lastName    = info.last_name_th;
-      if (info.first_name_en)   updateData.firstNameEn = info.first_name_en;
-      if (info.last_name_en)    updateData.lastNameEn  = info.last_name_en;
-      if (info.major_name_th)   updateData.major       = info.major_name_th;
-      if (info.class_year)      updateData.year        = String(info.class_year);
-      if (info.prefix_th)       updateData.prefix      = info.prefix_th;
-      if (info.activity_credit != null) updateData.activityUnit = parseFloat(info.activity_credit) || 0;
-    }
-
-    if (result.advisor) {
-      const adv = result.advisor;
-      const name = [adv.prefix_th, adv.first_name_th, adv.last_name_th].filter(Boolean).join(" ");
-      if (name) updateData.advisorName = name;
-    }
-
-    updateData.apiSyncedAt = new Date();
-
-    if (Object.keys(updateData).length > 0) {
-      await prisma.student.update({ where: { id: student.id }, data: updateData });
-    }
-
-    res.json({
-      ok: true,
-      message: `ซิงค์ข้อมูลจาก KKU สำเร็จ (อัปเดต ${Object.keys(updateData).length} ฟิลด์)`,
-      updated: Object.keys(updateData),
-      image: result.image || null,
-    });
-  } catch (err) {
-    console.error("[syncFromReg]", err);
-    res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์" });
   }
 };
 

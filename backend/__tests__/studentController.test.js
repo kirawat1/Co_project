@@ -4,14 +4,6 @@ jest.mock('@prisma/client', () => {
   return { PrismaClient: jest.fn(() => mocks) };
 });
 
-jest.mock('../services/kkuRegService', () => ({
-  isConfigured: jest.fn(() => false),
-  syncStudentAll: jest.fn(),
-  getStudentToken: jest.fn(),
-  getGradeList: jest.fn(),
-  getCurrentSemester: jest.fn(),
-}));
-
 const prisma = require('./__mocks__/prismaClient');
 const { getStudents, getMyProfile, updateMyProfile } = require('../controllers/studentController');
 

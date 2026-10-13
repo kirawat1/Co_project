@@ -1,7 +1,7 @@
 // backend/routes/auth.js
 const express = require("express");
 const rateLimit = require("express-rate-limit");
-const { signIn, getProfile, loginWithSSO, loginWithKKU, registerStudent, loginWithGoogle, changeMyPassword } = require("../controllers/authController");
+const { signIn, getProfile, registerStudent, loginWithGoogle, changeMyPassword } = require("../controllers/authController");
 const { verifyToken, verifyRole } = require("../middlewares/authMiddleware");
 
 const router = express.Router();
@@ -27,8 +27,6 @@ const registerLimiter = rateLimit({
 });
 
 router.post("/signin", loginLimiter, signIn);
-router.post("/login/sso", loginLimiter, loginWithSSO);
-// router.post("/login/kku", loginWithKKU);  // ปิดแล้ว — ใช้ Google OAuth แทน
 router.post("/login/google", loginLimiter, loginWithGoogle);
 router.post("/register", verifyToken, verifyRole('staff'), registerStudent);
 
