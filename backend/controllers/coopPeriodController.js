@@ -3,6 +3,7 @@ const { isPeriodExpired } = require('../utils/coopPeriodHelper');
 const { listPeriods, getRow, viewPeriod, viewerMajors, targetMajors, allMajorCodes } = require('../utils/coopPeriodMajor');
 const { getMajorScope } = require('../utils/majorScope');
 const { createNotifications } = require('../utils/notificationHelper');
+const { removeUnreferencedUploads } = require('../utils/uploadCleanup');
 
 // รอบสหกิจ = ปี/เทอม ใช้ร่วมกัน · วันรับสมัคร / เปิด-ปิด / ช่วงนิเทศ แยกหลักสูตร (CoopPeriodMajor — ดู utils/coopPeriodMajor.js)
 
@@ -209,6 +210,9 @@ const T000_RESET = {
   placeLetterPendingAt: null, placeLetterDraftNumber: null, placeLetterDraftDate: null, placeLetterDelivery: null,
   mentors: { set: [] },
 };
+// เอกสารที่เกิดจากขั้นหนังสือ (ระบบสร้างตอนออกหนังสือ/รับใบตอบรับ) — เริ่ม T000 ใหม่ต้องหายไปด้วย
+// ไม่งั้นหน้าเอกสารนักศึกษายังโชว์หนังสือรอบเก่า (การ์ดขั้นที่ 4 ดูจากเอกสาร DISPATCH_LETTER)
+const LETTER_STAGE_DOC_TYPES = ['DISPATCH_LETTER', 'PLACEMENT_LETTER', 'CP-ACCEPTANCE', 'ACCEPTANCE_FORM'];
 const RESET_LABEL = { KEEP: 'คงสถานะเดิม', QUALIFIED: 'ผ่านคุณสมบัติแล้ว เริ่มยื่น T000 ใหม่', NOT_SUBMITTED: 'เริ่มยื่นคำร้องใหม่' };
 
 exports.moveStudentPeriod = async (req, res) => {
@@ -246,7 +250,17 @@ exports.moveStudentPeriod = async (req, res) => {
     const data = { coopPeriodId: periodId };
     if (resetTo === 'QUALIFIED') Object.assign(data, T000_RESET, { status: 'QUALIFIED' });
     if (resetTo === 'NOT_SUBMITTED') Object.assign(data, T000_RESET, { status: 'NOT_SUBMITTED', teacherCheckComment: null, teacherCheckDate: null });
-    await prisma.studentCoop.update({ where: { studentId }, data });
+    let staleFiles = [];
+    await prisma.$transaction(async (tx) => {
+      await tx.studentCoop.update({ where: { studentId }, data });
+      if (resetTo !== 'KEEP') {
+        const docs = await tx.document.findMany({ where: { studentId, type: { in: LETTER_STAGE_DOC_TYPES } }, select: { path: true } });
+        staleFiles = docs.map((d) => d.path);
+        await tx.document.deleteMany({ where: { studentId, type: { in: LETTER_STAGE_DOC_TYPES } } });
+      }
+    });
+    // ไฟล์หนังสือรวมที่เพื่อนยังใช้อยู่ไม่ถูกลบ (นับการอ้างอิงก่อน)
+    if (staleFiles.length) removeUnreferencedUploads(staleFiles).catch((e) => console.error('move period cleanup', e));
 
     const label = `${period.semester}/${period.academicYear}`;
     res.json({ ok: true, message: `ย้ายไปรอบ ${label} แล้ว (${RESET_LABEL[resetTo]})`, from: coop.coopPeriodId, to: periodId, resetTo });

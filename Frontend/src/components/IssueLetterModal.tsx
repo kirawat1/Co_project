@@ -20,6 +20,8 @@ interface Props {
     onSuccess: () => void;
 }
 
+const NOT_LETTER_ATTACHMENTS = new Set(["DISPATCH_LETTER", "PLACEMENT_LETTER", "CP-ACCEPTANCE", "ACCEPTANCE_FORM", "T002_FORM", "T003_FORM", "T003"]);
+
 export default function IssueLetterModal({ student, group, batchMates, onOpenBatch, onClose, onSuccess }: Props) {
     const members = group && group.length > 1 ? group : null;
     const pending = useLetterPending({ record: student.coop, prefix: "reqLetter", endpoint: "/api/admin/t000/letter-pending", body: members ? { studentIds: members.map(m => m.id), letter: "REQUEST" } : { studentId: student.id, letter: "REQUEST" } });
@@ -73,7 +75,8 @@ export default function IssueLetterModal({ student, group, batchMates, onOpenBat
 
             const profile = { ...student, coop: { ...student.coop, actualStartDate: startDate, actualEndDate: endDate } };
             // หนังสือรวม: แนบเอกสารของทุกคนเรียงตามรายชื่อ
-            const allDocs = (members || [student]).flatMap((m: any) => m.documents || []).filter((d: any) => d.path);
+            // ไม่แนบเอกสารจากขั้นหลัง (หนังสือที่ออกแล้ว ใบตอบรับ T002/T003) — เดิมพิมพ์ซ้ำแล้วหนังสือฉบับเก่าที่ลงนามติดมาในเล่มใหม่
+            const allDocs = (members || [student]).flatMap((m: any) => m.documents || []).filter((d: any) => d.path && !NOT_LETTER_ATTACHMENTS.has(d.type));
             // ตรวจสอบว่าไฟล์ยังอยู่บน server ก่อนส่ง
             const fileChecks = await Promise.all(
                 allDocs.map(async (d: any) => {

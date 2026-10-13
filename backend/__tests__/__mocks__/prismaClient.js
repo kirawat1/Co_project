@@ -58,6 +58,7 @@ const prismaMock = {
     create: jest.fn(),
     createMany: jest.fn(),
     delete: jest.fn(),
+    deleteMany: jest.fn(),
     update: jest.fn(),
   },
   coopPeriod: {
