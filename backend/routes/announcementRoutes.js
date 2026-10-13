@@ -6,7 +6,8 @@ const { verifyToken, verifyCoopTeacherOrStaff } = require("../middlewares/authMi
 const router = express.Router();
 
 // ประกาศเขียนได้โดยเจ้าหน้าที่ และอาจารย์ประจำวิชาสหกิจ (isCoopTeacher) เท่านั้น
-router.get("/", controller.getAnnouncements);
+// อ่านประกาศต้อง login (เดิมเปิดสาธารณะ — หน้าที่ใช้ทุกหน้า login แล้ว)
+router.get("/", verifyToken, controller.getAnnouncements);
 router.post("/", verifyToken, verifyCoopTeacherOrStaff, controller.upload.array("attachments"), controller.addOrUpdateAnnouncement);
 router.delete("/:id", verifyToken, verifyCoopTeacherOrStaff, controller.deleteAnnouncement);
 
