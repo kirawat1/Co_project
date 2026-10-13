@@ -274,6 +274,23 @@ describe('moveStudentPeriod', () => {
     expect(data).not.toHaveProperty('teacherCheckComment');
   });
 
+  test('เริ่ม T000 ใหม่ → ลบเอกสารขั้นหนังสือ (หนังสือ/ใบตอบรับ) ไม่งั้นหน้าเอกสารนักศึกษายังโชว์หนังสือรอบเก่า', async () => {
+    prisma.student.findUnique.mockResolvedValue(stu('REQ_LETTER_ISSUED'));
+    prisma.document.findMany.mockResolvedValue([{ path: 'old-letter.pdf' }]);
+    prisma.document.deleteMany.mockResolvedValue({ count: 1 });
+    await moveStudentPeriod(mv({ resetTo: 'QUALIFIED' }), makeRes());
+    const where = prisma.document.deleteMany.mock.calls[0][0].where;
+    expect(where.studentId).toBe(5);
+    expect(where.type.in).toEqual(expect.arrayContaining(['DISPATCH_LETTER', 'PLACEMENT_LETTER', 'CP-ACCEPTANCE', 'ACCEPTANCE_FORM']));
+    expect(where.type.in).not.toContain('CP-TRANSCRIPT');
+  });
+
+  test('KEEP → ไม่แตะเอกสาร', async () => {
+    prisma.student.findUnique.mockResolvedValue(stu('APPLYING'));
+    await moveStudentPeriod(mv({ resetTo: 'KEEP' }), makeRes());
+    expect(prisma.document.deleteMany).not.toHaveBeenCalled();
+  });
+
   test('NOT_SUBMITTED → ล้างผลตรวจคุณสมบัติด้วย', async () => {
     prisma.student.findUnique.mockResolvedValue(stu('REQ_LETTER_ISSUED'));
     const res = makeRes();
