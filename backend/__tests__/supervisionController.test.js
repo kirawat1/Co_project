@@ -734,6 +734,16 @@ describe('getSupervisionCalendar', () => {
       expect(where.OR[2]).toEqual({ student: { major: { in: ['CS', 'AI'] } } });
     });
 
+    test('อาจารย์ประจำวิชา + ตัวกรองหลักสูตรบนแถบบน → เฉพาะหลักสูตรนั้น (ตรงกับรายการนัดหน้าจัดการ)', async () => {
+      prisma.teacher.findUnique.mockImplementation(async ({ select }) => (select.coopMajors ? { coopMajors: [{ major: 'CS' }, { major: 'AI' }] } : { id: 3, major: 'CS' }));
+      expect(await scopeOf({ id: 30, role: 'teacher' }, 'AI')).toEqual({ student: { major: { in: ['AI'] } } });
+    });
+
+    test('อาจารย์ทั่วไปส่งตัวกรองหลักสูตรที่ไม่ได้ดูแล → ไม่มีผล', async () => {
+      prisma.teacher.findUnique.mockImplementation(async ({ select }) => (select.coopMajors ? { coopMajors: [] } : { id: 3, major: 'IT' }));
+      expect((await scopeOf({ id: 30, role: 'teacher' }, 'AI')).OR).toHaveLength(3);
+    });
+
     test('ไม่พบโปรไฟล์ → ไม่เห็นนัดใคร', async () => {
       prisma.student.findUnique.mockResolvedValue(null);
       expect(await scopeOf({ id: 50, role: 'student' })).toEqual({ id: -1 });

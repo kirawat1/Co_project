@@ -1,5 +1,5 @@
 ﻿// Frontend/src/components/IssuePlacementLetterModal.tsx
-import LetterBatchNotice from "./LetterBatchNotice";
+import LetterBatchNotice, { sharesDraft } from "./LetterBatchNotice";
 import React, { useState } from "react";
 import { apiFetch } from "../utils/apiFetch";
 import { createPlacementPDF } from "../utils/pdfGeneratorPlacement";
@@ -148,7 +148,9 @@ export default function IssuePlacementLetterModal({ student, group, batchMates, 
                     </div>
                     <div className="letter-sidebar" style={{ width: 300, display: 'flex', flexDirection: 'column', gap: 14, flexShrink: 0, overflowY: 'auto' }}>
                         <LetterPendingBanner {...pending} onCancel={pending.cancelPending} />
-                        {!members && batchMates && <LetterBatchNotice mates={batchMates} docNumber={student.coop?.placeDocNumber} onOpenBatch={onOpenBatch} />}
+                        {!members && batchMates && (sharesDraft(batchMates, student.coop?.placeLetterDraftNumber, "placeLetterDraftNumber")
+                            ? <LetterBatchNotice mates={batchMates} docNumber={student.coop?.placeLetterDraftNumber} draft onOpenBatch={onOpenBatch} />
+                            : <LetterBatchNotice mates={batchMates} docNumber={student.coop?.placeDocNumber} onOpenBatch={onOpenBatch} />)}
                         {members && (
                             <div style={{ padding: '10px 12px', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8, fontSize: 12, color: '#1e3a8a' }}>
                                 <div style={{ fontWeight: 700, marginBottom: 4 }}>👥 หนังสือส่งตัวรวม {members.length} คน · {student.coop?.company?.name || ""}</div>

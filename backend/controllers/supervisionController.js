@@ -1390,7 +1390,11 @@ async function calendarScopeWhere(req) {
     if (role === 'teacher') {
         const teacher = await prisma.teacher.findUnique({ where: { userId: req.user.id }, select: { id: true, major: true } });
         if (!teacher) return { id: -1 };
-        const { majors: coopMajors } = await getMajorScope(req, { ignoreFilter: true });
+        // อาจารย์ประจำวิชาเลือกตัวกรองหลักสูตรบนแถบบน (หน้า /admin) → เฉพาะหลักสูตรนั้น ตรงกับรายการนัดหน้าจัดการ
+        const base = await getMajorScope(req, { ignoreFilter: true });
+        const viewed = await getMajorScope(req);
+        if (viewed !== base) return { student: studentWhere(viewed) };
+        const coopMajors = base.majors;
         const majors = [...new Set([teacher.major, ...coopMajors].filter(Boolean))];
         const or = [{ teacherId: teacher.id }, { coTeachers: { some: { teacherId: teacher.id } } }];
         if (majors.length) or.push({ student: { major: { in: majors } } });
