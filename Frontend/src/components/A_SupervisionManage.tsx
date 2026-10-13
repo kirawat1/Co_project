@@ -18,7 +18,7 @@ import { askConfirm } from "../utils/notify";
 import { TABLE_TH, TABLE_TD, TABLE_HEADER_ROW } from "../utils/tableStyles";
 import { useAdminRole } from "./adminRole";
 import { getMajorFilter, NO_MAJOR } from "../utils/majorFilter";
-import { downloadLetterZip } from "../utils/letterZip";
+import LetterZipModal, { LetterZipButton } from "./LetterZipModal";
 
 // --- Types ---
 type SupervisionStatus = "PENDING_TEACHER" | "TEACHER_REJECTED" | "DATE_CONFIRMED" | "LETTER_UPLOADED" | "COMPLETED";
@@ -134,7 +134,7 @@ export default function A_SupervisionManage() {
     // State สำหรับค้นหาและกรองตาราง
     const [q, setQ] = useState("");
     const [filterPeriodId, setFilterPeriodId] = useState<string>("all");
-    const [zipBusy, setZipBusy] = useState(false);
+    const [zipOpen, setZipOpen] = useState(false); // หน้าต่างดาวน์โหลดหนังสือขอนิเทศ (zip)
     const [filterCompany, setFilterCompany] = useState<string>("all");
     // หนังสือขอนิเทศ: TO_ISSUE = ยืนยันวันแล้วยังไม่ได้โหลดร่าง · PENDING_SIGN = โหลดร่างไปรอลงนามแล้ว
     const [filterLetter, setFilterLetter] = useState<"all" | "TO_ISSUE" | "PENDING_SIGN">("all");
@@ -518,11 +518,9 @@ export default function A_SupervisionManage() {
                         <option value="TO_ISSUE">📄 รอออกหนังสือ</option>
                         <option value="PENDING_SIGN">✍️ รอลงนาม</option>
                     </select>
-                    {/* หนังสือขอนิเทศที่อัปโหลดฉบับลงนามแล้ว ทั้งรอบเป็น zip (ตามรอบที่เลือก + ตัวกรองหลักสูตรด้านบน) */}
-                    <button className="btn-secondary small" disabled={zipBusy} title="ดาวน์โหลดหนังสือขอนิเทศที่ออกแล้วทั้งหมด (ตามรอบที่เลือก) เป็นไฟล์ zip"
-                        onClick={async () => { setZipBusy(true); try { await downloadLetterZip("SUPERVISION", filterPeriodId); } finally { setZipBusy(false); } }}>
-                        {zipBusy ? "⏳ กำลังเตรียมไฟล์..." : "⬇️ หนังสือขอนิเทศ (zip)"}
-                    </button>
+                    {/* หนังสือขอนิเทศที่อัปโหลดฉบับลงนามแล้วเป็น zip (เลือกรอบ/หลักสูตร และยืนยันในหน้าต่าง) */}
+                    <LetterZipButton onClick={() => setZipOpen(true)} label="ดาวน์โหลดหนังสือขอนิเทศ (zip)" />
+                    {zipOpen && <LetterZipModal types={["SUPERVISION"]} periods={coopPeriods} defaultPeriodId={filterPeriodId} onClose={() => setZipOpen(false)} />}
                 </div>
 
                 <div style={{ overflowX: 'auto' }}>

@@ -41,7 +41,8 @@ const STAFF_ONLY_SENSITIVE = [
   'PUT /config/evaluation', 'PUT /config/t007', 'PUT /config/t008', 'PUT /config/gateway',
 ];
 // ไม่ต้อง login (ข้อมูลสาธารณะ เช่น โลโก้/ชื่อผู้ลงนามบนหนังสือ)
-const PUBLIC = ['GET /assets', 'GET /config/dean-info'];
+// GET /letters/zip — เบราว์เซอร์เปิดลิงก์ดาวน์โหลดเอง สิทธิ์อยู่ในลิงก์ (ทดสอบใน letterDownloadController.test.js)
+const PUBLIC = ['GET /assets', 'GET /config/dean-info', 'GET /letters/zip'];
 
 const routes = adminRouter.stack
   .filter((l) => l.route)

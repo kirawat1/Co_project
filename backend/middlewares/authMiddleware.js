@@ -19,6 +19,10 @@ exports.verifyToken = (req, res, next) => {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    // token เฉพาะงาน (เช่น ลิงก์ดาวน์โหลด zip) ใช้แทนการ login ไม่ได้
+    if (decoded.purpose) {
+      return res.status(401).json({ ok: false, message: "Token expired or invalid — please log in again" });
+    }
 
     req.user = decoded;
     req.userId = decoded.id;

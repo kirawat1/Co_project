@@ -149,6 +149,8 @@ const RULES = [
   ['GET', '/api/admin/supervisions/export', 'ดาวน์โหลดตารางนิเทศ (Excel)', null, null],
   ['GET', '/api/teacher/students/export', 'ดาวน์โหลดรายชื่อนักศึกษาที่ดูแล (Excel)', null, null],
   ['GET', '/api/teachers/students/export', 'ดาวน์โหลดรายชื่อนักศึกษาที่ดูแล (Excel)', null, null],
+  // ขอลิงก์ดาวน์โหลด = จุดที่รู้ว่าใครดาวน์โหลด (ตัว zip เปิดผ่านลิงก์ ไม่มี header login)
+  ['POST', '/api/admin/letters/download-link', 'ดาวน์โหลดหนังสือที่ออกแล้ว (zip)', null, null],
 ];
 
 // เทียบ path กับรูปแบบที่มี :x — คืน array ของส่วนที่ match (สำหรับดึง id)

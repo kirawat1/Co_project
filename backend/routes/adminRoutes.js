@@ -74,6 +74,10 @@ router.get("/coop-periods/all", verifyToken, verifyRole(...ADMIN_ROLES), coopPer
 
 // ดาวน์โหลดหนังสือที่ออกแล้วหลายฉบับเป็น zip (อาจารย์ประจำวิชา = หลักสูตรที่ดูแล)
 router.get('/letters/download', verifyToken, verifyCoopTeacherOrStaff, letterDownloadController.downloadLetters);
+router.get('/letters/summary', verifyToken, verifyCoopTeacherOrStaff, letterDownloadController.letterSummary);
+router.post('/letters/download-link', verifyToken, verifyCoopTeacherOrStaff, letterDownloadController.createDownloadLink);
+// เบราว์เซอร์เปิดลิงก์เอง (ไม่มี header Authorization) — สิทธิ์อยู่ในลิงก์ที่ออกจาก /letters/download-link (อายุ 5 นาที)
+router.get('/letters/zip', letterDownloadController.downloadByLink);
 
 // Dashboard
 router.get('/dashboard-stats', verifyToken, verifyCoopTeacherOrStaff, adminDashboardController.getDashboardStats);

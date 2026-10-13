@@ -243,6 +243,38 @@ test.describe("zip หนังสือที่ออกแล้ว", () => {
 
     expect((await api(W.staff.token, "GET", `/api/admin/letters/download?type=PLACE&coopPeriodId=${W.periodId}`)).status).toBe(404);
   });
+
+  test("หน้าต่างยืนยัน → ลิงก์ → เบราว์เซอร์ดาวน์โหลดเอง: สรุปตรงกับไฟล์ · เลือกหลักสูตรได้ · ลิงก์ใช้แทน login ไม่ได้", async () => {
+    const a1 = await W.student(W.A, "DOCS_APPROVED"), b1 = await W.student(W.B, "DOCS_APPROVED");
+    expect((await api(W.staff.token, "PUT", "/api/admin/t000/letter-batch", form({ letter: "REQUEST", studentIds: JSON.stringify([a1.id, (await W.student(W.A, "DOCS_APPROVED")).id]), docNumber: docNo("L1") }, "l.pdf"))).status).toBe(200);
+    expect((await api(W.staff.token, "PUT", "/api/admin/t000/review", form({ studentId: b1.id, status: "REQ_LETTER_ISSUED", docType: "DISPATCH_LETTER", reqDocNumber: docNo("L2") }, "l.pdf"))).status).toBe(200);
+    const q = (major: string) => `/api/admin/letters/summary?type=REQ&coopPeriodId=${W.periodId}&major=${major}`;
+
+    const onlyA = await api(W.staff.token, "GET", q(W.A));
+    expect(onlyA.status).toBe(200);
+    expect(onlyA.body.students.map((s: any) => s.major)).toEqual(expect.arrayContaining([W.A]));
+    expect(onlyA.body.students.some((s: any) => s.studentId === b1.studentId)).toBe(false);
+    expect(onlyA.body.fileName).toBe(`หนังสือขอความอนุเคราะห์_เทอม8-ZZ${W.stamp}_${W.A}.zip`);
+    expect(onlyA.body.totalBytes).toBeGreaterThan(0);
+
+    // อาจารย์ประจำวิชา A เลือกหลักสูตร B → ไม่ขยายสิทธิ์ (ยังเห็นแค่ A)
+    const coopA = await W.teacher(W.A, [W.A]);
+    const widened = await api(coopA.token, "GET", q(W.B));
+    expect(widened.body.students.every((s: any) => s.major === W.A)).toBe(true);
+
+    const link = await api(W.staff.token, "POST", "/api/admin/letters/download-link", { type: "REQ", coopPeriodId: String(W.periodId), major: W.A });
+    expect(link.status).toBe(200);
+    expect(link.body.count).toBe(onlyA.body.count);
+    const zip = await fetch(`http://localhost:5000${link.body.url}`); // ไม่มี header Authorization — เหมือนเบราว์เซอร์เปิดลิงก์
+    expect(zip.status).toBe(200);
+    expect(decodeURIComponent(zip.headers.get("content-disposition")!.split("UTF-8''")[1])).toBe(onlyA.body.fileName);
+    const names = zipNames(Buffer.from(await zip.arrayBuffer()));
+    expect(names.filter((n) => !n.startsWith("_"))).toHaveLength(onlyA.body.count);
+
+    const t = decodeURIComponent(link.body.url.split("t=")[1]);
+    expect((await api(t, "GET", "/api/auth/me")).status).toBe(401);           // ใช้แทน token login ไม่ได้
+    expect((await fetch(`http://localhost:5000/api/admin/letters/zip?t=bogus`)).status).toBe(401);
+  });
 });
 
 // ─────────────────────────────────────────────────────────────
