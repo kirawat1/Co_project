@@ -21,6 +21,15 @@ export function toLetterStudent(s: any): LetterStudent {
     };
 }
 
+// เอกสารจากขั้นหลัง (หนังสือที่ออกแล้ว ใบตอบรับ T002/T003) — ไม่แนบในหนังสือขอความอนุเคราะห์
+// เดิมแนบทุกไฟล์ของนักศึกษา: พิมพ์ซ้ำแล้วหนังสือฉบับเก่าที่ลงนามติดมาในเล่มใหม่
+const NOT_LETTER_ATTACHMENTS = new Set(["DISPATCH_LETTER", "PLACEMENT_LETTER", "CP-ACCEPTANCE", "ACCEPTANCE_FORM", "T002_FORM", "T003_FORM", "T003"]);
+
+/** เอกสารของนักศึกษาที่แนบท้ายหนังสือขอความอนุเคราะห์ (หนังสือรวม = ทุกคนเรียงตามรายชื่อ) */
+export function letterAttachmentDocs<T extends { path?: string | null; type?: string | null }>(students: { documents?: T[] | null }[]): T[] {
+    return students.flatMap((s) => s.documents || []).filter((d) => !!d.path && !NOT_LETTER_ATTACHMENTS.has(d.type || ""));
+}
+
 export const isGroup = (list?: LetterStudent[] | null): list is LetterStudent[] => Array.isArray(list) && list.length > 1;
 
 /** ทุกคนฝึกช่วงเดียวกัน → ใช้ประโยคช่วงเวลาเดียว · ต่างกัน → ใส่วันของแต่ละคนท้ายชื่อ */

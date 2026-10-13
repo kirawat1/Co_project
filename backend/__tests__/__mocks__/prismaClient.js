@@ -113,6 +113,10 @@ const prismaMock = {
     findUnique: jest.fn(),
     upsert: jest.fn(),
   },
+  coopT003Form: {
+    findUnique: jest.fn(),
+    upsert: jest.fn(),
+  },
   companyContact: {
     findMany: jest.fn(),
     findUnique: jest.fn(),
