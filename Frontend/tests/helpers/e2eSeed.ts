@@ -42,8 +42,9 @@ export interface LifecycleFixture {
 /** ยืนยันว่า backend รันอยู่จริง — ถ้าไม่ ให้ fail ด้วยข้อความที่บอกวิธีแก้ทันที */
 export async function assertBackendUp(): Promise<void> {
   try {
-    const res = await fetch(`${API_BASE}/api/announcements`);
-    if (!res.ok) throw new Error(`status ${res.status}`);
+    // ตอบอะไรก็ได้ที่ไม่ใช่ 5xx = backend รันอยู่ (ไม่มี token → 401 ปกติ)
+    const res = await fetch(`${API_BASE}/api/auth/me`);
+    if (res.status >= 500) throw new Error(`status ${res.status}`);
   } catch (err) {
     throw new Error(
       `E2E test ต้องใช้ backend จริงที่ ${API_BASE} แต่เชื่อมต่อไม่ได้ (${err})\n` +
@@ -212,6 +213,9 @@ export async function cleanupLifecycleFixture(fx: LifecycleFixture): Promise<voi
   });
 
   await prisma.coopPeriod.deleteMany({ where: { id: periodId } });
+  // ล็อกเลขที่หนังสือของเลขที่ P5/P8 ใช้ (660301.26.6.2/E2E… และ /P…)
+  const tail = String(fx.stamp).slice(-5);
+  await prisma.docNumberLock.deleteMany({ where: { number: { in: [`660301.26.6.2/E2E${tail}`, `660301.26.6.2/P${tail}`] } } });
 }
 
 export async function disconnectSeed(): Promise<void> {
