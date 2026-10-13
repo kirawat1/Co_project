@@ -38,7 +38,6 @@ const MOUNTS = {
 // ไม่ต้อง login — ตั้งใจ
 const PUBLIC = {
   auth: ['POST /signin', 'POST /login/google'],
-  announcement: ['GET /'],              // ประกาศ (หน้านักศึกษา/แดชบอร์ด)
   internalStatus: ['GET /'],            // หน้าสถานะเครื่อง — กันด้วย nginx + header (ดูเทสต์ท้ายไฟล์)
 };
 
@@ -65,6 +64,7 @@ const EXPECTED = {
     'DELETE /mentors/:id':       '✓ ✓ ✓ ✓',
   },
   announcement: {
+    'GET /':       '✓ ✓ ✓ ✓',
     'POST /':      '· · ✓ ✓',
     'DELETE /:id': '· · ✓ ✓',
   },
