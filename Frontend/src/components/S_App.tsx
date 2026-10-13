@@ -28,6 +28,8 @@ export default function StudentApp() {
   const navigate = useNavigate();
   const token = localStorage.getItem("coop.token");
   const [profile, setProfile] = useState<StudentProfile | null>(null);
+  // โหลดโปรไฟล์ไม่สำเร็จ — เดิมค้าง "กำลังโหลดข้อมูล..." ตลอดไป (ไม่บอกเหตุ ไม่มีทางลองใหม่)
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
@@ -36,11 +38,21 @@ export default function StudentApp() {
 
   const fetchProfile = useCallback(async () => {
     if (!token) return;
+    setLoadError(null);
     try {
       const res = await apiFetch("/api/students/me", {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) return;
+      if (!res.ok) {
+        // 401 = apiFetch พากลับหน้า login แล้ว
+        if (res.status === 401) return;
+        setLoadError(res.status === 404
+          ? "ไม่พบข้อมูลนักศึกษาของบัญชีนี้ — ติดต่อเจ้าหน้าที่ให้เพิ่มข้อมูลนักศึกษา"
+          : res.status === 429
+            ? "มีการใช้งานพร้อมกันมากเกินไป — รอสักครู่แล้วกดลองใหม่"
+            : "โหลดข้อมูลไม่สำเร็จ — ลองใหม่อีกครั้ง");
+        return;
+      }
       const data = await res.json();
       const studentId = data.studentId || data.user?.email || "";
       const emails = [
@@ -52,11 +64,24 @@ export default function StudentApp() {
       setProfile({ ...data, studentId, emails, company });
     } catch (err) {
       console.error("Error fetching profile:", err);
+      setLoadError("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ — ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่");
     }
   }, [token]);
 
   useEffect(() => { fetchProfile(); }, [fetchProfile]);
 
+  if (!profile && loadError) {
+    return (
+      <div role="alert" style={{ maxWidth: 460, margin: "80px auto", padding: 28, textAlign: "center", background: "#fff", border: "1px solid #fecaca", borderRadius: 16 }}>
+        <div style={{ fontSize: 36 }}>⚠️</div>
+        <div style={{ fontWeight: 700, color: "#991b1b", margin: "10px 0 18px" }}>{loadError}</div>
+        <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+          <button className="btn" onClick={() => fetchProfile()}>ลองใหม่</button>
+          <button className="btn-secondary" onClick={() => { localStorage.removeItem("coop.token"); navigate("/", { replace: true }); }}>ออกจากระบบ</button>
+        </div>
+      </div>
+    );
+  }
   if (!profile) return <div style={{ padding: 40, textAlign: "center" }}>กำลังโหลดข้อมูล...</div>;
 
   const fullName = `${profile.firstName || ""} ${profile.lastName || ""}`.trim();

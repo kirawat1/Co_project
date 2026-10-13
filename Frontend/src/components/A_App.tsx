@@ -50,6 +50,9 @@ export default function AdminApp() {
   const navigate = useNavigate();
   const [profile, setProfile] = useState<AdminProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  // โหลดข้อมูลผู้ใช้ไม่สำเร็จชั่วคราว (500/429/เน็ต) — เดิมลบ token เด้งออกจากระบบทุกกรณี
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
 
@@ -94,9 +97,16 @@ export default function AdminApp() {
       return;
     }
 
+    setLoadError(null);
     apiFetch("/api/auth/me")
-      .then(res => res.json())
-      .then(data => {
+      .then(async (res) => {
+        // ออกจากระบบเฉพาะปัญหาสิทธิ์จริง (401 จัดการใน apiFetch แล้ว) — 500/429 = ชั่วคราว ให้ลองใหม่
+        if (res.status === 401 || res.status === 403) throw new Error("unauthorized");
+        if (!res.ok) {
+          setLoadError(res.status === 429 ? "มีการใช้งานพร้อมกันมากเกินไป — รอสักครู่แล้วกดลองใหม่" : "โหลดข้อมูลผู้ใช้ไม่สำเร็จ — ลองใหม่อีกครั้ง");
+          return;
+        }
+        const data = await res.json();
         if (!data.ok) throw new Error("unauthorized");
         setProfile(data.user);
       })
@@ -109,11 +119,24 @@ export default function AdminApp() {
         navigate("/", { replace: true });
       })
       .finally(() => setLoading(false));
-  }, [navigate]);
+  }, [navigate, reloadKey]);
 
   function onLogout() {
     localStorage.removeItem("coop.token");
     navigate("/", { replace: true });
+  }
+
+  if (loadError && !profile) {
+    return (
+      <div role="alert" style={{ maxWidth: 460, margin: "80px auto", padding: 28, textAlign: "center", background: "#fff", border: "1px solid #fecaca", borderRadius: 16 }}>
+        <div style={{ fontSize: 36 }}>⚠️</div>
+        <div style={{ fontWeight: 700, color: "#991b1b", margin: "10px 0 18px" }}>{loadError}</div>
+        <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+          <button className="btn" onClick={() => { setLoading(true); setReloadKey((k) => k + 1); }}>ลองใหม่</button>
+          <button className="btn-secondary" onClick={onLogout}>ออกจากระบบ</button>
+        </div>
+      </div>
+    );
   }
 
   if (loading || !roleReady || (!isStaff && !isCoopTeacher)) {
