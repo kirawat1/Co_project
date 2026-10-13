@@ -11,7 +11,7 @@ const prisma = require('../config/prismaClient');
 const { describeRequest, sanitizeBody, looksLikeEmail } = require('../utils/auditActions');
 
 const LOGGED_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
-const LOGIN_PATHS = ['/api/auth/signin', '/api/auth/login/sso', '/api/auth/login/google'];
+const LOGIN_PATHS = ['/api/auth/signin', '/api/auth/login/google'];
 
 // GET ที่ต้องบันทึกด้วย — การดึงข้อมูลส่วนบุคคลออกเป็นไฟล์ (ใครดูดอะไรออกไปเมื่อไหร่)
 const LOGGED_GET_PATHS = new Set([

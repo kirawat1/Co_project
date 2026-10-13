@@ -259,7 +259,6 @@ describe('ความลับทุกรูปแบบต้องไม่�
 
 describe('ชื่อการกระทำตรงกับ route จริง', () => {
   test.each([
-    ['POST', '/api/students/sync-from-reg', 'ซิงก์ข้อมูลจากทะเบียน KKU'],
     ['PUT', '/api/auth/me/password', 'เปลี่ยนรหัสผ่าน'],
     ['POST', '/api/admin/students/import-excel', 'นำเข้านักศึกษาจาก Excel'],
     ['POST', '/api/admin/students/create', 'เพิ่มนักศึกษา'],

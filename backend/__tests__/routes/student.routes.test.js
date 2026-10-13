@@ -9,19 +9,6 @@ jest.mock('@prisma/client', () => {
 });
 jest.mock('../../config/prismaClient', () => require('../__mocks__/prismaClient'));
 
-// ── 2. Mock external services ──
-jest.mock('../../services/kkuRegService', () => ({
-  isConfigured: jest.fn().mockReturnValue(false),
-  authenticate: jest.fn(),
-  getStudentToken: jest.fn(),
-  getStudentInfo: jest.fn(),
-  getAdvisor: jest.fn(),
-  syncStudentAll: jest.fn(),
-  getCurrentSemester: jest.fn(),
-  getGradeList: jest.fn(),
-  searchCourses: jest.fn(),
-}));
-
 const request = require('supertest');
 const express = require('express');
 const jwt = require('jsonwebtoken');
