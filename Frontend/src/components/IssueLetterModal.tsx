@@ -7,7 +7,7 @@ import { FileReady, DeliveryPicker, CompanyAddressBox, RecipientNotice, MODAL_CS
 import DateInput from './DateInput';
 import { notify, askConfirm } from "../utils/notify";
 import { letterRecipient, recipientText } from "../utils/letterRecipient";
-import { toLetterStudent } from "../utils/letterGroup";
+import { toLetterStudent, letterAttachmentDocs } from "../utils/letterGroup";
 
 interface Props {
     student: any;
@@ -19,8 +19,6 @@ interface Props {
     onClose: () => void;
     onSuccess: () => void;
 }
-
-const NOT_LETTER_ATTACHMENTS = new Set(["DISPATCH_LETTER", "PLACEMENT_LETTER", "CP-ACCEPTANCE", "ACCEPTANCE_FORM", "T002_FORM", "T003_FORM", "T003"]);
 
 export default function IssueLetterModal({ student, group, batchMates, onOpenBatch, onClose, onSuccess }: Props) {
     const members = group && group.length > 1 ? group : null;
@@ -74,9 +72,8 @@ export default function IssueLetterModal({ student, group, batchMates, onOpenBat
             if (!krutUrl) return notify.error("⚠️ ไม่พบไฟล์ตราครุฑ (KRUT) กรุณาอัปโหลดในหน้าตั้งค่า");
 
             const profile = { ...student, coop: { ...student.coop, actualStartDate: startDate, actualEndDate: endDate } };
-            // หนังสือรวม: แนบเอกสารของทุกคนเรียงตามรายชื่อ
-            // ไม่แนบเอกสารจากขั้นหลัง (หนังสือที่ออกแล้ว ใบตอบรับ T002/T003) — เดิมพิมพ์ซ้ำแล้วหนังสือฉบับเก่าที่ลงนามติดมาในเล่มใหม่
-            const allDocs = (members || [student]).flatMap((m: any) => m.documents || []).filter((d: any) => d.path && !NOT_LETTER_ATTACHMENTS.has(d.type));
+            // หนังสือรวม: แนบเอกสารของทุกคนเรียงตามรายชื่อ · ไม่แนบเอกสารจากขั้นหลัง (ดู letterAttachmentDocs)
+            const allDocs: any[] = letterAttachmentDocs(members || [student]);
             // ตรวจสอบว่าไฟล์ยังอยู่บน server ก่อนส่ง
             const fileChecks = await Promise.all(
                 allDocs.map(async (d: any) => {

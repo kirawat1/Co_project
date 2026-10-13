@@ -397,19 +397,30 @@ test("P8: ออกหนังสือส่งตัว → PLACEMENT_LETTER_
 // ══════════════════════════════════════════════════════
 // PHASE 9 — เริ่มปฏิบัติงาน แล้วส่ง T002 + อาจารย์ตรวจ (API + UI)
 // ══════════════════════════════════════════════════════
-test("P9: เริ่มฝึกงาน → นักศึกษาส่ง T002 → อาจารย์ตรวจผ่าน", async ({ page }) => {
-  // เจ้าหน้าที่เลื่อนสถานะเป็นเริ่มปฏิบัติงาน
-  await loginAs(page, "staff", fx.staff.email);
+test("P9: นักศึกษาดาวน์โหลดหนังสือส่งตัว → เริ่มฝึกงาน → ส่ง T002 → อาจารย์ตรวจผ่าน", async ({ page }) => {
+  // นักศึกษากดดาวน์โหลดหนังสือส่งตัวในหน้าเอกสาร → ระบบเปลี่ยนเป็นเริ่มปฏิบัติงานเอง
+  // (เดิมเจ้าหน้าที่บังคับสถานะผ่าน API — ขั้นนี้ของจริงเลยไม่มีเทสต์ไหนผ่าน)
+  await loginAs(page, "student", fx.student.email);
+  await page.goto("/student/docs");
+  // div ชั้นในสุดที่มีทั้งหัวข้อการ์ดและปุ่มดาวน์โหลด = การ์ดหนังสือส่งตัว (หน้ามีปุ่มดาวน์โหลดของการ์ดอื่นด้วย)
+  const card = page.locator("div", { has: page.getByRole("heading", { name: /หนังสือส่งตัว \(Placement Letter\)/ }) })
+    .filter({ has: page.getByRole("button", { name: /ดาวน์โหลด/ }) }).last();
+  const download = card.getByRole("button", { name: /ดาวน์โหลด/ });
+  await expect(download).toBeEnabled({ timeout: 15_000 });
+  const popup = page.context().waitForEvent("page", { timeout: 5_000 }).catch(() => null); // window.open ไฟล์หนังสือ
+  await download.click();
+  (await popup)?.close().catch(() => {});
+  await expect.poll(() => getCoopStatus(fx.student.studentPk), { timeout: 15_000 }).toBe("INTERNSHIP_STARTED");
+
+  // กดซ้ำหลังออกฝึกแล้ว → ไม่ย้อนสถานะ (API ตอบ 400 · หน้าเว็บไม่เรียกซ้ำ)
   let token = await tokenOf(page);
-  let res = await page.request.put(`${API_BASE}/api/admin/t000/review`, {
+  let res = await page.request.post(`${API_BASE}/api/students/download-placement-letter`, {
     headers: { Authorization: `Bearer ${token}` },
-    multipart: { studentId: String(fx.student.studentPk), status: "INTERNSHIP_STARTED" },
   });
-  expect(res.status()).toBe(200);
-  await expect.poll(() => getCoopStatus(fx.student.studentPk)).toBe("INTERNSHIP_STARTED");
+  expect(res.status()).toBe(400);
+  expect(await getCoopStatus(fx.student.studentPk)).toBe("INTERNSHIP_STARTED");
 
   // นักศึกษากรอกและส่ง T002
-  await loginAs(page, "student", fx.student.email);
   token = await tokenOf(page);
   res = await page.request.post(`${API_BASE}/api/docs/t002-form`, {
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
