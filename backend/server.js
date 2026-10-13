@@ -34,7 +34,8 @@ app.use(helmet({
 // Global rate limit — ป้องกัน scraping / DDoS ระดับ API ทั้งหมด
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 นาที
-  max: 500,                  // 500 req / 15 นาที / IP
+  // 2000 req / 15 นาที / IP (เดิม 500 — หน้าหนึ่งเรียก API ~5 ครั้ง ผู้ใช้หลายคนที่ออกเน็ต IP เดียวกันแชร์โควตา) · ปรับได้ด้วย API_RATE_LIMIT_MAX
+  max: Number(process.env.API_RATE_LIMIT_MAX) > 0 ? Number(process.env.API_RATE_LIMIT_MAX) : 2000,
   standardHeaders: true,
   legacyHeaders: false,
   message: { ok: false, message: 'Too many requests, please try again later.' },
