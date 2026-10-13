@@ -28,11 +28,16 @@ function applyViewFilter(scope, filter) {
   return scope; // กรองหลักสูตรที่ไม่ได้ดูแล = ไม่มีผล (ไม่ขยายสิทธิ์)
 }
 
-/** @param opts.ignoreFilter  true = ขอบเขตตามสิทธิ์จริง ไม่สนตัวกรองบนหน้าจอ */
-async function getMajorScope(req, { ignoreFilter = false } = {}) {
+/**
+ * @param opts.ignoreFilter  true = ขอบเขตตามสิทธิ์จริง ไม่สนตัวกรองบนหน้าจอ
+ * @param opts.filter        หลักสูตรที่เลือกเอง (แทน header) — ไม่ขยายสิทธิ์เหมือน header
+ */
+async function getMajorScope(req, { ignoreFilter = false, filter: explicit } = {}) {
   if (!req._majorScopeBase) req._majorScopeBase = await baseScope(req);
   const base = req._majorScopeBase;
-  if (ignoreFilter || String(req.method || 'GET').toUpperCase() !== 'GET') return base;
+  if (ignoreFilter) return base;
+  if (explicit !== undefined) return applyViewFilter(base, String(explicit || '').trim());
+  if (String(req.method || 'GET').toUpperCase() !== 'GET') return base;
   const filter = typeof req.get === 'function' ? String(req.get('x-major-filter') || '').trim() : '';
   return applyViewFilter(base, filter);
 }

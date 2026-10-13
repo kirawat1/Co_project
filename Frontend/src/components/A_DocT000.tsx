@@ -15,7 +15,7 @@ import Modal, { ModalCloseButton } from "./Modal";
 import { useAdminRole } from "./adminRole";
 import { appliesTo } from "../utils/docRequirementScope";
 import MajorConfigTabs from "./MajorConfigTabs";
-import { downloadLetterZip, LETTER_LABEL, type LetterType } from "../utils/letterZip";
+import LetterZipModal, { LetterZipButton, toolbarBtn } from "./LetterZipModal";
 
 // --- Interfaces ---
 interface StudentDocument {
@@ -169,7 +169,7 @@ export default function A_DocT000() {
     // State ปีการศึกษา
     const [coopPeriods, setCoopPeriods] = useState<any[]>([]);
     const [selectedPeriod, setSelectedPeriod] = useState<string>("all");
-    const [zipBusy, setZipBusy] = useState<LetterType | null>(null);
+    const [zipOpen, setZipOpen] = useState(false); // หน้าต่างดาวน์โหลดหนังสือ (zip)
 
     const [issueModalData, setIssueModalData] = useState<StudentProfile | null>(null);
     const [checkPhase, setCheckPhase] = useState<1 | 2>(1);
@@ -687,19 +687,15 @@ export default function A_DocT000() {
                         ))}
                     </select>
 
-                    {/* ดาวน์โหลดหนังสือที่ออกแล้ว (ฉบับลงนาม) ทั้งรอบเป็น zip — ตามรอบที่เลือก + ตัวกรองหลักสูตรด้านบน */}
+                    {/* หนังสือรวม · ดาวน์โหลดหนังสือที่ออกแล้วเป็น zip (เลือกประเภท/รอบ/หลักสูตร และยืนยันในหน้าต่าง) */}
                     <div style={{ marginLeft: "auto", display: "flex", gap: 8, flexWrap: "wrap" }}>
                         {isStaff && (
-                            <button className={batchMode ? "btn" : "btn-secondary small"} onClick={() => { setBatchMode(m => !m); setBatchIds([]); }}>
-                                {batchMode ? "✕ ปิดโหมดหนังสือรวม" : "👥 ออกหนังสือรวมหลายคน"}
+                            <button type="button" onClick={() => { setBatchMode(m => !m); setBatchIds([]); }}
+                                style={batchMode ? { ...toolbarBtn, background: "#1e293b", borderColor: "#1e293b", color: "#fff" } : toolbarBtn}>
+                                <span aria-hidden>{batchMode ? "✕" : "👥"}</span> {batchMode ? "ปิดโหมดหนังสือรวม" : "ออกหนังสือรวมหลายคน"}
                             </button>
                         )}
-                        {(["REQ", "PLACE"] as const).map(t => (
-                            <button key={t} className="btn-secondary small" disabled={zipBusy !== null} title={`ดาวน์โหลด${LETTER_LABEL[t]}ที่ออกแล้วทั้งหมด (ตามรอบที่เลือก) เป็นไฟล์ zip`}
-                                onClick={async () => { setZipBusy(t); try { await downloadLetterZip(t, selectedPeriod); } finally { setZipBusy(null); } }}>
-                                {zipBusy === t ? "⏳ กำลังเตรียมไฟล์..." : `⬇️ ${LETTER_LABEL[t]} (zip)`}
-                            </button>
-                        ))}
+                        <LetterZipButton onClick={() => setZipOpen(true)} />
                     </div>
                 </div>
 
@@ -839,6 +835,9 @@ export default function A_DocT000() {
                 <IssueLetterModal student={issueModalData} batchMates={batchMatesOf(issueModalData, "REQUEST")} onOpenBatch={() => reopenBatch("REQUEST", batchMatesOf(issueModalData, "REQUEST") || [])} onClose={() => { setIssueModalData(null); refreshStudents(); }} onSuccess={() => { setIssueModalData(null); fetchAllData(); }} />
             )}
 
+            {zipOpen && (
+                <LetterZipModal types={["REQ", "PLACE"]} periods={coopPeriods} defaultPeriodId={selectedPeriod} onClose={() => setZipOpen(false)} />
+            )}
             {batchLetter?.type === "REQUEST" && (
                 <IssueLetterModal student={batchLetter.members[0]} group={batchLetter.members} onClose={() => setBatchLetter(null)} onSuccess={() => { setBatchLetter(null); setBatchIds([]); setBatchMode(false); fetchAllData(); }} />
             )}
