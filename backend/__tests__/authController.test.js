@@ -408,3 +408,21 @@ describe('registerStudent', () => {
     expect(res.status).toHaveBeenCalledWith(500);
   });
 });
+
+// ── "จดจำฉันไว้" — อายุการเข้าสู่ระบบ ──
+describe('signIn — จดจำฉันไว้', () => {
+  const jwt = require('jsonwebtoken');
+  const login = async (remember) => {
+    const hashed = await bcrypt.hash('secret', 4);
+    prisma.user.findFirst.mockResolvedValue({ id: 1, email: 's@kku.ac.th', role: 'student', password: hashed, student: { studentId: 'u1' } });
+    const res = makeRes();
+    await signIn({ body: { email: 's@kku.ac.th', password: 'secret', role: 'student', ...(remember === undefined ? {} : { remember }) } }, res);
+    const { token } = res.json.mock.calls[0][0];
+    const { iat, exp } = jwt.decode(token);
+    return (exp - iat) / 3600; // ชั่วโมง
+  };
+  test('ติ๊ก → 30 วัน', async () => expect(await login(true)).toBe(30 * 24));
+  test('ไม่ติ๊ก → 8 ชั่วโมง', async () => expect(await login(false)).toBe(8));
+  test('ไม่ส่งมา (หน้าเว็บเก่า) → 7 วันเหมือนเดิม', async () => expect(await login(undefined)).toBe(7 * 24));
+  test('ค่าที่ไม่ใช่ boolean ("true") → ถือว่าไม่ส่ง ไม่ขยายเป็น 30 วัน', async () => expect(await login('true')).toBe(7 * 24));
+});

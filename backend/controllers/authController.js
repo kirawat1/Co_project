@@ -33,6 +33,10 @@ const mapPrefix = (prefix) => {
 // ==========================================
 // 1. Manual Sign In 
 // ==========================================
+// อายุการเข้าสู่ระบบ — ติ๊ก "จดจำฉันไว้" = 30 วัน · ไม่ติ๊ก = 8 ชั่วโมง (เครื่องส่วนกลาง) · ไม่ส่งมา (client เก่า) = 7 วันเหมือนเดิม
+const sessionTtl = (remember) => (remember === true ? '30d' : remember === false ? '8h' : '7d');
+exports.sessionTtl = sessionTtl;
+
 exports.signIn = async (req, res) => {
   try {
     const { email: rawEmail, password, role } = req.body;
@@ -97,7 +101,7 @@ exports.signIn = async (req, res) => {
       };
     }
 
-    const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '7d' });
+    const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: sessionTtl(req.body?.remember) });
     return res.json({ ok: true, message: "เข้าสู่ระบบสำเร็จ", token, user: profile });
   } catch (err) {
     console.error(err);
@@ -319,7 +323,7 @@ exports.loginWithGoogle = async (req, res) => {
       return res.status(401).json({ ok: false, message: "ไม่พบรายชื่อในระบบ กรุณาติดต่อเจ้าหน้าที่" });
     }
 
-    const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '7d' });
+    const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: sessionTtl(req.body?.remember) });
     return res.json({ ok: true, token, user: { id: user.id, email: user.email, role: user.role } });
   } catch (err) {
     console.error('[loginWithGoogle]', err);

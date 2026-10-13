@@ -50,9 +50,25 @@ function validateByRole(role: Role, username: string, password: string): string 
 // ------------------------------------------------------
 // PAGE COMPONENT
 // ------------------------------------------------------
+// "จดจำฉันไว้" — จำอีเมล/บทบาทไว้เติมให้ครั้งหน้า (ไม่เก็บรหัสผ่าน) · อายุการเข้าสู่ระบบ: จดจำ 30 วัน / ไม่จดจำ 8 ชั่วโมง (backend)
+const REMEMBER_KEY = "coop.rememberLogin";
+function readRemembered(): { role: Role; email: string } | null {
+  try {
+    const v = JSON.parse(localStorage.getItem(REMEMBER_KEY) || "null");
+    return v && typeof v.email === "string" && typeof v.role === "string" ? v : null;
+  } catch { return null; }
+}
+function saveRemembered(remember: boolean, role: Role, email: string) {
+  try {
+    if (remember) localStorage.setItem(REMEMBER_KEY, JSON.stringify({ role, email }));
+    else localStorage.removeItem(REMEMBER_KEY);
+  } catch { /* ignore */ }
+}
+
 export default function LoginPage() {
-  const [role, setRole] = useState<Role>("student");
-  const [username, setUsername] = useState("");
+  const remembered = useMemo(readRemembered, []);
+  const [role, setRole] = useState<Role>(remembered?.role ?? "student");
+  const [username, setUsername] = useState(remembered?.email ?? "");
   const [password, setPassword] = useState("");
 
   const [remember, setRemember] = useState(true);
@@ -106,15 +122,16 @@ export default function LoginPage() {
         role,
         email: username.trim(),
         password,
+        remember,
       });
 
       if (!res.ok || !res.token) {
         throw new Error(res.message || "เข้าสู่ระบบไม่สำเร็จ");
       }
 
-      // remember=false has no sessionStorage implementation yet — always persist
-      // so every component that reads localStorage.getItem("coop.token") works.
+      // token เก็บใน localStorage เสมอ (ทุกหน้าอ่านจากที่นี่) — "จดจำฉันไว้" คุมอายุ token ที่ backend แทน
       localStorage.setItem("coop.token", res.token);
+      saveRemembered(remember, role, username.trim());
       if (res.user?.id) {
         localStorage.setItem("coop.userId", String(res.user.id));
       }
@@ -285,7 +302,7 @@ export default function LoginPage() {
                       const res = await fetch("/api/auth/login/google", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ id_token: credentialResponse.credential }),
+                        body: JSON.stringify({ id_token: credentialResponse.credential, remember }),
                       });
                       const data = await res.json();
                       if (!data.ok || !data.token) throw new Error(data.message || "เข้าสู่ระบบไม่สำเร็จ");

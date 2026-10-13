@@ -7,6 +7,7 @@ export interface SigninPayload {
   role: Role;
   email: string; // ใช้อีเมลมหาวิทยาลัย (@kkumail.com หรือ @kku.ac.th)
   password: string; // เลขบัตรประชาชน 13 หลัก
+  remember?: boolean; // จดจำฉันไว้ — true = อยู่ในระบบ 30 วัน · false = 8 ชั่วโมง
 }
 
 export interface SignupPayload {
