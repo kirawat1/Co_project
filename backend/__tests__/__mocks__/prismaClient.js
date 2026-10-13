@@ -72,6 +72,7 @@ const prismaMock = {
   },
   coopPeriodMajor: {
     findUnique: jest.fn(),
+    findFirst: jest.fn(),
     findMany: jest.fn(),
     createMany: jest.fn(),
     upsert: jest.fn(),
@@ -81,6 +82,7 @@ const prismaMock = {
   },
   announcement: {
     findMany: jest.fn(),
+    updateMany: jest.fn(),
     findUnique: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),

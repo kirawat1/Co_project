@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { apiFetch } from "../utils/apiFetch";
 import { fmtDate, fmtDateTime } from '../utils/dateFormat';
 import { IcAnnounce, IcDocs } from "./icons";
+import { seenIds } from "../utils/announcements";
 import StatusBadge from "./StatusBadge";
 import S_StatusTracker from "./S_StatusTracker";
 
@@ -16,7 +17,8 @@ function safeHref(url: string | null | undefined): string | undefined {
     Types
 =============================== */
 interface Announcement {
-  id: number;
+  id: string;
+  pinned?: boolean;
   title: string;
   body: string;
   date: string;
@@ -81,6 +83,7 @@ export default function S_Dashboard() {
   const [statusExpanded, setStatusExpanded] = useState(false);
   const [loading, setLoading] = useState(true);
   const [selectedAnn, setSelectedAnn] = useState<Announcement | null>(null);
+  const seen = useMemo(() => seenIds(), [announcements]); // ป้าย "ใหม่" — เห็นแล้ว = เปิดหน้าประกาศ
   // รอบที่เปิดรับสมัคร + รอบของนักศึกษาเอง
   const [activePeriod, setActivePeriod] = useState<CoopPeriod | null>(null);
   const [myPeriod, setMyPeriod] = useState<CoopPeriod | null>(null);
@@ -109,9 +112,8 @@ export default function S_Dashboard() {
         setMyPeriod(mineId ? periods.find((p) => p.id === mineId) ?? null : null);
       } catch (e) { console.error("Error loading coop periods", e); }
 
-      // 2. Announcements filtered by major
-      const majorParam = major ? `?major=${encodeURIComponent(major)}` : "";
-      const annRes = await apiFetch(`/api/announcements${majorParam}`);
+      // 2. ประกาศของห้องตัวเอง (รอบ × หลักสูตร) — server เลือกให้ (ปักหมุดขึ้นก่อน)
+      const annRes = await apiFetch("/api/announcements");
       if (annRes.ok) {
         const annData = await annRes.json();
         if (annData?.ok && Array.isArray(annData.list)) {
@@ -296,8 +298,10 @@ export default function S_Dashboard() {
                   onClick={() => setSelectedAnn(a)} // 🟢 เมื่อคลิกให้เก็บค่าประกาศลง State
                 >
                   <div className="dash-item-title">
+                    {a.pinned && <span style={{ marginRight: 6 }} title="ปักหมุด">📌</span>}
                     {a.title}
                     {a.attachments && a.attachments.length > 0 && <span style={{ fontSize: 12, marginLeft: 8 }}>📎</span>}
+                    {!seen.has(a.id) && <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 700, color: "#fff", background: "#dc2626", borderRadius: 999, padding: "1px 7px" }}>ใหม่</span>}
                   </div>
                   <div className="dash-item-sub">
                     {a.date ? fmtDate(a.date) : "-"}

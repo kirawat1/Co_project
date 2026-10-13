@@ -142,6 +142,7 @@ const RULES = [
   ['PUT', '/api/admin/config/gateway', 'ตั้งค่าฟอร์มคำร้อง', 'ตั้งค่า', null],
   ['POST', '/api/announcements', 'เพิ่ม/แก้ไขประกาศ', 'ประกาศ', 'id'],
   ['DELETE', '/api/announcements/:x', 'ลบประกาศ', 'ประกาศ', ':1'],
+  ['PATCH', '/api/announcements/:x/pin', 'ปักหมุด/เลิกปักหมุดประกาศ', 'ประกาศ', ':1'],
 
   // ── ดึงข้อมูลออกเป็นไฟล์ (GET) — ใครดูดข้อมูลอะไรออกไป ──
   ['GET', '/api/admin/students/export', 'ดาวน์โหลดรายชื่อนักศึกษา (Excel)', null, null],

@@ -109,6 +109,7 @@ app.get("/", (_req, res) => res.send("API Server is running OK"));
 
 // -----------------------------
 startLogRetentionJob(); // ลบบันทึกการใช้งานที่เกิน 1 ปี
+require('./utils/announcementAudience').startAnnouncementScheduler(); // ประกาศตั้งเวลา: ถึงเวลาแล้วแจ้งนักศึกษา (ทุก 1 นาที)
 app.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}`);
 });
