@@ -219,6 +219,42 @@ test.describe("ปฏิทินนิเทศแยกหลักสูต�
 });
 
 // ─────────────────────────────────────────────────────────────
+test.describe("ประกาศแบบห้องเรียน (รอบ × หลักสูตร)", () => {
+  test("นักศึกษาเห็นเฉพาะห้องตัวเอง · ส่ง ?major/room ข้ามหลักสูตรไม่ได้ · ตั้งเวลายังไม่ขึ้น · อาจารย์ทั่วไปอ่านได้โพสต์ไม่ได้", async () => {
+    const year = `8/ZZ${W.stamp}`;
+    const sA = await W.student(W.A, "QUALIFIED"), sB = await W.student(W.B, "QUALIFIED");
+    const post = (title: string, majors: string[], extra: Record<string, string> = {}) =>
+      api(W.staff.token, "POST", "/api/announcements", form({ title, date: new Date().toISOString(), year, targetMajors: JSON.stringify(majors), ...extra }));
+    const made: string[] = [];
+    try {
+      for (const [t, m, x] of [[`ZZ-A ${W.stamp}`, [W.A], {}], [`ZZ-B ${W.stamp}`, [W.B], {}], [`ZZ-G ${W.stamp}`, [], {}],
+        [`ZZ-LATER ${W.stamp}`, [W.A], { publishAt: new Date(Date.now() + 86_400_000).toISOString() }]] as const) {
+        const r = await post(t, [...m], { ...x });
+        expect(r.status, r.body?.message).toBe(200);
+        made.push(r.body.announcement.id);
+      }
+      const titles = (r: any) => r.body.list.map((a: any) => a.title).filter((t: string) => t.includes(W.stamp)).sort();
+
+      const mine = await api(sA.token, "GET", `/api/announcements?major=${W.B}&room=${W.B}&year=1/2569`);
+      expect(titles(mine)).toEqual([`ZZ-A ${W.stamp}`, `ZZ-G ${W.stamp}`]);
+      expect(titles(await api(sB.token, "GET", "/api/announcements"))).toEqual([`ZZ-B ${W.stamp}`, `ZZ-G ${W.stamp}`]);
+
+      // แจ้งเตือนเฉพาะนักศึกษาในหลักสูตรเป้าหมายของรอบ (ประกาศส่วนกลาง = ทุกคน) · ตั้งเวลายังไม่แจ้ง
+      await expect.poll(async () => prisma.notification.count({ where: { userId: sA.userId, type: "ANNOUNCEMENT" } })).toBe(2);
+      expect(await prisma.notification.count({ where: { userId: sB.userId, type: "ANNOUNCEMENT", message: `ZZ-A ${W.stamp}` } })).toBe(0);
+
+      const tA = await W.teacher(W.A);
+      const rooms = await api(tA.token, "GET", `/api/announcements/rooms?year=${encodeURIComponent(year)}`);
+      expect(rooms.body.rooms.map((r: any) => [r.room, r.canPost])).toEqual([["GLOBAL", false], [W.A, false]]);
+      expect((await api(tA.token, "PATCH", `/api/announcements/${made[0]}/pin`, { pinned: true })).status).toBe(403);
+    } finally {
+      await prisma.notification.deleteMany({ where: { relatedId: { in: made } } });
+      await prisma.announcement.deleteMany({ where: { id: { in: made } } });
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────
 test.describe("zip หนังสือที่ออกแล้ว", () => {
   test("หนังสือรวม → ไฟล์ทุกคน · ไฟล์หาย → _ไม่พบไฟล์.txt · อาจารย์ประจำวิชาเห็นเฉพาะหลักสูตรที่ดูแล", async () => {
     const a1 = await W.student(W.A, "DOCS_APPROVED"), a2 = await W.student(W.A, "DOCS_APPROVED"), b1 = await W.student(W.B, "DOCS_APPROVED");

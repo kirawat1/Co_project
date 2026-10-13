@@ -1,155 +1,56 @@
-import { useState, useEffect } from "react";
-import axios from "axios";
-import type { CSSProperties } from "react";
-import { fmtDate } from '../utils/dateFormat';
-
-interface Announcement {
-  id: string;
-  title: string;
-  body?: string;
-  date: string;
-  year: string;
-  targetMajors: string[];
-  attachments: { type: string; name: string; url: string }[];
-}
-
-function safeUrl(url: string): string {
-  if (/^https?:\/\//i.test(url)) return url;
-  if (url.startsWith('/uploads/')) return url;
-  return "#";
-}
+// ประกาศของนักศึกษา — ห้องเรียนของตัวเอง (รอบ × หลักสูตร) + ประกาศส่วนกลาง · server เลือกห้องให้เอง
+import { useEffect, useState, type CSSProperties } from "react";
+import AnnouncementCard from "./AnnouncementCard";
+import { fetchStream, roomMeta, yearLabel, seenIds, markSeen, GLOBAL_ROOM, type Ann, type AnnViewer } from "../utils/announcements";
 
 export default function S_Announcements() {
-  const [items, setItems] = useState<Announcement[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [selected, setSelected] = useState<Announcement | null>(null);
-  const token = localStorage.getItem("coop.token");
+    const [list, setList] = useState<Ann[]>([]);
+    const [viewer, setViewer] = useState<AnnViewer | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState("");
+    const [fresh, setFresh] = useState<Set<string>>(new Set());
+    const [preview, setPreview] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchAll = async () => {
-      setLoading(true);
-      try {
-        const profileRes = await axios.get("/api/students/me", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const major = profileRes.data?.major || "";
-        const majorParam = major ? `?major=${encodeURIComponent(major)}` : "";
-        const res = await axios.get(`/api/announcements${majorParam}`);
-        if (res.data.ok) {
-          setItems(res.data.list.map((a: any) => ({
-            ...a,
-            targetMajors: a.targetMajors || [],
-            attachments: a.attachments || [],
-          })));
-        }
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchAll();
-  }, [token]);
+    useEffect(() => {
+        fetchStream()
+            .then(({ list, viewer }) => {
+                setList(list ?? []);
+                setViewer(viewer ?? null);
+                // ป้าย "ใหม่" = ยังไม่เคยเห็นบนเครื่องนี้ · เห็นแล้วจำไว้ (ป้ายยังแสดงจนออกจากหน้านี้)
+                const seen = seenIds();
+                setFresh(new Set((list ?? []).filter((a) => !seen.has(a.id)).map((a) => a.id)));
+                markSeen((list ?? []).map((a) => a.id));
+            })
+            .catch((e) => setError(e.message))
+            .finally(() => setLoading(false));
+    }, []);
 
-  return (
-    <div className="page" style={page}>
-      <h1 style={pageTitle}>📢 ประกาศสหกิจศึกษา</h1>
+    const major = viewer?.majors?.[0] || null;
+    const meta = roomMeta(major || GLOBAL_ROOM);
 
-      {loading ? (
-        <div style={emptyBox}>กำลังโหลด...</div>
-      ) : items.length === 0 ? (
-        <div style={emptyBox}>ไม่มีประกาศในขณะนี้</div>
-      ) : (
-        <div style={stream}>
-          {items.map(a => (
-            <article key={a.id} style={card} onClick={() => setSelected(a)}>
-              <div style={cardTop}>
-                <span style={cardTitle}>{a.title}</span>
-                <span style={cardDate}>
-                  {fmtDate(a.date)}
-                </span>
-              </div>
-              {a.body && (
-                <p style={cardBody}>
-                  {a.body.length > 180 ? a.body.slice(0, 180) + "..." : a.body}
-                </p>
-              )}
-              {a.attachments.length > 0 && (
-                <div style={chipRow}>
-                  {a.attachments.map((at, i) => (
-                    <span
-                      key={i}
-                      style={chip}
-                      onClick={e => { e.stopPropagation(); window.open(safeUrl(at.url), "_blank"); }}
-                    >
-                      {at.type === "link" ? "🔗" : at.type === "image" ? "🖼️" : "📄"}{" "}
-                      <span style={chipText}>{at.name}</span>
-                    </span>
-                  ))}
-                </div>
-              )}
-            </article>
-          ))}
-        </div>
-      )}
-
-      {selected && (
-        <div style={overlay} onClick={() => setSelected(null)}>
-          <div style={modal} onClick={e => e.stopPropagation()}>
-            <div style={modalHead}>
-              <h2 style={{ margin: 0, fontSize: 20 }}>{selected.title}</h2>
-              <button style={closeBtn} onClick={() => setSelected(null)}>✕</button>
+    return (
+        <div className="page" style={{ padding: "8px 4px 40px", maxWidth: 820, margin: "0 auto", display: "flex", flexDirection: "column", gap: 14 }}>
+            <div style={{ ...banner, background: `linear-gradient(135deg, ${meta.from}, ${meta.to})` }}>
+                <div style={{ fontSize: 13, opacity: 0.9, fontWeight: 700 }}>📢 ประกาศสหกิจศึกษา</div>
+                <div style={{ fontSize: 28, fontWeight: 800, marginTop: 10 }}>{meta.emoji} {major ? `หลักสูตร ${major}` : "ประกาศส่วนกลาง"}</div>
+                <div style={{ opacity: 0.9, marginTop: 4 }}>{yearLabel(viewer?.year)}{major ? " · รวมประกาศส่วนกลาง" : " · ยังไม่ระบุหลักสูตร"}</div>
             </div>
-            <div style={modalBody}>
-              <p style={{ color: "#64748b", fontSize: 13, marginBottom: 16 }}>
-                📅 {fmtDate(selected.date)}
-              </p>
-              {selected.body && (
-                <p style={{ color: "#334155", lineHeight: 1.7, whiteSpace: "pre-wrap", marginBottom: 20 }}>
-                  {selected.body}
-                </p>
-              )}
-              {selected.attachments.length > 0 && (
-                <div>
-                  <p style={{ fontWeight: 700, fontSize: 13, color: "#475569", marginBottom: 8 }}>ไฟล์แนบ</p>
-                  <div style={chipRow}>
-                    {selected.attachments.map((at, i) => (
-                      <a
-                        key={i}
-                        href={safeUrl(at.url)}
-                        target="_blank"
-                        rel="noreferrer"
-                        style={{ ...chip, textDecoration: "none" }}
-                      >
-                        {at.type === "link" ? "🔗" : at.type === "image" ? "🖼️" : "📄"}{" "}
-                        <span style={chipText}>{at.name}</span>
-                      </a>
-                    ))}
-                  </div>
+
+            {loading ? <div style={empty}>กำลังโหลด...</div>
+                : error ? <div style={{ ...empty, color: "#b91c1c" }}>⚠️ {error}</div>
+                : !viewer?.year ? <div style={empty}>ยังไม่มีรอบสหกิจของคุณ — ประกาศจะขึ้นเมื่อเจ้าหน้าที่เปิดรอบของหลักสูตร</div>
+                : list.length === 0 ? <div style={empty}>📭 ยังไม่มีประกาศในรอบนี้</div>
+                : list.map((a) => <AnnouncementCard key={a.id} a={a} isNew={fresh.has(a.id)} onPreviewImage={setPreview} />)}
+
+            {preview && (
+                <div role="dialog" onClick={() => setPreview(null)} style={previewBackdrop}>
+                    <img src={preview} alt="" style={{ maxWidth: "92vw", maxHeight: "88vh", borderRadius: 12 }} />
                 </div>
-              )}
-            </div>
-          </div>
+            )}
         </div>
-      )}
-    </div>
-  );
+    );
 }
 
-const page: CSSProperties = { padding: "40px", marginLeft: "65px", backgroundColor: "#f8fafc", minHeight: "100vh" };
-const pageTitle: CSSProperties = { fontSize: 26, fontWeight: 800, color: "#1e293b", marginBottom: 24 };
-const stream: CSSProperties = { display: "flex", flexDirection: "column", gap: 16 };
-const card: CSSProperties = { backgroundColor: "#fff", border: "1px solid #e2e8f0", borderRadius: 16, padding: 24, cursor: "pointer", transition: "box-shadow .15s", boxShadow: "0 1px 3px rgba(0,0,0,.04)" };
-const cardTop: CSSProperties = { display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, marginBottom: 8 };
-const cardTitle: CSSProperties = { fontWeight: 700, fontSize: 17, color: "#0f172a", flex: 1 };
-const cardDate: CSSProperties = { fontSize: 12, color: "#94a3b8", whiteSpace: "nowrap" };
-const cardBody: CSSProperties = { color: "#475569", fontSize: 14, lineHeight: 1.6, margin: "0 0 12px" };
-const chipRow: CSSProperties = { display: "flex", flexWrap: "wrap", gap: 8 };
-const chip: CSSProperties = { background: "#f1f5f9", border: "1px solid #e2e8f0", borderRadius: 20, padding: "5px 12px", fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 };
-const chipText: CSSProperties = { color: "#334155", fontWeight: 500 };
-const emptyBox: CSSProperties = { textAlign: "center", padding: "80px 0", color: "#94a3b8", fontSize: 15, backgroundColor: "#fff", borderRadius: 16, border: "1px dashed #e2e8f0" };
-const overlay: CSSProperties = { position: "fixed", inset: 0, background: "rgba(15,23,42,.6)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000, backdropFilter: "blur(4px)" };
-const modal: CSSProperties = { background: "#fff", borderRadius: 20, width: "100%", maxWidth: 620, maxHeight: "85vh", overflowY: "auto" };
-const modalHead: CSSProperties = { padding: "24px 24px 16px", borderBottom: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center" };
-const modalBody: CSSProperties = { padding: 24 };
-const closeBtn: CSSProperties = { background: "none", border: "none", fontSize: 20, color: "#64748b", cursor: "pointer" };
+const banner: CSSProperties = { borderRadius: 18, padding: "20px 24px 26px", color: "#fff", boxShadow: "0 4px 14px rgba(15,23,42,0.12)" };
+const empty: CSSProperties = { padding: 40, textAlign: "center", color: "#64748b", background: "#fff", borderRadius: 14, border: "1px dashed #cbd5e1" };
+const previewBackdrop: CSSProperties = { position: "fixed", inset: 0, background: "rgba(15,23,42,0.8)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, cursor: "zoom-out" };

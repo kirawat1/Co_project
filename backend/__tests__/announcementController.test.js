@@ -55,7 +55,7 @@ describe('getAnnouncements', () => {
     expect(prisma.announcement.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: {},
-        orderBy: { date: 'desc' },
+        orderBy: [{ pinned: 'desc' }, { date: 'desc' }, { createdAt: 'desc' }], // ปักหมุดขึ้นก่อน
         include: { files: true },
       })
     );
@@ -82,7 +82,7 @@ describe('getAnnouncements', () => {
     expect(prisma.announcement.findMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: { year: '2568' } })
     );
-    expect(res.json).toHaveBeenCalledWith({ ok: true, list: [] });
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: true, list: [] }));
   });
 
   test('200 – linkUrl is included as a "link" attachment', async () => {
@@ -122,7 +122,7 @@ describe('getAnnouncements', () => {
     expect(res.json).toHaveBeenCalledWith({ ok: false, message: 'เกิดข้อผิดพลาด' });
   });
 
-  test('200 – major filter returns all-major + matching announcements only', async () => {
+  test('200 – เจ้าหน้าที่เปิดห้อง CS → ส่วนกลาง + CS เท่านั้น', async () => {
     const fakeList = [
       { id: '1', title: 'All', body: '', date: new Date(), year: '1/2569', linkUrl: null, targetMajors: [], files: [] },
       { id: '2', title: 'CS only', body: '', date: new Date(), year: '1/2569', linkUrl: null, targetMajors: ['CS'], files: [] },
@@ -130,7 +130,7 @@ describe('getAnnouncements', () => {
     ];
     prisma.announcement.findMany.mockResolvedValue(fakeList);
 
-    const req = { user: { role: 'staff' }, query: { major: 'CS' } };
+    const req = { user: { role: 'staff' }, query: { room: 'CS' } };
     const res = makeRes();
 
     await getAnnouncements(req, res);

@@ -450,8 +450,14 @@ model Announcement {
   linkUrl      String?
   targetMajors Json      @default("[]")
   files        AnnFile[]
+  pinned       Boolean   @default(false) // ปักหมุดไว้บนสุดของห้อง
+  authorId     Int? // ผู้โพสต์ (User.id) — ประกาศเก่าไม่มี
+  publishAt    DateTime? // ตั้งเวลาเผยแพร่ — null = เผยแพร่ทันที
+  notifiedAt   DateTime? // ส่งแจ้งเตือนนักศึกษาแล้ว — กันส่งซ้ำ (งานตั้งเวลาเช็กทุกนาที)
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @default(now()) @updatedAt
+
+  @@index([year])
 }
 
 model AnnFile {

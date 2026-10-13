@@ -8,6 +8,7 @@ import {
   IcList,
   IcRoute,
   IcSettings,
+  IcAnnounce,
 } from "./icons";
 import { useNotifCounts } from "../hooks/useNotifCounts";
 
@@ -61,6 +62,7 @@ export default function T_Sidebar({ isOpen = false, onClose = () => {}, isCoopTe
         {/* เดิมรวมป้ายของเมนูอื่นมาไว้ด้วย (ซ้ำ) กดแล้วป้ายเมนูอื่นหาย — แต่ละชนิดขึ้นที่เมนูของตัวเองแทน */}
         <NavItem to="/teacher/students" label="นักศึกษาที่ดูแล" icon={<IcUsers />} onClick={nav} />
         <NavItem to="/teacher/profile" label="ข้อมูลอาจารย์" icon={<IcUser />} onClick={nav} />
+        <NavItem to="/teacher/announcements" label="ประกาศ" icon={<IcAnnounce />} onClick={nav} />
 
         <div className="sec-label">เอกสารและบันทึก</div>
 

@@ -15,6 +15,7 @@ import T_T003Review from "./T_T003Review";
 import StudentTheme from "./S_Theme";
 import coopLogo from "../assets/COOP_Logo.png";
 import T_SupervisionReview from "./T_SupervisionReview";
+import AnnouncementRooms from "./AnnouncementRooms";
 const IOS_BLUE = "#0074B7";
 
 export default function TeacherApp() {
@@ -150,7 +151,8 @@ export default function TeacherApp() {
             <Route path="doc-t007" element={toAdmin("doc-t007")} />
             <Route path="doc-t008" element={toAdmin("doc-t008")} />
             <Route path="gateway-settings" element={toAdmin("gateway-settings")} />
-            <Route path="announcements" element={toAdmin("announcements")} />
+            {/* อาจารย์ประจำวิชาโพสต์ที่หน้าจัดการหลักสูตร · อาจารย์ทั่วไปอ่านห้องของหลักสูตรตัวเองที่นี่ */}
+            <Route path="announcements" element={isCoopTeacher === null ? null : isCoopTeacher ? <Navigate to="/admin/announcements" replace /> : <AnnouncementRooms />} />
             <Route path="supervision-eval" element={toAdmin("supervision-eval")} />
 
             <Route path="*" element={<Navigate to="/teacher/dashboard" replace />} />

@@ -65,6 +65,8 @@ const EXPECTED = {
   },
   announcement: {
     'GET /':       '✓ ✓ ✓ ✓',
+    'GET /rooms':  '✓ ✓ ✓ ✓',
+    'PATCH /:id/pin': '· · ✓ ✓',
     'POST /':      '· · ✓ ✓',
     'DELETE /:id': '· · ✓ ✓',
   },
