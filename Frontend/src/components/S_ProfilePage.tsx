@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { IcEdit } from "./icons";
-import { useToast } from "./Toast";
 import Spinner from "./Spinner";
 import { apiFetch } from "../utils/apiFetch";
 import S_ChangePasswordModal from "./S_ChangePasswordModal";
@@ -123,7 +122,6 @@ function AdvisorRow({
 /* ================= PAGE ================= */
 export default function S_ProfilePage() {
   const navigate = useNavigate();
-  const toast = useToast();
   const [profile, setProfile] = useState<StudentProfile | null>(null);
   const [companies, setCompanies] = useState<StudentCompany[]>([]);
   const [teachers, setTeachers] = useState<any[]>([]);
@@ -142,51 +140,6 @@ export default function S_ProfilePage() {
   // บริษัท/ผู้ติดต่อ "ล่าสุดจริง" แบบ synchronous — คลิก × สองปุ่มติดกันเร็วมาก (ก่อน React re-render)
   // ยังต้องเห็นผลของคลิกแรกได้ ตัวแปร state/closure ธรรมดาจะยังเป็นค่าเก่าตอนคลิกที่สองทำงาน
   const companyRef = useRef<StudentCompany | undefined>(undefined);
-  // ── KKU REG Sync ──────────────────────────────
-  const [kkuModalOpen, setKkuModalOpen] = useState(false);
-  const [kkuUser, setKkuUser] = useState("");
-  const [kkuPass, setKkuPass] = useState("");
-  const [kkuSyncing, setKkuSyncing] = useState(false);
-  const [kkuAvailable, setKkuAvailable] = useState<boolean | null>(null); // null = ยังไม่ตรวจ
-
-  // ตรวจสอบว่า KKU REG API พร้อมใช้ไหม
-  useEffect(() => {
-    apiFetch("/api/students/reg-status")
-      .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d) setKkuAvailable(d.configured); })
-      .catch(() => setKkuAvailable(false));
-  }, []);
-
-  const handleSyncFromKKU = async () => {
-    if (!kkuUser.trim() || !kkuPass.trim()) {
-      toast.warning("กรุณากรอก KKU Username และ Password");
-      return;
-    }
-    setKkuSyncing(true);
-    try {
-      const res = await apiFetch("/api/students/sync-from-reg", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ kkuUsername: kkuUser.trim(), kkuPassword: kkuPass }),
-      });
-      const data = await res.json();
-      if (res.ok && data.ok) {
-        toast.success(data.message || "ซิงค์ข้อมูลจาก KKU สำเร็จ");
-        setKkuModalOpen(false);
-        setKkuUser(""); setKkuPass("");
-        // รีโหลดข้อมูล Profile
-        apiFetch("/api/students/me")
-          .then(r => r.json()).then(d => setProfile(d)).catch(() => {});
-      } else {
-        toast.error(data.message || "ซิงค์ไม่สำเร็จ");
-      }
-    } catch {
-      toast.error("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้");
-    } finally {
-      setKkuSyncing(false);
-    }
-  };
-
   // Mapping Helpers
   const prefixMapToPrisma = { นาย: "MR", นางสาว: "MS", MR: "MR", MS: "MS" };
   const prefixMapToUI = { MR: "นาย", MS: "นางสาว", นาย: "นาย", นางสาว: "นางสาว" };
@@ -378,22 +331,6 @@ export default function S_ProfilePage() {
           <div className="card-head">
             <h3 className="profile-title">ข้อมูลนักศึกษา</h3>
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              {/* ปุ่ม KKU Sync — แสดงเฉพาะเมื่อ API พร้อม หรือยังไม่ทราบสถานะ */}
-              {kkuAvailable !== false && (
-                <button
-                  onClick={() => setKkuModalOpen(true)}
-                  style={{
-                    display: "inline-flex", alignItems: "center", gap: 6,
-                    padding: "6px 14px", borderRadius: 8, fontSize: 13, fontWeight: 700,
-                    border: "1px solid #bfdbfe", cursor: "pointer",
-                    background: kkuAvailable ? "#eff6ff" : "#f8fafc",
-                    color: kkuAvailable ? "#1d4ed8" : "#94a3b8",
-                  }}
-                  title={kkuAvailable ? "ดึงข้อมูลจาก KKU สำนักทะเบียน" : "รอการตั้งค่า KKU API"}
-                >
-                  🏫 {kkuAvailable ? "ดึงข้อมูลจาก KKU" : "KKU Sync (เร็วๆ นี้)"}
-                </button>
-              )}
               <button className="btn-secondary" onClick={() => setOpenPasswordModal(true)}>
                 🔑 เปลี่ยนรหัสผ่าน
               </button>
@@ -402,53 +339,6 @@ export default function S_ProfilePage() {
               </button>
             </div>
           </div>
-
-          {/* ── KKU Sync Modal ── */}
-          {kkuModalOpen && (
-            <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, backdropFilter: "blur(4px)" }}>
-              <div style={{ background: "var(--surface,#fff)", borderRadius: 20, padding: 32, width: 420, maxWidth: "95%", boxShadow: "0 20px 40px rgba(0,0,0,.2)" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-                  <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>🏫 ดึงข้อมูลจาก KKU</h3>
-                  <button onClick={() => setKkuModalOpen(false)} style={{ background: "none", border: "none", fontSize: 22, cursor: "pointer", color: "#94a3b8" }}>✕</button>
-                </div>
-                <p style={{ margin: "0 0 20px", fontSize: 14, color: "#64748b", lineHeight: 1.6 }}>
-                  ระบบจะดึงข้อมูล ชื่อ-นามสกุล, หลักสูตร, คณะ, ชั้นปี และอาจารย์ที่ปรึกษา จากสำนักทะเบียน มข. มาเติมให้อัตโนมัติ
-                </p>
-                <div style={{ marginBottom: 14 }}>
-                  <label style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#64748b", marginBottom: 6 }}>KKU Username (อีเมล @kkumail.com)</label>
-                  <input
-                    type="email" value={kkuUser}
-                    onChange={e => setKkuUser(e.target.value)}
-                    placeholder="xxxxxxxxxx@kkumail.com"
-                    style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1", fontSize: 14, boxSizing: "border-box" }}
-                  />
-                </div>
-                <div style={{ marginBottom: 24 }}>
-                  <label style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#64748b", marginBottom: 6 }}>KKU Password (รหัสผ่าน KKU)</label>
-                  <input
-                    type="password" value={kkuPass}
-                    onChange={e => setKkuPass(e.target.value)}
-                    placeholder="รหัสผ่าน KKU ของคุณ"
-                    style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1", fontSize: 14, boxSizing: "border-box" }}
-                    onKeyDown={e => e.key === "Enter" && handleSyncFromKKU()}
-                  />
-                </div>
-                <div style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 8, padding: "10px 14px", marginBottom: 20, fontSize: 13, color: "#92400e" }}>
-                  🔒 รหัสผ่านของคุณจะถูกส่งไปยังเซิร์ฟเวอร์สำนักทะเบียนโดยตรง ไม่ถูกบันทึกในระบบนี้
-                </div>
-                <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
-                  <button onClick={() => setKkuModalOpen(false)} style={{ padding: "10px 18px", borderRadius: 8, border: "1px solid #e2e8f0", background: "#f8fafc", cursor: "pointer", fontWeight: 700 }}>ยกเลิก</button>
-                  <button
-                    onClick={handleSyncFromKKU}
-                    disabled={kkuSyncing}
-                    style={{ padding: "10px 20px", borderRadius: 8, border: "none", background: "#1d4ed8", color: "#fff", cursor: "pointer", fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 8 }}
-                  >
-                    {kkuSyncing ? <><Spinner size={16} color="#fff" /> กำลังดึงข้อมูล...</> : "🏫 ดึงข้อมูลจาก KKU"}
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
 
           <Info label="รหัสนักศึกษา" value={profile.studentId} />
           <Info label="ชื่อ–นามสกุล (TH)" value={`${prefixMapToUI[profile.prefix as keyof typeof prefixMapToUI] || ""} ${profile.firstName ?? ""} ${profile.lastName ?? ""}`} />
