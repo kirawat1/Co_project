@@ -111,7 +111,7 @@ http {
         index  index.html;
         # Blocked on the public (ngrok-tunneled) listener — only reachable via
         # the 127.0.0.1-only server block below.
-        location = /api/internal-status { return 404; }
+        location ^~ /api/internal-status { return 404; }
         location /api/ {
             proxy_pass http://localhost:5000;
             proxy_http_version 1.1;

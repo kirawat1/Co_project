@@ -1,5 +1,21 @@
 # CHANGELOG — Co_project
 
+## [2026-10-13] test: สิทธิ์ทุก route + fix: หน้าสถานะเครื่องหลุดออกนอกเครื่องได้
+
+### Security
+- **`/api/internal-status` (ไม่ต้อง login — memory/pid/เวอร์ชัน Node/สถานะ DB, ยิงทีละครั้งเรียก DB + HTTP 2 ครั้ง ไม่โดน rate limit)** พึ่ง nginx `location = /api/internal-status { return 404; }` อย่างเดียว:
+  - `=` ตรงแค่ path เป๊ะ → `/api/internal-status/` (เติม /) หลุดไป `location /api/` แล้ว Express ตอบ 200
+  - `docs/nginx.conf` / `nginx-http-only.conf` (โดเมน coop.computing.kku.ac.th) ไม่มีบล็อกนี้เลย
+  - แก้: โค้ดตอบ 404 ถ้ามี `X-Real-IP` / `X-Forwarded-For` (บล็อก public ของ nginx ตั้งเสมอ · บล็อก 127.0.0.1:8888 ไม่ตั้ง) + docs เปลี่ยนเป็น `location ^~` และเพิ่มในคอนฟิกโดเมน
+
+### Tests
+- `__tests__/routes/all.permissions.test.js` — ไล่ route จริงทุกไฟล์นอก /api/admin (96 route) ตรวจ: `verifyToken` เป็นตัวแรก (กันรับไฟล์ก่อนตรวจ token), ไม่มี token → 401, ตารางสิทธิ์ 4 role (นักศึกษา/อาจารย์ทั่วไป/อาจารย์ประจำวิชา/เจ้าหน้าที่), route ใหม่ที่ไม่อยู่ในตาราง → เทสต์ล้ม
+  - mutation: ถอด `verifyRole` ของ review-t003 / ย้าย upload ไปก่อน `verifyToken` / ถอดกันของ internal-status → เทสต์ล้มครบทั้ง 3
+- unit 1446/1446
+
+### Deploy
+- **อัปเดต nginx บน VM**: ในบล็อก public เปลี่ยน/เพิ่ม `location ^~ /api/internal-status { return 404; }` ก่อน `location /api/` แล้ว `nginx -s reload` (โค้ดกันชั้นที่สองไว้แล้ว แต่ควรปิดที่ nginx ด้วย)
+
 ## [2026-10-13] chore: ลบ KKU SSO และการดึงข้อมูลจากทะเบียน KKU (ไม่ได้ใช้แล้ว)
 
 ### Removed
