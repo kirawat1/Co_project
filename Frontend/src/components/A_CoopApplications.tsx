@@ -14,6 +14,7 @@ import MajorConfigTabs from "./MajorConfigTabs";
 import { useLoadMore } from "../utils/useLoadMore";
 import { TABLE_TH, TABLE_TD, TABLE_HEADER_ROW } from "../utils/tableStyles";
 import Modal, { ModalCloseButton } from "./Modal";
+import { defaultPeriodId } from "../utils/defaultPeriod";
 
 function safeHref(url: string | null | undefined): string | undefined {
   if (!url) return undefined;
@@ -64,7 +65,7 @@ export default function A_CoopApplications() {
 
     // ✅ State สำหรับเก็บรอบปีการศึกษาและตัวกรอง
     const [coopPeriods, setCoopPeriods] = useState<CoopPeriod[]>([]);
-    const [filterPeriodId, setFilterPeriodId] = useState<string>("all");
+    const [filterPeriodId, setFilterPeriodId] = useState<string>(""); // "" = ยังไม่โหลดรอบ → ตั้งเป็นรอบที่เปิดอยู่ (utils/defaultPeriod) ครั้งแรกครั้งเดียว ไม่ทับรอบที่ผู้ใช้เลือกตอนรีเฟรช
 
     // Modal & Preview State
     const [selectedApp, setSelectedApp] = useState<CoopApp | null>(null);
@@ -94,6 +95,7 @@ export default function A_CoopApplications() {
             });
             if (resPeriods.data?.periods) {
                 setCoopPeriods(resPeriods.data.periods);
+                setFilterPeriodId(cur => cur || defaultPeriodId(resPeriods.data.periods));
             }
 
             // 🟢 2. ดึงข้อมูลคำร้อง

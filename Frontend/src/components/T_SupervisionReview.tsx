@@ -21,6 +21,7 @@ import { useLoadMore } from "../utils/useLoadMore";
 import { notify, askConfirm } from "../utils/notify";
 import { TABLE_TH, TABLE_TD, TABLE_HEADER_ROW } from "../utils/tableStyles";
 import Modal, { ModalCloseButton } from "./Modal";
+import { defaultPeriod, defaultPeriodId } from "../utils/defaultPeriod";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -156,7 +157,7 @@ export default function T_SupervisionReview() {
     const [mySupervisions, setMySupervisions] = useState<SupervisionAppt[]>([]);
     const [myLoading, setMyLoading] = useState(true);
     const [periods, setPeriods] = useState<any[]>([]);
-    const [selectedPeriod, setSelectedPeriod] = useState<string>("all");
+    const [selectedPeriod, setSelectedPeriod] = useState<string>(""); // "" = ยังไม่โหลดรอบ → ตั้งเป็นรอบที่เปิดอยู่ (utils/defaultPeriod) ครั้งแรกครั้งเดียว ไม่ทับรอบที่ผู้ใช้เลือกตอนรีเฟรช
     const [searchTerm, setSearchTerm] = useState("");
     const [selectedAppt, setSelectedAppt] = useState<SupervisionAppt | null>(null);
     const [rejectReason, setRejectReason] = useState("");
@@ -170,7 +171,7 @@ export default function T_SupervisionReview() {
     const [allPeriods, setAllPeriods] = useState<CoopPeriod[]>([]);
     const [teachersList, setTeachersList] = useState<Teacher[]>([]);
     const [allQ, setAllQ] = useState("");
-    const [allPeriodFilter, setAllPeriodFilter] = useState<string>("all");
+    const [allPeriodFilter, setAllPeriodFilter] = useState<string>("");
     const [allSortKey, setAllSortKey] = useState<AllSortKey>('student');
     const [allSortDir, setAllSortDir] = useState<SortDirection>('asc');
     // ช่วงนิเทศ (ดูอย่างเดียว — ตั้งแยกหลักสูตรที่หน้า "จัดการหลักสูตร → จัดการนิเทศ")
@@ -212,7 +213,11 @@ export default function T_SupervisionReview() {
             const resPeriods = await apiFetch("/api/admin/coop-periods/all");
             if (resPeriods.ok) {
                 const d = await resPeriods.json();
-                if (d.ok && d.periods) setPeriods(d.periods);
+                if (d.ok && d.periods) {
+                    setPeriods(d.periods);
+                    setSelectedPeriod(cur => cur || defaultPeriodId(d.periods));
+                    setAllPeriodFilter(cur => cur || defaultPeriodId(d.periods));
+                }
             }
             const res = await axios.get("/api/teacher/supervisions", { headers: { Authorization: `Bearer ${token}` } });
             if (res.data?.supervisions) setMySupervisions(res.data.supervisions);
@@ -232,7 +237,7 @@ export default function T_SupervisionReview() {
             if (periodRes.data?.periods) {
                 const ps: CoopPeriod[] = periodRes.data.periods;
                 setAllPeriods(ps);
-                const active = ps.find(p => p.isActive) || ps[0];
+                const active = defaultPeriod(ps);
                 if (active) selectAllPeriod(active.id, ps);
             }
             if (supRes.data?.supervisions) setAllSupervisions(supRes.data.supervisions);

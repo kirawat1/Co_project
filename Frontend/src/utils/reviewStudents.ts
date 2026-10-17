@@ -4,12 +4,6 @@ import { apiFetch } from "./apiFetch";
 // (เดิมโหลดนักศึกษาทุกคนพร้อมเอกสารทุกไฟล์มากรองเอง — ช้าลงทุกปี และเกิน 1000 คนถูกตัดโดยไม่บอก)
 export type ReviewKind = "T002" | "T003";
 
-export interface PeriodOption {
-  id: number;
-  semester: string | number;
-  academicYear: string;
-}
-
 /** จำนวนในรายการตรวจของแต่ละรอบ — coopPeriodId null = นักศึกษาที่ยังไม่ผูกรอบ (เห็นเฉพาะ "ทุกปีการศึกษา") */
 export interface PeriodCount {
   coopPeriodId: number | null;
@@ -17,22 +11,7 @@ export interface PeriodCount {
   pending: number;
 }
 
-const newestFirst = (periods: PeriodOption[]) => [...periods].sort((a, b) =>
-  Number(b.academicYear) - Number(a.academicYear) || Number(b.semester) - Number(a.semester));
-
-/**
- * รอบเริ่มต้นของหน้าตรวจ (แทน "ทุกปีการศึกษา" ที่ยาวขึ้นทุกปี):
- *   มีงานรอตรวจของนักศึกษาที่ยังไม่ผูกรอบ → ทุกปีการศึกษา (เลือกรอบไหนก็ไม่เห็น)
- *   → รอบล่าสุดที่มีงานรอตรวจ → รอบล่าสุดที่มีรายชื่อ → ทุกปีการศึกษา
- * ไม่ใช้ "รอบใหม่สุด" เฉยๆ: ช่วงที่รอบหน้าเปิดรับสมัครแล้ว งานตรวจยังอยู่รอบก่อน — หน้าจะว่างและงานค้างถูกซ่อน
- */
-export function defaultReviewPeriod(periods: PeriodOption[], counts: PeriodCount[]): string {
-  if (counts.some(c => c.coopPeriodId == null && c.pending > 0)) return "all";
-  const of = (id: number) => counts.find(c => c.coopPeriodId === id);
-  const sorted = newestFirst(periods);
-  const pick = sorted.find(p => (of(p.id)?.pending ?? 0) > 0) ?? sorted.find(p => (of(p.id)?.count ?? 0) > 0);
-  return pick ? String(pick.id) : "all";
-}
+// รอบเริ่มต้นของหน้า = รอบที่เปิดอยู่ (utils/defaultPeriod) — งานค้างรอบอื่นเตือนด้วย pendingOutside
 
 /** งานรอตรวจที่อยู่นอกรอบที่เลือก — แสดงเตือนไม่ให้งานค้างถูกซ่อนเงียบๆ */
 export function pendingOutside(counts: PeriodCount[], selected: string): number {

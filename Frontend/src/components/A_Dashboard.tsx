@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { apiFetch } from "../utils/apiFetch";
 import { IcUsers, IcDocs, IcAnnounce } from "./icons";
 import { notify } from "../utils/notify";
+import { defaultPeriod } from "../utils/defaultPeriod";
 
 // --- Types ---
 interface DashboardStats {
@@ -46,8 +47,8 @@ export default function A_Dashboard() {
         const periodList: CoopPeriod[] = data.periods;
         setPeriods(periodList);
 
-        // 🟢 หาตัวที่ isActive เพื่อเป็นค่าเริ่มต้น
-        const active = periodList.find(p => p.isActive);
+        // รอบที่เปิดอยู่ (ไม่มีรอบเปิด = รอบใหม่สุด) — utils/defaultPeriod
+        const active = defaultPeriod(periodList);
         if (active) {
           setSelectedPeriod(`${active.semester}/${active.academicYear}`);
         } else {
