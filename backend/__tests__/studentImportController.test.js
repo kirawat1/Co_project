@@ -66,7 +66,8 @@ describe('importStudents', () => {
     prisma.student.findMany.mockResolvedValue([]);
     // controller แปลงชื่อสาขาภาษาไทย -> รหัส ผ่าน CoopCriteria (เพิ่มทีหลังตอน batch 129)
     // ถ้าไม่ mock จะคืน undefined แล้ว for...of พังเป็น 500 ทั้งที่ไม่ใช่บั๊กของ controller
-    prisma.coopCriteria.findMany.mockResolvedValue([]);
+    prisma.coopCriteria.findMany.mockResolvedValue([{ major: 'CS', nameTh: 'วิทยาการคอมพิวเตอร์' }]);
+    prisma.systemConfig.findUnique.mockResolvedValue(null);
   });
 
   // ── shared / format-agnostic ────────────────────────────────────────────────
@@ -299,7 +300,7 @@ describe('importStudents', () => {
     prisma.student.upsert.mockResolvedValue({ id: 1 });
     prisma.teacher.findMany.mockResolvedValue([{ id: 42, firstName: 'วิชาญ', lastName: 'ธรรมวิเศษ' }]);
 
-    const req = { user: STAFF, file: { buffer: Buffer.from('fake') } };
+    const req = { user: STAFF, file: { buffer: Buffer.from('fake') }, body: { majorMap: JSON.stringify({ 'วิทยาการคอมพิวเตอร์ ปริญญาตรี ภาคปกติ': 'CS' }) } };
     const res = makeRes();
     await importStudents(req, res);
 
@@ -323,6 +324,7 @@ describe('importStudents', () => {
         advisorName:     'วิชาญ ธรรมวิเศษ',
         generalAdvisorId: 42,
         userId: 1,
+        major: 'CS',
       }),
     }));
   });
@@ -342,7 +344,7 @@ describe('importStudents', () => {
     prisma.user.upsert.mockResolvedValue({ id: 5 });
     prisma.student.upsert.mockResolvedValue({ id: 5 });
 
-    const req = { user: STAFF, file: { buffer: Buffer.from('fake') } };
+    const req = { user: STAFF, file: { buffer: Buffer.from('fake') }, body: { majorMap: JSON.stringify({ 'วิทยาการคอมพิวเตอร์ โครงการพิเศษ': 'CS' }) } };
     const res = makeRes();
     await importStudents(req, res);
 
@@ -559,7 +561,6 @@ describe('นำเข้าโดยอาจารย์ประจำวิ�
     mockKkuSheet([row('660000004-1', 'ฟิสิกส์')]);
     const body = await run();
     expect(body.summary.errors).toBe(1);
-    expect(body.summary.autoCreatedMajors).toBe(0);
     expect(prisma.coopCriteria.createMany).not.toHaveBeenCalled();
     expect(prisma.student.upsert).not.toHaveBeenCalled();
   });
@@ -581,11 +582,116 @@ describe('นำเข้าโดยอาจารย์ประจำวิ�
     expect(body.summary).toMatchObject({ willCreate: 1, willSkip: 1 });
   });
 
-  test('เจ้าหน้าที่: หลักสูตรที่ไม่มีในระบบยังสร้างใหม่ให้เหมือนเดิม', async () => {
-    mockKkuSheet([row('660000008-1', 'ฟิสิกส์')]);
+  test('จับคู่หลักสูตรนอกที่ดูแล (AI) → 400 ไม่นำเข้าอะไรเลย', async () => {
+    mockKkuSheet([row('660000009-1', 'ฟิสิกส์')]);
     const res = makeRes();
-    await importStudents({ user: STAFF, file: { buffer: Buffer.from('fake') } }, res);
-    expect(prisma.coopCriteria.createMany).toHaveBeenCalledWith(expect.objectContaining({ data: [{ major: 'ฟิสิกส์', nameTh: 'ฟิสิกส์' }] }));
-    expect(res.json.mock.calls[0][0].summary.created).toBe(1);
+    await importStudents({ user: COOP, file: { buffer: Buffer.from('fake') }, body: { majorMap: JSON.stringify({ 'ฟิสิกส์': 'AI' }) } }, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json.mock.calls[0][0].message).toMatch(/AI ไม่อยู่ในหลักสูตรที่คุณดูแล/);
+    expect(prisma.student.upsert).not.toHaveBeenCalled();
+  });
+});
+
+// ── หลักสูตรที่ไม่มีในระบบ: ไม่สร้างให้เอง ต้องจับคู่ (เดิมเจ้าหน้าที่นำเข้าแล้วได้หลักสูตรใหม่ที่ใช้ชื่อไทยเป็นรหัส) ──
+describe('นำเข้าโดยเจ้าหน้าที่ — หลักสูตรที่ไม่มีในระบบ', () => {
+  const PROGRAM = 'วิทยาการคอมพิวเตอร์ ปริญญาตรี ภาคปกติ';
+  const row = (code, program) => ({ STUDENTCODE: code, STUDENTNAME: 'ก', STUDENTSURNAME: 'ข', KKUMAIL: `${code}@kkumail.com`, ...(program ? { PROGRAMNAME: program } : {}) });
+  const req = (majorMap) => ({ user: STAFF, file: { buffer: Buffer.from('fake') }, ...(majorMap ? { body: { majorMap: JSON.stringify(majorMap) } } : {}) });
+  const run = async (fn, r) => { const res = makeRes(); await fn(r, res); return { res, body: res.json.mock.calls[0][0] }; };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    prisma.teacher.findMany.mockResolvedValue([]);
+    prisma.user.findMany.mockResolvedValue([]);
+    prisma.student.findMany.mockResolvedValue([]);
+    prisma.coopCriteria.findMany.mockResolvedValue([
+      { major: 'AI', nameTh: 'ปัญญาประดิษฐ์' },
+      { major: 'CS', nameTh: 'วิทยาการคอมพิวเตอร์' },
+      { major: 'GIS', nameTh: 'ภูมิสารสนเทศศาสตร์' },
+    ]);
+    prisma.systemConfig.findUnique.mockResolvedValue(null);
+    prisma.user.upsert.mockResolvedValue({ id: 50 });
+    prisma.student.upsert.mockResolvedValue({ id: 50 });
+  });
+
+  test('ไม่จับคู่ → แถวนั้นข้าม ไม่สร้างหลักสูตรใหม่ · แถวที่รู้จักนำเข้าตามปกติ', async () => {
+    mockKkuSheet([row('660000101-1', PROGRAM), row('660000102-1', 'ปัญญาประดิษฐ์')]);
+    const { body } = await run(importStudents, req());
+    expect(body.summary).toMatchObject({ created: 1, errors: 1 });
+    expect(body.errorRows[0].reason).toMatch(/ไม่พบหลักสูตร "วิทยาการคอมพิวเตอร์ ปริญญาตรี ภาคปกติ"/);
+    expect(prisma.coopCriteria.createMany).not.toHaveBeenCalled();
+    expect(prisma.coopCriteria.create).not.toHaveBeenCalled();
+    expect(prisma.student.upsert.mock.calls[0][0].create.major).toBe('AI');
+  });
+
+  test('ตัวอย่าง: บอกชื่อที่ไม่รู้จัก + จำนวนแถว + หลักสูตรที่น่าจะใช่ · แถวขึ้นว่าข้าม', async () => {
+    mockKkuSheet([row('660000103-1', PROGRAM), row('660000104-1', PROGRAM), row('660000105-1', 'ฟิสิกส์')]);
+    const { body } = await run(previewStudents, req());
+    expect(body.unknownMajors).toEqual([
+      { name: PROGRAM, rows: 2, suggestion: 'CS' },
+      { name: 'ฟิสิกส์', rows: 1, suggestion: null },
+    ]);
+    expect(body.majors.map((m) => m.major)).toEqual(['AI', 'CS', 'GIS']);
+    expect(body.summary).toMatchObject({ willCreate: 0, willSkip: 3 });
+  });
+
+  test('จับคู่แล้ว → ตัวอย่างไม่มีชื่อที่ไม่รู้จัก · นำเข้าเป็นรหัสที่เลือก · "" = ข้ามแถวของชื่อนั้น', async () => {
+    mockKkuSheet([row('660000106-1', PROGRAM), row('660000107-1', 'ฟิสิกส์')]);
+    const map = { [PROGRAM]: 'CS', 'ฟิสิกส์': '' };
+    const preview = (await run(previewStudents, req(map))).body;
+    expect(preview.unknownMajors).toEqual([]);
+    expect(preview.rows[0]).toMatchObject({ action: 'create', major: 'CS' });
+    expect(preview.rows[1]).toMatchObject({ action: 'skip', error: expect.stringMatching(/ข้ามตามที่เลือก/) });
+
+    const { body } = await run(importStudents, req(map));
+    expect(body.summary).toMatchObject({ created: 1, errors: 1 });
+    expect(prisma.student.upsert.mock.calls[0][0].create.major).toBe('CS');
+  });
+
+  test('จำการจับคู่ไว้ → นำเข้าไฟล์ถัดไปไม่ต้องเลือกซ้ำ', async () => {
+    mockKkuSheet([row('660000108-1', PROGRAM)]);
+    await run(importStudents, req({ [PROGRAM]: 'CS' }));
+    expect(prisma.systemConfig.upsert).toHaveBeenCalledWith(expect.objectContaining({
+      where: { key: 'MAJOR_IMPORT_ALIASES' },
+      create: { key: 'MAJOR_IMPORT_ALIASES', value: JSON.stringify({ [PROGRAM]: 'CS' }) },
+    }));
+
+    jest.clearAllMocks();
+    prisma.systemConfig.findUnique.mockResolvedValue({ key: 'MAJOR_IMPORT_ALIASES', value: JSON.stringify({ [PROGRAM]: 'CS' }) });
+    mockKkuSheet([row('660000109-1', PROGRAM)]);
+    const { body } = await run(previewStudents, req());
+    expect(body.unknownMajors).toEqual([]);
+    expect(body.rows[0]).toMatchObject({ action: 'create', major: 'CS' });
+  });
+
+  test('ชื่อที่จำไว้ชี้ไปหลักสูตรที่ถูกลบแล้ว → กลับเป็นไม่รู้จัก (ไม่นำเข้าไปหลักสูตรที่ไม่มี)', async () => {
+    prisma.systemConfig.findUnique.mockResolvedValue({ key: 'MAJOR_IMPORT_ALIASES', value: JSON.stringify({ [PROGRAM]: 'OLD' }) });
+    mockKkuSheet([row('660000110-1', PROGRAM)]);
+    const { body } = await run(previewStudents, req());
+    expect(body.unknownMajors.map((u) => u.name)).toEqual([PROGRAM]);
+  });
+
+  test('จับคู่ไปรหัสที่ไม่มีในระบบ → 400', async () => {
+    mockKkuSheet([row('660000111-1', PROGRAM)]);
+    prisma.coopCriteria.findMany.mockResolvedValueOnce([]); // ตรวจรหัสที่เลือก
+    const { res, body } = await run(importStudents, req({ [PROGRAM]: 'ฟิสิกส์' }));
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(body.message).toMatch(/ไม่พบหลักสูตร ฟิสิกส์/);
+    expect(prisma.student.upsert).not.toHaveBeenCalled();
+  });
+
+  test('majorMap ไม่ใช่ JSON → 400', async () => {
+    mockKkuSheet([row('660000112-1', PROGRAM)]);
+    const { res } = await run(previewStudents, { user: STAFF, file: { buffer: Buffer.from('fake') }, body: { majorMap: '{bad' } });
+    expect(res.status).toHaveBeenCalledWith(400);
+  });
+
+  test('ไฟล์ไม่ระบุหลักสูตร + นักศึกษาเดิม → ไม่เปลี่ยนหลักสูตรเดิม', async () => {
+    mockKkuSheet([row('660000113-1')]);
+    prisma.student.findMany.mockResolvedValue([{ studentId: '660000113-1', deletedAt: null, major: 'GIS', userId: 70, user: { email: '660000113-1@kkumail.com' } }]);
+    prisma.user.findMany.mockResolvedValueOnce([{ id: 70, role: 'student', username: '660000113-1@kkumail.com', email: '660000113-1@kkumail.com', password: 'x', student: { studentId: '660000113-1' } }]).mockResolvedValueOnce([]);
+    const { body } = await run(importStudents, req());
+    expect(body.summary.updated).toBe(1);
+    expect(prisma.student.upsert.mock.calls[0][0].update.major).toBeUndefined();
   });
 });

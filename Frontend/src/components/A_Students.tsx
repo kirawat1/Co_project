@@ -46,6 +46,18 @@ interface PreviewRow {
   error?: string;
 }
 
+/** ชื่อหลักสูตรในไฟล์ที่ระบบไม่รู้จัก — ต้องเลือกว่าตรงกับหลักสูตรไหน (ระบบไม่สร้างหลักสูตรใหม่ให้เอง) */
+interface UnknownMajor {
+  name: string;
+  rows: number;
+  suggestion: string | null;
+}
+
+interface MajorOption {
+  major: string;
+  nameTh: string | null;
+}
+
 interface PreviewSummary {
   total: number;
   willCreate: number;
@@ -216,7 +228,12 @@ export default function A_Students() {
 
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importLoading, setImportLoading] = useState(false);
-  const [importResult, setImportResult] = useState<{ total: number; created: number; updated: number; errors: number; autoCreatedMajors?: number } | null>(null);
+  const [importResult, setImportResult] = useState<{ total: number; created: number; updated: number; errors: number } | null>(null);
+  // การจับคู่หลักสูตร: ชื่อในไฟล์ → รหัสหลักสูตร ("" = ข้ามแถวของชื่อนั้น) — ส่งไปทั้งตอนดูตัวอย่างและตอนนำเข้า
+  const [importMajorMap, setImportMajorMap] = useState<Record<string, string>>({});
+  const [unknownMajors, setUnknownMajors] = useState<UnknownMajor[]>([]);
+  const [majorOptions, setMajorOptions] = useState<MajorOption[]>([]);
+  const [pendingMajorChoice, setPendingMajorChoice] = useState<Record<string, string>>({});
   const [importWarnings, setImportWarnings] = useState<{ row: number; email: string; reason: string }[]>([]);
   const [importPreview, setImportPreview] = useState<PreviewRow[] | null>(null);
   const [importPreviewSummary, setImportPreviewSummary] = useState<PreviewSummary | null>(null);
@@ -382,17 +399,23 @@ export default function A_Students() {
     setImportPreviewSummary(null);
     setImportResult(null);
     setImportWarnings([]);
+    resetMajorMapping();
     setFileInputKey(k => k + 1);
   };
 
-  const handlePreview = async () => {
+  const resetMajorMapping = () => {
+    setImportMajorMap({});
+    setUnknownMajors([]);
+    setPendingMajorChoice({});
+  };
+
+  const handlePreview = async (majorMap: Record<string, string> = importMajorMap) => {
     if (!importFile) return;
     setImportPreviewLoading(true);
-    setImportPreview(null);
-    setImportPreviewSummary(null);
     try {
       const form = new FormData();
       form.append("file", importFile);
+      form.append("majorMap", JSON.stringify(majorMap));
       const res = await apiFetch("/api/admin/students/import-preview", {
         method: "POST",
         body: form,
@@ -401,6 +424,12 @@ export default function A_Students() {
       if (data.ok) {
         setImportPreview(data.rows);
         setImportPreviewSummary(data.summary);
+        setImportMajorMap(majorMap);
+        const unknown: UnknownMajor[] = data.unknownMajors ?? [];
+        setUnknownMajors(unknown);
+        setMajorOptions(data.majors ?? []);
+        // ตั้งค่าเริ่มของตัวเลือกเป็นหลักสูตรที่แนะนำ — ยังต้องกด "ใช้การจับคู่นี้" เอง
+        setPendingMajorChoice(Object.fromEntries(unknown.map(u => [u.name, u.suggestion ?? "?"])));
       } else {
         notify.error(data.message || "ไม่สามารถอ่านไฟล์ได้");
       }
@@ -418,6 +447,7 @@ export default function A_Students() {
     try {
       const form = new FormData();
       form.append("file", importFile);
+      form.append("majorMap", JSON.stringify(importMajorMap));
       const res = await apiFetch("/api/admin/students/import-excel", {
         method: "POST",
         body: form,
@@ -429,6 +459,8 @@ export default function A_Students() {
         setImportFile(null);
         setImportPreview(null);
         setImportPreviewSummary(null);
+        resetMajorMapping();
+        setFileInputKey(k => k + 1); // ไม่งั้นเลือกไฟล์เดิมซ้ำ (แก้ไฟล์แล้วนำเข้าใหม่) จะไม่เกิด onChange
         reloadStudents(); // นำเข้าใหม่อาจมีหลายร้อยแถว ไม่รู้ตำแหน่งที่ควรแทรก โหลดหน้า 1 ใหม่ทั้งหมด
       } else {
         notify.error(data.message || "นำเข้าไม่สำเร็จ");
@@ -457,7 +489,7 @@ export default function A_Students() {
         >
           + เพิ่มทีละคน
         </button>
-        {/* นำเข้าจาก Excel — เจ้าหน้าที่: ทุกหลักสูตร (หลักสูตรใหม่ถูกสร้างให้) · อาจารย์ประจำวิชา: เฉพาะหลักสูตรที่ดูแล (แถวอื่นถูกข้าม) */}
+        {/* นำเข้าจาก Excel — เจ้าหน้าที่: ทุกหลักสูตร · อาจารย์ประจำวิชา: เฉพาะหลักสูตรที่ดูแล · หลักสูตรที่ไม่รู้จักต้องจับคู่ก่อน (ไม่สร้างใหม่ให้เอง) */}
         <label style={{ cursor: "pointer", fontSize: 12, padding: "6px 14px", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, fontWeight: 600, color: "#475569" }}>
           เลือกไฟล์ Excel
           <input
@@ -471,6 +503,7 @@ export default function A_Students() {
               setImportPreviewSummary(null);
               setImportResult(null);
               setImportWarnings([]);
+              resetMajorMapping();
             }}
           />
         </label>
@@ -482,7 +515,7 @@ export default function A_Students() {
             <span style={{ fontSize: 12, color: "#64748b" }}>📄 {importFile.name}</span>
             <button
               style={{ padding: "6px 16px", background: "#0f766e", color: "#fff", border: "none", borderRadius: 8, fontWeight: 700, cursor: "pointer", fontSize: 13 }}
-              onClick={handlePreview}
+              onClick={() => handlePreview()}
               disabled={importPreviewLoading}
             >
               {importPreviewLoading ? "กำลังโหลด..." : "ดูตัวอย่าง"}
@@ -491,7 +524,7 @@ export default function A_Students() {
         )}
         {importResult && (
           <span style={{ fontSize: 12, color: "#16a34a", fontWeight: 700 }}>
-            ✅ สร้างใหม่ {importResult.created} | อัปเดต {importResult.updated} | error {importResult.errors} จาก {importResult.total} รายการ{importResult.autoCreatedMajors ? ` · เพิ่มหลักสูตรใหม่ ${importResult.autoCreatedMajors} หลักสูตร` : ""}
+            ✅ สร้างใหม่ {importResult.created} | อัปเดต {importResult.updated} | error {importResult.errors} จาก {importResult.total} รายการ
           </span>
         )}
       </div>
@@ -512,9 +545,10 @@ export default function A_Students() {
             )}
             <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
               <button
-                style={{ padding: "6px 18px", background: "#2563eb", color: "#fff", border: "none", borderRadius: 8, fontWeight: 700, cursor: importLoading ? "not-allowed" : "pointer", fontSize: 13, opacity: importLoading ? 0.7 : 1 }}
+                style={{ padding: "6px 18px", background: "#2563eb", color: "#fff", border: "none", borderRadius: 8, fontWeight: 700, cursor: importLoading || unknownMajors.length > 0 ? "not-allowed" : "pointer", fontSize: 13, opacity: importLoading || unknownMajors.length > 0 ? 0.5 : 1 }}
                 onClick={handleImport}
-                disabled={importLoading}
+                disabled={importLoading || unknownMajors.length > 0}
+                title={unknownMajors.length > 0 ? "เลือกหลักสูตรให้ชื่อที่ระบบไม่รู้จักก่อน" : undefined}
               >
                 {importLoading ? "กำลังนำเข้า..." : "ยืนยันนำเข้า"}
               </button>
@@ -527,6 +561,69 @@ export default function A_Students() {
               </button>
             </div>
           </div>
+
+          {/* หลักสูตรในไฟล์ที่ระบบไม่รู้จัก — ต้องเลือกก่อนนำเข้า */}
+          {unknownMajors.length > 0 && (
+            <div data-testid="import-unknown-majors" style={{ marginBottom: 10, padding: "12px 14px", background: "#fffbeb", border: "1px solid #fcd34d", borderRadius: 10, fontSize: 13 }}>
+              <div style={{ fontWeight: 700, color: "#92400e", marginBottom: 4 }}>
+                ⚠️ ไฟล์มีชื่อหลักสูตรที่ระบบไม่รู้จัก {unknownMajors.length} ชื่อ — เลือกว่าตรงกับหลักสูตรไหน
+              </div>
+              <div style={{ color: "#a16207", fontSize: 12, marginBottom: 10 }}>
+                ระบบจะจำการจับคู่นี้ไว้ใช้กับไฟล์ครั้งถัดไป · ถ้าเป็นหลักสูตรใหม่จริง ให้เพิ่มที่หน้า "จัดการหลักสูตร" ก่อน แล้วดูตัวอย่างใหม่
+              </div>
+              <div style={{ display: "grid", gap: 6 }}>
+                {unknownMajors.map(u => (
+                  <label key={u.name} style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                    <span style={{ minWidth: 0, flex: "1 1 260px", fontWeight: 600, color: "#334155", overflowWrap: "anywhere" }}>
+                      "{u.name}" <span style={{ color: "#94a3b8", fontWeight: 400 }}>({u.rows} แถว)</span>
+                    </span>
+                    <span style={{ color: "#94a3b8" }}>→</span>
+                    <select
+                      aria-label={`หลักสูตรสำหรับ ${u.name}`}
+                      value={pendingMajorChoice[u.name] ?? "?"}
+                      onChange={e => setPendingMajorChoice(p => ({ ...p, [u.name]: e.target.value }))}
+                      style={{ padding: "5px 8px", border: "1px solid #e2e8f0", borderRadius: 8, fontSize: 13, background: "#fff", maxWidth: "100%" }}
+                    >
+                      <option value="?" disabled>— เลือกหลักสูตร —</option>
+                      {majorOptions.map(m => (
+                        <option key={m.major} value={m.major}>
+                          {m.major}{m.nameTh ? ` · ${m.nameTh}` : ""}{u.suggestion === m.major ? " (แนะนำ)" : ""}
+                        </option>
+                      ))}
+                      <option value="">ข้ามแถวเหล่านี้ (ไม่นำเข้า)</option>
+                    </select>
+                  </label>
+                ))}
+              </div>
+              <button
+                style={{ marginTop: 10, padding: "6px 16px", background: "#b45309", color: "#fff", border: "none", borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: "pointer", opacity: importPreviewLoading ? 0.7 : 1 }}
+                disabled={importPreviewLoading || unknownMajors.some(u => (pendingMajorChoice[u.name] ?? "?") === "?")}
+                onClick={() => {
+                  const picked = Object.fromEntries(unknownMajors.map(u => [u.name, pendingMajorChoice[u.name]]));
+                  handlePreview({ ...importMajorMap, ...picked });
+                }}
+              >
+                {importPreviewLoading ? "กำลังตรวจ..." : "ใช้การจับคู่นี้"}
+              </button>
+            </div>
+          )}
+          {Object.keys(importMajorMap).length > 0 && (
+            <div style={{ marginBottom: 10, display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", fontSize: 12, color: "#475569" }}>
+              <span>จับคู่หลักสูตร:</span>
+              {Object.entries(importMajorMap).map(([name, code]) => (
+                <span key={name} style={{ padding: "2px 8px", background: "#f1f5f9", border: "1px solid #e2e8f0", borderRadius: 999, overflowWrap: "anywhere" }}>
+                  {name} → <b>{code || "ข้าม"}</b>
+                </span>
+              ))}
+              <button
+                style={{ padding: "2px 8px", background: "none", border: "none", color: "#2563eb", cursor: "pointer", fontSize: 12, textDecoration: "underline" }}
+                onClick={() => handlePreview({})}
+                disabled={importPreviewLoading}
+              >
+                เลือกใหม่
+              </button>
+            </div>
+          )}
 
           {/* Table */}
           <div style={{ overflowX: "auto", borderRadius: 10, border: "1px solid #e2e8f0" }}>
