@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useMemo } from "react";
+﻿import React, { useState, useEffect, useMemo, useRef } from "react";
 import type { CSSProperties } from "react";
 import axios from "axios";
 import { fmtDate, fmtDateTime } from '../utils/dateFormat';
@@ -19,7 +19,7 @@ import { TABLE_TH, TABLE_TD, TABLE_HEADER_ROW } from "../utils/tableStyles";
 import { useAdminRole } from "./adminRole";
 import { getMajorFilter, NO_MAJOR } from "../utils/majorFilter";
 import LetterZipModal, { LetterZipButton } from "./LetterZipModal";
-import { defaultPeriod, defaultPeriodId } from "../utils/defaultPeriod";
+import { defaultPeriod, defaultPeriodId, pendingOutside, periodCountLabel, type PeriodCount } from "../utils/defaultPeriod";
 
 // --- Types ---
 type SupervisionStatus = "PENDING_TEACHER" | "TEACHER_REJECTED" | "DATE_CONFIRMED" | "LETTER_UPLOADED" | "COMPLETED";
@@ -67,6 +67,7 @@ interface Supervision {
     confirmedDate: string | null;
     coTeacherName?: string | null;
     groupId?: string | null; // นัดที่ยืนยันพร้อมกัน (กลุ่มนิเทศ) — ออกหนังสือรวมได้
+    outsidePeriod?: boolean; // นัดกลุ่มเดียวกันที่อยู่นอกรอบที่เลือก — ไม่แสดงในตาราง ใช้ทำหนังสือรวมของกลุ่มให้ครบ
     // อาจารย์ร่วม + วันว่างที่ตอบแล้ว (null = ยังไม่ตอบ)
     coTeachers?: { teacherId: number; name?: string; availableDates?: string[] | null; respondedAt?: string | null }[];
     status: SupervisionStatus;
@@ -135,6 +136,11 @@ export default function A_SupervisionManage() {
     // State สำหรับค้นหาและกรองตาราง
     const [q, setQ] = useState("");
     const [filterPeriodId, setFilterPeriodId] = useState<string>(""); // "" = ยังไม่โหลดรอบ → รอบที่เปิดอยู่ (ครั้งแรกครั้งเดียว)
+    // จำนวนต่อรอบ (ทั้งหมด / รอออกหนังสือ) — ป้ายใน dropdown + เตือนงานค้างรอบอื่น
+    const [periodCounts, setPeriodCounts] = useState<PeriodCount[]>([]);
+    const filterPeriodRef = useRef(filterPeriodId);
+    filterPeriodRef.current = filterPeriodId;
+    const loadSeq = useRef(0);
     const [zipOpen, setZipOpen] = useState(false); // หน้าต่างดาวน์โหลดหนังสือขอนิเทศ (zip)
     const [filterCompany, setFilterCompany] = useState<string>("all");
     // หนังสือขอนิเทศ: TO_ISSUE = ยืนยันวันแล้วยังไม่ได้โหลดร่าง · PENDING_SIGN = โหลดร่างไปรอลงนามแล้ว
@@ -159,14 +165,14 @@ export default function A_SupervisionManage() {
                 const keep = selectedPeriodId ? periods.find(p => p.id === selectedPeriodId) : undefined;
                 const activePeriod = keep || defaultPeriod(periods);
                 if (activePeriod) handleSelectPeriod(activePeriod.id, periods);
-                setFilterPeriodId(cur => cur || defaultPeriodId(periods));
             }
 
-            // 2. ดึงรายชื่อการนิเทศ
-            const supRes = await axios.get("/api/admin/supervisions", {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            if (supRes.data?.supervisions) setSupervisions(supRes.data.supervisions);
+            // 2. นัดนิเทศของรอบที่เลือก (ครั้งแรก = รอบที่เปิดอยู่) — เปลี่ยนรอบ = effect โหลดให้ · รอบเดิม (หลังทำรายการ) = โหลดรอบเดิมซ้ำ
+            let period = filterPeriodRef.current;
+            if (!period && periodRes.data?.periods) period = defaultPeriodId(periodRes.data.periods);
+            if (!period) period = "all";
+            if (period !== filterPeriodRef.current) setFilterPeriodId(period);
+            else await loadSupervisions(period);
 
             // 3. ดึงรายชื่ออาจารย์ทั้งหมด (สำหรับเลือกอาจารย์นิเทศร่วม)
             const teacherRes = await axios.get("/api/teachers", {
@@ -248,15 +254,10 @@ export default function A_SupervisionManage() {
 
     // กรองตารางและเรียงลำดับ (Filter & Sort)
     const processedSupervisions = useMemo(() => {
-        let filtered = supervisions.filter(sup => {
+        let filtered = supervisions.filter(sup => !sup.outsidePeriod).filter(sup => {
             const searchStr = `${sup.student.studentId} ${sup.student.firstName} ${sup.student.lastName} ${sup.student.coop?.company?.name || ""} ${sup.teacher?.firstName || ""} ${sup.teacher?.lastName || ""}`.toLowerCase();
             const matchesQ = searchStr.includes(q.toLowerCase());
 
-            const pIdFromSup = sup.coopPeriodId;
-            const pIdFromStudent = sup.student?.coopPeriodId;
-            const pIdFromCoop = sup.student?.coop?.coopPeriodId;
-            const supPeriodId = String(pIdFromSup || pIdFromStudent || pIdFromCoop || "");
-            const matchesPeriod = filterPeriodId === "all" || supPeriodId === String(filterPeriodId);
 
             const matchesCompany = filterCompany === "all" || sup.student.coop?.company?.name === filterCompany;
 
@@ -264,7 +265,7 @@ export default function A_SupervisionManage() {
                 || (filterLetter === "PENDING_SIGN" && !!sup.letterPendingAt)
                 || (filterLetter === "TO_ISSUE" && sup.status === "DATE_CONFIRMED" && !sup.letterPendingAt);
 
-            return matchesQ && matchesPeriod && matchesCompany && matchesLetter;
+            return matchesQ && matchesCompany && matchesLetter; // รอบ: server กรองแล้ว
         });
 
         // 2. Sort
@@ -291,18 +292,32 @@ export default function A_SupervisionManage() {
         });
 
         return filtered;
-    }, [supervisions, q, filterPeriodId, filterCompany, filterLetter, sortKey, sortDirection]);
+    }, [supervisions, q, filterCompany, filterLetter, sortKey, sortDirection]);
 
     // แสดงทีละ 30 รายการ เลื่อนถึงท้ายตารางแล้วแสดงเพิ่ม แทนโหลดทั้งหมดในตารางเดียว
     const { shown: shownSupervisions, hasMore, sentinelRef, showMore, total } = useLoadMore(processedSupervisions, `${q}|${filterPeriodId}|${filterCompany}|${filterLetter}`);
 
     // ปิดหน้าต่างออกหนังสือ → รีเฟรชเฉพาะรายการนิเทศ (ป้าย "รอลงนาม" เปลี่ยนตอนโหลดร่าง/ยกเลิก) ไม่ทับค่าตั้งค่าช่วงนิเทศที่อาจกำลังแก้
-    const refreshSupervisions = async () => {
-        try {
-            const supRes = await axios.get("/api/admin/supervisions", { headers: { Authorization: `Bearer ${token}` } });
-            if (supRes.data?.supervisions) setSupervisions(supRes.data.supervisions);
-        } catch (err) { console.error(err); }
-    };
+    const refreshSupervisions = () => loadSupervisions(filterPeriodRef.current);
+
+    /**
+     * นัดนิเทศของรอบที่เลือก (server กรอง — เดิมโหลดทุกรอบ) + จำนวนรอออกหนังสือต่อรอบ
+     * นัดกลุ่มเดียวกันที่อยู่นอกรอบมาด้วย (outsidePeriod) ให้หนังสือรวมของกลุ่มครบ · ผลที่มาช้ากว่ารอบล่าสุดถูกทิ้ง
+     */
+    async function loadSupervisions(period: string) {
+        if (!period) return;
+        const seq = ++loadSeq.current;
+        const headers = { Authorization: `Bearer ${token}` };
+        const q = period === "all" ? "" : `?coopPeriodId=${encodeURIComponent(period)}`;
+        const [supRes, countRes] = await Promise.all([
+            axios.get(`/api/admin/supervisions${q}`, { headers }).catch(() => null),
+            axios.get("/api/admin/supervisions?countsOnly=1&pending=letter", { headers }).catch(() => null),
+        ]);
+        if (seq !== loadSeq.current) return;
+        if (supRes?.data?.supervisions) setSupervisions(supRes.data.supervisions);
+        if (countRes?.data?.ok) setPeriodCounts(countRes.data.periods ?? []);
+    }
+    useEffect(() => { if (filterPeriodId) loadSupervisions(filterPeriodId); }, [filterPeriodId]);
 
     // ─── handleEditDate ─────────────────────────────────────────
     const openEditDateModal = (sup: Supervision) => {
@@ -352,6 +367,7 @@ export default function A_SupervisionManage() {
     // ─── unique company list ─────────────────────────────────────
     const companyList = useMemo(() => {
         const names = supervisions
+            .filter(s => !s.outsidePeriod)
             .map(s => s.student.coop?.company?.name)
             .filter((n): n is string => !!n);
         return [...new Set(names)].sort();
@@ -505,12 +521,21 @@ export default function A_SupervisionManage() {
                         onChange={e => setQ(e.target.value)}
                         style={{ flex: 1, minWidth: 220 }}
                     />
-                    <select className="input" style={{ width: 'auto' }} value={filterPeriodId} onChange={e => setFilterPeriodId(e.target.value)}>
+                    <select className="input" style={{ width: 'auto', maxWidth: '100%' }} value={filterPeriodId} onChange={e => setFilterPeriodId(e.target.value)}>
                         <option value="all">📚 ทุกปีการศึกษา</option>
                         {coopPeriods.map(p => (
-                            <option key={p.id} value={p.id}>เทอม {p.semester}/{p.academicYear}</option>
+                            <option key={p.id} value={p.id}>เทอม {p.semester}/{p.academicYear}{periodCountLabel(periodCounts, p.id, "รอออกหนังสือ")}</option>
                         ))}
+                        {periodCounts.some(c => c.coopPeriodId == null) && (
+                            <option value="none">⏳ ยังไม่เลือกรอบ{periodCountLabel(periodCounts, "none", "รอออกหนังสือ")}</option>
+                        )}
                     </select>
+                    {pendingOutside(periodCounts, filterPeriodId) > 0 && (
+                        <button type="button" onClick={() => setFilterPeriodId("all")}
+                            style={{ fontSize: 12, color: '#b45309', fontWeight: 700, background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 8, padding: '6px 10px', cursor: 'pointer' }}>
+                            ⚠️ รอออกหนังสือในรอบอื่นอีก {pendingOutside(periodCounts, filterPeriodId)} นัด — ดูทุกปีการศึกษา
+                        </button>
+                    )}
                     <select className="input" style={{ width: 'auto' }} value={filterCompany} onChange={e => setFilterCompany(e.target.value)}>
                         <option value="all">🏢 ทุกบริษัท</option>
                         {companyList.map(c => <option key={c} value={c}>{c}</option>)}

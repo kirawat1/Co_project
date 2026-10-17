@@ -77,7 +77,8 @@ export function useSupervisionSchedule<T extends SupervisionLike>(
             return source.map(toFallbackEvent).filter((e): e is CalendarEvent => e !== null);
         }
         const linkById = new Map(source.map((s) => [s.id, s.onlineLink ?? null]));
-        return events.map((ev) => ({ ...ev, onlineLink: linkById.get(ev.id) ?? null }));
+        // ลิงก์จากรายการที่หน้าโหลดมา · ไม่มี (นัดนอกรอบที่เลือก) → ใช้ที่ server ส่งมาให้คนที่มีสิทธิ์เห็น
+        return events.map((ev) => ({ ...ev, onlineLink: linkById.get(ev.id) ?? ev.onlineLink ?? null }));
     }, [events, degraded, source]);
 
     return { events: merged, degraded };
