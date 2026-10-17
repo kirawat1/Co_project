@@ -200,7 +200,7 @@ export default function T_Dashboard() {
   useEffect(() => { fetchData(selectedPeriod); }, [selectedPeriod]);
 
   return (
-    <div style={{ display: "grid", gap: 20, marginLeft: 35, marginTop: 28, paddingRight: 20, paddingBottom: 40 }}>
+    <div style={{ display: "grid", gap: 20, marginLeft: "clamp(0px, 3vw, 35px)", marginTop: 28, paddingRight: "clamp(0px, 2vw, 20px)", paddingBottom: 40 }}>
       {/* Header & Filter */}
       <section className="card" style={{ borderLeft: `6px solid ${IOS_BLUE}` }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
@@ -209,12 +209,12 @@ export default function T_Dashboard() {
             <div style={{ color: "#64748b", marginTop: 4, fontSize: 14 }}>สรุปข้อมูลและคำร้องของนักศึกษา</div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#f8fafc', padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0' }}>
+          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 10, minWidth: 0, maxWidth: '100%', background: '#f8fafc', padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0' }}>
             <label style={{ fontSize: 13, fontWeight: 700, color: '#475569' }}>รอบปีการศึกษา:</label>
             <select
               value={selectedPeriod}
               onChange={(e) => setSelectedPeriod(e.target.value)}
-              style={{ padding: '6px', borderRadius: '6px', border: '1px solid #cbd5e1', fontWeight: 600, outline: 'none', cursor: 'pointer' }}
+              style={{ padding: '6px', borderRadius: '6px', border: '1px solid #cbd5e1', fontWeight: 600, outline: 'none', cursor: 'pointer', minWidth: 0, maxWidth: '100%' }}
             >
               <option value="all">ดูทั้งหมด (All Time)</option>
               {periods.map(p => {
@@ -275,7 +275,7 @@ export default function T_Dashboard() {
           )}
 
           {/* ================= Stats ================= */}
-          <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: 16 }}>
+          <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 250px), 1fr))", gap: 16 }}>
             <CardStat title="นักศึกษาในดูแล" value={stats.myStudentsCount} hint="นักศึกษาที่คุณเป็นที่ปรึกษา" color="#0ea5e9" />
             <CardStat title="คำร้องรอพิจารณา" value={stats.pendingRequests} hint="นักศึกษาที่ยื่นคำร้องเข้ามาใหม่" color="#f59e0b" />
             <CardStat title="ผ่านคุณสมบัติ" value={stats.approvedStudents ?? approvedStudents.length} hint="นักศึกษาที่ได้ออกฝึกสหกิจ" color="#10b981" />
@@ -332,7 +332,7 @@ export default function T_Dashboard() {
           </section>
 
           {/* ================= ตารางคำร้อง (รอพิจารณา & ผ่านแล้ว) ================= */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(400px, 1fr))", gap: 20 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 400px), 1fr))", gap: 20 }}>
 
             {/* กล่องรอพิจารณา */}
             <section className="card">

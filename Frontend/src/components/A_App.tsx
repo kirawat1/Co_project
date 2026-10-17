@@ -174,8 +174,8 @@ export default function AdminApp() {
             <div className="user-name">{displayName}</div>
           </div>
           {isCoopTeacher && (
-            <button className="btn-secondary small" onClick={() => navigate("/teacher/dashboard")} title="กลับไปหน้าอาจารย์ (นักศึกษาในที่ปรึกษา นัดนิเทศของฉัน)">
-              👤 หน้าอาจารย์ของฉัน
+            <button className="btn-secondary small" onClick={() => navigate("/teacher/dashboard")} title="กลับไปหน้าอาจารย์ (นักศึกษาในที่ปรึกษา นัดนิเทศของฉัน)" aria-label="หน้าอาจารย์ของฉัน">
+              👤<span className="hide-on-phone"> หน้าอาจารย์ของฉัน</span>
             </button>
           )}
           <ThemeToggleBtn />

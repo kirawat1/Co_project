@@ -304,4 +304,11 @@ const PROFILE_CSS = `
 .form-grid .label{ display:block; margin-bottom:8px; }
 @media (max-width: 480px) { .form-grid { grid-template-columns: 1fr !important; } }
 .action-row{ display:flex; justify-content:flex-end; gap:12px; margin-top:32px; }
+/* มือถือ: ป้ายอยู่บนค่า (เดิมคอลัมน์ป้าย 200px ตายตัว → ล้นจอ) · การ์ด padding เล็กลง · ปุ่มแก้ไขขึ้นบรรทัดใหม่ได้ */
+@media (max-width: 600px) {
+  .profile-card{ padding:18px; border-radius:16px; }
+  .card-head{ flex-wrap:wrap; gap:10px; }
+  .info-row{ grid-template-columns:1fr; gap:2px; }
+  .value{ overflow-wrap:anywhere; }
+}
 `;

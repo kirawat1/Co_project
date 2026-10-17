@@ -124,11 +124,11 @@ export default function A_Dashboard() {
   }, [selectedPeriod]);
 
   return (
-    <div className="page" style={{ padding: 28, marginLeft: 35 }}>
+    <div className="page" style={{ padding: 'clamp(4px, 3vw, 28px)', marginLeft: 'clamp(0px, 3vw, 35px)' }}>
       {/* =========================
           HEADER & FILTER
       ========================= */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 28 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 28 }}>
         <div>
           <h1 style={{ fontSize: 28, fontWeight: 800, margin: 0, color: '#1e293b' }}>
             Dashboard
@@ -136,7 +136,7 @@ export default function A_Dashboard() {
           <p style={{ color: '#64748b', margin: '4px 0 0 0' }}>สรุปภาพรวมและสถิติของโครงการสหกิจศึกษา</p>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: '#fff', padding: '8px 16px', borderRadius: 12, border: '1px solid #e2e8f0', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 12, minWidth: 0, maxWidth: '100%', background: '#fff', padding: '8px 16px', borderRadius: 12, border: '1px solid #e2e8f0', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
           <label style={{ fontSize: 14, fontWeight: 700, color: '#475569' }}>📍 รอบปีการศึกษา:</label>
           <select
             value={selectedPeriod}
@@ -149,7 +149,9 @@ export default function A_Dashboard() {
               color: '#0f172a',
               outline: 'none',
               cursor: 'pointer',
-              backgroundColor: '#f8fafc'
+              backgroundColor: '#f8fafc',
+              minWidth: 0,
+              maxWidth: '100%'
             }}
           >
             <option value="all">📚 แสดงทั้งหมด (All Time)</option>
@@ -195,7 +197,7 @@ export default function A_Dashboard() {
               📊 ภาพรวมระบบ {selectedPeriod !== 'all' ? `ประจำเทอม ${selectedPeriod}` : '(ทั้งหมดทุกรอบ)'}
             </h2>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 20 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 200px), 1fr))", gap: 20 }}>
               <IconCard icon={<IcUsers />} title="นักศึกษาในระบบ" value={stats.totalStudents} color="#0284c7" bgColor="#e0f2fe" />
               <IconCard icon={<IcDocs />} title="ยื่นสหกิจแล้ว" value={stats.submittedStudents} color="#10b981" bgColor="#dcfce7" />
               <IconCard icon={<IcAnnounce />} title="ข่าวประกาศ" value={stats.totalAnnouncements} color="#f59e0b" bgColor="#fef3c7" />
@@ -210,7 +212,7 @@ export default function A_Dashboard() {
               📝 สถานะการพิจารณาคำร้อง
             </h2>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 20, marginBottom: 20 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 240px), 1fr))", gap: 20, marginBottom: 20 }}>
               <SummaryCard title="รอดำเนินการ (Waiting)" value={stats.waiting} color="#ca8a04" subText="ต้องเข้าตรวจสอบ" />
               <SummaryCard title="อนุมัติผ่านแล้ว (Approved)" value={stats.approved} color="#16a34a" subText="ผ่านคุณสมบัติ" />
               <SummaryCard title="ไม่ผ่าน/แก้ไข (Rejected)" value={stats.rejected} color="#dc2626" subText="รอการแก้ไขจาก นศ." />

@@ -159,7 +159,7 @@ export default function AnnouncementEditor({ initial, years, year: year0, room, 
                     )}
                 </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 240px), 1fr))", gap: 12 }}>
                     <label style={optionBox}>
                         <input type="checkbox" checked={pinned} onChange={(e) => setPinned(e.target.checked)} />
                         <span><b>📌 ปักหมุด</b><br /><span style={hint}>อยู่บนสุดของห้อง</span></span>

@@ -412,6 +412,20 @@ function css(IOS_BLUE: string) {
     .main { padding: 12px 10px; }
   }
 
+  /* แถบบนบนมือถือ: ของรวมกันเกินจอ (เจ้าหน้าที่ ~464px บนจอ 390px) → ให้หดได้ ซ่อนส่วนที่ไม่จำเป็น */
+  @media (max-width: 600px) {
+    .topbar { gap: 8px; }
+    .topbar > * { min-width: 0; }
+    .topbar-right { gap: 6px; min-width: 0; }
+    .topbar-right select { min-width: 0; max-width: 132px; text-overflow: ellipsis; }
+    .user-mini { display: none; }          /* avatar สี่เหลี่ยมเปล่า — ชื่อซ่อนอยู่แล้ว */
+    .hide-on-phone { display: none; }      /* ปุ่มที่มีข้อความ → เหลือไอคอน (มี aria-label/title) */
+
+    /* กล่องนอกสุดของแต่ละหน้าตั้ง marginLeft 35–65px ไว้ (inline, ~30 หน้า) — บนจอเดสก์ท็อปพอดี บนมือถือเสียพื้นที่/ล้นจอ
+       !important ชนะ inline style · .main มี padding ของตัวเองอยู่แล้ว */
+    .main > div, .main > section { margin-left: 0 !important; margin-right: 0 !important; }
+  }
+
   @media (max-width: 480px) {
     .topbar { padding: 8px 12px; }
     .brand-img { height: 28px; }

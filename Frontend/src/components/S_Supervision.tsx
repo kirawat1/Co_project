@@ -358,7 +358,7 @@ export default function S_Supervision() {
                             <h3 style={{ margin: 0, color: '#0f172a', fontSize: 18 }}>กำหนดการนิเทศสหกิจศึกษา</h3>
                         </div>
 
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 20 }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: 20 }}>
                             <InfoRow label="ปีการศึกษา / เทอม" value={activePeriod ? `${activePeriod.academicYear} / ${activePeriod.semester}` : "-"} />
                             <InfoRow label="สถานะระบบนัดหมาย" value={
                                 activePeriod?.isSupervisionOpen
@@ -429,7 +429,7 @@ export default function S_Supervision() {
                                     </div>
                                 )}
 
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: 24 }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 350px), 1fr))', gap: 24 }}>
 
                                     {/* ฝั่งซ้าย: รูปแบบและอาจารย์ */}
                                     <div>
