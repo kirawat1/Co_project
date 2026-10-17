@@ -944,9 +944,28 @@ exports.updateCoopApplicationStatus = async (req, res) => {
 
 // รายชื่อในหน้าตรวจ T002/T003 = มีไฟล์แบบฟอร์มนั้น หรือสถานะอยู่ในขั้นนั้น (ตรงกับที่หน้าเว็บเคยกรองเอง)
 const REVIEW_LISTS = {
-    T002: { docType: 'T002_FORM', statuses: ['T002_SUBMITTED', 'T002_EDITS_REQUIRED', 'INTERNSHIP_STARTED'] },
-    T003: { docType: 'T003_FORM', statuses: ['T003_SUBMITTED', 'T003_EDITS_REQUIRED', 'T003_APPROVED', 'INTERNSHIP_STARTED'] },
+    T002: { docType: 'T002_FORM', statuses: ['T002_SUBMITTED', 'T002_EDITS_REQUIRED', 'INTERNSHIP_STARTED'], pending: 'T002_SUBMITTED' },
+    T003: { docType: 'T003_FORM', statuses: ['T003_SUBMITTED', 'T003_EDITS_REQUIRED', 'T003_APPROVED', 'INTERNSHIP_STARTED'], pending: 'T003_SUBMITTED' },
 };
+const reviewWhere = (review) => ({ OR: [{ documents: { some: { type: review.docType } } }, { coop: { status: { in: review.statuses } } }] });
+
+/**
+ * จำนวนในรายการตรวจแยกรอบ (ทั้งหมด / รอตรวจ) — หน้าเว็บใช้เลือกรอบเริ่มต้น = รอบล่าสุดที่มีงานรอตรวจ
+ * (ไม่ใช่รอบใหม่สุดเฉยๆ: ช่วงที่รอบหน้าเปิดรับสมัครแล้ว งานตรวจ T002/T003 ยังอยู่รอบก่อน)
+ */
+async function reviewPeriodCounts(review, visible) {
+    const student = { AND: [{ deletedAt: null }, visible, reviewWhere(review)] };
+    const [all, pending] = await Promise.all([
+        prisma.studentCoop.groupBy({ by: ['coopPeriodId'], where: { student }, _count: { _all: true } }),
+        prisma.studentCoop.groupBy({ by: ['coopPeriodId'], where: { status: review.pending, student }, _count: { _all: true } }),
+    ]);
+    // coopPeriodId null = ยังไม่ผูกรอบ — เห็นได้เฉพาะ "ทุกปีการศึกษา"
+    return all.map((r) => ({
+        coopPeriodId: r.coopPeriodId,
+        count: r._count._all,
+        pending: pending.find((p) => p.coopPeriodId === r.coopPeriodId)?._count._all ?? 0,
+    }));
+}
 
 exports.getAllStudentsForReview = async (req, res) => {
     try {
@@ -971,10 +990,13 @@ exports.getAllStudentsForReview = async (req, res) => {
         const skip = (page - 1) * limit;
 
         // route นี้เปิดให้อาจารย์ทุกคน (หน้าตรวจ T002/T003) — เดิมไม่กรองเลย อาจารย์ทุกคนได้นักศึกษา+เอกสารของทุกคน
-        const conditions = [{ deletedAt: null }, await visibleStudentWhere(req)];
+        const visible = await visibleStudentWhere(req);
+        if (review && req.query.countsOnly) return res.json({ ok: true, periods: await reviewPeriodCounts(review, visible) });
+
+        const conditions = [{ deletedAt: null }, visible];
         if (coopPeriodId) conditions.push({ coop: { coopPeriodId } });
         if (status) conditions.push({ coop: { status } });
-        if (review) conditions.push({ OR: [{ documents: { some: { type: review.docType } } }, { coop: { status: { in: review.statuses } } }] });
+        if (review) conditions.push(reviewWhere(review));
         if (search) {
             conditions.push({
                 OR: [

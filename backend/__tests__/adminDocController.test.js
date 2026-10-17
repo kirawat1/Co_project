@@ -105,6 +105,20 @@ describe('getAllStudentsForReview', () => {
     expect(arg.include.documents).toEqual({ where: { type: docType } });
   });
 
+  test('review + countsOnly → จำนวนต่อรอบ (ทั้งหมด/รอตรวจ) รวมกลุ่มที่ยังไม่ผูกรอบ · ไม่โหลดรายชื่อ', async () => {
+    prisma.studentCoop.groupBy
+      .mockResolvedValueOnce([{ coopPeriodId: 2, _count: { _all: 40 } }, { coopPeriodId: null, _count: { _all: 3 } }])
+      .mockResolvedValueOnce([{ coopPeriodId: 2, _count: { _all: 5 } }]);
+    const res = makeRes();
+    await getAllStudentsForReview({ user: { role: 'staff' }, query: { review: 'T003', countsOnly: '1' } }, res);
+    expect(res.json.mock.calls[0][0].periods).toEqual([
+      { coopPeriodId: 2, count: 40, pending: 5 },
+      { coopPeriodId: null, count: 3, pending: 0 },
+    ]);
+    expect(prisma.studentCoop.groupBy.mock.calls[1][0].where.status).toBe('T003_SUBMITTED');
+    expect(prisma.student.findMany).not.toHaveBeenCalled();
+  });
+
   test('ไม่ระบุ review → เอกสารครบทุกไฟล์เหมือนเดิม · review ไม่รู้จัก → 400', async () => {
     prisma.student.findMany.mockResolvedValue([]);
     prisma.student.count.mockResolvedValue(0);
