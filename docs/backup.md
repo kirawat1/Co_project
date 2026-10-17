@@ -30,7 +30,16 @@
    Get-Content C:\coop-backups\backup.log -Tail 10
    ```
    ต้องเห็น `[OK] ฐานข้อมูล → ...` และ `[OK] ไฟล์อัปโหลด: ...`
-4. ทดสอบกู้หนึ่งครั้ง:
+4. ให้บัญชีฐานข้อมูลของระบบสร้างฐานสำหรับกู้ได้ — ทดสอบกู้ใช้ฐานชั่วคราว `<ชื่อฐาน>_restore_check` และกู้จริงแนะนำ `<ชื่อฐาน>_old`
+   (ถ้า `DATABASE_URL` ใช้ root ข้ามข้อนี้ได้) เปิด mysql ด้วย root:
+   ```powershell
+   & "C:Program FilesMySQLMySQL Server 8.0inmysql.exe" -u root -p
+   ```
+   แล้วพิมพ์ (แทน `coop_mysql_db` / `coopuser` ด้วยชื่อฐานและบัญชีใน `DATABASE_URL` · `_` ต้องพิมพ์ตามนี้ เพราะ `_` เฉยๆ เป็นอักขระแทนตัวอะไรก็ได้):
+   ```sql
+   GRANT ALL PRIVILEGES ON `coop_mysql_db_%`.* TO 'coopuser'@'localhost';
+   ```
+5. ทดสอบกู้หนึ่งครั้ง:
    ```powershell
    cd C:\Co_project\backend
    node scripts\backup.js --verify
@@ -54,6 +63,7 @@ Get-ChildItem C:\coop-backups\db | Sort LastWriteTime -Desc | Select -First 3
 |---|---|
 | `หา mysqldump ไม่เจอ` | ตั้ง `MYSQLDUMP_PATH=C:\Program Files\MySQL\MySQL Server 8.0\bin\mysqldump.exe` ใน `.env` |
 | `Plugin caching_sha2_password could not be loaded` | สคริปต์ไปเจอ mysqldump ของ MariaDB/XAMPP ให้ตั้ง `MYSQLDUMP_PATH` ชี้ไปที่ MySQL Server 8 |
+| `Access denied ... to database '..._restore_check'` (ตอน `--verify`) | บัญชีฐานข้อมูลยังไม่มีสิทธิ์สร้างฐานสำหรับกู้ — ทำข้อ 4 ของการติดตั้ง |
 | `Access denied` | รหัสใน `DATABASE_URL` ไม่ตรง หรือบัญชีไม่มีสิทธิ์ `SELECT, LOCK TABLES, SHOW VIEW, EVENT, TRIGGER` |
 | `dump ไม่ครบ` | ดิสก์เต็มหรือ MySQL หลุดกลางทาง ให้ดูพื้นที่ดิสก์ |
 
@@ -63,8 +73,8 @@ Get-ChildItem C:\coop-backups\db | Sort LastWriteTime -Desc | Select -First 3
 
 ```powershell
 cd C:\Co_project\backend
-node scripts\backup.js --restore=C:\coop-backups\db\coop_db-20261016-0200.sql.gz --database=coop_db_old
-# แล้วใช้ MySQL Workbench / SQL ดึงแถวที่ต้องการจาก coop_db_old กลับไป coop_db
+node scripts\backup.js --restore=C:\coop-backups\db\coop_db-20261016-0200.sql.gz --database=coop_mysql_db_old
+# แล้วใช้ MySQL Workbench / SQL ดึงแถวที่ต้องการจาก coop_mysql_db_old กลับไป coop_mysql_db
 ```
 
 **แบบทับทั้งฐาน:** ใช้ตอนฐานเสียทั้งก้อน ข้อมูลหลังเวลาสำรองจะหายทั้งหมด

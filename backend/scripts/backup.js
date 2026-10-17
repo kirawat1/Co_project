@@ -318,6 +318,11 @@ async function main() {
     }
   } catch (e) {
     log(`[ERR] ${e.message}`);
+    // บัญชีของระบบมักมีสิทธิ์แค่ฐานเดียว — บอกวิธีให้สิทธิ์ฐานสำหรับกู้ (docs/backup.md ข้อ 4)
+    if (/ERROR 1044/.test(e.message) && cfg?.db) {
+      const pattern = `${cfg.db.database.replace(/_/g, '\\_')}\\_%`; // \_ = ขีดล่างจริง (_ เฉยๆ เป็น wildcard)
+      log(`      ให้สิทธิ์ด้วย root: GRANT ALL PRIVILEGES ON \`${pattern}\`.* TO '${cfg.db.user}'@'localhost';`);
+    }
     process.exitCode = 1;
   }
 }
