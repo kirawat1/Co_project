@@ -92,6 +92,77 @@ describe('saveSupervisionPeriod', () => {
 // ===========================
 // getAllSupervisions
 // ===========================
+// ── หน้านิเทศกรองรอบที่ server (เดิมโหลดทุกรอบ) ──
+describe('getAllSupervisions — กรองรอบ', () => {
+  const appt = (id, over = {}) => ({ id, status: 'DATE_CONFIRMED', groupId: null, student: { major: 'CS', coop: { coopPeriodId: 2 } }, teacher: null, coTeachers: [], ...over });
+  beforeEach(() => prisma.coopCriteria.findMany.mockResolvedValue([]));
+
+  test('coopPeriodId → เงื่อนไขรอบรวมกับขอบเขตหลักสูตร · ค่าผิด 400', async () => {
+    prisma.supervisionAppointment.findMany.mockResolvedValue([]);
+    await getAllSupervisions({ user: { role: 'staff' }, query: { coopPeriodId: '2' } }, makeRes());
+    expect(prisma.supervisionAppointment.findMany.mock.calls[0][0].where.student.AND).toContainEqual({ coop: { coopPeriodId: 2 } });
+    const res = makeRes();
+    await getAllSupervisions({ user: { role: 'staff' }, query: { coopPeriodId: 'x' } }, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+  });
+
+  test.each([
+    ['letter', [{ coopPeriodId: 2, count: 3, pending: 1 }]],     // ยืนยันวันแล้ว ยังไม่โหลดร่างหนังสือ
+    ['coteacher', [{ coopPeriodId: 2, count: 3, pending: 2 }]],  // ยังไม่มีอาจารย์ร่วม
+  ])('countsOnly pending=%s', async (pending, expected) => {
+    prisma.supervisionAppointment.findMany.mockResolvedValue([
+      { status: 'DATE_CONFIRMED', letterPendingAt: null, coTeacherName: null, student: { coop: { coopPeriodId: 2 } } },
+      { status: 'DATE_CONFIRMED', letterPendingAt: new Date(), coTeacherName: 'อ.ร่วม', student: { coop: { coopPeriodId: 2 } } },
+      { status: 'PENDING_TEACHER', letterPendingAt: null, coTeacherName: null, student: { coop: { coopPeriodId: 2 } } },
+    ]);
+    const res = makeRes();
+    await getAllSupervisions({ user: { role: 'staff' }, query: { countsOnly: '1', pending } }, res);
+    expect(res.json.mock.calls[0][0].periods).toEqual(expected);
+  });
+
+  test('กรองรอบแล้ว: นัดกลุ่มเดียวกัน (หนังสือรวม) ที่อยู่นอกรอบมาด้วย ติด outsidePeriod', async () => {
+    const a = appt(1, { groupId: 'G1' });
+    const b = appt(2, { groupId: 'G1', student: { major: 'CS', coop: { coopPeriodId: 1 } } });
+    prisma.supervisionAppointment.findMany.mockResolvedValueOnce([a]).mockResolvedValueOnce([a, b]);
+    const res = makeRes();
+    await getAllSupervisions({ user: { role: 'staff' }, query: { coopPeriodId: '2' } }, res);
+    expect(prisma.supervisionAppointment.findMany.mock.calls[1][0].where.groupId).toEqual({ in: ['G1'] });
+    expect(res.json.mock.calls[0][0].supervisions.map((x) => [x.id, !!x.outsidePeriod])).toEqual([[1, false], [2, true]]);
+  });
+});
+
+describe('getSupervisionCalendar — ลิงก์ออนไลน์เฉพาะคนที่เห็นในรายการนัดของตัวเองอยู่แล้ว', () => {
+  const ev = (id, over = {}) => ({
+    id, confirmedDate: new Date('2026-10-20T02:00:00Z'), confirmedEndDate: null, proposedDates: null, supervisionType: 'ONLINE',
+    status: 'DATE_CONFIRMED', onlineLink: `https://meet/${id}`, coTeacherName: null, groupId: null, teacherId: 10, coTeachers: [],
+    teacher: { prefix: '', firstName: 'ครู', lastName: 'หนึ่ง' }, student: { studentId: `S${id}`, firstName: 'ก', lastName: 'ข', major: 'CS', coop: null }, ...over,
+  });
+  const links = (res) => Object.fromEntries(res.json.mock.calls[0][0].events.map((e) => [e.id, e.onlineLink]));
+
+  test('เจ้าหน้าที่ → เห็นลิงก์', async () => {
+    prisma.supervisionAppointment.findMany.mockResolvedValue([ev(1)]);
+    const res = makeRes();
+    await getSupervisionCalendar({ user: { id: 1, role: 'staff' }, method: 'GET', get: () => '' }, res);
+    expect(links(res)).toEqual({ 1: 'https://meet/1' });
+  });
+
+  test('อาจารย์ → นัดของตัวเอง (หลัก/ร่วม) เห็นลิงก์ · นัดของคนอื่นในหลักสูตรไม่เห็น', async () => {
+    prisma.teacher.findUnique.mockResolvedValue({ id: 10, major: 'CS', isCoopTeacher: false, coopMajors: [] });
+    prisma.supervisionAppointment.findMany.mockResolvedValue([ev(1), ev(2, { teacherId: 11 }), ev(3, { teacherId: 11, coTeachers: [{ teacherId: 10 }] })]);
+    const res = makeRes();
+    await getSupervisionCalendar({ user: { id: 5, role: 'teacher' }, method: 'GET', get: () => '' }, res);
+    expect(links(res)).toEqual({ 1: 'https://meet/1', 2: undefined, 3: 'https://meet/3' });
+  });
+
+  test('นักศึกษา → ไม่ส่งลิงก์ในปฏิทิน', async () => {
+    prisma.student.findUnique.mockResolvedValue({ id: 3, major: 'CS' });
+    prisma.supervisionAppointment.findMany.mockResolvedValue([ev(1)]);
+    const res = makeRes();
+    await getSupervisionCalendar({ user: { id: 7, role: 'student' }, method: 'GET', get: () => '' }, res);
+    expect(links(res)).toEqual({ 1: undefined });
+  });
+});
+
 describe('getAllSupervisions', () => {
   test('200 — returns supervisions array with student.majorNameTh resolved', async () => {
     const supervisions = [

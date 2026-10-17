@@ -11,6 +11,7 @@ const { getEvalConfig, sendEvalForAppointments } = require('../utils/supervision
 const { studentMajor } = require('../utils/majorConfig');
 const { getMajorScope, studentWhere, assertStudentInScope, inScope } = require('../utils/majorScope');
 const { resolveMajorNameTh } = require('../utils/majorName');
+const { studentPeriodWhere, countByPeriod } = require('../utils/periodFilter');
 const { listPeriods, getRow, viewPeriod, viewerMajors, targetMajors } = require('../utils/coopPeriodMajor');
 const { proposedDays, parseAvailable, unavailableOn, unavailableMessage, teacherName, CO_TEACHER_SELECT } = require('../utils/coTeacherAvailability');
 
@@ -95,25 +96,57 @@ exports.saveSupervisionPeriod = async (req, res) => {
 // ==========================================
 // 👩‍💼 [ADMIN] จัดการรายการนิเทศและอัปโหลดหนังสือ
 // ==========================================
+// "รอดำเนินการ" ต่อรอบของแต่ละหน้า (?pending=) — letter (ค่าเริ่ม) = ยืนยันวันแล้วยังไม่โหลดร่างหนังสือ (หน้าจัดการนิเทศ)
+//   coteacher = ยังไม่มีอาจารย์นิเทศร่วม (แท็บ "ทั้งหมด" ของอาจารย์ประจำวิชา) — ตรงกับตัวนับเดิมของแต่ละหน้า
+const SUPERVISION_PENDING = {
+    letter: (a) => a.status === 'DATE_CONFIRMED' && !a.letterPendingAt,
+    coteacher: (a) => !a.coTeacherName,
+};
+const SUPERVISION_INCLUDE = {
+    student: {
+        include: { coop: { include: { company: true, contacts: { orderBy: { createdAt: 'asc' } } } } }
+    },
+    teacher: true,
+    coTeachers: { select: CO_TEACHER_SELECT },
+};
+
+/**
+ * GET /api/admin/supervisions?coopPeriodId=<id|none|all>&countsOnly=1&pending=letter|coteacher
+ *   ไม่ระบุรอบ = ทุกรอบ (เหมือนเดิม) · countsOnly → { ok, periods: [{ coopPeriodId, count, pending }] }
+ * กรองรอบแล้ว: นัดในกลุ่มเดียวกัน (groupId — หนังสือนิเทศรวม) ที่อยู่นอกรอบถูกส่งมาด้วย ติด outsidePeriod: true
+ *   — ตารางไม่แสดง แต่หนังสือรวมของกลุ่มต้องได้นัดครบ
+ */
 exports.getAllSupervisions = async (req, res) => {
     try {
+        const period = studentPeriodWhere(req.query?.coopPeriodId);
+        if (period.error) return res.status(400).json({ ok: false, message: period.error });
         const scope = await getMajorScope(req);
+        const studentBase = { deletedAt: null, ...studentWhere(scope) };
+
+        if (req.query?.countsOnly) {
+            const isPending = SUPERVISION_PENDING[req.query.pending] || SUPERVISION_PENDING.letter;
+            const rows = await prisma.supervisionAppointment.findMany({
+                where: { student: studentBase },
+                select: { status: true, letterPendingAt: true, coTeacherName: true, student: { select: { coop: { select: { coopPeriodId: true } } } } },
+            });
+            return res.json({ ok: true, periods: countByPeriod(rows, { periodOf: (r) => r.student?.coop?.coopPeriodId, isPending }) });
+        }
+
+        const where = { student: period.where ? { AND: [studentBase, period.where] } : studentBase };
         const [supervisions, criteria] = await Promise.all([
-            prisma.supervisionAppointment.findMany({
-                where: { student: { deletedAt: null, ...studentWhere(scope) } },
-                include: {
-                    student: {
-                        include: { coop: { include: { company: true, contacts: { orderBy: { createdAt: 'asc' } } } } }
-                    },
-                    teacher: true,
-                    coTeachers: { select: CO_TEACHER_SELECT },
-                },
-                orderBy: { updatedAt: 'desc' }
-            }),
+            prisma.supervisionAppointment.findMany({ where, include: SUPERVISION_INCLUDE, orderBy: { updatedAt: 'desc' } }),
             prisma.coopCriteria.findMany({ select: { major: true, nameTh: true } }),
         ]);
+        let outside = [];
+        const groupIds = period.where ? [...new Set(supervisions.map((x) => x.groupId).filter(Boolean))] : [];
+        if (groupIds.length) {
+            const have = new Set(supervisions.map((x) => x.id));
+            outside = (await prisma.supervisionAppointment.findMany({ where: { groupId: { in: groupIds }, student: studentBase }, include: SUPERVISION_INCLUDE, orderBy: { updatedAt: 'desc' } }))
+                .filter((x) => !have.has(x.id))
+                .map((x) => ({ ...x, outsidePeriod: true }));
+        }
         // major เป็นรหัสสาขา (CS/AI) — หนังสือนิเทศต้องใช้ชื่อหลักสูตรภาษาไทยจริง
-        const withMajorName = supervisions.map(s => ({
+        const withMajorName = [...supervisions, ...outside].map(s => ({
             ...s,
             student: s.student ? { ...s.student, majorNameTh: resolveMajorNameTh(s.student.major, criteria) } : s.student,
             // อาจารย์ร่วม + วันว่างที่ตอบแล้ว (null = ยังไม่ตอบ)
@@ -1410,8 +1443,26 @@ async function calendarScopeWhere(req) {
     return { id: -1 };
 }
 
+/**
+ * ใครเห็นลิงก์ประชุมออนไลน์ของนัดในปฏิทิน — คนที่เห็นลิงก์นั้นในรายการนัดของตัวเองอยู่แล้วเท่านั้น
+ *   เจ้าหน้าที่ = ทุกนัดในขอบเขต · อาจารย์ = นัดของตัวเอง (หลัก/ร่วม) + หลักสูตรที่เป็นอาจารย์ประจำวิชา · นักศึกษา = ไม่ส่ง (ดูในหน้าของตัวเอง)
+ * เดิมหน้าเว็บเติมลิงก์จากรายการนัดที่โหลดมา — พอรายการโหลดทีละรอบ นัดรอบอื่นในปฏิทินจะไม่มีลิงก์
+ */
+async function onlineLinkVisibility(req) {
+    const role = String(req.user?.role || '').toLowerCase();
+    if (role === 'staff') return () => true;
+    if (role !== 'teacher') return () => false;
+    const teacher = await prisma.teacher.findUnique({ where: { userId: req.user.id }, select: { id: true } });
+    if (!teacher) return () => false;
+    const scope = await getMajorScope(req, { ignoreFilter: true });
+    return (a) => a.teacherId === teacher.id
+        || (a.coTeachers || []).some((c) => c.teacherId === teacher.id)
+        || (scope.majors || []).includes(a.student?.major);
+}
+
 exports.getSupervisionCalendar = async (req, res) => {
     try {
+        const canSeeLink = await onlineLinkVisibility(req);
         const appointments = await prisma.supervisionAppointment.findMany({
             where: {
                 AND: [
@@ -1423,9 +1474,10 @@ exports.getSupervisionCalendar = async (req, res) => {
                     await calendarScopeWhere(req),
                 ],
             },
-            select: SUPERVISION_SCHEDULE_SELECT,
+            select: { ...SUPERVISION_SCHEDULE_SELECT, teacherId: true, coTeachers: { select: { teacherId: true } } },
             orderBy: { confirmedDate: 'asc' }
         });
+        const byId = new Map(appointments.map((a) => [a.id, a]));
 
         // ตารางเรียงวัน-เวลา ใช้ได้ทั้งปฏิทินและมุมมองตาราง — เห็นได้ตามหลักสูตร (calendarScopeWhere)
         const rows = sortSchedule(appointments.map(toScheduleRow));
@@ -1446,6 +1498,7 @@ exports.getSupervisionCalendar = async (req, res) => {
             companyName: r.companyName || null,
             companyProvince: r.companyProvince || null,
             groupId: r.groupId,
+            ...(canSeeLink(byId.get(r.id)) ? { onlineLink: byId.get(r.id).onlineLink ?? null } : {}),
         }));
 
         res.json({ ok: true, events });

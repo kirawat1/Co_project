@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useMemo } from "react";
+﻿import React, { useState, useEffect, useMemo, useRef } from "react";
 import type { CSSProperties } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
@@ -21,7 +21,7 @@ import { useLoadMore } from "../utils/useLoadMore";
 import { notify, askConfirm } from "../utils/notify";
 import { TABLE_TH, TABLE_TD, TABLE_HEADER_ROW } from "../utils/tableStyles";
 import Modal, { ModalCloseButton } from "./Modal";
-import { defaultPeriod, defaultPeriodId } from "../utils/defaultPeriod";
+import { defaultPeriod, defaultPeriodId, pendingOutside, periodCountLabel, type PeriodCount } from "../utils/defaultPeriod";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -172,6 +172,11 @@ export default function T_SupervisionReview() {
     const [teachersList, setTeachersList] = useState<Teacher[]>([]);
     const [allQ, setAllQ] = useState("");
     const [allPeriodFilter, setAllPeriodFilter] = useState<string>("");
+    // จำนวนต่อรอบของแท็บ "ทั้งหมด" (ทั้งหมด / ยังไม่มีอาจารย์ร่วม) — ป้ายใน dropdown, เตือนรอบอื่น, ตัวเลขบนแท็บรวมทุกรอบ
+    const [periodCounts, setPeriodCounts] = useState<PeriodCount[] | null>(null);
+    const allPeriodRef = useRef(allPeriodFilter);
+    allPeriodRef.current = allPeriodFilter;
+    const allLoadSeq = useRef(0);
     const [allSortKey, setAllSortKey] = useState<AllSortKey>('student');
     const [allSortDir, setAllSortDir] = useState<SortDirection>('asc');
     // ช่วงนิเทศ (ดูอย่างเดียว — ตั้งแยกหลักสูตรที่หน้า "จัดการหลักสูตร → จัดการนิเทศ")
@@ -187,7 +192,8 @@ export default function T_SupervisionReview() {
 
     // ── Badges
     const myPendingCount = mySupervisions.filter(s => s.status === 'PENDING_TEACHER' && s.isPrimaryAdvisor !== false).length;
-    const allPendingCount = allSupervisions.filter(s => !s.coTeacherName).length;
+    // ตัวเลขบนแท็บ = ทุกรอบ (รายการโหลดทีละรอบแล้ว นับจากรายการจะเหลือแค่รอบที่เลือก)
+    const allPendingCount = periodCounts ? periodCounts.reduce((n, c) => n + c.pending, 0) : allSupervisions.filter(s => !s.coTeacherName).length;
 
     // ── Fetch profile
     useEffect(() => {
@@ -229,9 +235,8 @@ export default function T_SupervisionReview() {
     const fetchAll = async () => {
         setAllLoading(true);
         try {
-            const [periodRes, supRes, teacherRes] = await Promise.all([
+            const [periodRes, teacherRes] = await Promise.all([
                 axios.get("/api/admin/supervision-periods", { headers: { Authorization: `Bearer ${token}` } }),
-                axios.get("/api/admin/supervisions", { headers: { Authorization: `Bearer ${token}` } }),
                 axios.get("/api/teachers", { headers: { Authorization: `Bearer ${token}` } }),
             ]);
             if (periodRes.data?.periods) {
@@ -240,12 +245,35 @@ export default function T_SupervisionReview() {
                 const active = defaultPeriod(ps);
                 if (active) selectAllPeriod(active.id, ps);
             }
-            if (supRes.data?.supervisions) setAllSupervisions(supRes.data.supervisions);
+            // นัดของรอบที่เลือก — ยังไม่ได้เลือกรอบ (รอโหลดรอบจากแท็บของฉัน) = effect โหลดให้ทีหลัง
+            if (allPeriodRef.current) await loadAll(allPeriodRef.current);
             const td = teacherRes.data;
             setTeachersList(td?.teachers ?? td?.data ?? (Array.isArray(td) ? td : []));
         } catch (err) { console.error(err); }
         finally { setAllLoading(false); }
     };
+
+    /** นัดของแท็บ "ทั้งหมด" รอบที่เลือก (server กรอง) + จำนวนต่อรอบ · นัดกลุ่มเดียวกันนอกรอบมาด้วย · ผลที่มาช้าถูกทิ้ง */
+    async function loadAll(period: string) {
+        if (!period) return;
+        const seq = ++allLoadSeq.current;
+        const headers = { Authorization: `Bearer ${token}` };
+        const q = period === "all" ? "" : `?coopPeriodId=${encodeURIComponent(period)}`;
+        const [supRes, countRes] = await Promise.all([
+            axios.get(`/api/admin/supervisions${q}`, { headers }).catch(() => null),
+            axios.get("/api/admin/supervisions?countsOnly=1&pending=coteacher", { headers }).catch(() => null),
+        ]);
+        if (seq !== allLoadSeq.current) return;
+        if (supRes?.data?.supervisions) setAllSupervisions(supRes.data.supervisions);
+        if (countRes?.data?.ok) setPeriodCounts(countRes.data.periods ?? []);
+    }
+    const allLoadedOnce = useRef(false);
+    useEffect(() => {
+        if (!isCoopTeacher || !allPeriodFilter) return;
+        // ครั้งแรก fetchAll เป็นคนโหลด (พร้อมรอบ/อาจารย์) — หลังจากนั้นเปลี่ยนรอบ = โหลดรอบนั้น
+        if (!allLoadedOnce.current) { allLoadedOnce.current = true; if (!allLoading) loadAll(allPeriodFilter); return; }
+        loadAll(allPeriodFilter);
+    }, [allPeriodFilter, isCoopTeacher]);
 
     useEffect(() => { fetchMine(); }, []);
     useEffect(() => { if (isCoopTeacher) fetchAll(); }, [isCoopTeacher]);
@@ -376,8 +404,8 @@ export default function T_SupervisionReview() {
     const processedAll = useMemo(() => {
         let f = allSupervisions.filter(s => {
             const search = `${s.student.studentId} ${s.student.firstName} ${s.student.lastName} ${s.student.coop?.company?.name || ""} ${s.teacher?.firstName || ""} ${s.teacher?.lastName || ""}`.toLowerCase();
-            const pId = String((s as any).coopPeriodId || s.student.coopPeriodId || s.student.coop?.coopPeriodId || "");
-            return search.includes(allQ.toLowerCase()) && (allPeriodFilter === "all" || pId === allPeriodFilter);
+            // server กรองรอบแล้ว · นัดกลุ่มเดียวกันที่อยู่นอกรอบ (สำหรับหนังสือรวม) ไม่แสดงในตาราง
+            return !(s as any).outsidePeriod && search.includes(allQ.toLowerCase());
         });
         f.sort((a, b) => {
             let valA = "", valB = "";
@@ -754,10 +782,19 @@ export default function T_SupervisionReview() {
                         <div style={{ display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
                             <h3 style={{ margin: 0, color: '#0f172a', flex: 1 }}>รายการนัดหมายนิเทศทั้งหมด ({totalAll} รายการ)</h3>
                             <input className="input" placeholder="ค้นหา รหัส / ชื่อ / บริษัท / อาจารย์..." value={allQ} onChange={e => setAllQ(e.target.value)} style={{ width: 280 }} />
-                            <select className="input" style={{ width: 'auto' }} value={allPeriodFilter} onChange={e => setAllPeriodFilter(e.target.value)}>
+                            <select className="input" style={{ width: 'auto', maxWidth: '100%' }} value={allPeriodFilter} onChange={e => setAllPeriodFilter(e.target.value)}>
                                 <option value="all">📚 ทุกปีการศึกษา</option>
-                                {allPeriods.map(p => <option key={p.id} value={p.id}>เทอม {p.semester}/{p.academicYear}</option>)}
+                                {allPeriods.map(p => <option key={p.id} value={p.id}>เทอม {p.semester}/{p.academicYear}{periodCountLabel(periodCounts ?? [], p.id, "ยังไม่มีอาจารย์ร่วม")}</option>)}
+                                {(periodCounts ?? []).some(c => c.coopPeriodId == null) && (
+                                    <option value="none">⏳ ยังไม่เลือกรอบ{periodCountLabel(periodCounts ?? [], "none", "ยังไม่มีอาจารย์ร่วม")}</option>
+                                )}
                             </select>
+                            {pendingOutside(periodCounts ?? [], allPeriodFilter) > 0 && (
+                                <button type="button" onClick={() => setAllPeriodFilter("all")}
+                                    style={{ fontSize: 12, color: '#b45309', fontWeight: 700, background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 8, padding: '6px 10px', cursor: 'pointer' }}>
+                                    ⚠️ ยังไม่มีอาจารย์ร่วมในรอบอื่นอีก {pendingOutside(periodCounts ?? [], allPeriodFilter)} นัด — ดูทุกปีการศึกษา
+                                </button>
+                            )}
                         </div>
                         {allLoading ? <div style={{ textAlign: 'center', padding: 40 }}>กำลังโหลด...</div> : (
                             <div style={{ overflowX: 'auto' }}>
