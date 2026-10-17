@@ -30,21 +30,15 @@
    Get-Content C:\coop-backups\backup.log -Tail 10
    ```
    ต้องเห็น `[OK] ฐานข้อมูล → ...` และ `[OK] ไฟล์อัปโหลด: ...`
-4. ให้บัญชีฐานข้อมูลของระบบสร้างฐานสำหรับกู้ได้ — ทดสอบกู้ใช้ฐานชั่วคราว `<ชื่อฐาน>_restore_check` และกู้จริงแนะนำ `<ชื่อฐาน>_old`
-   (ถ้า `DATABASE_URL` ใช้ root ข้ามข้อนี้ได้) เปิด mysql ด้วย root:
-   ```powershell
-   & "C:Program FilesMySQLMySQL Server 8.0inmysql.exe" -u root -p
-   ```
-   แล้วพิมพ์ (แทน `coop_mysql_db` / `coopuser` ด้วยชื่อฐานและบัญชีใน `DATABASE_URL` · `_` ต้องพิมพ์ตามนี้ เพราะ `_` เฉยๆ เป็นอักขระแทนตัวอะไรก็ได้):
-   ```sql
-   GRANT ALL PRIVILEGES ON `coop_mysql_db_%`.* TO 'coopuser'@'localhost';
-   ```
-5. ทดสอบกู้หนึ่งครั้ง:
+4. ทดสอบกู้หนึ่งครั้ง:
    ```powershell
    cd C:\Co_project\backend
    node scripts\backup.js --verify
    ```
-   ต้องจบด้วย `[OK] กู้ได้ครบ N ตาราง`
+   ต้องจบด้วย `[OK] กู้ได้ครบ N ตาราง` หรือ `[OK] ไฟล์สำรองครบ N ตาราง`
+
+   > บัญชีใน `DATABASE_URL` มีสิทธิ์แค่ฐานของระบบ (เช่น `coopuser`) → สร้างฐานชั่วคราวไม่ได้ สคริปต์จะ **ตรวจตัวไฟล์แทนเอง** (แตกทั้งไฟล์ · มีครบทุกตาราง · นับแถวเทียบฐานจริง) ไม่ต้องให้สิทธิ์เพิ่ม
+   > ข้อจำกัด: ไม่ได้ลองโหลดเข้า MySQL จริง — ถ้าอยากทดสอบเต็ม ให้สิทธิ์ด้วย root: ``GRANT ALL PRIVILEGES ON `coop_mysql_db_%`.* TO 'coopuser'@'localhost';``
 
 > ถ้าใช้ `BACKUP_MIRROR_DIR` เป็นแชร์เครือข่าย บัญชี SYSTEM มักเข้าแชร์ไม่ได้
 > ให้เปิด Task Scheduler → `CoopBackup` → Properties → "Change User or Group" แล้วเลือกบัญชีที่เข้าแชร์ได้
@@ -63,13 +57,12 @@ Get-ChildItem C:\coop-backups\db | Sort LastWriteTime -Desc | Select -First 3
 |---|---|
 | `หา mysqldump ไม่เจอ` | ตั้ง `MYSQLDUMP_PATH=C:\Program Files\MySQL\MySQL Server 8.0\bin\mysqldump.exe` ใน `.env` |
 | `Plugin caching_sha2_password could not be loaded` | สคริปต์ไปเจอ mysqldump ของ MariaDB/XAMPP ให้ตั้ง `MYSQLDUMP_PATH` ชี้ไปที่ MySQL Server 8 |
-| `Access denied ... to database '..._restore_check'` (ตอน `--verify`) | บัญชีฐานข้อมูลยังไม่มีสิทธิ์สร้างฐานสำหรับกู้ — ทำข้อ 4 ของการติดตั้ง |
 | `Access denied` | รหัสใน `DATABASE_URL` ไม่ตรง หรือบัญชีไม่มีสิทธิ์ `SELECT, LOCK TABLES, SHOW VIEW, EVENT, TRIGGER` |
 | `dump ไม่ครบ` | ดิสก์เต็มหรือ MySQL หลุดกลางทาง ให้ดูพื้นที่ดิสก์ |
 
 ## กู้คืนจริง (ข้อมูลเสีย/ลบพลาด)
 
-**แบบปลอดภัย:** กู้ลงฐานแยก แล้วดึงเฉพาะข้อมูลที่ต้องการ ระบบที่ใช้งานอยู่ไม่ต้องหยุด
+**แบบปลอดภัย:** กู้ลงฐานแยก (บัญชีสิทธิ์ฐานเดียวสร้างฐานใหม่ไม่ได้ — รันคำสั่งด้วยบัญชี root: `$env:DATABASE_URL="mysql://root:<รหัส>@localhost:3306/coop_mysql_db"` ก่อน แล้วปิดหน้าต่างเมื่อเสร็จ) แล้วดึงเฉพาะข้อมูลที่ต้องการ ระบบที่ใช้งานอยู่ไม่ต้องหยุด
 
 ```powershell
 cd C:\Co_project\backend
