@@ -44,6 +44,74 @@ exports.getSummary = async (req, res) => {
   } catch (err) { fail(res, err); }
 };
 
+/**
+ * GET /api/admin/major-readiness — หลักสูตรพร้อมเปิดรับนักศึกษาหรือยัง (เช็กลิสต์ตอนเพิ่มหลักสูตรใหม่)
+ *   ต้องมี (ไม่มี = นักศึกษาสมัคร/ถูกดูแลไม่ได้): ตั้งรอบล่าสุดแล้ว · มีอาจารย์ประจำวิชา
+ *   ควรมี: อาจารย์ในหลักสูตร (นิเทศ/ที่ปรึกษา) · หัวข้อเอกสารที่ต้องอัปโหลด
+ * เจ้าหน้าที่เห็นเพิ่ม: ชื่อหลักสูตรที่อาจารย์/นักศึกษาใช้อยู่แต่ยังไม่ได้เพิ่มในระบบ
+ */
+exports.getReadiness = async (req, res) => {
+  try {
+    const scope = await getMajorScope(req, { ignoreFilter: true });
+    const majors = await manageableMajors(req);
+    const criteria = await prisma.coopCriteria.findMany({ where: { major: { in: majors } }, select: { major: true, nameTh: true }, orderBy: { major: 'asc' } });
+    const latest = await prisma.coopPeriod.findFirst({ orderBy: [{ academicYear: 'desc' }, { semester: 'desc' }], select: { id: true, academicYear: true, semester: true } });
+
+    const [periodRows, coopTeachers, teacherCounts, studentCounts, requirements] = await Promise.all([
+      latest ? prisma.coopPeriodMajor.findMany({ where: { periodId: latest.id, major: { in: majors } }, select: { major: true, isActive: true } }) : [],
+      prisma.coopTeacherMajor.findMany({ where: { major: { in: majors } }, select: { major: true, teacher: { select: { firstName: true, lastName: true } } } }),
+      prisma.teacher.groupBy({ by: ['major'], where: { major: { not: null } }, _count: { _all: true } }),
+      prisma.student.groupBy({ by: ['major'], where: { deletedAt: null }, _count: { _all: true } }),
+      prisma.documentRequirement.findMany({ where: { isActive: true }, select: { id: true, majorRules: { select: { major: true, excluded: true } } } }),
+    ]);
+    const count = (rows, m) => rows.find((r) => r.major === m)?._count._all ?? 0;
+    // หัวข้อที่มีแถว excluded=false = เฉพาะหลักสูตรนั้น · ไม่มี = ทุกหลักสูตร ยกเว้นหลักสูตรที่ excluded=true
+    const docsFor = (m) => requirements.filter((r) => {
+      const only = r.majorRules.filter((x) => !x.excluded).map((x) => x.major);
+      if (only.length) return only.includes(m);
+      return !r.majorRules.some((x) => x.excluded && x.major === m);
+    }).length;
+
+    const items = criteria.map(({ major, nameTh }) => {
+      const pm = periodRows.find((r) => r.major === major);
+      const teachersOfMajor = coopTeachers.filter((c) => c.major === major).map((c) => `${c.teacher.firstName} ${c.teacher.lastName}`.trim());
+      const checks = [
+        { key: 'period', required: true, ok: !!pm, page: '/admin/coop-period',
+          label: latest ? `ตั้งรอบ ${latest.semester}/${latest.academicYear}` : 'ตั้งรอบสหกิจ',
+          detail: !latest ? 'ยังไม่มีรอบสหกิจในระบบ' : pm ? (pm.isActive ? 'เปิดรับสมัครอยู่' : 'ตั้งแล้ว (ยังไม่เปิดรับสมัคร)') : 'ยังไม่ได้ตั้ง — นักศึกษาหลักสูตรนี้สมัครรอบนี้ไม่ได้' },
+        { key: 'coopTeacher', required: true, ok: teachersOfMajor.length > 0, page: '/admin/teachers', label: 'อาจารย์ประจำวิชา',
+          detail: teachersOfMajor.length ? teachersOfMajor.join(', ') : 'ยังไม่มี — ไม่มีใครตรวจเอกสาร/จัดการนักศึกษาหลักสูตรนี้นอกจากเจ้าหน้าที่' },
+        { key: 'teachers', required: false, ok: count(teacherCounts, major) > 0, page: '/admin/teachers', label: 'อาจารย์ในหลักสูตร',
+          detail: count(teacherCounts, major) ? `${count(teacherCounts, major)} คน` : 'ยังไม่มี — เลือกอาจารย์นิเทศ/ที่ปรึกษาของหลักสูตรนี้ไม่ได้' },
+        { key: 'docs', required: false, ok: docsFor(major) > 0, page: '/admin/doc-requirements', label: 'หัวข้อเอกสารที่ต้องอัปโหลด',
+          detail: docsFor(major) ? `${docsFor(major)} หัวข้อ` : 'ไม่มีหัวข้อที่ใช้กับหลักสูตรนี้' },
+      ];
+      return {
+        major, nameTh,
+        students: count(studentCounts, major),
+        ready: checks.every((c) => !c.required || c.ok),
+        checks,
+      };
+    });
+
+    // ชื่อหลักสูตรที่มีคนใช้แต่ไม่มีในระบบ (เช่น อาจารย์ IT/GIS) — เจ้าหน้าที่เท่านั้น (อาจารย์ประจำวิชาเพิ่มหลักสูตรไม่ได้)
+    let unregistered = [];
+    if (scope.all) {
+      const known = new Set((await prisma.coopCriteria.findMany({ select: { major: true } })).map((c) => c.major));
+      const names = new Set([...teacherCounts, ...studentCounts].map((r) => r.major).filter((m) => m && !known.has(m)));
+      unregistered = [...names].sort().map((m) => ({ major: m, teachers: count(teacherCounts, m), students: count(studentCounts, m) }));
+    }
+
+    res.json({
+      ok: true,
+      period: latest ? { academicYear: latest.academicYear, semester: latest.semester } : null,
+      items,
+      unregistered,
+      studentsWithoutMajor: scope.all ? count(studentCounts, null) : 0,
+    });
+  } catch (err) { fail(res, err); }
+};
+
 // GET /api/admin/major-config/:key?major=CS — ค่ากลาง / ค่าเฉพาะ / ค่าที่ใช้จริง ของหลักสูตรนั้น
 exports.getMajorConfig = async (req, res) => {
   try {
