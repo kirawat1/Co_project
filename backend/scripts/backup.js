@@ -272,25 +272,98 @@ async function backup(cfg, log) {
   return file;
 }
 
+/**
+ * อ่านไฟล์ dump ทั้งไฟล์โดยไม่โหลดเข้า MySQL: ตารางที่มี · จำนวนแถวต่อตาราง (นับ tuple ใน INSERT) · จบครบไหม
+ * ใช้ตรวจเมื่อบัญชีฐานข้อมูลไม่มีสิทธิ์สร้างฐานชั่วคราว — แตกไฟล์ไม่ได้/ถูกตัดกลางทาง = โยน error
+ */
+async function scanDump(file) {
+  const tables = {};
+  let completed = false;
+  let current = null; // ตารางของ INSERT ที่กำลังอ่าน (บรรทัดยาวมากถูกตัดเป็นหลาย chunk)
+  let depth = 0, inStr = false, esc = false;
+  const countTuples = (s) => {
+    for (const ch of s) {
+      if (inStr) {
+        if (esc) esc = false;
+        else if (ch === '\\') esc = true;
+        else if (ch === "'") inStr = false;
+      } else if (ch === "'") inStr = true;
+      else if (ch === '(') { if (depth++ === 0) tables[current]++; }
+      else if (ch === ')') depth--;
+      else if (ch === ';' && depth === 0) current = null;
+    }
+  };
+  let carry = '';
+  const onLine = (line) => {
+    if (current) return countTuples(line + '\n');
+    const create = /^CREATE TABLE `([^`]+)`/.exec(line);
+    if (create) { tables[create[1]] ??= 0; return; }
+    const insert = /^INSERT INTO `([^`]+)` VALUES /.exec(line);
+    if (insert) {
+      current = insert[1];
+      tables[current] ??= 0;
+      depth = 0; inStr = false; esc = false;
+      return countTuples(line.slice(insert[0].length) + '\n');
+    }
+    if (/^-- Dump completed/.test(line)) completed = true;
+  };
+  await new Promise((resolve, reject) => {
+    const gunzip = zlib.createGunzip();
+    pipeline(fs.createReadStream(file), gunzip, (err) => (err ? reject(err) : resolve()));
+    gunzip.on('data', (chunk) => {
+      const s = carry + chunk.toString('utf8');
+      const lines = s.split('\n');
+      carry = lines.pop();
+      for (const l of lines) onLine(l);
+    });
+  });
+  if (carry) onLine(carry);
+  return { tables, completed };
+}
+
+async function compareWithLive(cfg, log, counts, label) {
+  const live = await tableCounts(cfg.db, cfg.db.database);
+  const tables = Object.keys(live);
+  const missing = tables.filter((t) => !(t in counts));
+  const fewer = tables.filter((t) => t in counts && counts[t] < live[t]);
+  for (const t of tables) log(`    ${t.padEnd(32)} จริง ${String(live[t]).padStart(7)}  ${label} ${String(counts[t] ?? '-').padStart(7)}`);
+  // น้อยกว่าฐานจริงเล็กน้อยเป็นปกติ (ข้อมูลเพิ่มหลังเวลาสำรอง) — ตารางหาย = ไฟล์สำรองเสีย
+  if (missing.length) throw new Error(`ตารางหายจากไฟล์สำรอง: ${missing.join(', ')}`);
+  return { tables, fewer };
+}
+
 async function verify(cfg, log, file) {
   file = file || latestDump(path.join(cfg.dir, 'db'));
   if (!file) throw new Error(`ไม่มีไฟล์ dump ใน ${path.join(cfg.dir, 'db')}`);
   const target = `${cfg.db.database}_restore_check`;
   log(`==> ทดสอบกู้ ${path.basename(file)} → ฐานชั่วคราว ${target}`);
   try {
-    await restoreDump(cfg.db, file, target); // พังกลางทาง (ไฟล์เสีย) ก็ต้องลบฐานชั่วคราวใน finally
-    const [live, restored] = await Promise.all([tableCounts(cfg.db, cfg.db.database), tableCounts(cfg.db, target)]);
-    const tables = Object.keys(live);
-    const missing = tables.filter((t) => !(t in restored));
-    const fewer = tables.filter((t) => t in restored && restored[t] < live[t]);
-    for (const t of tables) log(`    ${t.padEnd(32)} จริง ${String(live[t]).padStart(7)}  กู้ได้ ${String(restored[t] ?? '-').padStart(7)}`);
-    // แถวที่กู้ได้น้อยกว่าฐานจริงเล็กน้อยเป็นปกติ (ข้อมูลเพิ่มหลังสำรอง) — ตารางหาย = dump เสีย
-    if (missing.length) throw new Error(`ตารางหายจากไฟล์สำรอง: ${missing.join(', ')}`);
+    await restoreDump(cfg.db, file, target);
+  } catch (e) {
+    // บัญชีของระบบมีสิทธิ์แค่ฐานเดียว (สร้างฐานชั่วคราวไม่ได้) → ตรวจตัวไฟล์แทน ไม่ต้องให้สิทธิ์เพิ่ม
+    if (!/ERROR 1044/.test(e.message)) {
+      await dropScratch(cfg, target).catch(() => {});
+      throw e;
+    }
+    log('    บัญชีฐานข้อมูลสร้างฐานชั่วคราวไม่ได้ → ตรวจตัวไฟล์สำรองแทน (แตกทั้งไฟล์ · ตาราง · จำนวนแถว)');
+    const { tables: counts, completed } = await scanDump(file);
+    if (!completed) throw new Error('ไฟล์สำรองไม่ครบ (ไม่มี "-- Dump completed")');
+    const { tables, fewer } = await compareWithLive(cfg, log, counts, 'ในไฟล์');
+    log(`[OK] ไฟล์สำรองครบ ${tables.length} ตาราง${fewer.length ? ` (${fewer.length} ตารางมีแถวน้อยกว่าฐานจริง = ข้อมูลที่เพิ่มหลังเวลาสำรอง)` : ''} · ไม่ได้ลองโหลดเข้า MySQL จริง`);
+    return;
+  }
+  try {
+    const restored = await tableCounts(cfg.db, target);
+    const { tables, fewer } = await compareWithLive(cfg, log, restored, 'กู้ได้');
     log(`[OK] กู้ได้ครบ ${tables.length} ตาราง${fewer.length ? ` (${fewer.length} ตารางมีแถวน้อยกว่าฐานจริง = ข้อมูลที่เพิ่มหลังเวลาสำรอง)` : ''}`);
   } finally {
-    await withOptionFile(cfg.db, (cnf) => run(findMysqlBin('mysql'), [`--defaults-extra-file=${cnf}`, '-e', `DROP DATABASE IF EXISTS \`${target}\``]));
+    await dropScratch(cfg, target);
     log(`    ลบฐานชั่วคราว ${target} แล้ว`);
   }
+}
+
+function dropScratch(cfg, target) {
+  return withOptionFile(cfg.db, (cnf) => run(findMysqlBin('mysql'), [`--defaults-extra-file=${cnf}`, '-e', `DROP DATABASE IF EXISTS \`${target}\``]));
 }
 
 async function main() {
@@ -329,4 +402,4 @@ async function main() {
 
 if (require.main === module) main();
 
-module.exports = { parseDatabaseUrl, selectExpired, stamp, syncDir, DUMP_RE };
+module.exports = { parseDatabaseUrl, selectExpired, stamp, syncDir, scanDump, DUMP_RE };

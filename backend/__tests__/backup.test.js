@@ -2,7 +2,8 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { parseDatabaseUrl, selectExpired, stamp, syncDir, DUMP_RE } = require('../scripts/backup');
+const zlib = require('zlib');
+const { parseDatabaseUrl, selectExpired, stamp, syncDir, scanDump, DUMP_RE } = require('../scripts/backup');
 
 describe('parseDatabaseUrl', () => {
   test('แยก user/รหัส/host/port/ฐาน — รหัสที่มีอักขระพิเศษถูก decode', () => {
@@ -62,5 +63,33 @@ describe('syncDir — สำรองไฟล์อัปโหลด', () => {
 
   test('ไม่มีโฟลเดอร์ต้นทาง → ไม่ error', () => {
     expect(syncDir(path.join(root, 'none'), path.join(root, 'dest'))).toEqual({ copied: 0, bytes: 0, total: 0 });
+  });
+});
+
+describe('scanDump — ตรวจไฟล์สำรองโดยไม่ต้องสร้างฐานชั่วคราว (บัญชีสิทธิ์ฐานเดียว)', () => {
+  let dir;
+  beforeEach(() => { dir = fs.mkdtempSync(path.join(os.tmpdir(), 'coop-scan-')); });
+  afterEach(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const write = (name, sql) => { const f = path.join(dir, name); fs.writeFileSync(f, zlib.gzipSync(sql)); return f; };
+
+  test('นับแถวถูกแม้ข้อความมีวงเล็บ/คอมมา/เครื่องหมายคำพูด · ตารางว่างก็นับ · รู้ว่าไฟล์จบครบ', async () => {
+    const f = write('ok.sql.gz', [
+      'CREATE TABLE `student` (id int);',
+      // mysqldump escape ' ในข้อความเป็น \' — ),( ในข้อความต้องไม่ถูกนับเป็นแถวใหม่
+      "INSERT INTO `student` VALUES (1,'สมชาย (ชาย)'),(2,'it\\'s ),( ok'),(3,NULL);",
+      "INSERT INTO `student` VALUES (4,'x');",
+      'CREATE TABLE `visit` (id int);',
+      '-- Dump completed on 2026-10-17 22:03:54',
+    ].join('\n'));
+    expect(await scanDump(f)).toEqual({ tables: { student: 4, visit: 0 }, completed: true });
+  });
+
+  test('ไม่มีบรรทัด Dump completed → completed=false · ไฟล์ถูกตัดกลางทาง → error', async () => {
+    const f = write('nocomplete.sql.gz', 'CREATE TABLE `a` (id int);\n');
+    expect((await scanDump(f)).completed).toBe(false);
+    const cut = path.join(dir, 'cut.sql.gz');
+    const full = zlib.gzipSync(require('crypto').randomBytes(50000).toString('hex')); // สุ่ม = บีบอัดไม่ลง ไฟล์ใหญ่พอให้ตัด
+    fs.writeFileSync(cut, full.subarray(0, full.length / 2));
+    await expect(scanDump(cut)).rejects.toThrow();
   });
 });
