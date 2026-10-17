@@ -1,5 +1,18 @@
 # CHANGELOG — Co_project
 
+## [2026-10-17] fix(ops): deploy.ps1 ติด "Prisma generate failed" เพราะ PM2 ค้างสะสม
+
+### สาเหตุ (เจอตอน deploy บน VM)
+- backend/ngrok ถูกเปิดตอนบูตด้วยสิทธิ์ Administrator · รัน deploy ในหน้าต่างธรรมดา → ต่อ PM2 ตัวนั้นไม่ได้ → ทุกคำสั่ง `pm2` สร้าง daemon ใหม่ว่างๆ ค้างไว้ (สะสมถึง 24 ตัว) และ `pm2 stop` ไม่โดน backend จริง → ไฟล์ Prisma ถูกล็อก → generate ไม่ผ่าน
+
+### Fixed
+- `deploy.ps1` (อัปเดตโค้ด) ต้องรันแบบ Administrator — ไม่ใช่จะหยุดพร้อมบอกวิธี · `-ServicesOnly` (ตอนบูตผ่าน startup.ps1) ไม่บังคับ
+- มี PM2 daemon มากกว่า 1 ตัว → หยุด node ทั้งหมดก่อน แล้วเปิด backend/ngrok ใหม่บน daemon เดียว (เว็บดับครู่หนึ่ง)
+- ตัด em dash ในคอมเมนต์ (PowerShell 5.1 อ่านไฟล์ UTF-8 ไม่มี BOM เป็น ANSI)
+
+### วิธี deploy จากนี้
+- PowerShell แบบ **Run as administrator** → `cd C:\Co_project\docs` → `powershell -ExecutionPolicy Bypass -File .\deploy.ps1`
+
 ## [2026-10-17] chore: deploy.ps1 ไม่ขึ้นข้อความแดง Set-ExecutionPolicy
 
 - รันด้วย `powershell -ExecutionPolicy Bypass -File deploy.ps1` แล้วบรรทัดตั้ง execution policy ขึ้น SecurityException สีแดง (ไม่กระทบการ deploy — policy ระดับที่สูงกว่าบังคับอยู่แล้ว) → ครอบ try/catch

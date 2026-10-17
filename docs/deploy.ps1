@@ -32,8 +32,30 @@ function Get-PM2Online($name) {
     return ($lines | Where-Object { $_ -match [regex]::Escape($name) -and $_ -match "online" }).Count -gt 0
 }
 
-# Harmless when a more specific scope (e.g. "powershell -ExecutionPolicy Bypass") already overrides it — swallow that warning
+# Harmless when a more specific scope (e.g. "powershell -ExecutionPolicy Bypass") already overrides it - swallow that warning
 try { Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force -ErrorAction Stop } catch {}
+
+# Backend/ngrok are started elevated (boot task runs with highest privileges). A non-admin shell cannot reach
+# that PM2 daemon: every pm2 command spawns a new empty daemon (24 had piled up) and "pm2 stop" never
+# releases the Prisma engine lock -> "Prisma generate failed". So code updates require Administrator.
+# -ServicesOnly (boot, via startup.ps1) is not blocked: it only starts what is not running.
+$IS_ADMIN = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+if (-not $IS_ADMIN -and -not $ServicesOnly) {
+    Write-ERR "Run PowerShell as Administrator (right-click > Run as administrator), then run deploy.ps1 again."
+    exit 1
+}
+
+# More than one PM2 daemon = leftovers from earlier non-admin runs. Stop all node processes and let the
+# service start below bring backend/ngrok back on a single daemon (pm2 resurrect / pm2 start).
+if ($IS_ADMIN -and -not $UpdateOnly) {
+    $daemons = @(Get-CimInstance Win32_Process -Filter "Name='node.exe'" | Where-Object { $_.CommandLine -match 'pm2\\lib\\Daemon\.js' })
+    if ($daemons.Count -gt 1) {
+        Write-Step "Cleaning up $($daemons.Count) stale PM2 daemons (site is down for a moment)..."
+        Get-Process node -ErrorAction SilentlyContinue | Stop-Process -Force
+        Start-Sleep 2
+        Write-OK "Stopped all node processes"
+    }
+}
 
 # --- START SERVICES ------------------------------------------------
 if (-not $UpdateOnly) {
