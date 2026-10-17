@@ -208,6 +208,8 @@ router.put('/config/gateway', verifyToken, verifyRole(...STAFF_ONLY), configCont
 // การตั้งค่าแยกหลักสูตร — ค่ากลางแก้ที่ route เดิม (เจ้าหน้าที่) · ค่าเฉพาะหลักสูตรแก้ที่นี่ (อาจารย์ประจำวิชา = หลักสูตรที่ดูแล)
 const majorConfigController = require('../controllers/majorConfigController');
 router.get('/major-config', verifyToken, verifyCoopTeacherOrStaff, majorConfigController.getSummary);
+// เช็กลิสต์ความพร้อมของหลักสูตร (รอบ · อาจารย์ประจำวิชา · อาจารย์ · เอกสาร)
+router.get('/major-readiness', verifyToken, verifyCoopTeacherOrStaff, majorConfigController.getReadiness);
 router.get('/major-config/:key', verifyToken, verifyCoopTeacherOrStaff, majorConfigController.getMajorConfig);
 router.put('/major-config/:key', verifyToken, verifyCoopTeacherOrStaff, majorConfigController.putMajorConfig);
 

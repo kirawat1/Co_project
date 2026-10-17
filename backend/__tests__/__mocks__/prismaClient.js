@@ -22,6 +22,7 @@ const prismaMock = {
     createMany: jest.fn(),
   },
   student: {
+    groupBy: jest.fn(),
     findFirst: jest.fn(),
     findUnique: jest.fn(),
     findMany: jest.fn(),
@@ -33,6 +34,7 @@ const prismaMock = {
     delete: jest.fn(),
   },
   teacher: {
+    groupBy: jest.fn(),
     findUnique: jest.fn(),
     findFirst: jest.fn(),
     findMany: jest.fn(),

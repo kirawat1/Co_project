@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { apiFetch } from "../utils/apiFetch";
 import { TABLE_TH as th, TABLE_TD as td, TABLE_HEADER_ROW } from "../utils/tableStyles";
+import MajorReadiness from "./MajorReadiness";
 
 // ภาพรวมการตั้งค่าแยกหลักสูตร — หลักสูตรไหนตั้งค่าช่องไหนแยกจากค่ากลางไว้บ้าง (อาจารย์ประจำวิชาเห็นเฉพาะหลักสูตรตัวเอง)
 interface SettingRow { key: string; label: string; page: string; overrides: Record<string, string[]> }
@@ -29,10 +30,17 @@ export default function A_MajorConfigSummary() {
   return (
     <div className="page" style={{ padding: 4, margin: 28, marginLeft: 65 }}>
       <div style={{ marginBottom: 20 }}>
-        <h2 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: "#1e293b" }}>🗂️ สรุปการตั้งค่ารายหลักสูตร</h2>
+        <h2 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: "#1e293b" }}>🗂️ หลักสูตร: ความพร้อมและการตั้งค่า</h2>
         <div style={{ color: "#64748b", fontSize: 14, marginTop: 4 }}>
-          ช่องที่หลักสูตรตั้งค่าแยกไว้ (✎) ใช้ค่าของหลักสูตรนั้น · ช่องอื่นใช้ค่ากลาง — กดชื่อการตั้งค่าเพื่อไปแก้ไข
+          เพิ่มหลักสูตรใหม่แล้วตรวจที่นี่ว่าตั้งครบหรือยัง — กดแต่ละข้อเพื่อไปหน้าที่ต้องตั้ง
         </div>
+      </div>
+
+      <MajorReadiness />
+
+      <h3 style={{ margin: "0 0 4px", fontSize: 18, fontWeight: 800, color: "#1e293b" }}>การตั้งค่าแยกหลักสูตร</h3>
+      <div style={{ color: "#64748b", fontSize: 13, marginBottom: 10 }}>
+        ช่องที่หลักสูตรตั้งค่าแยกไว้ (✎) ใช้ค่าของหลักสูตรนั้น · ช่องอื่นใช้ค่ากลาง — กดชื่อการตั้งค่าเพื่อไปแก้ไข
       </div>
 
       <div className="card" style={{ padding: 0, overflow: "hidden" }}>

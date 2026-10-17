@@ -147,7 +147,7 @@ export default function A_Sidebar({ isOpen = false, onClose = () => {}, isStaff 
           <span className="text">ตั้งค่าฟอร์มคำร้อง</span>
         </NavLink>
 
-        <NavItem to="/admin/major-config" label="สรุปการตั้งค่ารายหลักสูตร" icon={<IcSettings />} onClick={nav} />
+        <NavItem to="/admin/major-config" label="ความพร้อมรายหลักสูตร" icon={<IcSettings />} onClick={nav} />
 
         <div className="sec-label">ระบบ</div>
 

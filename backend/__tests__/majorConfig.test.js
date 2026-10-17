@@ -143,3 +143,76 @@ describe('แบบประเมินการนิเทศแยกหล�
     expect(createNotifications).toHaveBeenCalledWith([11], expect.anything());
   });
 });
+
+// ── เช็กลิสต์ความพร้อมของหลักสูตร (เพิ่มหลักสูตรใหม่แล้วต้องตั้งอะไรบ้าง) ──
+describe('getReadiness — ความพร้อมของหลักสูตร', () => {
+  const ctrl = require('../controllers/majorConfigController');
+  const setup = ({ criteria, periodRows = [], coopTeachers = [], teachers = [], students = [], reqs = [] }) => {
+    prisma.coopCriteria.findMany.mockResolvedValue(criteria);
+    prisma.coopPeriod.findFirst.mockResolvedValue({ id: 9, academicYear: '2569', semester: 2 });
+    prisma.coopPeriodMajor.findMany.mockResolvedValue(periodRows);
+    prisma.coopTeacherMajor.findMany.mockResolvedValue(coopTeachers);
+    prisma.teacher.groupBy.mockResolvedValue(teachers);
+    prisma.student.groupBy.mockResolvedValue(students);
+    prisma.documentRequirement.findMany.mockResolvedValue(reqs);
+  };
+  const run = async (req) => { const res = makeRes(); await ctrl.getReadiness(req, res); return res.json.mock.calls[0][0]; };
+  const check = (item, key) => item.checks.find((c) => c.key === key);
+  const n = (major, c) => ({ major, _count: { _all: c } });
+
+  test('หลักสูตรใหม่ที่ยังไม่ตั้งอะไร → ยังไม่พร้อม · บอกข้อที่ขาด', async () => {
+    setup({ criteria: [{ major: 'IT', nameTh: 'เทคโนโลยีสารสนเทศ' }] });
+    const body = await run(STAFF);
+    const it = body.items[0];
+    expect(it.ready).toBe(false);
+    expect(check(it, 'period')).toMatchObject({ required: true, ok: false, label: 'ตั้งรอบ 2/2569' });
+    expect(check(it, 'coopTeacher')).toMatchObject({ required: true, ok: false });
+    expect(check(it, 'teachers')).toMatchObject({ required: false, ok: false });
+  });
+
+  test('ตั้งรอบล่าสุด + มีอาจารย์ประจำวิชา → พร้อม (ข้อที่ไม่จำเป็นขาดได้)', async () => {
+    setup({
+      criteria: [{ major: 'CS', nameTh: null }],
+      periodRows: [{ major: 'CS', isActive: true }],
+      coopTeachers: [{ major: 'CS', teacher: { firstName: 'ก', lastName: 'ข' } }],
+    });
+    const it = (await run(STAFF)).items[0];
+    expect(it.ready).toBe(true);
+    expect(check(it, 'period').detail).toBe('เปิดรับสมัครอยู่');
+    expect(check(it, 'coopTeacher').detail).toBe('ก ข');
+    expect(check(it, 'docs').ok).toBe(false);
+  });
+
+  test('นับหัวข้อเอกสาร: ทุกหลักสูตร · เฉพาะหลักสูตร · หลักสูตรที่ปิดหัวข้อกลาง', async () => {
+    setup({
+      criteria: [{ major: 'AI', nameTh: null }, { major: 'CS', nameTh: null }],
+      reqs: [
+        { id: 1, majorRules: [] }, // ทุกหลักสูตร
+        { id: 2, majorRules: [{ major: 'CS', excluded: false }] }, // เฉพาะ CS
+        { id: 3, majorRules: [{ major: 'AI', excluded: true }] }, // ทุกหลักสูตร ยกเว้น AI
+      ],
+    });
+    const body = await run(STAFF);
+    expect(check(body.items.find((i) => i.major === 'AI'), 'docs').detail).toBe('1 หัวข้อ');
+    expect(check(body.items.find((i) => i.major === 'CS'), 'docs').detail).toBe('3 หัวข้อ');
+  });
+
+  test('เจ้าหน้าที่: เห็นชื่อหลักสูตรที่อาจารย์/นักศึกษาใช้แต่ยังไม่เพิ่ม + นักศึกษาไม่ระบุหลักสูตร', async () => {
+    setup({ criteria: [{ major: 'CS', nameTh: null }], teachers: [n('CS', 40), n('IT', 15), n('GIS', 5)], students: [n('CS', 300), n('IT', 2), n(null, 4)] });
+    const body = await run(STAFF);
+    expect(body.unregistered).toEqual([{ major: 'GIS', teachers: 5, students: 0 }, { major: 'IT', teachers: 15, students: 2 }]);
+    expect(body.studentsWithoutMajor).toBe(4);
+    expect(body.items[0].students).toBe(300);
+  });
+
+  test('อาจารย์ประจำวิชา: เฉพาะหลักสูตรที่ดูแล · ไม่เห็นรายการหลักสูตรที่ยังไม่เพิ่ม', async () => {
+    const req = coop(['AI']);
+    setup({ criteria: [{ major: 'AI', nameTh: null }, { major: 'CS', nameTh: null }], teachers: [n('IT', 15)], students: [n(null, 4)] });
+    prisma.coopCriteria.findMany.mockImplementation(async ({ where } = {}) =>
+      [{ major: 'AI', nameTh: null }, { major: 'CS', nameTh: null }].filter((c) => !where?.major?.in || where.major.in.includes(c.major)));
+    const body = await run(req);
+    expect(body.items.map((i) => i.major)).toEqual(['AI']);
+    expect(body.unregistered).toEqual([]);
+    expect(body.studentsWithoutMajor).toBe(0);
+  });
+});
