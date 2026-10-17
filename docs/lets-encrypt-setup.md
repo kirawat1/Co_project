@@ -1,5 +1,7 @@
 # Let's Encrypt Setup — coop.computing.kku.ac.th
 
+> ขั้นตอนย้ายจาก ngrok ทั้งหมด (DNS/port · config nginx · .env · Google) อยู่ที่ `docs/domain-migration.md` — ไฟล์นี้คือขั้นที่ 2 (ขอ cert)
+
 ## เงื่อนไขก่อนเริ่ม
 - DNS ชี้ `coop.computing.kku.ac.th` → IP ของ VM แล้ว
 - Port 80 บน VM เปิดรับ internet ได้

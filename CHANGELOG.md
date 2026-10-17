@@ -1,5 +1,21 @@
 # CHANGELOG — Co_project
 
+## [2026-10-17] ops: เตรียมย้ายจาก ngrok ไปโดเมนจริง coop.computing.kku.ac.th
+
+### Added
+- `docs/domain-migration.md` — ขั้นตอนทีละขั้น ย้อนกลับได้: ขอ DNS/เปิด port กับ IT (VM ต้อง login captive portal = น่าจะไม่มี IP สาธารณะ ต้องแก้ก่อน) → nginx ช่วงขอ cert (ngrok ใช้ได้ตามปกติ) → ขอ cert (Let's Encrypt หรือจาก IT) → HTTPS → `.env` + Google OAuth origin + ตรวจ + ประกาศ
+- `deploy.ps1`: ตรวจเจอ `listen 443 ssl` ใน config nginx ที่ใช้อยู่ → รายงาน URL เป็นโดเมนใหม่ · `$KEEP_NGROK_REDIRECT` (ค่าเริ่ม true = ngrok ยังเปิดไว้พาลิงก์เก่ามาเว็บใหม่)
+
+### Fixed (config nginx ใน docs/)
+- **`nginx-http-only.conf` ขอ cert ไม่ผ่าน** — `location /.well-known/acme-challenge/` แพ้ `location ~ /\.` (regex ชนะ prefix เสมอ ไม่ว่าเรียงก่อนหลัง) → challenge ตอบ 404 · ใส่ `^~`
+- **`nginx.conf` ใช้คู่กับ ngrok แล้ว redirect วนไม่จบ** — port 80 ตอบ `301 https://$host` แต่ ngrok ส่งเข้า port 80 ด้วย host ของ ngrok → วน · เข้าด้วย IP → ไป `https://<IP>` cert ไม่ตรง → port 80 พาไป `https://coop.computing.kku.ac.th` เสมอ (ลิงก์ ngrok/IP เดิมพามาเว็บใหม่) · ACME ทาง port 80 ตอบตรง (ต่ออายุ cert)
+- **ปลอม IP ผ่าน `X-Forwarded-For` หลบ rate limit หน้า login ได้** เมื่อต่อตรงไม่ผ่าน ngrok (backend เชื่อ proxy 2 ชั้น · nginx เดิมต่อท้าย XFF ที่ client ส่งมา) → `map $remote_addr`: มาจาก ngrok ในเครื่อง = ส่ง XFF ของ ngrok ต่อ · ต่อตรง = ใช้ IP จริงเท่านั้น → ไม่ต้องแก้ `TRUST_PROXY_HOPS`
+- `nginx.conf` ไม่มี server หน้าสถานะในเครื่อง (127.0.0.1:8888) ที่ `setup-vm.ps1` ตั้งไว้ → เปลี่ยน config แล้วหน้าสถานะหาย → เพิ่มแล้ว
+- เพิ่ม: gzip · `/assets/` (ชื่อมี hash) cache 1 ปี · `index.html` ไม่ cache (กันหน้าขาวหลัง deploy) · `proxy_read_timeout 300s` สำหรับ zip/ส่งออก/นำเข้า · HTTP/2
+
+### Tests
+- ทดสอบ config ทั้งสองไฟล์ด้วย nginx 1.26.2 (เวอร์ชันเดียวกับ VM) บนพอร์ตทดสอบ + cert self-signed + echo backend: `nginx -t` ผ่าน · ngrok ส่ง XFF/https ถูก · ACME ตอบได้ทั้งสองช่วง · port 80 จาก host ngrok/IP → 301 ไปโดเมน (path+query เดิม) · SPA ไม่ cache + security headers · assets cache 1 ปี + gzip + ยังมี security headers · asset ที่ไม่มี → 404 · internal-status/.env ปิดจากภายนอก · หน้าสถานะ 8888 ใช้ได้ (18/18)
+
 ## [2026-10-17] feat: เช็กลิสต์ความพร้อมของหลักสูตร
 
 ### Added

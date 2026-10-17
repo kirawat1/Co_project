@@ -10,4 +10,5 @@
 | `superpowers/plans/` | Implementation plans สำหรับแต่ละ feature |
 | `superpowers/specs/` | Design specs ก่อน implement |
 | `reports/` | Test reports ที่ generate โดย Playwright (gitignored) |
+| `domain-migration.md` · `nginx-http-only.conf` · `nginx.conf` | ย้ายจาก ngrok ไป https://coop.computing.kku.ac.th (ทีละขั้น ย้อนกลับได้) |
 | `backup.md` · `register-backup-task.ps1` | สำรองข้อมูลทุกคืน + ทดสอบกู้ทุกสัปดาห์ + วิธีกู้คืน |

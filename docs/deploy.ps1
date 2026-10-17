@@ -11,8 +11,15 @@ param(
 )
 
 $NGROK_DOMAIN = "apply-happiness-margarine.ngrok-free.dev"
+$SITE_DOMAIN  = "coop.computing.kku.ac.th"
 $PROJECT_DIR  = "C:\Co_project"
 $NGINX_DIR    = "C:\nginx"
+
+# Domain mode = the live nginx config serves HTTPS (docs\nginx.conf copied in, see docs\domain-migration.md).
+# ngrok then only redirects old links to https://$SITE_DOMAIN. Set to $false to stop starting ngrok at all.
+$KEEP_NGROK_REDIRECT = $true
+$DOMAIN_MODE = (Test-Path "$NGINX_DIR\conf\nginx.conf") -and (Select-String -Path "$NGINX_DIR\conf\nginx.conf" -Pattern "listen 443 ssl" -Quiet)
+$SITE_URL = if ($DOMAIN_MODE) { "https://$SITE_DOMAIN" } else { "https://$NGROK_DOMAIN" }
 
 function Write-Step($msg) { Write-Host "`n==> $msg" -ForegroundColor Cyan }
 function Write-OK($msg)   { Write-Host "    [OK] $msg" -ForegroundColor Green }
@@ -71,7 +78,11 @@ if (-not $UpdateOnly) {
     }
 
     Write-Step "Starting ngrok tunnel via PM2..."
-    if (Get-PM2Online "ngrok-tunnel") {
+    if ($DOMAIN_MODE -and -not $KEEP_NGROK_REDIRECT) {
+        pm2 delete ngrok-tunnel 2>$null | Out-Null
+        pm2 save 2>$null | Out-Null
+        Write-OK "ngrok off (domain mode) - site: $SITE_URL"
+    } elseif (Get-PM2Online "ngrok-tunnel") {
         Write-OK "ngrok already running: https://$NGROK_DOMAIN"
     } else {
         pm2 delete ngrok-tunnel 2>$null
@@ -83,7 +94,7 @@ if (-not $UpdateOnly) {
 }
 
 if ($ServicesOnly) {
-    Write-OK "https://$NGROK_DOMAIN"
+    Write-OK $SITE_URL
     exit 0
 }
 
@@ -163,7 +174,10 @@ if (Get-PM2Online "coop-backend") {
 Write-Host ""
 Write-Host "=============================================" -ForegroundColor Cyan
 Write-Host "  Deploy Complete!" -ForegroundColor Green
-Write-Host "  Site: https://$NGROK_DOMAIN" -ForegroundColor White
-Write-Host "  Status: https://$NGROK_DOMAIN/api/status" -ForegroundColor Gray
+Write-Host "  Site: $SITE_URL" -ForegroundColor White
+Write-Host "  Status: $SITE_URL/api/status" -ForegroundColor Gray
+if ($DOMAIN_MODE -and $KEEP_NGROK_REDIRECT) {
+    Write-Host "  (old ngrok link redirects to $SITE_URL)" -ForegroundColor Gray
+}
 Write-Host "=============================================" -ForegroundColor Cyan
 Write-Host ""
