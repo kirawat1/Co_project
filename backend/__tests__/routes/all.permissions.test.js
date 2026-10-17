@@ -10,6 +10,8 @@ jest.mock('@prisma/client', () => {
   return { PrismaClient: jest.fn(() => mocks) };
 });
 jest.mock('../../config/prismaClient', () => require('../__mocks__/prismaClient'));
+// เทสต์นี้ดูสิทธิ์ตาม role — การตรวจ session (บัญชียังอยู่/เวอร์ชัน token) ทดสอบใน session.test.js
+jest.mock('../../utils/session', () => ({ ...jest.requireActual('../../utils/session'), checkSession: jest.fn(async () => true) }));
 jest.mock('../../controllers/statusController', () => ({ getStatus: (_req, res) => res.json({ ok: true }) }));
 
 const request = require('supertest');

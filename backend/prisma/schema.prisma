@@ -18,6 +18,8 @@ model User {
   passwordEnc    String? @db.Text
   email          String?
   role           Role    @default(student)
+  /// เวอร์ชันของ session — เพิ่มเมื่อเปลี่ยน/รีเซ็ตรหัสผ่าน → token เก่าทุกเครื่องใช้ไม่ได้ (ดู utils/session.js)
+  tokenVersion   Int     @default(0)
   provider       String  @default("credentials")
   kkuAccessToken String? @db.Text
 

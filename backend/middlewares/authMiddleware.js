@@ -1,37 +1,50 @@
 // backend/middlewares/authMiddleware.js
 const jwt = require('jsonwebtoken');
 const prisma = require('../config/prismaClient');
+const { checkSession } = require('../utils/session');
 
 if (!process.env.JWT_SECRET) {
   throw new Error('FATAL: JWT_SECRET environment variable is not set');
 }
 
-exports.verifyToken = (req, res, next) => {
+exports.verifyToken = async (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) {
+    return res.status(401).json({ ok: false, message: "No token provided" });
+  }
+  const token = authHeader.split(" ")[1];
+  if (!token) {
+    return res.status(401).json({ ok: false, message: "Invalid token format" });
+  }
+
+  let decoded;
   try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader) {
-      return res.status(401).json({ ok: false, message: "No token provided" });
-    }
-
-    const token = authHeader.split(" ")[1];
-    if (!token) {
-      return res.status(401).json({ ok: false, message: "Invalid token format" });
-    }
-
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    // token เฉพาะงาน (เช่น ลิงก์ดาวน์โหลด zip) ใช้แทนการ login ไม่ได้
-    if (decoded.purpose) {
-      return res.status(401).json({ ok: false, message: "Token expired or invalid — please log in again" });
-    }
-
-    req.user = decoded;
-    req.userId = decoded.id;
-
-    next();
+    decoded = jwt.verify(token, process.env.JWT_SECRET);
   } catch (err) {
     // 401 = token หมดอายุ / ผิด secret → frontend ควร logout อัตโนมัติ
     return res.status(401).json({ ok: false, message: "Token expired or invalid — please log in again" });
   }
+  // token เฉพาะงาน (เช่น ลิงก์ดาวน์โหลด zip) ใช้แทนการ login ไม่ได้
+  if (decoded.purpose) {
+    return res.status(401).json({ ok: false, message: "Token expired or invalid — please log in again" });
+  }
+
+  // บัญชียังอยู่ · role ตรง · ไม่ถูกเพิกถอน (เปลี่ยน/รีเซ็ตรหัสผ่าน) · นักศึกษาไม่อยู่ในถังขยะ
+  let valid;
+  try {
+    valid = await checkSession(decoded);
+  } catch (err) {
+    // ตรวจไม่ได้เพราะ DB มีปัญหา — ไม่เตะผู้ใช้ออก (401 = frontend ลบ token) ให้ลองใหม่แทน
+    console.error('[verifyToken] session check', err);
+    return res.status(503).json({ ok: false, message: "ระบบตรวจสอบการเข้าสู่ระบบไม่ได้ชั่วคราว กรุณาลองใหม่" });
+  }
+  if (!valid) {
+    return res.status(401).json({ ok: false, message: "บัญชีนี้ถูกเปลี่ยนแปลง กรุณาเข้าสู่ระบบใหม่" });
+  }
+
+  req.user = decoded;
+  req.userId = decoded.id;
+  return next();
 };
 
 exports.verifyRole = (...allowedRoles) => {

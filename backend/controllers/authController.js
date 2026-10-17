@@ -3,6 +3,7 @@ const jwt = require("jsonwebtoken");
 const prisma = require("../config/prismaClient");
 const { OAuth2Client } = require('google-auth-library');
 const { VAULT_ROLES, decryptPassword, passwordEncFor } = require("../utils/passwordVault");
+const { signSession } = require("../utils/session");
 require("dotenv").config();
 
 if (!process.env.GOOGLE_CLIENT_ID) {
@@ -101,7 +102,7 @@ exports.signIn = async (req, res) => {
       };
     }
 
-    const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: sessionTtl(req.body?.remember) });
+    const token = signSession(user, sessionTtl(req.body?.remember));
     return res.json({ ok: true, message: "เข้าสู่ระบบสำเร็จ", token, user: profile });
   } catch (err) {
     console.error(err);
@@ -214,7 +215,7 @@ exports.registerStudent = async (req, res) => {
       });
     });
 
-    const token = jwt.sign({ id: user.id, role: "student" }, process.env.JWT_SECRET, { expiresIn: "7d" });
+    const token = signSession({ id: user.id, role: "student", tokenVersion: user.tokenVersion }, "7d");
     res.json({
       ok: true,
       message: "สมัครสมาชิกสำเร็จ",
@@ -267,8 +268,15 @@ exports.changeMyPassword = async (req, res) => {
     if (pwError) return res.status(400).json({ ok: false, message: pwError });
 
     const hashed = await bcrypt.hash(newPassword, 10);
-    await prisma.user.update({ where: { id: user.id }, data: { password: hashed, passwordEnc: passwordEncFor(user.role, newPassword) } });
-    res.json({ ok: true, message: "เปลี่ยนรหัสผ่านเรียบร้อย" });
+    // เพิกถอนทุก session เดิม (เครื่องอื่นต้องเข้าสู่ระบบใหม่) · เครื่องนี้ได้ token ใหม่ อายุหมดเท่าเดิม
+    const updated = await prisma.user.update({
+      where: { id: user.id },
+      data: { password: hashed, passwordEnc: passwordEncFor(user.role, newPassword), tokenVersion: { increment: 1 } },
+      select: { id: true, role: true, tokenVersion: true },
+    });
+    const token = jwt.sign({ id: updated.id, role: updated.role, tv: updated.tokenVersion, ...(req.user?.exp ? { exp: req.user.exp } : {}) },
+      process.env.JWT_SECRET, req.user?.exp ? {} : { expiresIn: "7d" });
+    res.json({ ok: true, message: "เปลี่ยนรหัสผ่านเรียบร้อย — เครื่องอื่นที่เข้าสู่ระบบไว้ต้องเข้าสู่ระบบใหม่", token });
   } catch (err) {
     console.error("[changeMyPassword]", err);
     res.status(500).json({ ok: false, message: "เปลี่ยนรหัสผ่านไม่สำเร็จ" });
@@ -323,7 +331,7 @@ exports.loginWithGoogle = async (req, res) => {
       return res.status(401).json({ ok: false, message: "ไม่พบรายชื่อในระบบ กรุณาติดต่อเจ้าหน้าที่" });
     }
 
-    const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: sessionTtl(req.body?.remember) });
+    const token = signSession(user, sessionTtl(req.body?.remember));
     return res.json({ ok: true, token, user: { id: user.id, email: user.email, role: user.role } });
   } catch (err) {
     console.error('[loginWithGoogle]', err);

@@ -45,7 +45,9 @@ export default function S_ChangePasswordModal({ onClose }: Props) {
         setError(data.message || "เปลี่ยนรหัสผ่านไม่สำเร็จ");
         return;
       }
-      toast.success("เปลี่ยนรหัสผ่านเรียบร้อย");
+      // เปลี่ยนรหัสผ่าน = เพิกถอน session เดิมทุกเครื่อง — เครื่องนี้ใช้ token ใหม่ที่ได้กลับมา (ไม่งั้นหลุดออกจากระบบด้วย)
+      if (data.token) localStorage.setItem("coop.token", data.token);
+      toast.success("เปลี่ยนรหัสผ่านเรียบร้อย — เครื่องอื่นที่เข้าสู่ระบบไว้ต้องเข้าสู่ระบบใหม่");
       onClose();
     } catch {
       setError("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้");
