@@ -55,7 +55,7 @@ Get-ChildItem C:\coop-backups\db | Sort LastWriteTime -Desc | Select -First 3
 
 | ข้อความ | แก้ |
 |---|---|
-| `หา mysqldump ไม่เจอ` | ตั้ง `MYSQLDUMP_PATH=C:\Program Files\MySQL\MySQL Server 8.0\bin\mysqldump.exe` ใน `.env` |
+| `หา mysqldump ไม่เจอ` | หา path ด้วย `Get-ChildItem "C:\Program Files\MySQL\MySQL Server*\bin\mysqldump.exe"` แล้วตั้ง `MYSQLDUMP_PATH=<path นั้น>` ใน `.env` (VM ใช้ MySQL 8.4) |
 | `Plugin caching_sha2_password could not be loaded` | สคริปต์ไปเจอ mysqldump ของ MariaDB/XAMPP ให้ตั้ง `MYSQLDUMP_PATH` ชี้ไปที่ MySQL Server 8 |
 | `Access denied` | รหัสใน `DATABASE_URL` ไม่ตรง หรือบัญชีไม่มีสิทธิ์ `SELECT, LOCK TABLES, SHOW VIEW, EVENT, TRIGGER` |
 | `dump ไม่ครบ` | ดิสก์เต็มหรือ MySQL หลุดกลางทาง ให้ดูพื้นที่ดิสก์ |
