@@ -4,27 +4,9 @@ import { apiFetch } from "./apiFetch";
 // (เดิมโหลดนักศึกษาทุกคนพร้อมเอกสารทุกไฟล์มากรองเอง — ช้าลงทุกปี และเกิน 1000 คนถูกตัดโดยไม่บอก)
 export type ReviewKind = "T002" | "T003";
 
-/** จำนวนในรายการตรวจของแต่ละรอบ — coopPeriodId null = นักศึกษาที่ยังไม่ผูกรอบ (เห็นเฉพาะ "ทุกปีการศึกษา") */
-export interface PeriodCount {
-  coopPeriodId: number | null;
-  count: number;
-  pending: number;
-}
-
-// รอบเริ่มต้นของหน้า = รอบที่เปิดอยู่ (utils/defaultPeriod) — งานค้างรอบอื่นเตือนด้วย pendingOutside
-
-/** งานรอตรวจที่อยู่นอกรอบที่เลือก — แสดงเตือนไม่ให้งานค้างถูกซ่อนเงียบๆ */
-export function pendingOutside(counts: PeriodCount[], selected: string): number {
-  if (!selected || selected === "all") return 0;
-  return counts.filter(c => String(c.coopPeriodId) !== selected).reduce((n, c) => n + c.pending, 0);
-}
-
-/** ต่อท้ายชื่อรอบใน dropdown เช่น " · 12 คน · รอตรวจ 3" */
-export function periodCountLabel(counts: PeriodCount[], periodId: number | string): string {
-  const c = counts.find(x => String(x.coopPeriodId) === String(periodId));
-  if (!c) return "";
-  return ` · ${c.count} คน${c.pending ? ` · รอตรวจ ${c.pending}` : ""}`;
-}
+// จำนวนต่อรอบ / เตือนงานค้างรอบอื่น / ป้ายใน dropdown ใช้ร่วมทุกหน้า → utils/defaultPeriod
+export { pendingOutside, periodCountLabel, type PeriodCount } from "./defaultPeriod";
+import type { PeriodCount } from "./defaultPeriod";
 
 export async function loadReviewCounts(review: ReviewKind): Promise<PeriodCount[]> {
   const res = await apiFetch(`/api/admin/students?review=${review}&countsOnly=1`);

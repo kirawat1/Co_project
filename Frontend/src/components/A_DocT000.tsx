@@ -16,7 +16,7 @@ import { useAdminRole } from "./adminRole";
 import { appliesTo } from "../utils/docRequirementScope";
 import MajorConfigTabs from "./MajorConfigTabs";
 import LetterZipModal, { LetterZipButton, toolbarBtn } from "./LetterZipModal";
-import { defaultPeriodId } from "../utils/defaultPeriod";
+import { defaultPeriodId, pendingOutside, periodCountLabel, type PeriodCount } from "../utils/defaultPeriod";
 
 // --- Interfaces ---
 interface StudentDocument {
@@ -29,6 +29,8 @@ interface StudentDocument {
 
 interface StudentProfile {
     id: number;
+    /** เพื่อนร่วมหนังสือรวมที่อยู่นอกรอบที่เลือก — ไม่แสดงในตาราง ใช้หาเพื่อนในชุดตอนเปิด/พิมพ์หนังสือรวม */
+    outsidePeriod?: boolean;
     studentId: string;
     firstName?: string;
     lastName?: string;
@@ -163,6 +165,8 @@ export default function A_DocT000() {
     const { isStaff } = useAdminRole();
     const [loading, setLoading] = useState(false);
     const [students, setStudents] = useState<StudentProfile[]>([]);
+    // จำนวนต่อรอบ (ทั้งหมด / รอตรวจ) — ป้ายใน dropdown + เตือนงานค้างรอบอื่น
+    const [periodCounts, setPeriodCounts] = useState<PeriodCount[]>([]);
     const [config, setConfig] = useState<DocConfig>({ startDate: "", endDate: "", isOpen: false });
 
     const [reqDocs, setReqDocs] = useState<DocRequirement[]>([]);
@@ -258,29 +262,52 @@ export default function A_DocT000() {
                 if (reqData.ok) setReqDocs(reqData.requirements);
             }
 
-            // 3. ดึงรายชื่อนักศึกษา
-            const resStd = await apiFetch("/api/admin/t000/students");
-            if (resStd.ok) setStudents(await resStd.json());
-
-            // 4. ดึงข้อมูลปีการศึกษา
+            // 3. ปีการศึกษา → เลือกรอบ (ครั้งแรก = รอบที่เปิดอยู่ · หลังจากนั้นคงรอบที่เลือกไว้)
+            let period = selectedPeriodRef.current;
             const resPeriods = await apiFetch("/api/admin/coop-periods/all");
             if (resPeriods.ok) {
                 const periodsData = await resPeriods.json();
                 if (periodsData.ok && periodsData.periods) {
                     setCoopPeriods(periodsData.periods);
-                    setSelectedPeriod(cur => cur || defaultPeriodId(periodsData.periods));
+                    if (!period) period = defaultPeriodId(periodsData.periods);
                 }
             }
+            if (!period) period = "all";
+
+            // 4. รายชื่อของรอบนั้น — เปลี่ยนรอบ = effect โหลดให้ · รอบเดิม (หลังทำรายการ) = โหลดรอบเดิมซ้ำ
+            if (period !== selectedPeriodRef.current) setSelectedPeriod(period);
+            else await loadStudents(period);
 
         } catch (err) { console.error(err); }
         finally { setLoading(false); }
     };
 
-    // ปิดหน้าออกหนังสือ → รีเฟรชเฉพาะรายชื่อ (ดาวน์โหลดร่างทำให้ป้าย "รอลงนาม" เปลี่ยน) ไม่ทับค่าตั้งค่าที่อาจกำลังแก้อยู่
-    const refreshStudents = async () => {
-        const res = await apiFetch("/api/admin/t000/students").catch(() => null);
+    /**
+     * รายชื่อของรอบที่เลือก — server กรองรอบ (เดิมโหลดทุกรอบทุกปีมากรองในเครื่อง)
+     * ผลที่มาช้ากว่ารอบที่เลือกล่าสุด (กดเปลี่ยนรอบเร็วๆ) ถูกทิ้ง ไม่ทับรายชื่อของรอบใหม่
+     */
+    const selectedPeriodRef = useRef(selectedPeriod);
+    selectedPeriodRef.current = selectedPeriod;
+    const loadSeq = useRef(0);
+    const loadStudents = async (period: string) => {
+        if (!period) return;
+        const seq = ++loadSeq.current;
+        const q = period === "all" ? "" : `?coopPeriodId=${encodeURIComponent(period)}`;
+        const [res, resCounts] = await Promise.all([
+            apiFetch(`/api/admin/t000/students${q}`).catch(() => null),
+            apiFetch("/api/admin/t000/students?countsOnly=1").catch(() => null),
+        ]);
+        if (seq !== loadSeq.current) return;
         if (res?.ok) setStudents(await res.json());
+        if (resCounts?.ok) {
+            const d = await resCounts.json().catch(() => null);
+            if (seq === loadSeq.current && d?.ok) setPeriodCounts(d.periods ?? []);
+        }
     };
+    useEffect(() => { if (selectedPeriod) loadStudents(selectedPeriod); }, [selectedPeriod]);
+
+    // ปิดหน้าออกหนังสือ → รีเฟรชเฉพาะรายชื่อ (ดาวน์โหลดร่างทำให้ป้าย "รอลงนาม" เปลี่ยน) ไม่ทับค่าตั้งค่าที่อาจกำลังแก้อยู่
+    const refreshStudents = () => loadStudents(selectedPeriodRef.current);
 
     const openCheckModal = (s: StudentProfile, phase: 1 | 2) => {
         setSelectedStudent(s);
@@ -497,7 +524,7 @@ export default function A_DocT000() {
     // ================= UTILS / FILTER / SORT =================
     const list = useMemo(() => {
         // 1. กรองข้อมูล (Filter)
-        let filtered = students.filter(s => {
+        let filtered = students.filter(s => !s.outsidePeriod).filter(s => {
             const companyName = s.coop?.company?.name?.trim() || "";
             const txt = `${s.studentId} ${s.firstName} ${s.lastName} ${companyName}`.toLowerCase();
             const matchCompany = companyFilter === "all"
@@ -505,16 +532,13 @@ export default function A_DocT000() {
             const st = s.docStatus || (s.documents && s.documents.length > 0 ? "WAITING_FOR_STAFF_CHECK" : "WAITING");
             const hasDoc = s.documents && s.documents.length > 0;
 
-            // 🟢 แก้ให้ดัก coopPeriodId ได้ชัวร์ๆ
-            const pId = String(s.coopPeriodId || s.coop?.coopPeriodId || "");
-            const matchPeriod = selectedPeriod === "all" || pId === selectedPeriod;
 
             // ถ้าไม่มีไฟล์เลย จะไม่โชว์ ยกเว้นว่ามีสถานะ QUALIFIED (ผ่านคุณสมบัติแล้วรอเอกสาร)
             const shouldShow = hasDoc || st === "QUALIFIED";
 
             const matchStatus = statusFilter.length === 0 || statusFilter.some(f => PENDING_SIGN_FILTERS[f] ? PENDING_SIGN_FILTERS[f](s) : f === st);
 
-            return txt.includes(q.trim().toLowerCase()) && matchStatus && matchCompany && shouldShow && matchPeriod;
+            return txt.includes(q.trim().toLowerCase()) && matchStatus && matchCompany && shouldShow;
         });
 
         // 2. เรียงลำดับข้อมูล (Sort)
@@ -543,12 +567,12 @@ export default function A_DocT000() {
         });
 
         return filtered;
-    }, [students, q, statusFilter, companyFilter, selectedPeriod, sortKey, sortDirection]);
+    }, [students, q, statusFilter, companyFilter, sortKey, sortDirection]);
 
     // รายชื่อบริษัทสำหรับตัวกรอง (เฉพาะที่มีนักศึกษาในหน้านี้) + จำนวนนักศึกษา
     const companyOptions = useMemo(() => {
         const counts = new Map<string, number>();
-        students.forEach(s => {
+        students.filter(s => !s.outsidePeriod).forEach(s => {
             const name = s.coop?.company?.name?.trim();
             if (name) counts.set(name, (counts.get(name) || 0) + 1);
         });
@@ -684,12 +708,21 @@ export default function A_DocT000() {
                     </select>
 
                     {/* Dropdown เลือกปีการศึกษา */}
-                    <select className="input" style={{ width: 'auto', background: '#f8fafc' }} value={selectedPeriod} onChange={e => setSelectedPeriod(e.target.value)}>
+                    <select className="input" style={{ width: 'auto', maxWidth: '100%', background: '#f8fafc' }} value={selectedPeriod} onChange={e => setSelectedPeriod(e.target.value)}>
                         <option value="all">📚 ทุกปีการศึกษา</option>
                         {coopPeriods.map(p => (
-                            <option key={p.id} value={p.id}>เทอม {p.semester} / {p.academicYear}</option>
+                            <option key={p.id} value={p.id}>เทอม {p.semester} / {p.academicYear}{periodCountLabel(periodCounts, p.id)}</option>
                         ))}
+                        {periodCounts.some(c => c.coopPeriodId == null) && (
+                            <option value="none">⏳ ยังไม่เลือกรอบ{periodCountLabel(periodCounts, "none")}</option>
+                        )}
                     </select>
+                    {pendingOutside(periodCounts, selectedPeriod) > 0 && (
+                        <button type="button" onClick={() => setSelectedPeriod("all")}
+                            style={{ fontSize: 12, color: '#b45309', fontWeight: 700, background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 8, padding: '6px 10px', cursor: 'pointer' }}>
+                            ⚠️ รอตรวจในรอบอื่นอีก {pendingOutside(periodCounts, selectedPeriod)} คน — ดูทุกปีการศึกษา
+                        </button>
+                    )}
 
                     {/* หนังสือรวม · ดาวน์โหลดหนังสือที่ออกแล้วเป็น zip (เลือกประเภท/รอบ/หลักสูตร และยืนยันในหน้าต่าง) */}
                     <div style={{ marginLeft: "auto", display: "flex", gap: 8, flexWrap: "wrap" }}>

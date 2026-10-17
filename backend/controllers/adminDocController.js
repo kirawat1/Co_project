@@ -6,6 +6,7 @@ const { resolveMajorNameTh } = require('../utils/majorName');
 const { readEffective, callerMajor } = require('../utils/majorConfig');
 const { getMajorScope, studentWhere, visibleStudentWhere, inScope, assertStudentInScope } = require('../utils/majorScope');
 const { setAuditDetail, reviewActionText, letterPendingActionText } = require('../utils/auditActions');
+const { studentPeriodWhere, coopPeriodWhere, countByPeriod } = require('../utils/periodFilter');
 const path = require('path');
 const fs = require('fs');
 
@@ -111,37 +112,66 @@ exports.saveT000Config = async (req, res) => {
 };
 
 // 3. ดึงรายชื่อนักศึกษา (T000 + เอกสารอื่นๆ)
+// หน้า T000: รอเจ้าหน้าที่ตรวจ = รอตรวจเอกสาร / รอตรวจใบตอบรับ
+const T000_PENDING = new Set(['WAITING_FOR_STAFF_CHECK', 'WAITING_FOR_STAFF_CHECK_LETTER']);
+const T000_INCLUDE = {
+  documents: { orderBy: { uploadedAt: 'desc' } },
+  // contacts = ผู้ติดต่อ (HR) ของคำร้อง — ผู้รับหนังสือ ("เรียน …")
+  coop: { include: { company: true, contacts: { orderBy: { createdAt: 'asc' } } } },
+  coopApplicationForm: true,
+  generalAdvisor: { select: { id: true, prefix: true, firstName: true, lastName: true } },
+};
+
+/**
+ * GET /api/admin/t000/students?coopPeriodId=<id|none|all>&countsOnly=1
+ *   ไม่ระบุรอบ = ทุกรอบ (เหมือนเดิม) · countsOnly → { ok, periods: [{ coopPeriodId, count, pending }] }
+ * กรองรอบแล้ว: เพื่อนร่วมหนังสือรวม (batch/เลขร่าง) ที่อยู่นอกรอบถูกส่งมาด้วย ติด outsidePeriod: true
+ *   — ตารางไม่แสดง แต่การพิมพ์/เปิดหนังสือรวมต้องได้รายชื่อครบ (ไม่งั้นหนังสือรวมขาดคน)
+ */
 exports.getStudentsForT000 = async (req, res) => {
   try {
+    const period = studentPeriodWhere(req.query?.coopPeriodId);
+    if (period.error) return res.status(400).json({ ok: false, message: period.error });
     const scope = await getMajorScope(req);
+    const base = [
+      { OR: [{ coop: { isNot: null } }, { documents: { some: { type: 'T000_SIGNED' } } }] },
+      { deletedAt: null },
+      studentWhere(scope),
+    ];
+
+    if (req.query?.countsOnly) {
+      const rows = await prisma.student.findMany({
+        where: { AND: base },
+        select: { coop: { select: { coopPeriodId: true, status: true } }, _count: { select: { documents: true } } },
+      });
+      // นับเฉพาะแถวที่หน้าแสดง (มีไฟล์แล้ว หรือผ่านคุณสมบัติรอเอกสาร) — ตัวเลขตรงกับตาราง
+      const shown = rows.filter((r) => r._count.documents > 0 || r.coop?.status === 'QUALIFIED');
+      return res.json({ ok: true, periods: countByPeriod(shown, { periodOf: (r) => r.coop?.coopPeriodId, isPending: (r) => T000_PENDING.has(r.coop?.status) }) });
+    }
+
     const students = await prisma.student.findMany({
-      where: {
-        AND: [
-          { OR: [
-              { coop: { isNot: null } },
-              { documents: { some: { type: 'T000_SIGNED' } } }
-          ] },
-          { deletedAt: null },
-          studentWhere(scope),
-        ],
-      },
-      include: {
-        documents: {
-            orderBy: { uploadedAt: 'desc' }
-        },
-        coop: {
-            // contacts = ผู้ติดต่อ (HR) ของคำร้อง — ผู้รับหนังสือ ("เรียน …")
-            include: { company: true, contacts: { orderBy: { createdAt: 'asc' } } }
-        },
-        coopApplicationForm: true,
-        generalAdvisor: { select: { id: true, prefix: true, firstName: true, lastName: true } },
-      },
+      where: { AND: period.where ? [...base, period.where] : base },
+      include: T000_INCLUDE,
       orderBy: { studentId: 'asc' }
     });
+
+    let outside = [];
+    if (period.where) {
+      const keys = (field) => [...new Set(students.map((s) => s.coop?.[field]).filter(Boolean))];
+      const or = ['reqLetterBatch', 'placeLetterBatch', 'reqLetterDraftNumber', 'placeLetterDraftNumber']
+        .map((field) => ({ field, values: keys(field) }))
+        .filter((k) => k.values.length)
+        .map((k) => ({ coop: { [k.field]: { in: k.values } } }));
+      if (or.length) {
+        const have = new Set(students.map((s) => s.id));
+        outside = (await prisma.student.findMany({ where: { AND: [...base, { OR: or }] }, include: T000_INCLUDE, orderBy: { studentId: 'asc' } }))
+          .filter((s) => !have.has(s.id));
+      }
+    }
     const criteria = await prisma.coopCriteria.findMany({ select: { major: true, nameTh: true } });
 
     // Map ข้อมูลส่งกลับ
-    const data = students.map(s => ({
+    const toRow = (s) => ({
       id: s.id,
       studentId: s.studentId,
       firstName: s.firstName,
@@ -161,7 +191,8 @@ exports.getStudentsForT000 = async (req, res) => {
       coop: s.coop,
       advisorName: s.advisorName || null,
       generalAdvisor: s.generalAdvisor || null,
-    }));
+    });
+    const data = [...students.map(toRow), ...outside.map((s) => ({ ...toRow(s), outsidePeriod: true }))];
 
     res.json(data);
   } catch (err) {
