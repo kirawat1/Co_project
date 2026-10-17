@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import type { CSSProperties } from "react";
 import axios from "axios";
 import { apiFetch } from "../utils/apiFetch";
+import { latestPeriodId, loadReviewStudents } from "../utils/reviewStudents";
 import { useToast } from "./Toast";
 import ConfirmDialog from "./ConfirmDialog";
 import AutoTextarea from "./AutoTextarea";
@@ -42,7 +43,8 @@ export default function T_T003Review() {
 
     // ✅ State สำหรับค้นหาและตัวกรองปีการศึกษา
     const [coopPeriods, setCoopPeriods] = useState<any[]>([]);
-    const [selectedPeriod, setSelectedPeriod] = useState<string>("all");
+    const [selectedPeriod, setSelectedPeriod] = useState<string>(""); // "" = ยังไม่โหลดรอบ → ตั้งเป็นรอบล่าสุด
+    const [listTotal, setListTotal] = useState(0);
     const [searchTerm, setSearchTerm] = useState("");
 
     const [modalOpen, setModalOpen] = useState(false);
@@ -57,51 +59,35 @@ export default function T_T003Review() {
     const fetchStudents = async () => {
         setLoading(true);
         try {
-            const token = localStorage.getItem("coop.token");
-
+            // ครั้งแรกเลือกรอบล่าสุดให้ (เดิม "ทุกปีการศึกษา" — รายชื่อยาวขึ้นทุกปี)
+            let period = selectedPeriod;
             const resPeriods = await apiFetch("/api/admin/coop-periods/all");
             if (resPeriods.ok) {
                 const periodsData = await resPeriods.json();
-                if (periodsData.ok && periodsData.periods) setCoopPeriods(periodsData.periods);
+                if (periodsData.ok && periodsData.periods) {
+                    setCoopPeriods(periodsData.periods);
+                    if (!period) period = latestPeriodId(periodsData.periods);
+                }
             }
-
-            const res = await axios.get("/api/admin/students", {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-
-            let allStudents = Array.isArray(res.data) ? res.data : (res.data?.data || res.data?.students || []);
-
-            const t003Students = allStudents.filter((student: any) => {
-                const hasT003Doc = student.documents?.some((doc: any) => doc.type === 'T003_FORM');
-                const isStatusMatch = ['T003_SUBMITTED', 'T003_EDITS_REQUIRED', 'T003_APPROVED', 'INTERNSHIP_STARTED'].includes(student.coop?.status || student.docStatus);
-                return hasT003Doc || isStatusMatch;
-            });
-
-            setStudents(t003Students);
+            if (!period) period = "all";
+            if (period !== selectedPeriod) setSelectedPeriod(period); // effect ด้านล่างโหลดรายชื่อ
+            else await reloadStudents(period);
         } catch (err) { console.error(err); }
         finally { setLoading(false); }
     };
 
     useEffect(() => { fetchStudents(); }, []);
 
+    // server กรองเฉพาะนักศึกษาที่เกี่ยวกับ T003 และแนบเฉพาะไฟล์ T003_FORM
     const reloadStudents = async (period: string) => {
         try {
-            const token = localStorage.getItem("coop.token");
-            const params = new URLSearchParams();
-            if (period !== "all") params.set("coopPeriodId", period);
-            const res = await axios.get(`/api/admin/students?${params}`, { headers: { Authorization: `Bearer ${token}` } });
-            const allStudents: any[] = Array.isArray(res.data) ? res.data : (res.data?.data || res.data?.students || []);
-            setStudents(allStudents.filter((s: any) => {
-                const hasT003Doc = s.documents?.some((d: any) => d.type === 'T003_FORM');
-                const isStatusMatch = ['T003_SUBMITTED', 'T003_EDITS_REQUIRED', 'T003_APPROVED', 'INTERNSHIP_STARTED'].includes(s.coop?.status || s.docStatus);
-                return hasT003Doc || isStatusMatch;
-            }));
+            const { students: list, total } = await loadReviewStudents<Student>("T003", period);
+            setStudents(list);
+            setListTotal(total);
         } catch (err) { console.error(err); }
     };
-    const initialPeriodMount = useRef(true);
     useEffect(() => {
-        if (initialPeriodMount.current) { initialPeriodMount.current = false; return; }
-        reloadStudents(selectedPeriod);
+        if (selectedPeriod) reloadStudents(selectedPeriod);
     }, [selectedPeriod]);
 
     const getT003Status = (student: Student) => {
@@ -225,6 +211,9 @@ export default function T_T003Review() {
                             <option key={p.id} value={String(p.id)}>เทอม {p.semester} / {p.academicYear}</option>
                         ))}
                     </select>
+                        {listTotal > students.length && (
+                            <span style={{ fontSize: 12, color: '#b45309', fontWeight: 600 }}>แสดง {students.length} จาก {listTotal} คน — เลือกรอบเพื่อดูครบ</span>
+                        )}
 
                     <button className="btn-ghost" style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 6 }} onClick={fetchStudents} disabled={loading}>
                         {loading ? '⏳' : '🔄'} รีเฟรช
