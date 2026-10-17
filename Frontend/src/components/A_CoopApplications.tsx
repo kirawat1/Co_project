@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect, useRef } from "react";
 import type { CSSProperties } from "react";
 import axios from "axios";
 import StatusBadge from "./StatusBadge";
@@ -14,7 +14,7 @@ import MajorConfigTabs from "./MajorConfigTabs";
 import { useLoadMore } from "../utils/useLoadMore";
 import { TABLE_TH, TABLE_TD, TABLE_HEADER_ROW } from "../utils/tableStyles";
 import Modal, { ModalCloseButton } from "./Modal";
-import { defaultPeriodId } from "../utils/defaultPeriod";
+import { defaultPeriodId, pendingOutside, periodCountLabel, type PeriodCount } from "../utils/defaultPeriod";
 
 function safeHref(url: string | null | undefined): string | undefined {
   if (!url) return undefined;
@@ -65,7 +65,14 @@ export default function A_CoopApplications() {
 
     // ✅ State สำหรับเก็บรอบปีการศึกษาและตัวกรอง
     const [coopPeriods, setCoopPeriods] = useState<CoopPeriod[]>([]);
-    const [filterPeriodId, setFilterPeriodId] = useState<string>(""); // "" = ยังไม่โหลดรอบ → ตั้งเป็นรอบที่เปิดอยู่ (utils/defaultPeriod) ครั้งแรกครั้งเดียว ไม่ทับรอบที่ผู้ใช้เลือกตอนรีเฟรช
+    const [filterPeriodId, setFilterPeriodId] = useState<string>("");
+    // รอบของคำร้องที่โหลดมาอยู่ตอนนี้ — อนุมัติกลุ่มได้เฉพาะเมื่อตรงกับรอบที่เลือก (กันกดระหว่างกำลังโหลดรอบใหม่)
+    const [loadedPeriod, setLoadedPeriod] = useState("");
+    const [periodCounts, setPeriodCounts] = useState<PeriodCount[]>([]);
+    const filterPeriodRef = useRef(filterPeriodId);
+    filterPeriodRef.current = filterPeriodId;
+    const loadSeq = useRef(0);
+    const inPeriod = (pid: string) => filterPeriodId === "all" || (filterPeriodId === "none" ? !pid : pid === filterPeriodId); // "" = ยังไม่โหลดรอบ → ตั้งเป็นรอบที่เปิดอยู่ (utils/defaultPeriod) ครั้งแรกครั้งเดียว ไม่ทับรอบที่ผู้ใช้เลือกตอนรีเฟรช
 
     // Modal & Preview State
     const [selectedApp, setSelectedApp] = useState<CoopApp | null>(null);
@@ -93,19 +100,35 @@ export default function A_CoopApplications() {
             const resPeriods = await axios.get("/api/admin/coop-periods/all", {
                 headers: { Authorization: `Bearer ${token}` }
             });
+            let period = filterPeriodRef.current;
             if (resPeriods.data?.periods) {
                 setCoopPeriods(resPeriods.data.periods);
-                setFilterPeriodId(cur => cur || defaultPeriodId(resPeriods.data.periods));
+                if (!period) period = defaultPeriodId(resPeriods.data.periods);
             }
+            if (!period) period = "all";
 
-            // 🟢 2. ดึงข้อมูลคำร้อง
-            const resApps = await axios.get("/api/admin/coop-applications", {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            if (resApps.data.ok) setApps(resApps.data.applications);
+            // 🟢 2. คำร้องของรอบนั้น — เปลี่ยนรอบ = effect โหลดให้ · รอบเดิม (หลังทำรายการ) = โหลดรอบเดิมซ้ำ
+            if (period !== filterPeriodRef.current) setFilterPeriodId(period);
+            else await loadApps(period);
         } catch (err) { console.error(err); }
         setLoading(false);
     };
+
+    /** คำร้องของรอบที่เลือก (server กรอง) + จำนวนต่อรอบ · ผลที่มาช้ากว่ารอบที่เลือกล่าสุดถูกทิ้ง */
+    const loadApps = async (period: string) => {
+        if (!period) return;
+        const seq = ++loadSeq.current;
+        const headers = { Authorization: `Bearer ${token}` };
+        const q = period === "all" ? "" : `?coopPeriodId=${encodeURIComponent(period)}`;
+        const [resApps, resCounts] = await Promise.all([
+            axios.get(`/api/admin/coop-applications${q}`, { headers }).catch(() => null),
+            axios.get("/api/admin/coop-applications?countsOnly=1", { headers }).catch(() => null),
+        ]);
+        if (seq !== loadSeq.current) return;
+        if (resApps?.data?.ok) { setApps(resApps.data.applications); setLoadedPeriod(period); }
+        if (resCounts?.data?.ok) setPeriodCounts(resCounts.data.periods ?? []);
+    };
+    useEffect(() => { if (filterPeriodId) loadApps(filterPeriodId); }, [filterPeriodId]);
 
     useEffect(() => { fetchApplications(); }, []);
 
@@ -116,12 +139,11 @@ export default function A_CoopApplications() {
             // already been qualified AND submitted T000 — bulk-sending QUALIFIED would
             // rewind them, losing their T000 submission context.
             const isPending = app.status === "APPLYING";
+            // กันอีกชั้น: รายการต้องเป็นของรอบที่เลือก (โหลดเสร็จแล้ว) และคำร้องอยู่ในรอบนั้นจริง
             const appPeriodId = String(app.student.coopPeriodId || app.coopPeriodId || "");
-            const matchPeriod = filterPeriodId === "all" || appPeriodId === filterPeriodId;
-
-            return isPending && matchPeriod;
+            return isPending && loadedPeriod === filterPeriodId && inPeriod(appPeriodId);
         });
-    }, [apps, filterPeriodId]);
+    }, [apps, filterPeriodId, loadedPeriod]);
 
     // ฟังก์ชันอนุมัติกลุ่ม (Bulk Approve)
     const handleBulkApprove = () => {
@@ -225,7 +247,7 @@ export default function A_CoopApplications() {
 
         // กรองตามปีการศึกษา
         const appPeriodId = String(app.student.coopPeriodId || app.coopPeriodId || "");
-        const matchPeriod = filterPeriodId === "all" || appPeriodId === filterPeriodId;
+        const matchPeriod = inPeriod(appPeriodId);
 
         // รอดำเนินการ = คำร้องที่ยังไม่ได้ตรวจเท่านั้น (เดิมนับ WAITING_FOR_STAFF_CHECK ด้วย ซึ่งเป็นคำร้องที่ผ่านแล้วและรอตรวจ T000)
         if (filterStatus === "PENDING") return matchSearch && matchPeriod && app.status === "APPLYING";
@@ -285,12 +307,21 @@ export default function A_CoopApplications() {
                     <input className="input" placeholder="🔍 ค้นหารหัส / ชื่อ / บริษัท..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ flex: 1, minWidth: 200 }} />
 
                     {/* 🟢 Dropdown เลือกปีการศึกษา */}
-                    <select className="input" value={filterPeriodId} onChange={(e) => setFilterPeriodId(e.target.value)} style={{ width: 'auto', background: '#f8fafc' }}>
+                    <select className="input" value={filterPeriodId} onChange={(e) => setFilterPeriodId(e.target.value)} style={{ width: 'auto', maxWidth: '100%', background: '#f8fafc' }}>
                         <option value="all">📚 ทุกปีการศึกษา</option>
                         {coopPeriods.map(p => (
-                            <option key={p.id} value={p.id}>เทอม {p.semester}/{p.academicYear}</option>
+                            <option key={p.id} value={p.id}>เทอม {p.semester}/{p.academicYear}{periodCountLabel(periodCounts, p.id)}</option>
                         ))}
+                        {periodCounts.some(c => c.coopPeriodId == null) && (
+                            <option value="none">⏳ ยังไม่เลือกรอบ{periodCountLabel(periodCounts, "none")}</option>
+                        )}
                     </select>
+                    {pendingOutside(periodCounts, filterPeriodId) > 0 && (
+                        <button type="button" onClick={() => setFilterPeriodId("all")}
+                            style={{ fontSize: 12, color: '#b45309', fontWeight: 700, background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 8, padding: '6px 10px', cursor: 'pointer' }}>
+                            ⚠️ รอตรวจในรอบอื่นอีก {pendingOutside(periodCounts, filterPeriodId)} คน — ดูทุกปีการศึกษา
+                        </button>
+                    )}
 
                     <select className="input" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} style={{ width: 'auto' }}>
                         <option value="ALL">📋 แสดงทุกสถานะ</option>
