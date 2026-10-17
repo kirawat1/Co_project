@@ -1,4 +1,5 @@
 // backend/server.js
+require("./config/timezone"); // เวลาไทยทั้งระบบ — ก่อนทุกอย่าง (ดูเหตุผลในไฟล์)
 const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
