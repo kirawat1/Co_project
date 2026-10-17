@@ -1,5 +1,11 @@
 # CHANGELOG — Co_project
 
+## [2026-10-17] fix(ops): ทดสอบกู้ข้อมูล (--verify) บน VM ไม่ผ่าน — บัญชีฐานข้อมูลไม่มีสิทธิ์สร้างฐานสำหรับกู้
+
+- บน VM ระบบต่อฐานด้วย `coopuser` ที่มีสิทธิ์แค่ `coop_mysql_db` → `--verify` สร้างฐานชั่วคราว `coop_mysql_db_restore_check` ไม่ได้ (ERROR 1044) · การสำรองเองทำงานปกติ
+- `docs/backup.md`: เพิ่มขั้นติดตั้ง — ให้สิทธิ์ด้วย root เฉพาะฐานที่ชื่อขึ้นต้น `<ชื่อฐาน>_` (`GRANT ALL PRIVILEGES ON \`coop\_mysql\_db\_%\`.* TO 'coopuser'@'localhost';`) · ตัวอย่างกู้จริงใช้ `coop_mysql_db_old` · ตาราง error เพิ่มกรณีนี้
+- `scripts/backup.js`: เจอ ERROR 1044 → พิมพ์คำสั่ง GRANT ที่ตรงกับชื่อฐาน/บัญชีใน DATABASE_URL ให้เลย
+
 ## [2026-10-17] fix(ops): deploy.ps1 ติด "Prisma generate failed" เพราะ PM2 ค้างสะสม
 
 ### สาเหตุ (เจอตอน deploy บน VM)
