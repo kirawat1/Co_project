@@ -100,18 +100,96 @@ function normalizeRow(row, isKkuFormat) {
   };
 }
 
-// หลักสูตรในไฟล์ (รหัส หรือชื่อไทย) → รหัสที่มีในระบบ
-async function loadMajorLookup(rows) {
+// ชื่อหลักสูตรในไฟล์ที่เคยจับคู่ไว้ตอนนำเข้า { "ชื่อในไฟล์": "รหัสหลักสูตร" } — ครั้งต่อไปไม่ต้องเลือกซ้ำ
+const MAJOR_ALIASES_KEY = 'MAJOR_IMPORT_ALIASES';
+
+async function loadAliases() {
+  const row = await prisma.systemConfig.findUnique({ where: { key: MAJOR_ALIASES_KEY } });
+  try { const v = JSON.parse(row?.value || '{}'); return v && typeof v === 'object' && !Array.isArray(v) ? v : {}; } catch { return {}; }
+}
+
+/**
+ * หลักสูตรในไฟล์ (รหัส · ชื่อไทย · ชื่อที่เคยจับคู่ไว้) → รหัสที่มีในระบบ
+ * ไม่สร้างหลักสูตรใหม่ให้เอง — เดิมเจ้าหน้าที่นำเข้าแล้วได้หลักสูตรใหม่ที่ใช้ชื่อไทยเป็นรหัส
+ * (สะกดต่างนิดเดียวก็แตกเป็นหลักสูตรใหม่ ไม่มีรอบ/อาจารย์ประจำวิชา/เกณฑ์ นักศึกษาค้าง)
+ * @param chosen การจับคู่ที่ผู้นำเข้าเลือก (ตรวจแล้วด้วย parseChosenMap) — '' = ข้ามแถวของชื่อนั้น
+ */
+async function loadMajorLookup(rows, chosen = {}) {
   const names = [...new Set(rows.map((r) => r.major).filter(Boolean))];
+  const criteria = await prisma.coopCriteria.findMany({ select: { major: true, nameTh: true }, orderBy: { major: 'asc' } });
+  const codes = new Set(criteria.map((c) => c.major));
   const map = new Map();
-  if (names.length) {
-    const found = await prisma.coopCriteria.findMany({
-      where: { OR: [{ major: { in: names } }, { nameTh: { in: names } }] },
-      select: { major: true, nameTh: true },
-    });
-    for (const c of found) { map.set(c.major, c.major); if (c.nameTh) map.set(c.nameTh, c.major); }
+  const aliases = await loadAliases();
+  for (const [name, code] of Object.entries(aliases)) if (codes.has(code)) map.set(name, code);
+  for (const c of criteria) { if (c.nameTh) map.set(c.nameTh, c.major); map.set(c.major, c.major); }
+  const skipped = new Set();
+  for (const [name, code] of Object.entries(chosen)) {
+    if (code) map.set(name, code); else { map.delete(name); skipped.add(name); }
   }
-  return { names, map };
+  return { names, map, skipped, criteria, aliases };
+}
+
+/** body.majorMap (JSON) → { map } หรือ { error } — ต้องเป็นรหัสที่มีจริง และอยู่ในหลักสูตรที่ผู้นำเข้าดูแล */
+async function parseChosenMap(raw, scope) {
+  if (raw == null || raw === '') return { map: {} };
+  let obj;
+  try { obj = typeof raw === 'string' ? JSON.parse(raw) : raw; } catch { return { error: 'majorMap ไม่ใช่ JSON' }; }
+  if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return { error: 'majorMap ต้องเป็น { "ชื่อในไฟล์": "รหัสหลักสูตร" }' };
+  const entries = Object.entries(obj).map(([k, v]) => [String(k).trim(), v == null ? '' : String(v).trim()]).filter(([k]) => k);
+  const codes = [...new Set(entries.map(([, v]) => v).filter(Boolean))];
+  if (codes.length) {
+    const found = await prisma.coopCriteria.findMany({ where: { major: { in: codes } }, select: { major: true } });
+    const ok = new Set(found.map((c) => c.major));
+    const bad = codes.filter((c) => !ok.has(c));
+    if (bad.length) return { error: `ไม่พบหลักสูตร ${bad.join(', ')} ในระบบ` };
+    if (!scope.all) {
+      const out = codes.filter((c) => !scope.majors.includes(c));
+      if (out.length) return { error: `หลักสูตร ${out.join(', ')} ไม่อยู่ในหลักสูตรที่คุณดูแล` };
+    }
+  }
+  return { map: Object.fromEntries(entries) };
+}
+
+/** หลักสูตรของแถว — เจ้าหน้าที่: ชื่อที่ไม่รู้จักต้องจับคู่ก่อน · ไม่ระบุ = ไม่เปลี่ยน (แถวเดิม) / ว่าง (แถวใหม่) */
+function staffRowMajor(rawMajor, map, skipped) {
+  if (!rawMajor) return { major: null };
+  if (skipped.has(rawMajor)) return { error: `ข้ามตามที่เลือก — หลักสูตร "${rawMajor}"` };
+  const major = map.get(rawMajor);
+  if (!major) return { error: `ไม่พบหลักสูตร "${rawMajor}" ในระบบ — เลือกหลักสูตรที่ตรงกันก่อนนำเข้า หรือเพิ่มหลักสูตรที่หน้า "จัดการหลักสูตร"` };
+  return { major };
+}
+
+function rowMajor(scope, rawMajor, lookup, existingStudent) {
+  if (scope.all) return staffRowMajor(rawMajor, lookup.map, lookup.skipped);
+  if (rawMajor && lookup.skipped.has(rawMajor)) return { error: `ข้ามตามที่เลือก — หลักสูตร "${rawMajor}"` };
+  return coopTeacherRowMajor(scope, rawMajor, lookup.map, existingStudent);
+}
+
+/**
+ * ชื่อในไฟล์ที่ยังจับคู่ไม่ได้ + จำนวนแถว + หลักสูตรที่น่าจะใช่ (ไว้ให้หน้าเว็บให้เลือก — ไม่จับคู่ให้เอง)
+ * ไฟล์ระบบทะเบียนเขียน PROGRAMNAME แบบ "วิทยาการคอมพิวเตอร์ ปริญญาตรี ภาคปกติ" ไม่ตรงชื่อหลักสูตรตรงๆ
+ * → แนะนำหลักสูตรที่ชื่อไทยยาวที่สุดที่อยู่ในชื่อนั้น
+ */
+function unknownMajors(rows, lookup, allowed) {
+  const count = new Map();
+  for (const r of rows) {
+    if (r.major && !lookup.map.has(r.major) && !lookup.skipped.has(r.major)) count.set(r.major, (count.get(r.major) || 0) + 1);
+  }
+  return [...count].map(([name, rowCount]) => {
+    const hit = allowed
+      .filter((c) => c.nameTh && name.includes(c.nameTh))
+      .sort((a, b) => b.nameTh.length - a.nameTh.length)[0];
+    return { name, rows: rowCount, suggestion: hit ? hit.major : null };
+  });
+}
+
+/** จำการจับคู่ที่ผู้นำเข้าเลือก (เฉพาะชื่อที่ไม่ใช่รหัส/ชื่อไทยของหลักสูตรอยู่แล้ว) */
+async function rememberAliases(chosen, lookup) {
+  const add = Object.entries(chosen).filter(([name, code]) => code && lookup.aliases[name] !== code
+    && !lookup.criteria.some((c) => c.major === name || c.nameTh === name));
+  if (!add.length) return;
+  const value = JSON.stringify({ ...lookup.aliases, ...Object.fromEntries(add) });
+  await prisma.systemConfig.upsert({ where: { key: MAJOR_ALIASES_KEY }, update: { value }, create: { key: MAJOR_ALIASES_KEY, value } });
 }
 
 /**
@@ -164,7 +242,9 @@ exports.previewStudents = async (req, res) => {
       prisma.student.findMany({ where: { studentId: { in: allStudentIds } }, select: { studentId: true, deletedAt: true, major: true } }),
     ]);
     const scope = await getMajorScope(req, { ignoreFilter: true });
-    const { map: majorMap } = await loadMajorLookup(normalizedRows);
+    const chosen = await parseChosenMap(req.body?.majorMap, scope);
+    if (chosen.error) return res.status(400).json({ ok: false, message: chosen.error });
+    const lookup = await loadMajorLookup(normalizedRows, chosen.map);
     const userByEmail        = new Map(prefetchedUsers.map(u => [normalizeEmail(u.email), u]));
     const studentByStudentId = new Map(prefetchedStudents.map(s => [s.studentId, s]));
 
@@ -207,16 +287,13 @@ exports.previewStudents = async (req, res) => {
         return { rowNum, studentId, name, email, major: norm.major, studyProgram, advisorName, action: 'skip', advisorStatus: 'empty', error: `รหัส ${studentId} อยู่ในถังขยะ — กรุณากู้คืนก่อน` };
       }
 
-      // อาจารย์ประจำวิชา: เฉพาะหลักสูตรที่ดูแล · เจ้าหน้าที่: หลักสูตรที่ไม่มีในระบบจะถูกสร้างใหม่ตอนนำเข้า
-      let major = norm.major;
-      if (!scope.all) {
-        const r = coopTeacherRowMajor(scope, norm.major, majorMap, existingStudent);
-        if (r.error) {
-          willSkip++;
-          return { rowNum, studentId, name, email, major: norm.major, studyProgram, advisorName, action: 'skip', advisorStatus: 'empty', error: r.error };
-        }
-        major = r.major;
+      // หลักสูตรที่ไม่มีในระบบ → ข้าม จนกว่าจะเลือกหลักสูตรที่ตรงกัน (ไม่สร้างหลักสูตรใหม่ให้เอง)
+      const r = rowMajor(scope, norm.major, lookup, existingStudent);
+      if (r.error) {
+        willSkip++;
+        return { rowNum, studentId, name, email, major: norm.major, studyProgram, advisorName, action: 'skip', advisorStatus: 'empty', error: r.error };
       }
+      const major = r.major ?? (existingStudent ? existingStudent.major : null);
 
       const action = userByEmail.has(normalizeEmail(email)) ? 'update' : 'create';
       if (action === 'create') willCreate++; else willUpdate++;
@@ -232,10 +309,14 @@ exports.previewStudents = async (req, res) => {
       return { rowNum, studentId, name, email, major, studyProgram, advisorName, action, advisorStatus };
     });
 
+    // ตัวเลือกให้จับคู่ — อาจารย์ประจำวิชาเห็นเฉพาะหลักสูตรที่ดูแล
+    const allowedMajors = lookup.criteria.filter((c) => scope.all || scope.majors.includes(c.major));
     res.json({
       ok: true,
       rows: previewRows,
       summary: { total: rows.length, willCreate, willUpdate, willSkip, advisorWarnings },
+      unknownMajors: unknownMajors(normalizedRows, lookup, allowedMajors),
+      majors: allowedMajors,
     });
   } catch (err) {
     console.error('[previewStudents]', err);
@@ -311,22 +392,11 @@ exports.importStudents = async (req, res) => {
       }
     }
 
-    // Resolve Thai major names → codes via CoopCriteria.nameTh lookup
-    // หลักสูตรที่ไม่มีในระบบ: เจ้าหน้าที่ = สร้างใหม่ให้ · อาจารย์ประจำวิชา = ข้ามแถวนั้น (ดู coopTeacherRowMajor)
+    // หลักสูตรในไฟล์ → รหัสในระบบ (รหัส · ชื่อไทย · ที่เคยจับคู่ · ที่เลือกตอนนี้) — ไม่รู้จัก = ข้ามแถว ไม่สร้างหลักสูตรใหม่
     const scope = await getMajorScope(req, { ignoreFilter: true });
-    const { names: uniqueThaiMajors, map: nameThToCode } = await loadMajorLookup(normalizedRows);
-    let autoCreatedMajors = 0;
-    if (scope.all && uniqueThaiMajors.length > 0) {
-      const toCreate = uniqueThaiMajors.filter(m => !nameThToCode.has(m));
-      if (toCreate.length > 0) {
-        await prisma.coopCriteria.createMany({
-          data: toCreate.map(m => ({ major: m, nameTh: m })),
-          skipDuplicates: true,
-        });
-        for (const m of toCreate) nameThToCode.set(m, m);
-        autoCreatedMajors = toCreate.length;
-      }
-    }
+    const chosen = await parseChosenMap(req.body?.majorMap, scope);
+    if (chosen.error) return res.status(400).json({ ok: false, message: chosen.error });
+    const lookup = await loadMajorLookup(normalizedRows, chosen.map);
 
     for (let i = 0; i < normalizedRows.length; i++) {
       const norm = normalizedRows[i];
@@ -346,13 +416,9 @@ exports.importStudents = async (req, res) => {
         const existingStudentRow = studentByStudentId.get(studentId);
         const usernameOwner = userByUsername.get(email);
         let user = existingUser || null;
-        // อาจารย์ประจำวิชา: ตรวจหลักสูตรก่อนอย่างอื่น (แถวนอกหลักสูตรข้ามทั้งแถว ไม่มีคำเตือนอื่นปน)
-        let coopRowMajor = null;
-        if (!scope.all) {
-          const r = coopTeacherRowMajor(scope, norm.major, nameThToCode, existingStudentRow);
-          if (r.error) throw new Error(r.error);
-          coopRowMajor = r.major;
-        }
+        // ตรวจหลักสูตรก่อนอย่างอื่น (แถวที่หลักสูตรไม่ผ่านข้ามทั้งแถว ไม่มีคำเตือนอื่นปน)
+        const majorCheck = rowMajor(scope, norm.major, lookup, existingStudentRow);
+        if (majorCheck.error) throw new Error(majorCheck.error);
         if (existingUser) {
           if (existingUser.role && existingUser.role !== 'student') {
             throw new Error(`อีเมล '${email}' เป็นบัญชี${ROLE_TH[existingUser.role] || existingUser.role}อยู่แล้ว`);
@@ -403,10 +469,8 @@ exports.importStudents = async (req, res) => {
         }
 
         const { prefix, firstName, lastName, firstNameEn, lastNameEn,
-                year, phone, major, studyProgram, advisorName } = norm;
-
-        // Resolve Thai major name → code (e.g. "วิทยาการคอมพิวเตอร์" → "cs")
-        const resolvedMajor = coopRowMajor ?? (major ? (nameThToCode.get(major) ?? major) : null);
+                year, phone, studyProgram, advisorName } = norm;
+        const resolvedMajor = majorCheck.major;
 
         // รหัสผ่านเริ่มต้น (รหัสนักศึกษา) ให้บัญชีใหม่ และบัญชีเดิมที่ยังไม่มีรหัสผ่าน
         // บัญชีที่มีรหัสผ่านแล้ว (นักศึกษาเปลี่ยนเอง) นำเข้าซ้ำจะไม่ทับ — hash นอก transaction
@@ -472,9 +536,11 @@ exports.importStudents = async (req, res) => {
       }
     }
 
+    if (created + updated > 0) await rememberAliases(chosen.map, lookup);
+
     res.json({
       ok: true,
-      summary: { total: rows.length, created, updated, errors, autoCreatedMajors },
+      summary: { total: rows.length, created, updated, errors },
       errorRows,
     });
   } catch (err) {
