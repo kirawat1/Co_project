@@ -188,6 +188,65 @@ describe('getT000Config', () => {
 // =====================
 // getStudentsForT000
 // =====================
+// ── หน้า T000 กรองรอบที่ server (เดิมโหลดทุกรอบทุกปีมากรองในเครื่อง) ──
+describe('getStudentsForT000 — กรองรอบ', () => {
+  const stu = (id, over = {}) => ({ id, studentId: `6600${id}`, firstName: 'ก', lastName: 'ข', major: 'CS', documents: [], coop: null, coopApplicationForm: null, ...over });
+  const where = () => prisma.student.findMany.mock.calls[0][0].where.AND;
+
+  test('ไม่ส่งรอบ = ทุกรอบเหมือนเดิม · ส่งรอบ → เพิ่มเงื่อนไขรอบ · none = ยังไม่ผูกรอบ · ค่าผิด 400', async () => {
+    prisma.student.findMany.mockResolvedValue([]);
+    prisma.coopCriteria.findMany.mockResolvedValue([]);
+    await getStudentsForT000({ query: {} }, makeRes());
+    expect(where()).toHaveLength(3);
+
+    jest.clearAllMocks(); prisma.student.findMany.mockResolvedValue([]); prisma.coopCriteria.findMany.mockResolvedValue([]);
+    await getStudentsForT000({ query: { coopPeriodId: '2' } }, makeRes());
+    expect(where()).toContainEqual({ coop: { coopPeriodId: 2 } });
+
+    jest.clearAllMocks(); prisma.student.findMany.mockResolvedValue([]); prisma.coopCriteria.findMany.mockResolvedValue([]);
+    await getStudentsForT000({ query: { coopPeriodId: 'none' } }, makeRes());
+    expect(where()).toContainEqual({ OR: [{ coop: null }, { coop: { coopPeriodId: null } }] });
+
+    const res = makeRes();
+    await getStudentsForT000({ query: { coopPeriodId: 'x' } }, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+  });
+
+  test('countsOnly → นับเฉพาะแถวที่ตารางแสดง (มีไฟล์ หรือ QUALIFIED) · รอตรวจ = รอตรวจเอกสาร/ใบตอบรับ', async () => {
+    prisma.student.findMany.mockResolvedValue([
+      { coop: { coopPeriodId: 2, status: 'WAITING_FOR_STAFF_CHECK' }, _count: { documents: 3 } },
+      { coop: { coopPeriodId: 2, status: 'WAITING_FOR_STAFF_CHECK_LETTER' }, _count: { documents: 5 } },
+      { coop: { coopPeriodId: 2, status: 'QUALIFIED' }, _count: { documents: 0 } },
+      { coop: { coopPeriodId: 2, status: 'APPLYING' }, _count: { documents: 0 } }, // ไม่แสดงในตาราง → ไม่นับ
+      { coop: null, _count: { documents: 1 } },
+    ]);
+    const res = makeRes();
+    await getStudentsForT000({ query: { countsOnly: '1' } }, res);
+    expect(res.json.mock.calls[0][0].periods).toEqual([
+      { coopPeriodId: 2, count: 3, pending: 2 },
+      { coopPeriodId: null, count: 1, pending: 0 },
+    ]);
+  });
+
+  test('กรองรอบแล้ว: เพื่อนร่วมหนังสือรวมที่อยู่นอกรอบมาด้วย ติด outsidePeriod (ไม่ซ้ำคนที่อยู่ในรอบ)', async () => {
+    const a = stu(1, { coop: { coopPeriodId: 2, reqLetterBatch: 'B1' } });
+    const b = stu(2, { coop: { coopPeriodId: 1, reqLetterBatch: 'B1' } });
+    prisma.student.findMany.mockResolvedValueOnce([a]).mockResolvedValueOnce([a, b]);
+    prisma.coopCriteria.findMany.mockResolvedValue([]);
+    const res = makeRes();
+    await getStudentsForT000({ query: { coopPeriodId: '2' } }, res);
+    expect(prisma.student.findMany.mock.calls[1][0].where.AND).toContainEqual({ OR: [{ coop: { reqLetterBatch: { in: ['B1'] } } }] });
+    expect(res.json.mock.calls[0][0].map((s) => [s.id, !!s.outsidePeriod])).toEqual([[1, false], [2, true]]);
+  });
+
+  test('ไม่ส่งรอบ → ไม่ค้นเพื่อนหนังสือรวมเพิ่ม (ได้ครบอยู่แล้ว)', async () => {
+    prisma.student.findMany.mockResolvedValue([stu(1, { coop: { coopPeriodId: 2, reqLetterBatch: 'B1' } })]);
+    prisma.coopCriteria.findMany.mockResolvedValue([]);
+    await getStudentsForT000({ query: {} }, makeRes());
+    expect(prisma.student.findMany).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('getStudentsForT000', () => {
   const mockStudent = {
     id: 1,
