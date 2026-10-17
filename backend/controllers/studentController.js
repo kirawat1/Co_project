@@ -785,7 +785,8 @@ exports.resetStudentPassword = async (req, res) => {
 
     await prisma.user.update({
       where: { id: student.userId },
-      data: { password, passwordEnc: encryptPassword(defaultStudentPassword(student.studentId)) },
+      // รีเซ็ตรหัสผ่าน = เพิกถอนทุก session ของบัญชีนั้น
+      data: { password, passwordEnc: encryptPassword(defaultStudentPassword(student.studentId)), tokenVersion: { increment: 1 } },
     });
     res.json({ ok: true, message: `รีเซ็ตรหัสผ่านเป็น ${defaultStudentPassword(student.studentId)} เรียบร้อย` });
   } catch (err) {

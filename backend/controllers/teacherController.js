@@ -656,7 +656,8 @@ exports.resetTeacherPassword = async (req, res) => {
     if (!teacher) return res.status(404).json({ ok: false, message: "ไม่พบอาจารย์" });
 
     const hashed = await bcrypt.hash(newPassword, 10);
-    await prisma.user.update({ where: { id: teacher.userId }, data: { password: hashed, passwordEnc: passwordEncFor("teacher", newPassword) } });
+    // รีเซ็ตรหัสผ่าน = เพิกถอนทุก session ของบัญชีนั้น
+    await prisma.user.update({ where: { id: teacher.userId }, data: { password: hashed, passwordEnc: passwordEncFor("teacher", newPassword), tokenVersion: { increment: 1 } } });
     res.json({ ok: true, message: "รีเซ็ตรหัสผ่านเรียบร้อย" });
   } catch (err) {
     if (err.code === 'P2025') return res.status(404).json({ ok: false, message: 'ไม่พบอาจารย์' });

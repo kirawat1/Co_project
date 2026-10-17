@@ -161,7 +161,7 @@ describe('resetPassword', () => {
     const req = { params: { id: '3' }, body: { password: 'newpassword' } };
     const res = makeRes();
     await resetPassword(req, res);
-    expect(prisma.user.update).toHaveBeenCalledWith({ where: { id: 3 }, data: { password: 'hashed-password' } });
+    expect(prisma.user.update).toHaveBeenCalledWith({ where: { id: 3 }, data: { password: 'hashed-password', tokenVersion: { increment: 1 } } }); // รีเซ็ต = เพิกถอน session
     expect(res.json).toHaveBeenCalledWith({ ok: true });
   });
 });

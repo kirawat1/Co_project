@@ -62,7 +62,8 @@ exports.resetPassword = async (req, res) => {
       return res.status(404).json({ ok: false, message: 'ไม่พบเจ้าหน้าที่' });
 
     const hashed = await bcrypt.hash(password, 10);
-    await prisma.user.update({ where: { id }, data: { password: hashed } });
+    // รีเซ็ตรหัสผ่าน = เพิกถอนทุก session ของบัญชีนั้น
+    await prisma.user.update({ where: { id }, data: { password: hashed, tokenVersion: { increment: 1 } } });
     res.json({ ok: true });
   } catch (err) {
     console.error(err);
