@@ -7,7 +7,7 @@ const { changeUserEmail, normalizeEmail } = require('../utils/userEmail');
 const { removeUnreferencedUploads } = require('../utils/uploadCleanup');
 const { resolveMajorNameTh } = require('../utils/majorName');
 const { visibleStudentWhere, getMajorScope, studentWhere } = require('../utils/majorScope');
-const { studentPeriodWhere } = require('../utils/periodFilter');
+const { studentPeriodWhere, countByPeriod } = require('../utils/periodFilter');
 
 // GET /api/students/me
 exports.getMyProfile = async (req, res) => {
@@ -322,6 +322,16 @@ exports.getStudents = async (req, res) => {
     } else if (req.user?.role === 'staff') {
       // เจ้าหน้าที่: ตัวกรองหลักสูตรบนแถบบน (X-Major-Filter) — ไม่เลือก = ทุกหลักสูตร
       conditions.push(studentWhere(await getMajorScope(req)));
+    }
+
+    // countsOnly=1 → จำนวนต่อรอบ (เงื่อนไขเดียวกับรายการ ยกเว้นรอบ) — หน้าคำร้องของอาจารย์ใช้แสดง "รอตรวจ" ต่อรอบ
+    //   pending=APPLYING,PENDING_GRADE = สถานะที่นับเป็นรอตรวจ · submittedOnly=1 = เฉพาะคนที่ยื่นคำร้องแล้ว (แถวที่หน้าคำร้องแสดง)
+    if (req.query.countsOnly) {
+      const pending = new Set(String(req.query.pending || '').split(',').map((s) => s.trim()).filter(Boolean));
+      const countConditions = conditions.filter((c) => c !== period.where);
+      if (req.query.submittedOnly) countConditions.push({ coop: { status: { not: 'NOT_SUBMITTED' } } });
+      const rows = await prisma.student.findMany({ where: { AND: countConditions }, select: { coop: { select: { coopPeriodId: true, status: true } } } });
+      return res.json({ ok: true, periods: countByPeriod(rows, { periodOf: (r) => r.coop?.coopPeriodId, isPending: (r) => pending.has(r.coop?.status) }) });
     }
 
     const where = { AND: conditions };

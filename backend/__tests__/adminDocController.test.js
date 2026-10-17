@@ -146,6 +146,29 @@ describe('getCoopApplications', () => {
     );
     expect(res.json.mock.calls[0][0].ok).toBe(true);
   });
+
+  test('coopPeriodId → กรองรอบที่ server · none = ยังไม่ผูกรอบ · ค่าผิด 400', async () => {
+    prisma.studentCoop.findMany.mockResolvedValue([]);
+    await getCoopApplications({ user: { role: 'staff' }, query: { coopPeriodId: '2' } }, makeRes());
+    expect(prisma.studentCoop.findMany.mock.calls[0][0].where).toMatchObject({ coopPeriodId: 2, status: { notIn: ['NOT_SUBMITTED'] } });
+    jest.clearAllMocks(); prisma.studentCoop.findMany.mockResolvedValue([]);
+    await getCoopApplications({ user: { role: 'staff' }, query: { coopPeriodId: 'none' } }, makeRes());
+    expect(prisma.studentCoop.findMany.mock.calls[0][0].where.coopPeriodId).toBeNull();
+    const res = makeRes();
+    await getCoopApplications({ user: { role: 'staff' }, query: { coopPeriodId: '0' } }, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+  });
+
+  test('countsOnly → จำนวนต่อรอบ · รอตรวจ = APPLYING', async () => {
+    prisma.studentCoop.findMany.mockResolvedValue([
+      { coopPeriodId: 2, status: 'APPLYING' }, { coopPeriodId: 2, status: 'QUALIFIED' }, { coopPeriodId: null, status: 'APPLYING' },
+    ]);
+    const res = makeRes();
+    await getCoopApplications({ user: { role: 'staff' }, query: { countsOnly: '1' } }, res);
+    expect(res.json.mock.calls[0][0].periods).toEqual([
+      { coopPeriodId: 2, count: 2, pending: 1 }, { coopPeriodId: null, count: 1, pending: 1 },
+    ]);
+  });
 });
 
 // =====================

@@ -857,14 +857,25 @@ exports.approveAllDocs = async (req, res) => {
   }
 };
 
+/**
+ * GET /api/admin/coop-applications?coopPeriodId=<id|none|all>&countsOnly=1
+ *   ไม่ระบุรอบ = ทุกรอบ (เหมือนเดิม) · countsOnly → { ok, periods: [{ coopPeriodId, count, pending }] } (รอตรวจ = APPLYING)
+ */
 exports.getCoopApplications = async (req, res) => {
   try {
+    const period = coopPeriodWhere(req.query?.coopPeriodId);
+    if (period.error) return res.status(400).json({ ok: false, message: period.error });
     const scope = await getMajorScope(req);
+    const base = {
+      status: { notIn: ["NOT_SUBMITTED"] },
+      student: { deletedAt: null, ...studentWhere(scope) },
+    };
+    if (req.query?.countsOnly) {
+      const rows = await prisma.studentCoop.findMany({ where: base, select: { coopPeriodId: true, status: true } });
+      return res.json({ ok: true, periods: countByPeriod(rows, { periodOf: (r) => r.coopPeriodId, isPending: (r) => r.status === 'APPLYING' }) });
+    }
     const applications = await prisma.studentCoop.findMany({
-      where: {
-        status: { notIn: ["NOT_SUBMITTED"] },
-        student: { deletedAt: null, ...studentWhere(scope) },
-      },
+      where: { ...base, ...(period.where || {}) },
       include: {
         student: {
           include: {

@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import type { CSSProperties } from "react";
 import StatusBadge from "../components/StatusBadge";
 import axios from "axios";
@@ -9,7 +9,7 @@ import LoadMoreFooter from "./LoadMoreFooter";
 import { useLoadMore } from "../utils/useLoadMore";
 import { TABLE_TH, TABLE_TD, TABLE_HEADER_ROW } from "../utils/tableStyles";
 import Modal, { ModalCloseButton } from "./Modal";
-import { defaultPeriodId } from "../utils/defaultPeriod";
+import { defaultPeriodId, pendingOutside, periodCountLabel, type PeriodCount } from "../utils/defaultPeriod";
 
 // ================= TYPES =================
 interface StudentDocument { id: number; name: string; path: string; type?: string; }
@@ -44,7 +44,14 @@ export default function T_Requests() {
 
   // ✅ State สำหรับเก็บรอบปีการศึกษาและตัวกรอง
   const [coopPeriods, setCoopPeriods] = useState<CoopPeriod[]>([]);
-  const [filterPeriodId, setFilterPeriodId] = useState<string>(""); // "" = ยังไม่โหลดรอบ → ตั้งเป็นรอบที่เปิดอยู่ (utils/defaultPeriod) ครั้งแรกครั้งเดียว ไม่ทับรอบที่ผู้ใช้เลือกตอนรีเฟรช
+  const [filterPeriodId, setFilterPeriodId] = useState<string>("");
+  // รอบของรายชื่อที่โหลดมาอยู่ตอนนี้ — อนุมัติกลุ่มได้เฉพาะเมื่อตรงกับรอบที่เลือก (กันกดระหว่างกำลังโหลดรอบใหม่)
+  const [loadedPeriod, setLoadedPeriod] = useState("");
+  const [periodCounts, setPeriodCounts] = useState<PeriodCount[]>([]);
+  const filterPeriodRef = useRef(filterPeriodId);
+  filterPeriodRef.current = filterPeriodId;
+  const loadSeq = useRef(0);
+  const inPeriod = (pid: string) => filterPeriodId === "all" || (filterPeriodId === "none" ? !pid : pid === filterPeriodId); // "" = ยังไม่โหลดรอบ → ตั้งเป็นรอบที่เปิดอยู่ (utils/defaultPeriod) ครั้งแรกครั้งเดียว ไม่ทับรอบที่ผู้ใช้เลือกตอนรีเฟรช
 
   // Modal & Preview State
   const [selectedStudent, setSelectedStudent] = useState<StudentProfile | null>(null);
@@ -70,11 +77,24 @@ export default function T_Requests() {
       const resPeriods = await axios.get("/api/admin/coop-periods/all", {
         headers: { Authorization: `Bearer ${token}` }
       });
+      let period = filterPeriodRef.current;
       if (resPeriods.data?.periods) {
         setCoopPeriods(resPeriods.data.periods);
-        setFilterPeriodId(cur => cur || defaultPeriodId(resPeriods.data.periods));
+        if (!period) period = defaultPeriodId(resPeriods.data.periods);
       }
+      if (!period) period = "all";
+      // เปลี่ยนรอบ = effect โหลดให้ · รอบเดิม (หลังทำรายการ) = โหลดรอบเดิมซ้ำ
+      if (period !== filterPeriodRef.current) setFilterPeriodId(period);
+      else await loadStudents(period);
+    } catch (err) { console.error(err); }
+    setLoading(false);
+  };
 
+  /** นักศึกษาของรอบที่เลือก (server กรอง · วนทุกหน้าของรอบนั้น) + จำนวนรอตรวจต่อรอบ · ผลที่มาช้าถูกทิ้ง */
+  const loadStudents = async (period: string) => {
+    if (!period) return;
+    const seq = ++loadSeq.current;
+    try {
       // 🟢 2. ดึงนักศึกษาของที่ปรึกษา
       // /api/students แบ่งหน้า (default 50, เพดาน 100) และหน้านี้กรอง/ค้นหาฝั่ง client ทั้งหมด
       // ถ้าดึงแค่หน้าแรกเหมือนเดิม อาจารย์ประจำวิชาสหกิจที่เห็นนักศึกษาทั้งระบบ (หลักร้อยคน)
@@ -85,21 +105,31 @@ export default function T_Requests() {
       const all: StudentProfile[] = [];
       let currentPage = 1;
       let totalPages = 1;
+      const periodParam = period === "all" ? {} : { coopPeriodId: period };
+      const countsReq = axios.get("/api/students", {
+        params: { countsOnly: 1, pending: "APPLYING,PENDING_GRADE", submittedOnly: 1 },
+        headers: { Authorization: `Bearer ${token}` }
+      }).catch(() => null);
       do {
         const res = await axios.get("/api/students", {
-          params: { page: currentPage, limit: PER_PAGE },
+          params: { page: currentPage, limit: PER_PAGE, ...periodParam },
           headers: { Authorization: `Bearer ${token}` }
         });
+        if (seq !== loadSeq.current) return;
         // API คืน { data: [...], meta: {...} } หลัง pagination — unwrap ให้ถูกต้อง
         const chunk = Array.isArray(res.data) ? res.data : (res.data?.data ?? []);
         all.push(...chunk);
         totalPages = res.data?.meta?.totalPages ?? 1;
         currentPage += 1;
       } while (currentPage <= totalPages);
+      const counts = await countsReq;
+      if (seq !== loadSeq.current) return;
       setStudents(all);
+      setLoadedPeriod(period);
+      if (counts?.data?.ok) setPeriodCounts(counts.data.periods ?? []);
     } catch (err) { console.error(err); }
-    setLoading(false);
   };
+  useEffect(() => { if (filterPeriodId) loadStudents(filterPeriodId); }, [filterPeriodId]);
 
   useEffect(() => { fetchData(); }, []);
 
@@ -109,12 +139,11 @@ export default function T_Requests() {
       const isPending = s.coop?.status === "APPLYING";
 
       // 🟢 เช็ค Period ID ให้ครอบคลุมทุกจุดที่ Backend อาจจะส่งมา
+      // กันอีกชั้น: รายชื่อต้องเป็นของรอบที่เลือก (โหลดเสร็จแล้ว) และนักศึกษาอยู่ในรอบนั้นจริง
       const appPeriodId = String(s.coopPeriodId || s.coop?.coopPeriodId || "");
-      const matchPeriod = filterPeriodId === "all" || appPeriodId === filterPeriodId;
-
-      return isPending && matchPeriod;
+      return isPending && loadedPeriod === filterPeriodId && inPeriod(appPeriodId);
     });
-  }, [students, filterPeriodId]);
+  }, [students, filterPeriodId, loadedPeriod]);
 
   const handleBulkApprove = () => {
     const count = pendingList.length;
@@ -203,7 +232,7 @@ export default function T_Requests() {
 
     // 🟢 เช็ค Period ID ให้ครอบคลุม
     const appPeriodId = String(s.coopPeriodId || s.coop?.coopPeriodId || "");
-    const matchPeriod = filterPeriodId === "all" || appPeriodId === filterPeriodId;
+    const matchPeriod = inPeriod(appPeriodId);
 
     if (filterStatus === "PENDING") return matchSearch && matchPeriod && (status === "APPLYING" || status === "PENDING_GRADE");
 
@@ -248,12 +277,21 @@ export default function T_Requests() {
           <input className="input" placeholder="🔍 ค้นหารหัสนักศึกษา, ชื่อ, หรือบริษัท..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ flex: 1, minWidth: 200 }} />
 
           {/* 🟢 Dropdown เลือกปีการศึกษา */}
-          <select className="input" value={filterPeriodId} onChange={(e) => setFilterPeriodId(e.target.value)} style={{ width: 'auto', background: '#f8fafc' }}>
+          <select className="input" value={filterPeriodId} onChange={(e) => setFilterPeriodId(e.target.value)} style={{ width: 'auto', maxWidth: '100%', background: '#f8fafc' }}>
             <option value="all">📚 ทุกปีการศึกษา</option>
             {coopPeriods.map(p => (
-              <option key={p.id} value={p.id}>เทอม {p.semester}/{p.academicYear}</option>
+              <option key={p.id} value={p.id}>เทอม {p.semester}/{p.academicYear}{periodCountLabel(periodCounts, p.id)}</option>
             ))}
+            {periodCounts.some(c => c.coopPeriodId == null) && (
+              <option value="none">⏳ ยังไม่เลือกรอบ{periodCountLabel(periodCounts, "none")}</option>
+            )}
           </select>
+                    {pendingOutside(periodCounts, filterPeriodId) > 0 && (
+                        <button type="button" onClick={() => setFilterPeriodId("all")}
+                            style={{ fontSize: 12, color: '#b45309', fontWeight: 700, background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 8, padding: '6px 10px', cursor: 'pointer' }}>
+                            ⚠️ รอตรวจในรอบอื่นอีก {pendingOutside(periodCounts, filterPeriodId)} คน — ดูทุกปีการศึกษา
+                        </button>
+                    )}
 
           <select className="input" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} style={{ width: 'auto' }}>
             <option value="ALL">📋 ทุกสถานะ</option>

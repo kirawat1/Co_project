@@ -39,6 +39,22 @@ describe('getStudents', () => {
     expect(body.meta).toMatchObject({ total: 2, page: 1, limit: 50, totalPages: 1 });
   });
 
+  test('countsOnly → จำนวนต่อรอบ (ไม่จำกัดรอบ) · pending ตามสถานะที่ส่งมา · submittedOnly ตัดคนที่ยังไม่ยื่น', async () => {
+    prisma.student.findMany.mockResolvedValue([
+      { coop: { coopPeriodId: 2, status: 'APPLYING' } }, { coop: { coopPeriodId: 2, status: 'PENDING_GRADE' } },
+      { coop: { coopPeriodId: 2, status: 'QUALIFIED' } }, { coop: { coopPeriodId: null, status: 'APPLYING' } },
+    ]);
+    const res = makeRes();
+    await getStudents({ query: { countsOnly: '1', pending: 'APPLYING,PENDING_GRADE', submittedOnly: '1', coopPeriodId: '2' } }, res);
+    const cond = prisma.student.findMany.mock.calls[0][0].where.AND;
+    expect(cond).not.toContainEqual({ coop: { coopPeriodId: 2 } }); // นับทุกรอบ ไม่ใช่เฉพาะรอบที่เลือก
+    expect(cond).toContainEqual({ coop: { status: { not: 'NOT_SUBMITTED' } } });
+    expect(res.json.mock.calls[0][0].periods).toEqual([
+      { coopPeriodId: 2, count: 3, pending: 2 }, { coopPeriodId: null, count: 1, pending: 1 },
+    ]);
+    expect(prisma.student.count).not.toHaveBeenCalled();
+  });
+
   // ตัวกรองหลักสูตรบนแถบบน (X-Major-Filter) ต้องมีผลกับหน้านักศึกษาของเจ้าหน้าที่ด้วย — เดิมถูกข้ามเฉพาะ endpoint นี้
   test('เจ้าหน้าที่ + X-Major-Filter: CS → กรองเฉพาะนักศึกษา CS', async () => {
     prisma.student.findMany.mockResolvedValue([]);
