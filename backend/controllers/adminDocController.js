@@ -942,6 +942,12 @@ exports.updateCoopApplicationStatus = async (req, res) => {
   }
 };
 
+// รายชื่อในหน้าตรวจ T002/T003 = มีไฟล์แบบฟอร์มนั้น หรือสถานะอยู่ในขั้นนั้น (ตรงกับที่หน้าเว็บเคยกรองเอง)
+const REVIEW_LISTS = {
+    T002: { docType: 'T002_FORM', statuses: ['T002_SUBMITTED', 'T002_EDITS_REQUIRED', 'INTERNSHIP_STARTED'] },
+    T003: { docType: 'T003_FORM', statuses: ['T003_SUBMITTED', 'T003_EDITS_REQUIRED', 'T003_APPROVED', 'INTERNSHIP_STARTED'] },
+};
+
 exports.getAllStudentsForReview = async (req, res) => {
     try {
         const coopPeriodId = req.query.coopPeriodId
@@ -951,6 +957,10 @@ exports.getAllStudentsForReview = async (req, res) => {
             return res.status(400).json({ ok: false, message: 'coopPeriodId ไม่ถูกต้อง' });
         const search = (req.query.search || "").trim();
         const status = (req.query.status || "").trim();
+        // review=T002|T003 — หน้าตรวจเอกสาร: เฉพาะนักศึกษาที่มีแบบฟอร์มนั้นหรืออยู่ในขั้นนั้น + แนบเฉพาะไฟล์แบบฟอร์มนั้น
+        // เดิมหน้าเว็บโหลดนักศึกษาทุกคนพร้อมเอกสารทุกไฟล์มากรองเอง (ช้าลงทุกปี และเกิน 1000 คนถูกตัดเงียบๆ)
+        const review = req.query.review ? REVIEW_LISTS[String(req.query.review).toUpperCase()] : null;
+        if (req.query.review && !review) return res.status(400).json({ ok: false, message: 'review ต้องเป็น T002 หรือ T003' });
 
         const page = Math.max(1, parseInt(req.query.page, 10) || 1);
         // ไม่ระบุ limit มา = ขอข้อมูลทั้งหมด (หลาย caller เดิมพึ่งพา behavior นี้ไปกรองฝั่ง client เอง)
@@ -964,6 +974,7 @@ exports.getAllStudentsForReview = async (req, res) => {
         const conditions = [{ deletedAt: null }, await visibleStudentWhere(req)];
         if (coopPeriodId) conditions.push({ coop: { coopPeriodId } });
         if (status) conditions.push({ coop: { status } });
+        if (review) conditions.push({ OR: [{ documents: { some: { type: review.docType } } }, { coop: { status: { in: review.statuses } } }] });
         if (search) {
             conditions.push({
                 OR: [
@@ -986,7 +997,7 @@ exports.getAllStudentsForReview = async (req, res) => {
                             company: true
                         }
                     },
-                    documents: true,
+                    documents: review ? { where: { type: review.docType } } : true,
                     generalAdvisor: { select: { id: true, firstName: true, lastName: true } },
                     coopAdvisor: { select: { id: true, firstName: true, lastName: true } }
                 }

@@ -89,6 +89,32 @@ describe('getAllStudentsForReview', () => {
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json.mock.calls[0][0].ok).toBe(false);
   });
+
+  // หน้าตรวจ T002/T003: เดิมโหลดทุกคนพร้อมเอกสารทุกไฟล์มากรองเอง (เกิน 1000 คนถูกตัดเงียบๆ)
+  test.each([
+    ['T003', 'T003_FORM', ['T003_SUBMITTED', 'T003_EDITS_REQUIRED', 'T003_APPROVED', 'INTERNSHIP_STARTED']],
+    ['t002', 'T002_FORM', ['T002_SUBMITTED', 'T002_EDITS_REQUIRED', 'INTERNSHIP_STARTED']],
+  ])('review=%s → server กรอง (มีไฟล์แบบฟอร์ม หรือสถานะอยู่ในขั้นนั้น) + แนบเฉพาะไฟล์แบบฟอร์มนั้น', async (review, docType, statuses) => {
+    prisma.student.findMany.mockResolvedValue([]);
+    prisma.student.count.mockResolvedValue(0);
+    const res = makeRes();
+    await getAllStudentsForReview({ user: { role: 'staff' }, query: { review, coopPeriodId: '2' } }, res);
+    const arg = prisma.student.findMany.mock.calls[0][0];
+    expect(arg.where.AND).toContainEqual({ OR: [{ documents: { some: { type: docType } } }, { coop: { status: { in: statuses } } }] });
+    expect(arg.where.AND).toContainEqual({ coop: { coopPeriodId: 2 } });
+    expect(arg.include.documents).toEqual({ where: { type: docType } });
+  });
+
+  test('ไม่ระบุ review → เอกสารครบทุกไฟล์เหมือนเดิม · review ไม่รู้จัก → 400', async () => {
+    prisma.student.findMany.mockResolvedValue([]);
+    prisma.student.count.mockResolvedValue(0);
+    await getAllStudentsForReview({ user: { role: 'staff' }, query: {} }, makeRes());
+    expect(prisma.student.findMany.mock.calls[0][0].include.documents).toBe(true);
+
+    const res = makeRes();
+    await getAllStudentsForReview({ user: { role: 'staff' }, query: { review: 'T009' } }, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+  });
 });
 
 describe('getCoopApplications', () => {

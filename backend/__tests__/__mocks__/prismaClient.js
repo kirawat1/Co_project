@@ -220,6 +220,7 @@ const prismaMock = {
     update: jest.fn(),
     updateMany: jest.fn(),
     delete: jest.fn(),
+    deleteMany: jest.fn(),
     count: jest.fn(),
   },
   feedback: {
