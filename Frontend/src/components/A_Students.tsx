@@ -17,6 +17,7 @@ import { TABLE_TH, TABLE_TD, TABLE_HEADER_ROW } from "../utils/tableStyles";
 import Modal, { ModalCloseButton } from "./Modal";
 import { useAdminRole } from "./adminRole";
 import A_MovePeriodModal, { MOVE_BLOCKED_STATUSES } from "./A_MovePeriodModal";
+import { defaultPeriodId } from "../utils/defaultPeriod";
 
 function safeHref(url: string | null | undefined): string | undefined {
   if (!url) return undefined;
@@ -221,7 +222,7 @@ export default function A_Students() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [pageTab, setPageTab] = useState<"list" | "trash">("list");
   const [coopPeriods, setCoopPeriods] = useState<CoopPeriod[]>([]);
-  const [selectedPeriodId, setSelectedPeriodId] = useState<string>("all");
+  const [selectedPeriodId, setSelectedPeriodId] = useState<string>(""); // "" = ยังไม่โหลดรอบ → ตั้งเป็นรอบที่เปิดอยู่ (utils/defaultPeriod) ครั้งแรกครั้งเดียว ไม่ทับรอบที่ผู้ใช้เลือกตอนรีเฟรช
   const PAGE_SIZE = 50;
   const [sortBy, setSortBy] = useState<'studentId' | 'firstName' | 'lastName' | 'studyProgram'>('studentId');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
@@ -249,7 +250,7 @@ export default function A_Students() {
   const fetchStudentsPage = async (page: number) => {
     try {
       const params = new URLSearchParams({ page: String(page), limit: String(PAGE_SIZE), sortBy, sortDir });
-      if (selectedPeriodId !== "all") params.set("coopPeriodId", selectedPeriodId);
+      if (selectedPeriodId && selectedPeriodId !== "all") params.set("coopPeriodId", selectedPeriodId);
       if (debouncedQ.trim()) params.set("search", debouncedQ.trim());
       if (filterStatuses.length > 0) params.set("statuses", filterStatuses.join(','));
       if (filterCurriculums.length > 0) params.set("studyProgram", filterCurriculums.join(','));
@@ -272,11 +273,16 @@ export default function A_Students() {
     try {
       setLoading(true);
 
+      let period = selectedPeriodId;
       const resPeriods = await apiFetch("/api/admin/coop-periods/all");
       if (resPeriods.ok) {
         const data = await resPeriods.json();
-        if (data?.periods) setCoopPeriods(data.periods);
+        if (data?.periods) {
+          setCoopPeriods(data.periods);
+          if (!period) period = defaultPeriodId(data.periods);
+        }
       }
+      if (!period) period = "all";
 
       // สาขาวิชาจากหน้าจัดการสาขา (admin/criteria) — ใช้ในตัวกรอง คอลัมน์สาขา และหน้าต่างดูข้อมูล
       const resDept = await apiFetch("/api/coop/departments").catch(() => null);
@@ -285,7 +291,9 @@ export default function A_Students() {
         if (d.ok && Array.isArray(d.departments)) setDepartments(d.departments);
       }
 
-      await reloadStudents();
+      // เปลี่ยนรอบ → resetKey เปลี่ยน → useInfinitePages โหลดใหม่เอง (เรียก reload ตรงนี้จะได้รอบเดิมจาก closure)
+      if (period !== selectedPeriodId) setSelectedPeriodId(period);
+      else await reloadStudents();
     } catch (err) {
       console.error(err);
     } finally {

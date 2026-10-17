@@ -19,6 +19,7 @@ import { TABLE_TH, TABLE_TD, TABLE_HEADER_ROW } from "../utils/tableStyles";
 import { useAdminRole } from "./adminRole";
 import { getMajorFilter, NO_MAJOR } from "../utils/majorFilter";
 import LetterZipModal, { LetterZipButton } from "./LetterZipModal";
+import { defaultPeriod, defaultPeriodId } from "../utils/defaultPeriod";
 
 // --- Types ---
 type SupervisionStatus = "PENDING_TEACHER" | "TEACHER_REJECTED" | "DATE_CONFIRMED" | "LETTER_UPLOADED" | "COMPLETED";
@@ -133,7 +134,7 @@ export default function A_SupervisionManage() {
 
     // State สำหรับค้นหาและกรองตาราง
     const [q, setQ] = useState("");
-    const [filterPeriodId, setFilterPeriodId] = useState<string>("all");
+    const [filterPeriodId, setFilterPeriodId] = useState<string>(""); // "" = ยังไม่โหลดรอบ → รอบที่เปิดอยู่ (ครั้งแรกครั้งเดียว)
     const [zipOpen, setZipOpen] = useState(false); // หน้าต่างดาวน์โหลดหนังสือขอนิเทศ (zip)
     const [filterCompany, setFilterCompany] = useState<string>("all");
     // หนังสือขอนิเทศ: TO_ISSUE = ยืนยันวันแล้วยังไม่ได้โหลดร่าง · PENDING_SIGN = โหลดร่างไปรอลงนามแล้ว
@@ -156,8 +157,9 @@ export default function A_SupervisionManage() {
                 setCoopPeriods(periods);
                 // โหลดใหม่หลังบันทึก → คงรอบที่เลือกไว้
                 const keep = selectedPeriodId ? periods.find(p => p.id === selectedPeriodId) : undefined;
-                const activePeriod = keep || periods.find(p => p.isActive === true) || periods[0];
+                const activePeriod = keep || defaultPeriod(periods);
                 if (activePeriod) handleSelectPeriod(activePeriod.id, periods);
+                setFilterPeriodId(cur => cur || defaultPeriodId(periods));
             }
 
             // 2. ดึงรายชื่อการนิเทศ

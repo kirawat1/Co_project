@@ -2,7 +2,8 @@
 import type { CSSProperties } from "react";
 import axios from "axios";
 import { apiFetch } from "../utils/apiFetch";
-import { defaultReviewPeriod, loadReviewCounts, loadReviewStudents, pendingOutside, periodCountLabel, type PeriodCount } from "../utils/reviewStudents";
+import { defaultPeriodId } from "../utils/defaultPeriod";
+import { loadReviewCounts, loadReviewStudents, pendingOutside, periodCountLabel, type PeriodCount } from "../utils/reviewStudents";
 import AutoTextarea from "./AutoTextarea";
 import DateInput from './DateInput';
 import LoadMoreFooter from "./LoadMoreFooter";
@@ -74,7 +75,7 @@ export default function A_T002Review() {
     const fetchAllData = async () => {
         setLoading(true);
         try {
-            // ครั้งแรกเลือกรอบล่าสุดที่มีงานรอตรวจ (เดิม "ทุกปีการศึกษา" — รายชื่อยาวขึ้นทุกปี)
+            // ครั้งแรกเปิดที่รอบที่เปิดอยู่ (utils/defaultPeriod) · งานค้างรอบอื่นขึ้นปุ่มเตือน (pendingOutside)
             let period = selectedPeriod;
             const [resPeriods, counts] = await Promise.all([apiFetch("/api/admin/coop-periods/all"), loadReviewCounts("T002")]);
             setPeriodCounts(counts);
@@ -82,7 +83,7 @@ export default function A_T002Review() {
                 const periodsData = await resPeriods.json();
                 if (periodsData.ok && periodsData.periods) {
                     setCoopPeriods(periodsData.periods);
-                    if (!period) period = defaultReviewPeriod(periodsData.periods, counts);
+                    if (!period) period = defaultPeriodId(periodsData.periods);
                 }
             }
             if (!period) period = "all";

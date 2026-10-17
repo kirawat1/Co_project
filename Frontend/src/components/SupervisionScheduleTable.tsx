@@ -5,6 +5,7 @@ import { fmtDate } from "../utils/dateFormat";
 import { apiFetch } from "../utils/apiFetch";
 import { notify } from "../utils/notify";
 import { TABLE_TH, TABLE_TD, TABLE_HEADER_ROW } from "../utils/tableStyles";
+import { defaultPeriod } from "../utils/defaultPeriod";
 
 /**
  * ตารางนิเทศเรียงตามวัน-เวลา — ใครนิเทศ เมื่อไหร่ ใครเป็นผู้นิเทศ
@@ -41,7 +42,8 @@ export default function SupervisionScheduleTable({ events, canExport = false, ex
                 if (!alive) return;
                 const list: CoopPeriod[] = Array.isArray(data?.periods) ? data.periods : [];
                 setPeriods(list);
-                if (list.length) setPeriodId(list[0].id);
+                const def = defaultPeriod(list); // รอบที่เปิดอยู่ (ไม่มี = รอบใหม่สุด)
+                if (def) setPeriodId(def.id);
             })
             // โหลดรายชื่อรอบไม่ได้ก็ยัง export ได้ (จะได้ทุกรอบ) — ไม่ต้องขวางการใช้งาน
             .catch(() => { if (alive) setPeriods([]); });

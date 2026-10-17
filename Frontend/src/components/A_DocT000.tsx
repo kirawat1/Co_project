@@ -16,6 +16,7 @@ import { useAdminRole } from "./adminRole";
 import { appliesTo } from "../utils/docRequirementScope";
 import MajorConfigTabs from "./MajorConfigTabs";
 import LetterZipModal, { LetterZipButton, toolbarBtn } from "./LetterZipModal";
+import { defaultPeriodId } from "../utils/defaultPeriod";
 
 // --- Interfaces ---
 interface StudentDocument {
@@ -168,7 +169,7 @@ export default function A_DocT000() {
 
     // State ปีการศึกษา
     const [coopPeriods, setCoopPeriods] = useState<any[]>([]);
-    const [selectedPeriod, setSelectedPeriod] = useState<string>("all");
+    const [selectedPeriod, setSelectedPeriod] = useState<string>(""); // "" = ยังไม่โหลดรอบ → ตั้งเป็นรอบที่เปิดอยู่ (utils/defaultPeriod) ครั้งแรกครั้งเดียว ไม่ทับรอบที่ผู้ใช้เลือกตอนรีเฟรช
     const [zipOpen, setZipOpen] = useState(false); // หน้าต่างดาวน์โหลดหนังสือ (zip)
 
     const [issueModalData, setIssueModalData] = useState<StudentProfile | null>(null);
@@ -265,7 +266,10 @@ export default function A_DocT000() {
             const resPeriods = await apiFetch("/api/admin/coop-periods/all");
             if (resPeriods.ok) {
                 const periodsData = await resPeriods.json();
-                if (periodsData.ok && periodsData.periods) setCoopPeriods(periodsData.periods);
+                if (periodsData.ok && periodsData.periods) {
+                    setCoopPeriods(periodsData.periods);
+                    setSelectedPeriod(cur => cur || defaultPeriodId(periodsData.periods));
+                }
             }
 
         } catch (err) { console.error(err); }
