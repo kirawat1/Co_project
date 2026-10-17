@@ -110,7 +110,7 @@ export default function A_Settings() {
           <span style={{ fontSize: 12, color: '#64748b' }}>ใช้สำหรับพิมพ์ชื่อในหนังสือส่งตัว / ขอความอนุเคราะห์</span>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 20, maxWidth: 800 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: 20, maxWidth: 800 }}>
           <div>
             <label className="label" style={lbl}>ชื่อ-นามสกุล (พร้อมคำนำหน้า)</label>
             <input
@@ -145,7 +145,7 @@ export default function A_Settings() {
           <span style={{ fontSize: 12, color: '#64748b' }}>ใช้ประกอบการสร้างหนังสือส่งตัวอัตโนมัติ</span>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: 20 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 350px), 1fr))', gap: 20 }}>
           {ASSET_KEYS.map((item) => {
             const current = assets.find(a => a.key === item.key);
             const fileUrl = current ? `/uploads/system/${current.path}` : null;

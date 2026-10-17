@@ -105,7 +105,7 @@ export default function AnnouncementRooms() {
 
             {!room ? (
                 /* ── การ์ดห้อง ── */
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 16 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 240px), 1fr))", gap: 16 }}>
                     {loading && !rooms.length ? <div style={empty}>กำลังโหลด...</div> : rooms.map((r) => {
                         const m = roomMeta(r.room);
                         const n = r.room === GLOBAL_ROOM ? r.count : r.ownCount;

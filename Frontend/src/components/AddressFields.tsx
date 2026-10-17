@@ -69,7 +69,7 @@ export default function AddressFields({ form, prefix, onChange, legacyValue, dis
 
 const grid: CSSProperties = {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+    gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 150px), 1fr))",
     gap: 12,
 };
 const defaultLabel: CSSProperties = {

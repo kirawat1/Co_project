@@ -160,7 +160,7 @@ const DispatchManagementCard = ({ profile, onUpload, onRefresh }: { profile: any
       <h3 style={{ margin: "0 0 20px 0", color: "#6b21a8", display: 'flex', alignItems: 'center', gap: 10, borderBottom: '2px solid #e9d5ff', paddingBottom: 12, fontSize: 20 }}>
         🚀 ขั้นตอนที่ 4: รับหนังสือขอความอนุเคราะห์ & อัปโหลดใบตอบรับ
       </h3>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 350px), 1fr))', gap: 24 }}>
 
         {/* BOX 1: หนังสืออนุเคราะห์ */}
         <div style={{ background: 'white', padding: 20, borderRadius: 12, border: '1px solid #e9d5ff', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
@@ -537,14 +537,14 @@ export default function S_Docs({ profile, setProfile }: { profile: LocalStudentP
                 onChange={(photoPath) => setFormData(prev => ({ ...prev, photoPath }))}
               />
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 20 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 250px), 1fr))', gap: 20 }}>
               <div><label style={lbl}>ตำแหน่งงานที่สมัคร (Job Position):</label><input className="input" value={profile.jobPosition || ""} onChange={e => handleUpdateProfileField("jobPosition", e.target.value)} placeholder="Ex. Software Engineer" /></div>
               <div><label style={lbl}>อาจารย์ที่ปรึกษา (Advisor):</label><input className="input" value={profile.advisorName || "-"} disabled style={{ backgroundColor: '#f1f5f9', color: '#64748b', cursor: 'not-allowed' }} /></div>
             </div>
           </div>
 
           {/* ข้อมูลติดต่อ */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: 24 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 350px), 1fr))', gap: 24 }}>
             <div style={{ background: '#fff', padding: 20, borderRadius: 12, border: '1px solid #e2e8f0', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
               <h4 style={{ margin: '0 0 16px 0', color: '#334155', borderBottom: '1px dashed #cbd5e1', paddingBottom: 8 }}>📍 ข้อมูลติดต่อของนักศึกษา (ปัจจุบัน)</h4>
               <label style={lbl}>ที่อยู่:</label>
@@ -592,7 +592,7 @@ export default function S_Docs({ profile, setProfile }: { profile: LocalStudentP
             {(!formData.startDate || !formData.endDate) && (
               <div style={{ fontSize: 12, color: '#dc2626', marginBottom: 12, fontWeight: 600 }}>⚠️ กรุณากรอกวันที่ก่อนสร้าง PDF</div>
             )}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 20, marginBottom: 16 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: 20, marginBottom: 16 }}>
               <div><label style={{ ...lbl, color: !formData.startDate ? '#dc2626' : undefined }}>วันที่เริ่มฝึก: <span style={{ color: '#dc2626' }}>*</span></label><DateInput className="input" style={!formData.startDate ? { borderColor: '#fca5a5' } : undefined} value={formData.startDate || ""} onChange={e => setFormData({ ...formData, startDate: e.target.value })} /></div>
               <div><label style={{ ...lbl, color: !formData.endDate ? '#dc2626' : undefined }}>ถึงวันที่: <span style={{ color: '#dc2626' }}>*</span></label><DateInput className="input" style={!formData.endDate ? { borderColor: '#fca5a5' } : undefined} value={formData.endDate || ""} onChange={e => setFormData({ ...formData, endDate: e.target.value })} /></div>
             </div>
@@ -613,7 +613,7 @@ export default function S_Docs({ profile, setProfile }: { profile: LocalStudentP
           ตรวจสอบและพิมพ์เอกสาร PDF
         </h2>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 20 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: 20 }}>
           {/* T000 */}
           <div style={{ background: '#fff', padding: 20, borderRadius: 12, border: '1px solid #93c5fd', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>

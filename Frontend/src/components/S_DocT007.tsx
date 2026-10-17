@@ -80,7 +80,7 @@ export default function S_DocT007() {
             </div>
 
             {/* กล่องลิงก์ T007 */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: 24 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 350px), 1fr))', gap: 24 }}>
                 <div className="card link-box">
                     <div className="icon-wrapper bg-purple">🏢</div>
                     <div className="content">

@@ -54,7 +54,7 @@ export default function ContactForm({ companyId, contact, onSaved, onCancel }: {
       role="group"
       aria-label="ข้อมูลผู้ติดต่อ"
       onKeyDown={(e) => { if (e.key === "Enter" && (e.target as HTMLElement).tagName === "INPUT") { e.preventDefault(); submit(); } }}
-      style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
+      style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 200px), 1fr))", gap: 12 }}>
       {FIELDS.map(([key, label, ph]) => (
         <label key={key} style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 13, fontWeight: 600 }}>
           {label}

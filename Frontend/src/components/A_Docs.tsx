@@ -245,13 +245,13 @@ const row: React.CSSProperties = {
 
 const ROW_MOBILE_CSS = `
   @media (max-width: 768px) {
-    .doc-row { grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)) !important; }
+    .doc-row { grid-template-columns: repeat(auto-fit, minmax(min(100%, 100px), 1fr)) !important; }
   }
 `;
 
 const formGrid: React.CSSProperties = {
   display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+  gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 140px), 1fr))",
   gap: 16,
   marginBottom: 24,
 };

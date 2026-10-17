@@ -117,7 +117,7 @@ export default function S_DocT005_006() {
                 </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: 24 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 350px), 1fr))', gap: 24 }}>
 
                 {/* กล่องลิงก์ T005 */}
                 <div className="card link-box">

@@ -90,7 +90,7 @@ export default function LetterZipModal({ types, periods, defaultPeriodId, onClos
                     </div>
                 )}
 
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 200px), 1fr))", gap: 12 }}>
                     <label>
                         <div style={labelStyle}>รอบสหกิจ</div>
                         <select className="input" value={periodId} onChange={(e) => setPeriodId(e.target.value)} style={{ width: "100%" }}>
