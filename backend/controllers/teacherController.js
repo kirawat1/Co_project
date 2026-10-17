@@ -4,6 +4,7 @@ const { buildStudentExportWorkbook, exportBaseUrl, STUDENT_EXPORT_INCLUDE } = re
 const { changeUserEmail } = require('../utils/userEmail');
 const { parseCoopMajors, setCoopMajors } = require('../utils/coopMajors');
 const { visibleStudentWhere, getMajorScope, inScope } = require('../utils/majorScope');
+const { studentPeriodWhere } = require('../utils/periodFilter');
 
 // หลักสูตรที่อาจารย์ประจำวิชาดูแล → ส่งให้หน้าเว็บเป็น coopMajors: ['CS', ...]
 const TEACHER_COOP_MAJORS = { coopMajors: { select: { major: true }, orderBy: { major: 'asc' } } };
@@ -740,14 +741,14 @@ exports.getMyStudents = async (req, res) => {
     const search = (req.query.search || "").trim();
     const statuses = req.query.statuses ? req.query.statuses.split(',').filter(Boolean) : [];
     const studyPrograms = req.query.studyProgram ? req.query.studyProgram.split(',').filter(Boolean) : [];
-    const coopPeriodId = req.query.coopPeriodId ? parseInt(req.query.coopPeriodId) : undefined;
-    if (coopPeriodId !== undefined && isNaN(coopPeriodId))
-      return res.status(400).json({ ok: false, message: 'coopPeriodId ไม่ถูกต้อง' });
+    // รอบ: ตัวเลข · none = ยังไม่เลือกรอบ · ไม่ระบุ/all = ทุกคน
+    const period = studentPeriodWhere(req.query.coopPeriodId);
+    if (period.error) return res.status(400).json({ ok: false, message: period.error });
 
     const baseConditions = [
       { deletedAt: null },
       ...(search ? [{ OR: [{ firstName: { contains: search } }, { lastName: { contains: search } }, { studentId: { contains: search } }] }] : []),
-      ...(coopPeriodId ? [{ coop: { coopPeriodId } }] : []),
+      ...(period.where ? [period.where] : []),
       ...(statuses.length > 0 ? [{ coop: { status: { in: statuses } } }] : []),
       ...(studyPrograms.length > 0 ? [{ studyProgram: { in: studyPrograms } }] : []),
     ];

@@ -7,6 +7,7 @@ const { changeUserEmail, normalizeEmail } = require('../utils/userEmail');
 const { removeUnreferencedUploads } = require('../utils/uploadCleanup');
 const { resolveMajorNameTh } = require('../utils/majorName');
 const { visibleStudentWhere, getMajorScope, studentWhere } = require('../utils/majorScope');
+const { studentPeriodWhere } = require('../utils/periodFilter');
 
 // GET /api/students/me
 exports.getMyProfile = async (req, res) => {
@@ -273,11 +274,9 @@ exports.getStudents = async (req, res) => {
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 50));
     const skip = (page - 1) * limit;
 
-    const coopPeriodId = req.query.coopPeriodId
-      ? parseInt(req.query.coopPeriodId, 10)
-      : undefined;
-    if (coopPeriodId !== undefined && isNaN(coopPeriodId))
-      return res.status(400).json({ ok: false, message: 'coopPeriodId ไม่ถูกต้อง' });
+    // รอบ: ตัวเลข · none = ยังไม่เลือกรอบ · ไม่ระบุ/all = ทุกคน
+    const period = studentPeriodWhere(req.query.coopPeriodId);
+    if (period.error) return res.status(400).json({ ok: false, message: period.error });
     const search = (req.query.search || "").trim();
     const statuses = req.query.statuses ? req.query.statuses.split(',').filter(Boolean) : [];
     const studyPrograms = req.query.studyProgram ? req.query.studyProgram.split(',').filter(Boolean) : [];
@@ -289,7 +288,7 @@ exports.getStudents = async (req, res) => {
     const sortDir = req.query.sortDir === 'desc' ? 'desc' : 'asc';
 
     const conditions = [{ deletedAt: null }];
-    if (coopPeriodId) conditions.push({ coop: { coopPeriodId } });
+    if (period.where) conditions.push(period.where);
     if (statuses.length > 0) conditions.push({ coop: { status: { in: statuses } } });
     if (studyPrograms.length > 0) conditions.push({ studyProgram: { in: studyPrograms } });
     if (majors.length > 0) {

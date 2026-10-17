@@ -7,7 +7,6 @@ import LoadMoreFooter from "./LoadMoreFooter";
 import { useInfinitePages } from "../utils/useInfinitePages";
 import { contactName } from "../utils/contacts";
 import Modal, { ModalCloseButton } from "./Modal";
-import { defaultPeriodId } from "../utils/defaultPeriod";
 
 function safeHref(url: string | null | undefined): string | undefined {
   if (!url) return undefined;
@@ -136,7 +135,8 @@ export default function T_Students({ isCoopTeacher = false }: Props) {
   const [q, setQ] = useState("");
   const debouncedQ = useDebounce(q, 300);
   const [coopPeriods, setCoopPeriods] = useState<CoopPeriod[]>([]);
-  const [selectedPeriod, setSelectedPeriod] = useState<string>(""); // "" = ยังไม่โหลดรอบ → ตั้งเป็นรอบที่เปิดอยู่ (utils/defaultPeriod) ครั้งแรกครั้งเดียว ไม่ทับรอบที่ผู้ใช้เลือกตอนรีเฟรช
+  // รายชื่อนักศึกษาทุกคน (รวมคนที่ยังไม่ยื่นคำร้อง) → เปิดที่ทุกปีการศึกษา · "none" = ยังไม่เลือกรอบ
+  const [selectedPeriod, setSelectedPeriod] = useState<string>("all");
 
   const [filterCurriculum, setFilterCurriculum] = useState<string>("all");
   const [activeStatusGroup, setActiveStatusGroup] = useState<string>("ALL");
@@ -151,7 +151,7 @@ export default function T_Students({ isCoopTeacher = false }: Props) {
 
   const fetchStudentsPage = async (pageNum: number) => {
     const params = new URLSearchParams({ limit: "50", page: String(pageNum) });
-    if (selectedPeriod && selectedPeriod !== "all") params.set("coopPeriodId", selectedPeriod);
+    if (selectedPeriod !== "all") params.set("coopPeriodId", selectedPeriod);
     if (debouncedQ.trim()) params.set("search", debouncedQ.trim());
     if (statusGroupFilter.length > 0) params.set("statuses", statusGroupFilter.join(','));
     if (filterCurriculum && filterCurriculum !== "all") params.set("studyProgram", filterCurriculum);
@@ -179,19 +179,13 @@ export default function T_Students({ isCoopTeacher = false }: Props) {
   const fetchData = async () => {
     setLoading(true);
     try {
-      let period = selectedPeriod;
       const resPeriods = await apiFetch("/api/admin/coop-periods/all");
       if (resPeriods.ok) {
         const dataPeriods = await resPeriods.json();
-        if (dataPeriods?.periods) {
-          setCoopPeriods(dataPeriods.periods);
-          if (!period) period = defaultPeriodId(dataPeriods.periods);
-        }
+        if (dataPeriods?.periods) setCoopPeriods(dataPeriods.periods);
       }
-      if (!period) period = "all";
-      // เปลี่ยนรอบ → resetKey เปลี่ยน → useInfinitePages โหลดใหม่เอง (เรียก reload ตรงนี้จะได้รอบเดิมจาก closure)
-      if (period !== selectedPeriod) setSelectedPeriod(period);
-      else await reloadStudents();
+
+      await reloadStudents();
     } catch (err) {
       console.error("Error fetching data:", err);
     } finally {
@@ -254,6 +248,7 @@ export default function T_Students({ isCoopTeacher = false }: Props) {
 
           <select className="input soft" style={{ width: 'auto' }} value={selectedPeriod} onChange={e => setSelectedPeriod(e.target.value)}>
             <option value="all">📚 ทุกปีการศึกษา</option>
+            <option value="none">⏳ ยังไม่เลือกรอบ (ยังไม่ยื่นคำร้อง)</option>
             {coopPeriods.map(p => (
               <option key={p.id} value={String(p.id)}>เทอม {p.semester} / {p.academicYear}</option>
             ))}
