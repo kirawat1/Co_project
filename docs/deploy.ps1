@@ -32,7 +32,8 @@ function Get-PM2Online($name) {
     return ($lines | Where-Object { $_ -match [regex]::Escape($name) -and $_ -match "online" }).Count -gt 0
 }
 
-Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force 2>$null
+# Harmless when a more specific scope (e.g. "powershell -ExecutionPolicy Bypass") already overrides it — swallow that warning
+try { Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force -ErrorAction Stop } catch {}
 
 # --- START SERVICES ------------------------------------------------
 if (-not $UpdateOnly) {

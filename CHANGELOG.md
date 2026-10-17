@@ -1,5 +1,9 @@
 # CHANGELOG — Co_project
 
+## [2026-10-17] chore: deploy.ps1 ไม่ขึ้นข้อความแดง Set-ExecutionPolicy
+
+- รันด้วย `powershell -ExecutionPolicy Bypass -File deploy.ps1` แล้วบรรทัดตั้ง execution policy ขึ้น SecurityException สีแดง (ไม่กระทบการ deploy — policy ระดับที่สูงกว่าบังคับอยู่แล้ว) → ครอบ try/catch
+
 ## [2026-10-17] feat: หน้ารายชื่อนักศึกษาเปิดที่ทุกปีการศึกษา + ตัวเลือก "ยังไม่เลือกรอบ"
 
 ### Changed
