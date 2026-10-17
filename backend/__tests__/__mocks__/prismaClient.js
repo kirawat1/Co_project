@@ -45,6 +45,7 @@ const prismaMock = {
     delete: jest.fn(),
   },
   studentCoop: {
+    groupBy: jest.fn(),
     findUnique: jest.fn(),
     findFirst: jest.fn(),
     findMany: jest.fn(),

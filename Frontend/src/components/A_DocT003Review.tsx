@@ -1,7 +1,7 @@
 ﻿import React, { useState, useEffect, useMemo } from "react";
 import type { CSSProperties } from "react";
 import { apiFetch } from "../utils/apiFetch";
-import { latestPeriodId, loadReviewStudents } from "../utils/reviewStudents";
+import { defaultReviewPeriod, loadReviewCounts, loadReviewStudents, pendingOutside, periodCountLabel, type PeriodCount } from "../utils/reviewStudents";
 import { useToast } from "./Toast";
 import ConfirmDialog from "./ConfirmDialog";
 import AutoTextarea from "./AutoTextarea";
@@ -55,6 +55,7 @@ export default function A_DocT003Review() {
     const [coopPeriods, setCoopPeriods] = useState<any[]>([]);
     const [selectedPeriod, setSelectedPeriod] = useState<string>(""); // "" = ยังไม่โหลดรอบ → ตั้งเป็นรอบล่าสุด
     const [listTotal, setListTotal] = useState(0);
+    const [periodCounts, setPeriodCounts] = useState<PeriodCount[]>([]);
     const [searchTerm, setSearchTerm] = useState("");
 
     const [modalOpen, setModalOpen] = useState(false);
@@ -98,14 +99,15 @@ export default function A_DocT003Review() {
     const fetchAllData = async () => {
         setLoading(true);
         try {
-            // ครั้งแรกเลือกรอบล่าสุดให้ (เดิม "ทุกปีการศึกษา" — รายชื่อยาวขึ้นทุกปี)
+            // ครั้งแรกเลือกรอบล่าสุดที่มีงานรอตรวจ (เดิม "ทุกปีการศึกษา" — รายชื่อยาวขึ้นทุกปี)
             let period = selectedPeriod;
-            const resPeriods = await apiFetch("/api/admin/coop-periods/all");
+            const [resPeriods, counts] = await Promise.all([apiFetch("/api/admin/coop-periods/all"), loadReviewCounts("T003")]);
+            setPeriodCounts(counts);
             if (resPeriods.ok) {
                 const periodsData = await resPeriods.json();
                 if (periodsData.ok && periodsData.periods) {
                     setCoopPeriods(periodsData.periods);
-                    if (!period) period = latestPeriodId(periodsData.periods);
+                    if (!period) period = defaultReviewPeriod(periodsData.periods, counts);
                 }
             }
             if (!period) period = "all";
@@ -120,9 +122,10 @@ export default function A_DocT003Review() {
     // server กรองเฉพาะนักศึกษาที่เกี่ยวกับ T003 และแนบเฉพาะไฟล์ T003_FORM
     const reloadStudents = async (period: string) => {
         try {
-            const { students: list, total } = await loadReviewStudents<Student>("T003", period);
+            const [{ students: list, total }, counts] = await Promise.all([loadReviewStudents<Student>("T003", period), loadReviewCounts("T003")]);
             setStudents(list);
             setListTotal(total);
+            setPeriodCounts(counts);
         } catch (err) { console.error(err); }
     };
     useEffect(() => {
@@ -283,9 +286,15 @@ export default function A_DocT003Review() {
                         <select className="input" style={{ width: 'auto', background: '#f8fafc', padding: '10px 14px' }} value={selectedPeriod} onChange={e => setSelectedPeriod(e.target.value)}>
                             <option value="all">📚 ทุกปีการศึกษา</option>
                             {coopPeriods.map(p => (
-                                <option key={p.id} value={String(p.id)}>เทอม {p.semester} / {p.academicYear}</option>
+                                <option key={p.id} value={String(p.id)}>เทอม {p.semester} / {p.academicYear}{periodCountLabel(periodCounts, p.id)}</option>
                             ))}
                         </select>
+                        {pendingOutside(periodCounts, selectedPeriod) > 0 && (
+                            <button type="button" onClick={() => setSelectedPeriod("all")}
+                                style={{ fontSize: 12, color: '#b45309', fontWeight: 700, background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 8, padding: '6px 10px', cursor: 'pointer' }}>
+                                ⚠️ รอตรวจในรอบอื่นอีก {pendingOutside(periodCounts, selectedPeriod)} คน — ดูทุกปีการศึกษา
+                            </button>
+                        )}
                         {listTotal > students.length && (
                             <span style={{ fontSize: 12, color: '#b45309', fontWeight: 600 }}>แสดง {students.length} จาก {listTotal} คน — เลือกรอบเพื่อดูครบ</span>
                         )}
