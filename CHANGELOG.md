@@ -1,5 +1,26 @@
 # CHANGELOG — Co_project
 
+## [2026-10-17] feat: สำรองข้อมูลอัตโนมัติทุกคืน + ทดสอบกู้ทุกสัปดาห์
+
+### Added
+- `backend/scripts/backup.js` — เดิมไม่มีการสำรองข้อมูลเลย (deploy.ps1 / startup.ps1 / install-vm.ps1)
+  - ฐานข้อมูล: `mysqldump --single-transaction` → `.sql.gz` (ไม่ต้องหยุดระบบ) · ตรวจว่า dump ครบ (`-- Dump completed`) ก่อนเปลี่ยนชื่อจาก `.part` · เก็บ 14 วัน (`BACKUP_KEEP_DAYS`) แต่เก็บ 3 ไฟล์ล่าสุดเสมอ (สำรองล้มหลายวันก็ไม่ลบหมด)
+  - ไฟล์อัปโหลด: คัดลอกเฉพาะไฟล์ใหม่/เปลี่ยน ไม่ลบไฟล์ในที่สำรอง → ไฟล์ที่ถูกลบในระบบยังกู้ได้
+  - `BACKUP_MIRROR_DIR` สำเนาที่สอง (ไดรฟ์อื่น/แชร์) — กัน VM เสียทั้งเครื่อง
+  - `--verify` กู้ dump ล่าสุดลงฐานชั่วคราว เทียบจำนวนแถวทุกตารางกับฐานจริง แล้วลบฐานชั่วคราว (ไฟล์เสียก็ลบ)
+  - `--restore=<ไฟล์> --database=<ฐาน>` · กู้ทับฐานที่ใช้อยู่ต้องใส่ `--force`
+  - รหัสฐานข้อมูลส่งผ่านไฟล์ option ชั่วคราว (ไม่โผล่ใน process list) · `BACKUP_DIR` ในโฟลเดอร์โปรเจกต์ถูกปฏิเสธ
+  - เลือก mysqldump ของ MySQL Server ก่อน PATH — เครื่องที่มี XAMPP ด้วย PATH ชี้ไป client ของ MariaDB ที่ต่อ MySQL 8 ไม่ได้ (เจอจริงในเครื่อง dev)
+- `docs/register-backup-task.ps1` — ลงทะเบียน Task Scheduler: `CoopBackup` ทุกวัน 02:00 · `CoopBackupVerify` ทุกอาทิตย์ 03:30
+- `docs/backup.md` — ติดตั้ง · ตรวจว่ายังสำรองอยู่ · กู้คืนแบบปลอดภัย (ลงฐานแยก) / ทับทั้งฐาน / ไฟล์อัปโหลด · แก้ error ที่พบบ่อย
+
+### Deploy (ครั้งเดียวบน VM)
+- `PowerShell -ExecutionPolicy Bypass -File C:\Co_project\docs\register-backup-task.ps1` (Run as Administrator) → `Start-ScheduledTask CoopBackup` → ดู `C:\coop-backups\backup.log` → `node scripts\backup.js --verify`
+
+### Tests
+- `__tests__/backup.test.js` (+8): แยก DATABASE_URL · เลือกไฟล์หมดอายุ (เก็บขั้นต่ำ 3) · คัดลอกไฟล์อัปโหลดแบบเพิ่ม
+- ทดสอบจริงกับ MySQL 8.0.44 ในเครื่อง: dump 3 วินาที · กู้ได้ครบ 33 ตาราง จำนวนแถวตรง · ภาษาไทยไม่เพี้ยน · รันซ้ำคัดลอกไฟล์อัปโหลด 0 ไฟล์ · ไฟล์ dump ตัดครึ่ง → `[ERR]` และลบฐานชั่วคราว · กู้ทับฐานจริงโดยไม่ `--force` → ปฏิเสธ
+
 ## [2026-10-17] security: เพิกถอน session — ลบบัญชี / เปลี่ยน-รีเซ็ตรหัสผ่านแล้ว token เดิมใช้ไม่ได้ทันที
 
 ### Fixed
