@@ -239,6 +239,8 @@ describe('reviewStudentStatus', () => {
   });
 
   test('200 — อัปเดตพร้อม actualStartDate และ actualEndDate', async () => {
+    // เริ่มฝึกงานได้เมื่อออกหนังสือส่งตัวแล้ว (มีไฟล์)
+    prisma.studentCoop.findUnique.mockResolvedValue({ status: 'PLACEMENT_LETTER_ISSUED', reqLetterUrl: 'r.pdf', placeLetterUrl: 'p.pdf' });
     const req = {
       body: {
         studentId: '2',
@@ -433,6 +435,19 @@ describe('reviewStudentStatus', () => {
         expect(prisma.studentCoop.upsert).not.toHaveBeenCalled();
       },
     );
+
+    test.each([
+      ['REQ_LETTER_ISSUED', 'DOCS_APPROVED'],
+      ['PLACEMENT_LETTER_ISSUED', 'ACCEPTANCE_CHECKED'],
+      ['INTERNSHIP_STARTED', 'DOCS_APPROVED'],
+      ['INTERNSHIP_STARTED', 'ACCEPTANCE_CHECKED'],
+    ])('400 — ตั้งสถานะ %s จาก %s โดยไม่มีไฟล์หนังสือ (ยิง API ตรง) ไม่ได้ ไม่บันทึกอะไร', async (target, current) => {
+      withCurrent(current);
+      const res = makeRes();
+      await reviewStudentStatus({ body: { studentId: '1', status: target, comment: 'x' }, file: null }, res);
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(prisma.studentCoop.upsert).not.toHaveBeenCalled();
+    });
 
     test.each([
       ['REQ_LETTER_ISSUED', 'DOCS_APPROVED', 'reqDocNumber', 'reqLetter'],

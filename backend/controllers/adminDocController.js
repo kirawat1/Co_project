@@ -331,6 +331,18 @@ exports.reviewStudentStatus = async (req, res) => {
         }
       }
 
+      // (หลังตรวจถอยสถานะ — ถอยสถานะได้ 409 ที่บอกเหตุตรงกว่า)
+      // สถานะขั้นหนังสือต้องมีไฟล์หนังสือ (แนบมาตอนนี้ หรือมีอยู่แล้ว) — หน้าเว็บส่งสถานะเหล่านี้จากหน้าต่างออกหนังสือ (แนบไฟล์) เท่านั้น
+      // เดิมยิง API ตั้งสถานะเฉยๆ ได้ (รวมข้ามขั้น DOCS_APPROVED → INTERNSHIP_STARTED) → "ออกหนังสือแล้ว" แต่ไม่มีหนังสือให้ดาวน์โหลด
+      const hasReqLetter = !!(updateData.reqLetterUrl || prevCoop?.reqLetterUrl);
+      const hasPlaceLetter = !!(updateData.placeLetterUrl || prevCoop?.placeLetterUrl);
+      if (status === 'REQ_LETTER_ISSUED' && !hasReqLetter) {
+        throw Object.assign(new Error('ต้องแนบไฟล์หนังสือขอความอนุเคราะห์ที่ลงนามแล้ว'), { is400: true });
+      }
+      if ((status === 'PLACEMENT_LETTER_ISSUED' || status === 'INTERNSHIP_STARTED') && !hasPlaceLetter) {
+        throw Object.assign(new Error('ต้องออกหนังสือส่งตัว (แนบไฟล์ที่ลงนามแล้ว) ก่อน'), { is400: true });
+      }
+
       // เจ้าหน้าที่ส่งหนังสือส่งตัวให้บริษัทเอง → ไม่ต้องรอนักศึกษากดดาวน์โหลด (ปกติดาวน์โหลดแล้วถึงเป็น INTERNSHIP_STARTED)
       // ไม่งั้นนักศึกษาที่ไม่กดดาวน์โหลดค้างอยู่ "ออกหนังสือส่งตัวแล้ว" ส่ง T002/นัดนิเทศไม่ได้
       if (req.file && updateData.status === 'PLACEMENT_LETTER_ISSUED' && deliveryMethod === 'STAFF') {
