@@ -75,4 +75,5 @@ module.exports = {
   readApplyConfig,
   getApplyWindowState,
   applyWindowMessage,
+  thaiDate,
 };

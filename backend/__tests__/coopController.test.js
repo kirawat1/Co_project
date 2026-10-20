@@ -71,6 +71,22 @@ describe('submitCoopApplication', () => {
     expect(res.status).toHaveBeenCalledWith(400);
   });
 
+  // ปฏิทินของรอบ: ช่วงยื่นคำร้องตั้งที่รอบอย่างเดียว — APPLY_CONFIG เดิมไม่ใช้ตัดสินแล้ว
+  test('APPLY_CONFIG เดิมปิดอยู่ แต่รอบของหลักสูตรเปิด → ไม่ถูกปฏิเสธเรื่องช่วงเวลา', async () => {
+    prisma.systemConfig.findUnique.mockResolvedValue({ key: 'APPLY_CONFIG', value: JSON.stringify({ isOpen: false }) });
+    prisma.coopPeriodMajor.findUnique.mockResolvedValue({ periodId: 1, major: 'CS', isActive: true, endDate: FUTURE });
+    prisma.student.findUnique
+      .mockResolvedValueOnce({ major: 'CS' }) // callerMajor
+      .mockResolvedValueOnce(null); // หา Student → 404 = ผ่านเช็กช่วงเวลามาแล้ว
+    const req = { user: { id: 1, role: 'student' }, body: { coopPeriodId: '1' }, files: [] };
+    const res = makeRes();
+
+    await submitCoopApplication(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(404);
+    prisma.systemConfig.findUnique.mockReset();
+  });
+
   test('404 — ไม่พบข้อมูลนักศึกษา', async () => {
     prisma.coopPeriodMajor.findUnique.mockResolvedValue({ periodId: 1, major: 'CS', isActive: true, endDate: FUTURE });
     // ครั้งแรก = หาหลักสูตร (มี) · ครั้งที่สอง = หาข้อมูลนักศึกษา (ถูกลบไประหว่างนั้น)

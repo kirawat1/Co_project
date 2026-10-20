@@ -1,6 +1,8 @@
 // controllers/docController.js
 const { RULES_INCLUDE, withRules, appliesTo } = require('../utils/docRequirementScope');
-const { readEffective, callerMajor } = require('../utils/majorConfig');
+const { resolveDeadline } = require('../utils/resolveDeadline');
+const { markSubmitted } = require('../utils/submittedSteps');
+const { thaiDate } = require('../utils/applyWindow');
 const prisma = require('../config/prismaClient');
 const { buildAddressData } = require('../utils/addressFormat');
 const fs = require('fs');
@@ -8,52 +10,12 @@ const path = require('path');
 const { createNotifications, getStaffAndCoopTeacherIds, getStaffIds } = require('../utils/notificationHelper');
 const { normalizeExtraSupervisors, syncT002SupervisorsToMentors } = require('../utils/t002Supervisors');
 
-// ------------------------------------------------------------------
-// ✅ 1. Helper Function: เช็คว่าระบบเปิดรับเอกสารหรือไม่ (แก้ให้เช็คแยก T000, T002, T003)
-// ------------------------------------------------------------------
-// major = หลักสูตรของนักศึกษา → ช่วงรับเอกสารของหลักสูตรนั้น (ค่ากลาง + ค่าเฉพาะหลักสูตร)
-const checkSystemOpen = async (docType, major = null) => {
-  try {
-    let configKey = "T000_CONFIG"; 
-    if (docType === 'T002_FORM') configKey = "T002_CONFIG";
-    else if (docType === 'T003_FORM') configKey = "T003_CONFIG";
-
-    const config = await readEffective(configKey, major);
-    
-    if (!config) return true; // ถ้าไม่มี Config ถือว่าเปิด
-
-    const { startDate, endDate, isOpen } = config;
-
-    if (!isOpen) {
-        console.warn(`❌ [Upload Blocked]: ${configKey} is set to isOpen = false`);
-        return false;
-    }
-
-    const now = new Date();
-    
-    // ดัก Error กรณีแอดมินลบวันที่ทิ้ง (เป็นค่าว่าง "")
-    if (startDate && startDate.trim() !== "") {
-        if (new Date(startDate) > now) {
-            console.log(`❌ [Upload Blocked]: ยังไม่ถึงวันเปิดรับ (${startDate})`);
-            return false;
-        }
-    }
-    
-    if (endDate && endDate.trim() !== "") {
-        const end = new Date(endDate);
-        end.setHours(23, 59, 59, 999); 
-        if (now > end) {
-            console.log(`❌ [Upload Blocked]: เลยเวลาปิดรับแล้ว (${endDate})`);
-            return false;
-        }
-    }
-
-    return true; 
-  } catch (err) {
-    console.error("Check system error:", err);
-    return false; 
-  }
-};
+// ข้อความเมื่อส่งไม่ได้ตามกำหนดส่ง (utils/resolveDeadline.js)
+function deadlineClosedMessage(d) {
+  if (d.closed && d.source !== 'LEGACY') return '⛔ ขณะนี้ปิดรับเอกสารขั้นนี้ชั่วคราว';
+  if (d.late && d.due) return `⛔ เลยกำหนดส่ง (${thaiDate(d.due)}) แล้ว — ติดต่อเจ้าหน้าที่หรืออาจารย์ประจำวิชาเพื่อขอขยายเวลา`;
+  return '⛔ ระบบปิดรับเอกสารประเภทนี้แล้ว (หรือเกินกำหนดเวลา)';
+}
 
 // Helper: หา Student ID จาก User ID
 const getStudentIdFromUser = async (userId) => {
@@ -175,16 +137,7 @@ exports.uploadDocument = async (req, res) => {
       }
     }
 
-    // เช็คระบบเปิดรับ (ยกเว้นใบตอบรับ ให้ส่งได้ตลอด)
-    const isOpen = await checkSystemOpen(docType, await callerMajor(req));
-    if (docType !== 'CP-ACCEPTANCE' && !isOpen) {
-        if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
-        
-        // 🔴 ถ้าติด 403 ตรงนี้ ให้ลองดูใน Terminal ของ Backend มันจะบอกสาเหตุ
-        return res.status(403).json({ ok: false, message: "⛔ ระบบปิดรับเอกสารประเภทนี้แล้ว (หรือเกินกำหนดเวลา)" });
-    }
-
-    const userId = req.user.id; 
+    const userId = req.user.id;
     const originalName = Buffer.from(req.file.originalname, 'latin1').toString('utf8');
 
     const student = await prisma.student.findUnique({
@@ -197,31 +150,20 @@ exports.uploadDocument = async (req, res) => {
     }
 
     const dbType = docType;
+    // ขั้นในปฏิทินของรอบ: แบบฟอร์ม T002/T003 · เอกสารหัวข้ออื่นทั้งหมดอยู่ในกำหนดของ T000 · ใบตอบรับส่งได้ตลอด (ตามสถานะ)
+    const stepKey = dbType === 'T002_FORM' ? 'T002' : dbType === 'T003_FORM' ? 'T003' : dbType === 'CP-ACCEPTANCE' ? null : 'T000';
 
     let newDoc;
+    let deadline = null;
     let oldDoc;
     let t000Resubmitted = false;
     let mentorSync = null;
     try {
         await prisma.$transaction(async (tx) => {
-            if (dbType !== 'CP-ACCEPTANCE') {
-                let configKey = "T000_CONFIG";
-                if (dbType === 'T002_FORM') configKey = "T002_CONFIG";
-                else if (dbType === 'T003_FORM') configKey = "T003_CONFIG";
-                const config = await readEffective(configKey, student.major, tx);
-                let txIsOpen = !config;
-                if (config) {
-                    try {
-                        const { startDate, endDate, isOpen } = config;
-                        if (isOpen) {
-                            const now = new Date();
-                            const withinStart = !startDate || startDate.trim() === '' || new Date(startDate) <= now;
-                            const endOk = !endDate || endDate.trim() === '' || (() => { const e = new Date(endDate); e.setHours(23,59,59,999); return now <= e; })();
-                            txIsOpen = withinStart && endOk;
-                        }
-                    } catch (_) {}
-                }
-                if (!txIsOpen) throw Object.assign(new Error("⛔ ระบบปิดรับเอกสารประเภทนี้แล้ว (หรือเกินกำหนดเวลา)"), { is403: true });
+            if (stepKey) {
+                // กำหนดส่งตามปฏิทินของรอบ (รอบยังไม่ตั้ง = ช่วงเดิมใน SystemConfig) · ส่งแก้ไม่ติดกำหนด
+                deadline = await resolveDeadline(stepKey, { studentId: student.id, major: student.major || null }, tx);
+                if (!deadline.canSubmit) throw Object.assign(new Error(deadlineClosedMessage(deadline)), { is403: true });
             }
             const freshStudent = await tx.student.findUnique({ where: { id: student.id }, select: { deletedAt: true } });
             if (!freshStudent || freshStudent.deletedAt) throw Object.assign(new Error('บัญชีถูกระงับการใช้งาน'), { is403: true });
@@ -291,6 +233,8 @@ exports.uploadDocument = async (req, res) => {
                     t000Resubmitted = true;
                 }
             }
+            // เวลาส่งครั้งแรกของขั้น (T000 = ตอนครบหัวข้อบังคับ) — ส่งแก้ไม่ทับ
+            if (stepKey) await markSubmitted(tx, { studentId: student.id, stepKey, major: student.major || null });
         });
     } catch (err) {
         if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
@@ -309,7 +253,7 @@ exports.uploadDocument = async (req, res) => {
         if (fs.existsSync(oldPath)) { try { fs.unlinkSync(oldPath); } catch(e){} }
     }
 
-    res.json({ ok: true, message: "อัปโหลดสำเร็จ", data: newDoc, ...(mentorSync ? { mentorSync } : {}) });
+    res.json({ ok: true, message: "อัปโหลดสำเร็จ", data: newDoc, late: !!deadline?.late, ...(mentorSync ? { mentorSync } : {}) });
 
     // แจ้งเตือนเมื่อนักศึกษาส่งเอกสาร — ป้ายขึ้นที่เมนูของชนิดนั้น (sidebar)
     // T002/T003: เจ้าหน้าที่ + อาจารย์ประจำวิชาสหกิจ (มีเมนูตรวจ) · T000/ใบตอบรับ: เจ้าหน้าที่เท่านั้น (ตรวจที่ doct000 อาจารย์ไม่มีเมนู — เดิมแจ้งอาจารย์ด้วย ค้างเป็นแจ้งเตือนที่มองไม่เห็น)

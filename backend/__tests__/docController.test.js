@@ -298,19 +298,86 @@ describe('docController', () => {
       },
     );
 
-    test('403 — ระบบปิดรับเอกสาร T000 (isOpen = false)', async () => {
+    test('403 — รอบยังไม่ตั้งปฏิทิน → ค่าเดิม T000 (isOpen = false)', async () => {
       prisma.documentRequirement.findFirst.mockResolvedValue({ id: 1 }); // valid docKey
       prisma.systemConfig.findUnique.mockResolvedValue({
         key: 'T000_CONFIG',
         value: JSON.stringify({ isOpen: false, startDate: null, endDate: null }),
       });
       prisma.student.findUnique.mockResolvedValue({ id: 10, deletedAt: null });
+      prisma.studentCoop.findUnique.mockResolvedValue({ coopPeriodId: 1, status: 'QUALIFIED' });
+      prisma.coopPeriodMajor.findUnique.mockResolvedValue(null);
 
       const req = makeUploadReq('CP-CV');
       const res = makeRes();
       await docController.uploadDocument(req, res);
       expect(res.status).toHaveBeenCalledWith(403);
       expect(prisma.document.create).not.toHaveBeenCalled();
+    });
+
+    describe('ปฏิทินของรอบ', () => {
+      const past = { startDate: new Date('2026-01-01T00:00:00Z'), deadlines: { T000: { due: '2020-01-01', mode: 'HARD' }, T002: { due: '2020-01-01', mode: 'HARD' } } };
+      beforeEach(() => {
+        prisma.documentRequirement.findFirst.mockResolvedValue({ id: 1, majorRules: [] });
+        prisma.documentRequirement.findMany.mockResolvedValue([]);
+        prisma.document.findFirst.mockResolvedValue(null);
+        prisma.document.create.mockResolvedValue({ id: 99 });
+        prisma.studentCoop.update.mockResolvedValue({});
+        prisma.coopPeriodMajor.findUnique.mockResolvedValue(past);
+        prisma.student.findUnique.mockResolvedValue({ id: 10, deletedAt: null, major: 'CS' });
+      });
+
+      test('403 — HARD เลยกำหนดส่ง (ส่งครั้งแรก) → ข้อความบอกวันและให้ขอขยายเวลา', async () => {
+        prisma.studentCoop.findUnique.mockResolvedValue({ coopPeriodId: 1, status: 'QUALIFIED' });
+        const res = makeRes();
+        await docController.uploadDocument(makeUploadReq('CP-CV'), res);
+        expect(res.status).toHaveBeenCalledWith(403);
+        expect(res.json.mock.calls[0][0].message).toMatch(/เลยกำหนดส่ง .*ขยายเวลา/);
+        expect(prisma.document.create).not.toHaveBeenCalled();
+      });
+
+      test('ส่งแก้ (EDITS_REQUIRED) หลังกำหนด → ผ่าน และกลับไปรอตรวจ', async () => {
+        prisma.studentCoop.findUnique.mockResolvedValue({ coopPeriodId: 1, status: 'EDITS_REQUIRED', submittedSteps: { T000: { at: 'x' } } });
+        const res = makeRes();
+        await docController.uploadDocument(makeUploadReq('CP-CV'), res);
+        expect(res.status).not.toHaveBeenCalled();
+        expect(res.json.mock.calls[0][0]).toMatchObject({ ok: true, late: false });
+        expect(prisma.studentCoop.update).toHaveBeenCalledWith({ where: { studentId: 10 }, data: { status: 'WAITING_FOR_STAFF_CHECK' } });
+      });
+
+      test('ส่ง T002 ครั้งแรกในเวลา → บันทึกเวลาส่ง', async () => {
+        prisma.coopPeriodMajor.findUnique.mockResolvedValue({ startDate: past.startDate, deadlines: { T002: { due: '2999-01-01' } } });
+        prisma.studentCoop.findUnique.mockResolvedValue({ coopPeriodId: 1, status: 'INTERNSHIP_STARTED', submittedSteps: null });
+        const res = makeRes();
+        await docController.uploadDocument(makeUploadReq('T002_FORM'), res);
+        expect(res.json.mock.calls[0][0]).toMatchObject({ ok: true, late: false });
+        const stamp = prisma.studentCoop.update.mock.calls.find((c) => c[0].data.submittedSteps);
+        expect(stamp[0].data.submittedSteps).toEqual({ T002: { at: expect.any(String) } });
+      });
+
+      test('SOFT เลยกำหนด → ส่งได้ ตอบ late: true', async () => {
+        prisma.coopPeriodMajor.findUnique.mockResolvedValue({ startDate: past.startDate, deadlines: { T002: { due: '2020-01-01', mode: 'SOFT' } } });
+        prisma.studentCoop.findUnique.mockResolvedValue({ coopPeriodId: 1, status: 'INTERNSHIP_STARTED', submittedSteps: null });
+        const res = makeRes();
+        await docController.uploadDocument(makeUploadReq('T002_FORM'), res);
+        expect(res.json.mock.calls[0][0]).toMatchObject({ ok: true, late: true });
+      });
+
+      test('ยังไม่เลือกรอบ → ไม่มีกำหนด ส่งได้แม้ค่าเดิมปิดอยู่', async () => {
+        prisma.systemConfig.findUnique.mockResolvedValue({ key: 'T000_CONFIG', value: JSON.stringify({ isOpen: false }) });
+        prisma.studentCoop.findUnique.mockResolvedValue({ coopPeriodId: null, status: 'QUALIFIED' });
+        const res = makeRes();
+        await docController.uploadDocument(makeUploadReq('CP-CV'), res);
+        expect(res.json.mock.calls[0][0]).toMatchObject({ ok: true });
+      });
+
+      test('ใบตอบรับไม่ติดกำหนดส่ง', async () => {
+        prisma.studentCoop.findUnique.mockResolvedValue({ coopPeriodId: 1, status: 'REQ_LETTER_ISSUED' });
+        const res = makeRes();
+        await docController.uploadDocument(makeUploadReq('CP-ACCEPTANCE'), res);
+        expect(res.json.mock.calls[0][0]).toMatchObject({ ok: true });
+        expect(prisma.coopPeriodMajor.findUnique).not.toHaveBeenCalled();
+      });
     });
 
     // เจ้าหน้าที่ตีกลับใบตอบรับ → "รอใบตอบรับ" (WAITING_FOR_PLACEMENT_LETTER) นักศึกษาอัปโหลดใหม่ได้

@@ -1,6 +1,5 @@
 // backend/controllers/coopController.js
 const prisma = require('../config/prismaClient');
-const { getApplyWindowState, applyWindowMessage } = require('../utils/applyWindow');
 const { callerMajor } = require('../utils/majorConfig');
 const path = require("path");
 const fs = require("fs");
@@ -50,13 +49,7 @@ const submitCoopApplication = async (req, res) => {
     }
     const activePeriod = await getRow(parsedPeriodId, major);
 
-    // ช่วงเวลายื่นคำร้อง (ตั้งแยกแบบ T000–T003) — ยื่นได้ต้องผ่านทั้งช่วงนี้และรอบรับสมัครที่เปิดอยู่
-    const applyWindow = await getApplyWindowState(undefined, undefined, major); // ช่วงยื่นของหลักสูตรนักศึกษา
-    if (!applyWindow.open) {
-      if (req.files?.length) req.files.forEach((f) => { try { fs.unlinkSync(f.path); } catch (_) { /* ignore */ } });
-      return res.status(400).json({ ok: false, message: applyWindowMessage(applyWindow) });
-    }
-
+    // ช่วงยื่นคำร้อง = รอบรับสมัครของหลักสูตรที่เปิดอยู่ (ปิดเองเมื่อเลยวันปิดรอบ) — ตั้งที่หน้ารอบสหกิจที่เดียว
     if (!activePeriod || !activePeriod.isActive) {
       files.forEach(f => { try { fs.unlinkSync(f.path); } catch (_) {} });
       return res.status(400).json({ ok: false, message: "ไม่สามารถยื่นคำร้องได้ เนื่องจากรอบรับสมัครนี้ถูกปิดไปแล้ว" });
