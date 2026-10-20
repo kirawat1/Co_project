@@ -6,6 +6,7 @@
 
 ### Added
 - `backend/utils/deadlines.js` — ตรรกะกำหนดส่งของขั้น (ฟังก์ชันล้วน): ปิดจริง/ส่งช้าได้/ปิดรับชั่วคราว/ส่งแก้ได้เสมอ/ขยายเวลารายคน · ตรรกะเดิมของช่วง T000–T003 (`evaluateLegacyWindow`) สำหรับรอบที่ยังไม่ตั้งปฏิทิน · ใช้ค่าวิทยาลัยกับหลักสูตรที่ติ๊ก · เลื่อนปีตอนคัดลอก
+- Migration `20261020120000_round_calendar`: `CoopPeriod.deadlines`, `CoopPeriodMajor.deadlines`, `StudentCoop.deadlineExtensions`, `StudentCoop.submittedSteps` (JSON, nullable — ไม่แตะข้อมูลเดิม) · **deploy: `migrate deploy` + `prisma generate`**
 
 ### Tests
 - `deadlines.test.js` (+38)
