@@ -149,6 +149,11 @@ model StudentCoop {
   // ผู้ติดต่อ (HR) ที่นักศึกษาเลือก — บังคับอย่างน้อย 1 คนก่อนยื่นคำร้อง
   contacts CompanyContact[] @relation("CoopContacts")
 
+  // ปฏิทินของรอบ (utils/deadlines.js) — ขยายเวลารายคน { T002: "YYYY-MM-DD" } เฉพาะ T000/T002/T003
+  deadlineExtensions Json?
+  // เวลาส่งครั้งแรกของแต่ละขั้น { T000: { at, backfill? } } — ส่งแก้ไม่ทับ (utils/submittedSteps.js)
+  submittedSteps     Json?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -167,6 +172,8 @@ model CoopPeriod {
   // วันรับสมัคร/เปิดปิด/ช่วงนิเทศจริงอยู่ที่ CoopPeriodMajor (แยกหลักสูตร)
   startDate    DateTime
   endDate      DateTime
+  // กำหนดส่งตั้งต้นของวิทยาลัย (utils/deadlines.js) — แถวหลักสูตรที่สร้างใหม่ได้ค่านี้ติดไป · แก้ได้เฉพาะเจ้าหน้าที่
+  deadlines    Json?
 
   // ความสัมพันธ์: 1 รอบการรับสมัคร มีนักศึกษาเข้าโครงการหลายคน
   studentCoops         StudentCoop[]
@@ -257,6 +264,8 @@ model CoopPeriodMajor {
   supervisionStartDate DateTime?
   supervisionEndDate   DateTime?
   isSupervisionOpen    Boolean      @default(false)
+  // กำหนดส่งของหลักสูตรในรอบนี้ (ค่าที่ใช้จริง — utils/deadlines.js) · ไม่มีขั้นไหน = ใช้ค่าเดิมใน SystemConfig
+  deadlines            Json?
   updatedAt            DateTime     @updatedAt
   period               CoopPeriod   @relation(fields: [periodId], references: [id], onDelete: Cascade)
   criteria             CoopCriteria @relation(fields: [major], references: [major], onDelete: Cascade, onUpdate: Cascade)
