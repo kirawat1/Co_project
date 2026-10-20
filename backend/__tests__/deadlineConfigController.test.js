@@ -76,6 +76,38 @@ describe('deadlineConfigController', () => {
     expect(res.json.mock.calls[0][0]).toEqual({ ok: true, config: { t005Link: 'a', deadline: '2026-10-16' } });
   });
 
+  describe('getRoundDeadlines — ไทม์ไลน์ของนักศึกษา', () => {
+    const row = {
+      ...ROW, endDate: new Date('2026-04-17T00:00:00Z'), isActive: false,
+      supervisionStartDate: new Date('2026-07-25T00:00:00Z'), supervisionEndDate: new Date('2026-08-08T00:00:00Z'),
+    };
+
+    test('ขั้นเรียงตามปฏิทิน · ใช้รอบ/หลักสูตรของตัวเอง · มีเวลาส่ง/ขยายเวลา', async () => {
+      setup({ coop: { coopPeriodId: 1, status: 'T002_SUBMITTED', submittedSteps: { T002: { at: '2026-07-02T00:00:00.000Z' } }, deadlineExtensions: { T003: '2026-07-31' } }, row });
+      prisma.coopPeriod.findUnique.mockResolvedValue({ id: 1, academicYear: '2569', semester: 1 });
+      const res = makeRes();
+      await ctrl.getRoundDeadlines(student, res);
+      const body = res.json.mock.calls[0][0];
+      expect(body.period).toEqual({ id: 1, academicYear: '2569', semester: 1 });
+      expect(body.steps.map((s) => s.stepKey)).toEqual(['APPLY', 'T000', 'T002', 'T003', 'SUPERVISION', 'T005_T006', 'T007', 'T008']);
+      const by = Object.fromEntries(body.steps.map((s) => [s.stepKey, s]));
+      expect(by.APPLY).toMatchObject({ startDate: '2026-03-01', due: '2026-04-17', isOpen: false });
+      expect(by.T002).toMatchObject({ due: '2026-07-03', mode: 'HARD', submittedAt: '2026-07-02T00:00:00.000Z', late: true });
+      expect(by.T003).toMatchObject({ extensionUntil: '2026-07-31', submittedAt: null });
+      expect(by.SUPERVISION).toMatchObject({ startDate: '2026-07-25', due: '2026-08-08' });
+      expect(by.T007).toMatchObject({ due: '2026-10-23' });
+      expect(by.T002.label).toBeTruthy();
+      expect(prisma.coopPeriodMajor.findUnique.mock.calls.every((c) => c[0].where.periodId_major.major === 'CS')).toBe(true);
+    });
+
+    test('ยังไม่มีรอบ → ไม่มีไทม์ไลน์', async () => {
+      setup({ coop: { coopPeriodId: null, status: 'QUALIFIED' } });
+      const res = makeRes();
+      await ctrl.getRoundDeadlines(student, res);
+      expect(res.json.mock.calls[0][0]).toEqual({ ok: true, period: null, steps: [] });
+    });
+  });
+
   describe('apply — ช่วงยื่นคำร้อง = รอบที่เปิดของหลักสูตร', () => {
     test('มีรอบเปิด → open + วันของรอบ', async () => {
       setup();

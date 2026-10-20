@@ -38,6 +38,8 @@ router.get("/config/t000", verifyToken, deadlineConfigController.getT000Config);
 router.get("/config/t002", verifyToken, deadlineConfigController.getT002Config);
 router.get("/config/apply", verifyToken, deadlineConfigController.getApplyConfig);
 router.get("/config/t003", verifyToken, deadlineConfigController.getT003Config);
+// ไทม์ไลน์กำหนดส่งของรอบตัวเอง (หน้าแรกนักศึกษา)
+router.get("/round-deadlines", verifyToken, verifyRole("student"), deadlineConfigController.getRoundDeadlines);
 
 // T005/T006 evaluation, T007, T008 — ลิงก์แบบฟอร์มเดิม + กำหนดส่งของรอบ
 router.get("/config/evaluation", verifyToken, deadlineConfigController.getEvaluationConfig);
