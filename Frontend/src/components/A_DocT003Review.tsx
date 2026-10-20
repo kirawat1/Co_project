@@ -9,6 +9,8 @@ import AutoTextarea from "./AutoTextarea";
 import LoadMoreFooter from "./LoadMoreFooter";
 import { useLoadMore } from "../utils/useLoadMore";
 import RoundDeadlineNote from "./RoundDeadlineNote";
+import DeadlineExtensionButton from "./DeadlineExtensionButton";
+import type { StepKey } from "../utils/deadlines";
 
 // --- Types ---
 type Document = {
@@ -28,6 +30,7 @@ type Student = {
     coopPeriodId?: number; // ✅
     coop: {
         coopPeriodId?: number; // ✅ เผื่อกรณีซ้อนอยู่ในนี้
+        deadlineExtensions?: Partial<Record<StepKey, string>> | null; // ขยายเวลารายคน (ปฏิทินของรอบ)
         company: {
             name: string;
         }
@@ -328,9 +331,12 @@ export default function A_DocT003Review() {
                                         </span>
                                     </td>
                                     <td style={{ padding: '14px 16px', textAlign: 'right' }}>
+                                        <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                                        <DeadlineExtensionButton compact step="T003" studentId={s.id} studentName={`${s.firstName} ${s.lastName}`} extensions={s.coop?.deadlineExtensions} />
                                         <button className="btn" style={{ padding: '8px 16px', fontSize: 13, background: statusInfo.btnBg }} onClick={() => openReviewModal(s)}>
                                             🔍 พิจารณา
                                         </button>
+                                        </div>
                                     </td>
                                 </tr>
                             )

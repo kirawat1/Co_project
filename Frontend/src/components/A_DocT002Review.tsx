@@ -9,6 +9,8 @@ import LoadMoreFooter from "./LoadMoreFooter";
 import { useLoadMore } from "../utils/useLoadMore";
 import { notify, askConfirm } from "../utils/notify";
 import RoundDeadlineNote from "./RoundDeadlineNote";
+import DeadlineExtensionButton from "./DeadlineExtensionButton";
+import type { StepKey } from "../utils/deadlines";
 
 // --- Types ---
 type Document = {
@@ -28,6 +30,7 @@ type Student = {
     coopPeriodId?: number; // ✅
     coop?: {
         coopPeriodId?: number; // ✅ เผื่อกรณีซ้อนอยู่ในนี้
+        deadlineExtensions?: Partial<Record<StepKey, string>> | null; // ขยายเวลารายคน (ปฏิทินของรอบ)
         company?: {
             name: string;
         }
@@ -310,9 +313,12 @@ export default function A_T002Review() {
                                         </span>
                                     </td>
                                     <td style={{ padding: '14px 16px', textAlign: 'right' }}>
+                                        <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                                        <DeadlineExtensionButton compact step="T002" studentId={s.id} studentName={`${s.firstName} ${s.lastName}`} extensions={s.coop?.deadlineExtensions} />
                                         <button className="btn" style={{ padding: '8px 16px', fontSize: 13, background: statusInfo.label.includes('รอการตรวจสอบ') ? '#0ea5e9' : '#64748b' }} onClick={() => openReviewModal(s)}>
                                             🔍 ตรวจเอกสาร
                                         </button>
+                                        </div>
                                     </td>
                                 </tr>
                             )
