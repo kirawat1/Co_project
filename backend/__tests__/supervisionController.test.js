@@ -66,6 +66,16 @@ describe('saveSupervisionPeriod', () => {
     expect(res.json.mock.calls[0][0]).toMatchObject({ ok: true, period: { major: 'AI', isSupervisionOpen: true } });
   });
 
+  test('แถวหลักสูตรที่สร้างใหม่ได้กำหนดส่งตั้งต้นของวิทยาลัยติดไป (ปฏิทินของรอบ)', async () => {
+    const college = { T002: { due: '2024-07-03', mode: 'HARD' } };
+    prisma.coopPeriod.findUnique.mockResolvedValue({ id: 3, startDate: new Date('2024-01-01'), endDate: new Date('2024-02-01'), deadlines: college });
+    prisma.coopPeriod.findMany.mockResolvedValue([{ id: 3, academicYear: '2569', semester: 1, startDate: new Date(), endDate: new Date(), majors: [pRow(3, 'AI')] }]);
+    prisma.coopPeriodMajor.upsert.mockResolvedValue({});
+    await saveSupervisionPeriod({ user: { id: 1, role: 'staff' }, method: 'POST', body: { ...body, major: 'AI' } }, makeRes());
+    expect(prisma.coopPeriodMajor.upsert.mock.calls[0][0].create).toMatchObject({ deadlines: college });
+    expect(prisma.coopPeriodMajor.upsert.mock.calls[0][0].update).not.toHaveProperty('deadlines');
+  });
+
   test('เจ้าหน้าที่ไม่ระบุหลักสูตร → 400', async () => {
     const res = makeRes();
     await saveSupervisionPeriod({ user: { id: 1, role: 'staff' }, method: 'POST', body }, res);

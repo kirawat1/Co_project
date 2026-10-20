@@ -127,6 +127,6 @@ function shiftYears(deadlines, years) {
 }
 
 module.exports = {
-  STEP_KEYS, MODE_STEPS, badRequest, normalizeDeadlines, evaluateDeadline, evaluateLegacyWindow,
+  STEP_KEYS, MODE_STEPS, badRequest, isValidDay, normalizeDeadlines, evaluateDeadline, evaluateLegacyWindow,
   applyCollegeChange, shiftYears,
 };

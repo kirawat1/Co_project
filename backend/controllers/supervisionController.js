@@ -81,7 +81,7 @@ exports.saveSupervisionPeriod = async (req, res) => {
         await prisma.coopPeriodMajor.upsert({
             where: { periodId_major: { periodId: parsedPeriodId, major: m } },
             update: data,
-            create: { periodId: parsedPeriodId, major: m, startDate: period.startDate, endDate: period.endDate, ...data },
+            create: { periodId: parsedPeriodId, major: m, startDate: period.startDate, endDate: period.endDate, ...(period.deadlines ? { deadlines: period.deadlines } : {}), ...data },
         });
         const full = (await listPeriods()).find((p) => p.id === parsedPeriodId);
         res.json({ ok: true, period: viewPeriod(full, [m]) });

@@ -2,6 +2,9 @@ const prisma = require('../config/prismaClient');
 const { isPeriodExpired } = require('../utils/coopPeriodHelper');
 const { listPeriods, getRow, viewPeriod, viewerMajors, targetMajors, allMajorCodes } = require('../utils/coopPeriodMajor');
 const { getMajorScope } = require('../utils/majorScope');
+const { readEffective } = require('../utils/majorConfig');
+const { normalizeDeadlines, applyCollegeChange, shiftYears } = require('../utils/deadlines');
+const { bangkokDay } = require('../utils/resolveDeadline');
 const { createNotifications } = require('../utils/notificationHelper');
 const { removeUnreferencedUploads } = require('../utils/uploadCleanup');
 
@@ -57,7 +60,9 @@ exports.createPeriod = async (req, res) => {
       const existing = new Set((await tx.coopPeriodMajor.findMany({ where: { periodId: period.id }, select: { major: true } })).map((r) => r.major));
       const missing = majors.filter((m) => !existing.has(m));
       if (!missing.length) throw Object.assign(new Error('ปีการศึกษาและภาคเรียนนี้มีอยู่ในระบบแล้ว'), { status: 409 });
-      await tx.coopPeriodMajor.createMany({ data: missing.map((m) => ({ periodId: period.id, major: m, startDate: start, endDate: end })) });
+      // แถวหลักสูตรใหม่ได้กำหนดส่งตั้งต้นของวิทยาลัยติดไป (ปฏิทินของรอบ)
+      const template = period.deadlines ? { deadlines: period.deadlines } : {};
+      await tx.coopPeriodMajor.createMany({ data: missing.map((m) => ({ periodId: period.id, major: m, startDate: start, endDate: end, ...template })) });
       return { period, added: missing };
     });
     const full = (await listPeriods()).find((p) => p.id === result.period.id);
@@ -98,7 +103,7 @@ exports.updatePeriod = async (req, res) => {
       await prisma.coopPeriodMajor.upsert({
         where: { periodId_major: { periodId: parsedId, major: m } },
         update: { startDate: start, endDate: end },
-        create: { periodId: parsedId, major: m, startDate: start, endDate: end },
+        create: { periodId: parsedId, major: m, startDate: start, endDate: end, ...(period.deadlines ? { deadlines: period.deadlines } : {}) },
       });
     }
     const full = (await listPeriods()).find((p) => p.id === parsedId);
@@ -273,5 +278,141 @@ exports.moveStudentPeriod = async (req, res) => {
     }).catch((e) => console.error('notify move period', e));
   } catch (error) {
     handle(res, error, 'Move student period error:');
+  }
+};
+
+// ================== ปฏิทินของรอบ (กำหนดส่งของแต่ละขั้น — utils/deadlines.js) ==================
+// ค่าวิทยาลัย (CoopPeriod.deadlines) = เจ้าหน้าที่ · แถวหลักสูตร (CoopPeriodMajor.deadlines = ค่าที่ใช้จริง) = เจ้าหน้าที่ + อาจารย์ประจำวิชาที่ดูแล
+
+const LEGACY_WINDOW = { T000: 'T000_CONFIG', T002: 'T002_CONFIG', T003: 'T003_CONFIG' };
+const LEGACY_FORM = { T005_T006: 'EVALUATION_FORMS', T007: 'CONFIG_T007', T008: 'CONFIG_T008' };
+
+// ค่าเดิมใน SystemConfig ที่หลักสูตรนี้ใช้อยู่ — แสดงในขั้นที่รอบยังไม่ได้ตั้ง
+async function legacyFor(major) {
+  const out = {};
+  for (const [step, key] of Object.entries(LEGACY_WINDOW)) {
+    const c = await readEffective(key, major);
+    out[step] = c ? { isOpen: !!c.isOpen, startDate: c.startDate || null, endDate: c.endDate || null } : null;
+  }
+  for (const [step, key] of Object.entries(LEGACY_FORM)) {
+    const c = await readEffective(key, major);
+    out[step] = c?.deadline ? { deadline: c.deadline } : null;
+  }
+  return out;
+}
+
+const periodWithRows = (id) => prisma.coopPeriod.findUnique({ where: { id }, include: { majors: { orderBy: { major: 'asc' } } } });
+
+// GET /coop-periods/:id/deadlines
+exports.getDeadlines = async (req, res) => {
+  try {
+    const id = parseId(req.params.id);
+    if (!id) return fail(res, 400, 'id ไม่ถูกต้อง');
+    const period = await periodWithRows(id);
+    if (!period) return fail(res, 404, 'ไม่พบรอบสหกิจ');
+    const visible = await viewerMajors(req);
+    const rows = (period.majors || []).filter((r) => !visible || visible.includes(r.major));
+    const legacy = {};
+    for (const r of rows) legacy[r.major] = await legacyFor(r.major);
+    res.json({
+      ok: true,
+      period: { id: period.id, academicYear: period.academicYear, semester: period.semester },
+      canEditCollege: isStaff(req),
+      college: period.deadlines || {},
+      majors: rows.map((r) => ({ major: r.major, deadlines: r.deadlines || {}, startDate: bangkokDay(r.startDate) })),
+      legacy,
+    });
+  } catch (error) {
+    handle(res, error, 'Get deadlines error:');
+  }
+};
+
+// PUT /coop-periods/:id/deadlines  body { major: '' | code, deadlines, applyTo?: string[] }
+//   major '' = ค่าวิทยาลัย (เจ้าหน้าที่) แล้วใช้กับหลักสูตรที่ติ๊ก (applyTo) เฉพาะขั้นที่เปลี่ยนในครั้งนี้
+exports.saveDeadlines = async (req, res) => {
+  try {
+    const id = parseId(req.params.id);
+    if (!id) return fail(res, 400, 'id ไม่ถูกต้อง');
+    const { major, deadlines, applyTo } = req.body || {};
+    if (typeof major !== 'string') return fail(res, 400, 'กรุณาระบุหลักสูตร (ค่าของวิทยาลัยส่ง major เป็นค่าว่าง)');
+    const clean = normalizeDeadlines(deadlines);
+    const period = await prisma.coopPeriod.findUnique({ where: { id } });
+    if (!period) return fail(res, 404, 'ไม่พบรอบสหกิจ');
+
+    if (major === '') {
+      if (!isStaff(req)) return fail(res, 403, 'ค่าตั้งต้นของวิทยาลัยแก้ได้เฉพาะเจ้าหน้าที่');
+      const rows = await prisma.coopPeriodMajor.findMany({ where: { periodId: id } });
+      const picks = Array.isArray(applyTo) ? applyTo.map(String) : [];
+      const unknown = picks.filter((m) => !rows.some((r) => r.major === m));
+      if (unknown.length) return fail(res, 400, `หลักสูตรนี้ยังไม่อยู่ในรอบ: ${unknown.join(', ')}`);
+      const updates = applyCollegeChange(period.deadlines || {}, clean, rows, picks);
+      await prisma.$transaction(async (tx) => {
+        await tx.coopPeriod.update({ where: { id }, data: { deadlines: clean } });
+        for (const u of updates) {
+          await tx.coopPeriodMajor.update({ where: { periodId_major: { periodId: id, major: u.major } }, data: { deadlines: u.deadlines } });
+        }
+      });
+      return res.json({ ok: true, college: clean, updated: updates.map((u) => u.major) });
+    }
+
+    const [m] = await targetMajors(req, major);
+    await prisma.coopPeriodMajor.upsert({
+      where: { periodId_major: { periodId: id, major: m } },
+      update: { deadlines: clean },
+      create: { periodId: id, major: m, startDate: period.startDate, endDate: period.endDate, deadlines: clean },
+    });
+    res.json({ ok: true, major: m, deadlines: clean });
+  } catch (error) {
+    handle(res, error, 'Save deadlines error:');
+  }
+};
+
+// POST /coop-periods/:id/deadlines/copy  body { fromPeriodId } — เทอมเดียวกันของปีก่อน · เลื่อนปีตามผลต่าง · ไม่ทับขั้นที่ปลายทางมีค่า
+//   อาจารย์ประจำวิชา = เฉพาะแถวหลักสูตรที่ดูแล (ไม่แตะค่าวิทยาลัย)
+exports.copyDeadlines = async (req, res) => {
+  try {
+    const id = parseId(req.params.id);
+    const fromId = parseId(req.body?.fromPeriodId);
+    if (!id || !fromId) return fail(res, 400, 'ต้องระบุรอบต้นทางและปลายทาง');
+    if (id === fromId) return fail(res, 400, 'เลือกรอบต้นทางที่ไม่ใช่รอบนี้');
+    const [target, source] = await Promise.all([periodWithRows(id), periodWithRows(fromId)]);
+    if (!target || !source) return fail(res, 404, 'ไม่พบรอบสหกิจ');
+    if (Number(target.semester) !== Number(source.semester)) return fail(res, 400, 'คัดลอกได้เฉพาะจากเทอมเดียวกัน (วันของคนละเทอมอยู่คนละช่วงปี)');
+    const years = Number(target.academicYear) - Number(source.academicYear);
+    if (!Number.isInteger(years)) return fail(res, 400, 'ปีการศึกษาไม่ถูกต้อง');
+
+    let copied = 0;
+    let kept = 0;
+    const merge = (dst, src) => {
+      const out = { ...(dst || {}) };
+      let added = 0;
+      for (const [k, v] of Object.entries(shiftYears(src, years))) {
+        if (out[k]) kept++;
+        else { out[k] = v; added++; }
+      }
+      copied += added;
+      return added ? out : null;
+    };
+
+    const staff = isStaff(req);
+    const scope = await getMajorScope(req, { ignoreFilter: true });
+    const collegeNext = staff ? merge(target.deadlines, source.deadlines) : null;
+    const rowUpdates = [];
+    for (const row of target.majors || []) {
+      if (!scope.all && !scope.majors.includes(row.major)) continue;
+      const src = (source.majors || []).find((r) => r.major === row.major);
+      if (!src) continue;
+      const next = merge(row.deadlines, src.deadlines);
+      if (next) rowUpdates.push({ major: row.major, deadlines: next });
+    }
+    await prisma.$transaction(async (tx) => {
+      if (collegeNext) await tx.coopPeriod.update({ where: { id }, data: { deadlines: collegeNext } });
+      for (const u of rowUpdates) {
+        await tx.coopPeriodMajor.update({ where: { periodId_major: { periodId: id, major: u.major } }, data: { deadlines: u.deadlines } });
+      }
+    });
+    res.json({ ok: true, copied, kept, updated: rowUpdates.map((u) => u.major), college: !!collegeNext });
+  } catch (error) {
+    handle(res, error, 'Copy deadlines error:');
   }
 };
