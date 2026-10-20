@@ -3,6 +3,7 @@ import type { StudentProfile } from "./A_Students";
 import { apiFetch } from "../utils/apiFetch";
 import { askConfirm } from "../utils/notify";
 import Modal from "./Modal";
+import DeadlineExtensionButton from "./DeadlineExtensionButton";
 import { useAdminRole } from "./adminRole";
 
 const CURRICULUM_TH: Record<string, string> = {
@@ -185,6 +186,12 @@ export default function A_StudentEditModal({ student, onClose, onSaved }: Props)
             <input className="input" value={form.jobPosition} onChange={e => update("jobPosition", e.target.value)} />
           </Field>
         </div>
+
+        {/* ขยายเวลาส่งรายคน (ปฏิทินของรอบ) — มีข้อมูลสหกิจแล้วเท่านั้น */}
+        {student.coop && <div style={{ marginTop: 20, paddingTop: 16, borderTop: "1px solid #e5e7eb" }}>
+          <div style={{ fontSize: 13, color: "#64748b", marginBottom: 8, fontWeight: 600 }}>ขยายเวลาส่ง (T000 / T002 / T003)</div>
+          <DeadlineExtensionButton studentId={student.id} studentName={`${student.firstName ?? ""} ${student.lastName ?? ""}`.trim()} extensions={student.coop.deadlineExtensions} />
+        </div>}
 
         {/* รหัสผ่าน = เจ้าหน้าที่เท่านั้น */}
         {isStaff && <div style={{ marginTop: 20, paddingTop: 16, borderTop: "1px solid #e5e7eb" }}>

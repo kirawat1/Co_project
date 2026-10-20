@@ -66,6 +66,12 @@ export function entryText(e?: DeadlineEntry | null): string {
     return parts.join(" · ");
 }
 
+/** ขยายเวลารายคน (StudentCoop.deadlineExtensions) เป็นข้อความสั้น */
+export function extensionSummary(ext?: Partial<Record<StepKey, string>> | null): string {
+    if (!ext) return "";
+    return MODE_STEPS.filter((k) => ext[k]).map((k) => `${k} ถึง ${fmtDate(ext[k]!)}`).join(" · ");
+}
+
 /** ข้อความของค่าเดิม */
 export function legacyText(l?: LegacyWindow | LegacyForm): string {
     if (!l) return "ไม่มีกำหนด";

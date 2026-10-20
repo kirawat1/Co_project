@@ -1,5 +1,14 @@
 import { test, expect } from "@playwright/test";
-import { deadlineStatus, suggestApplyTo, differsFromCollege } from "../src/utils/deadlines";
+import { deadlineStatus, suggestApplyTo, differsFromCollege, extensionSummary } from "../src/utils/deadlines";
+import { fmtDate } from "../src/utils/dateFormat";
+
+test.describe("extensionSummary — ข้อความขยายเวลารายคน", () => {
+    test("เรียงตามขั้น · ว่าง/ไม่มี → ข้อความว่าง", () => {
+        expect(extensionSummary({ T002: "2026-07-10", T000: "2026-05-20" })).toBe(`T000 ถึง ${fmtDate("2026-05-20")} · T002 ถึง ${fmtDate("2026-07-10")}`);
+        expect(extensionSummary({})).toBe("");
+        expect(extensionSummary(null)).toBe("");
+    });
+});
 
 // ฟังก์ชันล้วน ไม่เปิดเบราว์เซอร์ — ปฏิทินของรอบ (ป้ายสถานะ · หลักสูตรที่ควรติ๊ก · ช่องที่ต่างจากวิทยาลัย)
 const NOW = new Date("2026-07-01T05:00:00Z"); // 12:00 เวลาไทย 1 ก.ค. 2569

@@ -14,6 +14,8 @@ import Modal, { ModalCloseButton } from "./Modal";
 import { useAdminRole } from "./adminRole";
 import { appliesTo } from "../utils/docRequirementScope";
 import RoundDeadlineNote from "./RoundDeadlineNote";
+import DeadlineExtensionButton from "./DeadlineExtensionButton";
+import type { StepKey } from "../utils/deadlines";
 import LetterZipModal, { LetterZipButton, toolbarBtn } from "./LetterZipModal";
 import { defaultPeriodId, pendingOutside, periodCountLabel, type PeriodCount } from "../utils/defaultPeriod";
 
@@ -53,6 +55,7 @@ interface StudentProfile {
         reqLetterDraftNumber?: string | null;
         placeLetterPendingAt?: string | null;
         placeLetterDraftNumber?: string | null;
+        deadlineExtensions?: Partial<Record<StepKey, string>> | null; // ขยายเวลารายคน (ปฏิทินของรอบ)
     }
 }
 
@@ -765,11 +768,16 @@ export default function A_DocT000() {
                                         )}
                                     </td>
                                     <td style={td}>
+                                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                                         {(s.documents?.length || 0) > 0 && !POST_LETTER_STATUSES.includes(s.docStatus || '') && (
                                             <button className="btn" style={{ background: IOS_BLUE, color: 'white', fontSize: 12 }} onClick={() => openCheckModal(s, 1)}>
                                                 🔍 ตรวจสอบ T000
                                             </button>
                                         )}
+                                        {!POST_LETTER_STATUSES.includes(s.docStatus || '') && (
+                                            <DeadlineExtensionButton compact step="T000" studentId={s.id} studentName={`${s.firstName} ${s.lastName}`} extensions={s.coop?.deadlineExtensions} />
+                                        )}
+                                        </div>
                                     </td>
                                     <td style={td}>
                                         {/* ออกหนังสือ = เจ้าหน้าที่เท่านั้น — อาจารย์ประจำวิชาเห็นแค่สถานะ */}

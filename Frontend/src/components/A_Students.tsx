@@ -135,6 +135,7 @@ export interface StudentProfile {
   docStatus?: "WAITING" | "WAITING_FOR_STAFF_CHECK" | "EDITS_REQUIRED" | "REQ_LETTER_ISSUED" | "DOCS_APPROVED" | "WAITING_FOR_PLACEMENT_LETTER" | "WAITING_FOR_STAFF_CHECK_LETTER" | "ACCEPTANCE_CHECKED" | "PLACEMENT_LETTER_ISSUED";
   coop?: {
     status: string;
+    deadlineExtensions?: Partial<Record<"T000" | "T002" | "T003", string>> | null; // ขยายเวลารายคน (ปฏิทินของรอบ)
     company?: Company;
     mentors?: Mentor[];
     teacherComment?: string;
