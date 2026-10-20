@@ -3,6 +3,50 @@ export default function StudentTheme({ IOS_BLUE = "#0074B7" }: { IOS_BLUE?: stri
   return <style>{css(IOS_BLUE)}</style>;
 }
 
+// ===== ธีมมืด: ปรับสีที่ตั้งใน style attribute =====
+// Chrome เก็บทุกสีใน style attribute เป็น rgb() (รวม shorthand "background") — selector แบบ hex ไม่เคยจับได้
+type RGB = [number, number, number];
+const rgb = ([r, g, b]: RGB) => `rgb(${r}, ${g}, ${b})`;
+// เฉพาะ property color (ขึ้นต้น หรือมี "; color:" ตามหลัง property อื่น) — ไม่โดน background-color / border-color
+const textSel = (c: RGB) => `[data-theme="dark"] [style^="color: ${rgb(c)}"], [data-theme="dark"] [style*="; color: ${rgb(c)}"]`;
+const bgSel = (c: RGB) => `[data-theme="dark"] [style*="background: ${rgb(c)}"], [data-theme="dark"] [style*="background-color: ${rgb(c)}"]`;
+const rules = (groups: [RGB[], string][], sel: (c: RGB) => string, prop: string) =>
+  groups.map(([colors, to]) => `${colors.map(sel).join(',\n  ')} { ${prop}: ${to} !important; }`).join('\n  ');
+
+// ตัวอักษรสีเข้ม → สว่าง (สีเดิมเฉดเดียวกันแต่อ่านออกบนพื้นเข้ม)
+const DARK_TEXT: [RGB[], string][] = [
+  [[[15, 23, 42], [30, 41, 59], [51, 65, 85], [55, 65, 81], [17, 24, 39], [31, 41, 55], [0, 0, 0]], '#e2e8f0'],
+  [[[71, 85, 105], [100, 116, 139], [107, 114, 128], [75, 85, 99]], '#94a3b8'],
+  [[[0, 116, 183], [37, 99, 235], [29, 78, 216]], '#60a5fa'],
+  [[[30, 64, 175], [30, 58, 138]], '#93c5fd'],
+  [[[3, 105, 161], [2, 132, 199]], '#38bdf8'],
+  [[[8, 145, 178], [14, 116, 144]], '#22d3ee'],
+  [[[15, 118, 110], [13, 148, 136]], '#2dd4bf'],
+  [[[4, 120, 87], [5, 150, 105], [6, 95, 70]], '#34d399'],
+  [[[22, 101, 52], [21, 128, 61], [22, 163, 74]], '#4ade80'],
+  [[[124, 58, 237], [109, 40, 217], [91, 33, 182]], '#a78bfa'],
+  [[[107, 33, 168]], '#c084fc'],
+  [[[76, 29, 149]], '#c4b5fd'],
+  [[[67, 56, 202], [55, 48, 163]], '#a5b4fc'],
+  [[[180, 83, 9], [146, 64, 14], [217, 119, 6]], '#fbbf24'],
+  [[[161, 98, 7], [133, 77, 14]], '#facc15'],
+  [[[194, 65, 12], [154, 52, 18]], '#fb923c'],
+  [[[185, 28, 28], [220, 38, 38], [153, 27, 27]], '#f87171'],
+  [[[225, 29, 72], [190, 18, 60]], '#fb7185'],
+];
+// พื้นสีอ่อน → พื้นเข้มที่ยังเห็นเฉดเดิม
+const LIGHT_BG: [RGB[], string][] = [
+  [[[255, 255, 255]], '#1e293b'],
+  [[[248, 250, 252], [241, 245, 249], [249, 250, 251], [243, 244, 246], [245, 243, 255], [250, 245, 255], [240, 249, 255], [239, 246, 255], [236, 254, 255]], 'rgba(255,255,255,.06)'],
+  [[[226, 232, 240]], 'rgba(255,255,255,.1)'],
+  [[[254, 242, 242], [254, 226, 226], [255, 241, 242], [255, 228, 230]], 'rgba(220,38,38,.15)'],
+  [[[255, 251, 235], [254, 249, 195], [254, 243, 199], [255, 247, 237], [255, 237, 213], [254, 252, 232]], 'rgba(245,158,11,.15)'],
+  [[[240, 253, 244], [220, 252, 231], [209, 250, 229], [236, 253, 245]], 'rgba(22,163,74,.15)'],
+  [[[224, 242, 254], [219, 234, 254]], 'rgba(59,130,246,.15)'],
+  [[[243, 232, 255], [224, 231, 255], [237, 233, 254]], 'rgba(109,40,217,.15)'],
+  [[[204, 251, 241], [240, 253, 250]], 'rgba(13,148,136,.15)'],
+];
+
 function css(IOS_BLUE: string) {
   return `
   /* ===== CSS VARIABLES: Light mode ===== */
@@ -150,7 +194,8 @@ function css(IOS_BLUE: string) {
     box-shadow: var(--active-shadow);
     color: ${IOS_BLUE};
   }
-  [data-theme="dark"] .item.active { border-color: rgba(59,130,246,.3); }
+  [data-theme="dark"] .item.active { border-color: rgba(59,130,246,.3); color: #60a5fa; }
+  [data-theme="dark"] .item.active .ico svg { color: #60a5fa; }
   .ico svg { width: 20px; height: 20px; color: var(--text-muted); }
   .item.active .ico svg { color: ${IOS_BLUE}; }
   .text { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -478,80 +523,16 @@ function css(IOS_BLUE: string) {
     accent-color: ${IOS_BLUE};
   }
 
-  /* 3. TEXT COLORS — Chrome ใช้ rgb() สำหรับ longhand color property
-        rgb(15,23,42)   = #0f172a
-        rgb(30,41,59)   = #1e293b
-        rgb(51,65,85)   = #334155
-        rgb(55,65,81)   = #374151
-        rgb(71,85,105)  = #475569
-        rgb(100,116,139)= #64748b
-        rgb(17,24,39)   = #111827
-  */
-  [data-theme="dark"] [style*="rgb(15, 23, 42)"],
-  [data-theme="dark"] [style*="rgb(15,23,42)"],
-  [data-theme="dark"] [style*="rgb(30, 41, 59)"],
-  [data-theme="dark"] [style*="rgb(30,41,59)"],
-  [data-theme="dark"] [style*="rgb(51, 65, 85)"],
-  [data-theme="dark"] [style*="rgb(51,65,85)"],
-  [data-theme="dark"] [style*="rgb(55, 65, 81)"],
-  [data-theme="dark"] [style*="rgb(55,65,81)"],
-  [data-theme="dark"] [style*="rgb(17, 24, 39)"],
-  [data-theme="dark"] [style*="rgb(17,24,39)"] {
-    color: #e2e8f0 !important;
-  }
-  [data-theme="dark"] [style*="rgb(71, 85, 105)"],
-  [data-theme="dark"] [style*="rgb(71,85,105)"],
-  [data-theme="dark"] [style*="rgb(100, 116, 139)"],
-  [data-theme="dark"] [style*="rgb(100,116,139)"] {
-    color: #94a3b8 !important;
-  }
+  /* 3. TEXT COLORS — สีตัวอักษรใน style attribute (ดู DARK_TEXT ด้านบน) */
+  ${rules(DARK_TEXT, textSel, 'color')}
 
-  /* 4. WHITE / LIGHT BACKGROUNDS — ใช้ hex เพราะ "background" shorthand ไม่ normalize
-        แต่ "background-color" normalize เป็น rgb(255,255,255) */
-  /* background shorthand keeps hex */
-  [data-theme="dark"] [style*="background: #fff"],
+  /* 4–5. LIGHT / SEMANTIC BACKGROUNDS — พื้นสีอ่อนใน style attribute (ดู LIGHT_BG ด้านบน) — background-color ไม่ทับ background-image */
+  ${rules(LIGHT_BG, bgSel, 'background-color')}
+  /* คำว่า white ไม่ถูกแปลงเป็น rgb() */
   [data-theme="dark"] [style*="background: white"],
-  [data-theme="dark"] [style*="background:white"] {
-    background: #1e293b !important;
-  }
-  /* background-color longhand → Chrome normalizes to rgb */
-  [data-theme="dark"] [style*="background-color: rgb(255, 255, 255)"],
-  [data-theme="dark"] [style*="background-color:rgb(255,255,255)"],
-  [data-theme="dark"] [style*="background-color: white"] {
-    background-color: #1e293b !important;
-  }
-  /* Light tones */
-  [data-theme="dark"] [style*="background: #f8fafc"],
-  [data-theme="dark"] [style*="background: #f1f5f9"],
-  [data-theme="dark"] [style*="background: #f9fafb"],
-  [data-theme="dark"] [style*="background: #f5f3ff"],
-  [data-theme="dark"] [style*="background: #faf5ff"],
-  [data-theme="dark"] [style*="background: #f0f9ff"],
-  [data-theme="dark"] [style*="background: #EFF6FF"],
-  [data-theme="dark"] [style*="background: #eff6ff"],
-  [data-theme="dark"] [style*="background: #ecfeff"] {
-    background: rgba(255,255,255,.06) !important;
-  }
+  [data-theme="dark"] [style*="background-color: white"] { background-color: #1e293b !important; }
   /* rgba white backgrounds */
-  [data-theme="dark"] [style*="background: rgba(255, 255, 255"],
-  [data-theme="dark"] [style*="background: rgba(255,255,255"] {
-    background: rgba(255,255,255,.08) !important;
-  }
-
-  /* 5. SEMANTIC COLOR BOXES — darken but keep hue */
-  [data-theme="dark"] [style*="background: #fef2f2"],
-  [data-theme="dark"] [style*="background: #fee2e2"] { background: rgba(220,38,38,.15) !important; }
-  [data-theme="dark"] [style*="background: #fffbeb"],
-  [data-theme="dark"] [style*="background: #fef9c3"],
-  [data-theme="dark"] [style*="background: #fef3c7"] { background: rgba(245,158,11,.15) !important; }
-  [data-theme="dark"] [style*="background: #f0fdf4"],
-  [data-theme="dark"] [style*="background: #dcfce7"],
-  [data-theme="dark"] [style*="background: #d1fae5"] { background: rgba(22,163,74,.15) !important; }
-  [data-theme="dark"] [style*="background: #e0f2fe"],
-  [data-theme="dark"] [style*="background: #dbeafe"] { background: rgba(59,130,246,.15) !important; }
-  [data-theme="dark"] [style*="background: #f3e8ff"],
-  [data-theme="dark"] [style*="background: #e0e7ff"] { background: rgba(109,40,217,.15) !important; }
-  [data-theme="dark"] [style*="background: #ccfbf1"] { background: rgba(13,148,136,.15) !important; }
+  [data-theme="dark"] [style*="background: rgba(255, 255, 255"] { background: rgba(255,255,255,.08) !important; }
 
   /* 6. BORDERS */
   [data-theme="dark"] [style*="border: 1px solid #e2e8f0"],
@@ -568,6 +549,15 @@ function css(IOS_BLUE: string) {
   [data-theme="dark"] [style*="background: #f8fafc"],
   [data-theme="dark"] [style*="background: rgb(248, 250, 252)"] { background: #1a2535 !important; }
   [data-theme="dark"] th { color: #94a3b8 !important; border-color: rgba(255,255,255,.08) !important; }
+  /* หัวตารางที่หน้าตั้งพื้นขาว/เทาอ่อนด้วยคลาส (A_Daily, S_DocTable) — inline style ยังชนะ (กฎหมวด 4–5) */
+  [data-theme="dark"] th { background-color: #1a2535 !important; }
+  [data-theme="dark"] .doc-table td,
+  [data-theme="dark"] .doc-table .row:hover td { background: transparent !important; }
+  /* กล่อง/ปุ่มพื้นอ่อนตามคลาส */
+  [data-theme="dark"] .submit-box { background: rgba(255,255,255,.06) !important; border-color: rgba(255,255,255,.1) !important; }
+  [data-theme="dark"] .submit-box .hint { color: #94a3b8 !important; }
+  [data-theme="dark"] .btn-light { background: rgba(255,255,255,.06) !important; border-color: #475569 !important; color: #e2e8f0 !important; }
+  [data-theme="dark"] .btn-light:hover { background: rgba(255,255,255,.1) !important; color: #fff !important; }
   [data-theme="dark"] td { border-color: rgba(255,255,255,.06) !important; }
   [data-theme="dark"] tr { color: #f1f5f9; }
   [data-theme="dark"] tr:hover { background: rgba(255,255,255,.04) !important; }
@@ -577,6 +567,7 @@ function css(IOS_BLUE: string) {
   [data-theme="dark"] :where(p, li, span, div) { color: inherit; }
   [data-theme="dark"] .main { color: #f1f5f9; }
   [data-theme="dark"] label { color: #cbd5e1 !important; }
+  [data-theme="dark"] label.btn { color: #fff !important; }
 
   /* 10. BUTTONS AND GHOST — see section 13 "─── Buttons ───" below for the canonical dark-mode button rules */
 
