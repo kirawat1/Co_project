@@ -205,3 +205,12 @@ jest.mock('@prisma/client', () => ({
 | `Frontend/src/components/SupervisionCalendar.tsx` | UI ปฏิทิน |
 | `Frontend/src/main.tsx` | global axios interceptor |
 | `CHANGELOG.md` | บันทึกการเปลี่ยนแปลงทุกครั้ง |
+
+---
+
+## การค้นหาโค้ด (กันค้าง/กิน RAM)
+
+- **ห้ามอ่านหรือค้นหา** ใน `node_modules`, `.git`, `dist`, `uploads`, `vendor`
+- ค้นโค้ดด้วย `rg` หรือ `grep -rn --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=dist --exclude-dir=uploads --exclude-dir=vendor`
+- ค้นเฉพาะใน `backend/` และ `Frontend/src/` (โฟลเดอร์ frontend ชื่อ `Frontend` ตัว F ใหญ่)
+- **ห้ามรันคำสั่งที่ไล่ทั้งโปรเจกต์** (เช่น `grep -r .` ที่ root, `find /`) — ระบุโฟลเดอร์ปลายทางเสมอ
