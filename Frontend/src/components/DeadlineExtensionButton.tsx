@@ -1,6 +1,7 @@
 // ขยายเวลาส่งรายคน (ปฏิทินของรอบ) — T000/T002/T003 · ส่งได้ถึงสิ้นวันที่ขยาย แต่ยังนับว่าส่งช้า
 // เจ้าหน้าที่ / อาจารย์ประจำวิชาของหลักสูตรนักศึกษา · เหตุผลเก็บในบันทึกการใช้งาน
-import { useState, type CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
+import { createPortal } from "react-dom";
 import axios from "axios";
 import Modal from "./Modal";
 import DateInput from "./DateInput";
@@ -23,6 +24,9 @@ const todayBangkok = () => new Date().toLocaleDateString("sv-SE", { timeZone: "A
 
 export default function DeadlineExtensionButton({ studentId, studentName, extensions, step, onChanged, compact }: Props) {
     const [ext, setExt] = useState<Extensions>(extensions || {});
+    // ข้อมูลใหม่จากหน้า (รีโหลดรายการ) → ใช้ค่าใหม่
+    const extKey = JSON.stringify(extensions || {});
+    useEffect(() => { setExt(extensions || {}); }, [extKey]); // eslint-disable-line react-hooks/exhaustive-deps
     const [open, setOpen] = useState(false);
     const [stepKey, setStepKey] = useState<StepKey>(step || "T000");
     const [until, setUntil] = useState("");
@@ -75,7 +79,8 @@ export default function DeadlineExtensionButton({ studentId, studentName, extens
                 title={current || "ขยายเวลาส่งให้นักศึกษาคนนี้ (เลยกำหนดแบบปิดรับแล้วส่งได้ถึงวันที่ขยาย)"}>
                 ⏳ {current ? (compact ? "ขยายแล้ว" : `ขยายเวลา (${current})`) : "ขยายเวลา"}
             </button>
-            {open && (
+            {/* วาดที่ body — ปุ่มนี้อยู่ในฟอร์มแก้ข้อมูลนักศึกษาได้ กด Enter ในหน้าต่างนี้ต้องไม่ไปส่งฟอร์มนั้น */}
+            {open && createPortal(
                 <Modal title={`⏳ ขยายเวลาส่ง${studentName ? ` — ${studentName}` : ""}`} onClose={() => !saving && setOpen(false)} maxWidth={460}>
                     <div style={{ display: "grid", gap: 12 }}>
                         {!step && (
@@ -107,7 +112,8 @@ export default function DeadlineExtensionButton({ studentId, studentName, extens
                             </div>
                         </div>
                     </div>
-                </Modal>
+                </Modal>,
+                document.body,
             )}
         </>
     );

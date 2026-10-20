@@ -96,6 +96,8 @@ describe('deadlineConfigController', () => {
       expect(by.T003).toMatchObject({ extensionUntil: '2026-07-31', submittedAt: null });
       expect(by.SUPERVISION).toMatchObject({ startDate: '2026-07-25', due: '2026-08-08' });
       expect(by.T007).toMatchObject({ due: '2026-10-23' });
+      expect(by.T002).toMatchObject({ source: 'ROUND' }); // หน้าเว็บแยกค่าเดิม (LEGACY) ที่ปิดระบบออกจาก "ปิดรับชั่วคราว"
+      expect(by.T000).toMatchObject({ source: 'LEGACY' });
       expect(by.T002.label).toBeTruthy();
       expect(prisma.coopPeriodMajor.findUnique.mock.calls.every((c) => c[0].where.periodId_major.major === 'CS')).toBe(true);
     });
@@ -112,6 +114,16 @@ describe('deadlineConfigController', () => {
       expect(await t002({ at: '2026-07-20T00:00:00.000Z', backfill: true })).toMatchObject({ submittedAt: '2026-07-20T00:00:00.000Z', submittedLate: false });
       expect(await t002({ at: '2026-07-20T00:00:00.000Z' })).toMatchObject({ submittedLate: true });
       expect(await t002({ at: '2026-07-02T00:00:00.000Z' })).toMatchObject({ submittedLate: false });
+    });
+
+    test('ยื่นคำร้อง: รอบเลยวันปิดแล้วแต่ยังค้าง isActive → ปิดให้ และแสดงว่าปิด', async () => {
+      setup({ coop: { coopPeriodId: 1, status: 'QUALIFIED' }, row: { ...row, periodId: 1, major: 'CS', isActive: true, endDate: new Date('2020-01-01T00:00:00Z') } });
+      prisma.coopPeriod.findUnique.mockResolvedValue({ id: 1, academicYear: '2569', semester: 1 });
+      prisma.coopPeriodMajor.updateMany.mockResolvedValue({ count: 1 });
+      const res = makeRes();
+      await ctrl.getRoundDeadlines(student, res);
+      expect(res.json.mock.calls[0][0].steps.find((s) => s.stepKey === 'APPLY')).toMatchObject({ isOpen: false });
+      expect(prisma.coopPeriodMajor.updateMany).toHaveBeenCalled();
     });
 
     test('ยังไม่มีรอบ → ไม่มีไทม์ไลน์', async () => {

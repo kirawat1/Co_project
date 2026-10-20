@@ -234,8 +234,8 @@ exports.uploadDocument = async (req, res) => {
                 }
             }
             // เวลาส่งครั้งแรกของขั้น (T000 = ตอนครบหัวข้อบังคับ) — ส่งแก้ไม่ทับ
-            if (stepKey) await markSubmitted(tx, { studentId: student.id, stepKey, major: student.major || null });
-        });
+            if (stepKey) await markSubmitted(tx, { studentId: student.id, stepKey, major: student.major || null, resubmission: !!deadline?.resubmission });
+        }, { isolationLevel: 'ReadCommitted' });
     } catch (err) {
         if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
         if (err.is400) {

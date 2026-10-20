@@ -102,6 +102,18 @@ describe('resolveDeadline', () => {
       expect(await resolveDeadline('T000', { studentId: 10 }, prisma, now)).toMatchObject({ canSubmit: false });
     });
 
+    test('ขยายเวลาไม่ชนะ "ยังไม่ถึงวันเริ่ม" ของค่าเดิม (ขยายได้เฉพาะที่เลยกำหนด)', async () => {
+      setup({ coop: { coopPeriodId: 1, status: 'QUALIFIED', deadlineExtensions: { T000: '2026-07-31' } }, configs: { T000_CONFIG: { isOpen: true, startDate: '2026-07-10', endDate: '2026-07-20' } } });
+      expect(await resolveDeadline('T000', { studentId: 10 }, prisma, now)).toMatchObject({ canSubmit: false });
+    });
+
+    test('ส่งกลับว่าเป็นการส่งแก้หรือไม่ (resubmission)', async () => {
+      setup({ coop: { coopPeriodId: 1, status: 'EDITS_REQUIRED' } });
+      expect(await resolveDeadline('T000', { studentId: 10 }, prisma, now)).toMatchObject({ resubmission: true });
+      setup({ coop: { coopPeriodId: 1, status: 'QUALIFIED' } });
+      expect(await resolveDeadline('T000', { studentId: 10 }, prisma, now)).toMatchObject({ resubmission: false });
+    });
+
     test('T007 ค่าเดิม = deadline ของ CONFIG_T007', async () => {
       setup({ coop: { coopPeriodId: 2, status: 'T003_APPROVED' }, configs: { CONFIG_T007: { t007Link: 'x', deadline: '2026-10-23' } } });
       expect(await resolveDeadline('T007', { studentId: 10 }, prisma, now)).toMatchObject({ source: 'LEGACY', due: '2026-10-23', canSubmit: true });

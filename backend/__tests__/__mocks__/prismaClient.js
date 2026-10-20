@@ -245,6 +245,7 @@ const prismaMock = {
   },
   // รองรับทั้ง interactive form ($transaction(async (tx) => {...})) และ array form ($transaction([promise1, promise2]))
   $executeRaw: jest.fn(async () => 1),
+  $queryRaw: jest.fn(async () => []),
   $transaction: jest.fn((arg) => Array.isArray(arg) ? Promise.all(arg) : arg(prismaMock)),
 };
 

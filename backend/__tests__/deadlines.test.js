@@ -109,16 +109,19 @@ describe('normalizeDeadlines', () => {
     expect(normalizeDeadlines(null)).toEqual({});
   });
 
-  test('รูปถูก → คืนค่าที่ตัดช่องว่าง · due ว่าง = null', () => {
+  test('รูปถูก → คืนค่าที่ตัดช่องว่าง', () => {
     expect(normalizeDeadlines({
       T000: { due: '2026-05-08', mode: 'HARD', closed: false },
-      T002: { due: '', mode: 'SOFT' },
       T007: { due: '2026-10-23' },
     })).toEqual({
       T000: { due: '2026-05-08', mode: 'HARD', closed: false },
-      T002: { due: null, mode: 'SOFT' },
       T007: { due: '2026-10-23' },
     });
+  });
+
+  test('ไม่มีวันและไม่ปิดชั่วคราว = ยังไม่ตั้ง → ตัดทิ้ง (ระบบใช้ค่าเดิม ไม่ใช่ "ไม่มีกำหนด") · ปิดชั่วคราวไม่มีวัน → เก็บ', () => {
+    expect(normalizeDeadlines({ T002: { due: '', mode: 'SOFT' }, T007: { due: null }, T003: {} })).toEqual({});
+    expect(normalizeDeadlines({ T002: { due: null, closed: true } })).toEqual({ T002: { due: null, closed: true } });
   });
 
   test.each([

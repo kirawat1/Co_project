@@ -360,6 +360,21 @@ describe('docController', () => {
         expect(second.json.mock.calls[0][0]).toMatchObject({ ok: true, late: false });
       });
 
+      test('ทรานแซกชันอัปโหลดอ่านแบบ READ COMMITTED (หลังรอล็อกแถวต้องเห็นไฟล์ที่อีกคำขอเพิ่ง commit)', async () => {
+        prisma.studentCoop.findUnique.mockResolvedValue({ coopPeriodId: 1, status: 'INTERNSHIP_STARTED', submittedSteps: null });
+        prisma.coopPeriodMajor.findUnique.mockResolvedValue({ startDate: past.startDate, deadlines: { T002: { due: '2999-01-01' } } });
+        await docController.uploadDocument(makeUploadReq('T002_FORM'), makeRes());
+        expect(prisma.$transaction).toHaveBeenCalledWith(expect.any(Function), { isolationLevel: 'ReadCommitted' });
+      });
+
+      test('ส่งแก้ที่ยังไม่มีเวลาของขั้น → เวลาส่งไม่นับว่าช้า (backfill)', async () => {
+        prisma.studentCoop.findUnique.mockResolvedValue({ coopPeriodId: 1, status: 'T002_EDITS_REQUIRED', submittedSteps: null });
+        const res = makeRes();
+        await docController.uploadDocument(makeUploadReq('T002_FORM'), res);
+        const stamp = prisma.studentCoop.update.mock.calls.find((c) => c[0].data.submittedSteps);
+        expect(stamp[0].data.submittedSteps).toEqual({ T002: { at: expect.any(String), backfill: true } });
+      });
+
       test('ส่ง T002 ครั้งแรกในเวลา → บันทึกเวลาส่ง', async () => {
         prisma.coopPeriodMajor.findUnique.mockResolvedValue({ startDate: past.startDate, deadlines: { T002: { due: '2999-01-01' } } });
         prisma.studentCoop.findUnique.mockResolvedValue({ coopPeriodId: 1, status: 'INTERNSHIP_STARTED', submittedSteps: null });

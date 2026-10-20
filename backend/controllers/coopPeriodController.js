@@ -2,7 +2,7 @@ const prisma = require('../config/prismaClient');
 const { isPeriodExpired } = require('../utils/coopPeriodHelper');
 const { listPeriods, getRow, viewPeriod, viewerMajors, targetMajors, allMajorCodes } = require('../utils/coopPeriodMajor');
 const { getMajorScope } = require('../utils/majorScope');
-const { readEffective } = require('../utils/majorConfig');
+const { overrideKey } = require('../utils/majorConfig');
 const { normalizeDeadlines, applyCollegeChange, shiftYears } = require('../utils/deadlines');
 const { bangkokDay } = require('../utils/resolveDeadline');
 const { createNotifications } = require('../utils/notificationHelper');
@@ -287,16 +287,31 @@ exports.moveStudentPeriod = async (req, res) => {
 const LEGACY_WINDOW = { T000: 'T000_CONFIG', T002: 'T002_CONFIG', T003: 'T003_CONFIG' };
 const LEGACY_FORM = { T005_T006: 'EVALUATION_FORMS', T007: 'CONFIG_T007', T008: 'CONFIG_T008' };
 
-// ค่าเดิมใน SystemConfig ที่หลักสูตรนี้ใช้อยู่ — แสดงในขั้นที่รอบยังไม่ได้ตั้ง
-async function legacyFor(major) {
+// ค่าเดิมใน SystemConfig ที่แต่ละหลักสูตรใช้อยู่ — แสดงในขั้นที่รอบยังไม่ได้ตั้ง
+// โหลดครั้งเดียว (ค่ากลาง + ค่าทับของทุกหลักสูตร) แล้วรวมแบบเดียวกับ readEffective
+async function legacyForMajors(majors) {
+  const baseKeys = [...Object.values(LEGACY_WINDOW), ...Object.values(LEGACY_FORM)];
+  const keys = [...baseKeys, ...majors.flatMap((m) => baseKeys.map((k) => overrideKey(k, m)))];
+  const rows = await prisma.systemConfig.findMany({ where: { key: { in: keys } } });
+  const parsed = new Map(rows.map((r) => {
+    try { return [r.key, JSON.parse(r.value)]; } catch { return [r.key, null]; }
+  }));
+  const effective = (key, major) => {
+    const global = parsed.get(key) || null;
+    const override = parsed.get(overrideKey(key, major)) || {};
+    return !global && !Object.keys(override).length ? null : { ...(global || {}), ...override };
+  };
   const out = {};
-  for (const [step, key] of Object.entries(LEGACY_WINDOW)) {
-    const c = await readEffective(key, major);
-    out[step] = c ? { isOpen: !!c.isOpen, startDate: c.startDate || null, endDate: c.endDate || null } : null;
-  }
-  for (const [step, key] of Object.entries(LEGACY_FORM)) {
-    const c = await readEffective(key, major);
-    out[step] = c?.deadline ? { deadline: c.deadline } : null;
+  for (const major of majors) {
+    out[major] = {};
+    for (const [step, key] of Object.entries(LEGACY_WINDOW)) {
+      const c = effective(key, major);
+      out[major][step] = c ? { isOpen: !!c.isOpen, startDate: c.startDate || null, endDate: c.endDate || null } : null;
+    }
+    for (const [step, key] of Object.entries(LEGACY_FORM)) {
+      const c = effective(key, major);
+      out[major][step] = c?.deadline ? { deadline: c.deadline } : null;
+    }
   }
   return out;
 }
@@ -312,8 +327,7 @@ exports.getDeadlines = async (req, res) => {
     if (!period) return fail(res, 404, 'ไม่พบรอบสหกิจ');
     const visible = await viewerMajors(req);
     const rows = (period.majors || []).filter((r) => !visible || visible.includes(r.major));
-    const legacy = {};
-    for (const r of rows) legacy[r.major] = await legacyFor(r.major);
+    const legacy = await legacyForMajors(rows.map((r) => r.major));
     res.json({
       ok: true,
       period: { id: period.id, academicYear: period.academicYear, semester: period.semester },
@@ -356,11 +370,12 @@ exports.saveDeadlines = async (req, res) => {
     }
 
     const [m] = await targetMajors(req, major);
-    await prisma.coopPeriodMajor.upsert({
-      where: { periodId_major: { periodId: id, major: m } },
-      update: { deadlines: clean },
-      create: { periodId: id, major: m, startDate: period.startDate, endDate: period.endDate, deadlines: clean },
-    });
+    // ตั้งได้เฉพาะหลักสูตรที่อยู่ในรอบแล้ว — การเพิ่มหลักสูตรเข้ารอบทำที่ตารางรอบ (ได้ค่าวิทยาลัยติดไปเอง)
+    const where = { periodId_major: { periodId: id, major: m } };
+    if (!(await prisma.coopPeriodMajor.findUnique({ where }))) {
+      return fail(res, 404, `หลักสูตร ${m} ยังไม่อยู่ในรอบนี้ — เพิ่มหลักสูตรเข้ารอบก่อน`);
+    }
+    await prisma.coopPeriodMajor.update({ where, data: { deadlines: clean } });
     res.json({ ok: true, major: m, deadlines: clean });
   } catch (error) {
     handle(res, error, 'Save deadlines error:');

@@ -16,8 +16,11 @@ async function requiredDocKeys(db, major) {
   return (reqs || []).filter((r) => appliesTo(withRules(r), major)).map((r) => r.docKey);
 }
 
-async function markSubmitted(db, { studentId, stepKey, major, now = new Date() }) {
+// resubmission = อัปโหลดนี้เป็นการส่งแก้ (resolveDeadline) — ยังไม่มีเวลาของขั้น (ส่งก่อนเติมย้อนหลัง) → บันทึกแบบไม่นับว่าช้า
+// เรียกในทรานแซกชันแบบ READ COMMITTED — ล็อกแถวก่อนอ่าน อัปโหลดพร้อมกันจึงไม่ทับกัน และเห็นไฟล์ที่อีกคำขอเพิ่ง commit
+async function markSubmitted(db, { studentId, stepKey, major, now = new Date(), resubmission = false }) {
   if (!TRACKED_STEPS.includes(stepKey)) return;
+  await db.$queryRaw`SELECT id FROM StudentCoop WHERE studentId = ${studentId} FOR UPDATE`;
   const coop = await db.studentCoop.findUnique({ where: { studentId }, select: { submittedSteps: true } });
   if (!coop) return;
   const steps = coop.submittedSteps || {};
@@ -34,7 +37,7 @@ async function markSubmitted(db, { studentId, stepKey, major, now = new Date() }
 
   await db.studentCoop.update({
     where: { studentId },
-    data: { submittedSteps: { ...steps, [stepKey]: { at: now.toISOString() } } },
+    data: { submittedSteps: { ...steps, [stepKey]: { at: now.toISOString(), ...(resubmission ? { backfill: true } : {}) } } },
   });
 }
 

@@ -80,10 +80,10 @@ export default function Modal({
   );
 }
 
-/** ปุ่มปิด × — ใช้เองเมื่อหัวโมดัลกำหนดเอง (variant="circle" สำหรับหัวที่มีรายละเอียดหลายบรรทัด) */
+/** ปุ่มปิด × — type="button": โมดัลที่อยู่ใน <form> กด Enter แล้วต้องไม่ถูกนับเป็นปุ่มส่งฟอร์ม · ใช้เองเมื่อหัวโมดัลกำหนดเอง (variant="circle" สำหรับหัวที่มีรายละเอียดหลายบรรทัด) */
 export function ModalCloseButton({ onClose, variant = "plain" }: { onClose: () => void; variant?: "plain" | "circle" }) {
   if (variant === "circle") {
-    return <button onClick={onClose} aria-label="ปิด" className="close-btn">&times;</button>;
+    return <button type="button" onClick={onClose} aria-label="ปิด" className="close-btn">&times;</button>;
   }
-  return <button onClick={onClose} aria-label="ปิด" className="modal-close">&times;</button>;
+  return <button type="button" onClick={onClose} aria-label="ปิด" className="modal-close">&times;</button>;
 }

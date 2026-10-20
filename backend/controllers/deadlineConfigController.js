@@ -6,7 +6,7 @@
 const prisma = require('../config/prismaClient');
 const { readEffective } = require('../utils/majorConfig');
 const { resolveDeadline, bangkokDay } = require('../utils/resolveDeadline');
-const { autoCloseRows } = require('../utils/coopPeriodMajor');
+const { autoCloseRows, getRow } = require('../utils/coopPeriodMajor');
 const { applyWindowMessage } = require('../utils/applyWindow');
 const { STEP_LABEL, MODE_STEPS, deadlineFlags } = require('../utils/deadlines');
 
@@ -65,7 +65,7 @@ exports.getRoundDeadlines = async (req, res) => {
     const periodId = coop.coopPeriodId;
     const [period, row] = await Promise.all([
       prisma.coopPeriod.findUnique({ where: { id: periodId }, select: { id: true, academicYear: true, semester: true } }),
-      student.major ? prisma.coopPeriodMajor.findUnique({ where: { periodId_major: { periodId, major: student.major } } }) : null,
+      student.major ? getRow(periodId, student.major) : null, // ปิดรอบที่เลยวันปิดให้ก่อน (เหมือนหน้ารอบสหกิจ)
     ]);
     const ctx = { studentId: student.id, major: student.major || null };
     const step = async (stepKey) => {
@@ -74,7 +74,7 @@ exports.getRoundDeadlines = async (req, res) => {
       if (!MODE_STEPS.includes(stepKey)) return base;
       const submitted = coop.submittedSteps?.[stepKey] || null;
       return {
-        ...base, mode: d.mode, closed: d.closed, canSubmit: d.canSubmit, late: d.late,
+        ...base, mode: d.mode, closed: d.closed, canSubmit: d.canSubmit, late: d.late, source: d.source,
         submittedAt: submitted?.at || null, extensionUntil: d.extensionUntil,
         // ส่งช้าหรือไม่ — กฎเดียวกับป้ายในหน้าตรวจ (เวลาที่เติมย้อนหลังไม่นับ)
         submittedLate: deadlineFlags({ stepKey, due: d.due, submitted }).late,

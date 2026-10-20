@@ -6,7 +6,7 @@ import axios from "axios";
 import DateInput from "./DateInput";
 import Modal from "./Modal";
 import { fmtDate } from "../utils/dateFormat";
-import { notify } from "../utils/notify";
+import { notify, askConfirm } from "../utils/notify";
 import {
     STEP_KEYS, MODE_STEPS, STEP_LABEL, deadlineStatus, differsFromCollege, suggestApplyTo, entryText, legacyText,
     type Deadlines, type DeadlineEntry, type StepKey, type Tone, type LegacyWindow, type LegacyForm,
@@ -89,6 +89,13 @@ export default function A_RoundDeadlines({ period, periods }: Props) {
     const dirty = JSON.stringify(cleanDraft(draft)) !== JSON.stringify(cleanDraft(saved));
     const columns = [COLLEGE, ...data.majors.map(m => m.major)];
     const rowOf = (major: string) => period.majors.find(r => r.major === major && r.configured !== false);
+
+    // เปลี่ยนแท็บขณะมีค่าที่ยังไม่บันทึก → ถามก่อน (ค่าที่แก้ผูกกับแท็บ เปลี่ยนแล้วหาย)
+    const switchTab = async (next: string) => {
+        if (next === tab) return;
+        if (dirty && !(await askConfirm("มีกำหนดส่งที่แก้แต่ยังไม่บันทึกในแท็บนี้ — ทิ้งแล้วเปลี่ยนแท็บ?", { confirmLabel: "ทิ้งที่แก้", danger: true }))) return;
+        setTab(next);
+    };
 
     const setStep = (k: StepKey, patch: Partial<DeadlineEntry>) =>
         setDraft(d => ({ ...d, [k]: { due: null, ...(d[k] || {}), ...patch } }));
@@ -211,7 +218,7 @@ export default function A_RoundDeadlines({ period, periods }: Props) {
             {/* แก้ทีละคอลัมน์ */}
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 16 }} role="tablist">
                 {columns.map(c => (
-                    <button key={c || "college"} type="button" role="tab" aria-selected={tab === c} onClick={() => setTab(c)}
+                    <button key={c || "college"} type="button" role="tab" aria-selected={tab === c} onClick={() => switchTab(c)}
                         style={{ ...tabBtn, ...(tab === c ? tabActive : {}) }}>
                         {c === COLLEGE ? "ทั้งวิทยาลัย" : `หลักสูตร ${c}`}
                     </button>
