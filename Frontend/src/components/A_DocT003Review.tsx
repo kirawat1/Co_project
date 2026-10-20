@@ -116,7 +116,9 @@ export default function A_DocT003Review() {
         const docStatus = t003Doc?.status || 'WAITING';
         const profileStatus = student.coop?.status || student.docStatus;
 
-        if (profileStatus === 'T003_APPROVED' || profileStatus === 'INTERNSHIP_STARTED' || docStatus === 'APPROVED') {
+        // ยังไม่มีไฟล์ T003 = ยังไม่ส่ง (INTERNSHIP_STARTED/T002_SUBMITTED — เดิมขึ้นว่าพิจารณาผ่านแล้ว/รอการพิจารณา)
+        if (!t003Doc) return { label: "⏳ ยังไม่ส่ง", color: "#475569", bg: "#f1f5f9", btnBg: "#64748b" };
+        if (profileStatus === 'T003_APPROVED' || docStatus === 'APPROVED') {
             return { label: "✅ พิจารณาผ่านแล้ว", color: "#1d4ed8", bg: "#dbeafe", btnBg: "#64748b" };
         }
         if (profileStatus === 'T003_EDITS_REQUIRED' || docStatus === 'EDITS_REQUIRED' || docStatus === 'REJECTED') {
@@ -335,9 +337,11 @@ export default function A_DocT003Review() {
                                     <td style={{ padding: '14px 16px', textAlign: 'right' }}>
                                         <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
                                         <DeadlineExtensionButton compact step="T003" studentId={s.id} studentName={`${s.firstName} ${s.lastName}`} extensions={s.coop?.deadlineExtensions} />
+                                        {s.documents?.some(d => d.type === "T003_FORM") && (
                                         <button className="btn" style={{ padding: '8px 16px', fontSize: 13, background: statusInfo.btnBg }} onClick={() => openReviewModal(s)}>
                                             🔍 พิจารณา
                                         </button>
+                                        )}
                                         </div>
                                     </td>
                                 </tr>

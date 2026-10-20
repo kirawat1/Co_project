@@ -12,8 +12,10 @@ const LEGACY_WINDOW_KEY = { T000: 'T000_CONFIG', T002: 'T002_CONFIG', T003: 'T00
 const LEGACY_DEADLINE_KEY = { T005_T006: 'EVALUATION_FORMS', T007: 'CONFIG_T007', T008: 'CONFIG_T008' };
 
 // สถานะ "ถูกสั่งแก้" ของแต่ละขั้น — ส่งแก้ไม่ติดกำหนด (กลุ่ม T000 ชุดเดียวกับที่ docController ถือว่าเป็นการส่งแก้)
+// T000 ถูกสั่งแก้หลายไฟล์: ไฟล์แรกที่ส่งแก้เปลี่ยนสถานะเป็น WAITING_FOR_STAFF_CHECK (ตั้งที่ docController ทางส่งแก้ทางเดียว)
+//   → ไฟล์ถัดไปยังเป็นการส่งแก้ (ถ้าวันหลังให้ส่ง T000 ครั้งแรกตั้งสถานะนี้ด้วย ต้องทบทวนชุดนี้ — ดู backlog)
 const RESUBMIT_STATUSES = {
-  T000: ['EDITS_REQUIRED', 'APPLICATION_EDITS_REQUIRED'],
+  T000: ['EDITS_REQUIRED', 'APPLICATION_EDITS_REQUIRED', 'WAITING_FOR_STAFF_CHECK'],
   T002: ['T002_EDITS_REQUIRED'],
   T003: ['T003_EDITS_REQUIRED'],
 };

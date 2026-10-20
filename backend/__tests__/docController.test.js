@@ -345,6 +345,21 @@ describe('docController', () => {
         expect(prisma.studentCoop.update).toHaveBeenCalledWith({ where: { studentId: 10 }, data: { status: 'WAITING_FOR_STAFF_CHECK' } });
       });
 
+      // ถูกสั่งแก้หลายไฟล์: ไฟล์แรกเปลี่ยนสถานะเป็น WAITING_FOR_STAFF_CHECK แล้ว — ไฟล์ที่สองต้องยังส่งแก้ได้
+      test('ส่งแก้ T000 หลายไฟล์หลังกำหนด → ไฟล์ที่สองก็ผ่าน', async () => {
+        let status = 'EDITS_REQUIRED';
+        prisma.studentCoop.findUnique.mockImplementation(async () => ({ coopPeriodId: 1, status, submittedSteps: { T000: { at: 'x' } } }));
+        prisma.studentCoop.update.mockImplementation(async ({ data }) => { if (data.status) status = data.status; return {}; });
+        const first = makeRes();
+        await docController.uploadDocument(makeUploadReq('CP-CV'), first);
+        expect(first.json.mock.calls[0][0]).toMatchObject({ ok: true });
+        expect(status).toBe('WAITING_FOR_STAFF_CHECK');
+        const second = makeRes();
+        await docController.uploadDocument(makeUploadReq('CP-TRANSCRIPT'), second);
+        expect(second.status).not.toHaveBeenCalledWith(403);
+        expect(second.json.mock.calls[0][0]).toMatchObject({ ok: true, late: false });
+      });
+
       test('ส่ง T002 ครั้งแรกในเวลา → บันทึกเวลาส่ง', async () => {
         prisma.coopPeriodMajor.findUnique.mockResolvedValue({ startDate: past.startDate, deadlines: { T002: { due: '2999-01-01' } } });
         prisma.studentCoop.findUnique.mockResolvedValue({ coopPeriodId: 1, status: 'INTERNSHIP_STARTED', submittedSteps: null });

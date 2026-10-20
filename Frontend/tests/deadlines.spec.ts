@@ -3,9 +3,11 @@ import { deadlineStatus, suggestApplyTo, differsFromCollege, extensionSummary, t
 
 test.describe("timelineStatus — ไทม์ไลน์ของนักศึกษา", () => {
     const now = new Date("2026-07-01T05:00:00Z");
-    test("ส่งแล้ว: ทันเวลา / ช้า (เทียบวันส่งเวลาไทยกับกำหนด)", () => {
-        expect(timelineStatus({ stepKey: "T002", due: "2026-07-03", submittedAt: "2026-07-03T16:00:00.000Z" }, now)).toEqual({ text: "ส่งแล้ว", tone: "ok" });
-        expect(timelineStatus({ stepKey: "T002", due: "2026-07-03", submittedAt: "2026-07-03T17:30:00.000Z" }, now)).toEqual({ text: "ส่งแล้ว (ช้า)", tone: "warn" });
+    test("ส่งแล้ว: ทัน/ช้า ตามที่ server ตัดสิน (submittedLate — ไม่นับเวลาที่เติมย้อนหลัง)", () => {
+        expect(timelineStatus({ stepKey: "T002", due: "2026-07-03", submittedAt: "2026-07-03T16:00:00.000Z", submittedLate: false }, now)).toEqual({ text: "ส่งแล้ว", tone: "ok" });
+        expect(timelineStatus({ stepKey: "T002", due: "2026-07-03", submittedAt: "2026-07-03T17:30:00.000Z", submittedLate: true }, now)).toEqual({ text: "ส่งแล้ว (ช้า)", tone: "warn" });
+        // เวลาหลังกำหนด แต่ server บอกว่าไม่ช้า (เติมย้อนหลัง) → ส่งแล้ว
+        expect(timelineStatus({ stepKey: "T002", due: "2026-07-03", submittedAt: "2026-07-20T00:00:00.000Z", submittedLate: false }, now)).toEqual({ text: "ส่งแล้ว", tone: "ok" });
     });
     test("ยังไม่ส่ง → ป้ายกำหนดส่ง", () => {
         expect(timelineStatus({ stepKey: "T002", due: "2026-07-03", mode: "HARD", submittedAt: null }, now)).toEqual({ text: "เหลือ 2 วัน", tone: "warn" });

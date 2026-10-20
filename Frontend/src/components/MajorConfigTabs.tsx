@@ -113,7 +113,9 @@ function MajorOverrideEditor({ configKey, major, onSaved }: { configKey: string;
         setFields(d.fields);
         setGlobal(d.global ?? {});
         setDraft(d.override ?? {});
-        setEnabled(new Set(Object.keys(d.override ?? {})));
+        // เฉพาะช่องที่ยังตั้งทับได้ — ช่องที่เลิกตั้งที่นี่แล้ว (เช่น กำหนดส่ง) server เก็บค่าเดิมไว้เอง
+        const names = new Set((d.fields ?? []).map((x: FieldSpec) => x.name));
+        setEnabled(new Set(Object.keys(d.override ?? {}).filter(n => names.has(n))));
       } catch { if (alive) notify.error("โหลดการตั้งค่าไม่สำเร็จ"); }
       finally { if (alive) setLoading(false); }
     })();

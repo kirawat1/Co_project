@@ -81,6 +81,22 @@ describe('API /api/admin/major-config', () => {
     expect(prisma.systemConfig.deleteMany).toHaveBeenCalledWith({ where: { key: 'CONFIG_T007@CS' } });
   });
 
+  // ค่าทับเดิมที่มีช่องซึ่งเลิกตั้งที่นี่แล้ว (กำหนดส่ง → ปฏิทินของรอบ) ต้องยังบันทึกช่องอื่นได้ และช่องเดิมเก็บไว้เป็นค่าสำรอง
+  test('ค่าทับเดิมมี deadline (ย้ายไปปฏิทินของรอบ) → บันทึกลิงก์ได้ · deadline เดิมคงไว้', async () => {
+    store({ 'CONFIG_T007@CS': { t007Link: 'https://old', deadline: '2026-09-30' } });
+    const res = makeRes();
+    await ctrl.putMajorConfig({ ...coop(['CS']), params: { key: 'CONFIG_T007' }, query: { major: 'CS' }, body: { override: { t007Link: 'https://new', deadline: '2026-09-30' } } }, res);
+    expect(res.status).not.toHaveBeenCalled();
+    expect(JSON.parse(prisma.systemConfig.upsert.mock.calls[0][0].update.value)).toEqual({ deadline: '2026-09-30', t007Link: 'https://new' });
+  });
+
+  test('ช่องแปลกที่ไม่เคยเก็บไว้ → ยัง 400', async () => {
+    store({});
+    const res = makeRes();
+    await ctrl.putMajorConfig({ ...STAFF, params: { key: 'CONFIG_T007' }, query: { major: 'CS' }, body: { override: { deadline: '2026-09-30' } } }, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+  });
+
   test('หน้าสรุป: บอกช่องที่แต่ละหลักสูตรตั้งทับ (อาจารย์เห็นเฉพาะหลักสูตรตัวเอง)', async () => {
     prisma.systemConfig.findMany.mockResolvedValue([{ key: 'CONFIG_T007@CS', value: JSON.stringify({ t007Link: 'https://cs' }) }]);
     const res = makeRes();

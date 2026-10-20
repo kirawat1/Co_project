@@ -106,7 +106,9 @@ export default function A_T002Review() {
         const docStatus = t002Doc?.status || 'WAITING';
         const profileStatus = student.coop?.status || student.docStatus;
 
-        if (profileStatus === 'INTERNSHIP_STARTED' || docStatus === 'APPROVED') return { label: "✅ ตรวจผ่านแล้ว", color: "#10b981", bg: "#dcfce7" };
+        // ยังไม่มีไฟล์ T002 = ยังไม่ส่ง (INTERNSHIP_STARTED คือเริ่มฝึกแล้วยังไม่ส่ง — เดิมขึ้นว่าตรวจผ่านแล้ว)
+        if (!t002Doc) return { label: "⏳ ยังไม่ส่ง", color: "#475569", bg: "#f1f5f9" };
+        if (docStatus === 'APPROVED') return { label: "✅ ตรวจผ่านแล้ว", color: "#10b981", bg: "#dcfce7" };
         if (profileStatus === 'T002_EDITS_REQUIRED' || docStatus === 'EDITS_REQUIRED' || docStatus === 'REJECTED') return { label: "⚠️ ตีกลับให้แก้ไข", color: "#dc2626", bg: "#fee2e2" };
         return { label: "📄 รอการตรวจสอบ", color: "#0d9488", bg: "#ccfbf1" };
     };
@@ -317,9 +319,11 @@ export default function A_T002Review() {
                                     <td style={{ padding: '14px 16px', textAlign: 'right' }}>
                                         <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
                                         <DeadlineExtensionButton compact step="T002" studentId={s.id} studentName={`${s.firstName} ${s.lastName}`} extensions={s.coop?.deadlineExtensions} />
+                                        {getT002FileUrl(s.documents || []) && (
                                         <button className="btn" style={{ padding: '8px 16px', fontSize: 13, background: statusInfo.label.includes('รอการตรวจสอบ') ? '#0ea5e9' : '#64748b' }} onClick={() => openReviewModal(s)}>
                                             🔍 ตรวจเอกสาร
                                         </button>
+                                        )}
                                         </div>
                                     </td>
                                 </tr>

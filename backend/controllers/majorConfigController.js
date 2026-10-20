@@ -131,8 +131,13 @@ exports.getMajorConfig = async (req, res) => {
 // PUT /api/admin/major-config/:key?major=CS { override: { ช่อง: ค่า | null } } — แทนที่ค่าเฉพาะทั้งชุด (ช่องที่ไม่ส่ง/null = ใช้ค่ากลาง)
 exports.putMajorConfig = async (req, res) => {
   try {
-    const { key, major } = await resolveTarget(req);
-    const override = validateOverride(key, req.body?.override ?? {});
+    const { key, spec, major } = await resolveTarget(req);
+    // ช่องที่เคยตั้งทับได้แต่เลิกตั้งที่นี่แล้ว (เช่น กำหนดส่ง → ปฏิทินของรอบ) — เก็บค่าเดิมไว้เป็นค่าสำรอง ไม่ให้ทำให้บันทึกช่องอื่นไม่ได้
+    const stored = await readOverride(key, major);
+    const retired = Object.fromEntries(Object.entries(stored).filter(([f]) => !spec.fields[f]));
+    const incoming = { ...(req.body?.override ?? {}) };
+    for (const f of Object.keys(retired)) delete incoming[f];
+    const override = { ...retired, ...validateOverride(key, incoming) };
     await writeOverride(key, major, override);
     res.json({ ok: true, override });
   } catch (err) { fail(res, err); }

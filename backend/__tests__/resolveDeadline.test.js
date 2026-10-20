@@ -38,6 +38,13 @@ describe('resolveDeadline', () => {
       .toMatchObject({ canSubmit: true, late: false });
   });
 
+  test('T000 ระหว่างส่งแก้ (WAITING_FOR_STAFF_CHECK หลังส่งแก้ไฟล์แรก) → ยังนับเป็นการส่งแก้', async () => {
+    setup({ coop: { coopPeriodId: 1, status: 'WAITING_FOR_STAFF_CHECK' } });
+    prisma.coopPeriodMajor.findUnique.mockResolvedValue({ startDate: new Date('2026-03-01T00:00:00Z'), deadlines: { T000: { due: '2026-05-08' } } });
+    expect(await resolveDeadline('T000', { studentId: 10 }, prisma, at('2026-07-20T00:00:00Z')))
+      .toMatchObject({ canSubmit: true, late: false });
+  });
+
   test('ขยายเวลา T002 → ส่ง T002 ได้ถึงวันขยาย แต่ไม่เปิด T003', async () => {
     setup({ coop: { coopPeriodId: 1, status: 'T002_SUBMITTED', deadlineExtensions: { T002: '2026-07-31' } } });
     const now = at('2026-07-20T00:00:00Z');
