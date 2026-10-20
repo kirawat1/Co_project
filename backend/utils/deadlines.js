@@ -10,6 +10,10 @@ const STEP_KEYS = ['T000', 'T002', 'T003', 'T005_T006', 'T007', 'T008'];
 // ขั้นที่ส่งในระบบ (ปิดรับ/ติดป้ายส่งช้าได้) — T005–T008 เป็นฟอร์มนอกระบบ แสดงวันอย่างเดียว
 const MODE_STEPS = ['T000', 'T002', 'T003'];
 const MODES = ['HARD', 'SOFT'];
+const STEP_LABEL = {
+  T000: 'T000 เอกสารสมัคร', T002: 'T002 รายละเอียดงาน', T003: 'T003 โครงร่างรายงาน',
+  T005_T006: 'T005/T006 แบบประเมิน', T007: 'T007 แบบประเมิน', T008: 'T008 เล่มรายงาน',
+};
 
 const badRequest = (message) => Object.assign(new Error(message), { status: 400 });
 
@@ -139,7 +143,7 @@ function deadlineFlags({ stepKey, due, submitted, status, extensionUntil = null,
 }
 
 module.exports = {
-  FIRST_SUBMIT_STATUSES, deadlineFlags,
+  STEP_LABEL, FIRST_SUBMIT_STATUSES, deadlineFlags,
   STEP_KEYS, MODE_STEPS, badRequest, isValidDay, normalizeDeadlines, evaluateDeadline, evaluateLegacyWindow,
   applyCollegeChange, shiftYears,
 };

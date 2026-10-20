@@ -100,6 +100,7 @@ const EXPECTED = {
     'GET /config/t007':               '✓ ✓ ✓ ✓',
     'GET /config/t008':               '✓ ✓ ✓ ✓',
     'GET /doc-requirements':          '✓ ✓ ✓ ✓',
+    'GET /round-deadlines':           '✓ · · ·',
   },
   visit: {
     'GET /student/:studentId': '· ✓ ✓ ✓',

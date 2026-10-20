@@ -1,5 +1,21 @@
 import { test, expect } from "@playwright/test";
-import { deadlineStatus, suggestApplyTo, differsFromCollege, extensionSummary } from "../src/utils/deadlines";
+import { deadlineStatus, suggestApplyTo, differsFromCollege, extensionSummary, timelineStatus } from "../src/utils/deadlines";
+
+test.describe("timelineStatus — ไทม์ไลน์ของนักศึกษา", () => {
+    const now = new Date("2026-07-01T05:00:00Z");
+    test("ส่งแล้ว: ทันเวลา / ช้า (เทียบวันส่งเวลาไทยกับกำหนด)", () => {
+        expect(timelineStatus({ stepKey: "T002", due: "2026-07-03", submittedAt: "2026-07-03T16:00:00.000Z" }, now)).toEqual({ text: "ส่งแล้ว", tone: "ok" });
+        expect(timelineStatus({ stepKey: "T002", due: "2026-07-03", submittedAt: "2026-07-03T17:30:00.000Z" }, now)).toEqual({ text: "ส่งแล้ว (ช้า)", tone: "warn" });
+    });
+    test("ยังไม่ส่ง → ป้ายกำหนดส่ง", () => {
+        expect(timelineStatus({ stepKey: "T002", due: "2026-07-03", mode: "HARD", submittedAt: null }, now)).toEqual({ text: "เหลือ 2 วัน", tone: "warn" });
+    });
+    test("ยื่นคำร้อง: เปิด/ปิด · ช่วงนิเทศ: ไม่มีป้าย", () => {
+        expect(timelineStatus({ stepKey: "APPLY", due: "2026-07-03", isOpen: true }, now)).toEqual({ text: "เปิดรับอยู่", tone: "ok" });
+        expect(timelineStatus({ stepKey: "APPLY", due: "2026-04-17", isOpen: false }, now)).toEqual({ text: "ปิดแล้ว", tone: "info" });
+        expect(timelineStatus({ stepKey: "SUPERVISION", due: "2026-08-08" }, now)).toBeNull();
+    });
+});
 import { fmtDate } from "../src/utils/dateFormat";
 
 test.describe("extensionSummary — ข้อความขยายเวลารายคน", () => {

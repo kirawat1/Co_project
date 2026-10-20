@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import S_RoundTimeline from "./S_RoundTimeline";
 import { Link } from "react-router-dom";
 import { apiFetch } from "../utils/apiFetch";
 import { fmtDate, fmtDateTime } from '../utils/dateFormat';
@@ -271,6 +272,9 @@ export default function S_Dashboard() {
           </div>
         </div>
       )}
+
+      {/* ===== กำหนดส่งของรอบ (ปฏิทินของรอบ) ===== */}
+      <S_RoundTimeline />
 
       {/* GRID */}
       <div className="dash-grid">

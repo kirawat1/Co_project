@@ -8,6 +8,7 @@ const { readEffective } = require('../utils/majorConfig');
 const { resolveDeadline, bangkokDay } = require('../utils/resolveDeadline');
 const { autoCloseRows } = require('../utils/coopPeriodMajor');
 const { applyWindowMessage } = require('../utils/applyWindow');
+const { STEP_LABEL, MODE_STEPS } = require('../utils/deadlines');
 
 const fail = (res, err, label) => {
   console.error(label, err);
@@ -51,6 +52,40 @@ exports.getT003Config = windowGetter('T003', 'T003_CONFIG');
 exports.getEvaluationConfig = formGetter('T005_T006', 'EVALUATION_FORMS');
 exports.getT007Config = formGetter('T007', 'CONFIG_T007');
 exports.getT008Config = formGetter('T008', 'CONFIG_T008');
+
+// GET /api/coop/round-deadlines — ไทม์ไลน์ของนักศึกษา: ทุกขั้นของรอบตัวเองเรียงตามปฏิทิน
+exports.getRoundDeadlines = async (req, res) => {
+  try {
+    const student = await callerStudent(req);
+    if (!student) return res.status(404).json({ ok: false, message: 'ไม่พบข้อมูลนักศึกษา' });
+    const coop = await prisma.studentCoop.findUnique({
+      where: { studentId: student.id }, select: { coopPeriodId: true, submittedSteps: true },
+    });
+    if (!coop?.coopPeriodId) return res.json({ ok: true, period: null, steps: [] });
+    const periodId = coop.coopPeriodId;
+    const [period, row] = await Promise.all([
+      prisma.coopPeriod.findUnique({ where: { id: periodId }, select: { id: true, academicYear: true, semester: true } }),
+      student.major ? prisma.coopPeriodMajor.findUnique({ where: { periodId_major: { periodId, major: student.major } } }) : null,
+    ]);
+    const ctx = { studentId: student.id, major: student.major || null };
+    const step = async (stepKey) => {
+      const d = await resolveDeadline(stepKey, ctx);
+      const base = { stepKey, label: STEP_LABEL[stepKey], due: d.due };
+      if (!MODE_STEPS.includes(stepKey)) return base;
+      return {
+        ...base, mode: d.mode, closed: d.closed, canSubmit: d.canSubmit, late: d.late,
+        submittedAt: coop.submittedSteps?.[stepKey]?.at || null, extensionUntil: d.extensionUntil,
+      };
+    };
+    const steps = [
+      { stepKey: 'APPLY', label: 'ยื่นคำร้อง', startDate: bangkokDay(row?.startDate), due: bangkokDay(row?.endDate), isOpen: !!row?.isActive },
+      await step('T000'), await step('T002'), await step('T003'),
+      { stepKey: 'SUPERVISION', label: 'ช่วงนิเทศ', startDate: bangkokDay(row?.supervisionStartDate), due: bangkokDay(row?.supervisionEndDate) },
+      await step('T005_T006'), await step('T007'), await step('T008'),
+    ];
+    res.json({ ok: true, period, steps });
+  } catch (err) { fail(res, err, 'Get round deadlines error:'); }
+};
 
 // ยื่นคำร้องได้เมื่อรอบรับสมัครของหลักสูตรเปิดอยู่ (ปิดเองเมื่อเลยวันปิด) — ไม่ใช้ APPLY_CONFIG แล้ว
 exports.getApplyConfig = async (req, res) => {

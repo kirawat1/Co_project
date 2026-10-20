@@ -66,6 +66,32 @@ export function entryText(e?: DeadlineEntry | null): string {
     return parts.join(" · ");
 }
 
+/** ขั้นในไทม์ไลน์ของนักศึกษา (GET /api/coop/round-deadlines) */
+export interface TimelineStep {
+    stepKey: StepKey | "APPLY" | "SUPERVISION";
+    label?: string;
+    startDate?: string | null;
+    due: string | null;
+    isOpen?: boolean;
+    mode?: StepMode;
+    closed?: boolean;
+    canSubmit?: boolean;
+    late?: boolean;
+    submittedAt?: string | null;
+    extensionUntil?: string | null;
+}
+
+/** ป้ายของขั้นในไทม์ไลน์ — ส่งแล้ว (ทัน/ช้า) · ยังไม่ส่ง = ป้ายกำหนดส่ง · ยื่นคำร้อง = เปิด/ปิด · ช่วงนิเทศ = ไม่มีป้าย */
+export function timelineStatus(s: TimelineStep, now = new Date()): { text: string; tone: Tone } | null {
+    if (s.stepKey === "SUPERVISION") return null;
+    if (s.stepKey === "APPLY") return s.isOpen ? { text: "เปิดรับอยู่", tone: "ok" } : { text: "ปิดแล้ว", tone: "info" };
+    if (s.submittedAt) {
+        const day = new Date(s.submittedAt).toLocaleDateString("sv-SE", { timeZone: "Asia/Bangkok" });
+        return s.due && day > s.due ? { text: "ส่งแล้ว (ช้า)", tone: "warn" } : { text: "ส่งแล้ว", tone: "ok" };
+    }
+    return deadlineStatus({ due: s.due, mode: s.mode, closed: s.closed, canSubmit: s.canSubmit }, now);
+}
+
 /** ขยายเวลารายคน (StudentCoop.deadlineExtensions) เป็นข้อความสั้น */
 export function extensionSummary(ext?: Partial<Record<StepKey, string>> | null): string {
     if (!ext) return "";
