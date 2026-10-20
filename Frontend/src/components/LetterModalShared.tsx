@@ -185,7 +185,9 @@ export const MODAL_CSS = `
     .letter-preview { flex: none !important; min-height: 280px !important; }
     .letter-sidebar { width: 100% !important; }
   }
-  .letter-modal-card .input, .letter-modal-card select, .letter-modal-card textarea { background: #f8fafc !important; color: #1e293b !important; border-color: #e2e8f0 !important; }
-  .letter-modal-card label { color: #374151 !important; }
-  .letter-modal-card h2, .letter-modal-card h3 { color: #0f172a !important; }
+  /* นำหน้าด้วย .letter-modal-backdrop ให้ชนะกฎธีมมืดกลาง ([data-theme="dark"] :where(div) / label / input[type]) ที่ specificity เท่ากัน */
+  .letter-modal-backdrop .letter-modal-card { color: #1e293b; }
+  .letter-modal-backdrop .letter-modal-card .input, .letter-modal-backdrop .letter-modal-card select, .letter-modal-backdrop .letter-modal-card textarea { background: #f8fafc !important; color: #1e293b !important; border-color: #e2e8f0 !important; }
+  .letter-modal-backdrop .letter-modal-card label { color: #374151 !important; }
+  .letter-modal-backdrop .letter-modal-card h2, .letter-modal-backdrop .letter-modal-card h3 { color: #0f172a !important; }
 `;
