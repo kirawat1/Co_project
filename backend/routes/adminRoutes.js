@@ -34,8 +34,6 @@ const STAFF_ONLY = ['staff'];
 // ==========================================
 // T000 — เอกสารใบสมัคร
 // ==========================================
-router.get('/config/t000', verifyToken, verifyCoopTeacherOrStaff, adminDocController.getT000Config);
-router.post('/config/t000', verifyToken, verifyRole(...STAFF_ONLY), adminDocController.saveT000Config);
 router.get('/t000/students', verifyToken, verifyCoopTeacherOrStaff, adminDocController.getStudentsForT000);
 
 // บันทึกการใช้งาน (ใครทำอะไร) — เจ้าหน้าที่เท่านั้น
@@ -192,14 +190,7 @@ router.put('/documents/review-t002', verifyToken, verifyCoopTeacherOrStaff, stud
 router.put('/documents/review-t003', verifyToken, verifyCoopTeacherOrStaff, studentInScope((r) => r.body?.studentId), adminDocController.reviewT003);
 
 // Config
-router.get('/config/t002', verifyToken, verifyCoopTeacherOrStaff, configController.getT002Config);
-router.post('/config/t002', verifyToken, verifyRole(...STAFF_ONLY), configController.saveT002Config);
-
-router.get('/config/t003', verifyToken, verifyCoopTeacherOrStaff, configController.getT003Config);
-router.post('/config/t003', verifyToken, verifyRole(...STAFF_ONLY), configController.saveT003Config);
-// ช่วงเวลายื่นคำร้องสหกิจ — แก้ได้เฉพาะเจ้าหน้าที่
-router.get('/config/apply', verifyToken, verifyCoopTeacherOrStaff, configController.getApplyConfig);
-router.post('/config/apply', verifyToken, verifyRole(...STAFF_ONLY), configController.saveApplyConfig);
+// ช่วงรับเอกสาร T000–T003 / ยื่นคำร้อง ตั้งที่ปฏิทินของรอบ (/coop-periods/:id/deadlines)
 
 router.get('/config/evaluation', verifyToken, verifyCoopTeacherOrStaff, configController.getEvaluationConfig);
 router.put('/config/evaluation', verifyToken, verifyRole(...STAFF_ONLY), configController.updateEvaluationConfig);

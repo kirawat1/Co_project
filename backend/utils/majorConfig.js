@@ -11,21 +11,9 @@ const GATEWAY_DEFAULTS = {
   uploadDescription: 'เช่น ใบคำร้อง, ทรานสคริปต์, หนังสือรับรอง ฯลฯ (รองรับ PDF, รูปภาพ)'
 };
 
-// กำหนดส่งเอกสาร T005–T008 (วันที่ตายตัว แสดงให้นักศึกษาเห็น — เลยกำหนดแล้วลิงก์ยังเปิดได้ เพราะฟอร์มอยู่นอกระบบ)
-const DEADLINE_FIELD = { deadline: { label: 'กำหนดส่ง', type: 'date' } };
-
-const WINDOW_FIELDS = {
-  isOpen: { label: 'เปิดรับ', type: 'bool' },
-  startDate: { label: 'วันเริ่ม', type: 'date' },
-  endDate: { label: 'วันสิ้นสุด', type: 'date' },
-};
-
 // ช่องที่ตั้งทับรายหลักสูตรได้ — ช่องที่ไม่อยู่ในนี้เป็นค่ากลางอย่างเดียว (เช่น รูปประกอบ T008)
 const REGISTRY = {
-  APPLY_CONFIG: { label: 'ช่วงยื่นคำร้องสหกิจ', page: '/admin/coop-applications', fields: WINDOW_FIELDS },
-  T000_CONFIG: { label: 'ช่วงรับเอกสาร T000', page: '/admin/doct000', fields: WINDOW_FIELDS },
-  T002_CONFIG: { label: 'ช่วงรับเอกสาร T002', page: '/admin/doct002', fields: WINDOW_FIELDS },
-  T003_CONFIG: { label: 'ช่วงรับเอกสาร T003', page: '/admin/doct003', fields: WINDOW_FIELDS },
+  // ช่วงรับเอกสาร T000–T003 / ยื่นคำร้อง / กำหนดส่งแบบฟอร์ม → ปฏิทินของรอบ (CoopPeriodMajor.deadlines) ไม่ใช่ที่นี่แล้ว
   GATEWAY_SETTINGS: {
     label: 'ฟอร์มยื่นคำร้อง', page: '/admin/gateway-settings', defaults: GATEWAY_DEFAULTS,
     fields: {
@@ -43,7 +31,6 @@ const REGISTRY = {
       t005Link: { label: 'ลิงก์ T005', type: 'url' },
       t006Link: { label: 'ลิงก์ T006', type: 'url' },
       templateLink: { label: 'ลิงก์ Template อีเมล', type: 'url' },
-      ...DEADLINE_FIELD,
     },
   },
   CONFIG_T007: {
@@ -51,7 +38,6 @@ const REGISTRY = {
     fields: {
       instructionText: { label: 'ข้อความคำชี้แจง', type: 'textarea' },
       t007Link: { label: 'ลิงก์แบบประเมิน T007', type: 'url' },
-      ...DEADLINE_FIELD,
     },
   },
   CONFIG_T008: {
@@ -59,7 +45,6 @@ const REGISTRY = {
     fields: {
       instructionText: { label: 'ข้อความคำชี้แจง', type: 'textarea' },
       driveLink: { label: 'ลิงก์ Google Drive', type: 'url' },
-      ...DEADLINE_FIELD,
     },
   },
   CONFIG_SUPERVISION_EVAL: {

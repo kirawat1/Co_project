@@ -9,7 +9,6 @@ const prisma = require('./__mocks__/prismaClient');
 const {
   getAllStudentsForReview,
   getCoopApplications,
-  getT000Config,
   getStudentsForT000,
   reviewStudentStatus,
   updateCoopApplicationStatus,
@@ -168,43 +167,6 @@ describe('getCoopApplications', () => {
     expect(res.json.mock.calls[0][0].periods).toEqual([
       { coopPeriodId: 2, count: 2, pending: 1 }, { coopPeriodId: null, count: 1, pending: 1 },
     ]);
-  });
-});
-
-// =====================
-// getT000Config
-// =====================
-describe('getT000Config', () => {
-  test('200 — คืน config ที่บันทึกไว้', async () => {
-    prisma.systemConfig.findUnique.mockResolvedValue({
-      key: 'T000_CONFIG',
-      value: JSON.stringify({ startDate: '2026-01-01', endDate: '2026-06-30', isOpen: true }),
-    });
-    const req = {};
-    const res = makeRes();
-    await getT000Config(req, res);
-    const body = res.json.mock.calls[0][0];
-    expect(body.isOpen).toBe(true);
-    expect(body.startDate).toBe('2026-01-01');
-  });
-
-  test('200 — คืน default เมื่อยังไม่มี config', async () => {
-    prisma.systemConfig.findUnique.mockResolvedValue(null);
-    const req = {};
-    const res = makeRes();
-    await getT000Config(req, res);
-    const body = res.json.mock.calls[0][0];
-    expect(body.isOpen).toBe(false);
-    expect(body.startDate).toBe('');
-    expect(body.endDate).toBe('');
-  });
-
-  test('500 — DB error คืน 500', async () => {
-    prisma.systemConfig.findUnique.mockRejectedValue(new Error('DB fail'));
-    const req = {};
-    const res = makeRes();
-    await getT000Config(req, res);
-    expect(res.status).toHaveBeenCalledWith(500);
   });
 });
 

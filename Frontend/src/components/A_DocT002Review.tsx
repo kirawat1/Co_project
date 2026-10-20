@@ -5,11 +5,10 @@ import { apiFetch } from "../utils/apiFetch";
 import { defaultPeriodId } from "../utils/defaultPeriod";
 import { loadReviewCounts, loadReviewStudents, pendingOutside, periodCountLabel, type PeriodCount } from "../utils/reviewStudents";
 import AutoTextarea from "./AutoTextarea";
-import DateInput from './DateInput';
 import LoadMoreFooter from "./LoadMoreFooter";
 import { useLoadMore } from "../utils/useLoadMore";
 import { notify, askConfirm } from "../utils/notify";
-import MajorConfigTabs from "./MajorConfigTabs";
+import RoundDeadlineNote from "./RoundDeadlineNote";
 
 // --- Types ---
 type Document = {
@@ -56,20 +55,9 @@ export default function A_T002Review() {
     const [comment, setComment] = useState("");
     const [loading, setLoading] = useState(false);
 
-    // 🟢 State จัดการการเปิด/ปิดระบบ
-    const [config, setConfig] = useState({ startDate: "", endDate: "", isOpen: false });
-
     // 🟢 State สำหรับการเรียงลำดับ (Sorting)
     const [sortKey, setSortKey] = useState<SortKey>('studentId');
     const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
-
-    // เช็คสถานะอิงจากเวลาปัจจุบัน
-    const isSystemOpen = useMemo(() => {
-        const now = new Date().getTime();
-        const start = config.startDate ? new Date(config.startDate).getTime() : 0;
-        const end = config.endDate ? new Date(config.endDate).getTime() : 0;
-        return config.isOpen && ((!start && !end) || (now >= start && now <= end));
-    }, [config]);
 
     // 1. ดึงข้อมูลทั้งหมด
     const fetchAllData = async () => {
@@ -177,25 +165,7 @@ export default function A_T002Review() {
         return file ? `/uploads/${file.path}` : null;
     };
 
-    const loadConfig = async () => {
-        try {
-            const res = await apiFetch("/api/admin/config/t002");
-            if (res.ok) setConfig(await res.json());
-        } catch (err) { console.error("Load config error", err); }
-    };
 
-    useEffect(() => { loadConfig(); }, []);
-
-    const handleSaveConfig = async () => {
-        try {
-            const res = await apiFetch("/api/admin/config/t002", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(config)
-            });
-            if (res.ok) notify.success("✅ บันทึกการตั้งค่าวันเวลาเรียบร้อยแล้ว");
-        } catch (err) { notify.error("เกิดข้อผิดพลาดในการบันทึก"); }
-    };
 
     // รีวิวได้เฉพาะตอนสถานะเป็น T002_SUBMITTED/T002_EDITS_REQUIRED เท่านั้น (ตรงกับที่ backend ยอมรับ)
     // รายชื่อในตารางแสดงนักศึกษาที่เคยมีไฟล์ T002 ด้วย แม้สถานะจะเลยจุดตรวจไปแล้ว (เช่น ตรวจผ่านไปแล้ว)
@@ -296,41 +266,11 @@ export default function A_T002Review() {
                 </div>
             </section>
 
-            {/* ================= CONFIG SECTION ================= */}
-            {/* ค่ากลาง + ค่าเฉพาะหลักสูตร (แยกหลักสูตร Phase 4) */}
-            <MajorConfigTabs configKey="T002_CONFIG">
-            <section className="card" style={{ marginBottom: 24, borderLeft: `5px solid ${isSystemOpen ? '#10b981' : '#ef4444'}`, background: '#f8fafc' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 20 }}>
-                    <div>
-                        <h3 style={{ margin: 0, color: '#0f172a', fontSize: 18 }}>⚙️ จัดการเวลาส่งเอกสาร (T002)</h3>
-                        <div style={{ fontSize: 13, marginTop: 6, color: isSystemOpen ? '#10b981' : '#ef4444', fontWeight: 600 }}>
-                            {isSystemOpen ? "🟢 สถานะ: เปิดรับเอกสาร" : "🔴 สถานะ: ปิดรับเอกสาร"}
-                        </div>
-                    </div>
-
-                    <div style={{ display: 'flex', gap: 16, alignItems: 'flex-end', flexWrap: 'wrap' }}>
-                        <div>
-                            <label style={{ fontSize: 12, display: 'block', color: '#64748b', marginBottom: 6, fontWeight: 700 }}>วันเปิดรับ</label>
-                            <DateInput className="input" value={config.startDate} onChange={e => setConfig({ ...config, startDate: e.target.value })} style={{ background: '#fff' }} />
-                        </div>
-                        <div>
-                            <label style={{ fontSize: 12, display: 'block', color: '#64748b', marginBottom: 6, fontWeight: 700 }}>วันปิดรับ</label>
-                            <DateInput className="input" value={config.endDate} onChange={e => setConfig({ ...config, endDate: e.target.value })} style={{ background: '#fff' }} />
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', height: 42, gap: 16 }}>
-                            <label style={{ fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, fontWeight: 600, color: '#334155' }}>
-                                <input type="checkbox" checked={config.isOpen} onChange={e => setConfig({ ...config, isOpen: e.target.checked })} style={{ width: 18, height: 18, accentColor: '#0ea5e9' }} />
-                                เปิดระบบ
-                            </label>
-                            <button className="btn" style={{ background: '#0ea5e9', color: 'white', padding: '10px 20px', height: 42 }} onClick={handleSaveConfig}>
-                                💾 บันทึก
-                            </button>
-                        </div>
-                    </div>
-                </div>
+            {/* กำหนดส่งของรอบ — ตั้งที่หน้ารอบสหกิจ (ปฏิทินของรอบ) ที่เดียว */}
+            <section className="card" style={{ marginBottom: 24, background: '#f8fafc' }}>
+                <h3 style={{ margin: 0, color: '#0f172a', fontSize: 18 }}>⚙️ เวลาส่งเอกสาร (T002)</h3>
+                <RoundDeadlineNote stepKey="T002" periodId={selectedPeriod} />
             </section>
-
-            </MajorConfigTabs>
 
             {/* TABLE */}
             <section style={card}>

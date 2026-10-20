@@ -7,6 +7,7 @@ import { notify, askConfirm } from "../utils/notify";
 import Modal from "./Modal";
 import { useAdminRole } from "./adminRole";
 import { getMajorFilter, NO_MAJOR } from "../utils/majorFilter";
+import A_RoundDeadlines from "./A_RoundDeadlines";
 
 // รอบสหกิจ = ปี/เทอม ใช้ร่วมกันทุกหลักสูตร · วันรับสมัคร / เปิด-ปิด / ช่วงนิเทศ ตั้งแยกหลักสูตร
 type PeriodRow = {
@@ -44,6 +45,8 @@ export default function A_CoopPeriod() {
     const [periods, setPeriods] = useState<CoopPeriod[]>([]);
     const [allMajors, setAllMajors] = useState<string[]>([]);
     const [modal, setModal] = useState<ModalState | null>(null);
+    // รอบที่เปิดดูปฏิทิน (กำหนดส่งของแต่ละขั้น)
+    const [calendarFor, setCalendarFor] = useState<number | null>(null);
 
     // Form State
     const [academicYear, setAcademicYear] = useState(new Date().getFullYear() + 543 + "");
@@ -105,7 +108,8 @@ export default function A_CoopPeriod() {
                 if (!academicYear.trim()) return notify.warning("กรุณากรอกปีการศึกษา");
                 const res = await axios.post("/api/admin/coop-periods", { academicYear, semester: Number(semester), startDate, endDate });
                 const added: string[] = res.data?.added ?? [];
-                notify.success(`สร้างรอบ ${semester}/${academicYear} แล้ว${added.length ? ` (${added.join(", ")})` : ""}`);
+                notify.success(`สร้างรอบ ${semester}/${academicYear} แล้ว${added.length ? ` (${added.join(", ")})` : ""} — ตั้งกำหนดส่งของรอบต่อได้เลย`);
+                if (res.data?.period?.id) setCalendarFor(res.data.period.id);
             } else if (modal.mode === "term") {
                 await axios.put(`/api/admin/coop-periods/${modal.period.id}`, { academicYear, semester: Number(semester), startDate, endDate });
             } else {
@@ -199,8 +203,13 @@ export default function A_CoopPeriod() {
                                         <div style={{ fontWeight: 800, fontSize: 18, color: '#0f172a' }}>
                                             ปีการศึกษา {p.academicYear} เทอม {p.semester}
                                         </div>
+                                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                                            <button className={calendarFor === p.id ? "btn small" : "btn-secondary small"} aria-expanded={calendarFor === p.id}
+                                                onClick={() => setCalendarFor(calendarFor === p.id ? null : p.id)}>
+                                                📆 ปฏิทินของรอบ
+                                            </button>
                                         {isStaff && (
-                                            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                                            <>
                                                 {rowsShown.length > 1 && (
                                                     <button className={anyOpen ? "btn-secondary small" : "btn-success small"} onClick={() => toggle(p, null, !anyOpen)}>
                                                         {anyOpen ? "ปิดทุกหลักสูตร" : "เปิดทุกหลักสูตร"}
@@ -208,8 +217,9 @@ export default function A_CoopPeriod() {
                                                 )}
                                                 <button className="btn-secondary small" onClick={() => openTerm(p)}>แก้ไขปี/เทอม</button>
                                                 <button className="btn-danger small" onClick={() => removeTerm(p)}>ลบรอบ</button>
-                                            </div>
+                                            </>
                                         )}
+                                        </div>
                                     </div>
 
                                     <div style={{ overflowX: 'auto', marginTop: 12 }}>
@@ -263,6 +273,7 @@ export default function A_CoopPeriod() {
                                             </tbody>
                                         </table>
                                     </div>
+                                    {calendarFor === p.id && <A_RoundDeadlines period={p} periods={periods} />}
                                 </div>
                             );
                         })}

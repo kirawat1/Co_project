@@ -1,22 +1,19 @@
 import type { CSSProperties } from "react";
-import DateInput from "./DateInput";
+import { Link } from "react-router-dom";
 import { fmtDate } from "../utils/dateFormat";
 import { daysLeft } from "../utils/deadline";
 
-// กำหนดส่งเอกสาร T005–T008 — วันที่ตายตัว (YYYY-MM-DD) ตั้งแยกหลักสูตรได้
+// กำหนดส่งเอกสาร T005–T008 — วันที่ตายตัว (YYYY-MM-DD) ตั้งที่ปฏิทินของรอบ (แยกรอบ × หลักสูตร)
 // เลยกำหนดแล้วแค่แจ้งว่าเลยกำหนด ลิงก์ยังเปิดได้ (ฟอร์มอยู่นอกระบบ — ถ้าจะปิดรับจริงต้องปิดที่ Google Form)
 
-/** ช่องตั้งกำหนดส่งในหน้าตั้งค่า (ค่ากลาง) */
-export function DeadlineField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+/** หน้าตั้งค่าแบบฟอร์ม: กำหนดส่งย้ายไปตั้งที่ปฏิทินของรอบ (แยกรอบ × หลักสูตร) */
+export function DeadlineMovedNote() {
     return (
         <div>
             <label style={labelStyle}>📅 กำหนดส่ง</label>
-            <div style={{ display: "flex", gap: 8, alignItems: "center", maxWidth: 360 }}>
-                <DateInput value={value} onChange={e => onChange(e.target.value)} />
-                {value && <button type="button" className="btn-secondary small" onClick={() => onChange("")}>ล้าง</button>}
-            </div>
-            <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 4 }}>
-                นักศึกษาเห็นกำหนดส่งและจำนวนวันที่เหลือ · เลยกำหนดแล้วขึ้นว่า "เลยกำหนดส่ง" แต่ลิงก์ยังเปิดได้ (ถ้าจะปิดรับจริงให้ปิดที่ Google Form) · ว่าง = ไม่มีกำหนดส่ง
+            <div style={{ fontSize: 13, color: "#475569" }}>
+                ตั้งแยกตามรอบและหลักสูตรที่ <Link to="/admin/coop-period" style={{ color: "#1d4ed8", fontWeight: 600 }}>หน้ารอบสหกิจ → ปฏิทินของรอบ</Link> ·
+                นักศึกษาเห็นกำหนดส่งของรอบตัวเอง · เลยกำหนดแล้วลิงก์ยังเปิดได้ (ฟอร์มอยู่นอกระบบ)
             </div>
         </div>
     );

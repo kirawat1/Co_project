@@ -6,7 +6,6 @@ import IssueLetterModal from "./IssueLetterModal";
 import IssuePlacementLetterModal from "./IssuePlacementLetterModal";
 import { PendingSignBadge } from "./LetterModalShared";
 import AutoTextarea from "./AutoTextarea";
-import DateInput from './DateInput';
 import LoadMoreFooter from "./LoadMoreFooter";
 import { useLoadMore } from "../utils/useLoadMore";
 import { notify, askConfirm } from "../utils/notify";
@@ -14,7 +13,7 @@ import { TABLE_TH, TABLE_TD, TABLE_HEADER_ROW } from "../utils/tableStyles";
 import Modal, { ModalCloseButton } from "./Modal";
 import { useAdminRole } from "./adminRole";
 import { appliesTo } from "../utils/docRequirementScope";
-import MajorConfigTabs from "./MajorConfigTabs";
+import RoundDeadlineNote from "./RoundDeadlineNote";
 import LetterZipModal, { LetterZipButton, toolbarBtn } from "./LetterZipModal";
 import { defaultPeriodId, pendingOutside, periodCountLabel, type PeriodCount } from "../utils/defaultPeriod";
 
@@ -77,12 +76,6 @@ function advisorMismatchWarning(student: StudentProfile): string | null {
         return `⚠️ ชื่อที่ปรึกษาทั่วไปไม่ตรง — นักศึกษากรอก "${student.advisorName}" / ระบบเชื่อมกับ "${linkedFull}"`;
     }
     return null;
-}
-
-interface DocConfig {
-    startDate: string;
-    endDate: string;
-    isOpen: boolean;
 }
 
 interface DocRequirement {
@@ -167,7 +160,6 @@ export default function A_DocT000() {
     const [students, setStudents] = useState<StudentProfile[]>([]);
     // จำนวนต่อรอบ (ทั้งหมด / รอตรวจ) — ป้ายใน dropdown + เตือนงานค้างรอบอื่น
     const [periodCounts, setPeriodCounts] = useState<PeriodCount[]>([]);
-    const [config, setConfig] = useState<DocConfig>({ startDate: "", endDate: "", isOpen: false });
 
     const [reqDocs, setReqDocs] = useState<DocRequirement[]>([]);
 
@@ -251,11 +243,7 @@ export default function A_DocT000() {
     const fetchAllData = async () => {
         setLoading(true);
         try {
-            // 1. ดึงตั้งค่าเวลา
-            const resConf = await apiFetch("/api/admin/config/t000");
-            if (resConf.ok) setConfig(await resConf.json());
-
-            // 2. ดึงหัวข้อเอกสาร
+            // 1. ดึงหัวข้อเอกสาร
             const resReq = await apiFetch("/api/admin/doc-requirements");
             if (resReq.ok) {
                 const reqData = await resReq.json();
@@ -326,18 +314,6 @@ export default function A_DocT000() {
     useEffect(() => { fetchAllData(); }, []);
 
     // ================= ACTIONS =================
-    const handleSaveConfig = async () => {
-        try {
-            const res = await apiFetch("/api/admin/config/t000", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(config)
-            });
-            if (res.ok) notify.success("✅ บันทึกการตั้งค่าวันเวลาเรียบร้อยแล้ว");
-            else notify.error("❌ บันทึกการตั้งค่าไม่สำเร็จ กรุณาลองใหม่");
-        } catch (err) { notify.error("บันทึกไม่สำเร็จ กรุณาตรวจสอบการเชื่อมต่อ"); }
-    };
-
     const updateStudentState = (studentId: number, newData: Partial<StudentProfile>) => {
         setStudents(prev => prev.map(s => s.id === studentId ? { ...s, ...newData } : s));
         if (selectedStudent?.id === studentId) {
@@ -582,13 +558,6 @@ export default function A_DocT000() {
     // แสดงทีละ 30 รายการ เลื่อนถึงท้ายตารางแล้วแสดงเพิ่ม แทนโหลดทั้งหมดในตารางเดียว
     const { shown: shownList, hasMore, sentinelRef, showMore, total } = useLoadMore(list, `${q}|${statusFilter.join(",")}|${companyFilter}|${selectedPeriod}`);
 
-    const isSystemOpen = useMemo(() => {
-        const now = new Date().getTime();
-        const start = config.startDate ? new Date(config.startDate + "T00:00:00").getTime() : 0;
-        const end = config.endDate ? new Date(config.endDate + "T23:59:59").getTime() : 0;
-        return config.isOpen && ((!start && !end) || (now >= start && now <= end));
-    }, [config]);
-
     const activeDocs = checkPhase === 1 ? phase1DocsFor(selectedStudent?.major) : phase2Docs;
 
     // UI HELPER: แสดงลูกศรเรียงลำดับ
@@ -659,32 +628,11 @@ export default function A_DocT000() {
     return (
         <div className="page" style={{ padding: 28, marginLeft: 35 }}>
 
-            {/* 1. CONFIG SECTION */}
-            {/* ค่ากลาง + ค่าเฉพาะหลักสูตร (แยกหลักสูตร Phase 4) */}
-            <MajorConfigTabs configKey="T000_CONFIG">
-            <section className="card" style={{ marginBottom: 20, borderLeft: `5px solid ${isSystemOpen ? '#10b981' : '#ef4444'}` }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 15 }}>
-                    <div>
-                        <h3 style={{ margin: 0 }}>⚙️ จัดการเอกสารสมัคร (T000)</h3>
-                        <div style={{ fontSize: 13, marginTop: 4, color: isSystemOpen ? '#10b981' : '#ef4444', fontWeight: 600 }}>
-                            {isSystemOpen ? "🟢 สถานะ: เปิดรับเอกสาร" : "🔴 สถานะ: ปิดรับเอกสาร"}
-                        </div>
-                    </div>
-                    <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
-                        <div><label style={lbl}>วันเปิดรับ</label><DateInput className="input" value={config.startDate} onChange={e => setConfig({ ...config, startDate: e.target.value })} /></div>
-                        <div><label style={lbl}>วันปิดรับ</label><DateInput className="input" value={config.endDate} onChange={e => setConfig({ ...config, endDate: e.target.value })} /></div>
-                        <div style={{ display: 'flex', alignItems: 'center', height: 38, gap: 15 }}>
-                            <label style={{ fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, fontWeight: 500 }}>
-                                <input type="checkbox" checked={config.isOpen} onChange={e => setConfig({ ...config, isOpen: e.target.checked })} style={{ width: 16, height: 16 }} />
-                                เปิดระบบ
-                            </label>
-                            <button className="btn" style={{ background: IOS_BLUE, color: 'white' }} onClick={handleSaveConfig}>บันทึก</button>
-                        </div>
-                    </div>
-                </div>
+            {/* 1. กำหนดส่งของรอบ — ตั้งที่หน้ารอบสหกิจ (ปฏิทินของรอบ) ที่เดียว */}
+            <section className="card" style={{ marginBottom: 20 }}>
+                <h3 style={{ margin: 0 }}>⚙️ จัดการเอกสารสมัคร (T000)</h3>
+                <RoundDeadlineNote stepKey="T000" periodId={selectedPeriod} />
             </section>
-
-            </MajorConfigTabs>
 
             {/* 2. TABLE LIST */}
             <section className="card">

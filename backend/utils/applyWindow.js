@@ -1,53 +1,9 @@
 /**
- * applyWindow.js — ช่วงเวลายื่นคำร้องขอเข้าร่วมสหกิจ
+ * applyWindow.js — ข้อความเรื่องช่วงยื่นคำร้องสหกิจ
  *
- * ตั้งค่าแยกจากวันของรอบรับสมัคร (CoopPeriod) แบบเดียวกับ T000–T003 (SystemConfig key "APPLY_CONFIG")
- * ยื่นได้ต้องผ่านทั้งสองอย่าง: รอบรับสมัครเปิดอยู่ (ไว้ผูกคำร้องกับรอบ) + อยู่ในช่วงเวลายื่นคำร้องนี้
- *
- * ยังไม่เคยตั้งค่า = ถือว่าเปิด — deploy แล้วระบบทำงานเหมือนเดิมจนกว่าเจ้าหน้าที่จะตั้งช่วงเวลา
- * วันที่ตีความเป็นเวลาไทยเสมอ (เปิดตั้งแต่ 00:00 ของวันเปิด ถึง 23:59 ของวันปิด)
+ * ช่วงยื่นคำร้อง = รอบรับสมัครของหลักสูตรที่เปิดอยู่ (CoopPeriodMajor — ปิดเองเมื่อเลยวันปิด) ตั้งที่หน้ารอบสหกิจที่เดียว
+ * (เดิมมี APPLY_CONFIG ตั้งซ้อนอีกชั้น — เลิกใช้ตั้งแต่ปฏิทินของรอบ)
  */
-const prisma = require('../config/prismaClient');
-const { readEffective } = require('./majorConfig');
-
-const APPLY_CONFIG_KEY = 'APPLY_CONFIG';
-const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
-
-// "2026-10-01" → ต้นวัน/ปลายวันตามเวลาไทย · ค่าอื่นที่ Date อ่านได้ใช้ตามนั้น · ว่าง/ผิดรูปแบบ → null
-function bangkokBound(value, endOfDay) {
-  const raw = String(value ?? '').trim();
-  if (!raw) return null;
-  const d = DATE_ONLY_RE.test(raw)
-    ? new Date(`${raw}T${endOfDay ? '23:59:59.999' : '00:00:00.000'}+07:00`)
-    : new Date(raw);
-  return isNaN(d.getTime()) ? null : d;
-}
-
-/**
- * สถานะของช่วงเวลายื่นคำร้อง ณ เวลาที่ให้มา
- * @returns {{ configured: boolean, open: boolean, reason: null|'CLOSED'|'NOT_YET'|'ENDED', startDate: string|null, endDate: string|null }}
- */
-function evaluateApplyWindow(config, now = new Date()) {
-  if (!config) return { configured: false, open: true, reason: null, startDate: null, endDate: null };
-  const startDate = config.startDate || null;
-  const endDate = config.endDate || null;
-  const base = { configured: true, startDate, endDate };
-  if (!config.isOpen) return { ...base, open: false, reason: 'CLOSED' };
-  const start = bangkokBound(startDate, false);
-  const end = bangkokBound(endDate, true);
-  if (start && now < start) return { ...base, open: false, reason: 'NOT_YET' };
-  if (end && now > end) return { ...base, open: false, reason: 'ENDED' };
-  return { ...base, open: true, reason: null };
-}
-
-// major = หลักสูตรของนักศึกษา → ค่ากลาง + ค่าเฉพาะหลักสูตร (แยกหลักสูตร Phase 4) · ไม่ระบุ = ค่ากลาง
-async function readApplyConfig(db = prisma, major = null) {
-  return readEffective(APPLY_CONFIG_KEY, major, db);
-}
-
-async function getApplyWindowState(db = prisma, now = new Date(), major = null) {
-  return evaluateApplyWindow(await readApplyConfig(db, major), now);
-}
 
 // ข้อความบอกนักศึกษาว่าทำไมยื่นไม่ได้ — ใช้ทั้ง API และหน้าเว็บ
 const THAI_MONTHS = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
@@ -68,12 +24,4 @@ function applyWindowMessage(state) {
   return 'ขณะนี้ปิดรับคำร้องขอเข้าร่วมสหกิจศึกษา';
 }
 
-module.exports = {
-  APPLY_CONFIG_KEY,
-  bangkokBound,
-  evaluateApplyWindow,
-  readApplyConfig,
-  getApplyWindowState,
-  applyWindowMessage,
-  thaiDate,
-};
+module.exports = { applyWindowMessage, thaiDate };

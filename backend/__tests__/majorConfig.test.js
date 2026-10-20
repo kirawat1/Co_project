@@ -34,15 +34,17 @@ describe('readEffective — ค่ากลาง + ค่าเฉพาะห�
 describe('validateOverride', () => {
   test('ช่อง null = กลับไปใช้ค่ากลาง (ไม่เก็บ) · ตรวจชนิดข้อมูล', () => {
     expect(validateOverride('CONFIG_T007', { instructionText: 'x', t007Link: null })).toEqual({ instructionText: 'x' });
-    expect(validateOverride('T000_CONFIG', { isOpen: true, startDate: '2026-10-01', endDate: '2026-10-31' })).toEqual({ isOpen: true, startDate: '2026-10-01', endDate: '2026-10-31' });
+    expect(validateOverride('CONFIG_SUPERVISION_EVAL', { autoSend: true })).toEqual({ autoSend: true });
   });
 
   test.each([
     ['URL ที่ไม่ใช่ http/https', 'CONFIG_T007', { t007Link: 'javascript:alert(1)' }],
     ['ช่องที่ตั้งแยกหลักสูตรไม่ได้ (รูป T008)', 'CONFIG_T008', { imagePath: 'x.png' }],
-    ['วันที่ผิดรูปแบบ', 'T000_CONFIG', { startDate: '01/10/2026' }],
-    ['วันสิ้นสุดก่อนวันเริ่ม', 'T000_CONFIG', { startDate: '2026-10-31', endDate: '2026-10-01' }],
-    ['เปิดรับไม่ใช่ true/false', 'T000_CONFIG', { isOpen: 'yes' }],
+    ['ส่งอัตโนมัติไม่ใช่ true/false', 'CONFIG_SUPERVISION_EVAL', { autoSend: 'yes' }],
+    // ปฏิทินของรอบ: วันรับเอกสาร/ยื่นคำร้อง/กำหนดส่งแบบฟอร์ม ตั้งที่หน้ารอบสหกิจ ไม่ใช่ค่าแยกหลักสูตรที่นี่แล้ว
+    ['ช่วงรับเอกสาร T000 (ย้ายไปปฏิทินของรอบ)', 'T000_CONFIG', { isOpen: true }],
+    ['ช่วงยื่นคำร้อง (ตั้งที่รอบรับสมัคร)', 'APPLY_CONFIG', { isOpen: true }],
+    ['กำหนดส่งแบบฟอร์ม T005/T006 (ย้ายไปปฏิทินของรอบ)', 'EVALUATION_FORMS', { deadline: '2026-10-16' }],
     ['ไม่รู้จักการตั้งค่า', 'DEAN_INFO', {}],
   ])('%s → 400', (_n, key, override) => {
     expect(() => validateOverride(key, override)).toThrow(expect.objectContaining({ status: 400 }));
@@ -110,18 +112,6 @@ describe('นักศึกษาได้ค่าของหลักสู�
     expect(await run({ ...STAFF })).toBe('https://g');
   });
 
-  test('ช่วงยื่นคำร้อง: CS ปิดไว้เฉพาะหลักสูตร → นักศึกษา CS เห็นปิด / AI เห็นเปิด', async () => {
-    const { getApplyConfig } = require('../controllers/configController');
-    store({ APPLY_CONFIG: { isOpen: true, startDate: null, endDate: null }, 'APPLY_CONFIG@CS': { isOpen: false } });
-    const state = async (major) => {
-      prisma.student.findUnique.mockResolvedValueOnce({ major });
-      const res = makeRes();
-      await getApplyConfig({ user: { id: 9, role: 'student' } }, res);
-      return res.json.mock.calls[0][0].state.open;
-    };
-    expect(await state('CS')).toBe(false);
-    expect(await state('AI')).toBe(true);
-  });
 });
 
 describe('แบบประเมินการนิเทศแยกหลักสูตร', () => {

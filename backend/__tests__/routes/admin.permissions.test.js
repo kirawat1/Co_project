@@ -39,7 +39,6 @@ const STAFF_ONLY_SENSITIVE = [
   'PUT /teachers/:id/password', 'POST /teachers/:id/password/reveal',
   'PUT /t000/letter-pending',
   // ค่ากลางของการตั้งค่า — อาจารย์ประจำวิชาตั้งค่าเฉพาะหลักสูตรตัวเองที่ /major-config แทน
-  'POST /config/t000', 'POST /config/t002', 'POST /config/t003', 'POST /config/apply',
   'PUT /config/evaluation', 'PUT /config/t007', 'PUT /config/t008', 'PUT /config/gateway',
 ];
 // ไม่ต้อง login (ข้อมูลสาธารณะ เช่น โลโก้/ชื่อผู้ลงนามบนหนังสือ)
@@ -56,6 +55,14 @@ beforeEach(() => {
   jest.clearAllMocks();
   prisma.teacher.findUnique.mockImplementation(async ({ where }) =>
     where.userId === 2 ? { id: 20, isCoopTeacher: true } : where.userId === 3 ? { id: 30, isCoopTeacher: false } : null);
+});
+
+test('ช่วงรับเอกสาร/ยื่นคำร้องเดิมไม่มี route ตั้งค่าแล้ว (ตั้งที่ปฏิทินของรอบ)', () => {
+  const keys = routes.map((r) => r.key);
+  for (const step of ['t000', 't002', 't003', 'apply']) {
+    expect(keys).not.toContain(`GET /config/${step}`);
+    expect(keys).not.toContain(`POST /config/${step}`);
+  }
 });
 
 test('รายการที่ระบุในเทสต์มีอยู่จริงใน adminRoutes', () => {
