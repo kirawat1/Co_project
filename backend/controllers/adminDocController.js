@@ -82,35 +82,6 @@ async function assertDocNumberFree(tx, key, value, studentIds) {
   throw Object.assign(new Error(message), { is409: true });
 }
 
-// 1. ดึงค่า Config
-exports.getT000Config = async (req, res) => {
-  try {
-    // นักศึกษาได้ค่าของหลักสูตรตัวเอง (ค่ากลาง + ค่าเฉพาะหลักสูตร) · บทบาทอื่นได้ค่ากลาง
-    const config = await readEffective("T000_CONFIG", await callerMajor(req));
-    res.json(config || { startDate: "", endDate: "", isOpen: false });
-  } catch (err) {
-    res.status(500).json({ message: "Error fetching config" });
-  }
-};
-
-// 2. บันทึกค่า Config
-exports.saveT000Config = async (req, res) => {
-  try {
-    const { startDate, endDate, isOpen } = req.body;
-    const value = JSON.stringify({ startDate, endDate, isOpen });
-
-    await prisma.systemConfig.upsert({
-      where: { key: "T000_CONFIG" },
-      update: { value },
-      create: { key: "T000_CONFIG", value }
-    });
-
-    res.json({ ok: true, message: "บันทึกการตั้งค่าเรียบร้อย" });
-  } catch (err) {
-    res.status(500).json({ message: "Error saving config" });
-  }
-};
-
 // 3. ดึงรายชื่อนักศึกษา (T000 + เอกสารอื่นๆ)
 // หน้า T000: รอเจ้าหน้าที่ตรวจ = รอตรวจเอกสาร / รอตรวจใบตอบรับ
 const T000_PENDING = new Set(['WAITING_FOR_STAFF_CHECK', 'WAITING_FOR_STAFF_CHECK_LETTER']);

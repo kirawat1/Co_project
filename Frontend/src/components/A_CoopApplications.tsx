@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import React, { useMemo, useState, useEffect, useRef } from "react";
 import type { CSSProperties } from "react";
 import axios from "axios";
@@ -9,8 +10,6 @@ import { contactLine, missingContact, type CompanyContact } from "../utils/conta
 import Spinner from "./Spinner";
 import { useDebounce } from "../hooks/useDebounce";
 import LoadMoreFooter from "./LoadMoreFooter";
-import A_ApplyWindowCard from "./A_ApplyWindowCard";
-import MajorConfigTabs from "./MajorConfigTabs";
 import { useLoadMore } from "../utils/useLoadMore";
 import { TABLE_TH, TABLE_TD, TABLE_HEADER_ROW } from "../utils/tableStyles";
 import Modal, { ModalCloseButton } from "./Modal";
@@ -297,9 +296,11 @@ export default function A_CoopApplications() {
                 </div>
             </section>
 
-            {/* ช่วงเวลายื่นคำร้อง — ตั้งแยกจากรอบรับสมัคร แบบเดียวกับ T000–T003 */}
-            {/* ค่ากลาง + ค่าเฉพาะหลักสูตร (แยกหลักสูตร Phase 4) */}
-            <MajorConfigTabs configKey="APPLY_CONFIG"><A_ApplyWindowCard /></MajorConfigTabs>
+            {/* ช่วงยื่นคำร้อง = รอบรับสมัครของหลักสูตรที่เปิดอยู่ — ตั้งที่หน้ารอบสหกิจที่เดียว */}
+            <section style={{ ...card, padding: '14px 20px', fontSize: 13, color: '#475569', display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span>📅 ช่วงยื่นคำร้อง = ช่วงรับสมัครของรอบที่เปิดอยู่ (แยกหลักสูตร) · เลยวันปิดรับสมัครแล้วปิดเอง</span>
+                <Link to="/admin/coop-period" style={{ color: '#1d4ed8', fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap' }}>เปิด/ปิด และแก้วันที่หน้ารอบสหกิจ →</Link>
+            </section>
 
             {/* FILTER & LIST */}
             <section style={card}>

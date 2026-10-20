@@ -21,11 +21,18 @@
 - **ยื่นคำร้องตัดสินจากรอบรับสมัครของหลักสูตรอย่างเดียว** — เลิกเช็ก `APPLY_CONFIG` (ก่อน deploy: ดูค่า `APPLY_CONFIG` บน VM ถ้าปิดเร็วกว่าวันปิดรอบ ให้แก้วันปิดรอบที่หน้ารอบสหกิจให้ตรงก่อน ไม่งั้นช่วงยื่นจะยาวขึ้น)
 - หน้าของนักศึกษา: ขั้นที่ยังไม่เคยตั้งค่าเลย → ระบบบอกว่า "เปิด" ตรงกับที่ server รับจริง (เดิมหน้าเว็บบอกปิดแต่ server รับ)
 
+- **หน้ารอบสหกิจ → ปุ่ม "📆 ปฏิทินของรอบ"** ในแต่ละรอบ (`A_RoundDeadlines.tsx`): ตารางภาพรวมขั้น × (ทั้งวิทยาลัย + หลักสูตร) — ช่องเหลือง = หลักสูตรตั้งต่างจากวิทยาลัย · "ค่าเดิม" = รอบยังไม่ตั้ง ระบบใช้ช่วงเดิม · แท็บแก้ทีละคอลัมน์: กำหนดส่ง · เลยกำหนดแล้ว (ปิดรับ/ส่งได้ติดป้าย) · ปิดรับชั่วคราว · "ใช้ค่าวิทยาลัย" · บันทึกค่าวิทยาลัย (เจ้าหน้าที่) → หน้าต่างติ๊กหลักสูตรที่จะใช้ค่านี้ (ติ๊กไว้ให้ = หลักสูตรที่ยังใช้ค่าเดิมของวิทยาลัย) · คัดลอกจากรอบเทอมเดียวกันของปีก่อน · สร้างรอบเสร็จเปิดปฏิทินของรอบนั้นให้ต่อ
+- `RoundDeadlineNote.tsx` — กำหนดส่งของขั้นนั้นในรอบที่หน้าเลือกอยู่ (ทุกหลักสูตรที่เห็น) + ลิงก์ไปตั้งที่หน้ารอบสหกิจ
+- `Frontend/playwright.unit.config.ts` — รันเทสต์ฟังก์ชันล้วนโดยไม่เปิด Vite (`npx playwright test --config=playwright.unit.config.ts <spec>`)
+
 ### Removed
 - `configController.getDocConfig` / `checkSystemOpen` (ไม่มี route ใช้) · `docController.checkSystemOpen` (รวมเป็น `resolveDeadline`)
+- **ที่ตั้งวันเดิมทั้งหมด** (ตั้งที่ปฏิทินของรอบที่เดียว): การ์ดตั้งช่วงรับเอกสารในหน้าตรวจ T000/T002/T003 (แทนด้วยกำหนดส่งของรอบที่เลือก + ลิงก์) · การ์ด "ช่วงเวลายื่นคำร้อง" ในหน้าตรวจคำร้อง (`A_ApplyWindowCard.tsx`) · ช่อง "กำหนดส่ง" ในหน้าตั้งค่า T005/T006, T007, T008 (ลิงก์/คำชี้แจงยังตั้งที่เดิม) · route `GET/POST /api/admin/config/t000|t002|t003|apply` · `REGISTRY` ของการตั้งค่าแยกหลักสูตร: `APPLY_CONFIG`/`T000_CONFIG`/`T002_CONFIG`/`T003_CONFIG` และช่อง `deadline` ของแบบฟอร์ม (หน้า "ความพร้อมรายหลักสูตร" ไม่แสดงแถววันแล้ว) — **ค่าเดิมใน DB ยังอยู่** ใช้เป็นค่าสำรองของรอบที่ยังไม่ตั้งปฏิทิน · `utils/applyWindow.js` เหลือแค่ข้อความ/วันที่ไทย
 
 ### Tests
-- `deadlines.test.js` (+38) · `resolveDeadline.test.js` (+15) · `submittedSteps.test.js` (+12) · `deadlineConfigController.test.js` (+10) · `docController.test.js` (+6, แก้ 1: รอบยังไม่ตั้ง = ค่าเดิม) · `coopController.test.js` (+1) · `coopPeriodDeadlines.test.js` (+14) · `deadlineExtension.test.js` (+10) · `supervisionController.test.js` (+1) · `auditLog.test.js` (+1) · ตารางสิทธิ์ admin ครอบ route ใหม่อัตโนมัติ (+15)
+- `deadlines.test.js` (+38) · `resolveDeadline.test.js` (+15) · `submittedSteps.test.js` (+12) · `deadlineConfigController.test.js` (+10) · `docController.test.js` (+6, แก้ 1: รอบยังไม่ตั้ง = ค่าเดิม) · `coopController.test.js` (+1) · `coopPeriodDeadlines.test.js` (+14) · `deadlineExtension.test.js` (+10) · `supervisionController.test.js` (+1) · `auditLog.test.js` (+1) · ตารางสิทธิ์ admin ครอบ route ใหม่อัตโนมัติ (+15) · route ตั้งวันเดิมต้องไม่มีแล้ว (+1) · `majorConfig.test.js` (ค่าวันเดิมตั้งแยกหลักสูตรไม่ได้แล้ว) · `applyWindow.test.js` เหลือข้อความ/วันที่ไทย
+- Frontend `tests/deadlines.spec.ts` (+8): ป้ายสถานะ · หลักสูตรที่ควรติ๊ก · ช่องที่ต่างจากวิทยาลัย · tsc คงที่ 23
+- **ยังไม่ได้ลองหน้าใหม่ในเบราว์เซอร์** (ไม่ได้เปิด dev server) — ควรลองหน้ารอบสหกิจ → ปฏิทินของรอบ ทั้งเจ้าหน้าที่/อาจารย์ประจำวิชา บนจอมือถือก่อน deploy
 
 ## [2026-10-20] fix: ตัวเลือก "ยังไม่เลือกรอบ" ไม่หายระหว่างเลือก + หน้าต่าง zip ไม่ error เมื่อรอบ none
 

@@ -3,7 +3,7 @@ import axios from "axios";
 import AutoTextarea from "./AutoTextarea";
 import { notify, askConfirm } from "../utils/notify";
 import MajorConfigTabs from "./MajorConfigTabs";
-import { DeadlineField } from "./DocDeadline";
+import { DeadlineMovedNote } from "./DocDeadline";
 
 export default function A_DocT008() {
     const [isFetching, setIsFetching] = useState(true);
@@ -135,7 +135,7 @@ export default function A_DocT008() {
                         />
                     </div>
 
-                    <DeadlineField value={deadline} onChange={setDeadline} />
+                    <DeadlineMovedNote />
 
                     {/* 3. อัปโหลดรูปภาพ */}
                     <div style={{ padding: 20, background: '#fffbeb', borderRadius: 12, border: '1px solid #fde68a' }}>

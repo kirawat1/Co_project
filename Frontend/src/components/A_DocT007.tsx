@@ -3,7 +3,7 @@ import axios from "axios";
 import AutoTextarea from "./AutoTextarea";
 import { notify, askConfirm } from "../utils/notify";
 import MajorConfigTabs from "./MajorConfigTabs";
-import { DeadlineField } from "./DocDeadline";
+import { DeadlineMovedNote } from "./DocDeadline";
 
 export default function A_DocT007() {
     const [isFetching, setIsFetching] = useState(true);
@@ -103,7 +103,7 @@ export default function A_DocT007() {
                         </div>
                     </div>
 
-                    <DeadlineField value={deadline} onChange={setDeadline} />
+                    <DeadlineMovedNote />
 
                 </div>
 
