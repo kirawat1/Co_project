@@ -7,9 +7,21 @@
 ### Added
 - `backend/utils/deadlines.js` — ตรรกะกำหนดส่งของขั้น (ฟังก์ชันล้วน): ปิดจริง/ส่งช้าได้/ปิดรับชั่วคราว/ส่งแก้ได้เสมอ/ขยายเวลารายคน · ตรรกะเดิมของช่วง T000–T003 (`evaluateLegacyWindow`) สำหรับรอบที่ยังไม่ตั้งปฏิทิน · ใช้ค่าวิทยาลัยกับหลักสูตรที่ติ๊ก · เลื่อนปีตอนคัดลอก
 - Migration `20261020120000_round_calendar`: `CoopPeriod.deadlines`, `CoopPeriodMajor.deadlines`, `StudentCoop.deadlineExtensions`, `StudentCoop.submittedSteps` (JSON, nullable — ไม่แตะข้อมูลเดิม) · **deploy: `migrate deploy` + `prisma generate`**
+- `utils/resolveDeadline.js` — กำหนดส่งของนักศึกษาจากรอบของตัวเอง (`StudentCoop.coopPeriodId` + หลักสูตร) · รอบยังไม่ตั้งขั้นนั้น = ช่วงเดิมใน SystemConfig ตามตรรกะเดิม (วันเริ่ม/ติ๊กเปิดระบบ/วันสิ้นสุด) · ยังไม่เลือกรอบ = ไม่มีกำหนด
+- `utils/submittedSteps.js` — บันทึกเวลาส่งครั้งแรกของขั้น (T000 = ตอนอัปโหลดครบหัวข้อบังคับของหลักสูตร · T002/T003 = ส่งแบบฟอร์ม) ส่งแก้ไม่ทับ
+- `scripts/backfill_submitted_steps.js [--dry-run]` — เติมเวลาส่งให้คนที่ส่งก่อน deploy (ติด `backfill` ไม่ใช้ติดป้ายส่งช้า) · **รันหลัง deploy ครั้งเดียว**
+- `controllers/deadlineConfigController.js` — `/api/coop/config/t000|t002|t003|evaluation|t007|t008|apply` ของนักศึกษาคืนรูปเดิม แต่คำนวณจากรอบของนักศึกษา (`startDate` = วันเริ่มของรอบ — นับถอยหลังบนหน้าแรกยังแสดง)
+
+### Changed
+- อัปโหลดเอกสาร (`docController.uploadDocument`) ตัดสินด้วยกำหนดส่งของรอบที่จุดเดียวในทรานแซกชัน · **ส่งแก้ได้เสมอ** (สถานะสั่งแก้ของขั้นนั้น — เดิมพอปิดช่วงแล้วส่งแก้ไม่ได้) · เลยกำหนดแจ้ง "เลยกำหนดส่ง (วันที่) — ขอขยายเวลา" · ตอบ `late` ในผลอัปโหลด
+- **ยื่นคำร้องตัดสินจากรอบรับสมัครของหลักสูตรอย่างเดียว** — เลิกเช็ก `APPLY_CONFIG` (ก่อน deploy: ดูค่า `APPLY_CONFIG` บน VM ถ้าปิดเร็วกว่าวันปิดรอบ ให้แก้วันปิดรอบที่หน้ารอบสหกิจให้ตรงก่อน ไม่งั้นช่วงยื่นจะยาวขึ้น)
+- หน้าของนักศึกษา: ขั้นที่ยังไม่เคยตั้งค่าเลย → ระบบบอกว่า "เปิด" ตรงกับที่ server รับจริง (เดิมหน้าเว็บบอกปิดแต่ server รับ)
+
+### Removed
+- `configController.getDocConfig` / `checkSystemOpen` (ไม่มี route ใช้) · `docController.checkSystemOpen` (รวมเป็น `resolveDeadline`)
 
 ### Tests
-- `deadlines.test.js` (+38)
+- `deadlines.test.js` (+38) · `resolveDeadline.test.js` (+15) · `submittedSteps.test.js` (+12) · `deadlineConfigController.test.js` (+10) · `docController.test.js` (+6, แก้ 1: รอบยังไม่ตั้ง = ค่าเดิม) · `coopController.test.js` (+1)
 
 ## [2026-10-20] fix: ตัวเลือก "ยังไม่เลือกรอบ" ไม่หายระหว่างเลือก + หน้าต่าง zip ไม่ error เมื่อรอบ none
 

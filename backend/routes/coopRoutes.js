@@ -32,17 +32,17 @@ router.get("/supervision/company-queue", verifyToken, verifyRole("student"), sup
 // Gateway display config — readable by all authenticated users (students included)
 router.get("/config/gateway", verifyToken, configController.getGatewaySettings);
 
-// T000/T002/T003 submission window config — read-only, students need this to know if submission is open
-const adminDocController = require("../controllers/adminDocController");
-router.get("/config/t000", verifyToken, adminDocController.getT000Config);
-router.get("/config/t002", verifyToken, configController.getT002Config);
-router.get("/config/apply", verifyToken, configController.getApplyConfig);
-router.get("/config/t003", verifyToken, configController.getT003Config);
+// กำหนดส่ง/ช่วงรับของนักศึกษา — รูปเดิม แต่คำนวณจากปฏิทินของรอบของนักศึกษา (ปฏิทินของรอบ)
+const deadlineConfigController = require("../controllers/deadlineConfigController");
+router.get("/config/t000", verifyToken, deadlineConfigController.getT000Config);
+router.get("/config/t002", verifyToken, deadlineConfigController.getT002Config);
+router.get("/config/apply", verifyToken, deadlineConfigController.getApplyConfig);
+router.get("/config/t003", verifyToken, deadlineConfigController.getT003Config);
 
-// T005/T006 evaluation, T007, T008 content config — read-only, students need these for their doc pages
-router.get("/config/evaluation", verifyToken, configController.getEvaluationConfig);
-router.get("/config/t007", verifyToken, configController.getT007Config);
-router.get("/config/t008", verifyToken, configController.getT008Config);
+// T005/T006 evaluation, T007, T008 — ลิงก์แบบฟอร์มเดิม + กำหนดส่งของรอบ
+router.get("/config/evaluation", verifyToken, deadlineConfigController.getEvaluationConfig);
+router.get("/config/t007", verifyToken, deadlineConfigController.getT007Config);
+router.get("/config/t008", verifyToken, deadlineConfigController.getT008Config);
 
 // Doc requirements — read-only, accessible by all authenticated users (students need this for S_Docs)
 const docReqController = require("../controllers/docRequirementController");
