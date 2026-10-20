@@ -78,6 +78,7 @@ export interface TimelineStep {
     canSubmit?: boolean;
     late?: boolean;
     submittedAt?: string | null;
+    submittedLate?: boolean; // server ตัดสิน (เวลาที่เติมย้อนหลังไม่นับว่าช้า)
     extensionUntil?: string | null;
 }
 
@@ -85,10 +86,7 @@ export interface TimelineStep {
 export function timelineStatus(s: TimelineStep, now = new Date()): { text: string; tone: Tone } | null {
     if (s.stepKey === "SUPERVISION") return null;
     if (s.stepKey === "APPLY") return s.isOpen ? { text: "เปิดรับอยู่", tone: "ok" } : { text: "ปิดแล้ว", tone: "info" };
-    if (s.submittedAt) {
-        const day = new Date(s.submittedAt).toLocaleDateString("sv-SE", { timeZone: "Asia/Bangkok" });
-        return s.due && day > s.due ? { text: "ส่งแล้ว (ช้า)", tone: "warn" } : { text: "ส่งแล้ว", tone: "ok" };
-    }
+    if (s.submittedAt) return s.submittedLate ? { text: "ส่งแล้ว (ช้า)", tone: "warn" } : { text: "ส่งแล้ว", tone: "ok" };
     return deadlineStatus({ due: s.due, mode: s.mode, closed: s.closed, canSubmit: s.canSubmit }, now);
 }
 

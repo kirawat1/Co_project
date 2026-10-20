@@ -962,7 +962,8 @@ exports.updateCoopApplicationStatus = async (req, res) => {
 // รายชื่อในหน้าตรวจ T002/T003 = มีไฟล์แบบฟอร์มนั้น หรือสถานะอยู่ในขั้นนั้น (ตรงกับที่หน้าเว็บเคยกรองเอง)
 const REVIEW_LISTS = {
     T002: { docType: 'T002_FORM', statuses: ['T002_SUBMITTED', 'T002_EDITS_REQUIRED', 'INTERNSHIP_STARTED'], pending: 'T002_SUBMITTED' },
-    T003: { docType: 'T003_FORM', statuses: ['T003_SUBMITTED', 'T003_EDITS_REQUIRED', 'T003_APPROVED', 'INTERNSHIP_STARTED'], pending: 'T003_SUBMITTED' },
+    // T002_SUBMITTED = ส่ง T002 แล้ว ยังไม่ส่ง T003 (ส่ง T003 ครั้งแรกได้) — เห็นป้ายเลยกำหนด/ปุ่มขยายเวลา
+    T003: { docType: 'T003_FORM', statuses: ['T003_SUBMITTED', 'T003_EDITS_REQUIRED', 'T003_APPROVED', 'INTERNSHIP_STARTED', 'T002_SUBMITTED'], pending: 'T003_SUBMITTED' },
 };
 const reviewWhere = (review) => ({ OR: [{ documents: { some: { type: review.docType } } }, { coop: { status: { in: review.statuses } } }] });
 

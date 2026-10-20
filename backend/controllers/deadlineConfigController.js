@@ -8,7 +8,7 @@ const { readEffective } = require('../utils/majorConfig');
 const { resolveDeadline, bangkokDay } = require('../utils/resolveDeadline');
 const { autoCloseRows } = require('../utils/coopPeriodMajor');
 const { applyWindowMessage } = require('../utils/applyWindow');
-const { STEP_LABEL, MODE_STEPS } = require('../utils/deadlines');
+const { STEP_LABEL, MODE_STEPS, deadlineFlags } = require('../utils/deadlines');
 
 const fail = (res, err, label) => {
   console.error(label, err);
@@ -72,9 +72,12 @@ exports.getRoundDeadlines = async (req, res) => {
       const d = await resolveDeadline(stepKey, ctx);
       const base = { stepKey, label: STEP_LABEL[stepKey], due: d.due };
       if (!MODE_STEPS.includes(stepKey)) return base;
+      const submitted = coop.submittedSteps?.[stepKey] || null;
       return {
         ...base, mode: d.mode, closed: d.closed, canSubmit: d.canSubmit, late: d.late,
-        submittedAt: coop.submittedSteps?.[stepKey]?.at || null, extensionUntil: d.extensionUntil,
+        submittedAt: submitted?.at || null, extensionUntil: d.extensionUntil,
+        // ส่งช้าหรือไม่ — กฎเดียวกับป้ายในหน้าตรวจ (เวลาที่เติมย้อนหลังไม่นับ)
+        submittedLate: deadlineFlags({ stepKey, due: d.due, submitted }).late,
       };
     };
     const steps = [

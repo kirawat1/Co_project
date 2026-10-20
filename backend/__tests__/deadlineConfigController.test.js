@@ -100,6 +100,20 @@ describe('deadlineConfigController', () => {
       expect(prisma.coopPeriodMajor.findUnique.mock.calls.every((c) => c[0].where.periodId_major.major === 'CS')).toBe(true);
     });
 
+    test('ส่งแล้วช้า: ตัดสินที่ server ด้วยกฎเดียวกับป้ายในหน้าตรวจ — เวลาที่เติมย้อนหลัง (backfill) ไม่นับว่าช้า', async () => {
+      prisma.coopPeriod.findUnique.mockResolvedValue({ id: 1, academicYear: '2569', semester: 1 });
+      const t002 = async (submitted) => {
+        setup({ coop: { coopPeriodId: 1, status: 'T002_SUBMITTED', submittedSteps: { T002: submitted } }, row });
+        const res = makeRes();
+        await ctrl.getRoundDeadlines(student, res);
+        return res.json.mock.calls[0][0].steps.find((s) => s.stepKey === 'T002');
+      };
+      // กำหนด T002 = 3 ก.ค. 2569 · ส่ง 20 ก.ค.
+      expect(await t002({ at: '2026-07-20T00:00:00.000Z', backfill: true })).toMatchObject({ submittedAt: '2026-07-20T00:00:00.000Z', submittedLate: false });
+      expect(await t002({ at: '2026-07-20T00:00:00.000Z' })).toMatchObject({ submittedLate: true });
+      expect(await t002({ at: '2026-07-02T00:00:00.000Z' })).toMatchObject({ submittedLate: false });
+    });
+
     test('ยังไม่มีรอบ → ไม่มีไทม์ไลน์', async () => {
       setup({ coop: { coopPeriodId: null, status: 'QUALIFIED' } });
       const res = makeRes();

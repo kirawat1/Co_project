@@ -110,7 +110,8 @@ describe('getAllStudentsForReview', () => {
 
   // หน้าตรวจ T002/T003: เดิมโหลดทุกคนพร้อมเอกสารทุกไฟล์มากรองเอง (เกิน 1000 คนถูกตัดเงียบๆ)
   test.each([
-    ['T003', 'T003_FORM', ['T003_SUBMITTED', 'T003_EDITS_REQUIRED', 'T003_APPROVED', 'INTERNSHIP_STARTED']],
+    // T002_SUBMITTED = ส่ง T002 แล้ว ยังไม่ส่ง T003 (สถานะเดียวที่ส่ง T003 ครั้งแรกได้) — ต้องอยู่ในรายการเพื่อเห็นป้าย/ขยายเวลา
+    ['T003', 'T003_FORM', ['T003_SUBMITTED', 'T003_EDITS_REQUIRED', 'T003_APPROVED', 'INTERNSHIP_STARTED', 'T002_SUBMITTED']],
     ['t002', 'T002_FORM', ['T002_SUBMITTED', 'T002_EDITS_REQUIRED', 'INTERNSHIP_STARTED']],
   ])('review=%s → server กรอง (มีไฟล์แบบฟอร์ม หรือสถานะอยู่ในขั้นนั้น) + แนบเฉพาะไฟล์แบบฟอร์มนั้น', async (review, docType, statuses) => {
     prisma.student.findMany.mockResolvedValue([]);
