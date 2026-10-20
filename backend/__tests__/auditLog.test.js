@@ -50,6 +50,16 @@ describe('describeRequest — ตั้งชื่อการกระทำ�
     expect(d).toMatchObject({ action: 'แก้วันนิเทศ', targetType: 'นัดนิเทศ', targetId: '7' });
   });
 
+  test('ปฏิทินของรอบ + ขยายเวลา มีชื่อไทยและบอกว่าแก้อะไร', () => {
+    const d = (method, path, body = {}) => describeRequest({ method, path, body });
+    expect(d('PUT', '/api/admin/coop-periods/3/deadlines', { major: '' })).toMatchObject({ action: 'ตั้งกำหนดส่งของรอบ (ค่าตั้งต้นของวิทยาลัย)', targetType: 'รอบสหกิจ', targetId: '3' });
+    expect(d('PUT', '/api/admin/coop-periods/3/deadlines', { major: 'CS' }).action).toBe('ตั้งกำหนดส่งของรอบ (หลักสูตร CS)');
+    expect(d('POST', '/api/admin/coop-periods/3/deadlines/copy').action).toBe('คัดลอกกำหนดส่งจากรอบก่อน');
+    expect(d('PUT', '/api/admin/students/7/deadline-extension', { stepKey: 'T002', until: '2026-07-10' }))
+      .toMatchObject({ action: 'ขยายเวลาส่งให้นักศึกษา T002 ถึง 2026-07-10', targetType: 'นักศึกษา', targetId: '7' });
+    expect(d('DELETE', '/api/admin/students/7/deadline-extension/T002').action).toBe('ยกเลิกการขยายเวลาส่ง');
+  });
+
   test('ตัด query string ออกก่อนเทียบ', () => {
     expect(describeRequest({ method: 'DELETE', path: '/api/companies/9?force=1', body: {} }).action).toBe('ลบบริษัท');
   });

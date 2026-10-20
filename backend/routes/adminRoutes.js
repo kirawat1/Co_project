@@ -69,6 +69,14 @@ router.put("/coop-periods/:id", verifyToken, verifyCoopTeacherOrStaff, coopPerio
 router.patch("/coop-periods/:id/toggle", verifyToken, verifyCoopTeacherOrStaff, coopPeriodController.togglePeriod);
 router.delete("/coop-periods/:id", verifyToken, verifyRole(...STAFF_ONLY), coopPeriodController.deletePeriod); // ลบทั้งปี/เทอม กระทบทุกหลักสูตร
 router.delete("/coop-periods/:id/majors/:major", verifyToken, verifyCoopTeacherOrStaff, coopPeriodController.removePeriodMajor);
+// ปฏิทินของรอบ — ค่าวิทยาลัยแก้ได้เฉพาะเจ้าหน้าที่ (ตรวจใน controller) · แถวหลักสูตร = ผู้ดูแลหลักสูตรนั้น
+router.get("/coop-periods/:id/deadlines", verifyToken, verifyCoopTeacherOrStaff, coopPeriodController.getDeadlines);
+router.put("/coop-periods/:id/deadlines", verifyToken, verifyCoopTeacherOrStaff, coopPeriodController.saveDeadlines);
+router.post("/coop-periods/:id/deadlines/copy", verifyToken, verifyCoopTeacherOrStaff, coopPeriodController.copyDeadlines);
+// ขยายเวลาส่งรายคน (T000/T002/T003) — นักศึกษาต้องอยู่ในหลักสูตรที่ดูแล
+const deadlineExtensionController = require("../controllers/deadlineExtensionController");
+router.put("/students/:id/deadline-extension", verifyToken, verifyCoopTeacherOrStaff, deadlineExtensionController.setExtension);
+router.delete("/students/:id/deadline-extension/:stepKey", verifyToken, verifyCoopTeacherOrStaff, deadlineExtensionController.clearExtension);
 router.get("/coop-periods/active", verifyToken, verifyRole(...ADMIN_ROLES), coopPeriodController.getActivePeriod);
 router.get("/coop-periods/all", verifyToken, verifyRole(...ADMIN_ROLES), coopPeriodController.getAllCoopPeriods);
 
