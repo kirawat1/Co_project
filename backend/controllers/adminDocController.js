@@ -1,4 +1,5 @@
 const prisma = require('../config/prismaClient');
+const { deadlineFlagsFor } = require('../utils/deadlineFlags');
 const { createNotifications } = require('../utils/notificationHelper');
 const { removeUnreferencedUploads } = require('../utils/uploadCleanup');
 const { normalizeDocNumber, isPlaceholderDocNo, parseDateOr400 } = require('../utils/docNumber');
@@ -163,7 +164,10 @@ exports.getStudentsForT000 = async (req, res) => {
       advisorName: s.advisorName || null,
       generalAdvisor: s.generalAdvisor || null,
     });
-    const data = [...students.map(toRow), ...outside.map((s) => ({ ...toRow(s), outsidePeriod: true }))];
+    // ป้ายกำหนดส่ง T000 ของแต่ละคน (ปฏิทินของรอบ) — ส่งช้า / เลยกำหนดยังไม่ส่ง
+    const flags = await deadlineFlagsFor([...students, ...outside], 'T000');
+    const data = [...students.map(toRow), ...outside.map((s) => ({ ...toRow(s), outsidePeriod: true }))]
+      .map((row) => ({ ...row, deadline: flags.get(row.id) }));
 
     res.json(data);
   } catch (err) {
@@ -1040,7 +1044,13 @@ exports.getAllStudentsForReview = async (req, res) => {
             prisma.student.count({ where }),
         ]);
 
-        res.json({ ok: true, data: students, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } });
+        // หน้าตรวจ T002/T003: ป้ายกำหนดส่งของแต่ละคน (ปฏิทินของรอบ)
+        let data = students;
+        if (review) {
+            const flags = await deadlineFlagsFor(students, review.docType === 'T002_FORM' ? 'T002' : 'T003');
+            data = students.map((st) => ({ ...st, deadline: flags.get(st.id) }));
+        }
+        res.json({ ok: true, data, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } });
     } catch (err) {
         console.error("Get All Students Error:", err);
         res.status(500).json({ ok: false, message: "ไม่สามารถดึงข้อมูลนักศึกษาได้" });

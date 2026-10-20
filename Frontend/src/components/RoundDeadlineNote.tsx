@@ -54,6 +54,18 @@ export default function RoundDeadlineNote({ stepKey, periodId }: Props) {
     );
 }
 
+/** ป้ายในแถวรายการตรวจ — จาก API (row.deadline): ส่งช้า / เลยกำหนดยังไม่ส่ง */
+export interface DeadlineFlags { due: string | null; late: boolean; overdueNotSubmitted: boolean }
+export function DeadlineFlagBadge({ flags }: { flags?: DeadlineFlags | null }) {
+    if (!flags || (!flags.late && !flags.overdueNotSubmitted)) return null;
+    const style = flags.late ? toneStyle.warn : toneStyle.closed;
+    return (
+        <span style={{ ...pill, ...style, display: "inline-block", marginTop: 4 }} title={flags.due ? `กำหนดส่งของรอบ: ${flags.due}` : undefined}>
+            {flags.late ? "⏰ ส่งช้า" : "⛔ เลยกำหนด ยังไม่ส่ง"}
+        </span>
+    );
+}
+
 const wrap: CSSProperties = { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", marginTop: 8, fontSize: 13 };
 const muted: CSSProperties = { color: "#64748b", fontSize: 13 };
 const item: CSSProperties = { color: "#334155", fontSize: 13 };

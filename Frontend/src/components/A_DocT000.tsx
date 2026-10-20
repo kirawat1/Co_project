@@ -13,7 +13,7 @@ import { TABLE_TH, TABLE_TD, TABLE_HEADER_ROW } from "../utils/tableStyles";
 import Modal, { ModalCloseButton } from "./Modal";
 import { useAdminRole } from "./adminRole";
 import { appliesTo } from "../utils/docRequirementScope";
-import RoundDeadlineNote from "./RoundDeadlineNote";
+import RoundDeadlineNote, { DeadlineFlagBadge, type DeadlineFlags } from "./RoundDeadlineNote";
 import DeadlineExtensionButton from "./DeadlineExtensionButton";
 import type { StepKey } from "../utils/deadlines";
 import LetterZipModal, { LetterZipButton, toolbarBtn } from "./LetterZipModal";
@@ -44,6 +44,7 @@ interface StudentProfile {
     teacherComment?: string;
     submittedAt?: string;
     coopPeriodId?: number;
+    deadline?: DeadlineFlags; // ป้ายกำหนดส่งของรอบ (ส่งช้า / เลยกำหนดยังไม่ส่ง)
     coop?: {
         coopPeriodId?: number;
         company?: { name: string };
@@ -759,6 +760,7 @@ export default function A_DocT000() {
                                     <td style={td} data-label="วันที่ส่ง">{s.submittedAt ? fmtDate(s.submittedAt) : "-"}</td>
                                     <td style={td} data-label="สถานะ">
                                         <StatusBadge status={s.docStatus} />
+                                        <div><DeadlineFlagBadge flags={s.deadline} /></div>
                                         {s.coop?.reqLetterPendingAt && <PendingSignBadge label="รอลงนามหนังสือขอความอนุเคราะห์" at={s.coop.reqLetterPendingAt} draftNumber={s.coop.reqLetterDraftNumber} />}
                                         {s.coop?.placeLetterPendingAt && <PendingSignBadge label="รอลงนามหนังสือส่งตัว" at={s.coop.placeLetterPendingAt} draftNumber={s.coop.placeLetterDraftNumber} />}
                                         {(s.coop?.reqLetterBatch || s.coop?.placeLetterBatch) && (
