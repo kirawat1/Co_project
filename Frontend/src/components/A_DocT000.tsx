@@ -77,7 +77,7 @@ function advisorMismatchWarning(student: StudentProfile): string | null {
     const stored = student.advisorName.toLowerCase();
     if (!stored.includes(linked.firstName.toLowerCase()) && !stored.includes(linked.lastName.toLowerCase())) {
         const linkedFull = [linked.prefix, linked.firstName, linked.lastName].filter(Boolean).join(' ');
-        return `⚠️ ชื่อที่ปรึกษาทั่วไปไม่ตรง — นักศึกษากรอก "${student.advisorName}" / ระบบเชื่อมกับ "${linkedFull}"`;
+        return `ชื่อที่ปรึกษาทั่วไปไม่ตรง — นักศึกษากรอก "${student.advisorName}" / ระบบเชื่อมกับ "${linkedFull}"`;
     }
     return null;
 }
@@ -578,7 +578,7 @@ export default function A_DocT000() {
                 <div key={title} style={{ background: '#fff', border: '1px dashed #cbd5e1', borderRadius: 8, padding: 12, opacity: 0.7 }}>
                     <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600, marginBottom: 4 }}>{displayTitle}</div>
                     <div style={{ fontSize: 13, color: '#ef4444', fontStyle: 'italic', display: 'flex', alignItems: 'center', gap: 6 }}>
-                        ⚠️ ยังไม่อัปโหลดเอกสาร
+                        ยังไม่อัปโหลดเอกสาร
                     </div>
                 </div>
             );
@@ -605,21 +605,21 @@ export default function A_DocT000() {
                                 transition: '0.1s'
                             }}>
                             <div style={{ fontSize: 13, color: '#334155', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
-                                <span>{doc.name.endsWith('.pdf') ? '🔴' : '🔵'}</span>
+                                <span style={{ fontSize: 10, fontWeight: 700, color: '#64748b', border: '1px solid #cbd5e1', borderRadius: 4, padding: '0 4px' }}>{doc.name.toLowerCase().endsWith('.pdf') ? 'PDF' : 'IMG'}</span>
                                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '220px' }}>{doc.name}</span>
                             </div>
                             {canEditInModal(selectedStudent, checkPhase) && <div style={{ display: 'flex', gap: 5 }}>
                                 <button className={`action-btn edit ${doc.status === 'EDITS_REQUIRED' ? 'active' : ''}`}
                                     onClick={(e) => { e.stopPropagation(); handleDocStatus(doc.id, "EDITS_REQUIRED"); }}>
-                                    🛠️ แก้ไข
+                                    ส่งกลับแก้ไข
                                 </button>
                                 <button className={`action-btn fail ${doc.status === 'REJECTED' ? 'active' : ''}`}
                                     onClick={(e) => { e.stopPropagation(); handleDocStatus(doc.id, "REJECTED"); }}>
-                                    ❌ ไม่ผ่าน
+                                    ไม่ผ่าน
                                 </button>
                                 <button className={`action-btn pass ${doc.status === 'APPROVED' ? 'active' : ''}`}
                                     onClick={(e) => { e.stopPropagation(); handleDocStatus(doc.id, "APPROVED"); }}>
-                                    ✅ ผ่าน
+                                    ผ่าน
                                 </button>
                             </div>}
                         </div>
@@ -634,7 +634,7 @@ export default function A_DocT000() {
 
             {/* 1. กำหนดส่งของรอบ — ตั้งที่หน้ารอบสหกิจ (ปฏิทินของรอบ) ที่เดียว */}
             <section className="card" style={{ marginBottom: 20 }}>
-                <h3 style={{ margin: 0 }}>⚙️ จัดการเอกสารสมัคร (T000)</h3>
+                <h3 style={{ margin: 0 }}>จัดการเอกสารสมัคร (T000)</h3>
                 <RoundDeadlineNote stepKey="T000" periodId={selectedPeriod} />
             </section>
 
@@ -643,7 +643,7 @@ export default function A_DocT000() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
                     <h3 style={{ margin: 0 }}>รายการส่งเอกสาร ({list.length})</h3>
                     <button className="btn" style={{ background: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1' }} onClick={fetchAllData} disabled={loading}>
-                        {loading ? '⏳ กำลังรีเฟรช...' : '🔄 รีเฟรชข้อมูล'}
+                        {loading ? 'กำลังโหลดข้อมูล...' : 'รีเฟรชข้อมูล'}
                     </button>
                 </div>
 
@@ -652,7 +652,7 @@ export default function A_DocT000() {
 
                     {/* Dropdown เลือกบริษัท */}
                     <select className="input" style={{ width: 'auto', maxWidth: 320, background: '#f8fafc' }} value={companyFilter} onChange={e => setCompanyFilter(e.target.value)}>
-                        <option value="all">🏢 ทุกบริษัท</option>
+                        <option value="all">ทุกบริษัท</option>
                         <option value={NO_COMPANY}>— ยังไม่ระบุบริษัท —</option>
                         {companyOptions.map(([name, count]) => (
                             <option key={name} value={name}>{name} ({count})</option>
@@ -661,18 +661,18 @@ export default function A_DocT000() {
 
                     {/* Dropdown เลือกปีการศึกษา */}
                     <select className="input" style={{ width: 'auto', maxWidth: '100%', background: '#f8fafc' }} value={selectedPeriod} onChange={e => setSelectedPeriod(e.target.value)}>
-                        <option value="all">📚 ทุกปีการศึกษา</option>
+                        <option value="all">ทุกปีการศึกษา</option>
                         {coopPeriods.map(p => (
                             <option key={p.id} value={p.id}>เทอม {p.semester} / {p.academicYear}{periodCountLabel(periodCounts, p.id)}</option>
                         ))}
                         {(selectedPeriod === "none" || periodCounts.some(c => c.coopPeriodId == null)) && (
-                            <option value="none">⏳ ยังไม่เลือกรอบ{periodCountLabel(periodCounts, "none")}</option>
+                            <option value="none">ยังไม่เลือกรอบ{periodCountLabel(periodCounts, "none")}</option>
                         )}
                     </select>
                     {pendingOutside(periodCounts, selectedPeriod) > 0 && (
                         <button type="button" onClick={() => setSelectedPeriod("all")}
                             style={{ fontSize: 12, color: '#b45309', fontWeight: 700, background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 8, padding: '6px 10px', cursor: 'pointer' }}>
-                            ⚠️ รอตรวจในรอบอื่นอีก {pendingOutside(periodCounts, selectedPeriod)} คน — ดูทุกปีการศึกษา
+                            มีรายการรอตรวจในรอบอื่นอีก {pendingOutside(periodCounts, selectedPeriod)} คน — ดูทุกปีการศึกษา
                         </button>
                     )}
 
@@ -681,7 +681,7 @@ export default function A_DocT000() {
                         {isStaff && (
                             <button type="button" onClick={() => { setBatchMode(m => !m); setBatchIds([]); }}
                                 style={batchMode ? { ...toolbarBtn, background: "#1e293b", borderColor: "#1e293b", color: "#fff" } : toolbarBtn}>
-                                <span aria-hidden>{batchMode ? "✕" : "👥"}</span> {batchMode ? "ปิดโหมดหนังสือรวม" : "ออกหนังสือรวมหลายคน"}
+                                {batchMode ? "ปิดโหมดหนังสือรวม" : "ออกหนังสือรวมหลายคน"}
                             </button>
                         )}
                         <LetterZipButton onClick={() => setZipOpen(true)} />
@@ -690,7 +690,7 @@ export default function A_DocT000() {
 
                 <div style={{ marginBottom: 16 }}>
                     <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>
-                        ขั้นตอนที่ 1 — ตรวจเอกสาร T000
+                        ขั้นตอนที่ 1: ตรวจสอบเอกสารสมัคร (T000)
                     </div>
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
                         {["QUALIFIED", "WAITING_FOR_STAFF_CHECK", "EDITS_REQUIRED", "DOCS_APPROVED", "PENDING_SIGN_REQ", "REQ_LETTER_ISSUED"].map(st => (
@@ -701,7 +701,7 @@ export default function A_DocT000() {
                         ))}
                     </div>
                     <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>
-                        ขั้นตอนที่ 2 — ตรวจใบตอบรับ / ออกหนังสือส่งตัว
+                        ขั้นตอนที่ 2: ตรวจสอบใบตอบรับและออกหนังสือส่งตัว
                     </div>
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                         {["WAITING_FOR_PLACEMENT_LETTER", "WAITING_FOR_STAFF_CHECK_LETTER", "ACCEPTANCE_CHECKED", "PENDING_SIGN_PLACE", "PLACEMENT_LETTER_ISSUED"].map(st => (
@@ -715,11 +715,11 @@ export default function A_DocT000() {
 
                 {batchMode && (
                     <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', padding: '10px 14px', marginBottom: 12, background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10, fontSize: 13 }}>
-                        <span style={{ fontWeight: 700, color: '#1e3a8a' }}>👥 หนังสือรวม: เลือกแล้ว {batchIds.length} คน</span>
+                        <span style={{ fontWeight: 700, color: '#1e3a8a' }}>หนังสือรวม: เลือกแล้ว {batchIds.length} คน</span>
                         <span style={{ color: '#475569' }}>ติ๊กนักศึกษาบริษัทเดียวกัน (กรองด้วยช่อง "ทุกบริษัท" ด้านบนได้)</span>
                         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                            <button className="btn" style={{ background: '#16a34a', color: 'white', fontSize: 12 }} disabled={batchIds.length < 2} onClick={() => openBatchLetter("REQUEST")}>📄 หนังสือขอความอนุเคราะห์รวม</button>
-                            <button className="btn" style={{ background: '#0ea5e9', color: 'white', fontSize: 12 }} disabled={batchIds.length < 2} onClick={() => openBatchLetter("PLACEMENT")}>📄 หนังสือส่งตัวรวม</button>
+                            <button className="btn" style={{ background: '#16a34a', color: 'white', fontSize: 12 }} disabled={batchIds.length < 2} onClick={() => openBatchLetter("REQUEST")}>ออกหนังสือขอความอนุเคราะห์รวม</button>
+                            <button className="btn" style={{ background: '#0ea5e9', color: 'white', fontSize: 12 }} disabled={batchIds.length < 2} onClick={() => openBatchLetter("PLACEMENT")}>ออกหนังสือส่งตัวรวม</button>
                         </div>
                     </div>
                 )}
@@ -753,19 +753,19 @@ export default function A_DocT000() {
                                     </td>
                                     <td style={td} data-label="ชื่อ-สกุล">
                                         <div>{s.firstName} {s.lastName}</div>
-                                        {s.coop?.company?.name && <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>🏢 {s.coop.company.name}</div>}
+                                        {s.coop?.company?.name && <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{s.coop.company.name}</div>}
                                         {(() => { const w = advisorMismatchWarning(s); return w && <div style={{ fontSize: 11, color: '#b45309', background: '#fef3c7', border: '1px solid #fcd34d', borderRadius: 6, padding: '3px 8px', marginTop: 4 }}>{w}</div>; })()}
                                     </td>
                                     <td style={td} data-label="ไฟล์">{s.documents?.length || 0}</td>
                                     <td style={td} data-label="วันที่ส่ง">{s.submittedAt ? fmtDate(s.submittedAt) : "-"}</td>
                                     <td style={td} data-label="สถานะ">
-                                        <StatusBadge status={s.docStatus} />
+                                        {t000Status(s.docStatus)}
                                         <div><DeadlineFlagBadge flags={s.deadline} /></div>
                                         {s.coop?.reqLetterPendingAt && <PendingSignBadge label="รอลงนามหนังสือขอความอนุเคราะห์" at={s.coop.reqLetterPendingAt} draftNumber={s.coop.reqLetterDraftNumber} />}
                                         {s.coop?.placeLetterPendingAt && <PendingSignBadge label="รอลงนามหนังสือส่งตัว" at={s.coop.placeLetterPendingAt} draftNumber={s.coop.placeLetterDraftNumber} />}
                                         {(s.coop?.reqLetterBatch || s.coop?.placeLetterBatch) && (
                                             <div style={{ fontSize: 11, color: '#1e40af', marginTop: 4 }} title="ออกเป็นหนังสือฉบับเดียวกับนักศึกษาคนอื่นในบริษัทเดียวกัน">
-                                                👥 หนังสือรวม{[s.coop?.reqLetterBatch && 'ขอความอนุเคราะห์', s.coop?.placeLetterBatch && 'ส่งตัว'].filter(Boolean).join(' · ')}
+                                                หนังสือรวม{[s.coop?.reqLetterBatch && 'ขอความอนุเคราะห์', s.coop?.placeLetterBatch && 'ส่งตัว'].filter(Boolean).join(' · ')}
                                             </div>
                                         )}
                                     </td>
@@ -773,7 +773,7 @@ export default function A_DocT000() {
                                         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                                         {(s.documents?.length || 0) > 0 && !POST_LETTER_STATUSES.includes(s.docStatus || '') && (
                                             <button className="btn" style={{ background: IOS_BLUE, color: 'white', fontSize: 12 }} onClick={() => openCheckModal(s, 1)}>
-                                                🔍 ตรวจสอบ T000
+                                                ตรวจสอบเอกสาร
                                             </button>
                                         )}
                                         {!POST_LETTER_STATUSES.includes(s.docStatus || '') && (
@@ -783,10 +783,10 @@ export default function A_DocT000() {
                                     </td>
                                     <td style={td}>
                                         {/* ออกหนังสือ = เจ้าหน้าที่เท่านั้น — อาจารย์ประจำวิชาเห็นแค่สถานะ */}
-                                        {!isStaff && s.docStatus === 'DOCS_APPROVED' && <span style={{ fontSize: 12, color: '#94a3b8' }}>🕒 รอเจ้าหน้าที่ออกหนังสือ</span>}
+                                        {!isStaff && s.docStatus === 'DOCS_APPROVED' && <span style={{ fontSize: 12, color: '#94a3b8' }}>รอเจ้าหน้าที่ออกหนังสือ</span>}
                                         {isStaff && CAN_ISSUE_REQUEST_LETTER_STATUSES.includes(s.docStatus || '') && (
                                             <button className="btn" style={{ background: s.coop?.reqLetterPendingAt ? '#d97706' : s.docStatus === 'DOCS_APPROVED' ? '#16a34a' : '#64748b', color: 'white', fontSize: 12 }} onClick={() => setIssueModalData(s)}>
-                                                {s.coop?.reqLetterPendingAt ? '✍️ อัปโหลดฉบับลงนาม' : s.docStatus === 'DOCS_APPROVED' ? '📄 ออกหนังสือขอความอนุเคราะห์' : '🖨️ พิมพ์ซ้ำ'}
+                                                {s.coop?.reqLetterPendingAt ? 'อัปโหลดฉบับลงนาม' : s.docStatus === 'DOCS_APPROVED' ? 'ออกหนังสือขอความอนุเคราะห์' : 'พิมพ์ซ้ำ'}
                                             </button>
                                         )}
                                     </td>
@@ -794,21 +794,21 @@ export default function A_DocT000() {
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-start' }}>
                                             {CAN_CHECK_ACCEPTANCE_STATUSES.includes(s.docStatus || '') && (
                                                 <button className="btn" style={{ background: '#3b82f6', color: 'white', fontSize: 12 }} onClick={() => openCheckModal(s, 2)}>
-                                                    🔍 ตรวจสอบใบตอบรับ
+                                                    ตรวจสอบใบตอบรับ
                                                 </button>
                                             )}
                                             {ACCEPTANCE_RECEIVABLE_STATUSES.includes(s.docStatus || '') && (
                                                 <button className="btn" style={{ background: '#fff', color: '#0f766e', border: '1px solid #14b8a6', fontSize: 12 }} onClick={() => setAcceptanceReceivedFor(s)}>
-                                                    📥 ได้รับจากบริษัทแล้ว
+                                                    บันทึกใบตอบรับจากบริษัท
                                                 </button>
                                             )}
                                         </div>
                                     </td>
                                     <td style={td}>
-                                        {!isStaff && s.docStatus === 'ACCEPTANCE_CHECKED' && <span style={{ fontSize: 12, color: '#94a3b8' }}>🕒 รอเจ้าหน้าที่ออกหนังสือ</span>}
+                                        {!isStaff && s.docStatus === 'ACCEPTANCE_CHECKED' && <span style={{ fontSize: 12, color: '#94a3b8' }}>รอเจ้าหน้าที่ออกหนังสือ</span>}
                                         {isStaff && (s.docStatus === 'ACCEPTANCE_CHECKED' || s.docStatus === 'PLACEMENT_LETTER_ISSUED' || AFTER_PLACEMENT_STATUSES.includes(s.docStatus || '')) && (
                                             <button className="btn" style={{ background: s.coop?.placeLetterPendingAt ? '#d97706' : s.docStatus === 'ACCEPTANCE_CHECKED' ? '#0ea5e9' : '#64748b', color: 'white', fontSize: 12 }} onClick={() => setPlacementModalData(s)}>
-                                                {s.coop?.placeLetterPendingAt ? '✍️ อัปโหลดฉบับลงนาม' : s.docStatus === 'ACCEPTANCE_CHECKED' ? '📄 ออกหนังสือส่งตัว' : '🖨️ พิมพ์ซ้ำ'}
+                                                {s.coop?.placeLetterPendingAt ? 'อัปโหลดฉบับลงนาม' : s.docStatus === 'ACCEPTANCE_CHECKED' ? 'ออกหนังสือส่งตัว' : 'พิมพ์ซ้ำ'}
                                             </button>
                                         )}
                                     </td>
@@ -898,14 +898,14 @@ export default function A_DocT000() {
                                                     onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) handleReplaceAcceptance(f); }} />
                                                 <button onClick={() => acceptanceFileRef.current?.click()} disabled={replacingAcceptance}
                                                     style={{ fontSize: 12, background: '#0f766e', color: 'white', border: 'none', padding: '6px 12px', borderRadius: 6, cursor: replacingAcceptance ? 'wait' : 'pointer', fontWeight: 600, boxShadow: '0 2px 4px rgba(15, 118, 110, 0.2)' }}>
-                                                    {replacingAcceptance ? 'กำลังอัปโหลด...' : hasFile ? '🔄 เปลี่ยนไฟล์ใบตอบรับ' : '📤 อัปโหลดใบตอบรับแทน'}
+                                                    {replacingAcceptance ? 'กำลังอัปโหลด...' : hasFile ? 'เปลี่ยนไฟล์ใบตอบรับ' : 'อัปโหลดใบตอบรับแทน'}
                                                 </button>
                                             </>
                                         );
                                     })()}
                                     {checkPhase === 1 && canEditInModal(selectedStudent, 1) && (
                                         <button onClick={handleApproveAll} style={{ fontSize: 12, background: '#10b981', color: 'white', border: 'none', padding: '6px 12px', borderRadius: 6, cursor: 'pointer', fontWeight: 600, boxShadow: '0 2px 4px rgba(16, 185, 129, 0.2)' }}>
-                                            ✅ อนุมัติทั้งหมด
+                                            อนุมัติทั้งหมด
                                         </button>
                                     )}
                                 </div>
@@ -913,7 +913,7 @@ export default function A_DocT000() {
                                 <div style={{ flex: 1, overflowY: 'auto', padding: '16px', background: '#f8fafc' }}>
                                     {!canEditInModal(selectedStudent, checkPhase) && (
                                         <div style={{ marginBottom: 12, padding: '10px 12px', borderRadius: 8, background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1e40af', fontSize: 13, lineHeight: 1.6 }}>
-                                            👁️ เปิดดูย้อนหลังได้อย่างเดียว — สถานะปัจจุบัน <StatusBadge status={selectedStudent.docStatus} />
+                                            เปิดดูย้อนหลังได้อย่างเดียว — สถานะปัจจุบัน {t000Status(selectedStudent.docStatus)}
                                             <div style={{ fontSize: 12, color: '#475569' }}>
                                                 {selectedStudent.docStatus === 'NOT_SUBMITTED'
                                                     ? 'นักศึกษายังไม่ได้ยื่นคำร้องสหกิจ จึงยังตรวจเอกสารไม่ได้'
@@ -965,6 +965,9 @@ export default function A_DocT000() {
                 .chip.rej { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; } 
                 .chip.QUALIFIED { background: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; }
                 .chip.sign { background: #fef3c7; color: #92400e; border: 1px solid #f59e0b; }
+                /* รอเจ้าหน้าที่ตรวจ — สีทึบให้เห็นงานที่ต้องทำก่อน · ไม่ใช้ .chip.waiting เพราะธีมมืดทับเป็นสีเทาจนกลืนพื้นหลัง (S_Theme) */
+                .chip.staffcheck { background: #2563eb; color: #fff; border: 1px solid #1d4ed8; }
+                [data-theme="dark"] .chip.staffcheck { background: #3b82f6; color: #fff; border-color: #60a5fa; }
 
                 .action-btn { flex: 1; }
                 .action-btn.edit.active { background: #fff7ed; color: #c2410c; border-color: #fed7aa; }
@@ -1009,7 +1012,7 @@ function AcceptanceReceivedModal({ student, onClose, onSuccess }: { student: Stu
     };
 
     return (
-        <Modal title="📥 ได้รับใบตอบรับจากบริษัทโดยตรง" onClose={onClose} maxWidth={480} closeOnBackdropClick={!saving}>
+        <Modal title="บันทึกใบตอบรับที่ได้รับจากบริษัทโดยตรง" onClose={onClose} maxWidth={480} closeOnBackdropClick={!saving}>
                 <div style={{ fontSize: 13, color: '#64748b', marginBottom: 16 }}>{student.studentId} - {student.firstName} {student.lastName}</div>
 
                 <label style={lbl}>ไฟล์ใบตอบรับ (ถ้ามี)</label>
@@ -1032,23 +1035,35 @@ function AcceptanceReceivedModal({ student, onClose, onSuccess }: { student: Stu
     );
 }
 
+// สถานะของขั้น T000 ใช้ป้ายชุดเดียวกับแถบกรอง (ทั้งหน้าใช้คำเดียวกัน) · สถานะอื่น (เช่น กำลังฝึกสหกิจ) ใช้ป้ายกลางแบบไม่มีไอคอน
+const T000_CHIP_STATUSES = new Set([
+    "QUALIFIED", "WAITING_FOR_STAFF_CHECK", "EDITS_REQUIRED", "DOCS_APPROVED", "REQ_LETTER_ISSUED",
+    "WAITING_FOR_PLACEMENT_LETTER", "WAITING_FOR_STAFF_CHECK_LETTER", "ACCEPTANCE_CHECKED", "PLACEMENT_LETTER_ISSUED",
+]);
+function t000Status(status?: string) {
+    return status && T000_CHIP_STATUSES.has(status) ? statusChip(status) : <StatusBadge status={status} showIcon={false} />;
+}
+
 function statusChip(status?: string) {
     let s = (status || "WAITING");
     let label = "รอเอกสาร";
     let cls = "waiting";
 
-    if (s === "QUALIFIED") { cls = "QUALIFIED"; label = "✅ ผ่านคุณสมบัติ (รอเอกสาร)"; }
-    else if (s === "WAITING_FOR_STAFF_CHECK" || s === "PENDING") { cls = "waiting"; label = "รอตรวจสอบ"; }
-    else if (s === "REJECTED") { cls = "rej"; label = "❌ ไม่ผ่าน"; }
-    else if (s === "EDITS_REQUIRED") { cls = "edit"; label = "⚠️ รอแก้ไข"; }
-    else if (s === "DOCS_APPROVED") { cls = "appr"; label = "✅ ผ่าน (รอออกหนังสือ)"; }
-    else if (s === "REQ_LETTER_ISSUED") { cls = "done"; label = "🚚 ออกหนังสือแล้ว"; }
-    else if (s === "WAITING_FOR_PLACEMENT_LETTER") { cls = "WAITING_FOR_PLACEMENT_LETTER"; label = "🏢 รอใบตอบรับ"; }
-    else if (s === "WAITING_FOR_STAFF_CHECK_LETTER") { cls = "WAITING_FOR_STAFF_CHECK_LETTER"; label = "🕵️รอตรวจตอบรับ"; }
-    else if (s === "ACCEPTANCE_CHECKED") { cls = "ACCEPTANCE_CHECKED"; label = "✨ ตอบรับผ่าน"; }
-    else if (s === "PLACEMENT_LETTER_ISSUED") { cls = "place"; label = "🏁 ออกส่งตัวแล้ว"; }
-    else if (s === "PENDING_SIGN_REQ") { cls = "sign"; label = "✍️ รอลงนามหนังสือขอความอนุเคราะห์"; }
-    else if (s === "PENDING_SIGN_PLACE") { cls = "sign"; label = "✍️ รอลงนามหนังสือส่งตัว"; }
+    // ถ้อยคำทางการ ไม่มีอีโมจิ — บอก "ตอนนี้รอใคร ทำอะไร" · สีตามคนที่ต้องทำต่อ: น้ำเงินทึบ = รอเจ้าหน้าที่ตรวจ · ส้ม = รอนักศึกษาแก้
+    //   เขียว = ผ่านแล้วรอออกหนังสือ · เหลือง = รอลงนาม · ม่วง/เขียวเข้ม = ออกหนังสือแล้ว
+    // (ส่ง T000 ครั้งแรกยังเป็น QUALIFIED จนเจ้าหน้าที่ตรวจ — จึงเขียนว่า "ยังไม่ได้ตรวจ" ไม่ใช่ "รอเอกสาร")
+    if (s === "QUALIFIED") { cls = "QUALIFIED"; label = "ผ่านคุณสมบัติ (ยังไม่ได้ตรวจเอกสาร)"; }
+    else if (s === "WAITING_FOR_STAFF_CHECK" || s === "PENDING") { cls = "staffcheck"; label = "ส่งแก้ไขแล้ว (รอการตรวจสอบ)"; }
+    else if (s === "REJECTED") { cls = "rej"; label = "ไม่ผ่าน"; }
+    else if (s === "EDITS_REQUIRED") { cls = "edit"; label = "ส่งกลับแก้ไข (รอนักศึกษาดำเนินการ)"; }
+    else if (s === "DOCS_APPROVED") { cls = "appr"; label = "เอกสารผ่านการตรวจสอบ (รอออกหนังสือ)"; }
+    else if (s === "REQ_LETTER_ISSUED") { cls = "done"; label = "ออกหนังสือขอความอนุเคราะห์แล้ว"; }
+    else if (s === "WAITING_FOR_PLACEMENT_LETTER") { cls = "WAITING_FOR_PLACEMENT_LETTER"; label = "รอนักศึกษาส่งใบตอบรับ"; }
+    else if (s === "WAITING_FOR_STAFF_CHECK_LETTER") { cls = "staffcheck"; label = "ส่งใบตอบรับแล้ว (รอการตรวจสอบ)"; }
+    else if (s === "ACCEPTANCE_CHECKED") { cls = "appr"; label = "ใบตอบรับผ่านการตรวจสอบ (รอออกหนังสือส่งตัว)"; }
+    else if (s === "PLACEMENT_LETTER_ISSUED") { cls = "place"; label = "ออกหนังสือส่งตัวแล้ว"; }
+    else if (s === "PENDING_SIGN_REQ") { cls = "sign"; label = "หนังสือขอความอนุเคราะห์ (รอลงนาม)"; }
+    else if (s === "PENDING_SIGN_PLACE") { cls = "sign"; label = "หนังสือส่งตัว (รอลงนาม)"; }
 
     return <span className={`chip ${cls}`}>{label}</span>;
 }

@@ -77,11 +77,11 @@ export default function DeadlineExtensionButton({ studentId, studentName, extens
         <>
             <button type="button" className={compact ? "btn-secondary small" : "btn-secondary"} onClick={openDialog}
                 title={current || "ขยายเวลาส่งให้นักศึกษาคนนี้ (เลยกำหนดแบบปิดรับแล้วส่งได้ถึงวันที่ขยาย)"}>
-                ⏳ {current ? (compact ? "ขยายแล้ว" : `ขยายเวลา (${current})`) : "ขยายเวลา"}
+                {current ? (compact ? "ขยายเวลาแล้ว" : `ขยายเวลา (${current})`) : "ขยายเวลา"}
             </button>
             {/* วาดที่ body — ปุ่มนี้อยู่ในฟอร์มแก้ข้อมูลนักศึกษาได้ กด Enter ในหน้าต่างนี้ต้องไม่ไปส่งฟอร์มนั้น */}
             {open && createPortal(
-                <Modal title={`⏳ ขยายเวลาส่ง${studentName ? ` — ${studentName}` : ""}`} onClose={() => !saving && setOpen(false)} maxWidth={460}>
+                <Modal title={`ขยายเวลาส่ง${studentName ? ` — ${studentName}` : ""}`} onClose={() => !saving && setOpen(false)} maxWidth={460}>
                     <div style={{ display: "grid", gap: 12 }}>
                         {!step && (
                             <label style={field}>
@@ -108,7 +108,7 @@ export default function DeadlineExtensionButton({ studentId, studentName, extens
                             </div>
                             <div style={{ display: "flex", gap: 8 }}>
                                 <button type="button" className="btn-secondary" disabled={saving} onClick={() => setOpen(false)}>ยกเลิก</button>
-                                <button type="button" className="btn" disabled={saving} onClick={save}>{saving ? "⏳ กำลังบันทึก..." : "บันทึก"}</button>
+                                <button type="button" className="btn" disabled={saving} onClick={save}>{saving ? "กำลังบันทึก..." : "บันทึก"}</button>
                             </div>
                         </div>
                     </div>

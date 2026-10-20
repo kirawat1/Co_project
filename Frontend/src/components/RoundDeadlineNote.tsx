@@ -30,7 +30,7 @@ export default function RoundDeadlineNote({ stepKey, periodId }: Props) {
 
     if (!single) return <div style={wrap}><span style={muted}>เลือกรอบเดียวเพื่อดูกำหนดส่งของรอบนั้น</span>{link}</div>;
     if (failed) return <div style={wrap}><span style={muted}>โหลดกำหนดส่งไม่สำเร็จ</span>{link}</div>;
-    if (!data) return <div style={wrap}><span style={muted}>⏳ กำลังโหลดกำหนดส่ง...</span></div>;
+    if (!data) return <div style={wrap}><span style={muted}>กำลังโหลดกำหนดส่ง...</span></div>;
 
     return (
         <div style={wrap}>
@@ -61,7 +61,7 @@ export function DeadlineFlagBadge({ flags }: { flags?: DeadlineFlags | null }) {
     const style = flags.late ? toneStyle.warn : toneStyle.closed;
     return (
         <span style={{ ...pill, ...style, display: "inline-block", marginTop: 4 }} title={flags.due ? `กำหนดส่งของรอบ: ${flags.due}` : undefined}>
-            {flags.late ? "⏰ ส่งช้า" : "⛔ เลยกำหนด ยังไม่ส่ง"}
+            {flags.late ? "ส่งช้า" : "เลยกำหนด ยังไม่ส่ง"}
         </span>
     );
 }
