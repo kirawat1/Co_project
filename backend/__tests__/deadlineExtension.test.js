@@ -44,6 +44,23 @@ describe('setExtension', () => {
     expect(prisma.studentCoop.update).not.toHaveBeenCalled();
   });
 
+  test('เหตุผลต้องเป็นข้อความไม่เกิน 200 ตัวอักษร', async () => {
+    let res = makeRes();
+    await setExtension({ user: STAFF, params: { id: '10' }, body: { stepKey: 'T002', until: '2026-07-10', reason: 'x'.repeat(201) } }, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    res = makeRes();
+    await setExtension({ user: STAFF, params: { id: '10' }, body: { stepKey: 'T002', until: '2026-07-10', reason: { a: 1 } } }, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(prisma.studentCoop.update).not.toHaveBeenCalled();
+  });
+
+  test('ล็อกแถวก่อนอ่าน-เขียน (สองคนขยายพร้อมกันไม่ทับกัน)', async () => {
+    const res = makeRes();
+    await setExtension({ user: STAFF, params: { id: '10' }, body: { stepKey: 'T002', until: '2026-07-10' } }, res);
+    expect(prisma.$queryRaw).toHaveBeenCalled();
+    expect(prisma.$queryRaw.mock.invocationCallOrder[0]).toBeLessThan(prisma.studentCoop.findUnique.mock.invocationCallOrder[0]);
+  });
+
   test('อาจารย์ประจำวิชา CS ขยายให้นักศึกษา AI → 403', async () => {
     prisma.student.findUnique.mockResolvedValue({ id: 10, major: 'AI' });
     const res = makeRes();

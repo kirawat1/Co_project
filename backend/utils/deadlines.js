@@ -52,6 +52,8 @@ function normalizeDeadlines(input) {
       }
     }
     if (!('due' in norm)) norm.due = null;
+    // ไม่มีวันและไม่ปิดชั่วคราว = "ยังไม่ตั้ง" → ไม่เก็บ (ระบบใช้ค่าเดิม) — ไม่ให้กลายเป็น "ไม่มีกำหนด" ทับค่าเดิม
+    if (!norm.due && !norm.closed) continue;
     out[key] = norm;
   }
   return out;

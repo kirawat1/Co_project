@@ -30,14 +30,14 @@ async function resolveDeadline(stepKey, ctx, db = prisma, now = new Date()) {
   });
   const periodId = coop?.coopPeriodId ?? null;
   const extensionUntil = (coop?.deadlineExtensions && coop.deadlineExtensions[stepKey]) || null;
+  const resubmission = !!coop && (RESUBMIT_STATUSES[stepKey] || []).includes(coop.status);
   if (!periodId) {
-    return { ...evaluateDeadline(null, now), source: 'NO_ROUND', periodId: null, startDate: null, extensionUntil };
+    return { ...evaluateDeadline(null, now), source: 'NO_ROUND', periodId: null, startDate: null, extensionUntil, resubmission };
   }
 
   const major = ctx.major !== undefined
     ? ctx.major
     : (await db.student.findUnique({ where: { id: studentId }, select: { major: true } }))?.major || null;
-  const resubmission = (RESUBMIT_STATUSES[stepKey] || []).includes(coop.status);
 
   const row = major
     ? await db.coopPeriodMajor.findUnique({
@@ -49,23 +49,23 @@ async function resolveDeadline(stepKey, ctx, db = prisma, now = new Date()) {
   if (entry) {
     return {
       ...evaluateDeadline(entry, now, { resubmission, extensionUntil }),
-      source: 'ROUND', periodId, startDate: bangkokDay(row.startDate), extensionUntil,
+      source: 'ROUND', periodId, startDate: bangkokDay(row.startDate), extensionUntil, resubmission,
     };
   }
 
   if (LEGACY_WINDOW_KEY[stepKey]) {
     const config = await readEffective(LEGACY_WINDOW_KEY[stepKey], major, db);
     const r = evaluateLegacyWindow(config, now, { resubmission });
-    // ขยายเวลารายคนใช้กับค่าเดิมที่หมดเขตได้ด้วย — แต่ไม่ชนะการปิดระบบ (isOpen = false)
-    if (!r.canSubmit && !r.closed && extensionUntil && now <= periodCloseAt(extensionUntil)) r.canSubmit = true;
+    // ขยายเวลารายคนใช้กับค่าเดิมที่ "เลยกำหนด" ได้ด้วย — ไม่ชนะการปิดระบบ (isOpen = false) และ "ยังไม่ถึงวันเริ่ม"
+    if (!r.canSubmit && !r.closed && r.late && extensionUntil && now <= periodCloseAt(extensionUntil)) r.canSubmit = true;
     const startDate = typeof config?.startDate === 'string' && config.startDate.trim() ? config.startDate.trim() : null;
-    return { ...r, source: 'LEGACY', periodId, startDate, extensionUntil };
+    return { ...r, source: 'LEGACY', periodId, startDate, extensionUntil, resubmission };
   }
 
   const config = await readEffective(LEGACY_DEADLINE_KEY[stepKey], major, db);
   return {
     ...evaluateDeadline(config?.deadline ? { due: config.deadline } : null, now),
-    source: 'LEGACY', periodId, startDate: null, extensionUntil,
+    source: 'LEGACY', periodId, startDate: null, extensionUntil, resubmission,
   };
 }
 

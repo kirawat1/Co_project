@@ -13,11 +13,20 @@ const handle = (res, err, label) => {
 const parseId = (v) => { const n = Number(v); return Number.isInteger(n) && n > 0 ? n : null; };
 const todayBangkok = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
 
-async function loadCoop(req, res, studentId) {
+const REASON_MAX = 200;
+const notFound = () => Object.assign(new Error('นักศึกษาคนนี้ยังไม่มีข้อมูลสหกิจ'), { status: 404 });
+
+// อ่าน-แก้-เขียน deadlineExtensions ในทรานแซกชันเดียว ล็อกแถวก่อน — สองคนขยายพร้อมกันไม่ทับกัน
+async function updateExtensions(req, studentId, change) {
   await assertStudentInScope(req, studentId);
-  const coop = await prisma.studentCoop.findUnique({ where: { studentId }, select: { deadlineExtensions: true } });
-  if (!coop) { fail(res, 404, 'นักศึกษาคนนี้ยังไม่มีข้อมูลสหกิจ'); return null; }
-  return coop;
+  return prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM StudentCoop WHERE studentId = ${studentId} FOR UPDATE`;
+    const coop = await tx.studentCoop.findUnique({ where: { studentId }, select: { deadlineExtensions: true } });
+    if (!coop) throw notFound();
+    const deadlineExtensions = change({ ...(coop.deadlineExtensions || {}) });
+    await tx.studentCoop.update({ where: { studentId }, data: { deadlineExtensions } });
+    return deadlineExtensions;
+  }, { isolationLevel: 'ReadCommitted' });
 }
 
 // PUT /students/:id/deadline-extension  body { stepKey, until, reason }
@@ -29,10 +38,11 @@ exports.setExtension = async (req, res) => {
     if (!MODE_STEPS.includes(stepKey)) return fail(res, 400, 'ขยายเวลาได้เฉพาะ T000 / T002 / T003');
     if (!isValidDay(until)) return fail(res, 400, 'วันที่ขยายถึงไม่ถูกต้อง (YYYY-MM-DD)');
     if (until < todayBangkok()) return fail(res, 400, 'วันที่ขยายถึงต้องไม่ย้อนหลัง');
-    const coop = await loadCoop(req, res, studentId);
-    if (!coop) return;
-    const deadlineExtensions = { ...(coop.deadlineExtensions || {}), [stepKey]: until };
-    await prisma.studentCoop.update({ where: { studentId }, data: { deadlineExtensions } });
+    const { reason } = req.body || {};
+    if (reason !== undefined && reason !== null && (typeof reason !== 'string' || reason.length > REASON_MAX)) {
+      return fail(res, 400, `เหตุผลต้องเป็นข้อความไม่เกิน ${REASON_MAX} ตัวอักษร`);
+    }
+    const deadlineExtensions = await updateExtensions(req, studentId, (ext) => ({ ...ext, [stepKey]: until }));
     res.json({ ok: true, deadlineExtensions });
   } catch (err) {
     handle(res, err, 'Set deadline extension error:');
@@ -46,11 +56,7 @@ exports.clearExtension = async (req, res) => {
     const { stepKey } = req.params;
     if (!studentId) return fail(res, 400, 'id ไม่ถูกต้อง');
     if (!MODE_STEPS.includes(stepKey)) return fail(res, 400, 'ขั้นไม่ถูกต้อง');
-    const coop = await loadCoop(req, res, studentId);
-    if (!coop) return;
-    const deadlineExtensions = { ...(coop.deadlineExtensions || {}) };
-    delete deadlineExtensions[stepKey];
-    await prisma.studentCoop.update({ where: { studentId }, data: { deadlineExtensions } });
+    const deadlineExtensions = await updateExtensions(req, studentId, (ext) => { delete ext[stepKey]; return ext; });
     res.json({ ok: true, deadlineExtensions });
   } catch (err) {
     handle(res, err, 'Clear deadline extension error:');

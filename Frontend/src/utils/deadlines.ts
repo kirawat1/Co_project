@@ -79,6 +79,7 @@ export interface TimelineStep {
     late?: boolean;
     submittedAt?: string | null;
     submittedLate?: boolean; // server ตัดสิน (เวลาที่เติมย้อนหลังไม่นับว่าช้า)
+    source?: "ROUND" | "LEGACY" | "NO_ROUND"; // LEGACY = รอบยังไม่ตั้ง ใช้ช่วงเวลาเดิม
     extensionUntil?: string | null;
 }
 
@@ -87,6 +88,8 @@ export function timelineStatus(s: TimelineStep, now = new Date()): { text: strin
     if (s.stepKey === "SUPERVISION") return null;
     if (s.stepKey === "APPLY") return s.isOpen ? { text: "เปิดรับอยู่", tone: "ok" } : { text: "ปิดแล้ว", tone: "info" };
     if (s.submittedAt) return s.submittedLate ? { text: "ส่งแล้ว (ช้า)", tone: "warn" } : { text: "ส่งแล้ว", tone: "ok" };
+    // ช่วงเวลาเดิมที่ปิดระบบอยู่ — ไม่ใช่สวิตช์ "ปิดรับชั่วคราว" ของปฏิทินของรอบ
+    if (s.closed && s.source === "LEGACY") return { text: "ปิดรับ", tone: "closed" };
     return deadlineStatus({ due: s.due, mode: s.mode, closed: s.closed, canSubmit: s.canSubmit }, now);
 }
 

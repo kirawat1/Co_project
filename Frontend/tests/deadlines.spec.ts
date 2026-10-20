@@ -9,6 +9,11 @@ test.describe("timelineStatus — ไทม์ไลน์ของนักศ�
         // เวลาหลังกำหนด แต่ server บอกว่าไม่ช้า (เติมย้อนหลัง) → ส่งแล้ว
         expect(timelineStatus({ stepKey: "T002", due: "2026-07-03", submittedAt: "2026-07-20T00:00:00.000Z", submittedLate: false }, now)).toEqual({ text: "ส่งแล้ว", tone: "ok" });
     });
+    test("ค่าเดิมที่ปิดระบบ (source LEGACY) → \"ปิดรับ\" ไม่ใช่ \"ปิดรับชั่วคราว\" ของปฏิทินของรอบ", () => {
+        expect(timelineStatus({ stepKey: "T000", due: null, closed: true, source: "LEGACY", submittedAt: null }, now)).toEqual({ text: "ปิดรับ", tone: "closed" });
+        expect(timelineStatus({ stepKey: "T000", due: null, closed: true, source: "ROUND", submittedAt: null }, now)).toEqual({ text: "ปิดรับชั่วคราว", tone: "closed" });
+    });
+
     test("ยังไม่ส่ง → ป้ายกำหนดส่ง", () => {
         expect(timelineStatus({ stepKey: "T002", due: "2026-07-03", mode: "HARD", submittedAt: null }, now)).toEqual({ text: "เหลือ 2 วัน", tone: "warn" });
     });

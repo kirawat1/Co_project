@@ -190,7 +190,7 @@ export default function A_StudentEditModal({ student, onClose, onSaved }: Props)
         {/* ขยายเวลาส่งรายคน (ปฏิทินของรอบ) — มีข้อมูลสหกิจแล้วเท่านั้น */}
         {student.coop && <div style={{ marginTop: 20, paddingTop: 16, borderTop: "1px solid #e5e7eb" }}>
           <div style={{ fontSize: 13, color: "#64748b", marginBottom: 8, fontWeight: 600 }}>ขยายเวลาส่ง (T000 / T002 / T003)</div>
-          <DeadlineExtensionButton studentId={student.id} studentName={`${student.firstName ?? ""} ${student.lastName ?? ""}`.trim()} extensions={student.coop.deadlineExtensions} />
+          <DeadlineExtensionButton studentId={student.id} studentName={`${student.firstName ?? ""} ${student.lastName ?? ""}`.trim()} extensions={student.coop.deadlineExtensions} onChanged={() => onSaved()} />
         </div>}
 
         {/* รหัสผ่าน = เจ้าหน้าที่เท่านั้น */}

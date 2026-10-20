@@ -54,6 +54,21 @@ describe('markSubmitted', () => {
     });
   });
 
+  test('ส่งแก้แต่ยังไม่มีเวลาของขั้น (ส่งก่อนเติมย้อนหลัง) → บันทึกแบบไม่นับว่าช้า (backfill)', async () => {
+    prisma.studentCoop.findUnique.mockResolvedValue({ submittedSteps: null });
+    await markSubmitted(prisma, { studentId: 10, stepKey: 'T002', major: 'CS', now: NOW, resubmission: true });
+    expect(prisma.studentCoop.update).toHaveBeenCalledWith({
+      where: { studentId: 10 }, data: { submittedSteps: { T002: { at: NOW.toISOString(), backfill: true } } },
+    });
+  });
+
+  test('ล็อกแถว StudentCoop ก่อนอ่าน (อัปโหลดพร้อมกันไม่ทับกัน)', async () => {
+    prisma.studentCoop.findUnique.mockResolvedValue({ submittedSteps: null });
+    await markSubmitted(prisma, { studentId: 10, stepKey: 'T002', major: 'CS', now: NOW });
+    expect(prisma.$queryRaw).toHaveBeenCalled();
+    expect(prisma.$queryRaw.mock.invocationCallOrder[0]).toBeLessThan(prisma.studentCoop.findUnique.mock.invocationCallOrder[0]);
+  });
+
   test('มีเวลาของขั้นนั้นแล้ว (ส่งแก้) → ไม่ทับ', async () => {
     prisma.studentCoop.findUnique.mockResolvedValue({ submittedSteps: { T002: { at: '2026-06-01T00:00:00.000Z' } } });
     await markSubmitted(prisma, { studentId: 10, stepKey: 'T002', major: 'CS', now: NOW });

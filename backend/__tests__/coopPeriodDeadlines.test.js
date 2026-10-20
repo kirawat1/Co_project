@@ -37,15 +37,24 @@ beforeEach(() => {
 
 describe('getDeadlines', () => {
   test('เจ้าหน้าที่: ค่าวิทยาลัย + ทุกหลักสูตร + ค่าเดิมที่ใช้อยู่ + แก้ค่าวิทยาลัยได้', async () => {
-    prisma.systemConfig.findUnique.mockImplementation(({ where }) => Promise.resolve(where.key === 'T002_CONFIG'
-      ? { key: 'T002_CONFIG', value: JSON.stringify({ isOpen: true, startDate: '2026-06-01', endDate: '2026-12-28' }) } : null));
+    // ค่าเดิมโหลดครั้งเดียว (ค่ากลาง + ค่าทับของทุกหลักสูตรที่เห็น)
+    prisma.systemConfig.findMany.mockResolvedValue([
+      { key: 'T002_CONFIG', value: JSON.stringify({ isOpen: true, startDate: '2026-06-01', endDate: '2026-12-28' }) },
+      { key: 'T002_CONFIG@AI', value: JSON.stringify({ endDate: '2026-12-31' }) },
+      { key: 'CONFIG_T007', value: JSON.stringify({ t007Link: 'x', deadline: '2026-10-23' }) },
+    ]);
     const res = makeRes();
     await getDeadlines(req(STAFF, { params: { id: '1' } }), res);
+    expect(prisma.systemConfig.findMany).toHaveBeenCalledTimes(1);
+    expect(prisma.systemConfig.findUnique).not.toHaveBeenCalled();
     const body = lastJson(res);
     expect(body).toMatchObject({ ok: true, canEditCollege: true, college: COLLEGE, period: { id: 1, academicYear: '2569', semester: 1 } });
     expect(body.majors.map((m) => m.major)).toEqual(['AI', 'CS']);
     expect(body.majors[1]).toMatchObject({ major: 'CS', deadlines: COLLEGE, startDate: '2026-03-01' });
     expect(body.legacy.CS.T002).toEqual({ isOpen: true, startDate: '2026-06-01', endDate: '2026-12-28' });
+    expect(body.legacy.AI.T002).toEqual({ isOpen: true, startDate: '2026-06-01', endDate: '2026-12-31' });
+    expect(body.legacy.CS.T000).toBeNull();
+    expect(body.legacy.CS.T007).toEqual({ deadline: '2026-10-23' });
   });
 
   test('อาจารย์ประจำวิชา CS: เห็นเฉพาะ CS · แก้ค่าวิทยาลัยไม่ได้', async () => {
@@ -92,15 +101,25 @@ describe('saveDeadlines', () => {
 
   test('อาจารย์ประจำวิชา CS แก้ CS ได้ · แก้ AI → 403', async () => {
     const mine = { T003: { due: '2026-07-17', mode: 'SOFT', closed: false } };
+    prisma.coopPeriodMajor.findUnique.mockResolvedValue(P1.majors[1]);
     let res = makeRes();
     await saveDeadlines(req(COOP_CS, { method: 'PUT', params: { id: '1' }, body: { major: 'CS', deadlines: mine } }), res);
     expect(lastJson(res)).toMatchObject({ ok: true });
-    expect(prisma.coopPeriodMajor.upsert).toHaveBeenCalledWith(expect.objectContaining({
-      where: { periodId_major: { periodId: 1, major: 'CS' } }, update: { deadlines: mine },
-    }));
+    expect(prisma.coopPeriodMajor.update).toHaveBeenCalledWith({
+      where: { periodId_major: { periodId: 1, major: 'CS' } }, data: { deadlines: mine },
+    });
     res = makeRes();
     await saveDeadlines(req(COOP_CS, { method: 'PUT', params: { id: '1' }, body: { major: 'AI', deadlines: mine } }), res);
     expect(res.status).toHaveBeenCalledWith(403);
+  });
+
+  test('หลักสูตรที่ยังไม่อยู่ในรอบ → 404 ไม่สร้างแถวให้ (เพิ่มหลักสูตรเข้ารอบที่ตารางรอบก่อน)', async () => {
+    prisma.coopPeriodMajor.findUnique.mockResolvedValue(null);
+    const res = makeRes();
+    await saveDeadlines(req(STAFF, { method: 'PUT', params: { id: '1' }, body: { major: 'CS', deadlines: { T002: { due: '2026-07-03' } } } }), res);
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(prisma.coopPeriodMajor.upsert).not.toHaveBeenCalled();
+    expect(prisma.coopPeriodMajor.update).not.toHaveBeenCalled();
   });
 
   test('รูปผิด → 400', async () => {
