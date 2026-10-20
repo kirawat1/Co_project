@@ -713,7 +713,7 @@ export default function A_DocT000() {
                         {coopPeriods.map(p => (
                             <option key={p.id} value={p.id}>เทอม {p.semester} / {p.academicYear}{periodCountLabel(periodCounts, p.id)}</option>
                         ))}
-                        {periodCounts.some(c => c.coopPeriodId == null) && (
+                        {(selectedPeriod === "none" || periodCounts.some(c => c.coopPeriodId == null)) && (
                             <option value="none">⏳ ยังไม่เลือกรอบ{periodCountLabel(periodCounts, "none")}</option>
                         )}
                     </select>

@@ -20,7 +20,9 @@ const BIG_BYTES = 300 * 1024 * 1024; // ใหญ่กว่านี้เต�
 
 export default function LetterZipModal({ types, periods, defaultPeriodId, onClose }: Props) {
     const [type, setType] = useState<LetterType>(types[0]);
-    const [periodId, setPeriodId] = useState(defaultPeriodId || "all");
+    // รอบที่หน้าเลือกอยู่ — ค่าที่หน้าต่างนี้ไม่มีให้เลือก (เช่น "none" = ยังไม่เลือกรอบ) → ทุกรอบ (API รับแค่ตัวเลข/all)
+    const [periodId, setPeriodId] = useState(
+        defaultPeriodId && periods.some((p) => String(p.id) === String(defaultPeriodId)) ? defaultPeriodId : "all");
     const [major, setMajor] = useState(getMajorFilter()); // ค่าเริ่มต้น = ตัวกรองหลักสูตรบนแถบบน
     const [majors, setMajors] = useState<string[]>([]);
     const [isStaff, setIsStaff] = useState(false);

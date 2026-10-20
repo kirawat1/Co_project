@@ -282,7 +282,7 @@ export default function T_Requests() {
             {coopPeriods.map(p => (
               <option key={p.id} value={p.id}>เทอม {p.semester}/{p.academicYear}{periodCountLabel(periodCounts, p.id)}</option>
             ))}
-            {periodCounts.some(c => c.coopPeriodId == null) && (
+            {(filterPeriodId === "none" || periodCounts.some(c => c.coopPeriodId == null)) && (
               <option value="none">⏳ ยังไม่เลือกรอบ{periodCountLabel(periodCounts, "none")}</option>
             )}
           </select>
