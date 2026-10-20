@@ -173,7 +173,7 @@ export default function LetterZipModal({ types, periods, defaultPeriodId, onClos
 export function LetterZipButton({ onClick, label = "ดาวน์โหลดหนังสือ (zip)" }: { onClick: () => void; label?: string }) {
     return (
         <button type="button" onClick={onClick} style={toolbarBtn} title="ดาวน์โหลดหนังสือที่ออกแล้ว (ฉบับลงนาม) หลายฉบับเป็นไฟล์ zip">
-            <span aria-hidden>📦</span> {label}
+            {label}
         </button>
     );
 }

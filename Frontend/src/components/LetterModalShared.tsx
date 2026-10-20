@@ -81,7 +81,7 @@ export function PendingSignBadge({ label, at, draftNumber }: { label: string; at
     return (
         <div title={draftNumber ? `เลขที่ร่าง ${draftNumber}` : 'ร่างยังไม่ได้กรอกเลขที่'}
             style={{ fontSize: 11, color: '#92400e', background: '#fef3c7', border: '1px solid #f59e0b', borderRadius: 6, padding: '2px 8px', marginTop: 4, whiteSpace: 'nowrap', width: 'fit-content' }}>
-            ✍️ {label} · {fmtDate(at)}
+            {label} · {fmtDate(at)}
         </div>
     );
 }
