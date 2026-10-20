@@ -1,12 +1,15 @@
 // src/components/S_Theme.tsx — Global CSS variables (light + dark) + responsive layout
 export default function StudentTheme({ IOS_BLUE = "#0074B7" }: { IOS_BLUE?: string }) {
-  return <style>{css(IOS_BLUE)}</style>;
+  return <style>{keepLight(css(IOS_BLUE))}</style>;
 }
 
 // ===== ธีมมืด: ปรับสีที่ตั้งใน style attribute =====
 // Chrome เก็บทุกสีใน style attribute เป็น rgb() (รวม shorthand "background") — selector แบบ hex ไม่เคยจับได้
 type RGB = [number, number, number];
 const rgb = ([r, g, b]: RGB) => `rgb(${r}, ${g}, ${b})`;
+// โมดัลออกหนังสือบังคับโหมดสว่างเสมอ (LetterModalShared.tsx) — กฎธีมมืดที่จับ style attribute ทุกข้อต้องไม่แตะข้างใน
+// ไม่งั้นตัวอักษรถูกทำสว่าง/พื้นถูกทำมืดบนการ์ดขาว
+const keepLight = (s: string) => s.replace(/(\[data-theme="dark"\] \[style[*^]="[^"]*"\])/g, '$1:not(.letter-modal-card *)');
 // เฉพาะ property color (ขึ้นต้น หรือมี "; color:" ตามหลัง property อื่น) — ไม่โดน background-color / border-color
 const textSel = (c: RGB) => `[data-theme="dark"] [style^="color: ${rgb(c)}"], [data-theme="dark"] [style*="; color: ${rgb(c)}"]`;
 const bgSel = (c: RGB) => `[data-theme="dark"] [style*="background: ${rgb(c)}"], [data-theme="dark"] [style*="background-color: ${rgb(c)}"]`;
@@ -37,8 +40,8 @@ const DARK_TEXT: [RGB[], string][] = [
 // พื้นสีอ่อน → พื้นเข้มที่ยังเห็นเฉดเดิม
 const LIGHT_BG: [RGB[], string][] = [
   [[[255, 255, 255]], '#1e293b'],
-  [[[248, 250, 252], [241, 245, 249], [249, 250, 251], [243, 244, 246], [245, 243, 255], [250, 245, 255], [240, 249, 255], [239, 246, 255], [236, 254, 255]], 'rgba(255,255,255,.06)'],
-  [[[226, 232, 240]], 'rgba(255,255,255,.1)'],
+  [[[248, 250, 252], [241, 245, 249], [249, 250, 251], [243, 244, 246], [245, 243, 255], [250, 245, 255], [240, 249, 255], [239, 246, 255], [236, 254, 255], [248, 251, 255], [250, 250, 250]], 'rgba(255,255,255,.06)'],
+  [[[226, 232, 240], [229, 231, 235]], 'rgba(255,255,255,.1)'],
   [[[254, 242, 242], [254, 226, 226], [255, 241, 242], [255, 228, 230]], 'rgba(220,38,38,.15)'],
   [[[255, 251, 235], [254, 249, 195], [254, 243, 199], [255, 247, 237], [255, 237, 213], [254, 252, 232]], 'rgba(245,158,11,.15)'],
   [[[240, 253, 244], [220, 252, 231], [209, 250, 229], [236, 253, 245]], 'rgba(22,163,74,.15)'],
