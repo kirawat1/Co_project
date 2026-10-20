@@ -8,7 +8,7 @@ import AutoTextarea from "./AutoTextarea";
 import LoadMoreFooter from "./LoadMoreFooter";
 import { useLoadMore } from "../utils/useLoadMore";
 import { notify, askConfirm } from "../utils/notify";
-import RoundDeadlineNote from "./RoundDeadlineNote";
+import RoundDeadlineNote, { DeadlineFlagBadge, type DeadlineFlags } from "./RoundDeadlineNote";
 import DeadlineExtensionButton from "./DeadlineExtensionButton";
 import type { StepKey } from "../utils/deadlines";
 
@@ -37,6 +37,7 @@ type Student = {
         status?: string;
     };
     documents: Document[];
+    deadline?: DeadlineFlags; // ป้ายกำหนดส่งของรอบ (ส่งช้า / เลยกำหนดยังไม่ส่ง)
 };
 
 // 🟢 Types สำหรับการเรียงลำดับ (Sorting)
@@ -311,6 +312,7 @@ export default function A_T002Review() {
                                         <span style={{ background: statusInfo.bg, color: statusInfo.color, padding: '6px 12px', borderRadius: 999, fontWeight: 700 }}>
                                             {statusInfo.label}
                                         </span>
+                                        <div><DeadlineFlagBadge flags={s.deadline} /></div>
                                     </td>
                                     <td style={{ padding: '14px 16px', textAlign: 'right' }}>
                                         <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end', flexWrap: 'wrap' }}>

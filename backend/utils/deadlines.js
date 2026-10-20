@@ -126,7 +126,20 @@ function shiftYears(deadlines, years) {
   return out;
 }
 
+// สถานะที่ "ส่งครั้งแรกได้" ของแต่ละขั้น — ชุดเดียวกับที่ docController ยอมรับการส่งครั้งแรก
+const FIRST_SUBMIT_STATUSES = { T000: ['QUALIFIED'], T002: ['INTERNSHIP_STARTED'], T003: ['T002_SUBMITTED'] };
+
+// ป้ายในรายการตรวจ: ส่งช้า (เวลาส่งครั้งแรกเลยกำหนด · ไม่นับเวลาที่เติมย้อนหลัง) / เลยกำหนดยังไม่ส่ง (อยู่ในขั้นที่ส่งได้ · นับวันขยาย)
+function deadlineFlags({ stepKey, due, submitted, status, extensionUntil = null, now = new Date() }) {
+  const at = submitted && submitted.at ? new Date(submitted.at) : null;
+  const late = !!at && !submitted.backfill && !!due && at > periodCloseAt(due);
+  const lastDay = extensionUntil && (!due || extensionUntil > due) ? extensionUntil : due;
+  const overdueNotSubmitted = !submitted && (FIRST_SUBMIT_STATUSES[stepKey] || []).includes(status) && !!lastDay && now > periodCloseAt(lastDay);
+  return { due: due || null, late, overdueNotSubmitted };
+}
+
 module.exports = {
+  FIRST_SUBMIT_STATUSES, deadlineFlags,
   STEP_KEYS, MODE_STEPS, badRequest, isValidDay, normalizeDeadlines, evaluateDeadline, evaluateLegacyWindow,
   applyCollegeChange, shiftYears,
 };

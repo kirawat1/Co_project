@@ -47,6 +47,25 @@ describe('getAllStudentsForReview', () => {
     expect(res.json.mock.calls[0][0].meta).toMatchObject({ total: 2, page: 1 });
   });
 
+  test('review=T002 → แต่ละคนมีป้ายกำหนดส่ง (ส่งช้า / เลยกำหนดยังไม่ส่ง) · ไม่ระบุ review → ไม่มี', async () => {
+    prisma.student.findMany.mockResolvedValue([
+      { id: 1, studentId: 'u1', major: 'CS', coop: { coopPeriodId: 2, status: 'T002_SUBMITTED', submittedSteps: { T002: { at: '2020-02-01T00:00:00.000Z' } } }, documents: [] },
+      { id: 2, studentId: 'u2', major: 'CS', coop: { coopPeriodId: 2, status: 'INTERNSHIP_STARTED', submittedSteps: null }, documents: [] },
+    ]);
+    prisma.student.count.mockResolvedValue(2);
+    prisma.coopPeriodMajor.findMany.mockResolvedValue([{ periodId: 2, major: 'CS', deadlines: { T002: { due: '2020-01-01', mode: 'SOFT' } } }]);
+    let res = makeRes();
+    await getAllStudentsForReview({ user: { role: 'staff' }, query: { review: 'T002' } }, res);
+    const [a, b] = res.json.mock.calls[0][0].data;
+    expect(a.deadline).toEqual({ due: '2020-01-01', late: true, overdueNotSubmitted: false });
+    expect(b.deadline).toEqual({ due: '2020-01-01', late: false, overdueNotSubmitted: true });
+
+    prisma.student.findMany.mockResolvedValue(mockStudents);
+    res = makeRes();
+    await getAllStudentsForReview({ user: { role: 'staff' }, query: {} }, res);
+    expect(res.json.mock.calls[0][0].data[0]).not.toHaveProperty('deadline');
+  });
+
   test('200 — กรองตาม coopPeriodId=3', async () => {
     prisma.student.findMany.mockResolvedValue([mockStudents[1]]);
     prisma.student.count.mockResolvedValue(1);
@@ -246,6 +265,14 @@ describe('getStudentsForT000', () => {
     coopApplicationForm: null,
     documents: [{ uploadedAt: new Date('2026-03-01') }],
   };
+
+  test('แต่ละแถวมีป้ายกำหนดส่ง T000 (ส่งครบหลังกำหนด = ส่งช้า)', async () => {
+    prisma.student.findMany.mockResolvedValue([{ ...mockStudent, coop: { ...mockStudent.coop, coopPeriodId: 1, submittedSteps: { T000: { at: '2020-02-01T00:00:00.000Z' } } } }]);
+    prisma.coopPeriodMajor.findMany.mockResolvedValue([{ periodId: 1, major: 'CS', deadlines: { T000: { due: '2020-01-01', mode: 'SOFT' } } }]);
+    const res = makeRes();
+    await getStudentsForT000({}, res);
+    expect(res.json.mock.calls[0][0][0].deadline).toEqual({ due: '2020-01-01', late: true, overdueNotSubmitted: false });
+  });
 
   test('200 — map ข้อมูลนักศึกษาถูกต้อง', async () => {
     prisma.student.findMany.mockResolvedValue([mockStudent]);

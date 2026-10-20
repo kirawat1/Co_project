@@ -173,6 +173,37 @@ describe('applyCollegeChange', () => {
   });
 });
 
+describe('deadlineFlags (ป้ายในรายการตรวจ)', () => {
+  const { deadlineFlags } = require('../utils/deadlines');
+  const now = at('2026-07-10T00:00:00Z');
+  const base = { stepKey: 'T002', due: '2026-07-03', now };
+
+  test('ส่งหลังกำหนด → ส่งช้า · ส่งทันเวลา → ไม่ช้า', () => {
+    expect(deadlineFlags({ ...base, submitted: { at: '2026-07-04T02:00:00.000Z' }, status: 'T002_SUBMITTED' })).toEqual({ due: '2026-07-03', late: true, overdueNotSubmitted: false });
+    expect(deadlineFlags({ ...base, submitted: { at: '2026-07-03T16:00:00.000Z' }, status: 'T002_SUBMITTED' }).late).toBe(false);
+  });
+
+  test('เวลาที่เติมย้อนหลัง (backfill) → ไม่ติดส่งช้า', () => {
+    expect(deadlineFlags({ ...base, submitted: { at: '2026-07-20T00:00:00.000Z', backfill: true }, status: 'T002_SUBMITTED' }).late).toBe(false);
+  });
+
+  test('เลยกำหนด ยังไม่ส่ง + อยู่ในขั้นที่ส่งได้ → เลยกำหนดยังไม่ส่ง', () => {
+    expect(deadlineFlags({ ...base, submitted: null, status: 'INTERNSHIP_STARTED' }).overdueNotSubmitted).toBe(true);
+  });
+
+  test('ยังไม่ถึงขั้น / มีขยายเวลาที่ยังไม่หมด / ไม่มีกำหนด → ไม่ติด', () => {
+    expect(deadlineFlags({ ...base, submitted: null, status: 'PLACEMENT_LETTER_ISSUED' }).overdueNotSubmitted).toBe(false);
+    expect(deadlineFlags({ ...base, submitted: null, status: 'INTERNSHIP_STARTED', extensionUntil: '2026-07-15' }).overdueNotSubmitted).toBe(false);
+    expect(deadlineFlags({ ...base, due: null, submitted: null, status: 'INTERNSHIP_STARTED' })).toEqual({ due: null, late: false, overdueNotSubmitted: false });
+  });
+
+  test('ขั้นที่ส่งครั้งแรกได้: T000 = QUALIFIED · T003 = T002_SUBMITTED', () => {
+    expect(deadlineFlags({ ...base, stepKey: 'T000', submitted: null, status: 'QUALIFIED' }).overdueNotSubmitted).toBe(true);
+    expect(deadlineFlags({ ...base, stepKey: 'T003', submitted: null, status: 'T002_SUBMITTED' }).overdueNotSubmitted).toBe(true);
+    expect(deadlineFlags({ ...base, stepKey: 'T003', submitted: null, status: 'INTERNSHIP_STARTED' }).overdueNotSubmitted).toBe(false);
+  });
+});
+
 describe('shiftYears', () => {
   test('เลื่อนปีทุกขั้น คง mode/closed', () => {
     expect(shiftYears({ T000: { due: '2026-05-08', mode: 'SOFT', closed: true }, T007: { due: '2026-10-23' } }, 1))
