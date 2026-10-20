@@ -526,7 +526,7 @@ export default function A_SupervisionManage() {
                         {coopPeriods.map(p => (
                             <option key={p.id} value={p.id}>เทอม {p.semester}/{p.academicYear}{periodCountLabel(periodCounts, p.id, "รอออกหนังสือ")}</option>
                         ))}
-                        {periodCounts.some(c => c.coopPeriodId == null) && (
+                        {(filterPeriodId === "none" || periodCounts.some(c => c.coopPeriodId == null)) && (
                             <option value="none">⏳ ยังไม่เลือกรอบ{periodCountLabel(periodCounts, "none", "รอออกหนังสือ")}</option>
                         )}
                     </select>

@@ -785,7 +785,7 @@ export default function T_SupervisionReview() {
                             <select className="input" style={{ width: 'auto', maxWidth: '100%' }} value={allPeriodFilter} onChange={e => setAllPeriodFilter(e.target.value)}>
                                 <option value="all">📚 ทุกปีการศึกษา</option>
                                 {allPeriods.map(p => <option key={p.id} value={p.id}>เทอม {p.semester}/{p.academicYear}{periodCountLabel(periodCounts ?? [], p.id, "ยังไม่มีอาจารย์ร่วม")}</option>)}
-                                {(periodCounts ?? []).some(c => c.coopPeriodId == null) && (
+                                {(allPeriodFilter === "none" || (periodCounts ?? []).some(c => c.coopPeriodId == null)) && (
                                     <option value="none">⏳ ยังไม่เลือกรอบ{periodCountLabel(periodCounts ?? [], "none", "ยังไม่มีอาจารย์ร่วม")}</option>
                                 )}
                             </select>
