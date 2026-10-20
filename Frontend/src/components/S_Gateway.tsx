@@ -366,7 +366,7 @@ export default function CoopRequestPage() {
       )}
 
       {/* ================= SECTION 1: สถานะคำร้อง ================= */}
-      <div style={{
+      <div className="status-summary-card" style={{
         padding: "20px", marginBottom: "20px", borderRadius: "16px",
         backgroundColor:
           ['QUALIFIED', 'DOCS_APPROVED', 'REQ_LETTER_ISSUED', 'PLACEMENT_LETTER_ISSUED'].includes(currentStatus) ? '#dcfce7' :
@@ -611,6 +611,9 @@ export default function CoopRequestPage() {
   );
 }
 const PROFILE_CSS = `
+/* การ์ดสถานะพื้นสีอ่อนตามสถานะ — ธีมมืดเปลี่ยนตัวอักษรเป็นสีอ่อน (S_Theme) แต่ไม่เปลี่ยนพื้น → ทับพื้นด้วยสีเข้มโปร่งแสง
+   ยังเห็นสีของสถานะ และตัวอักษรสีอ่อนอ่านออก */
+[data-theme="dark"] .status-summary-card { background-image: linear-gradient(rgba(15, 23, 42, .82), rgba(15, 23, 42, .82)); border-color: rgba(255, 255, 255, .12) !important; }
 .header-card { background: linear-gradient(135deg, #1e293b 0%, #334155 100%); color: white; border-radius: 20px; padding: 32px 40px; margin-bottom: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
 .header-card h1 { margin: 0; font-size: 26px; font-weight: 800; }
 .header-card p { margin: 10px 0 0; opacity: 0.9; font-size: 16px; line-height: 1.6; }

@@ -1,7 +1,6 @@
 ﻿import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { apiFetch } from "../utils/apiFetch";
 import { fmtDate } from '../utils/dateFormat';
-import StatusBadge from "../components/StatusBadge";
 import IssueLetterModal from "./IssueLetterModal";
 import IssuePlacementLetterModal from "./IssuePlacementLetterModal";
 import { PendingSignBadge } from "./LetterModalShared";
@@ -100,6 +99,9 @@ const IOS_BLUE = "#0074B7";
 // สถานะตั้งแต่เริ่มฝึกงานเป็นต้นไป (ออกหนังสือส่งตัวแล้ว) — นักศึกษาผ่านทุกขั้นตอนเอกสาร T000 มาแล้ว
 // เดิมปุ่มพิมพ์ซ้ำ/ตรวจสอบย้อนหลังไม่ครอบคลุมสถานะกลุ่มนี้ ทำให้เจ้าหน้าที่กลับมาดู/พิมพ์เอกสารเก่าไม่ได้เลย
 // หลังนักศึกษาเข้าสู่ช่วงฝึกงาน (ส่ง T002/T003 เป็นต้นไป)
+// ยังอยู่ในขั้นส่งเอกสาร T000 (ส่งครั้งแรก/ส่งแก้) — ปุ่มขยายเวลา T000 มีความหมายเฉพาะช่วงนี้
+const T000_STAGE_STATUSES = ['QUALIFIED', 'WAITING_FOR_STAFF_CHECK', 'EDITS_REQUIRED', 'APPLICATION_EDITS_REQUIRED'];
+
 const AFTER_PLACEMENT_STATUSES = [
     'INTERNSHIP_STARTED',
     'T002_SUBMITTED', 'T002_EDITS_REQUIRED',
@@ -776,7 +778,8 @@ export default function A_DocT000() {
                                                 ตรวจสอบเอกสาร
                                             </button>
                                         )}
-                                        {!POST_LETTER_STATUSES.includes(s.docStatus || '') && (
+                                        {/* ขยายเวลาส่ง T000 — เฉพาะคนที่ยังอยู่ในขั้นส่งเอกสาร T000 */}
+                                        {T000_STAGE_STATUSES.includes(s.docStatus || '') && (
                                             <DeadlineExtensionButton compact step="T000" studentId={s.id} studentName={`${s.firstName} ${s.lastName}`} extensions={s.coop?.deadlineExtensions} />
                                         )}
                                         </div>
@@ -968,6 +971,8 @@ export default function A_DocT000() {
                 /* รอเจ้าหน้าที่ตรวจ — สีทึบให้เห็นงานที่ต้องทำก่อน · ไม่ใช้ .chip.waiting เพราะธีมมืดทับเป็นสีเทาจนกลืนพื้นหลัง (S_Theme) */
                 .chip.staffcheck { background: #2563eb; color: #fff; border: 1px solid #1d4ed8; }
                 [data-theme="dark"] .chip.staffcheck { background: #3b82f6; color: #fff; border-color: #60a5fa; }
+                .chip.intern { background: #e0e7ff; color: #3730a3; border: 1px solid #a5b4fc; }
+                .chip.neutral { background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; }
 
                 .action-btn { flex: 1; }
                 .action-btn.edit.active { background: #fff7ed; color: #c2410c; border-color: #fed7aa; }
@@ -1035,14 +1040,8 @@ function AcceptanceReceivedModal({ student, onClose, onSuccess }: { student: Stu
     );
 }
 
-// สถานะของขั้น T000 ใช้ป้ายชุดเดียวกับแถบกรอง (ทั้งหน้าใช้คำเดียวกัน) · สถานะอื่น (เช่น กำลังฝึกสหกิจ) ใช้ป้ายกลางแบบไม่มีไอคอน
-const T000_CHIP_STATUSES = new Set([
-    "QUALIFIED", "WAITING_FOR_STAFF_CHECK", "EDITS_REQUIRED", "DOCS_APPROVED", "REQ_LETTER_ISSUED",
-    "WAITING_FOR_PLACEMENT_LETTER", "WAITING_FOR_STAFF_CHECK_LETTER", "ACCEPTANCE_CHECKED", "PLACEMENT_LETTER_ISSUED",
-]);
-function t000Status(status?: string) {
-    return status && T000_CHIP_STATUSES.has(status) ? statusChip(status) : <StatusBadge status={status} showIcon={false} />;
-}
+// ทุกสถานะในหน้านี้ใช้ป้ายแบบเดียวกับแถบกรอง (ทั้งคอลัมน์หน้าตาเหมือนกัน)
+const t000Status = (status?: string) => statusChip(status);
 
 function statusChip(status?: string) {
     let s = (status || "WAITING");
@@ -1064,6 +1063,14 @@ function statusChip(status?: string) {
     else if (s === "PLACEMENT_LETTER_ISSUED") { cls = "place"; label = "ออกหนังสือส่งตัวแล้ว"; }
     else if (s === "PENDING_SIGN_REQ") { cls = "sign"; label = "หนังสือขอความอนุเคราะห์ (รอลงนาม)"; }
     else if (s === "PENDING_SIGN_PLACE") { cls = "sign"; label = "หนังสือส่งตัว (รอลงนาม)"; }
+    // สถานะนอกขั้น T000 ที่อาจโผล่ในรายการ (ก่อนผ่านคุณสมบัติ / ออกฝึกแล้ว)
+    else if (AFTER_PLACEMENT_STATUSES.includes(s)) { cls = "intern"; label = "อยู่ระหว่างฝึกสหกิจ"; }
+    else if (s === "APPLYING") { cls = "neutral"; label = "รอตรวจสอบคุณสมบัติ"; }
+    else if (s === "PENDING_GRADE") { cls = "neutral"; label = "รอพิจารณาผลการเรียน"; }
+    else if (s === "APPLICATION_EDITS_REQUIRED") { cls = "edit"; label = "ส่งกลับแก้ไขใบสมัคร (รอนักศึกษาดำเนินการ)"; }
+    else if (s === "QUALIFICATION_FAILED") { cls = "rej"; label = "ไม่ผ่านคุณสมบัติ"; }
+    else if (s === "NOT_SUBMITTED") { cls = "neutral"; label = "ยังไม่ยื่นคำร้อง"; }
+    else { cls = "neutral"; label = "รอดำเนินการ"; }
 
     return <span className={`chip ${cls}`}>{label}</span>;
 }
