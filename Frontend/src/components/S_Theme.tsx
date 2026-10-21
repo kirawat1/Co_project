@@ -283,7 +283,7 @@ function css(IOS_BLUE: string) {
   .btn-outline:active { transform: scale(.98); }
 
   /* ── Success (solid green — approve actions) ── */
-  .btn-success { background: #10b981; color: #fff; border: 0; }
+  .btn-success { background: #059669; color: #fff; border: 0; }
   .btn-success:hover { filter: brightness(.92); }
   .btn-success:active { filter: brightness(.85); }
 
@@ -537,10 +537,10 @@ function css(IOS_BLUE: string) {
   /* rgba white backgrounds */
   [data-theme="dark"] [style*="background: rgba(255, 255, 255"] { background: rgba(255,255,255,.08) !important; }
 
-  /* 6. BORDERS */
-  [data-theme="dark"] [style*="border: 1px solid #e2e8f0"],
-  [data-theme="dark"] [style*="border: 1px solid rgba(0,0,0"],
-  [data-theme="dark"] [style*="border-bottom: 1px solid #e2e8f0"] { border-color: rgba(255,255,255,.1) !important; }
+  /* 6. BORDERS — เส้นเทาอ่อนใน style attribute (rgb แบบที่ Chrome เก็บ) */
+  [data-theme="dark"] [style*="border: 1px solid rgb(226, 232, 240)"],
+  [data-theme="dark"] [style*="border: 1px solid rgba(0, 0, 0"],
+  [data-theme="dark"] [style*="border-bottom: 1px solid rgb(226, 232, 240)"] { border-color: rgba(255,255,255,.1) !important; }
 
   /* 7. MODALS AND CARDS */
   [data-theme="dark"] .modal-card { background: #1e293b !important; color: #f1f5f9 !important; }
@@ -549,7 +549,6 @@ function css(IOS_BLUE: string) {
   [data-theme="dark"] table { color: #f1f5f9; }
   [data-theme="dark"] thead,
   [data-theme="dark"] thead tr,
-  [data-theme="dark"] [style*="background: #f8fafc"],
   [data-theme="dark"] [style*="background: rgb(248, 250, 252)"] { background: #1a2535 !important; }
   [data-theme="dark"] th { color: #94a3b8 !important; border-color: rgba(255,255,255,.08) !important; }
   /* หัวตารางที่หน้าตั้งพื้นขาว/เทาอ่อนด้วยคลาส (A_Daily, S_DocTable) — inline style ยังชนะ (กฎหมวด 4–5) */
@@ -736,13 +735,8 @@ function css(IOS_BLUE: string) {
   [data-theme="dark"] .tab-btn:hover { background: #334155 !important; color: #f1f5f9 !important; }
 
   /* ==============================================================
-     14. MISSING INLINE-STYLE HEX OVERRIDES
-     background: #ffffff (6-digit) is different string from #fff
+     14. background-color longhand (rgb) for light gray tones
   ============================================================== */
-  [data-theme="dark"] [style*="background: #ffffff"],
-  [data-theme="dark"] [style*="background:#ffffff"] { background: #1e293b !important; }
-
-  /* background-color longhand (rgb) for light gray tones */
   [data-theme="dark"] [style*="background-color: rgb(248, 250, 252)"],
   [data-theme="dark"] [style*="background-color: rgb(241, 245, 249)"],
   [data-theme="dark"] [style*="background-color: rgb(249, 250, 251)"],
@@ -752,18 +746,11 @@ function css(IOS_BLUE: string) {
     background-color: #1a2535 !important;
   }
 
-  /* background shorthand for additional light tones */
-  [data-theme="dark"] [style*="background: #f0fdf4"],
-  [data-theme="dark"] [style*="background: #fff7ed"],
-  [data-theme="dark"] [style*="background: #ecfdf5"],
-  [data-theme="dark"] [style*="background: #fafafa"] { background: rgba(255,255,255,.05) !important; }
-
   /* ==============================================================
      15. RGB VARIANTS — for when Chrome normalizes background shorthand hex→rgb
      Some Chrome versions serialize "background: #fff" → "background: rgb(255,255,255)"
   ============================================================== */
-  [data-theme="dark"] [style*="background: rgb(255, 255, 255)"],
-  [data-theme="dark"] [style*="background:rgb(255,255,255)"] { background: #1e293b !important; }
+  [data-theme="dark"] [style*="background: rgb(255, 255, 255)"] { background: #1e293b !important; }
 
   [data-theme="dark"] [style*="background: rgb(248, 250, 252)"],
   [data-theme="dark"] [style*="background: rgb(241, 245, 249)"],
@@ -815,9 +802,6 @@ function css(IOS_BLUE: string) {
   /* ─── Link box (doc pages) ─── */
   [data-theme="dark"] .link-box { background: rgba(255,255,255,.04) !important; border-color: rgba(255,255,255,.1) !important; }
 
-  /* ─── A_Students.tsx sectionCard ─── */
-  [data-theme="dark"] [style*="background: #f8fafc"] { background: #1a2535 !important; }
-
   /* ─── Step icon semantic colors ─── */
   [data-theme="dark"] .step-icon.completed { background: rgba(22,163,74,.2) !important; }
   [data-theme="dark"] .step-icon.progress { background: rgba(59,130,246,.2) !important; }
@@ -828,17 +812,8 @@ function css(IOS_BLUE: string) {
   [data-theme="dark"] .tab.active,
   [data-theme="dark"] .tab:hover { background: #334155 !important; color: #f1f5f9 !important; }
 
-  /* ─── Form section wrappers (S_DocsT002Form, S_DocsT003Form) ─── */
-  [data-theme="dark"] [style*="background: #ecfdf5"] { background: rgba(22,163,74,.12) !important; }
-  [data-theme="dark"] [style*="background: #bae6fd"] { background: rgba(14,165,233,.25) !important; }
-  [data-theme="dark"] [style*="background: #e0f2fe"] { background: rgba(14,165,233,.12) !important; }
-  [data-theme="dark"] [style*="background: #f0fdfa"] { background: rgba(20,184,166,.12) !important; }
-  [data-theme="dark"] [style*="background: #ede9fe"] { background: rgba(109,40,217,.15) !important; }
-  [data-theme="dark"] [style*="background: #fefce8"] { background: rgba(234,179,8,.1) !important; }
-  [data-theme="dark"] [style*="background: #fde047"] { background: rgba(234,179,8,.3) !important; }
-  [data-theme="dark"] [style*="background: #fef9c3"] { background: rgba(234,179,8,.1) !important; }
-
-  /* ─── Table cells in T003 work plan (alternating) ─── */
-  [data-theme="dark"] [style*="background: #525659"] { background: #1a2535 !important; }
+  /* ─── สีสดที่ไม่อยู่ใน LIGHT_BG: ช่องสัปดาห์ที่ติ๊กใน T003 · ไอคอนหัวการ์ด T008 ─── */
+  [data-theme="dark"] [style*="background: rgb(186, 230, 253)"] { background: rgba(14,165,233,.25) !important; }
+  [data-theme="dark"] [style*="background: rgb(253, 224, 71)"] { background: rgba(234,179,8,.3) !important; }
   `;
 }

@@ -282,7 +282,7 @@ export default function A_CoopApplications() {
                         onClick={handleBulkApprove}
                         disabled={qualifiedPendingList.length === 0 || loading}
                         style={{
-                            background: qualifiedPendingList.length > 0 ? '#10b981' : '#e5e7eb',
+                            background: qualifiedPendingList.length > 0 ? '#059669' : '#e5e7eb',
                             color: qualifiedPendingList.length > 0 ? 'white' : '#9ca3af',
                             padding: '10px 20px'
                         }}

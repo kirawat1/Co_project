@@ -31,3 +31,6 @@ coverage/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Playwright MCP (ภาพ/บันทึกจากการทดสอบในเบราว์เซอร์)
+.playwright-mcp/
