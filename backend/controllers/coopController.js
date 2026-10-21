@@ -237,9 +237,11 @@ const updateCoopStatus = async (req, res) => {
           throw Object.assign(new Error('คุณไม่ใช่อาจารย์ที่ปรึกษาของนักศึกษาคนนี้'), { is403: true });
         }
       }
-      const coop = await tx.studentCoop.findUnique({ where: { studentId: parsedId }, select: { status: true } });
+      const coop = await tx.studentCoop.findUnique({ where: { studentId: parsedId }, select: { status: true, t000Status: true } });
       const REVIEWABLE_STATUSES = ['APPLYING', 'PENDING_GRADE', 'WAITING_FOR_STAFF_CHECK'];
-      if (!coop || !REVIEWABLE_STATUSES.includes(coop.status)) {
+      // ส่ง T000 ครั้งแรกแล้วรอเจ้าหน้าที่ตรวจ (t000Status PENDING) = ผ่านคุณสมบัติไปแล้ว — เดิมยังเป็น QUALIFIED ซึ่งเปลี่ยนที่นี่ไม่ได้
+      const firstT000Waiting = coop?.status === 'WAITING_FOR_STAFF_CHECK' && coop.t000Status === 'PENDING';
+      if (!coop || !REVIEWABLE_STATUSES.includes(coop.status) || firstT000Waiting) {
         throw Object.assign(new Error('ไม่สามารถเปลี่ยนสถานะได้ในขั้นตอนนี้'), { is400: true });
       }
       updated = await tx.studentCoop.update({

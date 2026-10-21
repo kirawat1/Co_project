@@ -26,19 +26,48 @@ async function markSubmitted(db, { studentId, stepKey, major, now = new Date(), 
   const steps = coop.submittedSteps || {};
   if (steps[stepKey]) return;
 
-  if (stepKey === 'T000') {
-    const keys = await requiredDocKeys(db, major);
-    if (keys.length) {
-      const docs = await db.document.findMany({ where: { studentId, type: { in: keys } }, select: { type: true } });
-      const have = new Set((docs || []).map((d) => d.type));
-      if (!keys.every((k) => have.has(k))) return;
-    }
-  }
+  if (stepKey === 'T000' && !(await t000Complete(db, studentId, major))) return;
 
   await db.studentCoop.update({
     where: { studentId },
     data: { submittedSteps: { ...steps, [stepKey]: { at: now.toISOString(), ...(resubmission ? { backfill: true } : {}) } } },
   });
+}
+
+// ชนิดเอกสารที่ไม่ใช่ชุด T000 (แบบฟอร์ม T002/T003 · ใบตอบรับ)
+const NON_T000_TYPES = ['T002_FORM', 'T003_FORM', 'CP-ACCEPTANCE'];
+
+// มีไฟล์ครบทุกหัวข้อบังคับของหลักสูตรตัวเอง (ไม่มีหัวข้อบังคับเลย = มีไฟล์ T000 อย่างน้อยหนึ่งไฟล์)
+async function t000Complete(db, studentId, major) {
+  const keys = await requiredDocKeys(db, major);
+  if (!keys.length) return (await db.document.count({ where: { studentId, type: { notIn: NON_T000_TYPES } } })) > 0;
+  const docs = await db.document.findMany({ where: { studentId, type: { in: keys } }, select: { type: true } });
+  const have = new Set((docs || []).map((d) => d.type));
+  return keys.every((k) => have.has(k));
+}
+
+// สถานะของการส่ง T000 ครั้งแรก — เรียกหลังอัปโหลด/ลบเอกสาร T000 ในทรานแซกชันเดียวกัน
+//   ผ่านคุณสมบัติ + ครบหัวข้อบังคับ → รอเจ้าหน้าที่ตรวจ ('SUBMITTED')
+//   รอตรวจจากการส่งครั้งแรก + ลบจนไม่ครบ → กลับไปผ่านคุณสมบัติ ('WITHDRAWN')
+// t000Status PENDING = รอตรวจจากการส่งครั้งแรก · ทางส่งแก้ (docController) ตั้ง EDITS_REQUIRED
+//   resolveDeadline / coopController ใช้แยกสองกรณีนี้ออกจากกัน (สถานะหลักเป็น WAITING_FOR_STAFF_CHECK เหมือนกัน)
+async function syncT000Submission(db, { studentId, major }) {
+  await db.$queryRaw`SELECT id FROM StudentCoop WHERE studentId = ${studentId} FOR UPDATE`;
+  const coop = await db.studentCoop.findUnique({ where: { studentId }, select: { status: true, t000Status: true } });
+  if (!coop) return null;
+  const firstWaiting = coop.status === 'WAITING_FOR_STAFF_CHECK' && coop.t000Status === 'PENDING';
+  if (coop.status !== 'QUALIFIED' && !firstWaiting) return null;
+
+  const complete = await t000Complete(db, studentId, major);
+  if (coop.status === 'QUALIFIED' && complete) {
+    await db.studentCoop.update({ where: { studentId }, data: { status: 'WAITING_FOR_STAFF_CHECK', t000Status: 'PENDING' } });
+    return 'SUBMITTED';
+  }
+  if (firstWaiting && !complete) {
+    await db.studentCoop.update({ where: { studentId }, data: { status: 'QUALIFIED', t000Status: 'WAITING' } });
+    return 'WITHDRAWN';
+  }
+  return null;
 }
 
 // เติมย้อนหลังจากเอกสารที่มีอยู่ (scripts/backfill_submitted_steps.js) — คืน submittedSteps ใหม่ หรือ null ถ้าไม่มีอะไรเปลี่ยน
@@ -63,4 +92,4 @@ function backfillEntries(existing, docs, requiredKeys) {
   return changed ? steps : null;
 }
 
-module.exports = { markSubmitted, requiredDocKeys, backfillEntries, TRACKED_STEPS };
+module.exports = { markSubmitted, requiredDocKeys, t000Complete, syncT000Submission, backfillEntries, TRACKED_STEPS, NON_T000_TYPES };

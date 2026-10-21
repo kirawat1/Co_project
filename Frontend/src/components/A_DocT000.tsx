@@ -56,6 +56,7 @@ interface StudentProfile {
         placeLetterPendingAt?: string | null;
         placeLetterDraftNumber?: string | null;
         deadlineExtensions?: Partial<Record<StepKey, string>> | null; // ขยายเวลารายคน (ปฏิทินของรอบ)
+        t000Status?: string | null; // PENDING = รอตรวจจากการส่ง T000 ครั้งแรก (ไม่ใช่การส่งแก้)
     }
 }
 
@@ -761,7 +762,7 @@ export default function A_DocT000() {
                                     <td style={td} data-label="ไฟล์">{s.documents?.length || 0}</td>
                                     <td style={td} data-label="วันที่ส่ง">{s.submittedAt ? fmtDate(s.submittedAt) : "-"}</td>
                                     <td style={td} data-label="สถานะ">
-                                        {t000Status(s.docStatus)}
+                                        {studentStatusChip(s)}
                                         <div><DeadlineFlagBadge flags={s.deadline} /></div>
                                         {s.coop?.reqLetterPendingAt && <PendingSignBadge label="รอลงนามหนังสือขอความอนุเคราะห์" at={s.coop.reqLetterPendingAt} draftNumber={s.coop.reqLetterDraftNumber} />}
                                         {s.coop?.placeLetterPendingAt && <PendingSignBadge label="รอลงนามหนังสือส่งตัว" at={s.coop.placeLetterPendingAt} draftNumber={s.coop.placeLetterDraftNumber} />}
@@ -916,7 +917,7 @@ export default function A_DocT000() {
                                 <div style={{ flex: 1, overflowY: 'auto', padding: '16px', background: '#f8fafc' }}>
                                     {!canEditInModal(selectedStudent, checkPhase) && (
                                         <div style={{ marginBottom: 12, padding: '10px 12px', borderRadius: 8, background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1e40af', fontSize: 13, lineHeight: 1.6 }}>
-                                            เปิดดูย้อนหลังได้อย่างเดียว — สถานะปัจจุบัน {t000Status(selectedStudent.docStatus)}
+                                            เปิดดูย้อนหลังได้อย่างเดียว — สถานะปัจจุบัน {studentStatusChip(selectedStudent)}
                                             <div style={{ fontSize: 12, color: '#475569' }}>
                                                 {selectedStudent.docStatus === 'NOT_SUBMITTED'
                                                     ? 'นักศึกษายังไม่ได้ยื่นคำร้องสหกิจ จึงยังตรวจเอกสารไม่ได้'
@@ -1041,18 +1042,19 @@ function AcceptanceReceivedModal({ student, onClose, onSuccess }: { student: Stu
 }
 
 // ทุกสถานะในหน้านี้ใช้ป้ายแบบเดียวกับแถบกรอง (ทั้งคอลัมน์หน้าตาเหมือนกัน)
-const t000Status = (status?: string) => statusChip(status);
+// รอตรวจ T000: t000Status PENDING = ส่งครั้งแรก · อื่นๆ = ส่งแก้ (ข้อมูลก่อนมี PENDING มาจากการส่งแก้ทางเดียว)
+const studentStatusChip = (s: StudentProfile) => statusChip(s.docStatus, s.coop?.t000Status === "PENDING" ? "first" : "resubmit");
 
-function statusChip(status?: string) {
+function statusChip(status?: string, t000Submission?: "first" | "resubmit") {
     let s = (status || "WAITING");
     let label = "รอเอกสาร";
     let cls = "waiting";
 
     // ถ้อยคำทางการ ไม่มีอีโมจิ — บอก "ตอนนี้รอใคร ทำอะไร" · สีตามคนที่ต้องทำต่อ: น้ำเงินทึบ = รอเจ้าหน้าที่ตรวจ · ส้ม = รอนักศึกษาแก้
     //   เขียว = ผ่านแล้วรอออกหนังสือ · เหลือง = รอลงนาม · ม่วง/เขียวเข้ม = ออกหนังสือแล้ว
-    // (ส่ง T000 ครั้งแรกยังเป็น QUALIFIED จนเจ้าหน้าที่ตรวจ — จึงเขียนว่า "ยังไม่ได้ตรวจ" ไม่ใช่ "รอเอกสาร")
-    if (s === "QUALIFIED") { cls = "QUALIFIED"; label = "ผ่านคุณสมบัติ (ยังไม่ได้ตรวจเอกสาร)"; }
-    else if (s === "WAITING_FOR_STAFF_CHECK" || s === "PENDING") { cls = "staffcheck"; label = "ส่งแก้ไขแล้ว (รอการตรวจสอบ)"; }
+    // ผ่านคุณสมบัติ = ยังอัปโหลดไม่ครบหัวข้อบังคับ (ครบแล้วระบบเปลี่ยนเป็นรอตรวจเอง)
+    if (s === "QUALIFIED") { cls = "QUALIFIED"; label = "ผ่านคุณสมบัติ (รอนักศึกษาส่งเอกสาร)"; }
+    else if (s === "WAITING_FOR_STAFF_CHECK" || s === "PENDING") { cls = "staffcheck"; label = t000Submission === "resubmit" ? "ส่งแก้ไขแล้ว (รอการตรวจสอบ)" : "ส่งเอกสารแล้ว (รอการตรวจสอบ)"; }
     else if (s === "REJECTED") { cls = "rej"; label = "ไม่ผ่าน"; }
     else if (s === "EDITS_REQUIRED") { cls = "edit"; label = "ส่งกลับแก้ไข (รอนักศึกษาดำเนินการ)"; }
     else if (s === "DOCS_APPROVED") { cls = "appr"; label = "เอกสารผ่านการตรวจสอบ (รอออกหนังสือ)"; }

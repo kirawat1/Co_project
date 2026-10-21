@@ -45,6 +45,21 @@ describe('resolveDeadline', () => {
       .toMatchObject({ canSubmit: true, late: false });
   });
 
+  // ส่ง T000 ครั้งแรกครบแล้วรอตรวจ (t000Status PENDING) — เปลี่ยนไฟล์เองหลังกำหนด HARD ไม่ใช่การส่งแก้
+  test('T000 รอตรวจจากการส่งครั้งแรก (t000Status PENDING) → ไม่ใช่การส่งแก้ HARD เลยกำหนดส่งไม่ได้', async () => {
+    setup({ coop: { coopPeriodId: 1, status: 'WAITING_FOR_STAFF_CHECK', t000Status: 'PENDING' } });
+    prisma.coopPeriodMajor.findUnique.mockResolvedValue({ startDate: new Date('2026-03-01T00:00:00Z'), deadlines: { T000: { due: '2026-05-08', mode: 'HARD' } } });
+    expect(await resolveDeadline('T000', { studentId: 10 }, prisma, at('2026-07-20T00:00:00Z')))
+      .toMatchObject({ canSubmit: false, resubmission: false });
+  });
+
+  test('T000 รอตรวจจากการส่งแก้ (t000Status EDITS_REQUIRED) → ยังเป็นการส่งแก้', async () => {
+    setup({ coop: { coopPeriodId: 1, status: 'WAITING_FOR_STAFF_CHECK', t000Status: 'EDITS_REQUIRED' } });
+    prisma.coopPeriodMajor.findUnique.mockResolvedValue({ startDate: new Date('2026-03-01T00:00:00Z'), deadlines: { T000: { due: '2026-05-08', mode: 'HARD' } } });
+    expect(await resolveDeadline('T000', { studentId: 10 }, prisma, at('2026-07-20T00:00:00Z')))
+      .toMatchObject({ canSubmit: true, resubmission: true });
+  });
+
   test('ขยายเวลา T002 → ส่ง T002 ได้ถึงวันขยาย แต่ไม่เปิด T003', async () => {
     setup({ coop: { coopPeriodId: 1, status: 'T002_SUBMITTED', deadlineExtensions: { T002: '2026-07-31' } } });
     const now = at('2026-07-20T00:00:00Z');

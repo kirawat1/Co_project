@@ -1,7 +1,7 @@
 // controllers/docController.js
 const { RULES_INCLUDE, withRules, appliesTo } = require('../utils/docRequirementScope');
 const { resolveDeadline } = require('../utils/resolveDeadline');
-const { markSubmitted } = require('../utils/submittedSteps');
+const { markSubmitted, syncT000Submission, NON_T000_TYPES } = require('../utils/submittedSteps');
 const { thaiDate } = require('../utils/applyWindow');
 const prisma = require('../config/prismaClient');
 const { buildAddressData } = require('../utils/addressFormat');
@@ -156,7 +156,7 @@ exports.uploadDocument = async (req, res) => {
     let newDoc;
     let deadline = null;
     let oldDoc;
-    let t000Resubmitted = false;
+    let t000Submitted = false; // ส่งแก้ หรือส่งครั้งแรกครบหัวข้อบังคับ → แจ้งเจ้าหน้าที่
     let mentorSync = null;
     try {
         await prisma.$transaction(async (tx) => {
@@ -226,11 +226,14 @@ exports.uploadDocument = async (req, res) => {
             } else {
                 const coop = await tx.studentCoop.findUnique({ where: { studentId: student.id } });
                 if (coop && (coop.status === "EDITS_REQUIRED" || coop.status === "APPLICATION_EDITS_REQUIRED")) {
+                    // t000Status EDITS_REQUIRED = รอตรวจจากการส่งแก้ — ไฟล์ถัดไปของการส่งแก้ยังไม่ติดกำหนด (resolveDeadline)
                     await tx.studentCoop.update({
                         where: { studentId: student.id },
-                        data: { status: "WAITING_FOR_STAFF_CHECK" }
+                        data: { status: "WAITING_FOR_STAFF_CHECK", t000Status: "EDITS_REQUIRED" }
                     });
-                    t000Resubmitted = true;
+                    t000Submitted = true;
+                } else {
+                    t000Submitted = (await syncT000Submission(tx, { studentId: student.id, major: student.major || null })) === 'SUBMITTED';
                 }
             }
             // เวลาส่งครั้งแรกของขั้น (T000 = ตอนครบหัวข้อบังคับ) — ส่งแก้ไม่ทับ
@@ -262,7 +265,7 @@ exports.uploadDocument = async (req, res) => {
       'T003_FORM': { type: 'T003_SUBMITTED', title: 'นักศึกษาส่ง T003', message: 'มีนักศึกษาส่งเอกสาร T003 โครงร่างรายงาน กรุณาตรวจสอบ', link: '/admin/doct003', staffOnly: false },
       'CP-ACCEPTANCE': { type: 'ACCEPTANCE_UPLOADED', title: 'นักศึกษาอัปโหลดใบตอบรับ', message: 'มีนักศึกษาอัปโหลดใบตอบรับจากบริษัท กรุณาตรวจสอบ', link: '/admin/doct000', staffOnly: true },
     };
-    const notifDef = notifyTypes[dbType] || (t000Resubmitted ? { type: 'T000_SUBMITTED', title: 'นักศึกษาส่งเอกสาร T000', message: 'มีนักศึกษาส่งเอกสาร T000 กรุณาตรวจสอบ', link: '/admin/doct000', staffOnly: true } : null);
+    const notifDef = notifyTypes[dbType] || (t000Submitted ? { type: 'T000_SUBMITTED', title: 'นักศึกษาส่งเอกสาร T000', message: 'มีนักศึกษาส่งเอกสาร T000 กรุณาตรวจสอบ', link: '/admin/doct000', staffOnly: true } : null);
     if (notifDef) {
       const { staffOnly, ...notif } = notifDef;
       (staffOnly ? getStaffIds() : getStaffAndCoopTeacherIds()).then(ids =>
@@ -324,7 +327,9 @@ exports.deleteDocument = async (req, res) => {
           throw Object.assign(new Error('ไม่สามารถลบ T003 ที่อยู่ระหว่างการตรวจสอบ'), { is409: true });
       }
       await tx.document.delete({ where: { id: numId } });
-    });
+      // เอกสาร T000: ลบจนไม่ครบหลังส่งครั้งแรก → กลับไปรอนักศึกษาส่ง
+      if (!NON_T000_TYPES.includes(doc.type)) await syncT000Submission(tx, { studentId: doc.studentId, major: doc.student.major || null });
+    }, { isolationLevel: 'ReadCommitted' });
 
     const filePath = path.join(__dirname, '../uploads', doc.path);
     if (fs.existsSync(filePath)) {
@@ -416,8 +421,11 @@ exports.deleteDocumentByType = async (req, res) => {
       return res.status(404).json({ message: "Document not found" });
     }
 
-    // ลบ DB ก่อน แล้วค่อยลบไฟล์
-    await prisma.document.delete({ where: { id: doc.id } });
+    // ลบ DB ก่อน แล้วค่อยลบไฟล์ · ลบจนไม่ครบหลังส่ง T000 ครั้งแรก → กลับไปรอนักศึกษาส่ง
+    await prisma.$transaction(async (tx) => {
+      await tx.document.delete({ where: { id: doc.id } });
+      await syncT000Submission(tx, { studentId: student.id, major: student.major || null });
+    }, { isolationLevel: 'ReadCommitted' });
 
     const filePath = path.join(__dirname, '../uploads', doc.path);
     if (fs.existsSync(filePath)) {
