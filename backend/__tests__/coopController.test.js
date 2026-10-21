@@ -225,6 +225,20 @@ describe('updateCoopStatus', () => {
     }));
   });
 
+  // ส่ง T000 ครั้งแรกแล้วรอเจ้าหน้าที่ตรวจ — เดิมยังเป็น QUALIFIED ซึ่งอาจารย์เปลี่ยนไม่ได้ ต้องคงไว้แบบเดิม
+  test('400 — นักศึกษาส่ง T000 ครั้งแรกแล้ว (WAITING_FOR_STAFF_CHECK + PENDING) → เปลี่ยนผลคุณสมบัติไม่ได้', async () => {
+    prisma.student.findUnique.mockResolvedValue({ deletedAt: null, generalAdvisorId: null, coopAdvisorId: null });
+    prisma.studentCoop.findUnique.mockResolvedValue({ status: 'WAITING_FOR_STAFF_CHECK', t000Status: 'PENDING' });
+
+    const req = { body: { studentId: '5', status: 'REJECTED' }, user: { id: 99, role: 'staff' } };
+    const res = makeRes();
+
+    await updateCoopStatus(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(prisma.studentCoop.update).not.toHaveBeenCalled();
+  });
+
   test('403 — teacher เป็นแค่ที่ปรึกษาทั่วไป (generalAdvisorId) ไม่ใช่ที่ปรึกษาโครงงานสหกิจ → ตรวจสอบคุณสมบัติไม่ได้', async () => {
     prisma.student.findUnique.mockResolvedValue({ deletedAt: null, generalAdvisorId: 7, coopAdvisorId: 99 });
     prisma.teacher.findUnique.mockResolvedValue({ id: 7 });

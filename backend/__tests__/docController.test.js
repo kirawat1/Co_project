@@ -108,6 +108,35 @@ describe('docController', () => {
     });
   });
 
+  // ลบไฟล์บังคับหลังส่ง T000 ครั้งแรกครบ (ยังไม่ถูกตรวจ) → ไม่ครบแล้ว กลับไปรอนักศึกษาส่ง (ไม่ค้างในรายการรอตรวจ)
+  describe('ลบเอกสาร T000 หลังส่งครั้งแรกครบ', () => {
+    beforeEach(() => {
+      prisma.student.findUnique.mockResolvedValue({ id: 10, userId: 1, deletedAt: null, major: 'CS' });
+      prisma.studentCoop.findUnique.mockResolvedValue({ status: 'WAITING_FOR_STAFF_CHECK', t000Status: 'PENDING' });
+      prisma.studentCoop.update.mockReset().mockResolvedValue({});
+      prisma.documentRequirement.findMany.mockResolvedValue([{ docKey: 'CV', majorRules: [] }]);
+      prisma.document.findMany.mockResolvedValue([]);
+      prisma.document.delete.mockResolvedValue({});
+    });
+    const backToQualified = { where: { studentId: 10 }, data: { status: 'QUALIFIED', t000Status: 'WAITING' } };
+
+    test('ลบด้วย id → กลับไปผ่านคุณสมบัติ', async () => {
+      prisma.document.findUnique.mockResolvedValue({ id: 5, path: 'cv.pdf', studentId: 10, type: 'CV', student: { userId: 1, deletedAt: null, major: 'CS' } });
+      const res = makeRes();
+      await docController.deleteDocument({ params: { id: '5' }, user: { id: 1 } }, res);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: true }));
+      expect(prisma.studentCoop.update).toHaveBeenCalledWith(backToQualified);
+    });
+
+    test('ลบด้วยชนิดเอกสาร → กลับไปผ่านคุณสมบัติ', async () => {
+      prisma.document.findFirst.mockResolvedValue({ id: 20, path: 'cv.pdf', studentId: 10, type: 'CV' });
+      const res = makeRes();
+      await docController.deleteDocumentByType({ params: { docType: 'CP-CV' }, user: { id: 1 } }, res);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: true }));
+      expect(prisma.studentCoop.update).toHaveBeenCalledWith(backToQualified);
+    });
+  });
+
   // ─────────────────────────────────────────────────────────
   // deleteDocumentByType
   // ─────────────────────────────────────────────────────────
@@ -342,14 +371,20 @@ describe('docController', () => {
         await docController.uploadDocument(makeUploadReq('CP-CV'), res);
         expect(res.status).not.toHaveBeenCalled();
         expect(res.json.mock.calls[0][0]).toMatchObject({ ok: true, late: false });
-        expect(prisma.studentCoop.update).toHaveBeenCalledWith({ where: { studentId: 10 }, data: { status: 'WAITING_FOR_STAFF_CHECK' } });
+        expect(prisma.studentCoop.update).toHaveBeenCalledWith({ where: { studentId: 10 }, data: { status: 'WAITING_FOR_STAFF_CHECK', t000Status: 'EDITS_REQUIRED' } });
       });
 
       // ถูกสั่งแก้หลายไฟล์: ไฟล์แรกเปลี่ยนสถานะเป็น WAITING_FOR_STAFF_CHECK แล้ว — ไฟล์ที่สองต้องยังส่งแก้ได้
+      // เริ่มจากคนที่ส่งครั้งแรกแล้ว (t000Status PENDING) แล้วถูกส่งกลับ — ทางส่งแก้ต้องเปลี่ยน t000Status ไม่งั้นไฟล์ที่สองติดกำหนด
       test('ส่งแก้ T000 หลายไฟล์หลังกำหนด → ไฟล์ที่สองก็ผ่าน', async () => {
         let status = 'EDITS_REQUIRED';
-        prisma.studentCoop.findUnique.mockImplementation(async () => ({ coopPeriodId: 1, status, submittedSteps: { T000: { at: 'x' } } }));
-        prisma.studentCoop.update.mockImplementation(async ({ data }) => { if (data.status) status = data.status; return {}; });
+        let t000Status = 'PENDING';
+        prisma.studentCoop.findUnique.mockImplementation(async () => ({ coopPeriodId: 1, status, t000Status, submittedSteps: { T000: { at: 'x' } } }));
+        prisma.studentCoop.update.mockImplementation(async ({ data }) => {
+          if (data.status) status = data.status;
+          if (data.t000Status) t000Status = data.t000Status;
+          return {};
+        });
         const first = makeRes();
         await docController.uploadDocument(makeUploadReq('CP-CV'), first);
         expect(first.json.mock.calls[0][0]).toMatchObject({ ok: true });
@@ -358,6 +393,42 @@ describe('docController', () => {
         await docController.uploadDocument(makeUploadReq('CP-TRANSCRIPT'), second);
         expect(second.status).not.toHaveBeenCalledWith(403);
         expect(second.json.mock.calls[0][0]).toMatchObject({ ok: true, late: false });
+      });
+
+      describe('ส่ง T000 ครั้งแรก', () => {
+        const open = { startDate: past.startDate, deadlines: { T000: { due: '2999-01-01' } } };
+        beforeEach(() => {
+          prisma.studentCoop.update.mockReset().mockResolvedValue({});
+          prisma.coopPeriodMajor.findUnique.mockResolvedValue(open);
+          prisma.studentCoop.findUnique.mockResolvedValue({ coopPeriodId: 1, status: 'QUALIFIED', t000Status: 'WAITING', submittedSteps: null });
+          prisma.documentRequirement.findMany.mockResolvedValue([{ docKey: 'CP-CV', majorRules: [] }, { docKey: 'CP-TRANSCRIPT', majorRules: [] }]);
+          prisma.user.findMany.mockResolvedValue([{ id: 50 }]);
+          prisma.notification.findMany.mockResolvedValue([]);
+          prisma.notification.createMany.mockResolvedValue({ count: 1 });
+        });
+        const flush = async () => { for (let i = 0; i < 4; i++) await new Promise((r) => setImmediate(r)); };
+
+        test('ไฟล์สุดท้ายที่ทำให้ครบหัวข้อบังคับ → รอเจ้าหน้าที่ตรวจ และแจ้งเจ้าหน้าที่', async () => {
+          prisma.document.findMany.mockResolvedValue([{ type: 'CP-CV' }, { type: 'CP-TRANSCRIPT' }]);
+          const res = makeRes();
+          await docController.uploadDocument(makeUploadReq('CP-TRANSCRIPT'), res);
+          await flush();
+          expect(res.json.mock.calls[0][0]).toMatchObject({ ok: true });
+          expect(prisma.studentCoop.update).toHaveBeenCalledWith({ where: { studentId: 10 }, data: { status: 'WAITING_FOR_STAFF_CHECK', t000Status: 'PENDING' } });
+          expect(prisma.notification.createMany.mock.calls[0][0].data).toEqual([
+            expect.objectContaining({ userId: 50, type: 'T000_SUBMITTED', link: '/admin/doct000' }),
+          ]);
+        });
+
+        test('ยังไม่ครบหัวข้อบังคับ → ยังผ่านคุณสมบัติ ไม่แจ้งเจ้าหน้าที่', async () => {
+          prisma.document.findMany.mockResolvedValue([{ type: 'CP-CV' }]);
+          const res = makeRes();
+          await docController.uploadDocument(makeUploadReq('CP-CV'), res);
+          await flush();
+          expect(res.json.mock.calls[0][0]).toMatchObject({ ok: true });
+          expect(prisma.studentCoop.update.mock.calls.filter((c) => c[0].data.status)).toEqual([]);
+          expect(prisma.notification.createMany).not.toHaveBeenCalled();
+        });
       });
 
       test('ทรานแซกชันอัปโหลดอ่านแบบ READ COMMITTED (หลังรอล็อกแถวต้องเห็นไฟล์ที่อีกคำขอเพิ่ง commit)', async () => {

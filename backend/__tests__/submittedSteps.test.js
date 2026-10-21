@@ -1,7 +1,7 @@
 // บันทึกเวลาส่งครั้งแรกของแต่ละขั้น (StudentCoop.submittedSteps)
 jest.mock('../config/prismaClient', () => require('./__mocks__/prismaClient'));
 const prisma = require('./__mocks__/prismaClient');
-const { markSubmitted, backfillEntries } = require('../utils/submittedSteps');
+const { markSubmitted, backfillEntries, syncT000Submission } = require('../utils/submittedSteps');
 
 describe('backfillEntries (เติมเวลาส่งของคนที่ส่งก่อนมีระบบนี้)', () => {
   const d = (type, iso) => ({ type, uploadedAt: new Date(iso) });
@@ -115,5 +115,81 @@ describe('markSubmitted', () => {
   test('ขั้นที่ไม่ได้ส่งในระบบ (T007) → ไม่ทำอะไร', async () => {
     await markSubmitted(prisma, { studentId: 10, stepKey: 'T007', major: 'CS', now: NOW });
     expect(prisma.studentCoop.findUnique).not.toHaveBeenCalled();
+  });
+});
+
+// ส่ง T000 ครั้งแรก: ครบหัวข้อบังคับ → รอเจ้าหน้าที่ตรวจ · ลบไฟล์จนไม่ครบ → กลับไปรอนักศึกษาส่ง
+// t000Status PENDING = รอตรวจจากการส่งครั้งแรก (แยกจากการส่งแก้ที่ตั้ง EDITS_REQUIRED)
+describe('syncT000Submission', () => {
+  const coopIs = (status, t000Status = 'WAITING') => prisma.studentCoop.findUnique.mockResolvedValue({ status, t000Status });
+  const docsAre = (...types) => prisma.document.findMany.mockResolvedValue(types.map((type) => ({ type })));
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    prisma.studentCoop.update.mockResolvedValue({});
+    prisma.documentRequirement.findMany.mockResolvedValue(REQS);
+  });
+
+  test('ผ่านคุณสมบัติ + ครบหัวข้อบังคับ → รอเจ้าหน้าที่ตรวจ (ส่งครั้งแรก)', async () => {
+    coopIs('QUALIFIED');
+    docsAre('CP-T000', 'CP-TRANSCRIPT');
+    expect(await syncT000Submission(prisma, { studentId: 10, major: 'CS' })).toBe('SUBMITTED');
+    expect(prisma.studentCoop.update).toHaveBeenCalledWith({
+      where: { studentId: 10 }, data: { status: 'WAITING_FOR_STAFF_CHECK', t000Status: 'PENDING' },
+    });
+  });
+
+  test('ผ่านคุณสมบัติ + ยังไม่ครบ (หัวข้อเฉพาะ AI ขาด) → ยังเป็นผ่านคุณสมบัติ', async () => {
+    coopIs('QUALIFIED');
+    docsAre('CP-T000', 'CP-TRANSCRIPT');
+    expect(await syncT000Submission(prisma, { studentId: 10, major: 'AI' })).toBeNull();
+    expect(prisma.studentCoop.update).not.toHaveBeenCalled();
+  });
+
+  test('รอตรวจจากการส่งครั้งแรก แล้วลบไฟล์บังคับ → กลับไปรอนักศึกษาส่ง', async () => {
+    coopIs('WAITING_FOR_STAFF_CHECK', 'PENDING');
+    docsAre('CP-T000');
+    expect(await syncT000Submission(prisma, { studentId: 10, major: 'CS' })).toBe('WITHDRAWN');
+    expect(prisma.studentCoop.update).toHaveBeenCalledWith({
+      where: { studentId: 10 }, data: { status: 'QUALIFIED', t000Status: 'WAITING' },
+    });
+  });
+
+  test('รอตรวจจากการส่งแก้ (ไม่ใช่ PENDING) แล้วลบไฟล์ → สถานะไม่ถอยกลับ', async () => {
+    coopIs('WAITING_FOR_STAFF_CHECK', 'EDITS_REQUIRED');
+    docsAre('CP-T000');
+    expect(await syncT000Submission(prisma, { studentId: 10, major: 'CS' })).toBeNull();
+    expect(prisma.studentCoop.update).not.toHaveBeenCalled();
+  });
+
+  test.each(['EDITS_REQUIRED', 'DOCS_APPROVED', 'APPLYING'])('สถานะ %s → ไม่แตะ', async (status) => {
+    coopIs(status);
+    docsAre('CP-T000', 'CP-TRANSCRIPT');
+    expect(await syncT000Submission(prisma, { studentId: 10, major: 'CS' })).toBeNull();
+    expect(prisma.studentCoop.update).not.toHaveBeenCalled();
+  });
+
+  // หลักสูตรที่ไม่มีหัวข้อบังคับ: ต้องมีไฟล์ T000 อย่างน้อยหนึ่งไฟล์ (ไม่งั้นคนที่ยังไม่ได้ส่งอะไรเลยกลายเป็นรอตรวจ)
+  test('ไม่มีหัวข้อบังคับ + ยังไม่มีไฟล์ T000 เลย → ไม่นับว่าส่ง', async () => {
+    prisma.documentRequirement.findMany.mockResolvedValue([]);
+    prisma.document.count.mockResolvedValue(0);
+    coopIs('QUALIFIED');
+    expect(await syncT000Submission(prisma, { studentId: 10, major: 'CS' })).toBeNull();
+    expect(prisma.studentCoop.update).not.toHaveBeenCalled();
+    expect(prisma.document.count.mock.calls[0][0].where).toEqual({ studentId: 10, type: { notIn: ['T002_FORM', 'T003_FORM', 'CP-ACCEPTANCE'] } });
+  });
+
+  test('ไม่มีหัวข้อบังคับ + มีไฟล์ T000 → ส่งแล้ว', async () => {
+    prisma.documentRequirement.findMany.mockResolvedValue([]);
+    prisma.document.count.mockResolvedValue(1);
+    coopIs('QUALIFIED');
+    expect(await syncT000Submission(prisma, { studentId: 10, major: 'CS' })).toBe('SUBMITTED');
+  });
+
+  test('ล็อกแถว StudentCoop ก่อนอ่านสถานะ', async () => {
+    coopIs('QUALIFIED');
+    docsAre('CP-T000', 'CP-TRANSCRIPT');
+    await syncT000Submission(prisma, { studentId: 10, major: 'CS' });
+    expect(prisma.$queryRaw.mock.invocationCallOrder[0]).toBeLessThan(prisma.studentCoop.findUnique.mock.invocationCallOrder[0]);
   });
 });
