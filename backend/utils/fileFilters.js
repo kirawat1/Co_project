@@ -17,7 +17,8 @@ function pdfOrImageFileFilter(req, file, cb) {
   if (ALLOWED_MIME.has(file.mimetype) && ALLOWED_EXT.has(ext)) {
     cb(null, true);
   } else {
-    cb(new Error('รองรับเฉพาะไฟล์ PDF และรูปภาพ (.pdf, .jpg, .jpeg, .png, .gif, .webp, .bmp) เท่านั้น'), false);
+    // status 400 → middlewares/errorHandler ตอบ 400 (ไม่ใช่ 500)
+    cb(Object.assign(new Error('รองรับเฉพาะไฟล์ PDF และรูปภาพ (.pdf, .jpg, .jpeg, .png, .gif, .webp, .bmp) เท่านั้น'), { status: 400 }), false);
   }
 }
 

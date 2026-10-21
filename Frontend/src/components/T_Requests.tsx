@@ -258,7 +258,7 @@ export default function T_Requests() {
             onClick={handleBulkApprove}
             disabled={pendingList.length === 0 || loading}
             style={{
-              background: pendingList.length > 0 ? '#10b981' : '#e5e7eb',
+              background: pendingList.length > 0 ? '#059669' : '#e5e7eb',
               color: pendingList.length > 0 ? 'white' : '#9ca3af',
               padding: '10px 20px'
             }}

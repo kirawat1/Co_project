@@ -118,7 +118,7 @@ export default function S_DocT008() {
                         </div>
 
                         {config.driveLink && (
-                            <button className="btn btn-primary" style={{ background: '#ca8a04', width: '100%', maxWidth: '300px' }} onClick={() => { const s = safeHref(config.driveLink); if (s) window.open(s, "_blank"); }}>
+                            <button className="btn btn-primary" style={{ background: '#a16207', width: '100%', maxWidth: '300px' }} onClick={() => { const s = safeHref(config.driveLink); if (s) window.open(s, "_blank"); }}>
                                 🔗 ไปยัง Google Drive
                             </button>
                         )}

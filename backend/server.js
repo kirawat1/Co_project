@@ -108,6 +108,7 @@ app.use('/api', supervisionRoutes); //
 // Test route
 // -----------------------------
 app.get("/", (_req, res) => res.send("API Server is running OK"));
+app.use(require('./middlewares/errorHandler')); // ต้องอยู่หลังทุก route
 
 // -----------------------------
 startLogRetentionJob(); // ลบบันทึกการใช้งานที่เกิน 1 ปี

@@ -722,7 +722,7 @@ export default function A_DocT000() {
                         <span style={{ color: '#475569' }}>ติ๊กนักศึกษาบริษัทเดียวกัน (กรองด้วยช่อง "ทุกบริษัท" ด้านบนได้)</span>
                         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                             <button className="btn" style={{ background: '#16a34a', color: 'white', fontSize: 12 }} disabled={batchIds.length < 2} onClick={() => openBatchLetter("REQUEST")}>ออกหนังสือขอความอนุเคราะห์รวม</button>
-                            <button className="btn" style={{ background: '#0ea5e9', color: 'white', fontSize: 12 }} disabled={batchIds.length < 2} onClick={() => openBatchLetter("PLACEMENT")}>ออกหนังสือส่งตัวรวม</button>
+                            <button className="btn" style={{ background: '#0284c7', color: 'white', fontSize: 12 }} disabled={batchIds.length < 2} onClick={() => openBatchLetter("PLACEMENT")}>ออกหนังสือส่งตัวรวม</button>
                         </div>
                     </div>
                 )}
@@ -811,7 +811,7 @@ export default function A_DocT000() {
                                     <td style={td}>
                                         {!isStaff && s.docStatus === 'ACCEPTANCE_CHECKED' && <span style={{ fontSize: 12, color: '#94a3b8' }}>รอเจ้าหน้าที่ออกหนังสือ</span>}
                                         {isStaff && (s.docStatus === 'ACCEPTANCE_CHECKED' || s.docStatus === 'PLACEMENT_LETTER_ISSUED' || AFTER_PLACEMENT_STATUSES.includes(s.docStatus || '')) && (
-                                            <button className="btn" style={{ background: s.coop?.placeLetterPendingAt ? '#d97706' : s.docStatus === 'ACCEPTANCE_CHECKED' ? '#0ea5e9' : '#64748b', color: 'white', fontSize: 12 }} onClick={() => setPlacementModalData(s)}>
+                                            <button className="btn" style={{ background: s.coop?.placeLetterPendingAt ? '#d97706' : s.docStatus === 'ACCEPTANCE_CHECKED' ? '#0284c7' : '#64748b', color: 'white', fontSize: 12 }} onClick={() => setPlacementModalData(s)}>
                                                 {s.coop?.placeLetterPendingAt ? 'อัปโหลดฉบับลงนาม' : s.docStatus === 'ACCEPTANCE_CHECKED' ? 'ออกหนังสือส่งตัว' : 'พิมพ์ซ้ำ'}
                                             </button>
                                         )}
@@ -908,7 +908,7 @@ export default function A_DocT000() {
                                         );
                                     })()}
                                     {checkPhase === 1 && canEditInModal(selectedStudent, 1) && (
-                                        <button onClick={handleApproveAll} style={{ fontSize: 12, background: '#10b981', color: 'white', border: 'none', padding: '6px 12px', borderRadius: 6, cursor: 'pointer', fontWeight: 600, boxShadow: '0 2px 4px rgba(16, 185, 129, 0.2)' }}>
+                                        <button onClick={handleApproveAll} style={{ fontSize: 12, background: '#059669', color: 'white', border: 'none', padding: '6px 12px', borderRadius: 6, cursor: 'pointer', fontWeight: 600, boxShadow: '0 2px 4px rgba(16, 185, 129, 0.2)' }}>
                                             อนุมัติทั้งหมด
                                         </button>
                                     )}

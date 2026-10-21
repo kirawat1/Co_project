@@ -190,4 +190,9 @@ export const MODAL_CSS = `
   .letter-modal-backdrop .letter-modal-card .input, .letter-modal-backdrop .letter-modal-card select, .letter-modal-backdrop .letter-modal-card textarea { background: #f8fafc !important; color: #1e293b !important; border-color: #e2e8f0 !important; }
   .letter-modal-backdrop .letter-modal-card label { color: #374151 !important; }
   .letter-modal-backdrop .letter-modal-card h2, .letter-modal-backdrop .letter-modal-card h3 { color: #0f172a !important; }
+  /* ปุ่มรอง (PDF / Word / เลือกไฟล์) ใช้หน้าตาโหมดสว่าง — ไม่ใช่ปุ่มสีเข้มของธีมมืด (รวม label.btn ที่ธีมมืดทำตัวอักษรขาว) */
+  .letter-modal-backdrop .letter-modal-card .btn-secondary { background: #fff !important; color: #475569 !important; border: 1px solid #cbd5e1 !important; }
+  .letter-modal-backdrop .letter-modal-card .btn-secondary:hover { background: #f1f5f9 !important; }
+  .letter-modal-backdrop .letter-modal-card .btn-outline { background: #fff !important; color: #0074b7 !important; border: 1px solid #0074b7 !important; }
+  .letter-modal-backdrop .letter-modal-card .btn-outline:hover { background: rgba(10,132,255,.08) !important; }
 `;

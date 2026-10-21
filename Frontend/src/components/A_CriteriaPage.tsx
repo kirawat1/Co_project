@@ -182,7 +182,7 @@ export default function A_CriteriaPage() {
             </p>
           </div>
           {!showAddForm && (
-            <button style={btn("#fff", "#0ea5e9")} onClick={() => setShowAddForm(true)}>
+            <button style={btn("#fff", "#0284c7")} onClick={() => setShowAddForm(true)}>
               + เพิ่มหลักสูตร
             </button>
           )}
@@ -346,7 +346,7 @@ export default function A_CriteriaPage() {
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
             {[{ code: "normal", label: "ภาคปกติ" }, { code: "special", label: "ภาคพิเศษ" }].map(({ code, label }) => (
               <div key={code} style={{ background: "var(--card-bg)", border: "1px solid var(--border)", borderRadius: 10, padding: "10px 20px", minWidth: 140 }}>
-                <div style={{ fontSize: 10, fontWeight: 800, color: "#0ea5e9", textTransform: "uppercase", letterSpacing: 1 }}>รูปแบบการศึกษา</div>
+                <div style={{ fontSize: 10, fontWeight: 800, color: "#0284c7", textTransform: "uppercase", letterSpacing: 1 }}>รูปแบบการศึกษา</div>
                 <div style={{ fontSize: 18, fontWeight: 900, color: "var(--text)", marginTop: 2 }}>{label}</div>
                 <div style={{ fontSize: 11, color: "var(--text-sub)", marginTop: 1 }}>รหัส: {code}</div>
               </div>
