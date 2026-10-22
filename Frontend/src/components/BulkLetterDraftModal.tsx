@@ -9,7 +9,7 @@ import { loadLetterAssets } from "../utils/letterAssets";
 import { buildLetterFiles } from "../utils/bulkLetterFiles";
 import { createZip, registerWorkbook, type RegisterRow } from "../utils/bulkLetterZip";
 import {
-    bulkCandidates, blockReason, pendingDraftOf, groupByCompany, numberSequence, duplicateNumbers,
+    bulkCandidates, blockReason, docSuffix, pendingDraftOf, groupByCompany, numberSequence, duplicateNumbers,
     LETTER_FILE_LABEL, type BulkLetterType, type BulkFormat,
 } from "../utils/bulkLetters";
 
@@ -52,6 +52,7 @@ export default function BulkLetterDraftModal({ students, onClose }: { students: 
     const rowError = (n: string): string => {
         const norm = normalizeDocNumber(n);
         if (!norm) return "ยังไม่ได้ใส่เลขที่";
+        if (docSuffix(norm) == null) return "เลขท้ายหลัง / ต้องเป็นตัวเลข";
         if (dupes.has(norm)) return "เลขที่ซ้ำกันในชุดนี้";
         if (conflicts.has(norm)) return "เลขที่ชนกับหนังสือที่ออกแล้ว/รอลงนามอยู่";
         return "";
@@ -117,7 +118,7 @@ export default function BulkLetterDraftModal({ students, onClose }: { students: 
 
             const zip = createZip();
             const register: RegisterRow[] = [];
-            const missingAll = new Set<string>();
+            const missingAll: string[] = [];
             for (let i = 0; i < plan.length; i++) {
                 const { group, docNumber } = plan[i];
                 setPhase("กำลังสร้างไฟล์");
@@ -129,7 +130,7 @@ export default function BulkLetterDraftModal({ students, onClose }: { students: 
                     zip.add(f.name, new Uint8Array(await f.blob.arrayBuffer()));
                     names.push(f.name);
                 }
-                out.missingAttachments.forEach(m => missingAll.add(m));
+                out.missingAttachments.forEach(m => missingAll.push(`${docNumber} (${group.companyName}): ${m}`));
                 register.push({
                     docNumber, docDate, letter,
                     recipient: recipientText(letterRecipient(group.students[0].coop)) || "",
@@ -145,13 +146,13 @@ export default function BulkLetterDraftModal({ students, onClose }: { students: 
 
             const a = document.createElement("a");
             a.href = URL.createObjectURL(blob);
-            a.download = `ร่าง${LETTER_FILE_LABEL[letter].replace(/^หนังสือ/, "")}-${docDate}.zip`;
+            a.download = `ร่าง${LETTER_FILE_LABEL[letter]}-${docDate}.zip`;
             document.body.appendChild(a);
             a.click();
             a.remove();
             setTimeout(() => URL.revokeObjectURL(a.href), 60_000);
 
-            setSummary({ count: plan.length, missing: [...missingAll] });
+            setSummary({ count: plan.length, missing: missingAll });
             notify.success(`✅ สร้างร่างหนังสือ ${plan.length} ฉบับแล้ว`);
         } catch (err: any) {
             console.error(err);
@@ -299,7 +300,7 @@ export default function BulkLetterDraftModal({ students, onClose }: { students: 
                             {summary.missing.length > 0 && (
                                 <details style={{ marginTop: 6, color: "#92400e" }}>
                                     <summary style={{ cursor: "pointer" }}>ไฟล์แนบที่ไม่พบบนเซิร์ฟเวอร์ ({summary.missing.length} ไฟล์) — ไม่ได้ใส่ในเอกสารแนบ</summary>
-                                    <ul style={{ margin: "4px 0 0", paddingLeft: 20 }}>{summary.missing.map(m => <li key={m} style={{ overflowWrap: "anywhere" }}>{m}</li>)}</ul>
+                                    <ul style={{ margin: "4px 0 0", paddingLeft: 20 }}>{summary.missing.map((m, i) => <li key={m + i} style={{ overflowWrap: "anywhere" }}>{m}</li>)}</ul>
                                 </details>
                             )}
                         </div>
