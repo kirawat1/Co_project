@@ -105,6 +105,17 @@ describe('auditLogger — บันทึกหลังจบ request', () => {
     });
   });
 
+  test('targetId ยาวเกิน 50 ตัว (ชุดหลายคน) → ตัดให้พอดีคอลัมน์ ไม่ให้ insert ล้ม', async () => {
+    const ids = Array.from({ length: 30 }, (_, i) => 100 + i).join(',');
+    const res = makeRes(200);
+    res.locals = { audit: { action: 'ทดสอบ', targetType: 'นักศึกษา', targetId: ids, targetName: 'x' } };
+    auditLogger(makeReq({ user: { id: 3, role: 'staff' } }), res, () => {});
+    await res.finish();
+    const data = prisma.auditLog.create.mock.calls[0][0].data;
+    expect(ids.length).toBeGreaterThan(50);
+    expect(data.targetId).toBe(ids.slice(0, 50));
+  });
+
   test('คำสั่งที่ล้มเหลว → ต่อท้ายว่า (ไม่สำเร็จ) และเก็บ status', async () => {
     const req = makeReq({ user: { id: 3, role: 'staff' } });
     const res = makeRes(409);

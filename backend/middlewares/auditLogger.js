@@ -193,7 +193,7 @@ async function writeLog(req, res) {
       method: req.method.slice(0, 10),
       path: path.slice(0, 300),
       targetType,
-      targetId,
+      targetId: targetId != null ? String(targetId).slice(0, 50) : null, // AuditLog.targetId = VarChar(50) — ชุดหลายคนยาวเกินได้
       targetName: targetName ? String(targetName).slice(0, 200) : null,
       statusCode: res.statusCode,
       ip: clientIp(req),

@@ -5,7 +5,7 @@
 ### Added
 - `PUT /api/admin/t000/letter-pending-bulk` (เจ้าหน้าที่เท่านั้น) body `{ letter: REQUEST|PLACEMENT, docDate, letters: [{ studentIds, docNumber }] }` (1–200 ฉบับ) — จองเลขที่ + ติดป้าย "รอลงนาม" ทุกฉบับในทรานแซกชันเดียว
 - ล็อกเลขเรียงลำดับ (ไม่ deadlock) · ล้างร่างเดิมของคนในชุดก่อนตรวจเลขซ้ำ · เลขชนคนนอกชุด = 409 พร้อม `conflicts[]` (เลขที่ไม่มี "ที่ อว") ไม่ติดป้ายสักฉบับ · เลขซ้ำกันเองในชุด = 409 · ยังไม่ถึงขั้น / ต่างบริษัท / คนเดียวอยู่สองฉบับ = 400 · ไม่พบ/ถูกลบ = 404
-- บันทึกประวัติ: `letterPendingBulkActionText` + แถว RULES ใหม่
+- บันทึกประวัติ: `letterPendingBulkActionText` + แถว RULES ใหม่ · `writeLog` ตัด `targetId` ไว้ 50 ตัว (คอลัมน์ VarChar(50)) — ชุดหลายคน/หนังสือรวมเดิมอาจ insert ล้มแล้ว log หาย
 
 ### Tests
 - `__tests__/letterPendingBulk.test.js` 11 เคส · `admin.permissions` เพิ่มเส้นทางใหม่เป็นเจ้าหน้าที่เท่านั้น
