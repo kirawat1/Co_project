@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useState } from "react";
-import { IcUser, IcEdit, IcSave } from "./icons";
+import { useEffect, useRef, useState } from "react";
+import { IcUser, IcEdit } from "./icons";
 import { apiFetch } from "../utils/apiFetch";
 import { notify } from "../utils/notify";
 import Modal from "./Modal";

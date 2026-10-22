@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useMemo } from "react";
+﻿import { useState, useEffect, useMemo } from "react";
 import type { CSSProperties } from "react";
 import { apiFetch } from "../utils/apiFetch";
 import { defaultPeriodId } from "../utils/defaultPeriod";

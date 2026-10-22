@@ -158,7 +158,6 @@ function normalizeStudent(p: StudentProfile): StudentProfile {
             { email: "", primary: true },
             { email: "", primary: false },
           ],
-    docs: p.docs ?? [],
   };
 }
 

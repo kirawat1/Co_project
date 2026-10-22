@@ -119,7 +119,6 @@ export const createParentalConsentPDF = async (
   const leftX = 20;
   const rightX = 190;
   const contentWidth = 170;
-  const centerX = 105;
   let y = 15;
 
   // 1. Top Right Code

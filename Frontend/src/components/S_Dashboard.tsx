@@ -79,7 +79,6 @@ export default function S_Dashboard() {
   const [supervisions, setSupervisions] = useState<SupervisionAppt | null>(null);
   const [configs, setConfigs] = useState<Record<string, SystemConfig>>({});
   const [studentStatus, setStudentStatus] = useState<string>("NOT_SUBMITTED");
-  const [studentMajor, setStudentMajor] = useState<string>("");
   const [lastComment, setLastComment] = useState<string>("");
   const [statusExpanded, setStatusExpanded] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -91,13 +90,11 @@ export default function S_Dashboard() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      // 1. Profile first (to get major for announcement filtering)
+      // 1. Profile — สถานะสหกิจ + ความเห็นล่าสุด (ประกาศกรองหลักสูตรที่ server)
       const profileRes = await apiFetch("/api/students/me");
       const profileData = await profileRes.json();
-      const major = profileData?.major || "";
       setStudentStatus(profileData?.coop?.status || "NOT_SUBMITTED");
       setLastComment(profileData?.coop?.teacherCheckComment || profileData?.coop?.t000Comment || "");
-      setStudentMajor(major);
 
       // 1.1 รอบสหกิจ — รอบที่เปิดรับตอนนี้ และรอบที่นักศึกษาสังกัด (ถ้ายื่นแล้ว)
       try {
