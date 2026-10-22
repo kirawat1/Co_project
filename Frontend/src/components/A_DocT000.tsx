@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
+﻿import React, { useState, useEffect, useMemo, useRef, useCallback, lazy, Suspense } from "react";
 import { apiFetch } from "../utils/apiFetch";
 import { fmtDate } from '../utils/dateFormat';
 import IssueLetterModal from "./IssueLetterModal";
@@ -15,6 +15,8 @@ import { appliesTo } from "../utils/docRequirementScope";
 import RoundDeadlineNote, { DeadlineFlagBadge, type DeadlineFlags } from "./RoundDeadlineNote";
 import DeadlineExtensionButton from "./DeadlineExtensionButton";
 import type { StepKey } from "../utils/deadlines";
+// โหลดเมื่อเปิดหน้าต่าง — ลากไลบรารี xlsx มาด้วย ไม่ให้ก้อนหน้านี้โตขึ้น
+const BulkLetterDraftModal = lazy(() => import("./BulkLetterDraftModal"));
 import LetterZipModal, { LetterZipButton, toolbarBtn } from "./LetterZipModal";
 import { defaultPeriodId, pendingOutside, periodCountLabel, type PeriodCount } from "../utils/defaultPeriod";
 
@@ -173,6 +175,7 @@ export default function A_DocT000() {
     // State ปีการศึกษา
     const [coopPeriods, setCoopPeriods] = useState<any[]>([]);
     const [selectedPeriod, setSelectedPeriod] = useState<string>(""); // "" = ยังไม่โหลดรอบ → ตั้งเป็นรอบที่เปิดอยู่ (utils/defaultPeriod) ครั้งแรกครั้งเดียว ไม่ทับรอบที่ผู้ใช้เลือกตอนรีเฟรช
+    const [bulkDraftOpen, setBulkDraftOpen] = useState(false); // หน้าต่างออกร่างหนังสือหลายคน
     const [zipOpen, setZipOpen] = useState(false); // หน้าต่างดาวน์โหลดหนังสือ (zip)
 
     const [issueModalData, setIssueModalData] = useState<StudentProfile | null>(null);
@@ -687,6 +690,12 @@ export default function A_DocT000() {
                                 {batchMode ? "ปิดโหมดหนังสือรวม" : "ออกหนังสือรวมหลายคน"}
                             </button>
                         )}
+                        {isStaff && (
+                            <button type="button" onClick={() => setBulkDraftOpen(true)} style={toolbarBtn}
+                                title="ออกร่างหนังสือของหลายคนพร้อมกัน ได้ zip + รายการเลขหนังสือ">
+                                ออกร่างหนังสือหลายคน
+                            </button>
+                        )}
                         <LetterZipButton onClick={() => setZipOpen(true)} />
                     </div>
                 </div>
@@ -834,6 +843,11 @@ export default function A_DocT000() {
                 <IssueLetterModal student={issueModalData} batchMates={batchMatesOf(issueModalData, "REQUEST")} onOpenBatch={() => reopenBatch("REQUEST", batchMatesOf(issueModalData, "REQUEST") || [])} onClose={() => { setIssueModalData(null); refreshStudents(); }} onSuccess={() => { setIssueModalData(null); fetchAllData(); }} />
             )}
 
+            {bulkDraftOpen && (
+                <Suspense fallback={null}>
+                    <BulkLetterDraftModal students={students} onClose={() => { setBulkDraftOpen(false); refreshStudents(); }} />
+                </Suspense>
+            )}
             {zipOpen && (
                 <LetterZipModal types={["REQ", "PLACE"]} periods={coopPeriods} defaultPeriodId={selectedPeriod} onClose={() => setZipOpen(false)} />
             )}
