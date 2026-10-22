@@ -152,7 +152,7 @@ export default function BulkSignedUploadModal({ students, onClose }: { students:
     ));
 
     return (
-        <div className="letter-modal-backdrop" style={{ zIndex: 10000 }}>
+        <div className="letter-modal-backdrop" style={{ zIndex: 10000 }} onDragOver={e => e.preventDefault()} onDrop={e => e.preventDefault()}>
             <div className="letter-modal-card" style={{ width: "95%", maxWidth: 900, maxHeight: "92vh", overflow: "hidden" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginBottom: 12 }}>
                     <h2 style={{ margin: 0, fontSize: 18 }}>อัปโหลดฉบับลงนามหลายฉบับ</h2>

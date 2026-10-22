@@ -1,4 +1,4 @@
-import { createDispatchPDF, createDispatchAttachmentsPDF } from "./pdfDispatchGenerator";
+import { createDispatchPDF, createDispatchAttachmentsPDF, type AttachmentReport } from "./pdfDispatchGenerator";
 import { createPlacementPDF } from "./pdfGeneratorPlacement";
 import { createWordBlob, buildDispatchLetterHtml, buildPlacementLetterHtml, thaiPrefix, letterMajorName } from "./docGeneratorUtils";
 import { letterRecipient, recipientText } from "./letterRecipient";
@@ -33,8 +33,9 @@ export async function buildLetterFiles(opts: {
     const attach = await existingAttachmentFiles(students);
     if (format === "pdf") {
       const profile = { ...student, coop: { ...student.coop, actualStartDate: startDate, actualEndDate: endDate } };
-      const blob = await createDispatchPDF(profile, docNumber, docDate, needKrut(), projectUrl || "", acceptUrl || "", attach.files, deanName, deanPosition, group);
-      return { files: [{ name: names[0], blob }], missingAttachments: attach.missing };
+      const report: AttachmentReport = { skipped: [], pages: 0 };
+      const blob = await createDispatchPDF(profile, docNumber, docDate, needKrut(), projectUrl || "", acceptUrl || "", attach.files, deanName, deanPosition, group, report);
+      return { files: [{ name: names[0], blob }], missingAttachments: [...attach.missing, ...report.skipped] };
     }
     const html = buildDispatchLetterHtml({
       docNumber, docDate, studentName,
@@ -47,8 +48,13 @@ export async function buildLetterFiles(opts: {
       startDate, endDate, deanName, deanPosition,
       students: group,
     });
-    const attachments = await createDispatchAttachmentsPDF(projectUrl || "", acceptUrl || "", attach.files);
-    return { files: [{ name: names[0], blob: createWordBlob(html) }, { name: names[1], blob: attachments }], missingAttachments: attach.missing };
+    const report: AttachmentReport = { skipped: [], pages: 0 };
+    const attachments = await createDispatchAttachmentsPDF(projectUrl || "", acceptUrl || "", attach.files, report);
+    const missingAttachments = [...attach.missing, ...report.skipped];
+    const wordFile = { name: names[0], blob: createWordBlob(html) };
+    // ไม่มีหน้าเอกสารแนบเลย → ไม่ใส่ไฟล์ PDF ว่าง (0 หน้า) ลงใน zip
+    if (report.pages === 0) return { files: [wordFile], missingAttachments: [...missingAttachments, "ไม่มีเอกสารแนบที่รวมได้เลย (ไม่ได้สร้างไฟล์ -เอกสารแนบ.pdf)"] };
+    return { files: [wordFile, { name: names[1], blob: attachments }], missingAttachments };
   }
 
   if (format === "pdf") {

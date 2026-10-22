@@ -693,13 +693,13 @@ export default function A_DocT000() {
                             </button>
                         )}
                         {isStaff && (
-                            <button type="button" onClick={() => setBulkDraftOpen(true)} style={toolbarBtn}
+                            <button type="button" onClick={() => { refreshStudents(); setBulkDraftOpen(true); }} style={toolbarBtn}
                                 title="ออกร่างหนังสือของหลายคนพร้อมกัน ได้ zip + รายการเลขหนังสือ">
                                 ออกร่างหนังสือหลายคน
                             </button>
                         )}
                         {isStaff && (
-                            <button type="button" onClick={() => setBulkSignedOpen(true)} style={toolbarBtn}
+                            <button type="button" onClick={() => { refreshStudents(); setBulkSignedOpen(true); }} style={toolbarBtn}
                                 title="อัปโหลดหนังสือที่ลงนามแล้วหลายฉบับพร้อมกัน จับคู่จากเลขหน้าชื่อไฟล์">
                                 อัปโหลดฉบับลงนามหลายฉบับ
                             </button>

@@ -31,7 +31,7 @@ export default function BulkLetterDraftModal({ students, onClose }: { students: 
     const [start, setStart] = useState("660301.26.6.2/");
     const [docDate, setDocDate] = useState(new Date().toISOString().split("T")[0]);
     const [overrides, setOverrides] = useState<Record<string, string>>({});
-    const [conflicts, setConflicts] = useState<Set<string>>(new Set());
+    const [conflicts, setConflicts] = useState<Map<string, string>>(new Map()); // เลขที่ชน → ข้อความจากเซิร์ฟเวอร์ (ใครถือเลขนี้)
     const [conflictMsg, setConflictMsg] = useState("");
     const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
     const [phase, setPhase] = useState("");
@@ -54,7 +54,7 @@ export default function BulkLetterDraftModal({ students, onClose }: { students: 
         if (!norm) return "ยังไม่ได้ใส่เลขที่";
         if (docSuffix(norm) == null) return "เลขท้ายหลัง / ต้องเป็นตัวเลข";
         if (dupes.has(norm)) return "เลขที่ซ้ำกันในชุดนี้";
-        if (conflicts.has(norm)) return "เลขที่ชนกับหนังสือที่ออกแล้ว/รอลงนามอยู่";
+        if (conflicts.has(norm)) return conflicts.get(norm) || "เลขที่ชนกับหนังสือที่ออกแล้ว/รอลงนามอยู่";
         return "";
     };
     const anyRowError = numbers.some(n => rowError(n));
@@ -65,9 +65,9 @@ export default function BulkLetterDraftModal({ students, onClose }: { students: 
 
     const changeLetter = (l: BulkLetterType) => {
         setLetter(l); setTouched({}); setSplitIds(new Set()); setOverrides({});
-        setConflicts(new Set()); setConflictMsg(""); setRetryMsg(""); setErrorMsg(""); setSummary(null);
+        setConflicts(new Map()); setConflictMsg(""); setRetryMsg(""); setErrorMsg(""); setSummary(null);
     };
-    const changeStart = (v: string) => { setStart(v); setOverrides({}); setConflicts(new Set()); setConflictMsg(""); };
+    const changeStart = (v: string) => { setStart(v); setOverrides({}); setConflicts(new Map()); setConflictMsg(""); };
     const toggleSplit = (id: number, split: boolean) => setSplitIds(prev => {
         const next = new Set(prev);
         if (split) next.add(id); else next.delete(id);
@@ -93,6 +93,11 @@ export default function BulkLetterDraftModal({ students, onClose }: { students: 
                 setErrorMsg("ไม่พบไฟล์ตราครุฑ (KRUT) กรุณาอัปโหลดในหน้าตั้งค่า");
                 return;
             }
+            if (letter === "REQUEST" && (!assets.projectUrl || !assets.acceptUrl)) { // เอกสารแนบขาดไฟล์ระบบ — หยุดก่อนจองเลข (ทั้ง Word และ PDF)
+                const lost = [!assets.projectUrl && "ไฟล์รายละเอียดโครงการ (PROJECT_DETAILS)", !assets.acceptUrl && "แบบฟอร์มตอบรับ (ACCEPTANCE_FORM)"].filter(Boolean).join(" และ ");
+                setErrorMsg(`ไม่พบ${lost} กรุณาอัปโหลดในหน้าตั้งค่าก่อน — ยังไม่ได้จองเลขหรือติดป้ายรอลงนามให้ใคร`);
+                return;
+            }
 
             setPhase("กำลังจองเลขและติดป้ายรอลงนาม...");
             const res = await apiFetch("/api/admin/t000/letter-pending-bulk", {
@@ -106,7 +111,7 @@ export default function BulkLetterDraftModal({ students, onClose }: { students: 
             const data = await res.json().catch(() => ({}));
             if (res.status === 409) {
                 const list: { docNumber: string; message?: string }[] = Array.isArray(data.conflicts) ? data.conflicts : [];
-                setConflicts(new Set(list.map(c => normalizeDocNumber(c.docNumber))));
+                setConflicts(new Map(list.map(c => [normalizeDocNumber(c.docNumber), c.message || "เลขที่ชนกับหนังสือที่ออกแล้ว/รอลงนามอยู่"] as [string, string])));
                 setConflictMsg(`${data.message || "เลขที่ชนกัน"} — ยังไม่ได้ติดป้ายรอลงนามให้ใครเลย แก้เลขในแถวสีแดงแล้วกดโหลดใหม่`);
                 return;
             }
@@ -255,7 +260,11 @@ export default function BulkLetterDraftModal({ students, onClose }: { students: 
                                                 <span style={{ fontSize: 12, fontWeight: 700, color: "#64748b" }}>ฉบับที่ {i + 1}</span>
                                                 <input className="input" style={{ flex: "1 1 200px", width: "auto", minWidth: 0, borderColor: err ? "#ef4444" : undefined }}
                                                     value={numbers[i]} disabled={busy} placeholder="เลขที่หนังสือ"
-                                                    onChange={e => { setOverrides(o => ({ ...o, [g.key]: e.target.value })); }} />
+                                                    onChange={e => {
+                                                        const old = normalizeDocNumber(numbers[i]);
+                                                        setOverrides(o => ({ ...o, [g.key]: e.target.value }));
+                                                        if (conflicts.has(old)) setConflicts(c => { const n = new Map(c); n.delete(old); return n; });
+                                                    }} />
                                             </div>
                                             {err && <div style={{ color: "#b91c1c", fontSize: 12, marginTop: 4 }}>{err}</div>}
                                             <div style={{ fontSize: 13, fontWeight: 700, marginTop: 6, overflowWrap: "anywhere" }}>{g.companyName || "ไม่มีชื่อบริษัท"}</div>
@@ -299,7 +308,7 @@ export default function BulkLetterDraftModal({ students, onClose }: { students: 
                             <div>สร้างร่างหนังสือ {summary.count} ฉบับ และดาวน์โหลด zip แล้ว — นักศึกษาทุกคนในชุดถูกติดป้าย "รอลงนาม" แล้ว</div>
                             {summary.missing.length > 0 && (
                                 <details style={{ marginTop: 6, color: "#92400e" }}>
-                                    <summary style={{ cursor: "pointer" }}>ไฟล์แนบที่ไม่พบบนเซิร์ฟเวอร์ ({summary.missing.length} ไฟล์) — ไม่ได้ใส่ในเอกสารแนบ</summary>
+                                    <summary style={{ cursor: "pointer" }}>ไฟล์แนบที่ไม่พบหรือรวมไม่ได้ ({summary.missing.length} รายการ) — ไม่ได้ใส่ในเอกสารแนบ</summary>
                                     <ul style={{ margin: "4px 0 0", paddingLeft: 20 }}>{summary.missing.map((m, i) => <li key={m + i} style={{ overflowWrap: "anywhere" }}>{m}</li>)}</ul>
                                 </details>
                             )}

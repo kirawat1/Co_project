@@ -5,7 +5,7 @@ const prisma = require('./__mocks__/prismaClient');
 const { markLetterPendingBulk } = require('../controllers/adminDocController');
 
 const makeRes = () => ({ status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis(), locals: {} });
-const row = (id, status = 'DOCS_APPROVED', companyId = 'c1') => ({ studentId: id, status, companyId, student: { deletedAt: null, studentId: `65000000${id}`, firstName: 'ชื่อ', lastName: `${id}` } });
+const row = (id, status = 'DOCS_APPROVED', companyId = 'c1', extra = {}) => ({ studentId: id, status, companyId, reqLetterUrl: null, placeLetterUrl: null, ...extra, student: { deletedAt: null, studentId: `65000000${id}`, firstName: 'ชื่อ', lastName: `${id}` } });
 const req = (over = {}) => ({ user: { id: 1, role: 'staff' }, body: { letter: 'REQUEST', docDate: '2026-10-22',
   letters: [{ studentIds: [1, 2], docNumber: 'ที่ อว 660301.26.6.2/811' }, { studentIds: [3], docNumber: '660301.26.6.2/812' }], ...over } });
 const pendingSets = () => prisma.studentCoop.updateMany.mock.calls.map((c) => c[0]).filter((a) => a.data.reqLetterPendingAt instanceof Date);
@@ -125,5 +125,50 @@ describe('markLetterPendingBulk', () => {
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: true, count: 1 }));
     const set = prisma.studentCoop.updateMany.mock.calls.map((c) => c[0]).find((a) => a.data.placeLetterPendingAt instanceof Date);
     expect(set.data.placeLetterDraftNumber).toBe('660301.26.6.2/900');
+  });
+
+  test('I1: ออกหนังสือแล้ว (reqLetterUrl มีค่า) → 400 บอกรหัส ไม่ติดป้าย', async () => {
+    prisma.studentCoop.findMany.mockResolvedValue([row(1), row(2, 'DOCS_APPROVED', 'c1', { reqLetterUrl: 'x.pdf' }), row(3)]);
+    const res = makeRes();
+    await markLetterPendingBulk(req(), res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json.mock.calls[0][0].message).toContain('650000002');
+    expect(pendingSets()).toHaveLength(0);
+  });
+
+  test('I1: เลยขั้น (REQ_LETTER_ISSUED) → 400 ไม่ติดป้าย', async () => {
+    prisma.studentCoop.findMany.mockResolvedValue([row(1), row(2), row(3, 'REQ_LETTER_ISSUED')]);
+    const res = makeRes();
+    await markLetterPendingBulk(req(), res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json.mock.calls[0][0].message).toContain('650000003');
+    expect(pendingSets()).toHaveLength(0);
+  });
+
+  test('409 ชนสองเลข → รายงานทั้งสองใน conflicts', async () => {
+    prisma.studentCoop.findFirst.mockImplementation(async (a) => ({ reqDocNumber: a.where.OR[0].reqDocNumber, student: { studentId: '650000009', firstName: 'ก', lastName: 'ข' } }));
+    const res = makeRes();
+    await markLetterPendingBulk(req(), res);
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(res.json.mock.calls[0][0].conflicts.map((c) => c.docNumber)).toEqual(['660301.26.6.2/811', '660301.26.6.2/812']);
+  });
+
+  test('M4: deadlock P2034 → 409 ข้อความลองใหม่ ไม่มี conflicts', async () => {
+    prisma.$transaction.mockRejectedValue({ code: 'P2034' });
+    const res = makeRes();
+    await markLetterPendingBulk(req(), res);
+    expect(res.status).toHaveBeenCalledWith(409);
+    const body = res.json.mock.calls[0][0];
+    expect(body.message).toBe('มีการออกเลขหนังสือพร้อมกัน — ลองกดโหลดอีกครั้ง');
+    expect(body.conflicts).toBeUndefined();
+  });
+
+  test('docDate เป็น null / ว่าง → 400', async () => {
+    for (const docDate of [null, '']) {
+      const res = makeRes();
+      await markLetterPendingBulk(req({ docDate }), res);
+      expect(res.status).toHaveBeenCalledWith(400);
+    }
+    expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 });

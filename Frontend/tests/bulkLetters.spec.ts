@@ -154,3 +154,13 @@ test("registerWorkbook: หัวตาราง 7 คอลัมน์", () =>
   expect(rows[0]).toEqual(["เลขที่", "วันที่", "ประเภท", "เรียน", "บริษัท", "นักศึกษา", "ชื่อไฟล์"]);
   expect(rows[1]).toEqual(["ที่ อว 660301.26.6.2/811", "22 ตุลาคม 2569", "หนังสือขอความอนุเคราะห์", "ผู้จัดการ", "บริษัท ก", "นายก; นายข", "a.doc; b.pdf"]);
 });
+
+test("createZip: finish() เรียกซ้ำได้ คืนผลเดิม", async () => {
+  const z = createZip();
+  z.add("a.bin", new Uint8Array([9, 8, 7]));
+  const p1 = z.finish();
+  const p2 = z.finish();
+  expect(p2).toBe(p1);
+  const out = unzipSync(new Uint8Array(await (await p1).arrayBuffer()));
+  expect([...out["a.bin"]]).toEqual([9, 8, 7]);
+});
