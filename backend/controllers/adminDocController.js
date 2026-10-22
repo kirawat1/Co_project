@@ -6,7 +6,7 @@ const { normalizeDocNumber, isPlaceholderDocNo, parseDateOr400 } = require('../u
 const { resolveMajorNameTh } = require('../utils/majorName');
 const { readEffective, callerMajor } = require('../utils/majorConfig');
 const { getMajorScope, studentWhere, visibleStudentWhere, inScope, assertStudentInScope } = require('../utils/majorScope');
-const { setAuditDetail, reviewActionText, letterPendingActionText } = require('../utils/auditActions');
+const { setAuditDetail, reviewActionText, letterPendingActionText, letterPendingBulkActionText } = require('../utils/auditActions');
 const { studentPeriodWhere, coopPeriodWhere, countByPeriod } = require('../utils/periodFilter');
 const path = require('path');
 const fs = require('fs');
@@ -786,6 +786,111 @@ exports.markLetterPending = async (req, res) => {
     if (err.is409) return res.status(409).json({ ok: false, message: err.message });
     if (err.is400) return res.status(400).json({ ok: false, message: err.message });
     console.error('Mark Letter Pending Error:', err);
+    res.status(500).json({ ok: false, message: 'บันทึกสถานะรอลงนามไม่สำเร็จ' });
+  }
+};
+
+// ติดป้าย "รอลงนาม" หลายฉบับในทรานแซกชันเดียว (หน้า T000 โหลดร่างหลายฉบับพร้อมกัน) — ทั้งชุดหรือไม่เลย
+// PUT /api/admin/t000/letter-pending-bulk { letter: REQUEST|PLACEMENT, docDate, letters: [{ studentIds, docNumber }] }
+const BULK_PENDING_MAX = 200;
+exports.markLetterPendingBulk = async (req, res) => {
+  try {
+    const key = LETTER_KEY_BY_TYPE[req.body?.letter];
+    if (!key) return res.status(400).json({ ok: false, message: 'letter ต้องเป็น REQUEST หรือ PLACEMENT' });
+    const raw = req.body.letters;
+    if (!Array.isArray(raw) || raw.length < 1 || raw.length > BULK_PENDING_MAX) {
+      return res.status(400).json({ ok: false, message: `letters ต้องมี 1–${BULK_PENDING_MAX} ฉบับ` });
+    }
+    const L = LETTERS[key];
+    const date = parseDateOr400(req.body.docDate, 'วันที่ของร่างหนังสือ');
+
+    const letters = [];
+    const seenStudents = new Set();
+    const seenNumbers = new Set();
+    const dupNumbers = [];
+    for (const item of raw) {
+      const ids = parseIdList(item?.studentIds);
+      if (!ids.length) return res.status(400).json({ ok: false, message: 'ทุกฉบับต้องมีนักศึกษาอย่างน้อย 1 คน' });
+      const docNo = normalizeDocNumber(item.docNumber);
+      if (!docNo || isPlaceholderDocNo(docNo)) {
+        return res.status(400).json({ ok: false, message: `${L.label}ยังไม่ได้กรอก (${item?.docNumber || 'ว่าง'}) กรุณาระบุเลขที่จริง เช่น 660301.26.6.2/1234` });
+      }
+      const twice = ids.filter((id) => seenStudents.has(id));
+      if (twice.length) return res.status(400).json({ ok: false, message: `นักศึกษา id ${twice.join(', ')} อยู่ในหนังสือมากกว่าหนึ่งฉบับ` });
+      ids.forEach((id) => seenStudents.add(id));
+      if (seenNumbers.has(docNo)) dupNumbers.push(docNo); else seenNumbers.add(docNo);
+      letters.push({ ids, docNo });
+    }
+    if (dupNumbers.length) {
+      return res.status(409).json({
+        ok: false,
+        message: 'มีเลขที่หนังสือซ้ำกันในชุดนี้',
+        conflicts: [...new Set(dupNumbers)].map((docNumber) => ({ docNumber, message: `เลขที่ ${docNumber} ซ้ำกันในชุดนี้` })),
+      });
+    }
+
+    const allIds = letters.flatMap((l) => l.ids);
+    const now = new Date();
+    await prisma.$transaction(async (tx) => {
+      // ล็อกเลขเรียงลำดับ — สองคนออกชุดซ้อนกันได้ล็อกลำดับเดียวกัน ไม่ deadlock
+      const sorted = letters.map((l) => l.docNo).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+      for (const n of sorted) await lockDocNumber(tx, key, n);
+
+      const coops = await tx.studentCoop.findMany({
+        where: { studentId: { in: allIds } },
+        select: { studentId: true, status: true, companyId: true, student: { select: { deletedAt: true, studentId: true, firstName: true, lastName: true } } },
+      });
+      if (coops.length !== allIds.length || coops.some((c) => !c.student || c.student.deletedAt)) {
+        throw Object.assign(new Error('ไม่พบนักศึกษาบางคน'), { is404: true });
+      }
+      const minRank = COOP_STATUS_ORDER.indexOf(L.minStatus);
+      const early = coops.filter((c) => COOP_STATUS_ORDER.indexOf(c.status) < minRank);
+      if (early.length) {
+        throw Object.assign(new Error(`นักศึกษายังไม่ถึงขั้นออกหนังสือนี้: ${early.map((c) => c.student.studentId).join(', ')}`), { is400: true });
+      }
+      // หนังสือรวม (≥ 2 คน) ต้องบริษัทเดียวกัน — ไม่งั้นอัปโหลดฉบับลงนามจะล้มทีหลัง
+      const byId = new Map(coops.map((c) => [c.studentId, c]));
+      for (const l of letters) {
+        if (l.ids.length < 2) continue;
+        const cid = byId.get(l.ids[0]).companyId;
+        if (!cid || l.ids.some((id) => byId.get(id).companyId !== cid)) {
+          throw Object.assign(new Error(`หนังสือรวมต้องเป็นนักศึกษาบริษัทเดียวกัน (เลขที่ ${l.docNo})`), { is400: true });
+        }
+      }
+
+      // ล้างร่างเดิมของคนในชุดก่อนตรวจเลข — ออกร่างใหม่ซ้ำเลขเดิมได้
+      await tx.studentCoop.updateMany({ where: { studentId: { in: allIds } }, data: clearedLetterPending(key) });
+
+      const conflicts = [];
+      for (const l of letters) {
+        try {
+          await assertDocNumberFree(tx, key, l.docNo, l.ids);
+        } catch (e) {
+          if (!e.is409) throw e;
+          conflicts.push({ docNumber: l.docNo, message: e.message });
+        }
+      }
+      if (conflicts.length) throw Object.assign(new Error('มีเลขที่หนังสือชนกับฉบับอื่น'), { is409: true, conflicts });
+
+      for (const l of letters) {
+        await tx.studentCoop.updateMany({
+          where: { studentId: { in: l.ids } },
+          data: { [`${key}PendingAt`]: now, [`${key}DraftNumber`]: l.docNo, [`${key}DraftDate`]: date },
+        });
+      }
+    }, DOC_NUMBER_TX);
+
+    setAuditDetail(res, {
+      action: letterPendingBulkActionText({ letter: req.body.letter, docNumbers: letters.map((l) => l.docNo) }),
+      targetType: 'นักศึกษา',
+      targetId: allIds.join(','),
+    });
+    res.json({ ok: true, count: letters.length, pendingAt: now });
+  } catch (err) {
+    if (err.is404) return res.status(404).json({ ok: false, message: err.message });
+    if (err.is409) return res.status(409).json({ ok: false, message: err.message, ...(err.conflicts ? { conflicts: err.conflicts } : {}) });
+    if (err.is400) return res.status(400).json({ ok: false, message: err.message });
+    console.error('Mark Letter Pending Bulk Error:', err);
     res.status(500).json({ ok: false, message: 'บันทึกสถานะรอลงนามไม่สำเร็จ' });
   }
 };

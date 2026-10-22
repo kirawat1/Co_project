@@ -52,6 +52,7 @@ router.put('/t000/review', verifyToken, verifyCoopTeacherOrStaff, upload.single(
 router.post('/t000/acceptance-received', verifyToken, verifyCoopTeacherOrStaff, upload.single('file'), studentInScope((r) => r.body?.studentId), adminDocController.markAcceptanceReceived);
 router.post('/t000/acceptance-replace', verifyToken, verifyCoopTeacherOrStaff, upload.single('file'), studentInScope((r) => r.body?.studentId), adminDocController.replaceAcceptanceFile);
 router.put('/t000/letter-pending', verifyToken, verifyRole(...STAFF_ONLY), adminDocController.markLetterPending);
+router.put('/t000/letter-pending-bulk', verifyToken, verifyRole(...STAFF_ONLY), adminDocController.markLetterPendingBulk);
 // หนังสือรวมหลายคน (บริษัทเดียวกัน) — ขอความอนุเคราะห์ / ส่งตัว · ออกหนังสือ = เจ้าหน้าที่เท่านั้น
 router.put('/t000/letter-batch', verifyToken, verifyRole(...STAFF_ONLY), upload.single('file'), adminDocController.issueLetterBatch);
 

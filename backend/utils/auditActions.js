@@ -62,6 +62,7 @@ const RULES = [
   ['POST', '/api/admin/t000/acceptance-received', 'บันทึกรับใบตอบรับจากบริษัท', 'นักศึกษา', 'studentId'],
   ['POST', '/api/admin/t000/acceptance-replace', 'เปลี่ยนไฟล์ใบตอบรับแทนนักศึกษา', 'นักศึกษา', 'studentId'],
   ['PUT', '/api/admin/t000/letter-pending', 'โหลดร่างหนังสือ (รอลงนาม)', 'นักศึกษา', 'studentId'],
+  ['PUT', '/api/admin/t000/letter-pending-bulk', 'โหลดร่างหนังสือหลายฉบับ (รอลงนาม)', 'นักศึกษา', null],
   ['PUT', '/api/admin/t000/letter-batch', 'ออกหนังสือรวมหลายคน', 'นักศึกษา', 'studentIds'],
   ['PUT', '/api/admin/doc/:x/status', 'เปลี่ยนสถานะเอกสาร', 'เอกสาร', ':1'],
   ['PATCH', '/api/admin/coop-applications/:x/status', 'เปลี่ยนสถานะคำร้องสหกิจ', 'คำร้องสหกิจ', ':1'],
@@ -240,6 +241,10 @@ function letterPendingActionText({ letter, cancel, docNumber }) {
   if (!name) return null;
   return isTrue(cancel) ? `ยกเลิกรอลงนาม${name}` : withNo(`โหลดร่าง${name} (รอลงนาม)`, docNumber);
 }
+function letterPendingBulkActionText({ letter, docNumbers }) {
+  const list = docNumbers || [];
+  return `โหลดร่าง${LETTER_NAME[letter]}หลายฉบับ (รอลงนาม) ${list.length} ฉบับ: ${list.join(', ')}`;
+}
 const supervisionLetterActionText = ({ docNumber }) => withNo('ออกหนังสือขอนิเทศ', docNumber);
 
 const ACTION_DETAIL = {
@@ -313,6 +318,6 @@ function sanitizeBody(body, { loginPath = false } = {}) {
 
 module.exports = {
   describeRequest, sanitizeBody, matchPath, RULES, SECRET_FIELDS, DETAIL_MAX, looksLikeEmail,
-  setAuditDetail, reviewActionText, letterPendingActionText, supervisionLetterActionText,
+  setAuditDetail, reviewActionText, letterPendingActionText, letterPendingBulkActionText, supervisionLetterActionText,
   DOC_ACTION_PREFIXES,
 };
