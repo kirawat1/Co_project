@@ -5,7 +5,7 @@ const cors = require("cors");
 const helmet = require("helmet");
 const dotenv = require("dotenv");
 const path = require("path");
-const rateLimit = require("express-rate-limit");
+const { createApiLimiter } = require("./middlewares/rateLimit");
 
 dotenv.config();
 
@@ -32,17 +32,11 @@ app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' }, // อนุญาต /uploads/* ให้โหลดจาก frontend
 }));
 
-// Global rate limit — ป้องกัน scraping / DDoS ระดับ API ทั้งหมด
-const globalLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 นาที
-  // 2000 req / 15 นาที / IP (เดิม 500 — หน้าหนึ่งเรียก API ~5 ครั้ง ผู้ใช้หลายคนที่ออกเน็ต IP เดียวกันแชร์โควตา) · ปรับได้ด้วย API_RATE_LIMIT_MAX
+// Global rate limit — 2000 req / 15 นาที ต่อผู้ใช้ที่ login (ยังไม่ login = ต่อ IP) · ปรับได้ด้วย API_RATE_LIMIT_MAX
+// เดิมนับต่อ IP: ผู้ใช้เข้าผ่านเน็ตมหาวิทยาลัย/VPN แชร์ IP กัน ช่วงปิดส่งจะโดนบล็อกทั้งกลุ่ม (middlewares/rateLimit.js)
+app.use('/api', createApiLimiter({
   max: Number(process.env.API_RATE_LIMIT_MAX) > 0 ? Number(process.env.API_RATE_LIMIT_MAX) : 2000,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { ok: false, message: 'Too many requests, please try again later.' },
-  skip: (req) => req.originalUrl === '/api/internal-status', // VM-local health check ไม่ต้อง limit
-});
-app.use('/api', globalLimiter);
+}));
 
 // บันทึกการใช้งาน — ใครทำอะไร (ทุก request ที่เปลี่ยนข้อมูล + การเข้าสู่ระบบ)
 const { auditLogger, startLogRetentionJob } = require('./middlewares/auditLogger');
