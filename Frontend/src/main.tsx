@@ -9,6 +9,7 @@ import '@fontsource-variable/noto-sans-thai/index.css';
 import App from "./App";
 import { notify } from "./utils/notify";
 import { majorFilterHeader } from "./utils/majorFilter";
+import { clearSession } from "./utils/session";
 
 // ── Global axios interceptors ────────────────────────────────
 // Request: inject Authorization header จาก localStorage โดยอัตโนมัติ
@@ -27,7 +28,7 @@ axios.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error?.response?.status === 401) {
-      localStorage.removeItem("coop.token");
+      clearSession();
       if (window.location.pathname !== "/") {
         // ไม่ใช้ alert — คำขอหลายตัวได้ 401 พร้อมกันจะเด้งซ้อนหลายกล่อง; แสดงครั้งเดียวที่หน้าเข้าสู่ระบบแทน
         notify.afterReload("warning", "เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่");

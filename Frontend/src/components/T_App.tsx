@@ -16,6 +16,7 @@ import StudentTheme from "./S_Theme";
 import coopLogo from "../assets/COOP_Logo.png";
 import T_SupervisionReview from "./T_SupervisionReview";
 import AnnouncementRooms from "./AnnouncementRooms";
+import { clearSession } from "../utils/session";
 const IOS_BLUE = "#0074B7";
 
 export default function TeacherApp() {
@@ -85,7 +86,7 @@ export default function TeacherApp() {
 
   function onLogout() {
     // ลบ key ทั้งหมดที่เกี่ยวกับ teacher เพื่อไม่ให้ชื่อเก่าค้างข้ามการ login
-    localStorage.removeItem("coop.token");
+    clearSession();
     localStorage.removeItem("coop.teacher.id");
     localStorage.removeItem("coop.teacher.displayName");
     localStorage.removeItem("coop.teacher.profile");

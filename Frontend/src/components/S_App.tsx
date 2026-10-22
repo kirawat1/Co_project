@@ -21,6 +21,7 @@ import S_Announcements from './S_Announcements';
 import { ThemeToggleBtn } from "./ThemeContext";
 import { apiFetch } from "../utils/apiFetch";
 import S_FeedbackButton from "./S_FeedbackButton";
+import { clearSession } from "../utils/session";
 
 const IOS_BLUE = "#0074B7";
 
@@ -77,7 +78,7 @@ export default function StudentApp() {
         <div style={{ fontWeight: 700, color: "#991b1b", margin: "10px 0 18px" }}>{loadError}</div>
         <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
           <button className="btn" onClick={() => fetchProfile()}>ลองใหม่</button>
-          <button className="btn-secondary" onClick={() => { localStorage.removeItem("coop.token"); navigate("/", { replace: true }); }}>ออกจากระบบ</button>
+          <button className="btn-secondary" onClick={() => { clearSession(); navigate("/", { replace: true }); }}>ออกจากระบบ</button>
         </div>
       </div>
     );
@@ -88,7 +89,7 @@ export default function StudentApp() {
   const displayName = profile.studentId || fullName || "นักศึกษา";
 
   function onLogout() {
-    localStorage.removeItem("coop.token");
+    clearSession();
     localStorage.removeItem("coop.current.studentId");
     navigate("/", { replace: true });
   }

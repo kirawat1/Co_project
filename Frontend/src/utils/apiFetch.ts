@@ -5,6 +5,7 @@
 // provides one explicitly (caller's headers always win).
 import { notify } from "./notify";
 import { majorFilterHeader } from "./majorFilter";
+import { clearSession } from "./session";
 
 export async function apiFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   const token = localStorage.getItem("coop.token");
@@ -18,7 +19,7 @@ export async function apiFetch(input: RequestInfo | URL, init?: RequestInit): Pr
   };
   const res = await fetch(input, mergedInit);
   if (res.status === 401) {
-    localStorage.removeItem("coop.token");
+    clearSession();
     if (window.location.pathname !== "/") {
       notify.afterReload("warning", "เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่");
       window.location.href = "/";
