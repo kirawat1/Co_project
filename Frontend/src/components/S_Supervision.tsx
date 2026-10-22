@@ -583,7 +583,7 @@ export default function S_Supervision() {
 
                                 <div style={{ maxWidth: 500, margin: '20px auto', background: '#f8fafc', padding: 24, borderRadius: 12, border: '1px solid #e2e8f0', textAlign: 'left' }}>
                                     <InfoRow label="อาจารย์ที่ปรึกษา" value={teacherFullName} />
-                                    <InfoRow label="อาจารย์ร่วมนิเทศ" value={appointment.coTeacherName || <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>รอเจ้าหน้าที่กำหนดภายหลัง</span>} />
+                                    <InfoRow label="อาจารย์ร่วมนิเทศ" value={appointment.coTeacherName || <span style={{ color: '#64748b', fontStyle: 'italic' }}>รอเจ้าหน้าที่กำหนดภายหลัง</span>} />
                                     <InfoRow label="รูปแบบ" value={appointment.supervisionType === 'ONLINE' ? '🌐 ออนไลน์' : '🏢 ออนไซต์'} />
                                     {appointment.supervisionType === 'ONLINE' && (
                                         <InfoRow label="Link นิเทศ" value={appointment.onlineLink ? <a href={safeHref(appointment.onlineLink)} target="_blank" rel="noreferrer">{appointment.onlineLink}</a> : "-"} />
@@ -625,7 +625,7 @@ export default function S_Supervision() {
                                         </div>
 
                                         <InfoRow label="อาจารย์ที่ปรึกษา" value={teacherFullName} />
-                                        <InfoRow label="อาจารย์ร่วม" value={appointment.coTeacherName || <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>รอเจ้าหน้าที่กำหนดภายหลัง</span>} />
+                                        <InfoRow label="อาจารย์ร่วม" value={appointment.coTeacherName || <span style={{ color: '#64748b', fontStyle: 'italic' }}>รอเจ้าหน้าที่กำหนดภายหลัง</span>} />
                                         <InfoRow label="รูปแบบ" value={appointment.supervisionType === 'ONLINE' ? '🌐 ออนไลน์ (Online)' : '🏢 ออนไซต์ (ณ บริษัท)'} />
 
                                         {appointment.supervisionType === 'ONLINE' && appointment.onlineLink && (

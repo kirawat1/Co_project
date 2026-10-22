@@ -126,7 +126,7 @@ export default function A_StaffManage() {
                   <td style={{ ...td, whiteSpace: "nowrap" }}>
                     <button className="btn-ghost" style={{ marginRight: 8, fontSize: 13 }} onClick={() => { setResetTarget(s); setNewPw(""); setResetErr(""); }}>🔑 Reset รหัสผ่าน</button>
                     {s.id === myUserId
-                      ? <span style={{ fontSize: 12, color: "#94a3b8" }}>(บัญชีของคุณ)</span>
+                      ? <span style={{ fontSize: 12, color: "#64748b" }}>(บัญชีของคุณ)</span>
                       : <button className="btn-ghost" style={{ color: "#ef4444", fontSize: 13 }} onClick={() => { setDeleteTarget(s); setDeleteErr(""); }}>ลบ</button>}
                   </td>
                 </tr>

@@ -245,7 +245,7 @@ function SummaryCard({ title, value, color, subText }: { title: string; value: n
     <div className="card" style={{ padding: 20, borderRadius: 18, border: '1px solid #f1f5f9', backgroundColor: '#fff' }}>
       <div style={{ color: "#64748b", fontSize: 13, fontWeight: 600, marginBottom: 2 }}>{title}</div>
       <div style={{ fontSize: 32, fontWeight: 800, color: color }}>{value.toLocaleString()}</div>
-      <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 4 }}>{subText}</div>
+      <div style={{ fontSize: 12, color: "#64748b", marginTop: 4 }}>{subText}</div>
     </div>
   );
 }

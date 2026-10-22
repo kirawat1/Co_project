@@ -184,7 +184,7 @@ export default function IssuePlacementLetterModal({ student, group, batchMates, 
                                     {docDraft && <FileReady label="Word (.doc)" onDownload={() => downloadDraft(docDraft, `Placement_${members ? `รวม${members.length}คน_${student.studentId}` : student.studentId}.doc`)} />}
                                 </div>
                             )}
-                            <p style={{ fontSize: 11, color: '#94a3b8', margin: '6px 0 0' }}>ตัวอย่างแสดงด้านซ้าย · กดโหลดร่างไปเสนอลงนาม → ขึ้นสถานะ "รอลงนาม"</p>
+                            <p style={{ fontSize: 11, color: '#64748b', margin: '6px 0 0' }}>ตัวอย่างแสดงด้านซ้าย · กดโหลดร่างไปเสนอลงนาม → ขึ้นสถานะ "รอลงนาม"</p>
                         </div>
                         <div>
                             <div style={{ ...sec, borderColor: '#ef4444' }}>3. แนบไฟล์ที่ลงนามแล้ว <span style={{ color: '#ef4444' }}>*</span></div>
@@ -197,7 +197,7 @@ export default function IssuePlacementLetterModal({ student, group, batchMates, 
                                 {signedFile && (
                                     <button type="button" onClick={() => setSignedFile(null)} style={{ fontSize: 11, color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', marginTop: 4, padding: 0 }}>ลบไฟล์ที่เลือก</button>
                                 )}
-                                <p style={{ fontSize: 11, color: '#94a3b8', margin: '6px 0 0' }}>ต้องอัปโหลดไฟล์ที่ลงนามแล้วก่อน จึงจะบันทึกเข้าระบบได้ — ไฟล์นี้จะถูกใช้แทนไฟล์ร่างด้านบนทั้งหมด</p>
+                                <p style={{ fontSize: 11, color: '#64748b', margin: '6px 0 0' }}>ต้องอัปโหลดไฟล์ที่ลงนามแล้วก่อน จึงจะบันทึกเข้าระบบได้ — ไฟล์นี้จะถูกใช้แทนไฟล์ร่างด้านบนทั้งหมด</p>
                             </div>
                         </div>
                         <div>

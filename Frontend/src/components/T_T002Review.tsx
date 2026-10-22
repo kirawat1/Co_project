@@ -90,7 +90,7 @@ export default function T_T002Review() {
         const docStatus = t002Doc?.status || 'WAITING';
         const profileStatus = student.coop?.status || student.docStatus;
 
-        if (profileStatus === 'INTERNSHIP_STARTED' || docStatus === 'APPROVED') return { label: "✅ ตรวจผ่านแล้ว", color: "#10b981", bg: "#dcfce7" };
+        if (profileStatus === 'INTERNSHIP_STARTED' || docStatus === 'APPROVED') return { label: "✅ ตรวจผ่านแล้ว", color: "#047857", bg: "#dcfce7" };
         if (profileStatus === 'T002_EDITS_REQUIRED' || docStatus === 'EDITS_REQUIRED' || docStatus === 'REJECTED') return { label: "⚠️ ตีกลับให้แก้ไข", color: "#dc2626", bg: "#fee2e2" };
         return { label: "📄 รอการตรวจสอบ", color: "#0d9488", bg: "#ccfbf1" };
     };
@@ -170,7 +170,7 @@ export default function T_T002Review() {
     // UI HELPER: แสดงลูกศรเรียงลำดับ
     const SortIcon = ({ columnKey }: { columnKey: SortKey }) => {
         if (sortKey !== columnKey) return <span style={{ color: '#cbd5e1', marginLeft: 4 }}>↕</span>;
-        return <span style={{ color: '#0ea5e9', marginLeft: 4 }}>{sortDirection === 'asc' ? '↑' : '↓'}</span>;
+        return <span style={{ color: '#0284c7', marginLeft: 4 }}>{sortDirection === 'asc' ? '↑' : '↓'}</span>;
     };
 
     return (
@@ -238,7 +238,7 @@ export default function T_T002Review() {
                     </thead>
                     <tbody>
                         {processedStudents.length === 0 ? (
-                            <tr><td colSpan={5} style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>🎉 ไม่มีเอกสาร T002 ในระบบ</td></tr>
+                            <tr><td colSpan={5} style={{ textAlign: 'center', padding: 40, color: '#64748b' }}>🎉 ไม่มีเอกสาร T002 ในระบบ</td></tr>
                         ) : shownStudents.map(s => {
                             const statusInfo = getT002Status(s);
                             return (

@@ -345,7 +345,7 @@ export default function A_CoopApplications() {
                     </thead>
                     <tbody>
                         {filteredApps.length === 0 ? (
-                            <tr><td colSpan={4} style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>ไม่มีคำร้องในระบบ</td></tr>
+                            <tr><td colSpan={4} style={{ textAlign: 'center', padding: 40, color: '#64748b' }}>ไม่มีคำร้องในระบบ</td></tr>
                         ) : shownApps.map(app => (
                             <tr key={app.id} style={tr}>
                                 <td style={td} data-label="รหัสนักศึกษา / ชื่อ">
@@ -355,7 +355,7 @@ export default function A_CoopApplications() {
                                 <td style={td} data-label="หน่วยงาน / ตำแหน่ง">
                                     <div style={{ fontWeight: 600, color: '#1e293b' }}>{app.company?.name || "-"}</div>
                                     {missingContact(app) && <span className="badge-no-contact" style={noContactBadge}>⚠️ ยังไม่มีผู้ติดต่อ</span>}
-                                    <div style={{ fontSize: 12, color: '#0ea5e9', marginTop: 2 }}>{app.jobPosition}</div>
+                                    <div style={{ fontSize: 12, color: '#0284c7', marginTop: 2 }}>{app.jobPosition}</div>
                                 </td>
                                 <td style={td} data-label="สถานะ">
                                     {isReviewedPass(app.status) ? (
@@ -432,7 +432,7 @@ export default function A_CoopApplications() {
                                                 📊 แบบฟอร์มตรวจสอบการสำเร็จการศึกษา
                                             </a>
                                         ) : (
-                                            <div style={{ padding: 12, background: "#f8fafc", border: "1px dashed #cbd5e1", borderRadius: 8, fontSize: 12, color: "#94a3b8" }}>
+                                            <div style={{ padding: 12, background: "#f8fafc", border: "1px dashed #cbd5e1", borderRadius: 8, fontSize: 12, color: "#64748b" }}>
                                                 📊 ยังไม่ได้แนบแบบฟอร์มตรวจสอบการสำเร็จการศึกษา
                                             </div>
                                         )}

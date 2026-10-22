@@ -189,7 +189,7 @@ export default function A_CoopPeriod() {
                 <h3 style={sectionTitle}>รายการรอบ</h3>
 
                 {periods.length === 0 ? (
-                    <div style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>ยังไม่มีข้อมูลรอบรับสมัคร</div>
+                    <div style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>ยังไม่มีข้อมูลรอบรับสมัคร</div>
                 ) : (
                     <div style={{ display: 'grid', gap: 16 }}>
                         {periods.map(p => {
@@ -239,7 +239,7 @@ export default function A_CoopPeriod() {
                                                     if (!r) return (
                                                         <tr key={m}>
                                                             <td style={td}><strong>{m}</strong></td>
-                                                            <td style={{ ...td, color: '#94a3b8' }} colSpan={3}>ยังไม่ได้ตั้งรอบนี้ (ถือว่าปิด)</td>
+                                                            <td style={{ ...td, color: '#64748b' }} colSpan={3}>ยังไม่ได้ตั้งรอบนี้ (ถือว่าปิด)</td>
                                                             <td style={{ ...td, textAlign: 'right' }}>
                                                                 <button className="btn-secondary small" onClick={() => openRow(p, m)}>ตั้งวันรับสมัคร</button>
                                                             </td>

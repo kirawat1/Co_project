@@ -65,7 +65,7 @@ function css(IOS_BLUE: string) {
     --border:      rgba(0,0,0,.07);
     --text:        #0f172a;
     --text-muted:  #64748b;
-    --text-sub:    #94a3b8;
+    --text-sub:    #64748b;
     --sidebar-bg:  rgba(255,255,255,.85);
     --topbar-bg:   #ffffff;
     --input-bg:    #ffffff;
@@ -293,7 +293,7 @@ function css(IOS_BLUE: string) {
   .btn-danger:active { filter: brightness(.85); }
 
   /* ── Warning (solid amber — pending/send-back actions; new, no prior class existed) ── */
-  .btn-warning { background: #f59e0b; color: #fff; border: 0; }
+  .btn-warning { background: #d97706; color: #fff; border: 0; }
   .btn-warning:hover { filter: brightness(.92); }
   .btn-warning:active { filter: brightness(.85); }
 

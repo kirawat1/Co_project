@@ -312,16 +312,16 @@ export default function T_Requests() {
           </thead>
           <tbody>
             {filteredList.length === 0 ? (
-              <tr><td colSpan={4} style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>ไม่มีคำร้องในระบบ</td></tr>
+              <tr><td colSpan={4} style={{ textAlign: 'center', padding: 40, color: '#64748b' }}>ไม่มีคำร้องในระบบ</td></tr>
             ) : shownList.map(s => (
               <tr key={s.id} style={trStyle}>
                 <td style={td} data-label="รหัสนักศึกษา / ชื่อ-สกุล">
-                  <div style={{ fontWeight: 700, color: '#0ea5e9' }}>{s.studentId}</div>
+                  <div style={{ fontWeight: 700, color: '#0284c7' }}>{s.studentId}</div>
                   <div style={{ fontSize: 13, color: '#64748b' }}>{s.firstName} {s.lastName}</div>
                 </td>
                 <td style={td} data-label="หน่วยงาน / ตำแหน่ง">
                   <div style={{ fontWeight: 600 }}>{s.coop?.company?.name || "-"}</div>
-                  <div style={{ fontSize: 12, color: '#0ea5e9' }}>{s.coop?.jobPosition || "-"}</div>
+                  <div style={{ fontSize: 12, color: '#0284c7' }}>{s.coop?.jobPosition || "-"}</div>
                 </td>
                 <td style={td} data-label="สถานะ"><StatusBadge status={s.coop?.status} /></td>
                 <td style={{ ...td, textAlign: 'right' }}>
@@ -374,7 +374,7 @@ export default function T_Requests() {
                         style={{
                           padding: '10px 14px', background: previewUrl?.includes(doc.path) ? '#e0f2fe' : '#fff',
                           border: '1px solid', borderColor: previewUrl?.includes(doc.path) ? '#7dd3fc' : '#e2e8f0',
-                          borderRadius: 8, cursor: 'pointer', fontSize: 13, color: '#0ea5e9', fontWeight: 600
+                          borderRadius: 8, cursor: 'pointer', fontSize: 13, color: '#0284c7', fontWeight: 600
                         }}>
                         📄 {doc.name}
                       </div>

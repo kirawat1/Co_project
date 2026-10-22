@@ -49,7 +49,7 @@ export default function PasswordReveal({ endpoint }: { endpoint: string }) {
   if (!revealed) {
     return (
       <span style={row}>
-        <span style={{ letterSpacing: 2, color: "#94a3b8" }}>••••••••</span>
+        <span style={{ letterSpacing: 2, color: "#64748b" }}>••••••••</span>
         <button type="button" style={btn} onClick={reveal} disabled={loading}>
           {loading ? "กำลังโหลด..." : "👁 แสดง"}
         </button>

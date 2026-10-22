@@ -472,7 +472,7 @@ export default function T_SupervisionReview() {
     const { events: majorCalendarEvents } = useSupervisionSchedule(mySupervisions, !isCoopTeacher);
 
     const SortIcon = ({ col }: { col: SortKey }) => col === sortKey ? <span style={{ color: "#2563eb", marginLeft: 4 }}>{sortDir === "asc" ? "↑" : "↓"}</span> : <span style={{ color: "#cbd5e1", marginLeft: 4 }}>↕</span>;
-    const AllSortIcon = ({ col }: { col: AllSortKey }) => col === allSortKey ? <span style={{ color: "#0ea5e9", marginLeft: 4 }}>{allSortDir === 'asc' ? '↑' : '↓'}</span> : <span style={{ color: '#cbd5e1', marginLeft: 4 }}>↕</span>;
+    const AllSortIcon = ({ col }: { col: AllSortKey }) => col === allSortKey ? <span style={{ color: "#0284c7", marginLeft: 4 }}>{allSortDir === 'asc' ? '↑' : '↓'}</span> : <span style={{ color: '#cbd5e1', marginLeft: 4 }}>↕</span>;
 
     const selPeriodData = allPeriods.find(p => p.id === selPeriodId);
 
@@ -565,7 +565,7 @@ export default function T_SupervisionReview() {
                                     </thead>
                                     <tbody>
                                         {processedMine.length === 0 ? (
-                                            <tr><td colSpan={7} style={{ textAlign: "center", padding: 40, color: "#94a3b8" }}>ไม่มีรายการนิเทศที่ตรงกับเงื่อนไข</td></tr>
+                                            <tr><td colSpan={7} style={{ textAlign: "center", padding: 40, color: "#64748b" }}>ไม่มีรายการนิเทศที่ตรงกับเงื่อนไข</td></tr>
                                         ) : shownMine.map(sup => {
                                             const isPrimary = sup.isPrimaryAdvisor !== false;
                                             return (
@@ -578,7 +578,7 @@ export default function T_SupervisionReview() {
                                                             let dates: string[] = [];
                                                             try { dates = JSON.parse(sup.proposedDates); } catch { dates = []; }
                                                             return <>{<div style={{ fontSize: 11, color: "#92400e", fontWeight: 700, marginBottom: 4 }}>⏳ วันที่เสนอ</div>}{dates.map((d, i) => { const p = parseProposed(d); return <div key={i} style={{ fontSize: 12, color: "#78350f", background: "#fef3c7", padding: "2px 6px", borderRadius: 4, marginBottom: 2 }}>{p.dmy}{p.time ? ` · ${p.time}` : ""}</div>; })}</>;
-                                                        })() : <span style={{ color: "#94a3b8" }}>ยังไม่เสนอวัน</span>}
+                                                        })() : <span style={{ color: "#64748b" }}>ยังไม่เสนอวัน</span>}
                                                     </td>
                                                     <td style={td}><span style={{ background: isPrimary ? "#eff6ff" : "#f8fafc", color: isPrimary ? "#2563eb" : "#64748b", padding: "4px 10px", borderRadius: 6, fontSize: 12, fontWeight: "bold", border: `1px solid ${isPrimary ? "#bfdbfe" : "#e2e8f0"}` }}>{isPrimary ? "👑 หลัก" : "🤝 ร่วม"}</span></td>
                                                     <td style={td}><StatusBadge status={sup.status} /></td>
@@ -756,12 +756,12 @@ export default function T_SupervisionReview() {
                             </div>
                         </div>
                         {(selPeriodData?.majors ?? []).length === 0
-                            ? <div style={{ fontSize: 13, color: '#94a3b8' }}>ยังไม่ได้ตั้งรอบนี้</div>
+                            ? <div style={{ fontSize: 13, color: '#64748b' }}>ยังไม่ได้ตั้งรอบนี้</div>
                             : (selPeriodData?.majors ?? []).map(r => (
                                 <div key={r.major} style={{ fontSize: 14, color: '#334155', padding: '4px 0' }}>
                                     <b>{r.major}</b> · {r.isSupervisionOpen ? '🟢 เปิดให้นัด' : '🔴 ปิด'}
                                     {(r.supervisionStartDate || r.supervisionEndDate) && <> · {r.supervisionStartDate ? fmtDate(r.supervisionStartDate) : '…'} – {r.supervisionEndDate ? fmtDate(r.supervisionEndDate) : '…'}</>}
-                                    {r.configured === false && <span style={{ color: '#94a3b8' }}> (ยังไม่ได้ตั้งรอบนี้)</span>}
+                                    {r.configured === false && <span style={{ color: '#64748b' }}> (ยังไม่ได้ตั้งรอบนี้)</span>}
                                 </div>
                             ))}
                     </section>
@@ -811,11 +811,11 @@ export default function T_SupervisionReview() {
                                     </thead>
                                     <tbody>
                                         {processedAll.length === 0 ? (
-                                            <tr><td colSpan={6} style={{ textAlign: 'center', padding: 30, color: '#94a3b8' }}>ไม่พบรายการ</td></tr>
+                                            <tr><td colSpan={6} style={{ textAlign: 'center', padding: 30, color: '#64748b' }}>ไม่พบรายการ</td></tr>
                                         ) : shownAll.map(sup => (
                                             <tr key={sup.id} style={trStyle}>
                                                 <td style={td} data-label="รหัส / ชื่อ">
-                                                    <div style={{ fontWeight: 700, color: '#0ea5e9' }}>{sup.student.studentId}</div>
+                                                    <div style={{ fontWeight: 700, color: '#0284c7' }}>{sup.student.studentId}</div>
                                                     <div style={{ fontSize: 13, color: '#475569' }}>{sup.student.firstName} {sup.student.lastName}</div>
                                                 </td>
                                                 <td style={td}><div style={{ fontWeight: 600 }}>{sup.student.coop?.company?.name || "-"}</div></td>
@@ -836,7 +836,7 @@ export default function T_SupervisionReview() {
                                                                 <div key={i} style={{ fontSize: 12, color: '#78350f', background: '#fef3c7', padding: '2px 6px', borderRadius: 4, marginBottom: 2 }}>{p.dmy}{p.time ? ` · ${p.time}` : ""}</div>
                                                             ))}
                                                         </>
-                                                    ) : <span style={{ color: '#94a3b8', fontSize: 13 }}>ยังไม่เสนอวัน</span>}
+                                                    ) : <span style={{ color: '#64748b', fontSize: 13 }}>ยังไม่เสนอวัน</span>}
                                                 </td>
                                                 <td style={td}>
                                                     <StatusBadge status={sup.status} />
@@ -903,7 +903,7 @@ export default function T_SupervisionReview() {
                                         </label>
                                     );
                                 })}
-                                {teachersList.length <= 1 && <div style={{ gridColumn: '1 / -1', color: '#94a3b8', textAlign: 'center', padding: 20 }}>ไม่มีอาจารย์ท่านอื่น</div>}
+                                {teachersList.length <= 1 && <div style={{ gridColumn: '1 / -1', color: '#64748b', textAlign: 'center', padding: 20 }}>ไม่มีอาจารย์ท่านอื่น</div>}
                             </div>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 24, paddingTop: 16, borderTop: '1px solid #e2e8f0' }}>

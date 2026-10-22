@@ -90,7 +90,7 @@ function TabButton({ active, onClick, title, children }: { active: boolean; onCl
 
 function showValue(type: FieldType, v: unknown) {
   if (type === "bool") return v ? "เปิด" : "ปิด";
-  if (v === null || v === undefined || v === "") return <span style={{ color: "#94a3b8" }}>(ว่าง)</span>;
+  if (v === null || v === undefined || v === "") return <span style={{ color: "#64748b" }}>(ว่าง)</span>;
   return String(v);
 }
 

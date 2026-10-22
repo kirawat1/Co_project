@@ -186,7 +186,7 @@ export default function A_RoundDeadlines({ period, periods }: Props) {
                     <tbody>
                         <tr>
                             <td style={td}>ยื่นคำร้อง</td>
-                            <td style={{ ...td, color: "#94a3b8" }}>—</td>
+                            <td style={{ ...td, color: "#64748b" }}>—</td>
                             {data.majors.map(m => {
                                 const r = rowOf(m.major);
                                 return <td key={m.major} style={td}>{r ? `${fmtDate(r.startDate)} – ${fmtDate(r.endDate)}${r.isActive ? " · เปิด" : ""}` : "—"}</td>;
@@ -197,13 +197,13 @@ export default function A_RoundDeadlines({ period, periods }: Props) {
                                 <td style={td}>{STEP_LABEL[k]}</td>
                                 {columns.map(c => {
                                     const cell = cellOf(c, k);
-                                    return <td key={c || "college"} style={{ ...td, ...(cell.highlight ? diffCell : {}), ...(cell.legacy ? { color: "#94a3b8" } : {}) }}>{cell.text}</td>;
+                                    return <td key={c || "college"} style={{ ...td, ...(cell.highlight ? diffCell : {}), ...(cell.legacy ? { color: "#64748b" } : {}) }}>{cell.text}</td>;
                                 })}
                             </tr>
                         ))}
                         <tr>
                             <td style={td}>นิเทศ</td>
-                            <td style={{ ...td, color: "#94a3b8" }}>—</td>
+                            <td style={{ ...td, color: "#64748b" }}>—</td>
                             {data.majors.map(m => {
                                 const r = rowOf(m.major);
                                 const s = r?.supervisionStartDate, e = r?.supervisionEndDate;

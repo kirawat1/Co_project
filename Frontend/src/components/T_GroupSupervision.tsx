@@ -177,7 +177,7 @@ export default function T_GroupSupervision() {
                     นัดพร้อมกัน ({company.commonDates.length} วัน)
                   </button>
                 )}
-                <span style={{ fontSize: 18, color: "#94a3b8" }}>{expanded ? "▲" : "▼"}</span>
+                <span style={{ fontSize: 18, color: "#64748b" }}>{expanded ? "▲" : "▼"}</span>
               </div>
             </div>
             {expanded && (

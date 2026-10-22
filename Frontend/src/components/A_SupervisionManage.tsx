@@ -411,7 +411,7 @@ export default function A_SupervisionManage() {
     // UI HELPER: แสดงลูกศรเรียงลำดับ
     const SortIcon = ({ columnKey }: { columnKey: SortKey }) => {
         if (sortKey !== columnKey) return <span style={{ color: '#cbd5e1', marginLeft: 4 }}>↕</span>;
-        return <span style={{ color: '#0ea5e9', marginLeft: 4 }}>{sortDirection === 'asc' ? '↑' : '↓'}</span>;
+        return <span style={{ color: '#0284c7', marginLeft: 4 }}>{sortDirection === 'asc' ? '↑' : '↓'}</span>;
     };
 
     // แปลง supervisions → CalendarEvent (เฉพาะที่ยืนยันวันแล้ว)
@@ -574,11 +574,11 @@ export default function A_SupervisionManage() {
                         </thead>
                         <tbody>
                             {processedSupervisions.length === 0 ? (
-                                <tr><td colSpan={6} style={{ textAlign: 'center', padding: 30, color: '#94a3b8' }}>ไม่พบรายการนัดหมายนิเทศที่ตรงกับเงื่อนไข</td></tr>
+                                <tr><td colSpan={6} style={{ textAlign: 'center', padding: 30, color: '#64748b' }}>ไม่พบรายการนัดหมายนิเทศที่ตรงกับเงื่อนไข</td></tr>
                             ) : shownSupervisions.map(sup => (
                                 <tr key={sup.id} style={trStyle}>
                                     <td style={td} data-label="รหัส / ชื่อ นศ.">
-                                        <div style={{ fontWeight: 700, color: '#0ea5e9' }}>{sup.student.studentId}</div>
+                                        <div style={{ fontWeight: 700, color: '#0284c7' }}>{sup.student.studentId}</div>
                                         <div style={{ fontSize: 13, color: '#475569' }}>{sup.student.firstName} {sup.student.lastName}</div>
                                     </td>
                                     <td style={td} data-label="หน่วยงาน">
@@ -625,7 +625,7 @@ export default function A_SupervisionManage() {
                                                 ))}
                                             </>
                                         ) : (
-                                            <span style={{ color: '#94a3b8', fontSize: 13 }}>ยังไม่เสนอวัน</span>
+                                            <span style={{ color: '#64748b', fontSize: 13 }}>ยังไม่เสนอวัน</span>
                                         )}
                                     </td>
                                     <td style={td} data-label="สถานะ">
@@ -650,7 +650,7 @@ export default function A_SupervisionManage() {
                                                 </button>
                                             )}
                                             {/* ออกหนังสือขอนิเทศ = เจ้าหน้าที่เท่านั้น */}
-                                            {!isStaff && sup.status === "DATE_CONFIRMED" && <span style={{ fontSize: 12, color: '#94a3b8', alignSelf: 'center' }}>🕒 รอเจ้าหน้าที่ออกหนังสือ</span>}
+                                            {!isStaff && sup.status === "DATE_CONFIRMED" && <span style={{ fontSize: 12, color: '#64748b', alignSelf: 'center' }}>🕒 รอเจ้าหน้าที่ออกหนังสือ</span>}
                                             {isStaff && sup.status === "DATE_CONFIRMED" && (
                                                 <button className="btn" style={{ background: sup.letterPendingAt ? '#d97706' : '#2563eb', color: 'white', padding: '6px 10px', fontSize: 12 }} onClick={() => setSelectedSupForModal(sup)}>
                                                     {sup.letterPendingAt ? '✍️ อัปโหลดฉบับลงนาม' : '📄 ออกหนังสือ'}
@@ -663,7 +663,7 @@ export default function A_SupervisionManage() {
                                                 </button>
                                             )}
                                             {(sup.status === "LETTER_UPLOADED" || sup.status === "COMPLETED") && sup.officialLetterPath && (
-                                                <button className="btn-ghost" style={{ fontSize: 12, color: '#10b981', borderColor: '#10b981', padding: '6px 10px' }} onClick={() => window.open(`/uploads/supervision/${encodeURIComponent(sup.officialLetterPath!)}`, '_blank', 'noopener')}>
+                                                <button className="btn-ghost" style={{ fontSize: 12, color: '#059669', borderColor: '#059669', padding: '6px 10px' }} onClick={() => window.open(`/uploads/supervision/${encodeURIComponent(sup.officialLetterPath!)}`, '_blank', 'noopener')}>
                                                     👁️ ดูเอกสาร
                                                 </button>
                                             )}
@@ -689,7 +689,7 @@ export default function A_SupervisionManage() {
                     .config-grid { grid-template-columns: 1fr !important; }
                 }
                 .input:focus { border-color: #0ea5e9; box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.15); }
-                .input:disabled { background-color: #f1f5f9; color: #94a3b8; cursor: not-allowed; }
+                .input:disabled { background-color: #f1f5f9; color: #64748b; cursor: not-allowed; }
                 
                 .teacher-checkbox-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; max-height: 300px; overflow-y: auto; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px; background: #f8fafc;}
                 .teacher-checkbox-label { display: flex; alignItems: center; gap: 8px; padding: 8px; background: white; border: 1px solid #cbd5e1; border-radius: 6px; cursor: pointer; font-size: 13px;}
@@ -805,7 +805,7 @@ export default function A_SupervisionManage() {
                                     })
                                 }
                                 {teachersList.length <= 1 && (
-                                    <div style={{ gridColumn: '1 / -1', color: '#94a3b8', fontSize: 13, textAlign: 'center', padding: 20 }}>ไม่มีรายชื่ออาจารย์ท่านอื่นในระบบ</div>
+                                    <div style={{ gridColumn: '1 / -1', color: '#64748b', fontSize: 13, textAlign: 'center', padding: 20 }}>ไม่มีรายชื่ออาจารย์ท่านอื่นในระบบ</div>
                                 )}
                             </div>
                         </div>

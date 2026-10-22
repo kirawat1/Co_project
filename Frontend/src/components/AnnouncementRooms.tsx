@@ -126,7 +126,7 @@ export default function AnnouncementRooms() {
                                         {r.latest ? `ล่าสุด ${fmtDate(r.latest)}` : "ยังไม่มีประกาศ"}
                                         {r.pinned ? ` · 📌 ${r.pinned}` : ""}{r.scheduled ? ` · ⏰ ${r.scheduled}` : ""}
                                     </div>
-                                    {!r.canPost && <div style={{ fontSize: 11, color: "#94a3b8" }}>อ่านอย่างเดียว</div>}
+                                    {!r.canPost && <div style={{ fontSize: 11, color: "#64748b" }}>อ่านอย่างเดียว</div>}
                                 </div>
                             </button>
                         );
