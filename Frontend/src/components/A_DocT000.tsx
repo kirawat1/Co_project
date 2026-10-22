@@ -17,6 +17,7 @@ import DeadlineExtensionButton from "./DeadlineExtensionButton";
 import type { StepKey } from "../utils/deadlines";
 // โหลดเมื่อเปิดหน้าต่าง — ลากไลบรารี xlsx มาด้วย ไม่ให้ก้อนหน้านี้โตขึ้น
 const BulkLetterDraftModal = lazy(() => import("./BulkLetterDraftModal"));
+const BulkSignedUploadModal = lazy(() => import("./BulkSignedUploadModal"));
 import LetterZipModal, { LetterZipButton, toolbarBtn } from "./LetterZipModal";
 import { defaultPeriodId, pendingOutside, periodCountLabel, type PeriodCount } from "../utils/defaultPeriod";
 
@@ -176,6 +177,7 @@ export default function A_DocT000() {
     const [coopPeriods, setCoopPeriods] = useState<any[]>([]);
     const [selectedPeriod, setSelectedPeriod] = useState<string>(""); // "" = ยังไม่โหลดรอบ → ตั้งเป็นรอบที่เปิดอยู่ (utils/defaultPeriod) ครั้งแรกครั้งเดียว ไม่ทับรอบที่ผู้ใช้เลือกตอนรีเฟรช
     const [bulkDraftOpen, setBulkDraftOpen] = useState(false); // หน้าต่างออกร่างหนังสือหลายคน
+    const [bulkSignedOpen, setBulkSignedOpen] = useState(false); // หน้าต่างอัปโหลดฉบับลงนามหลายฉบับ
     const [zipOpen, setZipOpen] = useState(false); // หน้าต่างดาวน์โหลดหนังสือ (zip)
 
     const [issueModalData, setIssueModalData] = useState<StudentProfile | null>(null);
@@ -696,6 +698,12 @@ export default function A_DocT000() {
                                 ออกร่างหนังสือหลายคน
                             </button>
                         )}
+                        {isStaff && (
+                            <button type="button" onClick={() => setBulkSignedOpen(true)} style={toolbarBtn}
+                                title="อัปโหลดหนังสือที่ลงนามแล้วหลายฉบับพร้อมกัน จับคู่จากเลขหน้าชื่อไฟล์">
+                                อัปโหลดฉบับลงนามหลายฉบับ
+                            </button>
+                        )}
                         <LetterZipButton onClick={() => setZipOpen(true)} />
                     </div>
                 </div>
@@ -846,6 +854,11 @@ export default function A_DocT000() {
             {bulkDraftOpen && (
                 <Suspense fallback={null}>
                     <BulkLetterDraftModal students={students} onClose={() => { setBulkDraftOpen(false); refreshStudents(); }} />
+                </Suspense>
+            )}
+            {bulkSignedOpen && (
+                <Suspense fallback={null}>
+                    <BulkSignedUploadModal students={students} onClose={() => { setBulkSignedOpen(false); refreshStudents(); }} />
                 </Suspense>
             )}
             {zipOpen && (
