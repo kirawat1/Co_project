@@ -35,6 +35,7 @@ import A_MajorConfigSummary from "./A_MajorConfigSummary";
 import { useMyScope } from "../hooks/useMyScope";
 import { AdminRoleContext } from "./adminRole";
 import { getMajorFilter, setMajorFilter, NO_MAJOR } from "../utils/majorFilter";
+import { clearSession } from "../utils/session";
 
 
 const IOS_BLUE = "#0074B7";
@@ -115,14 +116,14 @@ export default function AdminApp() {
         // หรือเน็ตหลุดชั่วคราว — ไม่ใช่ปัญหาสิทธิ์ ถ้าลบ token ตรงนี้จะเด้งออกทั้งที่ยังล็อกอินอยู่
         // (เจอจริงตอนรัน E2E: กด goto หน้าถัดไปเร็วเกินไปแล้วโดนเตะกลับหน้าล็อกอิน)
         if (err instanceof TypeError) return;
-        localStorage.removeItem("coop.token");
+        clearSession();
         navigate("/", { replace: true });
       })
       .finally(() => setLoading(false));
   }, [navigate, reloadKey]);
 
   function onLogout() {
-    localStorage.removeItem("coop.token");
+    clearSession();
     navigate("/", { replace: true });
   }
 

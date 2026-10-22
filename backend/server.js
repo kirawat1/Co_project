@@ -76,8 +76,9 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// static
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+// ไฟล์ที่อัปโหลด — ต้อง login และมีสิทธิ์ในไฟล์นั้น (middlewares/uploadsGuard.js · เดิมเปิดสาธารณะ)
+// cacheControl: false — uploadsGuard ตั้ง "private" เอง (ไฟล์ส่วนตัว ห้าม cache ที่ใช้ร่วมกันเก็บ)
+app.use("/uploads", require("./middlewares/uploadsGuard"), express.static(path.join(__dirname, "uploads"), { cacheControl: false }));
 
 // -----------------------------
 // Routes

@@ -39,7 +39,7 @@ const MOUNTS = {
 
 // ไม่ต้อง login — ตั้งใจ
 const PUBLIC = {
-  auth: ['POST /signin', 'POST /login/google'],
+  auth: ['POST /signin', 'POST /login/google', 'POST /logout'], // logout แค่ล้าง cookie เปิดไฟล์ — token หมดอายุแล้วก็ต้องล้างได้
   internalStatus: ['GET /'],            // หน้าสถานะเครื่อง — กันด้วย nginx + header (ดูเทสต์ท้ายไฟล์)
 };
 

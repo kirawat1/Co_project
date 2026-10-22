@@ -4,7 +4,14 @@ const prisma = require("../config/prismaClient");
 const { OAuth2Client } = require('google-auth-library');
 const { VAULT_ROLES, decryptPassword, passwordEncFor } = require("../utils/passwordVault");
 const { signSession } = require("../utils/session");
+const { clearFileCookie } = require("../utils/fileCookie");
 require("dotenv").config();
+
+// POST /api/auth/logout — ล้าง cookie เปิดไฟล์ (/uploads) · token ใน localStorage frontend ลบเอง
+exports.logout = (req, res) => {
+  clearFileCookie(res);
+  res.json({ ok: true });
+};
 
 if (!process.env.GOOGLE_CLIENT_ID) {
   console.warn('[authController] WARNING: GOOGLE_CLIENT_ID is not set — Google OAuth login is disabled');

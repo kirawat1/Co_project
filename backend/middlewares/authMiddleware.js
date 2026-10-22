@@ -2,6 +2,7 @@
 const jwt = require('jsonwebtoken');
 const prisma = require('../config/prismaClient');
 const { checkSession } = require('../utils/session');
+const { FILE_COOKIE, readCookie, setFileCookie } = require('../utils/fileCookie');
 
 if (!process.env.JWT_SECRET) {
   throw new Error('FATAL: JWT_SECRET environment variable is not set');
@@ -44,6 +45,8 @@ exports.verifyToken = async (req, res, next) => {
 
   req.user = decoded;
   req.userId = decoded.id;
+  // cookie สำหรับเปิดไฟล์ใน /uploads (ลิงก์/รูปส่ง header เองไม่ได้) — ตั้งเมื่อยังไม่มีหรือเป็น token เก่า
+  if (typeof res.cookie === 'function' && readCookie(req, FILE_COOKIE) !== token) setFileCookie(req, res, token, decoded);
   return next();
 };
 
