@@ -1,22 +1,24 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, lazy, Suspense } from "react";
 import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { apiFetch } from "../utils/apiFetch";
 import { ThemeToggleBtn } from "./ThemeContext";
 
 import Sidebar from "./T_Sidebar";
-import Dashboard from "./T_Dashboard";
-import Requests from "./T_Requests";
-import Students from "./T_Students";
-import StudentDetail from "./T_StudentDetail";
-import Exams from "./T_Exams";
-import Profile from "./T_Profile";
-import T_T002Review from "./T_T002Review";
-import T_T003Review from "./T_T003Review";
 import StudentTheme from "./S_Theme";
 import coopLogo from "../assets/COOP_Logo.png";
-import T_SupervisionReview from "./T_SupervisionReview";
-import AnnouncementRooms from "./AnnouncementRooms";
 import { clearSession } from "../utils/session";
+
+// หน้าในส่วนนี้โหลดตอนเปิดหน้านั้น (แบ่งไฟล์ — ไม่ต้องโหลดทุกหน้า/ไลบรารี PDF/Excel ตั้งแต่แรก)
+const Dashboard = lazy(() => import("./T_Dashboard"));
+const Requests = lazy(() => import("./T_Requests"));
+const Students = lazy(() => import("./T_Students"));
+const StudentDetail = lazy(() => import("./T_StudentDetail"));
+const Exams = lazy(() => import("./T_Exams"));
+const Profile = lazy(() => import("./T_Profile"));
+const T_T002Review = lazy(() => import("./T_T002Review"));
+const T_T003Review = lazy(() => import("./T_T003Review"));
+const T_SupervisionReview = lazy(() => import("./T_SupervisionReview"));
+const AnnouncementRooms = lazy(() => import("./AnnouncementRooms"));
 const IOS_BLUE = "#0074B7";
 
 export default function TeacherApp() {
@@ -130,6 +132,7 @@ export default function TeacherApp() {
         <div className={`sidebar-overlay${sidebarOpen ? " open" : ""}`} onClick={() => setSidebarOpen(false)} />
         <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} isCoopTeacher={!!isCoopTeacher} />
         <main className="main">
+          <Suspense fallback={<div style={{ padding: 24, color: "var(--text-muted)" }}>กำลังโหลด...</div>}>
           <Routes>
             <Route index element={<Navigate to="dashboard" replace />} />
 
@@ -158,6 +161,7 @@ export default function TeacherApp() {
 
             <Route path="*" element={<Navigate to="/teacher/dashboard" replace />} />
           </Routes>
+          </Suspense>
         </main>
       </div>
 
