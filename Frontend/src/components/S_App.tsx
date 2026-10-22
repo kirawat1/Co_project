@@ -1,27 +1,29 @@
 //frontend/src/components/S_App.tsx
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, lazy, Suspense } from "react";
 import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import Sidebar from "./S_Sidebar";
-import DashboardPage from "./S_Dashboard";
-import ProfilePage from "./S_ProfilePage";
-import Gateway from "./S_Gateway";
-import DailyPage from "./S_DailyPage";
-import DocPage from "./S_Docs";
-import Company from "./S_Company";
 import StudentTheme from "./S_Theme";
-import DocT002 from "./S_DocsT002Form";
-import DocT003 from "./S_DocsT003Form";
 import coopLogo from "../assets/COOP_Logo.png";
-import S_Supervision from "./S_Supervision";
 import { type StudentProfile } from "./store";
-import S_DocT005_006 from "./S_DocT005_006";
-import S_DocT007 from "./S_DocT007";
-import S_DocT008 from './S_DocT008';
-import S_Announcements from './S_Announcements';
 import { ThemeToggleBtn } from "./ThemeContext";
 import { apiFetch } from "../utils/apiFetch";
 import S_FeedbackButton from "./S_FeedbackButton";
 import { clearSession } from "../utils/session";
+
+// หน้าในส่วนนี้โหลดตอนเปิดหน้านั้น (แบ่งไฟล์ — ไม่ต้องโหลดทุกหน้า/ไลบรารี PDF/Excel ตั้งแต่แรก)
+const DashboardPage = lazy(() => import("./S_Dashboard"));
+const ProfilePage = lazy(() => import("./S_ProfilePage"));
+const Gateway = lazy(() => import("./S_Gateway"));
+const DailyPage = lazy(() => import("./S_DailyPage"));
+const DocPage = lazy(() => import("./S_Docs"));
+const Company = lazy(() => import("./S_Company"));
+const DocT002 = lazy(() => import("./S_DocsT002Form"));
+const DocT003 = lazy(() => import("./S_DocsT003Form"));
+const S_Supervision = lazy(() => import("./S_Supervision"));
+const S_DocT005_006 = lazy(() => import("./S_DocT005_006"));
+const S_DocT007 = lazy(() => import("./S_DocT007"));
+const S_DocT008 = lazy(() => import("./S_DocT008"));
+const S_Announcements = lazy(() => import("./S_Announcements"));
 
 const IOS_BLUE = "#0074B7";
 
@@ -123,6 +125,7 @@ export default function StudentApp() {
         <Sidebar profile={profile} isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
         <main className="main">
+          <Suspense fallback={<div style={{ padding: 24, color: "var(--text-muted)" }}>กำลังโหลด...</div>}>
           <Routes>
             <Route index element={<Navigate to="dashboard" replace />} />
             <Route path="dashboard" element={<DashboardPage />} />
@@ -140,6 +143,7 @@ export default function StudentApp() {
             <Route path="doc-t008" element={<S_DocT008 />} />
             <Route path="*" element={<Navigate to="dashboard" replace />} />
           </Routes>
+          </Suspense>
         </main>
       </div>
 

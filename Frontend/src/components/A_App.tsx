@@ -1,41 +1,43 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, lazy, Suspense } from "react";
 import { apiFetch } from "../utils/apiFetch";
 import { ThemeToggleBtn } from "./ThemeContext";
 import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import Sidebar from "./A_Sidebar";
-import Dashboard from "./A_Dashboard";
-import Students from "./A_Students";
-import Mentors from "./A_Mentors";
-import Contacts from "./A_Contacts";
-import Docs from "./A_Docs";
-import Daily from "./A_Daily";
-import Announcements from "./A_Announcements";
-import Settings from "./A_Settings";
 import StudentTheme from "./S_Theme";         // ใช้ธีมเดียว
 import coopLogo from "../assets/COOP_Logo.png";
-import Teachers from "./A_Teacher";
-import Companies from "./A_Company";
-import StaffCriteriaPage from "./A_CriteriaPage";
-import A_Logs from "./A_Logs";
-import A_Feedback from "./A_Feedback";
-import DocT000 from "./A_DocT000";
-import DocT002 from "./A_DocT002Review";
-import DocT003 from "./A_DocT003Review";
-import Coopperiod from "./A_CoopPeriod";
-import CoopApplications from "./A_CoopApplications";
-import A_DocRequirements from "./A_DocRequirements";
-import A_SupervisionManager from "./A_SupervisionManage";
-import A_DocT005_006 from "./A_DocT005_006";
-import A_DocT007 from "./A_DocT007";
-import A_SupervisionEval from "./A_SupervisionEval";
-import A_DocT008 from "./A_DocT008";
-import A_GatewaySettings from "./A_GatewaySettings";
-import A_StaffManage from "./A_StaffManage";
-import A_MajorConfigSummary from "./A_MajorConfigSummary";
 import { useMyScope } from "../hooks/useMyScope";
 import { AdminRoleContext } from "./adminRole";
 import { getMajorFilter, setMajorFilter, NO_MAJOR } from "../utils/majorFilter";
 import { clearSession } from "../utils/session";
+
+// หน้าในส่วนนี้โหลดตอนเปิดหน้านั้น (แบ่งไฟล์ — ไม่ต้องโหลดทุกหน้า/ไลบรารี PDF/Excel ตั้งแต่แรก)
+const Dashboard = lazy(() => import("./A_Dashboard"));
+const Students = lazy(() => import("./A_Students"));
+const Mentors = lazy(() => import("./A_Mentors"));
+const Contacts = lazy(() => import("./A_Contacts"));
+const Docs = lazy(() => import("./A_Docs"));
+const Daily = lazy(() => import("./A_Daily"));
+const Announcements = lazy(() => import("./A_Announcements"));
+const Settings = lazy(() => import("./A_Settings"));
+const Teachers = lazy(() => import("./A_Teacher"));
+const Companies = lazy(() => import("./A_Company"));
+const StaffCriteriaPage = lazy(() => import("./A_CriteriaPage"));
+const A_Logs = lazy(() => import("./A_Logs"));
+const A_Feedback = lazy(() => import("./A_Feedback"));
+const DocT000 = lazy(() => import("./A_DocT000"));
+const DocT002 = lazy(() => import("./A_DocT002Review"));
+const DocT003 = lazy(() => import("./A_DocT003Review"));
+const Coopperiod = lazy(() => import("./A_CoopPeriod"));
+const CoopApplications = lazy(() => import("./A_CoopApplications"));
+const A_DocRequirements = lazy(() => import("./A_DocRequirements"));
+const A_SupervisionManager = lazy(() => import("./A_SupervisionManage"));
+const A_DocT005_006 = lazy(() => import("./A_DocT005_006"));
+const A_DocT007 = lazy(() => import("./A_DocT007"));
+const A_SupervisionEval = lazy(() => import("./A_SupervisionEval"));
+const A_DocT008 = lazy(() => import("./A_DocT008"));
+const A_GatewaySettings = lazy(() => import("./A_GatewaySettings"));
+const A_StaffManage = lazy(() => import("./A_StaffManage"));
+const A_MajorConfigSummary = lazy(() => import("./A_MajorConfigSummary"));
 
 
 const IOS_BLUE = "#0074B7";
@@ -192,6 +194,7 @@ export default function AdminApp() {
         <main className="main">
           <AdminRoleContext.Provider value={{ isStaff, majors: coopMajors }}>
           {/* เปลี่ยนตัวกรองหลักสูตร → remount หน้าเพื่อโหลดข้อมูลใหม่ */}
+          <Suspense fallback={<div style={{ padding: 24, color: "var(--text-muted)" }}>กำลังโหลด...</div>}>
           <Routes key={effectiveFilter}>
             <Route index element={<Navigate to="/admin/dashboard" replace />} />
             <Route path="dashboard" element={<Dashboard />} />
@@ -226,6 +229,7 @@ export default function AdminApp() {
             {/* ✅ ใส่ /admin/ นำหน้า เพื่อป้องกัน Infinite Loop */}
             <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
           </Routes>
+          </Suspense>
           </AdminRoleContext.Provider>
         </main>
       </div>
