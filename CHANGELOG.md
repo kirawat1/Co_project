@@ -1,5 +1,21 @@
 # CHANGELOG — Co_project
 
+## [2026-10-22] ops: เฝ้าเน็ต KKU บน VM ทุก 15 นาที · deploy บอกชัดเมื่อเป็นปัญหาเน็ต
+
+### Changed
+- `docs/network-keepalive.ps1` (task `CoopNetworkKeepAlive` เดิม): จากรัน login ทุก 2 ชม.แบบไม่ดูอะไร → **เช็กเน็ตจริงก่อน** (HTTPS ไปหน้าที่ต้องตอบ 204 — captive portal ปลอมไม่ได้) หลุดค่อยรัน `network-login.js` แล้วเช็กซ้ำ
+  - เขียน `network-keepalive.status` ทุกรอบ (หลักฐานว่า task ยังรัน) · `network-keepalive.log` เฉพาะตอนหลุด (login แล้วกลับมาไหม) · exit 0 = ออนไลน์ / 1 = ยังหลุด · `-CheckOnly` เช็กอย่างเดียว
+- `docs/register-network-keepalive.ps1` (ใหม่): ลงทะเบียน task ทุก 15 นาที ไม่หมดอายุ รันได้แม้ไม่มีคน login ค้าง (S4U) · พิมพ์การตั้งค่า task เดิมก่อนแทนที่ — เพื่อรู้ว่าทำไมรอบก่อนเน็ตหลุดแล้วไม่กลับเอง (เน็ตหลุด 2026-10-22 ทั้งที่มี task ทุก 2 ชม.)
+- `docs/deploy.ps1`: เช็กเน็ต (และ login ใหม่ถ้าหลุด) ก่อนดึงโค้ด · `git pull` ล้มเพราะต่อ GitHub ไม่ได้ → บอกว่าเป็นปัญหาเน็ต (เดิมบอก "Fix conflicts") · `npm install` แสดงผลแทนซ่อนไว้ (เดิมดูเหมือนค้างตอนเน็ตช้า) + ล้มแล้วหยุด deploy (เดิมไม่เช็ก) + `--no-audit --no-fund` ลดการเรียกเน็ต
+- `docs/network.md` (ใหม่): วิธีติดตั้ง/ตรวจ/อ่าน log · สคริปต์ .ps1 เป็น ASCII ล้วน (PowerShell 5.1 อ่านไฟล์ไม่มี BOM เป็น ANSI — ตัวอักษรไทย/สัญลักษณ์เพี้ยน)
+
+### Tests
+- PowerShell 5.1 กับ `network-login.js` จำลอง + หน้าเช็กเน็ตจำลอง: ออนไลน์ → เขียน status อย่างเดียว · หลุดแล้ว login แก้ได้ → `[OK] back online` exit 0 · login แล้วยังหลุด → `[ERR]` exit 1 · `-CheckOnly` ไม่เขียนไฟล์ · เน็ตจริง (gstatic 204) → ออนไลน์
+- parse ทั้ง 3 สคริปต์ผ่าน · ข้อความ error จริงจาก VM (`Failed to connect to github.com port 443`) ถูกจัดเป็นปัญหาเน็ต · `npm install --no-audit --no-fund --loglevel=error` ใช้ได้
+
+### Deploy
+- หลัง deploy รันบน VM ครั้งเดียว (Run as administrator): `PowerShell -ExecutionPolicy Bypass -File C:\Co_project\docs\register-network-keepalive.ps1` — ดูขั้นตอนตรวจใน `docs/network.md`
+
 ## [2026-10-22] fix: ธีมสว่าง — ตัวอักษรจางอ่านง่ายขึ้น (จุดกลืน 243 → 0)
 
 ### Fixed

@@ -122,19 +122,37 @@ if ($ServicesOnly) {
 }
 
 # --- UPDATE CODE ---------------------------------------------------
+# The KKU-Net login can drop while the VM is up - check (and re-login) before git/npm need the internet
+Write-Step "Checking internet (re-login to KKU-Net if needed)..."
+PowerShell -NoProfile -ExecutionPolicy Bypass -File "$PROJECT_DIR\docs\network-keepalive.ps1" -ProjectDir $PROJECT_DIR | Out-Null
+if ($LASTEXITCODE -ne 0) {
+    Write-ERR "No internet - KKU-Net login did not help. See docs\network-keepalive.log, then re-run deploy."
+    exit 1
+}
+Write-OK "Internet OK"
+
 Write-Step "Pulling latest code from GitHub..."
 Set-Location $PROJECT_DIR
 $gitResult = git pull origin main 2>&1
 Write-Host "    $gitResult" -ForegroundColor Gray
 if ($LASTEXITCODE -ne 0) {
-    Write-ERR "git pull failed - aborting deploy. Fix conflicts then re-run."
+    if ("$gitResult" -match "Could not resolve host|Failed to connect|unable to access|Connection timed out|Could not connect") {
+        Write-ERR "git pull failed - cannot reach GitHub (network). Run: node docs\network-login.js, then re-run deploy."
+    } else {
+        Write-ERR "git pull failed - aborting deploy. Fix conflicts then re-run."
+    }
     exit 1
 }
 Write-OK "Code updated"
 
-Write-Step "Installing backend dependencies..."
+# npm output stays visible (a slow network looked like a hang when it was hidden); no audit/fund = fewer network calls
+Write-Step "Installing backend dependencies (can take a few minutes on a slow network)..."
 Set-Location $PROJECT_DIR\backend
-npm install --silent 2>$null
+npm install --no-audit --no-fund --loglevel=error
+if ($LASTEXITCODE -ne 0) {
+    Write-ERR "npm install (backend) failed - check the errors above / the network, then re-run deploy."
+    exit 1
+}
 Write-OK "Done"
 
 Write-Step "Generating Prisma Client..."
@@ -175,7 +193,11 @@ if (-not $migrateOk) {
 
 Write-Step "Building frontend..."
 Set-Location $PROJECT_DIR\Frontend
-npm install --silent 2>$null
+npm install --no-audit --no-fund --loglevel=error
+if ($LASTEXITCODE -ne 0) {
+    Write-ERR "npm install (frontend) failed - check the errors above / the network, then re-run deploy."
+    exit 1
+}
 npx vite build 2>&1 | Select-String "built in|error" | ForEach-Object { Write-Host "    $_" -ForegroundColor Gray }
 if (Test-Path "$PROJECT_DIR\Frontend\dist\index.html") {
     Write-OK "Frontend built successfully"
