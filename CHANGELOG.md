@@ -1,5 +1,19 @@
 # CHANGELOG — Co_project
 
+## [2026-10-22] refactor: แยกตัวรวมเอกสารแนบหนังสือขอความอนุเคราะห์ + ตัวสร้างไฟล์รายฉบับ (ใช้กับออกร่างหลายคน)
+
+### Added
+- `Frontend/src/utils/letterAssets.ts`: `loadLetterAssets` (ตราครุฑ/รายละเอียดโครงการ/ใบตอบรับ/ชื่อคณบดี — ค่าตั้งต้นเดิม) · `existingAttachmentFiles` (`letterAttachmentDocs` + HEAD `/uploads/...` คืน `files` กับ `missing`)
+- `Frontend/src/utils/bulkLetterFiles.ts`: `buildLetterFiles` สร้างไฟล์ของหนังสือ 1 ฉบับด้วยตัวสร้างเดิม (REQUEST+doc = .doc + เอกสารแนบ.pdf · อื่นๆ ไฟล์เดียว) · ไม่มีตราครุฑตอนทำ PDF = throw
+- `createDispatchAttachmentsPDF` ใน `pdfDispatchGenerator.ts`: เอกสารแนบล้วน (โครงการ -> เอกสารนักศึกษา -> ใบตอบรับ)
+
+### Changed
+- `createDispatchPDF`: แยกส่วนรวมเอกสารแนบเป็น `appendDispatchAttachments` ใช้ร่วมกับตัวใหม่ (ผลลัพธ์เท่าเดิม)
+- `IssueLetterModal` / `IssuePlacementLetterModal`: เรียก `loadLetterAssets` / `existingAttachmentFiles` แทนโค้ดเดิม (พฤติกรรม/UI เหมือนเดิม)
+
+### Tests
+- วัดในเบราว์เซอร์ (รันตัวสร้างตรงผ่าน Vite): ก่อน/หลังแก้ จำนวนหน้า PDF ขนาด Word เท่ากัน (เดี่ยว 15 หน้า / รวม 2 คน 27 หน้า) · เอกสารแนบล้วน 14 / 26 หน้า = เต็มเล่ม - หน้าหนังสือ 1 หน้า · tsc 0 · unit 40 ผ่าน
+
 ## [2026-10-22] feat: ฟังก์ชันออกร่างหลายคน — ไล่เลข จัดกลุ่มบริษัท ชื่อไฟล์ จับคู่ไฟล์สแกน + zip/Excel
 
 ### Added

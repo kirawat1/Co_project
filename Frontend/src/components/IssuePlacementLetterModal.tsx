@@ -9,6 +9,7 @@ import DateInput from './DateInput';
 import { notify, askConfirm } from "../utils/notify";
 import { letterRecipient, recipientText } from "../utils/letterRecipient";
 import { toLetterStudent } from "../utils/letterGroup";
+import { loadLetterAssets } from "../utils/letterAssets";
 
 // group = หนังสือรวมหลายคน (บริษัทเดียวกัน วันฝึกต่างกันได้) · student = คนแรกของกลุ่ม · ไม่ส่ง = หนังสือเดี่ยว
 // batchMates/onOpenBatch = หนังสือเดี่ยวของคนที่อยู่ในหนังสือรวม (ดู LetterBatchNotice)
@@ -32,24 +33,10 @@ export default function IssuePlacementLetterModal({ student, group, batchMates, 
     const startDate = student.coop?.actualStartDate || student.coopApplicationForm?.startDate || "";
     const endDate = student.coop?.actualEndDate || student.coopApplicationForm?.endDate || "";
 
-    const loadCommonData = async () => {
-        const [resAssets, resDean] = await Promise.all([
-            apiFetch("/api/admin/assets"),
-            apiFetch("/api/admin/config/dean-info"),
-        ]);
-        const assets = (await resAssets.json()).assets || [];
-        const getAsset = (key: string) => { const f = assets.find((a: any) => a.key === key); return f ? `/uploads/system/${f.path}` : null; };
-        let deanName = "รองศาสตราจารย์สิรภัทร เชี่ยวชาญวัฒนา";
-        let deanPosition = "คณบดีวิทยาลัยการคอมพิวเตอร์";
-        if (resDean.ok) { const d = await resDean.json(); if (d.deanName) deanName = d.deanName; if (d.deanPosition) deanPosition = d.deanPosition; }
-        return { getAsset, deanName, deanPosition };
-    };
-
     const handleCreatePdf = async () => {
         setLoadingPdf(true);
         try {
-            const { getAsset, deanName, deanPosition } = await loadCommonData();
-            const krutUrl = getAsset("KRUT");
+            const { krutUrl, deanName, deanPosition } = await loadLetterAssets();
             if (!krutUrl) return notify.error("⚠️ ไม่พบไฟล์ตราครุฑ (KRUT) กรุณาอัปโหลดในหน้าตั้งค่า");
             const doc = await createPlacementPDF(
                 student, { placeDocNumber, placeDocDate, actualStartDate: startDate, actualEndDate: endDate },
@@ -66,7 +53,7 @@ export default function IssuePlacementLetterModal({ student, group, batchMates, 
     const handleCreateDoc = async () => {
         setLoadingDoc(true);
         try {
-            const { deanName, deanPosition } = await loadCommonData();
+            const { deanName, deanPosition } = await loadLetterAssets();
             const studentName = `${thaiPrefix(student.prefix)}${student.firstName} ${student.lastName}`;
             const html = buildPlacementLetterHtml({
                 docNumber: placeDocNumber, docDate: placeDocDate, studentName,
