@@ -34,7 +34,7 @@ export default function IssueSupervisionLetterModal({ supervision: primary, grou
 
     const loadCommonData = async () => {
         const [resAssets, resDean] = await Promise.all([
-            fetch("/api/admin/assets"),
+            apiFetch("/api/admin/assets"),
             apiFetch("/api/admin/config/dean-info"),
         ]);
         const assets = (await resAssets.json()).assets || [];
@@ -66,7 +66,7 @@ export default function IssueSupervisionLetterModal({ supervision: primary, grou
             const { getAsset, deanName, deanPosition } = await loadCommonData();
             const krutUrl = getAsset("KRUT");
             if (!krutUrl) return notify.error("⚠️ ไม่พบไฟล์ตราครุฑ (KRUT) กรุณาอัปโหลดในหน้าตั้งค่า");
-            const blob = await createSupervisionLetterPDF(supervision, docNumber, docDate, krutUrl, "", deanName, deanPosition, members ? members.map(m => toLetterStudent(m.student)) : undefined);
+            const blob = await createSupervisionLetterPDF(supervision, docNumber, docDate, krutUrl, deanName, deanPosition, members ? members.map(m => toLetterStudent(m.student)) : undefined);
             setPdfDraft({ blob, docNumber, docDate });
             setPreviewUrl(URL.createObjectURL(blob));
         } catch (err) { notify.error("สร้าง PDF ไม่สำเร็จ: " + err); }

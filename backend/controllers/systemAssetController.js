@@ -13,11 +13,19 @@ exports.getAllAssets = async (req, res) => {
   }
 };
 
+// ไฟล์ระบบที่หนังสือใช้จริง — ไม่รับลายเซ็นคณบดีแล้ว (หนังสือโหลดไปลงนามจริง · เดิมไฟล์ลายเซ็นเปิดสาธารณะ)
+const ASSET_KEYS = ['KRUT', 'PROJECT_DETAILS', 'ACCEPTANCE_FORM'];
+exports.ASSET_KEYS = ASSET_KEYS;
+
 // อัปโหลด/เปลี่ยนไฟล์
 exports.updateAsset = async (req, res) => {
   try {
     const { key, label } = req.body;
     if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+    if (!ASSET_KEYS.includes(key)) {
+      try { fs.unlinkSync(path.join(__dirname, '../uploads/system', req.file.filename)); } catch (_) {}
+      return res.status(400).json({ ok: false, message: `ชนิดไฟล์ระบบไม่ถูกต้อง (รับ ${ASSET_KEYS.join(', ')})` });
+    }
 
     // 1. หาไฟล์เดิม (ยังไม่ลบ)
     const oldAsset = await prisma.systemAsset.findUnique({ where: { key } });

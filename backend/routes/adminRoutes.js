@@ -55,8 +55,8 @@ router.put('/t000/letter-pending', verifyToken, verifyRole(...STAFF_ONLY), admin
 // หนังสือรวมหลายคน (บริษัทเดียวกัน) — ขอความอนุเคราะห์ / ส่งตัว · ออกหนังสือ = เจ้าหน้าที่เท่านั้น
 router.put('/t000/letter-batch', verifyToken, verifyRole(...STAFF_ONLY), upload.single('file'), adminDocController.issueLetterBatch);
 
-// System Assets (ไม่ต้องการ auth — เป็นข้อมูล public เช่น โลโก้)
-router.get('/assets', systemAssetController.getAllAssets);
+// System Assets — ใช้เฉพาะหน้าตั้งค่า/ออกหนังสือของเจ้าหน้าที่ (เดิมเปิดสาธารณะ รวมลายเซ็นคณบดี)
+router.get('/assets', verifyToken, verifyRole(...STAFF_ONLY), systemAssetController.getAllAssets);
 router.post('/assets', verifyToken, verifyRole(...STAFF_ONLY), systemUpload.single('file'), systemAssetController.updateAsset);
 router.delete('/assets/:key', verifyToken, verifyRole(...STAFF_ONLY), systemAssetController.deleteAsset);
 

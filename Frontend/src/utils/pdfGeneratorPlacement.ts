@@ -1,7 +1,7 @@
 // utils/pdfGeneratorPlacement.ts
 import { jsPDF } from "jspdf";
 import { letterMajorName } from "./docGeneratorUtils";
-import { notify } from "./notify";
+import { notify } from "./notify";
 import { letterRecipient, recipientText } from "./letterRecipient";
 import { isGroup, sameDates, studentLines, type LetterStudent } from "./letterGroup";
 
@@ -48,7 +48,6 @@ const getImageData = async (url: string) => {
 export const createPlacementPDF = async (
   student: any,
   formData: any,
-  signatureUrl: string,
   krutUrl: string,
   deanName: string = "รองศาสตราจารย์สิรภัทร เชี่ยวชาญวัฒนา", // รับค่าชื่อ (มีค่า Default กันเหนียว)
   deanPosition: string = "คณบดีวิทยาลัยการคอมพิวเตอร์", // รับค่าตำแหน่ง
@@ -176,14 +175,8 @@ export const createPlacementPDF = async (
 
   currentY += 5; // เว้นที่
 
-  // ✅ 2. วาดลายเซ็น (ใช้ Helper ใหม่)
-  const sigImg = await getImageData(signatureUrl);
-  if (sigImg) {
-    doc.addImage(sigImg.data, sigImg.format, centerX - 20, currentY, 40, 15);
-  } else {
-    // ถ้าไม่มีรูป ให้เว้นที่ว่างไว้
-    currentY += 15;
-  }
+  // ที่ว่างให้คณบดีลงนามจริง (ไม่มีรูปลายเซ็น — หนังสือโหลดไปลงนาม)
+  currentY += 15;
 
   currentY += 20;
   doc.text(`(${deanName})`, centerX, currentY, {

@@ -43,7 +43,7 @@ export default function IssueLetterModal({ student, group, batchMates, onOpenBat
 
     const loadCommonData = async () => {
         const [resAssets, resDean] = await Promise.all([
-            fetch("/api/admin/assets"),
+            apiFetch("/api/admin/assets"),
             apiFetch("/api/admin/config/dean-info"),
         ]);
         const assets = (await resAssets.json()).assets || [];
@@ -94,7 +94,7 @@ export default function IssueLetterModal({ student, group, batchMates, onOpenBat
             }
             const studentFiles = fileChecks.filter(f => f.exists).map(f => ({ type: f.doc.type, url: f.url }));
             const blob = await createDispatchPDF(
-                profile, docNumber, docDate, krutUrl, "",
+                profile, docNumber, docDate, krutUrl,
                 projectUrl || "", acceptUrl || "",
                 studentFiles, deanName, deanPosition,
                 members ? members.map(toLetterStudent) : undefined

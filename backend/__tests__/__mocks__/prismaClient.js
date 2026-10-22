@@ -162,9 +162,12 @@ const prismaMock = {
   },
   systemAsset: {
     findMany: jest.fn(),
+    findUnique: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
+    upsert: jest.fn(),
     delete: jest.fn(),
+    deleteMany: jest.fn(),
   },
   criteria: {
     findMany: jest.fn(),
