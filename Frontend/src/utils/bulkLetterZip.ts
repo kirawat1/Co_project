@@ -5,21 +5,28 @@ import { LETTER_FILE_LABEL, type BulkLetterType } from "./bulkLetters";
 
 /** zip แบบไม่บีบอัด (PDF/Word บีบอยู่แล้ว) — ชื่อไทยได้ flag UTF-8 จาก fflate เอง */
 export function createZip(): { add(name: string, data: Uint8Array): void; finish(): Promise<Blob> } {
-  const chunks: Uint8Array[] = [];
+  // เก็บเป็น Blob ต่อก้อน (ไม่ค้าง Uint8Array ซ้ำกับ Blob สุดท้าย) — ลดหน่วยความจำช่วงสูงสุด
+  let chunks: Blob[] = [];
   let resolve!: (b: Blob) => void, reject!: (e: unknown) => void;
   const done = new Promise<Blob>((res, rej) => { resolve = res; reject = rej; });
+  done.catch(() => {}); // error ก่อนเรียก finish() ไม่เป็น unhandled rejection (finish() ยังได้ error เดิม)
   const zip = new Zip((err, chunk, final) => {
     if (err) return reject(err);
-    chunks.push(chunk);
-    if (final) resolve(new Blob(chunks as BlobPart[], { type: "application/zip" }));
+    chunks.push(new Blob([chunk as BlobPart]));
+    if (final) {
+      const blob = new Blob(chunks, { type: "application/zip" });
+      chunks = [];
+      resolve(blob);
+    }
   });
+  let ended = false;
   return {
     add(name, data) {
       const f = new ZipPassThrough(name);
       zip.add(f);
       f.push(data, true);
     },
-    finish() { zip.end(); return done; },
+    finish() { if (!ended) { ended = true; zip.end(); } return done; },
   };
 }
 

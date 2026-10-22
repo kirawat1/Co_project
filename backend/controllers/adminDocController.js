@@ -802,6 +802,9 @@ exports.markLetterPendingBulk = async (req, res) => {
       return res.status(400).json({ ok: false, message: `letters ต้องมี 1–${BULK_PENDING_MAX} ฉบับ` });
     }
     const L = LETTERS[key];
+    if (req.body.docDate == null || String(req.body.docDate).trim() === '') {
+      return res.status(400).json({ ok: false, message: 'ต้องระบุวันที่ของร่างหนังสือ' });
+    }
     const date = parseDateOr400(req.body.docDate, 'วันที่ของร่างหนังสือ');
 
     const letters = [];
@@ -833,20 +836,20 @@ exports.markLetterPendingBulk = async (req, res) => {
     const now = new Date();
     await prisma.$transaction(async (tx) => {
       // ล็อกเลขเรียงลำดับ — สองคนออกชุดซ้อนกันได้ล็อกลำดับเดียวกัน ไม่ deadlock
-      const sorted = letters.map((l) => l.docNo).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+      const sorted = letters.map((l) => l.docNo).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }) || (a < b ? -1 : a > b ? 1 : 0));
       for (const n of sorted) await lockDocNumber(tx, key, n);
 
       const coops = await tx.studentCoop.findMany({
         where: { studentId: { in: allIds } },
-        select: { studentId: true, status: true, companyId: true, student: { select: { deletedAt: true, studentId: true, firstName: true, lastName: true } } },
+        select: { studentId: true, status: true, companyId: true, [`${key}Url`]: true, student: { select: { deletedAt: true, studentId: true, firstName: true, lastName: true } } },
       });
       if (coops.length !== allIds.length || coops.some((c) => !c.student || c.student.deletedAt)) {
         throw Object.assign(new Error('ไม่พบนักศึกษาบางคน'), { is404: true });
       }
-      const minRank = COOP_STATUS_ORDER.indexOf(L.minStatus);
-      const early = coops.filter((c) => COOP_STATUS_ORDER.indexOf(c.status) < minRank);
-      if (early.length) {
-        throw Object.assign(new Error(`นักศึกษายังไม่ถึงขั้นออกหนังสือนี้: ${early.map((c) => c.student.studentId).join(', ')}`), { is400: true });
+      // ต้องอยู่ขั้นพอดี (DOCS_APPROVED / ACCEPTANCE_CHECKED) และยังไม่มีไฟล์หนังสือ — กันรายการค้างหน้าจอออกซ้ำ
+      const bad = coops.filter((c) => c.status !== L.minStatus || c[`${key}Url`]);
+      if (bad.length) {
+        throw Object.assign(new Error(`มีนักศึกษาที่ออกหนังสือนี้แล้วหรือไม่อยู่ในขั้นที่ออกหนังสือนี้ได้: ${bad.map((c) => `${c.student.studentId} ${c.student.firstName} ${c.student.lastName}`.trim()).join(', ')}`), { is400: true });
       }
       // หนังสือรวม (≥ 2 คน) ต้องบริษัทเดียวกัน — ไม่งั้นอัปโหลดฉบับลงนามจะล้มทีหลัง
       const byId = new Map(coops.map((c) => [c.studentId, c]));
@@ -890,6 +893,7 @@ exports.markLetterPendingBulk = async (req, res) => {
     if (err.is404) return res.status(404).json({ ok: false, message: err.message });
     if (err.is409) return res.status(409).json({ ok: false, message: err.message, ...(err.conflicts ? { conflicts: err.conflicts } : {}) });
     if (err.is400) return res.status(400).json({ ok: false, message: err.message });
+    if (err && err.code === 'P2034') return res.status(409).json({ ok: false, message: 'มีการออกเลขหนังสือพร้อมกัน — ลองกดโหลดอีกครั้ง' });
     console.error('Mark Letter Pending Bulk Error:', err);
     res.status(500).json({ ok: false, message: 'บันทึกสถานะรอลงนามไม่สำเร็จ' });
   }

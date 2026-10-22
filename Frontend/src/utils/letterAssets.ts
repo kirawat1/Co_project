@@ -16,6 +16,7 @@ export async function loadLetterAssets(): Promise<LetterAssets> {
     apiFetch("/api/admin/assets"),
     apiFetch("/api/admin/config/dean-info"),
   ]);
+  if (!resAssets.ok) throw new Error("โหลดรายการไฟล์ระบบ (ตราครุฑ/รายละเอียดโครงการ/แบบฟอร์มตอบรับ) ไม่สำเร็จ กรุณาลองใหม่");
   const assets = (await resAssets.json()).assets || [];
   const getAsset = (key: string) => {
     const f = assets.find((a: any) => a.key === key);
@@ -32,8 +33,11 @@ export async function loadLetterAssets(): Promise<LetterAssets> {
 }
 
 /** เอกสารแนบของนักศึกษา (ตาม letterAttachmentDocs) ที่ยังอยู่บนเซิร์ฟเวอร์ · missing = ชื่อไฟล์ที่หาย */
-export async function existingAttachmentFiles(students: any[]): Promise<{ files: { type: string; url: string }[]; missing: string[] }> {
-  const allDocs: any[] = letterAttachmentDocs(students);
+export async function existingAttachmentFiles(students: any[]): Promise<{ files: { type: string; url: string; label: string }[]; missing: string[] }> {
+  // label = รหัสนักศึกษา + ประเภท + ชื่อไฟล์ (ใช้แจ้งในสรุปเอกสารแนบ ว่าของใครหาย)
+  const allDocs: any[] = students.flatMap((s) =>
+    letterAttachmentDocs([s]).map((d: any) => ({ ...d, label: `${s.studentId ? s.studentId + " " : ""}${d.type || ""} ${d.name || d.path}`.replace(/\s+/g, " ").trim() })),
+  );
   const checks = await Promise.all(
     allDocs.map(async (d: any) => {
       const url = `/uploads/${d.path}`;
@@ -46,7 +50,7 @@ export async function existingAttachmentFiles(students: any[]): Promise<{ files:
     }),
   );
   return {
-    files: checks.filter((c) => c.exists).map((c) => ({ type: c.doc.type, url: c.url })),
-    missing: checks.filter((c) => !c.exists).map((c) => c.doc.name || c.doc.path),
+    files: checks.filter((c) => c.exists).map((c) => ({ type: c.doc.type, url: c.url, label: c.doc.label })),
+    missing: checks.filter((c) => !c.exists).map((c) => c.doc.label),
   };
 }
