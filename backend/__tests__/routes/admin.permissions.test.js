@@ -33,7 +33,7 @@ const ANY_TEACHER = ['GET /coop-periods', 'GET /coop-periods/active', 'GET /coop
 const STAFF_ONLY_SENSITIVE = [
   'GET /staff', 'POST /staff', 'PATCH /staff/:id/password', 'DELETE /staff/:id',
   'POST /criteria', 'PUT /criteria/:id', 'DELETE /criteria/:id',
-  'POST /config/dean-info', 'POST /assets', 'DELETE /assets/:key',
+  'POST /config/dean-info', 'GET /assets', 'POST /assets', 'DELETE /assets/:key',
   'GET /logs', 'GET /logs/export', 'GET /logs/actors',
   'PATCH /students/:id/reset-password', 'POST /students/:id/password/reveal',
   'PUT /teachers/:id/password', 'POST /teachers/:id/password/reveal',
@@ -43,7 +43,8 @@ const STAFF_ONLY_SENSITIVE = [
 ];
 // ไม่ต้อง login (ข้อมูลสาธารณะ เช่น โลโก้/ชื่อผู้ลงนามบนหนังสือ)
 // GET /letters/zip — เบราว์เซอร์เปิดลิงก์ดาวน์โหลดเอง สิทธิ์อยู่ในลิงก์ (ทดสอบใน letterDownloadController.test.js)
-const PUBLIC = ['GET /assets', 'GET /config/dean-info', 'GET /letters/zip'];
+// GET /assets ไม่ใช่สาธารณะแล้ว — ใช้เฉพาะหน้าตั้งค่า/ออกหนังสือของเจ้าหน้าที่ (เดิมเคยมีลายเซ็นคณบดีหลุดออกไปทางนี้)
+const PUBLIC = ['GET /config/dean-info', 'GET /letters/zip'];
 
 const routes = adminRouter.stack
   .filter((l) => l.route)

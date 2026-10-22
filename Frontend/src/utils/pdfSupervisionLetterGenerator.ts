@@ -79,7 +79,6 @@ export const createSupervisionLetterPDF = async (
   docNumber: string,
   docDate: string,
   krutUrl: string,
-  signatureUrl: string,
   deanName: string = "รองศาสตราจารย์สิรภัทร เชี่ยวชาญวัฒนา",
   deanPosition: string = "คณบดีวิทยาลัยการคอมพิวเตอร์",
   students?: LetterStudent[], // หนังสือรวมของกลุ่มนิเทศ
@@ -214,29 +213,11 @@ export const createSupervisionLetterPDF = async (
   if (group && y > 228) { doc.addPage(); y = 30; }
 
   // ==========================================================
-  // 7. คำลงท้าย & ลายเซ็น
+  // 7. คำลงท้าย + ที่ว่างให้คณบดีลงนามจริง (ไม่มีรูปลายเซ็น — หนังสือโหลดไปลงนาม)
   // ==========================================================
   const signCenter = pageWidth / 2 + 30;
   doc.text(`ขอแสดงความนับถือ`, signCenter, y, { align: "center" });
   y += 5;
-
-  try {
-    if (
-      typeof signatureUrl === "string" &&
-      signatureUrl.trim() !== "" &&
-      !signatureUrl.endsWith("undefined") &&
-      !signatureUrl.endsWith("null")
-    ) {
-      const sigImg = await getImageArrayBuffer(signatureUrl);
-      const sigUint8 = new Uint8Array(sigImg);
-      const format = signatureUrl.toLowerCase().endsWith("png")
-        ? "PNG"
-        : "JPEG";
-      doc.addImage(sigUint8, format, signCenter - 15, y, 30, 15);
-    }
-  } catch (e) {
-    console.warn("Signature load error", e);
-  }
 
   y += 20;
   doc.text(`(${deanName})`, signCenter, y, { align: "center" });

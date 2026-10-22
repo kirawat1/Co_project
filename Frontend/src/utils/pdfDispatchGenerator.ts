@@ -56,13 +56,12 @@ const toThaiDate = (dateStr?: string | Date) => {
 };
 
 // ================= MAIN GENERATOR =================
-// ✅ ฟังก์ชันเวอร์ชันใหม่ รับ 8 arguments
+// ไม่มีรูปลายเซ็น — หนังสือโหลดไปลงนามจริง (เว้นที่ว่างไว้ให้ลงนาม)
 export const createDispatchPDF = async (
   profile: any,
   docNumber: string,
   docDate: string,
   krutUrl: string, // 4. ตรามหาวิทยาลัย
-  signatureUrl: string, // 5. ลายเซ็น
   staticProjectUrl: string, // 6. ไฟล์รายละเอียดโครงการ (หน้า 2-6)
   staticAcceptanceUrl: string, // 7. ไฟล์ใบตอบรับ (หน้าสุดท้าย)
   studentDocs: { type: string; url: string }[], // 8. ไฟล์เอกสารของนักศึกษา
@@ -202,31 +201,10 @@ export const createDispatchPDF = async (
   // หนังสือรวม: ลายเซ็น (ถึง y+32) ต้องไม่ทับท้ายกระดาษ (y = 275) · หนังสือเดี่ยวคงรูปแบบเดิม
   if (group && y > 238) { doc.addPage(); y = 30; }
 
-  // 8. คำลงท้าย & ลายเซ็น
+  // 8. คำลงท้าย + ที่ว่างให้คณบดีลงนามจริง
   const signCenter = pageWidth / 2 + 25;
   doc.text(`ขอแสดงความนับถือ`, signCenter, y, { align: "center" });
   y += 5;
-
-  try {
-    // ✅ เพิ่มการเช็ค typeof ว่าต้องเป็น string และไม่ว่าง
-    if (
-      typeof signatureUrl === "string" &&
-      signatureUrl.trim() !== "" &&
-      !signatureUrl.endsWith("undefined") &&
-      !signatureUrl.endsWith("null")
-    ) {
-      const sigImg = await getImageArrayBuffer(signatureUrl);
-      const sigUint8 = new Uint8Array(sigImg);
-      const format = signatureUrl.toLowerCase().endsWith("png")
-        ? "PNG"
-        : "JPEG";
-      doc.addImage(sigUint8, format, signCenter - 15, y, 30, 15);
-    } else {
-      console.warn("⚠️ ข้ามการวาดลายเซ็น: URL ว่างเปล่า");
-    }
-  } catch (e) {
-    console.warn("Signature load error (อาจยังไม่อัปโหลดไฟล์)", e);
-  }
   y += 20;
   doc.text(`(${deanName})`, signCenter, y, {
     align: "center",

@@ -34,7 +34,7 @@ export default function IssuePlacementLetterModal({ student, group, batchMates, 
 
     const loadCommonData = async () => {
         const [resAssets, resDean] = await Promise.all([
-            fetch("/api/admin/assets"),
+            apiFetch("/api/admin/assets"),
             apiFetch("/api/admin/config/dean-info"),
         ]);
         const assets = (await resAssets.json()).assets || [];
@@ -53,7 +53,7 @@ export default function IssuePlacementLetterModal({ student, group, batchMates, 
             if (!krutUrl) return notify.error("⚠️ ไม่พบไฟล์ตราครุฑ (KRUT) กรุณาอัปโหลดในหน้าตั้งค่า");
             const doc = await createPlacementPDF(
                 student, { placeDocNumber, placeDocDate, actualStartDate: startDate, actualEndDate: endDate },
-                "", krutUrl, deanName, deanPosition,
+                krutUrl, deanName, deanPosition,
                 members ? members.map(toLetterStudent) : undefined
             );
             const blob = doc.output("blob");

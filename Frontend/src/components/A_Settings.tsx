@@ -3,10 +3,9 @@ import { apiFetch } from "../utils/apiFetch";
 import { fmtDate } from '../utils/dateFormat';
 import { notify, askConfirm } from "../utils/notify";
 
-// --- Config สำหรับไฟล์แม่แบบ ---
+// --- Config สำหรับไฟล์แม่แบบ --- (ไม่มีลายเซ็นคณบดี: หนังสือโหลดไปลงนามจริง · ตรงกับ ASSET_KEYS ใน systemAssetController)
 const ASSET_KEYS = [
   { key: "KRUT", label: "ตราสัญลักษณ์มหาวิทยาลัย", accept: "image/png, image/jpeg", desc: "แนะนำไฟล์ PNG พื้นหลังใส" },
-  { key: "SIGNATURE", label: "ลายเซ็นคณบดี", accept: "image/png", desc: "ไฟล์ PNG พื้นหลังใสเท่านั้น" },
   { key: "PROJECT_DETAILS", label: "รายละเอียดโครงการ (หน้า 2-6)", accept: "application/pdf", desc: "ไฟล์ PDF ข้อมูลโครงการ" },
   { key: "ACCEPTANCE_FORM", label: "แบบฟอร์มตอบรับ (หน้าสุดท้าย)", accept: "application/pdf", desc: "ไฟล์ PDF ใบตอบรับ" },
 ];
@@ -23,7 +22,7 @@ export default function A_Settings() {
   // --- Effect: Load Data ---
   const loadData = async () => {
     try {
-      const resAssets = await fetch("/api/admin/assets");
+      const resAssets = await apiFetch("/api/admin/assets");
       const dataAssets = await resAssets.json();
       if (dataAssets.ok) setAssets(dataAssets.assets);
 
@@ -102,7 +101,7 @@ export default function A_Settings() {
       <h2 style={{ marginBottom: 24, fontSize: 24, fontWeight: 800, color: '#1e293b' }}>⚙️ ตั้งค่าระบบ (System Settings)</h2>
 
       {/* ------------------------------------------------ */}
-      {/* SECTION 1: SIGNATURE INFO (DEAN) */}
+      {/* SECTION 1: ชื่อ/ตำแหน่งผู้ลงนาม (คณบดี) — ลงนามจริงบนหนังสือที่โหลดไป ไม่มีรูปลายเซ็น */}
       {/* ------------------------------------------------ */}
       <section className="card" style={{ padding: 24, marginBottom: 28 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
