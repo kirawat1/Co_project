@@ -7,7 +7,8 @@ import { FileReady, DeliveryPicker, CompanyAddressBox, RecipientNotice, MODAL_CS
 import DateInput from './DateInput';
 import { notify, askConfirm } from "../utils/notify";
 import { letterRecipient, recipientText } from "../utils/letterRecipient";
-import { toLetterStudent, letterAttachmentDocs } from "../utils/letterGroup";
+import { toLetterStudent } from "../utils/letterGroup";
+import { loadLetterAssets, existingAttachmentFiles } from "../utils/letterAssets";
 
 interface Props {
     student: any;
@@ -41,58 +42,21 @@ export default function IssueLetterModal({ student, group, batchMates, onOpenBat
     const missingDates = (members || [student]).filter(m => !(m.coop?.actualStartDate || m.coopApplicationForm?.startDate));
     const missingDatesMsg = missingDates.length ? `ไม่พบวันที่เริ่มฝึกของ ${missingDates.map(m => m.studentId).join(", ")} — นักศึกษาต้องกรอกที่หน้าเอกสารก่อน` : "";
 
-    const loadCommonData = async () => {
-        const [resAssets, resDean] = await Promise.all([
-            apiFetch("/api/admin/assets"),
-            apiFetch("/api/admin/config/dean-info"),
-        ]);
-        const assets = (await resAssets.json()).assets || [];
-        const getAsset = (key: string) => {
-            const f = assets.find((a: any) => a.key === key);
-            return f ? `/uploads/system/${f.path}` : null;
-        };
-        let deanName = "รองศาสตราจารย์สิรภัทร เชี่ยวชาญวัฒนา";
-        let deanPosition = "คณบดีวิทยาลัยการคอมพิวเตอร์";
-        if (resDean.ok) {
-            const d = await resDean.json();
-            if (d.deanName) deanName = d.deanName;
-            if (d.deanPosition) deanPosition = d.deanPosition;
-        }
-        return { getAsset, deanName, deanPosition };
-    };
-
     const handleCreatePdf = async () => {
         if (missingDatesMsg) return notify.warning(missingDatesMsg);
         setLoadingPdf(true);
         try {
-            const { getAsset, deanName, deanPosition } = await loadCommonData();
-            const krutUrl = getAsset("KRUT");
-            const projectUrl = getAsset("PROJECT_DETAILS");
-            const acceptUrl = getAsset("ACCEPTANCE_FORM");
+            const { krutUrl, projectUrl, acceptUrl, deanName, deanPosition } = await loadLetterAssets();
             if (!krutUrl) return notify.error("⚠️ ไม่พบไฟล์ตราครุฑ (KRUT) กรุณาอัปโหลดในหน้าตั้งค่า");
 
             const profile = { ...student, coop: { ...student.coop, actualStartDate: startDate, actualEndDate: endDate } };
             // หนังสือรวม: แนบเอกสารของทุกคนเรียงตามรายชื่อ · ไม่แนบเอกสารจากขั้นหลัง (ดู letterAttachmentDocs)
-            const allDocs: any[] = letterAttachmentDocs(members || [student]);
-            // ตรวจสอบว่าไฟล์ยังอยู่บน server ก่อนส่ง
-            const fileChecks = await Promise.all(
-                allDocs.map(async (d: any) => {
-                    const url = `/uploads/${d.path}`;
-                    try {
-                        const r = await fetch(url, { method: "HEAD" });
-                        return { doc: d, url, exists: r.ok };
-                    } catch {
-                        return { doc: d, url, exists: false };
-                    }
-                })
-            );
-            const missing = fileChecks.filter(f => !f.exists);
+            const { files: studentFiles, missing } = await existingAttachmentFiles(members || [student]);
             if (missing.length > 0) {
-                const names = missing.map(f => f.doc.name || f.doc.path).join("\n• ");
+                const names = missing.join("\n• ");
                 const proceed = (await askConfirm(`⚠️ พบเอกสาร ${missing.length} ไฟล์ที่ไม่พบบนเซิร์ฟเวอร์ (อาจเป็นไฟล์เก่าที่ถูกลบ):\n• ${names}\n\nสร้าง PDF ต่อโดยข้ามไฟล์ที่หายไป?`, { title: "ไฟล์แนบบางไฟล์หายไป", confirmLabel: "สร้าง PDF ต่อ" }));
                 if (!proceed) return;
             }
-            const studentFiles = fileChecks.filter(f => f.exists).map(f => ({ type: f.doc.type, url: f.url }));
             const blob = await createDispatchPDF(
                 profile, docNumber, docDate, krutUrl,
                 projectUrl || "", acceptUrl || "",
@@ -110,7 +74,7 @@ export default function IssueLetterModal({ student, group, batchMates, onOpenBat
         if (missingDatesMsg) return notify.warning(missingDatesMsg);
         setLoadingDoc(true);
         try {
-            const { deanName, deanPosition } = await loadCommonData();
+            const { deanName, deanPosition } = await loadLetterAssets();
             const studentName = `${thaiPrefix(student.prefix)}${student.firstName} ${student.lastName}`;
             const html = buildDispatchLetterHtml({
                 docNumber, docDate, studentName,

@@ -1,0 +1,52 @@
+import { apiFetch } from "./apiFetch";
+import { letterAttachmentDocs } from "./letterGroup";
+
+// ไฟล์/ค่าที่หนังสือต้องใช้ร่วมกัน: ตราครุฑ, รายละเอียดโครงการ, ใบตอบรับ, ชื่อ-ตำแหน่งคณบดี
+// (ใช้ร่วมกันระหว่างหน้าต่างออกหนังสือรายคนกับออกร่างหลายคน)
+export interface LetterAssets {
+  krutUrl: string | null;
+  projectUrl: string | null;
+  acceptUrl: string | null;
+  deanName: string;
+  deanPosition: string;
+}
+
+export async function loadLetterAssets(): Promise<LetterAssets> {
+  const [resAssets, resDean] = await Promise.all([
+    apiFetch("/api/admin/assets"),
+    apiFetch("/api/admin/config/dean-info"),
+  ]);
+  const assets = (await resAssets.json()).assets || [];
+  const getAsset = (key: string) => {
+    const f = assets.find((a: any) => a.key === key);
+    return f ? `/uploads/system/${f.path}` : null;
+  };
+  let deanName = "รองศาสตราจารย์สิรภัทร เชี่ยวชาญวัฒนา";
+  let deanPosition = "คณบดีวิทยาลัยการคอมพิวเตอร์";
+  if (resDean.ok) {
+    const d = await resDean.json();
+    if (d.deanName) deanName = d.deanName;
+    if (d.deanPosition) deanPosition = d.deanPosition;
+  }
+  return { krutUrl: getAsset("KRUT"), projectUrl: getAsset("PROJECT_DETAILS"), acceptUrl: getAsset("ACCEPTANCE_FORM"), deanName, deanPosition };
+}
+
+/** เอกสารแนบของนักศึกษา (ตาม letterAttachmentDocs) ที่ยังอยู่บนเซิร์ฟเวอร์ · missing = ชื่อไฟล์ที่หาย */
+export async function existingAttachmentFiles(students: any[]): Promise<{ files: { type: string; url: string }[]; missing: string[] }> {
+  const allDocs: any[] = letterAttachmentDocs(students);
+  const checks = await Promise.all(
+    allDocs.map(async (d: any) => {
+      const url = `/uploads/${d.path}`;
+      try {
+        const r = await fetch(url, { method: "HEAD" });
+        return { doc: d, url, exists: r.ok };
+      } catch {
+        return { doc: d, url, exists: false };
+      }
+    }),
+  );
+  return {
+    files: checks.filter((c) => c.exists).map((c) => ({ type: c.doc.type, url: c.url })),
+    missing: checks.filter((c) => !c.exists).map((c) => c.doc.name || c.doc.path),
+  };
+}

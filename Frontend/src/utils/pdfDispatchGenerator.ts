@@ -55,6 +55,116 @@ const toThaiDate = (dateStr?: string | Date) => {
   return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear() + 543}`;
 };
 
+// รวมเอกสารแนบต่อท้าย (หน้า 2 เป็นต้นไป): รายละเอียดโครงการ → เอกสารนักศึกษาตามลำดับ → แบบฟอร์มตอบรับ
+// ใช้ร่วมกันระหว่างหนังสือ PDF เต็มเล่ม (createDispatchPDF) กับเอกสารแนบล้วน (createDispatchAttachmentsPDF)
+const appendDispatchAttachments = async (
+  mergedPdf: PDFDocument,
+  staticProjectUrl: string,
+  staticAcceptanceUrl: string,
+  studentDocs: { type: string; url: string }[],
+) => {
+  // Helper Merge
+  const addPdfToMerge = async (bytes: ArrayBuffer) => {
+    try {
+      const srcDoc = await PDFDocument.load(bytes);
+      const indices = srcDoc.getPageIndices();
+      const pages = await mergedPdf.copyPages(srcDoc, indices);
+      pages.forEach((page) => mergedPdf.addPage(page));
+    } catch (e) {
+      console.error("Merge PDF error", e);
+    }
+  };
+
+  const addImageToMerge = async (url: string) => {
+    try {
+      const buff = await getImageArrayBuffer(url);
+      const ext = url.split(".").pop()?.toLowerCase();
+      let img;
+      if (ext === "png") img = await mergedPdf.embedPng(buff);
+      else img = await mergedPdf.embedJpg(buff);
+
+      const page = mergedPdf.addPage();
+      const { width, height } = page.getSize();
+      const dims = img.scaleToFit(width - 50, height - 50);
+      page.drawImage(img, {
+        x: (width - dims.width) / 2,
+        y: (height - dims.height) / 2,
+        width: dims.width,
+        height: dims.height,
+      });
+    } catch (e) {
+      console.error("Image merge error", e);
+    }
+  };
+
+  // 1. รายละเอียดโครงการ (2-6.pdf)
+  try {
+    // ✅ เพิ่ม typeof เช็คชนิดตัวแปร
+    if (
+      typeof staticProjectUrl === "string" &&
+      staticProjectUrl.trim() !== "" &&
+      !staticProjectUrl.endsWith("undefined") &&
+      !staticProjectUrl.endsWith("null")
+    ) {
+      const p26 = await getImageArrayBuffer(staticProjectUrl);
+      await addPdfToMerge(p26);
+    } else {
+      console.warn("⚠️ ข้ามการรวมไฟล์: ไม่พบ URL รายละเอียดโครงการ");
+    }
+  } catch (e) {
+    console.warn("⚠️ ไม่สามารถรวมไฟล์รายละเอียดโครงการ (หน้า 2-6) ได้:", e);
+  }
+
+  // 2. เอกสารนักศึกษา
+  const orderMap: Record<string, number> = {
+    "CP-T000": 1,
+    T000_SIGNED: 1,
+    "CP-TRANSCRIPT": 2,
+    TRANSCRIPT: 2,
+    "CP-STUDENT_CARD": 3,
+    STUDENT_CARD: 3,
+    "CP-CITIZEN_CARD": 4,
+    CITIZEN_CARD: 4,
+    "CP-CV": 5,
+    CV: 5,
+  };
+
+  const sortedDocs = [...studentDocs].sort((a, b) => {
+    return (orderMap[a.type] || 99) - (orderMap[b.type] || 99);
+  });
+
+  for (const doc of sortedDocs) {
+    try {
+      if (doc.url.toLowerCase().endsWith(".pdf")) {
+        const buff = await getImageArrayBuffer(doc.url);
+        await addPdfToMerge(buff);
+      } else {
+        await addImageToMerge(doc.url);
+      }
+    } catch (e) {
+      console.warn(`⚠️ ข้ามเอกสาร [${doc.type}] ${doc.url} — ไม่พบไฟล์:`, e);
+    }
+  }
+
+  // 3. ใบตอบรับสหกิจ (Acceptance Form)
+  try {
+    // ✅ เพิ่ม typeof เช็คชนิดตัวแปร
+    if (
+      typeof staticAcceptanceUrl === "string" &&
+      staticAcceptanceUrl.trim() !== "" &&
+      !staticAcceptanceUrl.endsWith("undefined") &&
+      !staticAcceptanceUrl.endsWith("null")
+    ) {
+      const accForm = await getImageArrayBuffer(staticAcceptanceUrl);
+      await addPdfToMerge(accForm);
+    } else {
+      console.warn("⚠️ ข้ามการรวมไฟล์: ไม่พบ URL ใบตอบรับ");
+    }
+  } catch (e) {
+    console.warn("⚠️ ไม่สามารถรวมไฟล์ใบตอบรับได้:", e);
+  }
+};
+
 // ================= MAIN GENERATOR =================
 // ไม่มีรูปลายเซ็น — หนังสือโหลดไปลงนามจริง (เว้นที่ว่างไว้ให้ลงนาม)
 export const createDispatchPDF = async (
@@ -230,111 +340,32 @@ export const createDispatchPDF = async (
   const mergedPdf = await PDFDocument.create();
   mergedPdf.registerFontkit(fontkit);
 
-  // Helper Merge
-  const addPdfToMerge = async (bytes: ArrayBuffer) => {
-    try {
-      const srcDoc = await PDFDocument.load(bytes);
-      const indices = srcDoc.getPageIndices();
-      const pages = await mergedPdf.copyPages(srcDoc, indices);
-      pages.forEach((page) => mergedPdf.addPage(page));
-    } catch (e) {
-      console.error("Merge PDF error", e);
-    }
-  };
-
-  const addImageToMerge = async (url: string) => {
-    try {
-      const buff = await getImageArrayBuffer(url);
-      const ext = url.split(".").pop()?.toLowerCase();
-      let img;
-      if (ext === "png") img = await mergedPdf.embedPng(buff);
-      else img = await mergedPdf.embedJpg(buff);
-
-      const page = mergedPdf.addPage();
-      const { width, height } = page.getSize();
-      const dims = img.scaleToFit(width - 50, height - 50);
-      page.drawImage(img, {
-        x: (width - dims.width) / 2,
-        y: (height - dims.height) / 2,
-        width: dims.width,
-        height: dims.height,
-      });
-    } catch (e) {
-      console.error("Image merge error", e);
-    }
-  };
-
   // ✅ 1. หน้าแรก (Cover Letter)
-  await addPdfToMerge(coverBytes);
-
-  // ✅ 2. รายละเอียดโครงการ (2-6.pdf)
   try {
-    // ✅ เพิ่ม typeof เช็คชนิดตัวแปร
-    if (
-      typeof staticProjectUrl === "string" &&
-      staticProjectUrl.trim() !== "" &&
-      !staticProjectUrl.endsWith("undefined") &&
-      !staticProjectUrl.endsWith("null")
-    ) {
-      const p26 = await getImageArrayBuffer(staticProjectUrl);
-      await addPdfToMerge(p26);
-    } else {
-      console.warn("⚠️ ข้ามการรวมไฟล์: ไม่พบ URL รายละเอียดโครงการ");
-    }
+    const coverDoc = await PDFDocument.load(coverBytes);
+    const pages = await mergedPdf.copyPages(coverDoc, coverDoc.getPageIndices());
+    pages.forEach((page) => mergedPdf.addPage(page));
   } catch (e) {
-    console.warn("⚠️ ไม่สามารถรวมไฟล์รายละเอียดโครงการ (หน้า 2-6) ได้:", e);
+    console.error("Merge PDF error", e);
   }
 
-  // ✅ 3. เอกสารนักศึกษา
-  const orderMap: Record<string, number> = {
-    "CP-T000": 1,
-    T000_SIGNED: 1,
-    "CP-TRANSCRIPT": 2,
-    TRANSCRIPT: 2,
-    "CP-STUDENT_CARD": 3,
-    STUDENT_CARD: 3,
-    "CP-CITIZEN_CARD": 4,
-    CITIZEN_CARD: 4,
-    "CP-CV": 5,
-    CV: 5,
-  };
-
-  const sortedDocs = studentDocs.sort((a, b) => {
-    return (orderMap[a.type] || 99) - (orderMap[b.type] || 99);
-  });
-
-  for (const doc of sortedDocs) {
-    try {
-      if (doc.url.toLowerCase().endsWith(".pdf")) {
-        const buff = await getImageArrayBuffer(doc.url);
-        await addPdfToMerge(buff);
-      } else {
-        await addImageToMerge(doc.url);
-      }
-    } catch (e) {
-      console.warn(`⚠️ ข้ามเอกสาร [${doc.type}] ${doc.url} — ไม่พบไฟล์:`, e);
-    }
-  }
-
-  // ✅ 4. ใบตอบรับสหกิจ (Acceptance Form)
-  try {
-    // ✅ เพิ่ม typeof เช็คชนิดตัวแปร
-    if (
-      typeof staticAcceptanceUrl === "string" &&
-      staticAcceptanceUrl.trim() !== "" &&
-      !staticAcceptanceUrl.endsWith("undefined") &&
-      !staticAcceptanceUrl.endsWith("null")
-    ) {
-      const accForm = await getImageArrayBuffer(staticAcceptanceUrl);
-      await addPdfToMerge(accForm);
-    } else {
-      console.warn("⚠️ ข้ามการรวมไฟล์: ไม่พบ URL ใบตอบรับ");
-    }
-  } catch (e) {
-    console.warn("⚠️ ไม่สามารถรวมไฟล์ใบตอบรับได้:", e);
-  }
+  // ✅ 2-4. รายละเอียดโครงการ → เอกสารนักศึกษา → ใบตอบรับ
+  await appendDispatchAttachments(mergedPdf, staticProjectUrl, staticAcceptanceUrl, studentDocs);
 
   // Return Result
+  const mergedBytes = await mergedPdf.save();
+  return new Blob([mergedBytes as any], { type: "application/pdf" });
+};
+
+// เอกสารแนบล้วน (ไม่มีหน้าหนังสือ) — คู่กับหนังสือ Word ในออกร่างหลายคน
+export const createDispatchAttachmentsPDF = async (
+  staticProjectUrl: string,
+  staticAcceptanceUrl: string,
+  studentDocs: { type: string; url: string }[],
+): Promise<Blob> => {
+  const mergedPdf = await PDFDocument.create();
+  mergedPdf.registerFontkit(fontkit);
+  await appendDispatchAttachments(mergedPdf, staticProjectUrl, staticAcceptanceUrl, studentDocs);
   const mergedBytes = await mergedPdf.save();
   return new Blob([mergedBytes as any], { type: "application/pdf" });
 };
