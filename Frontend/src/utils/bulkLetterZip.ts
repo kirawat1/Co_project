@@ -1,0 +1,44 @@
+import { Zip, ZipPassThrough } from "fflate";
+import * as XLSX from "xlsx";
+import { toThaiDate } from "./docGeneratorUtils";
+import { LETTER_FILE_LABEL, type BulkLetterType } from "./bulkLetters";
+
+/** zip แบบไม่บีบอัด (PDF/Word บีบอยู่แล้ว) — ชื่อไทยได้ flag UTF-8 จาก fflate เอง */
+export function createZip(): { add(name: string, data: Uint8Array): void; finish(): Promise<Blob> } {
+  const chunks: Uint8Array[] = [];
+  let resolve!: (b: Blob) => void, reject!: (e: unknown) => void;
+  const done = new Promise<Blob>((res, rej) => { resolve = res; reject = rej; });
+  const zip = new Zip((err, chunk, final) => {
+    if (err) return reject(err);
+    chunks.push(chunk);
+    if (final) resolve(new Blob(chunks as BlobPart[], { type: "application/zip" }));
+  });
+  return {
+    add(name, data) {
+      const f = new ZipPassThrough(name);
+      zip.add(f);
+      f.push(data, true);
+    },
+    finish() { zip.end(); return done; },
+  };
+}
+
+export interface RegisterRow {
+  docNumber: string; docDate: string; letter: BulkLetterType;
+  recipient: string; companyName: string; students: string[]; files: string[];
+}
+
+export const REGISTER_HEADERS = ["เลขที่", "วันที่", "ประเภท", "เรียน", "บริษัท", "นักศึกษา", "ชื่อไฟล์"];
+
+/** ทะเบียนหนังสือที่ออกในชุดนี้ (Excel แผ่นเดียว) */
+export function registerWorkbook(rows: RegisterRow[]): Uint8Array {
+  const aoa = [
+    REGISTER_HEADERS,
+    ...rows.map(r => [r.docNumber, toThaiDate(r.docDate), LETTER_FILE_LABEL[r.letter], r.recipient, r.companyName, r.students.join("\n"), r.files.join("\n")]),
+  ];
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws["!cols"] = [{ wch: 22 }, { wch: 18 }, { wch: 24 }, { wch: 30 }, { wch: 36 }, { wch: 40 }, { wch: 50 }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "ทะเบียนหนังสือ");
+  return new Uint8Array(XLSX.write(wb, { type: "array", bookType: "xlsx" }));
+}

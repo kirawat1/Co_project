@@ -1,5 +1,15 @@
 # CHANGELOG — Co_project
 
+## [2026-10-22] feat: ฟังก์ชันออกร่างหลายคน — ไล่เลข จัดกลุ่มบริษัท ชื่อไฟล์ จับคู่ไฟล์สแกน + zip/Excel
+
+### Added
+- `Frontend/src/utils/bulkLetters.ts` (ฟังก์ชันล้วน ยังไม่มี UI): `bulkCandidates` / `blockReason` / `pendingDraftOf` · `groupByCompany` (แยกฉบับได้) · `numberSequence` (คงจำนวนหลัก) / `duplicateNumbers` / `docSuffix` · `letterFileNames` / `safeFileName` · `fileLeadingNumber` / `groupPending` / `matchFiles` (ผูกเฉพาะที่ชัดเจน ที่เหลือบอกเหตุผล) · `signedLetterRequest` (ช่อง/ข้อความเดียวกับหน้าต่างออกหนังสือเดิม)
+- `Frontend/src/utils/bulkLetterZip.ts`: `createZip` (ไม่บีบอัด ชื่อไทย UTF-8) · `registerWorkbook` (ทะเบียนหนังสือ Excel 7 คอลัมน์)
+- เพิ่มไลบรารี `fflate@0.8.2`
+
+### Tests
+- `tests/bulkLetters.spec.ts` 12 เคส · unit เดิม 28 ผ่าน · tsc 0
+
 ## [2026-10-22] feat: ติดป้ายรอลงนามหนังสือหลายฉบับในคำขอเดียว (ทั้งชุดหรือไม่เลย)
 
 ### Added
