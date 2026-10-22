@@ -162,7 +162,6 @@ export default function DocTable({
             const isApproved = st === 'APPROVED';
 
             const hasFile = !!it.fileName;
-            const canUpload = !isApproved && (!hasFile || st === 'REJECTED' || st === 'EDITS_REQUIRED');
 
             return (
               <tr key={it.id} className="row">

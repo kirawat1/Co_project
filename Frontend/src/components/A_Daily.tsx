@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // src/components/A_Daily.tsx
-import React, { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import type { DailyLog } from "./store";
 import { fmtDate, fmtDateTime } from '../utils/dateFormat';
 import { notify } from "../utils/notify";

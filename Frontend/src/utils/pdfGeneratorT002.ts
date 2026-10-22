@@ -12,26 +12,6 @@ const getFontBase64 = async (url: string): Promise<string> => {
   });
 };
 
-const formatDateTH = (dateStr?: string) => {
-  if (!dateStr) return "";
-  const d = new Date(dateStr);
-  const months = [
-    "มกราคม",
-    "กุมภาพันธ์",
-    "มีนาคม",
-    "เมษายน",
-    "พฤษภาคม",
-    "มิถุนายน",
-    "กรกฎาคม",
-    "สิงหาคม",
-    "กันยายน",
-    "ตุลาคม",
-    "พฤศจิกายน",
-    "ธันวาคม",
-  ];
-  return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear() + 543}`;
-};
-
 // ================= GENERATOR =================
 export const createT002PDF = async (
   profile: any,

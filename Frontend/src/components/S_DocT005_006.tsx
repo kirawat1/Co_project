@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import axios from "axios";
 import { DeadlineBanner } from "./DocDeadline";
 
@@ -17,27 +17,10 @@ interface EvalConfig {
     deadline?: string | null;
 }
 
-interface StudentInfo {
-    studentId: string;
-    prefix?: string;
-    firstName: string;
-    lastName: string;
-    firstNameEn?: string;
-    lastNameEn?: string;
-    major?: string;
-    coop?: {
-        company?: { name: string; contactPerson?: string; phone?: string; address?: string };
-        mentor?: { firstName: string; lastName: string; email?: string; position?: string };
-        jobPosition?: string;
-    };
-    advisorName?: string;
-}
-
 export default function S_DocT005_006() {
     const [loading, setLoading] = useState(true);
     const [config, setConfig] = useState<EvalConfig | null>(null);
     const [copiedKey, setCopiedKey] = useState<string>("");
-    const [studentInfo, setStudentInfo] = useState<StudentInfo | null>(null);
 
     const token = localStorage.getItem("coop.token");
 
@@ -53,13 +36,8 @@ export default function S_DocT005_006() {
     useEffect(() => {
         const fetchAll = async () => {
             try {
-                const [configRes, profileRes] = await Promise.allSettled([
-                    axios.get("/api/coop/config/evaluation", { headers: { Authorization: `Bearer ${token}` } }),
-                    axios.get("/api/students/me", { headers: { Authorization: `Bearer ${token}` } }),
-                ]);
-                setConfig(configRes.status === "fulfilled" && configRes.value.data?.config
-                    ? configRes.value.data.config : defaultConfig);
-                if (profileRes.status === "fulfilled") setStudentInfo(profileRes.value.data);
+                const res = await axios.get("/api/coop/config/evaluation", { headers: { Authorization: `Bearer ${token}` } });
+                setConfig(res.data?.config ? res.data.config : defaultConfig);
             } catch {
                 setConfig(defaultConfig);
             } finally {

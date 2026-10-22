@@ -28,7 +28,7 @@ const HOME_BY_ROLE: Record<Role, string> = {
 // ------------------------------------------------------
 // VALIDATION RULES
 // ------------------------------------------------------
-function validateByRole(role: Role, username: string, password: string): string | null {
+function validateLogin(username: string, password: string): string | null {
   const u = username.trim();
   const p = password.trim();
 
@@ -115,7 +115,7 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const err = validateByRole(role, username, password);
+      const err = validateLogin(username, password);
       if (err) throw new Error(err);
 
       const res = await AuthAPI.signin({
