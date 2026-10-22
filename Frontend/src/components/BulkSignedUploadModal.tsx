@@ -180,7 +180,7 @@ export default function BulkSignedUploadModal({ students, onClose }: { students:
                         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                             {(["REQUEST", "PLACEMENT"] as BulkLetterType[]).map(l => (
                                 <button key={l} type="button" disabled={busy} onClick={() => changeLetter(l)}
-                                    style={{ ...smallBtn, fontSize: 13, padding: "6px 14px", ...(letter === l ? { background: "#0074b7", color: "#fff", borderColor: "#0074b7" } : {}) }}>
+                                    style={{ ...smallBtn, fontSize: 13, padding: "6px 14px", ...(letter === l ? { background: "#0074b7", color: "#fff", border: "1px solid #0074b7" } : {}) }}>
                                     {LETTER_FILE_LABEL[l]}
                                 </button>
                             ))}

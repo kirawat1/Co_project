@@ -34,7 +34,7 @@ export const REGISTER_HEADERS = ["เลขที่", "วันที่", "�
 export function registerWorkbook(rows: RegisterRow[]): Uint8Array {
   const aoa = [
     REGISTER_HEADERS,
-    ...rows.map(r => [r.docNumber, toThaiDate(r.docDate), LETTER_FILE_LABEL[r.letter], r.recipient, r.companyName, r.students.join("\n"), r.files.join("\n")]),
+    ...rows.map(r => [r.docNumber, toThaiDate(r.docDate), LETTER_FILE_LABEL[r.letter], r.recipient, r.companyName, r.students.join("; "), r.files.join("; ")]),
   ];
   const ws = XLSX.utils.aoa_to_sheet(aoa);
   ws["!cols"] = [{ wch: 22 }, { wch: 18 }, { wch: 24 }, { wch: 30 }, { wch: 36 }, { wch: 40 }, { wch: 50 }];
