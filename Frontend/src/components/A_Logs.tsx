@@ -186,7 +186,7 @@ export default function A_Logs() {
                 </select>
 
                 <DateInput className="input" style={{ flex: "0 0 auto", width: 150 }} value={from} onChange={(e) => setFrom(e.target.value)} />
-                <span style={{ color: "#94a3b8" }}>ถึง</span>
+                <span style={{ color: "#64748b" }}>ถึง</span>
                 <DateInput className="input" style={{ flex: "0 0 auto", width: 150 }} value={to} onChange={(e) => setTo(e.target.value)} />
 
                 <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "#475569" }}>
@@ -251,14 +251,14 @@ export default function A_Logs() {
                                         <td style={{ ...td, whiteSpace: "nowrap" }}>{fmtDateTime(r.createdAt)}</td>
                                         <td style={td}>
                                             <div>{r.actorName || "-"}</div>
-                                            <div style={{ fontSize: 11, color: "#94a3b8" }}>{ROLE_LABEL[r.role || ""] || r.role || "ไม่ได้ล็อกอิน"}</div>
+                                            <div style={{ fontSize: 11, color: "#64748b" }}>{ROLE_LABEL[r.role || ""] || r.role || "ไม่ได้ล็อกอิน"}</div>
                                         </td>
                                         <td style={td}>{r.action}</td>
                                         <td style={td}>
                                             {r.targetName
                                                 ? <>
                                                     <div style={{ fontWeight: 600, color: "#1e293b" }}>{r.targetName}</div>
-                                                    <div style={{ fontSize: 11, color: "#94a3b8" }}>{[r.targetType, r.targetId && `#${r.targetId}`].filter(Boolean).join(" ")}</div>
+                                                    <div style={{ fontSize: 11, color: "#64748b" }}>{[r.targetType, r.targetId && `#${r.targetId}`].filter(Boolean).join(" ")}</div>
                                                 </>
                                                 : [r.targetType, r.targetId].filter(Boolean).join(" ") || "-"}
                                         </td>
@@ -272,14 +272,14 @@ export default function A_Logs() {
                                         </td>
                                         <td style={{ ...td, maxWidth: 360 }}>
                                             <div style={{ fontSize: 11, color: "#64748b" }}>{r.method} {r.path}</div>
-                                            {r.detail && <div style={{ fontSize: 11, color: "#94a3b8", wordBreak: "break-all" }}>{r.detail}</div>}
-                                            {r.ip && <div style={{ fontSize: 11, color: "#cbd5e1" }}>IP {r.ip}</div>}
+                                            {r.detail && <div style={{ fontSize: 11, color: "#64748b", wordBreak: "break-all" }}>{r.detail}</div>}
+                                            {r.ip && <div style={{ fontSize: 11, color: "#64748b" }}>IP {r.ip}</div>}
                                         </td>
                                     </tr>
                                 );
                             })}
                             {rows.length === 0 && !loading && (
-                                <tr><td colSpan={6} style={{ padding: 24, textAlign: "center", color: "#94a3b8" }}>ไม่พบบันทึกตามเงื่อนไขที่เลือก</td></tr>
+                                <tr><td colSpan={6} style={{ padding: 24, textAlign: "center", color: "#64748b" }}>ไม่พบบันทึกตามเงื่อนไขที่เลือก</td></tr>
                             )}
                         </tbody>
                     </table>

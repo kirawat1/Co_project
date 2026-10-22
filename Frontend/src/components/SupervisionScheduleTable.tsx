@@ -141,7 +141,7 @@ export default function SupervisionScheduleTable({ events, canExport = false, ex
                 </div>
             )}
             {rows.length === 0 ? (
-                <div style={{ padding: 20, textAlign: "center", color: "#94a3b8", fontSize: 14 }}>ยังไม่มีนิเทศที่ยืนยันวัน</div>
+                <div style={{ padding: 20, textAlign: "center", color: "#64748b", fontSize: 14 }}>ยังไม่มีนิเทศที่ยืนยันวัน</div>
             ) : (
                 <div style={{ overflowX: "auto" }}>
                     <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
@@ -168,7 +168,7 @@ export default function SupervisionScheduleTable({ events, canExport = false, ex
                                         <td style={{ ...td, whiteSpace: "nowrap" }}>{timeOf(ev)}</td>
                                         <td style={td}>
                                             <div>{ev.studentName}</div>
-                                            {ev.studentId && <div style={{ fontSize: 11, color: "#94a3b8" }}>{ev.studentId}</div>}
+                                            {ev.studentId && <div style={{ fontSize: 11, color: "#64748b" }}>{ev.studentId}</div>}
                                         </td>
                                         <td style={td}>{ev.companyName || "-"}</td>
                                         <td style={td}>

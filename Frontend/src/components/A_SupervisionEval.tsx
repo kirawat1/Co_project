@@ -191,7 +191,7 @@ export default function A_SupervisionEval() {
             </thead>
             <tbody>
               {visible.length === 0 ? (
-                <tr><td colSpan={7} style={{ ...td, textAlign: "center", color: "#94a3b8", padding: 32 }}>ไม่มีรายการ</td></tr>
+                <tr><td colSpan={7} style={{ ...td, textAlign: "center", color: "#64748b", padding: 32 }}>ไม่มีรายการ</td></tr>
               ) : visible.map(r => (
                 <tr key={r.id} style={{ borderTop: "1px solid #f1f5f9" }}>
                   <td style={td}>
@@ -212,7 +212,7 @@ export default function A_SupervisionEval() {
                   <td style={{ ...td, whiteSpace: "nowrap" }}>
                     {r.evalSentAt
                       ? <span style={{ color: "#047857", fontWeight: 700 }}>✅ ส่งแล้ว {fmtDate(r.evalSentAt)}</span>
-                      : <span style={{ color: "#94a3b8" }}>ยังไม่ส่ง</span>}
+                      : <span style={{ color: "#64748b" }}>ยังไม่ส่ง</span>}
                     {!r.hasLink && <div style={{ fontSize: 12, color: "#b45309", marginTop: 2 }}>⚠️ หลักสูตรนี้ยังไม่มีลิงก์</div>}
                   </td>
                   <td style={{ ...td, textAlign: "right" }}>

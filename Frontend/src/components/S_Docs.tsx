@@ -265,7 +265,7 @@ const DispatchManagementCard = ({ profile, onUpload, onRefresh }: { profile: any
                   <div style={{ textAlign: 'center', padding: '10px 0' }}>
                     <input type="file" id="upload-acceptance" style={{ display: 'none' }} accept=".pdf,.jpg,.png" onChange={(e) => e.target.files?.[0] && setSelectedFile(e.target.files[0])} />
                     <label htmlFor="upload-acceptance" className="btn-primary" style={{ background: '#059669', border: 'none', cursor: 'pointer', display: 'inline-block', padding: '10px 20px' }}>📂 เลือกไฟล์ใบตอบรับ</label>
-                    <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 8 }}>(รองรับ .pdf, .jpg, .png)</div>
+                    <div style={{ fontSize: 12, color: '#64748b', marginTop: 8 }}>(รองรับ .pdf, .jpg, .png)</div>
                   </div>
                 )}
               </div>
@@ -656,7 +656,7 @@ export default function S_Docs({ profile, setProfile }: { profile: LocalStudentP
         </div>
 
         {requiredDocs.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8', background: '#f8fafc', borderRadius: 12, border: '1px dashed #cbd5e1' }}>
+          <div style={{ textAlign: 'center', padding: 40, color: '#64748b', background: '#f8fafc', borderRadius: 12, border: '1px dashed #cbd5e1' }}>
             <div style={{ fontSize: 32, marginBottom: 10 }}>⏳</div>
             ขณะนี้ยังไม่มีการกำหนดหัวข้อเอกสารจากเจ้าหน้าที่
           </div>
@@ -730,18 +730,18 @@ export default function S_Docs({ profile, setProfile }: { profile: LocalStudentP
         .card { background: #fff; padding: 32px; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
         .input { width: 100%; padding: 12px 14px; border: 1px solid #cbd5e1; border-radius: 8px; margin-top: 6px; box-sizing: border-box; font-family: inherit; font-size: 14px; transition: 0.2s; outline: none; }
         .input:focus { border-color: #0ea5e9; box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1); }
-        .input:disabled { background: #f8fafc; color: #94a3b8; border-color: #e2e8f0; cursor: not-allowed; }
+        .input:disabled { background: #f8fafc; color: #64748b; border-color: #e2e8f0; cursor: not-allowed; }
 
         .pdf-modal-backdrop { position: fixed; inset: 0; background-color: rgba(15, 23, 42, 0.7); backdrop-filter: blur(4px); z-index: 9999; display: flex; align-items: center; justify-content: center; animation: fadeIn 0.2s ease-out; padding: 20px; }
         .pdf-modal-card { background: white; width: 100%; max-width: 1000px; height: 90vh; border-radius: 16px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); display: flex; flex-direction: column; overflow: hidden; animation: scaleIn 0.2s ease-out; }
         .pdf-modal-header { padding: 16px 24px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #fff; }
-        .btn-close { background: transparent; border: none; font-size: 28px; line-height: 1; color: #94a3b8; cursor: pointer; transition: color 0.2s; padding: 0 8px; border-radius: 4px; }
+        .btn-close { background: transparent; border: none; font-size: 28px; line-height: 1; color: #64748b; cursor: pointer; transition: color 0.2s; padding: 0 8px; border-radius: 4px; }
         .btn-close:hover { color: #ef4444; background: #fee2e2; }
         .pdf-modal-body { flex: 1; background: #334155; position: relative; overflow: hidden; }
         .pdf-iframe { width: 100%; height: 100%; border: none; display: block; }
         .pdf-modal-footer { padding: 16px 24px; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 12px; background: #f8fafc; }
         
-        .loading-overlay { position: fixed; inset: 0; background: rgba(255,255,255,0.8); backdrop-filter: blur(2px); display: flex; align-items: center; justify-content: center; z-index: 9999; color: #0ea5e9; font-weight: 800; font-size: 18px; }
+        .loading-overlay { position: fixed; inset: 0; background: rgba(255,255,255,0.8); backdrop-filter: blur(2px); display: flex; align-items: center; justify-content: center; z-index: 9999; color: #0284c7; font-weight: 800; font-size: 18px; }
       `}</style>
     </div>
   );

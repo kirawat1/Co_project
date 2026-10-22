@@ -151,7 +151,7 @@ export default function LetterZipModal({ types, periods, defaultPeriodId, onClos
                                     <span style={{ fontFamily: "monospace", color: "#334155" }}>{s.studentId}</span>
                                     <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.name}</span>
                                     {s.major && <span style={majorChip}>{s.major}</span>}
-                                    <span style={{ color: "#94a3b8", fontSize: 12, width: 64, textAlign: "right" }}>{formatBytes(s.size)}</span>
+                                    <span style={{ color: "#64748b", fontSize: 12, width: 64, textAlign: "right" }}>{formatBytes(s.size)}</span>
                                 </div>
                             ))}
                         </div>

@@ -158,7 +158,7 @@ export default function A_Settings() {
               }}>
                 <div style={{ marginBottom: 12 }}>
                   <div style={{ fontWeight: 700, color: '#334155' }}>{item.label}</div>
-                  <div style={{ fontSize: 12, color: '#94a3b8' }}>{item.desc}</div>
+                  <div style={{ fontSize: 12, color: '#64748b' }}>{item.desc}</div>
                 </div>
 
                 <div style={{
@@ -176,7 +176,7 @@ export default function A_Settings() {
                       </a>
                     )
                   ) : (
-                    <div style={{ color: '#cbd5e1', fontSize: 13 }}>ยังไม่มีไฟล์</div>
+                    <div style={{ color: '#64748b', fontSize: 13 }}>ยังไม่มีไฟล์</div>
                   )}
 
                   {current && (

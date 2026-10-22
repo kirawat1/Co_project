@@ -275,7 +275,7 @@ export default function T_Exams() {
             ))}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={7} style={{ ...TABLE_TD, textAlign: "center", padding: 20, color: "#94a3b8" }}>
+                <td colSpan={7} style={{ ...TABLE_TD, textAlign: "center", padding: 20, color: "#64748b" }}>
                   — ยังไม่มีรายการ —
                 </td>
               </tr>

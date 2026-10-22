@@ -242,9 +242,9 @@ export default function A_CriteriaPage() {
 
         {/* Department Cards */}
         {loading ? (
-          <div style={{ textAlign: "center", padding: 40, color: "#94a3b8" }}>กำลังโหลด...</div>
+          <div style={{ textAlign: "center", padding: 40, color: "#64748b" }}>กำลังโหลด...</div>
         ) : departments.length === 0 ? (
-          <div style={{ textAlign: "center", padding: 40, color: "#94a3b8" }}>
+          <div style={{ textAlign: "center", padding: 40, color: "#64748b" }}>
             ยังไม่มีหลักสูตร — กดปุ่ม "+ เพิ่มหลักสูตร" เพื่อเพิ่ม
           </div>
         ) : (

@@ -300,7 +300,7 @@ export default function T_Dashboard() {
                 </thead>
                 <tbody>
                   {supervisions.length === 0 ? (
-                    <tr><td colSpan={6} style={{ padding: 30, color: "#94a3b8", textAlign: "center" }}>— ไม่มีคิวนัดนิเทศ —</td></tr>
+                    <tr><td colSpan={6} style={{ padding: 30, color: "#64748b", textAlign: "center" }}>— ไม่มีคิวนัดนิเทศ —</td></tr>
                   ) : (
                     supervisions.slice(0, 5).map((sup) => (
                       <tr key={sup.id} style={{ borderBottom: "1px solid #f8fafc" }}>
@@ -343,7 +343,7 @@ export default function T_Dashboard() {
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <tbody>
                   {pendingStudents.length === 0 ? (
-                    <tr><td colSpan={3} style={{ padding: 20, textAlign: "center", color: "#94a3b8" }}>— ไม่มีคำร้องที่รอพิจารณา —</td></tr>
+                    <tr><td colSpan={3} style={{ padding: 20, textAlign: "center", color: "#64748b" }}>— ไม่มีคำร้องที่รอพิจารณา —</td></tr>
                   ) : (
                     pendingStudents.map((s) => (
                       <tr key={s.studentId} style={{ borderBottom: "1px solid #f1f5f9" }}>
@@ -366,7 +366,7 @@ export default function T_Dashboard() {
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <tbody>
                   {approvedStudents.length === 0 ? (
-                    <tr><td colSpan={3} style={{ padding: 20, textAlign: "center", color: "#94a3b8" }}>— ยังไม่มีนักศึกษาที่ผ่านคุณสมบัติ —</td></tr>
+                    <tr><td colSpan={3} style={{ padding: 20, textAlign: "center", color: "#64748b" }}>— ยังไม่มีนักศึกษาที่ผ่านคุณสมบัติ —</td></tr>
                   ) : (
                     approvedStudents.map((s) => (
                       <tr key={s.studentId} style={{ borderBottom: "1px solid #f1f5f9" }}>
@@ -395,7 +395,7 @@ function CardStat({ title, value, hint, color }: { title: string; value: number;
     <div className="card" style={{ padding: 22, borderBottom: `4px solid ${color}` }}>
       <div style={{ color: "#64748b", fontWeight: 700, fontSize: 13 }}>{title}</div>
       <div style={{ marginTop: 8, fontSize: 32, fontWeight: 900, color: '#1e293b' }}>{value.toLocaleString()}</div>
-      <div style={{ marginTop: 10, color: "#94a3b8", fontSize: 12 }}>{hint}</div>
+      <div style={{ marginTop: 10, color: "#64748b", fontSize: 12 }}>{hint}</div>
     </div>
   );
 }

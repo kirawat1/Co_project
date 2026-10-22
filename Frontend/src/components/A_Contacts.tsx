@@ -148,7 +148,7 @@ export default function A_Contacts() {
           <div style={modalBox} onClick={(e) => e.stopPropagation()} role="dialog" aria-label={modal === "new" ? "เพิ่มผู้ติดต่อ" : "แก้ไขผู้ติดต่อ"}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
               <h2 style={{ margin: 0, fontSize: 20 }}>{modal === "new" ? "เพิ่มผู้ติดต่อ" : `แก้ไขผู้ติดต่อ · ${modal.company?.name}`}</h2>
-              <button onClick={() => setModal(null)} aria-label="ปิด" style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "#94a3b8" }}>✕</button>
+              <button onClick={() => setModal(null)} aria-label="ปิด" style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "#64748b" }}>✕</button>
             </div>
             {modal === "new" ? (
               <>

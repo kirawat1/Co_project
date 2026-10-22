@@ -450,14 +450,14 @@ function CompanyNameSearch({ value, onChange, onSelect, onClear }: {
             )}
             {open && suggestions.length > 0 && (
                 <div style={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 999, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", marginTop: 2, maxHeight: 260, overflowY: "auto" }}>
-                    <div style={{ padding: "6px 12px", fontSize: 11, color: "#94a3b8", borderBottom: "1px solid #f1f5f9" }}>พบ {suggestions.length} บริษัทที่คล้ายกัน — เลือกเพื่อใช้ข้อมูลที่มีอยู่</div>
+                    <div style={{ padding: "6px 12px", fontSize: 11, color: "#64748b", borderBottom: "1px solid #f1f5f9" }}>พบ {suggestions.length} บริษัทที่คล้ายกัน — เลือกเพื่อใช้ข้อมูลที่มีอยู่</div>
                     {suggestions.map(c => (
                         <div key={c.id} onMouseDown={() => handleSelect(c)} style={{ padding: "10px 14px", cursor: "pointer", borderBottom: "1px solid #f8fafc", fontSize: 13 }}
                             onMouseEnter={e => (e.currentTarget.style.background = "#f0f9ff")}
                             onMouseLeave={e => (e.currentTarget.style.background = "")}>
                             <div style={{ fontWeight: 600, color: "#1e293b" }}>{c.name}</div>
                             {c.nameEn && <div style={{ fontSize: 11, color: "#64748b" }}>{c.nameEn}</div>}
-                            {c.province && <div style={{ fontSize: 11, color: "#94a3b8" }}>{c.province}</div>}
+                            {c.province && <div style={{ fontSize: 11, color: "#64748b" }}>{c.province}</div>}
                         </div>
                     ))}
                 </div>

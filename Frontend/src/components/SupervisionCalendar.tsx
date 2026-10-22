@@ -327,7 +327,7 @@ export default function SupervisionCalendar({ events, title = "📅 ปฏิท
                     </div>
 
                     {agendaEvents.length === 0 ? (
-                        <div style={{ color:"#94a3b8", fontSize:13, padding:"12px 0" }}>
+                        <div style={{ color:"#64748b", fontSize:13, padding:"12px 0" }}>
                             {selectedDay ? "ไม่มีนิเทศในวันที่เลือก" : "ไม่มีนัดหมายในเดือนนี้"}
                         </div>
                     ) : (
@@ -419,7 +419,7 @@ const agendaLinkStyle: CSSProperties = {
     overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap"
 };
 const agendaNoLinkStyle: CSSProperties = {
-    fontSize:10, color:"#94a3b8", marginTop:3
+    fontSize:10, color:"#64748b", marginTop:3
 };
 const agendaDateStyle: CSSProperties = {
     fontWeight:700, color:"#16a34a", fontSize:12

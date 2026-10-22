@@ -508,7 +508,7 @@ export default function A_Teacher() {
                 placeholder="ขั้นต่ำ 8 ตัว มีตัวใหญ่ ตัวเล็ก ตัวเลข อักขระพิเศษ"
                 autoFocus
               />
-              <div style={{ marginTop: 8, fontSize: 12, color: "#94a3b8" }}>
+              <div style={{ marginTop: 8, fontSize: 12, color: "#64748b" }}>
                 💡 ต้องมีตัวอักษรพิมพ์ใหญ่ พิมพ์เล็ก ตัวเลข และอักขระพิเศษ เช่น !@#$%
               </div>
               <div style={modalFooter}>
@@ -585,7 +585,7 @@ function TeacherFields({ form, setForm, prefixOptions, departments, allowEmailEd
       <div style={{ gridColumn: "span 2" }}>
         <label style={labelStyle}>อีเมล (ใช้เป็น Username) *</label>
         <input
-          style={{ ...inputStyle, ...(!allowEmailEdit ? { background: "#f1f5f9", color: "#94a3b8" } : {}) }}
+          style={{ ...inputStyle, ...(!allowEmailEdit ? { background: "#f1f5f9", color: "#64748b" } : {}) }}
           value={form.email}
           disabled={!allowEmailEdit}
           onChange={e => setForm({ ...form, email: e.target.value })}
@@ -618,7 +618,7 @@ function TeacherFields({ form, setForm, prefixOptions, departments, allowEmailEd
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
             <div style={{ fontWeight: 700, fontSize: 14, color: '#334155' }}>อาจารย์ประจำวิชาสหกิจ</div>
-            <div style={{ fontSize: 12, color: '#94a3b8' }}>จัดการนักศึกษาและการตั้งค่าของหลักสูตรที่ดูแล</div>
+            <div style={{ fontSize: 12, color: '#64748b' }}>จัดการนักศึกษาและการตั้งค่าของหลักสูตรที่ดูแล</div>
           </div>
           <label style={{ position: 'relative', display: 'inline-block', width: 44, height: 24, cursor: 'pointer' }}>
             <input
@@ -701,6 +701,6 @@ const addBtn: React.CSSProperties = { background: "#059669", color: "#fff", bord
 const overlay: React.CSSProperties = { position: "fixed", inset: 0, background: "rgba(15,23,42,.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, backdropFilter: "blur(4px)" };
 const modal: React.CSSProperties = { background: "#fff", borderRadius: 20, padding: 32, width: 600, maxWidth: "95%", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)" };
 const modalFooter: React.CSSProperties = { display: "flex", justifyContent: "flex-end", gap: 12, marginTop: 28 };
-const closeBtn: React.CSSProperties = { background: "none", border: "none", fontSize: 22, cursor: "pointer", color: "#94a3b8" };
+const closeBtn: React.CSSProperties = { background: "none", border: "none", fontSize: 22, cursor: "pointer", color: "#64748b" };
 const labelStyle: React.CSSProperties = { display: "block", fontSize: 13, fontWeight: 700, color: "#64748b", marginBottom: 6 };
 const inputStyle: React.CSSProperties = { width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1", fontSize: 15, boxSizing: "border-box", fontFamily: "inherit" };

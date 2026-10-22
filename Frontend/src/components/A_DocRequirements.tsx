@@ -130,7 +130,7 @@ export default function A_DocRequirements() {
                     </thead>
                     <tbody>
                         {reqs.length === 0 ? (
-                            <tr><td colSpan={6} style={{ textAlign: 'center', padding: 30, color: '#94a3b8' }}>ยังไม่ได้กำหนดหัวข้อเอกสาร</td></tr>
+                            <tr><td colSpan={6} style={{ textAlign: 'center', padding: 30, color: '#64748b' }}>ยังไม่ได้กำหนดหัวข้อเอกสาร</td></tr>
                         ) : reqs.map(r => (
                             <tr key={r.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                                 <td style={td} data-label="รหัส (docKey)">
@@ -166,7 +166,7 @@ export default function A_DocRequirements() {
                                                 })}
                                                 {/* หลักสูตรที่ปิดไว้แต่ผู้ใช้ไม่ได้ดูแล — แสดงให้รู้เฉยๆ */}
                                                 {r.excludedMajors.filter(m => !controllableMajors.includes(m)).map(m => (
-                                                    <span key={m} style={{ ...chip, cursor: 'default', background: '#f8fafc', color: '#94a3b8', textDecoration: 'line-through' }}>✕ {m}</span>
+                                                    <span key={m} style={{ ...chip, cursor: 'default', background: '#f8fafc', color: '#64748b', textDecoration: 'line-through' }}>✕ {m}</span>
                                                 ))}
                                             </div>
                                         </div>
@@ -186,7 +186,7 @@ export default function A_DocRequirements() {
                                             <button className="btn-danger" style={{ padding: '6px 12px' }} onClick={() => removeRequirement(r.id, r.title)}>🗑️ ลบ</button>
                                         </>
                                     ) : (
-                                        <span style={{ fontSize: 12, color: '#94a3b8' }}>หัวข้อกลาง (เจ้าหน้าที่แก้ไข)</span>
+                                        <span style={{ fontSize: 12, color: '#64748b' }}>หัวข้อกลาง (เจ้าหน้าที่แก้ไข)</span>
                                     )}
                                 </td>
                             </tr>
@@ -210,7 +210,7 @@ export default function A_DocRequirements() {
                                     value={form.docKey || ""} onChange={e => setForm({ ...form, docKey: e.target.value.toUpperCase().replace(/\s/g, '_') })}
                                     disabled={!!form.id} // ถ้าแก้ไข ห้ามแก้รหัส
                                 />
-                                <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>* ใช้ภาษาอังกฤษ ตัวพิมพ์ใหญ่ ติดกัน (แก้ไขไม่ได้ในภายหลัง)</div>
+                                <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>* ใช้ภาษาอังกฤษ ตัวพิมพ์ใหญ่ ติดกัน (แก้ไขไม่ได้ในภายหลัง)</div>
                             </div>
 
                             <div>
@@ -262,7 +262,7 @@ export default function A_DocRequirements() {
                                         })}
                                     </div>
                                 )}
-                                {!isStaff && <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 6 }}>หัวข้อทุกหลักสูตรเป็นของเจ้าหน้าที่ — ปิดใช้สำหรับหลักสูตรของคุณได้ที่ตาราง</div>}
+                                {!isStaff && <div style={{ fontSize: 12, color: '#64748b', marginTop: 6 }}>หัวข้อทุกหลักสูตรเป็นของเจ้าหน้าที่ — ปิดใช้สำหรับหลักสูตรของคุณได้ที่ตาราง</div>}
                                 {form.id && isStaff && !formShared && (form.excludedMajors ?? []).length > 0 && (
                                     <div style={{ fontSize: 12, color: '#b45309', marginTop: 6 }}>⚠️ เปลี่ยนเป็นหัวข้อเฉพาะหลักสูตร — การปิดรายหลักสูตรเดิม ({form.excludedMajors!.join(", ")}) จะถูกล้าง</div>
                                 )}

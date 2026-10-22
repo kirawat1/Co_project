@@ -578,9 +578,9 @@ export default function A_Students() {
                 {unknownMajors.map(u => (
                   <label key={u.name} style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                     <span style={{ minWidth: 0, flex: "1 1 260px", fontWeight: 600, color: "#334155", overflowWrap: "anywhere" }}>
-                      "{u.name}" <span style={{ color: "#94a3b8", fontWeight: 400 }}>({u.rows} แถว)</span>
+                      "{u.name}" <span style={{ color: "#64748b", fontWeight: 400 }}>({u.rows} แถว)</span>
                     </span>
-                    <span style={{ color: "#94a3b8" }}>→</span>
+                    <span style={{ color: "#64748b" }}>→</span>
                     <select
                       aria-label={`หลักสูตรสำหรับ ${u.name}`}
                       value={pendingMajorChoice[u.name] ?? "?"}
@@ -652,7 +652,7 @@ export default function A_Students() {
                       : {};
                   return (
                     <tr key={row.rowNum} style={{ background: rowBg, borderLeft: `3px solid ${rowBorder}`, borderBottom: "1px solid #e2e8f0" }}>
-                      <td style={{ padding: "7px 12px", color: "#94a3b8" }}>{row.rowNum}</td>
+                      <td style={{ padding: "7px 12px", color: "#64748b" }}>{row.rowNum}</td>
                       <td style={{ padding: "7px 12px", fontWeight: 600 }}>{row.studentId}</td>
                       <td style={{ padding: "7px 12px" }}>{row.name}</td>
                       <td style={{ padding: "7px 12px", color: "#64748b" }}>{row.email}</td>
@@ -873,7 +873,7 @@ export default function A_Students() {
                   <td style={td} data-label="ชื่อ">{getThaiPrefix(s.prefix)} {s.firstName}</td>
                   <td style={td} data-label="นามสกุล">{s.lastName}</td>
                   <td style={td} data-label="อีเมล">{s.user?.email || "-"}</td>
-                  <td style={td} data-label="หลักสูตร">{s.major ? (deptMap[s.major] || s.major) : <span style={{ color: "#94a3b8" }}>-</span>}</td>
+                  <td style={td} data-label="หลักสูตร">{s.major ? (deptMap[s.major] || s.major) : <span style={{ color: "#64748b" }}>-</span>}</td>
                   <td style={td} data-label="รูปแบบการศึกษา">{CURRICULUM_TH[s.studyProgram ?? ""] ?? s.studyProgram ?? "-"}</td>
                   <td style={td} data-label="สถานะ"><StatusBadge status={s.coop?.status || s.docStatus} /></td>
                   <td style={td} data-label="รายละเอียด">
@@ -1041,7 +1041,7 @@ function StudentModal({
                     <InfoRow label="วันนิเทศ" value={student.supervisionAppointment.confirmedDate ? fmtDateTime(student.supervisionAppointment.confirmedDate) : "รอยืนยันวัน"} />
                     <InfoRow label="รูปแบบ" value={student.supervisionAppointment.supervisionType === "ONLINE" ? "ออนไลน์" : student.supervisionAppointment.supervisionType === "ONSITE" ? "ออนไซต์" : undefined} />
                   </>
-                ) : <div style={{ color: "#94a3b8" }}>ยังไม่นัดนิเทศ</div>}
+                ) : <div style={{ color: "#64748b" }}>ยังไม่นัดนิเทศ</div>}
               </Section>
             </>
           )}
@@ -1091,7 +1091,7 @@ function StudentModal({
             <Section title="เอกสารที่อัปโหลด">
               {student.documents && student.documents.length > 0 ? (
                 <DocsByGroup docs={student.documents} />
-              ) : <div style={{ color: '#94a3b8' }}>ไม่มีเอกสาร</div>}
+              ) : <div style={{ color: '#64748b' }}>ไม่มีเอกสาร</div>}
             </Section>
           )}
         </div>

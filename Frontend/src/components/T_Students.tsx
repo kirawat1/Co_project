@@ -278,7 +278,7 @@ export default function T_Students({ isCoopTeacher = false }: Props) {
           <tbody>
             {filteredStudents.length === 0 ? (
               <tr>
-                <td colSpan={6} style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>
+                <td colSpan={6} style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>
                   — ไม่พบรายชื่อนักศึกษาที่ตรงกับเงื่อนไข —
                 </td>
               </tr>
@@ -289,7 +289,7 @@ export default function T_Students({ isCoopTeacher = false }: Props) {
 
               return (
                 <tr key={s.studentId} className="student-row">
-                  <td style={{ fontWeight: 700, color: '#0ea5e9' }} data-label="รหัสนักศึกษา">{s.studentId}</td>
+                  <td style={{ fontWeight: 700, color: '#0284c7' }} data-label="รหัสนักศึกษา">{s.studentId}</td>
                   <td style={{ fontWeight: 600, color: '#1e293b' }} data-label="ชื่อ-นามสกุล">{name}</td>
                   <td data-label="รูปแบบการศึกษา">{displayCurriculum}</td>
                   <td style={{ color: '#475569' }} data-label="สถานประกอบการ">{s.company?.name || "-"}</td>
@@ -349,7 +349,7 @@ export default function T_Students({ isCoopTeacher = false }: Props) {
 
         /* Modal Styles */
         .tab-btn { padding: 10px 20px; border-radius: 12px; font-weight: 700; cursor: pointer; border: none; background: transparent; color: #64748b; transition: 0.2s; font-size: 14px; }
-        .tab-btn.active { background: #eff6ff; color: #0ea5e9; }
+        .tab-btn.active { background: #eff6ff; color: #0284c7; }
         .tab-btn:hover:not(.active) { background: #f8fafc; }
       `}</style>
     </div>
@@ -421,7 +421,7 @@ function StudentViewModal({
               {fullName}
             </h2>
             <div style={{ color: "#64748b", fontWeight: 600, display: 'flex', gap: 12, alignItems: 'center' }}>
-              <span>รหัสนักศึกษา: <span style={{ color: '#0ea5e9' }}>{student.studentId}</span></span>
+              <span>รหัสนักศึกษา: <span style={{ color: '#0284c7' }}>{student.studentId}</span></span>
               <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#cbd5e1' }} />
               <StatusBadge status={st} />
             </div>
@@ -472,9 +472,9 @@ function StudentViewModal({
                     <InfoRow label="ที่อยู่" value={getFullAddress(companyData)} />
                     <InfoRow label="อีเมล" value={companyData.email} />
                     <InfoRow label="เบอร์โทร" value={companyData.phone} />
-                    <InfoRow label="เว็บไซต์" value={companyData.website ? <a href={safeHref(companyData.website)} target="_blank" rel="noreferrer" style={{ color: '#0ea5e9' }}>{companyData.website}</a> : "-"} />
+                    <InfoRow label="เว็บไซต์" value={companyData.website ? <a href={safeHref(companyData.website)} target="_blank" rel="noreferrer" style={{ color: '#0284c7' }}>{companyData.website}</a> : "-"} />
                   </div>
-                ) : <div style={{ color: '#94a3b8', textAlign: 'center', padding: 20 }}>นักศึกษายังไม่ได้ระบุข้อมูลบริษัท</div>}
+                ) : <div style={{ color: '#64748b', textAlign: 'center', padding: 20 }}>นักศึกษายังไม่ได้ระบุข้อมูลบริษัท</div>}
               </div>
 
               <div style={{ background: '#f8fafc', padding: 20, borderRadius: 16, border: '1px solid #e2e8f0' }}>
@@ -500,7 +500,7 @@ function StudentViewModal({
                       <InfoRow label="เบอร์โทร" value={m.phone} />
                     </div>
                   ))
-                ) : <div style={{ color: '#94a3b8', textAlign: 'center', padding: 20 }}>นักศึกษายังไม่ได้ระบุข้อมูลพี่เลี้ยง</div>}
+                ) : <div style={{ color: '#64748b', textAlign: 'center', padding: 20 }}>นักศึกษายังไม่ได้ระบุข้อมูลพี่เลี้ยง</div>}
               </div>
             </div>
           )}
@@ -510,7 +510,7 @@ function StudentViewModal({
               <h4 style={{ margin: '0 0 16px 0', color: '#334155' }}>📄 เอกสารแนบของนักศึกษา</h4>
               {student.documents && student.documents.length > 0
                 ? <DocsByGroup docs={student.documents} />
-                : <div style={{ color: '#94a3b8', textAlign: 'center', padding: 40 }}>นักศึกษายังไม่มีเอกสารในระบบ</div>
+                : <div style={{ color: '#64748b', textAlign: 'center', padding: 40 }}>นักศึกษายังไม่มีเอกสารในระบบ</div>
               }
             </div>
           )}

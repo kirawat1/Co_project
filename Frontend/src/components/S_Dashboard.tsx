@@ -212,7 +212,7 @@ export default function S_Dashboard() {
           <div className="period-card" style={{ display:"flex", flexWrap:"wrap", alignItems:"center", gap:"8px 20px", background:"#fff", borderRadius:16, padding:"14px 20px", marginBottom:16, boxShadow:"0 1px 4px rgba(0,0,0,.06)", border:"1px solid #e2e8f0" }}>
             <span style={{ fontSize:28 }}>📅</span>
             <div style={{ flex:"1 1 260px" }}>
-              <div style={{ fontSize:12, color:"#94a3b8", fontWeight:700, letterSpacing:".5px", marginBottom:4 }}>รอบที่เปิดรับสมัครสหกิจ</div>
+              <div style={{ fontSize:12, color:"#64748b", fontWeight:700, letterSpacing:".5px", marginBottom:4 }}>รอบที่เปิดรับสมัครสหกิจ</div>
               <div style={{ fontWeight:800, color:"#0f172a", fontSize:16 }}>
                 {activePeriod ? periodText(activePeriod) : "ยังไม่เปิดรับสมัครรอบใหม่"}
               </div>
@@ -242,7 +242,7 @@ export default function S_Dashboard() {
               : "📋"}
           </span>
           <div>
-            <div style={{ fontSize:12, color:"#94a3b8", fontWeight:700, textTransform:"uppercase", letterSpacing:".5px", marginBottom:4 }}>สถานะปัจจุบัน</div>
+            <div style={{ fontSize:12, color:"#64748b", fontWeight:700, textTransform:"uppercase", letterSpacing:".5px", marginBottom:4 }}>สถานะปัจจุบัน</div>
             <StatusBadge status={studentStatus} hidePrefix />
           </div>
         </div>
@@ -261,7 +261,7 @@ export default function S_Dashboard() {
               <div className="countdown-label">ปิดรับ {DOC_LABEL[nearestDeadline.id] ?? nearestDeadline.id}</div>
               <div className="countdown-timer">⏱ {countdown}</div>
               {DOC_ROUTE[nearestDeadline.id] && (
-                <Link to={DOC_ROUTE[nearestDeadline.id]} style={{ display: 'block', marginTop: 6, fontSize: 12, color: '#2563eb', fontWeight: 700, textDecoration: 'none' }}>
+                <Link to={DOC_ROUTE[nearestDeadline.id]} className="countdown-link">
                   → อัปโหลดเอกสารตอนนี้
                 </Link>
               )}
@@ -401,7 +401,7 @@ export default function S_Dashboard() {
                         {file.type === 'image' ? (
                           <div style={{ marginBottom: 10 }}>
                             <img src={file.url} alt={file.name} style={{ maxWidth: '100%', borderRadius: 8, border: '1px solid #e2e8f0' }} />
-                            <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>{file.name}</div>
+                            <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>{file.name}</div>
                           </div>
                         ) : (
                           <a href={safeHref(file.url)} target="_blank" rel="noreferrer" className="attachment-link">
@@ -474,7 +474,7 @@ const DASHBOARD_CSS = `
 .dash-icon {
   width: 22px;
   height: 22px;
-  color: #0ea5e9;
+  color: #0284c7;
 }
 .dash-content {
   display: flex;
@@ -483,7 +483,7 @@ const DASHBOARD_CSS = `
   min-height: 200px;
 }
 .dash-empty {
-  color: #94a3b8;
+  color: #64748b;
   text-align: center;
   padding-top: 40px;
   font-size: 14px;
@@ -527,11 +527,13 @@ const DASHBOARD_CSS = `
 }
 .status-banner-left { display: flex; align-items: center; gap: 16px; }
 .status-banner-icon { font-size: 36px; flex-shrink: 0; }
+/* แถบนี้พื้นเข้มทั้งสองธีม — ตัวอักษรรองใช้เทาอ่อน (#94a3b8) ไม่ใช่เทาเข้มแบบบนพื้นขาว */
 .status-banner-label { font-size: 12px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; }
 .status-banner-hint { margin-top: 6px; font-size: 13px; color: #cbd5e1; line-height: 1.4; }
 .status-banner-right { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .countdown-box { text-align: right; }
-.countdown-label { font-size: 11px; color: #64748b; font-weight: 600; }
+.countdown-label { font-size: 11px; color: #94a3b8; font-weight: 600; }
+.countdown-link { display: block; margin-top: 6px; font-size: 12px; color: #60a5fa; font-weight: 700; text-decoration: none; }
 .countdown-timer { font-size: 20px; font-weight: 800; color: #f59e0b; font-variant-numeric: tabular-nums; }
 .status-action-btn {
   display: inline-flex; align-items: center;
@@ -592,7 +594,7 @@ const DASHBOARD_CSS = `
   display: inline-flex; align-items: center; gap: 8px;
   padding: 10px 16px; background: #f8fafc;
   border: 1px solid #e2e8f0; border-radius: 10px;
-  text-decoration: none; color: #0ea5e9; font-weight: 600; font-size: 13px;
+  text-decoration: none; color: #0284c7; font-weight: 600; font-size: 13px;
 }
 .attachment-link:hover { background: #f1f5f9; }
 `;

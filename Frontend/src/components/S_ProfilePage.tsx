@@ -99,7 +99,7 @@ function AdvisorRow({
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #f1f5f9' }}>
       <div>
-        <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 2 }}>{label}</div>
+        <div style={{ fontSize: 12, color: '#64748b', marginBottom: 2 }}>{label}</div>
         <div style={{ fontWeight: 600, fontSize: 14, color: '#1e293b' }}>
           {displayName}
         </div>
@@ -460,7 +460,7 @@ export default function S_ProfilePage() {
                 <button type="button" className="btn-secondary" style={{ padding: '2px 10px', fontSize: 12 }} onClick={() => persistCompany(profile.company)}>ลองอีกครั้ง</button>
               </span>
             )}
-            {companySave === "idle" && <span style={{ color: '#94a3b8' }}>เลือกแล้วระบบบันทึกให้ทันที</span>}
+            {companySave === "idle" && <span style={{ color: '#64748b' }}>เลือกแล้วระบบบันทึกให้ทันที</span>}
           </div>
 
           {/* รายละเอียดบริษัท / พี่เลี้ยงที่ถูกเลือก */}
@@ -676,7 +676,7 @@ function SearchableDropdown({ options, value, onChange, placeholder, noOptionTex
                 {o.label}
               </div>
             )).concat(pinned.length > 0 && matches.length === 0 && search.trim()
-              ? [<div key="__no-match" style={{ padding: "10px 14px", textAlign: "center", color: "#94a3b8", fontSize: 13 }}>{noOptionText}</div>]
+              ? [<div key="__no-match" style={{ padding: "10px 14px", textAlign: "center", color: "#64748b", fontSize: 13 }}>{noOptionText}</div>]
               : [])
           ) : (
             <div style={{ padding: "14px", textAlign: "center", color: "#64748b", fontSize: 14 }}>

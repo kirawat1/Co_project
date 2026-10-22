@@ -72,7 +72,7 @@ export default function A_MajorConfigSummary() {
                         return (
                           <td key={m} style={td}>
                             {fields.length === 0 ? (
-                              <span style={{ fontSize: 12, color: "#94a3b8" }}>ค่ากลาง</span>
+                              <span style={{ fontSize: 12, color: "#64748b" }}>ค่ากลาง</span>
                             ) : (
                               <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
                                 {fields.map(f => (

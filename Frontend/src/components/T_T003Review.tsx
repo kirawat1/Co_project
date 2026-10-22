@@ -257,7 +257,7 @@ export default function T_T003Review() {
                     </thead>
                     <tbody>
                         {processedStudents.length === 0 ? (
-                            <tr><td colSpan={5} style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>🎉 ไม่มีเอกสาร T003 ในระบบ</td></tr>
+                            <tr><td colSpan={5} style={{ textAlign: 'center', padding: 40, color: '#64748b' }}>🎉 ไม่มีเอกสาร T003 ในระบบ</td></tr>
                         ) : shownStudents.map(s => {
                             const statusInfo = getT003Status(s);
                             return (

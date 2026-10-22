@@ -200,7 +200,7 @@ export default function A_StudentEditModal({ student, onClose, onSaved }: Props)
             <button type="button" className="btn-secondary" onClick={handleResetPassword} disabled={resetting || saving}>
               {resetting ? "กำลังรีเซ็ต..." : "🔑 รีเซ็ตรหัสผ่านเป็นรหัสนักศึกษา"}
             </button>
-            <span style={{ fontSize: 12, color: "#94a3b8" }}>ใช้เมื่อนักศึกษาลืมรหัสผ่าน</span>
+            <span style={{ fontSize: 12, color: "#64748b" }}>ใช้เมื่อนักศึกษาลืมรหัสผ่าน</span>
           </div>
           {resetResult && (
             <div style={{ marginTop: 8, fontSize: 13, color: resetResult.ok ? "#15803d" : "#dc2626" }}>{resetResult.message}</div>
@@ -268,7 +268,7 @@ function TeacherSearchInput({
           type="button"
           onClick={() => onChange(null)}
           title="ล้างค่า"
-          style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "#94a3b8", cursor: "pointer", fontSize: 14 }}
+          style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "#64748b", cursor: "pointer", fontSize: 14 }}
         >
           ✕
         </button>
@@ -276,7 +276,7 @@ function TeacherSearchInput({
       {open && (
         <div style={{ position: "absolute", zIndex: 10, top: "100%", left: 0, right: 0, marginTop: 4, background: "#fff", border: "1px solid #e5e7eb", borderRadius: 8, maxHeight: 220, overflowY: "auto", boxShadow: "0 4px 12px rgba(0,0,0,.08)" }}>
           {matches.length === 0 ? (
-            <div style={{ padding: "8px 10px", fontSize: 13, color: "#94a3b8" }}>ไม่พบอาจารย์ที่ตรงกับคำค้น</div>
+            <div style={{ padding: "8px 10px", fontSize: 13, color: "#64748b" }}>ไม่พบอาจารย์ที่ตรงกับคำค้น</div>
           ) : (
             matches.map(t => (
               <div

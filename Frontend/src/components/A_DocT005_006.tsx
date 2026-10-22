@@ -93,7 +93,7 @@ export default function A_DocT005_006() {
                             onChange={e => setInstructionText(e.target.value)}
                             placeholder="พิมพ์ข้อความคำชี้แจงให้นักศึกษา..."
                         />
-                        <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>* การเว้นบรรทัด (Enter) จะถูกแสดงผลเหมือนที่พิมพ์ในนี้</div>
+                        <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>* การเว้นบรรทัด (Enter) จะถูกแสดงผลเหมือนที่พิมพ์ในนี้</div>
                     </div>
 
                     {/* 2. อีเมล CC */}

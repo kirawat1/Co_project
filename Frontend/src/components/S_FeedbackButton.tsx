@@ -177,7 +177,7 @@ export default function S_FeedbackButton({ coopStatus }: { coopStatus?: string |
                                                 <span style={{ ...statusChip, background: STATUS_TH[f.status].bg, color: STATUS_TH[f.status].color }}>
                                                     {STATUS_TH[f.status].label}
                                                 </span>
-                                                <span style={{ fontSize: 11, color: "#94a3b8" }}>
+                                                <span style={{ fontSize: 11, color: "#64748b" }}>
                                                     {new Date(f.createdAt).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "2-digit" })}
                                                 </span>
                                             </div>

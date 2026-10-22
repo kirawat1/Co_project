@@ -273,7 +273,7 @@ export default function T_StudentDetail() {
               <StatusBadge status={student.coop?.status || student.docStatus} />
             </div>
             <div style={{ color: "#64748b", fontSize: 14, display: 'flex', gap: 16, alignItems: 'center' }}>
-              <span>รหัสนักศึกษา: <b style={{ color: '#0ea5e9' }}>{student.studentId}</b></span>
+              <span>รหัสนักศึกษา: <b style={{ color: '#0284c7' }}>{student.studentId}</b></span>
               <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#cbd5e1' }} />
               <span>รูปแบบการศึกษา: <b>{CURRICULUM_TH[student.studyProgram || ""] || student.studyProgram || "-"}</b></span>
               <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#cbd5e1' }} />
@@ -330,9 +330,9 @@ export default function T_StudentDetail() {
                   <InfoRow label="ที่อยู่" value={companyData.address || "-"} />
                   <InfoRow label="อีเมล" value={companyData.email || "-"} />
                   <InfoRow label="เบอร์โทร" value={companyData.phone || "-"} />
-                  <InfoRow label="เว็บไซต์" value={companyData.website ? <a href={safeHref(companyData.website)} target="_blank" rel="noreferrer" style={{ color: '#0ea5e9' }}>{companyData.website}</a> : "-"} />
+                  <InfoRow label="เว็บไซต์" value={companyData.website ? <a href={safeHref(companyData.website)} target="_blank" rel="noreferrer" style={{ color: '#0284c7' }}>{companyData.website}</a> : "-"} />
                 </div>
-              ) : (<div style={{ color: '#94a3b8', textAlign: 'center', padding: 20 }}>นักศึกษายังไม่ได้ระบุข้อมูลสถานประกอบการ</div>)}
+              ) : (<div style={{ color: '#64748b', textAlign: 'center', padding: 20 }}>นักศึกษายังไม่ได้ระบุข้อมูลสถานประกอบการ</div>)}
             </Section>
 
             <Section title="ผู้ติดต่อ (HR)">
@@ -359,7 +359,7 @@ export default function T_StudentDetail() {
                     <InfoRow label="เบอร์โทร" value={m.phone || "-"} />
                   </div>
                 ))
-              ) : (<div style={{ color: '#94a3b8', textAlign: 'center', padding: 20 }}>นักศึกษายังไม่ได้ระบุข้อมูลพี่เลี้ยง</div>)}
+              ) : (<div style={{ color: '#64748b', textAlign: 'center', padding: 20 }}>นักศึกษายังไม่ได้ระบุข้อมูลพี่เลี้ยง</div>)}
             </Section>
           </>
         )}
@@ -369,7 +369,7 @@ export default function T_StudentDetail() {
           <Section title="เอกสารแนบของนักศึกษา">
             {student.documents && student.documents.length > 0
               ? <DocsByGroup docs={student.documents} onView={handleViewFile} />
-              : <div style={{ color: '#94a3b8', textAlign: 'center', padding: 40 }}>ไม่มีเอกสารแนบในระบบ</div>
+              : <div style={{ color: '#64748b', textAlign: 'center', padding: 40 }}>ไม่มีเอกสารแนบในระบบ</div>
             }
           </Section>
         )}
@@ -430,7 +430,7 @@ export default function T_StudentDetail() {
                     </td>
                   </tr>
                 ))}
-                {visits.length === 0 && <tr><td colSpan={4} style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>— ยังไม่มีรายการนัดหมาย —</td></tr>}
+                {visits.length === 0 && <tr><td colSpan={4} style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>— ยังไม่มีรายการนัดหมาย —</td></tr>}
               </tbody>
             </table>
           </section>
@@ -449,7 +449,7 @@ export default function T_StudentDetail() {
             <div style={{ padding: '16px 24px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff' }}>
               <div>
                 <h3 style={{ margin: 0, fontSize: 18, color: '#0f172a' }}>📄 {currentDocName}</h3>
-                <a href={previewUrl} target="_blank" rel="noreferrer" style={{ fontSize: 13, color: '#0ea5e9', fontWeight: 600, textDecoration: 'none' }}>ดาวน์โหลด / เปิดในแท็บใหม่ ↗</a>
+                <a href={previewUrl} target="_blank" rel="noreferrer" style={{ fontSize: 13, color: '#0284c7', fontWeight: 600, textDecoration: 'none' }}>ดาวน์โหลด / เปิดในแท็บใหม่ ↗</a>
               </div>
               <ModalCloseButton onClose={closePreview} variant="circle" />
             </div>
@@ -473,7 +473,7 @@ export default function T_StudentDetail() {
         @media (max-width: 480px) { .profile-grid { grid-template-columns: 1fr !important; } }
         
         .tab-btn { flex: 1; padding: 12px; border-radius: 12px; font-weight: 700; cursor: pointer; border: none; background: transparent; color: #64748b; transition: 0.2s; font-size: 14px; font-family: inherit; }
-        .tab-btn.active { background: #fff; color: #0ea5e9; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .tab-btn.active { background: #fff; color: #0284c7; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         .tab-btn:hover:not(.active) { background: #f1f5f9; }
 
         .input-label { display: block; font-size: 13px; font-weight: 700; color: #475569; margin-bottom: 6px; }

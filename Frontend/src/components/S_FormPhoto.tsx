@@ -103,7 +103,7 @@ export default function S_FormPhoto({ photoPath, onChange, disabled }: Props) {
             <div style={frame}>
                 {photoPath
                     ? <img src={`/uploads/${photoPath}`} alt="รูปถ่ายสำหรับใบสมัคร" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                    : <span style={{ fontSize: 12, color: "#94a3b8", textAlign: "center", lineHeight: 1.5 }}>ยังไม่มี<br />รูปถ่าย</span>}
+                    : <span style={{ fontSize: 12, color: "#64748b", textAlign: "center", lineHeight: 1.5 }}>ยังไม่มี<br />รูปถ่าย</span>}
             </div>
             <div style={{ flex: 1, minWidth: 200 }}>
                 <div style={{ fontSize: 13, color: "#475569", lineHeight: 1.6, marginBottom: 10 }}>

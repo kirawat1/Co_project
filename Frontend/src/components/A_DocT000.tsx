@@ -570,7 +570,7 @@ export default function A_DocT000() {
     // UI HELPER: แสดงลูกศรเรียงลำดับ
     const SortIcon = ({ columnKey }: { columnKey: SortKey }) => {
         if (sortKey !== columnKey) return <span style={{ color: '#cbd5e1', marginLeft: 4 }}>↕</span>;
-        return <span style={{ color: '#0ea5e9', marginLeft: 4 }}>{sortDirection === 'asc' ? '↑' : '↓'}</span>;
+        return <span style={{ color: '#0284c7', marginLeft: 4 }}>{sortDirection === 'asc' ? '↑' : '↓'}</span>;
     };
 
     const renderDocGroup = (title: string, isRequired: boolean, docs: StudentDocument[]) => {
@@ -590,7 +590,7 @@ export default function A_DocT000() {
         return (
             <div key={title} style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, overflow: 'hidden' }}>
                 <div style={{ background: '#f8fafc', padding: '8px 12px', borderBottom: '1px solid #eee', fontSize: 12, fontWeight: 700, color: '#475569' }}>
-                    {displayTitle} <span style={{ fontWeight: 400, color: '#94a3b8' }}>({docs.length})</span>
+                    {displayTitle} <span style={{ fontWeight: 400, color: '#64748b' }}>({docs.length})</span>
                 </div>
                 {docs.map(doc => {
                     const isActive = previewUrl.includes(encodeURIComponent(doc.path));
@@ -692,7 +692,7 @@ export default function A_DocT000() {
                 </div>
 
                 <div style={{ marginBottom: 16 }}>
-                    <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>
+                    <div style={{ fontSize: 11, color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>
                         ขั้นตอนที่ 1: ตรวจสอบเอกสารสมัคร (T000)
                     </div>
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
@@ -703,7 +703,7 @@ export default function A_DocT000() {
                             </label>
                         ))}
                     </div>
-                    <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>
+                    <div style={{ fontSize: 11, color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>
                         ขั้นตอนที่ 2: ตรวจสอบใบตอบรับและออกหนังสือส่งตัว
                     </div>
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -787,7 +787,7 @@ export default function A_DocT000() {
                                     </td>
                                     <td style={td}>
                                         {/* ออกหนังสือ = เจ้าหน้าที่เท่านั้น — อาจารย์ประจำวิชาเห็นแค่สถานะ */}
-                                        {!isStaff && s.docStatus === 'DOCS_APPROVED' && <span style={{ fontSize: 12, color: '#94a3b8' }}>รอเจ้าหน้าที่ออกหนังสือ</span>}
+                                        {!isStaff && s.docStatus === 'DOCS_APPROVED' && <span style={{ fontSize: 12, color: '#64748b' }}>รอเจ้าหน้าที่ออกหนังสือ</span>}
                                         {isStaff && CAN_ISSUE_REQUEST_LETTER_STATUSES.includes(s.docStatus || '') && (
                                             <button className="btn" style={{ background: s.coop?.reqLetterPendingAt ? '#d97706' : s.docStatus === 'DOCS_APPROVED' ? '#16a34a' : '#64748b', color: 'white', fontSize: 12 }} onClick={() => setIssueModalData(s)}>
                                                 {s.coop?.reqLetterPendingAt ? 'อัปโหลดฉบับลงนาม' : s.docStatus === 'DOCS_APPROVED' ? 'ออกหนังสือขอความอนุเคราะห์' : 'พิมพ์ซ้ำ'}
@@ -809,7 +809,7 @@ export default function A_DocT000() {
                                         </div>
                                     </td>
                                     <td style={td}>
-                                        {!isStaff && s.docStatus === 'ACCEPTANCE_CHECKED' && <span style={{ fontSize: 12, color: '#94a3b8' }}>รอเจ้าหน้าที่ออกหนังสือ</span>}
+                                        {!isStaff && s.docStatus === 'ACCEPTANCE_CHECKED' && <span style={{ fontSize: 12, color: '#64748b' }}>รอเจ้าหน้าที่ออกหนังสือ</span>}
                                         {isStaff && (s.docStatus === 'ACCEPTANCE_CHECKED' || s.docStatus === 'PLACEMENT_LETTER_ISSUED' || AFTER_PLACEMENT_STATUSES.includes(s.docStatus || '')) && (
                                             <button className="btn" style={{ background: s.coop?.placeLetterPendingAt ? '#d97706' : s.docStatus === 'ACCEPTANCE_CHECKED' ? '#0284c7' : '#64748b', color: 'white', fontSize: 12 }} onClick={() => setPlacementModalData(s)}>
                                                 {s.coop?.placeLetterPendingAt ? 'อัปโหลดฉบับลงนาม' : s.docStatus === 'ACCEPTANCE_CHECKED' ? 'ออกหนังสือส่งตัว' : 'พิมพ์ซ้ำ'}
@@ -820,7 +820,7 @@ export default function A_DocT000() {
                             ))}
                             {list.length === 0 && !loading && (
                                 <tr>
-                                    <td colSpan={9} style={{ padding: 30, textAlign: 'center', color: '#94a3b8' }}>ไม่มีข้อมูลที่ตรงกับเงื่อนไขการค้นหา</td>
+                                    <td colSpan={9} style={{ padding: 30, textAlign: 'center', color: '#64748b' }}>ไม่มีข้อมูลที่ตรงกับเงื่อนไขการค้นหา</td>
                                 </tr>
                             )}
                         </tbody>
@@ -882,7 +882,7 @@ export default function A_DocT000() {
                                         <img src={previewUrl} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} alt="preview" />
                                     </div>
                                 ) : (
-                                    <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#94a3b8' }}>
+                                    <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}>
                                         <span style={{ fontSize: 48, marginBottom: 10 }}>📄</span>
                                         <span>เลือกเอกสารทางขวาเพื่อดูตัวอย่าง</span>
                                     </div>

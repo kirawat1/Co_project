@@ -155,7 +155,7 @@ export default function T_Profile() {
         {isFirstTime ? (
           <div style={{ textAlign: 'center', padding: '20px 0' }}>
             <div style={{ background: '#f8fafc', width: '80px', height: '80px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
-              <IcUser width={40} height={40} style={{ color: '#94a3b8' }} />
+              <IcUser width={40} height={40} style={{ color: '#64748b' }} />
             </div>
             <h2 style={{ fontSize: '20px', fontWeight: 800, color: '#1e293b', margin: '0 0 8px' }}>ยินดีต้อนรับ!</h2>
             <p style={{ color: '#64748b', marginBottom: '24px' }}>คุณยังไม่ได้ตั้งค่าโปรไฟล์อาจารย์นิเทศ กรุณากรอกข้อมูลเพื่อเริ่มใช้งาน</p>
@@ -261,7 +261,7 @@ export default function T_Profile() {
               </div>
               <div>
                 <label className="label">อีเมล (ล็อกอิน)</label>
-                <input className="input" value={form.email} disabled style={{ background: "#f1f5f9", cursor: 'not-allowed', color: '#94a3b8' }} />
+                <input className="input" value={form.email} disabled style={{ background: "#f1f5f9", cursor: 'not-allowed', color: '#64748b' }} />
               </div>
 
               <div style={{ gridColumn: 'span 2' }}>

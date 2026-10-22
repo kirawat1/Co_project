@@ -158,7 +158,7 @@ export default function A_Feedback() {
                                         {f.kind === "BUG" ? "🐛 ปัญหาการใช้งาน" : "💡 ข้อเสนอแนะ"}
                                     </span>
                                     <b style={{ fontSize: 14, color: "#0f172a" }}>{f.reporterName}</b>
-                                    <span style={{ fontSize: 12, color: "#94a3b8" }}>
+                                    <span style={{ fontSize: 12, color: "#64748b" }}>
                                         {ROLE_TH[f.reporterRole] || f.reporterRole} · {fmtDateTime(f.createdAt)}
                                     </span>
                                     <button className="btn-secondary" style={{ marginLeft: "auto" }} onClick={() => setOpenId(open ? null : f.id)}>
@@ -229,7 +229,7 @@ export default function A_Feedback() {
                                         </div>
 
                                         {f.handledName && (
-                                            <div style={{ marginTop: 10, fontSize: 12, color: "#94a3b8" }}>
+                                            <div style={{ marginTop: 10, fontSize: 12, color: "#64748b" }}>
                                                 ล่าสุดโดย {f.handledName}{f.handledAt ? ` · ${fmtDateTime(f.handledAt)}` : ""}
                                             </div>
                                         )}
@@ -260,5 +260,5 @@ const replyShown: CSSProperties = {
     marginTop: 10, fontSize: 13, color: "#0f766e", background: "#f0fdfa",
     borderRadius: 8, padding: "8px 12px",
 };
-const emptyBox: CSSProperties = { padding: 40, textAlign: "center", color: "#94a3b8", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14 };
+const emptyBox: CSSProperties = { padding: 40, textAlign: "center", color: "#64748b", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14 };
 const errorBox: CSSProperties = { padding: "10px 14px", borderRadius: 10, background: "#fef2f2", color: "#b91c1c", marginBottom: 12, fontSize: 14 };
