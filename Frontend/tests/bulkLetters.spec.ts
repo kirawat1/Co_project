@@ -152,5 +152,5 @@ test("registerWorkbook: หัวตาราง 7 คอลัมน์", () =>
   const wb = XLSX.read(bytes, { type: "array" });
   const rows = XLSX.utils.sheet_to_json<string[]>(wb.Sheets[wb.SheetNames[0]], { header: 1 });
   expect(rows[0]).toEqual(["เลขที่", "วันที่", "ประเภท", "เรียน", "บริษัท", "นักศึกษา", "ชื่อไฟล์"]);
-  expect(rows[1]).toEqual(["ที่ อว 660301.26.6.2/811", "22 ตุลาคม 2569", "หนังสือขอความอนุเคราะห์", "ผู้จัดการ", "บริษัท ก", "นายก\nนายข", "a.doc\nb.pdf"]);
+  expect(rows[1]).toEqual(["ที่ อว 660301.26.6.2/811", "22 ตุลาคม 2569", "หนังสือขอความอนุเคราะห์", "ผู้จัดการ", "บริษัท ก", "นายก; นายข", "a.doc; b.pdf"]);
 });
