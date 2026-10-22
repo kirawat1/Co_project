@@ -38,6 +38,7 @@ const STAFF_ONLY_SENSITIVE = [
   'PATCH /students/:id/reset-password', 'POST /students/:id/password/reveal',
   'PUT /teachers/:id/password', 'POST /teachers/:id/password/reveal',
   'PUT /t000/letter-pending',
+  'PUT /t000/letter-pending-bulk',
   // ค่ากลางของการตั้งค่า — อาจารย์ประจำวิชาตั้งค่าเฉพาะหลักสูตรตัวเองที่ /major-config แทน
   'PUT /config/evaluation', 'PUT /config/t007', 'PUT /config/t008', 'PUT /config/gateway',
 ];
