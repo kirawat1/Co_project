@@ -579,8 +579,8 @@ function css(IOS_BLUE: string) {
   [data-theme="dark"] ::-webkit-scrollbar-thumb { background: #334155; border-radius: 999px; }
   [data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background: #475569; }
 
-  /* 12. IFRAME (PDF preview) */
-  [data-theme="dark"] iframe { filter: invert(1) hue-rotate(180deg); }
+  /* 12. IFRAME (ตัวอย่างเอกสาร/PDF) — ไม่กลับสี: เอกสารเป็นกระดาษขาวเสมอแม้ธีมมืด
+     (เดิม invert(1) hue-rotate(180deg) ทำให้หนังสือ/สแกนบัตร/ลายเซ็น/ตราประทับขึ้นสีกลับด้านแบบฟิล์ม) */
 
   /* ==============================================================
      13. CLASS-BASED DARK MODE OVERRIDES
