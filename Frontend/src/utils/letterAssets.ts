@@ -1,7 +1,7 @@
 import { apiFetch } from "./apiFetch";
 import { letterAttachmentDocs } from "./letterGroup";
 
-// ไฟล์/ค่าที่หนังสือต้องใช้ร่วมกัน: ตราครุฑ, รายละเอียดโครงการ, ใบตอบรับ, ชื่อ-ตำแหน่งคณบดี
+// ไฟล์/ค่าที่หนังสือต้องใช้ร่วมกัน: ตราสัญลักษณ์มหาวิทยาลัย (คีย์ KRUT), รายละเอียดโครงการ, ใบตอบรับ, ชื่อ-ตำแหน่งคณบดี
 // (ใช้ร่วมกันระหว่างหน้าต่างออกหนังสือรายคนกับออกร่างหลายคน)
 export interface LetterAssets {
   krutUrl: string | null;
@@ -16,7 +16,7 @@ export async function loadLetterAssets(): Promise<LetterAssets> {
     apiFetch("/api/admin/assets"),
     apiFetch("/api/admin/config/dean-info"),
   ]);
-  if (!resAssets.ok) throw new Error("โหลดรายการไฟล์ระบบ (ตราครุฑ/รายละเอียดโครงการ/แบบฟอร์มตอบรับ) ไม่สำเร็จ กรุณาลองใหม่");
+  if (!resAssets.ok) throw new Error("โหลดรายการไฟล์ระบบ (ตราสัญลักษณ์มหาวิทยาลัย/รายละเอียดโครงการ/แบบฟอร์มตอบรับ) ไม่สำเร็จ กรุณาลองใหม่");
   const assets = (await resAssets.json()).assets || [];
   const getAsset = (key: string) => {
     const f = assets.find((a: any) => a.key === key);

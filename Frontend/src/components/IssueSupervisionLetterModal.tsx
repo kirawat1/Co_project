@@ -65,7 +65,7 @@ export default function IssueSupervisionLetterModal({ supervision: primary, grou
         try {
             const { getAsset, deanName, deanPosition } = await loadCommonData();
             const krutUrl = getAsset("KRUT");
-            if (!krutUrl) return notify.error("⚠️ ไม่พบไฟล์ตราครุฑ (KRUT) กรุณาอัปโหลดในหน้าตั้งค่า");
+            if (!krutUrl) return notify.error("⚠️ ไม่พบไฟล์ตราสัญลักษณ์มหาวิทยาลัย กรุณาอัปโหลดในหน้าตั้งค่า");
             const blob = await createSupervisionLetterPDF(supervision, docNumber, docDate, krutUrl, deanName, deanPosition, members ? members.map(m => toLetterStudent(m.student)) : undefined);
             setPdfDraft({ blob, docNumber, docDate });
             setPreviewUrl(URL.createObjectURL(blob));

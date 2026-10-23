@@ -106,7 +106,7 @@ export const createPlacementPDF = async (
   const pageWidth = 210;
   let y = 15;
 
-  // ✅ 1. วาดรูปครุฑ (ใช้ Helper ใหม่)
+  // ✅ 1. วาดตราสัญลักษณ์มหาวิทยาลัย (คีย์ KRUT ในหน้าตั้งค่า)
   const krutImg = await getImageData(krutUrl);
   if (krutImg) {
     // x, y, w, h

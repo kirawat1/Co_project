@@ -89,8 +89,8 @@ export default function BulkLetterDraftModal({ students, onClose }: { students: 
         let reserved = false;
         try {
             const assets = await loadLetterAssets();
-            if (format === "pdf" && !assets.krutUrl) { // ร่าง PDF ต้องใช้ตราครุฑ — หยุดก่อนจองเลข
-                setErrorMsg("ไม่พบไฟล์ตราครุฑ (KRUT) กรุณาอัปโหลดในหน้าตั้งค่า");
+            if (format === "pdf" && !assets.krutUrl) { // ร่าง PDF ต้องใช้ตราสัญลักษณ์มหาวิทยาลัย — หยุดก่อนจองเลข
+                setErrorMsg("ไม่พบไฟล์ตราสัญลักษณ์มหาวิทยาลัย กรุณาอัปโหลดในหน้าตั้งค่า");
                 return;
             }
             if (letter === "REQUEST" && (!assets.projectUrl || !assets.acceptUrl)) { // เอกสารแนบขาดไฟล์ระบบ — หยุดก่อนจองเลข (ทั้ง Word และ PDF)

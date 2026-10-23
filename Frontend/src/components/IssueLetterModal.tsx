@@ -47,7 +47,7 @@ export default function IssueLetterModal({ student, group, batchMates, onOpenBat
         setLoadingPdf(true);
         try {
             const { krutUrl, projectUrl, acceptUrl, deanName, deanPosition } = await loadLetterAssets();
-            if (!krutUrl) return notify.error("⚠️ ไม่พบไฟล์ตราครุฑ (KRUT) กรุณาอัปโหลดในหน้าตั้งค่า");
+            if (!krutUrl) return notify.error("⚠️ ไม่พบไฟล์ตราสัญลักษณ์มหาวิทยาลัย กรุณาอัปโหลดในหน้าตั้งค่า");
 
             const profile = { ...student, coop: { ...student.coop, actualStartDate: startDate, actualEndDate: endDate } };
             // หนังสือรวม: แนบเอกสารของทุกคนเรียงตามรายชื่อ · ไม่แนบเอกสารจากขั้นหลัง (ดู letterAttachmentDocs)

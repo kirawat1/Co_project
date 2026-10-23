@@ -1,4 +1,4 @@
-// ไฟล์ระบบ (ตราครุฑ / รายละเอียดโครงการ / แบบฟอร์มตอบรับ) — ไม่รับลายเซ็นคณบดีแล้ว (หนังสือโหลดไปลงนามจริง)
+// ไฟล์ระบบ (ตราสัญลักษณ์มหาวิทยาลัย / รายละเอียดโครงการ / แบบฟอร์มตอบรับ) — ไม่รับลายเซ็นคณบดีแล้ว (หนังสือโหลดไปลงนามจริง)
 jest.mock('../config/prismaClient', () => require('./__mocks__/prismaClient'));
 jest.mock('fs', () => ({ ...jest.requireActual('fs'), existsSync: jest.fn(() => false), unlinkSync: jest.fn() }));
 const fs = require('fs');
