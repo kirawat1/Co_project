@@ -33,6 +33,8 @@ export default function IssueLetterModal({ student, group, batchMates, onOpenBat
     const [docDraft, setDocDraft] = useState<LetterDraft | null>(null);
     // แบบ Word: เอกสารแนบรวมเล่มเป็น PDF อีกไฟล์ (แบบเดียวกับออกร่างหลายคน) — เดิมโหลด Word แล้วไม่ได้เอกสารแนบ
     const [attachDraft, setAttachDraft] = useState<Blob | null>(null);
+    // ข้อความกำลังทำงาน — รวมเอกสารแนบใช้เวลาหลายวินาที (ตัวอย่างขึ้นก่อน) ผู้ใช้ต้องรู้ว่ายังไม่เสร็จ อย่าเพิ่งปิด
+    const [busyMsg, setBusyMsg] = useState("");
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
     // พิมพ์ซ้ำ → ใช้วิธีจัดส่งที่เลือกไว้ครั้งก่อน
     const [deliveryMethod, setDeliveryMethod] = useState<"STUDENT" | "STAFF">(student.coop?.reqLetterDelivery === "STAFF" ? "STAFF" : "STUDENT");
@@ -47,6 +49,7 @@ export default function IssueLetterModal({ student, group, batchMates, onOpenBat
     const handleCreatePdf = async () => {
         if (missingDatesMsg) return notify.warning(missingDatesMsg);
         setLoadingPdf(true);
+        setBusyMsg("กำลังสร้าง PDF พร้อมเอกสารแนบทั้งเล่ม — อาจใช้เวลาหลายวินาที อย่าเพิ่งปิดหน้าต่าง");
         try {
             const { krutUrl, projectUrl, acceptUrl, deanName, deanPosition } = await loadLetterAssets();
             if (!krutUrl) return notify.error("⚠️ ไม่พบไฟล์ตราสัญลักษณ์มหาวิทยาลัย กรุณาอัปโหลดในหน้าตั้งค่า");
@@ -69,12 +72,13 @@ export default function IssueLetterModal({ student, group, batchMates, onOpenBat
             const url = URL.createObjectURL(blob);
             setPreviewUrl(url);
                     } catch (err) { notify.error("สร้าง PDF ไม่สำเร็จ: " + err); }
-        finally { setLoadingPdf(false); }
+        finally { setLoadingPdf(false); setBusyMsg(""); }
     };
 
     const handleCreateDoc = async () => {
         if (missingDatesMsg) return notify.warning(missingDatesMsg);
         setLoadingDoc(true);
+        setBusyMsg("กำลังสร้าง Word…");
         try {
             const { deanName, deanPosition, emblem, projectUrl, acceptUrl } = await loadLetterAssets();
             const studentName = `${thaiPrefix(student.prefix)}${student.firstName} ${student.lastName}`;
@@ -95,6 +99,7 @@ export default function IssueLetterModal({ student, group, batchMates, onOpenBat
 
             // เอกสารแนบ: รายละเอียดโครงการ → เอกสารนักศึกษา → แบบฟอร์มตอบรับ (ตัวรวมเดียวกับ PDF/ออกร่างหลายคน)
             setAttachDraft(null);
+            setBusyMsg("สร้าง Word เสร็จแล้ว · กำลังรวมเอกสารแนบ (PDF) — อาจใช้เวลาหลายวินาที อย่าเพิ่งปิดหน้าต่าง");
             const attach = await existingAttachmentFiles(members || [student]);
             const report: AttachmentReport = { skipped: [], pages: 0 };
             const attachments = await createDispatchAttachmentsPDF(projectUrl || "", acceptUrl || "", attach.files, report);
@@ -103,7 +108,16 @@ export default function IssueLetterModal({ student, group, batchMates, onOpenBat
             if (report.pages === 0) notify.warning("ไม่มีเอกสารแนบที่รวมได้เลย — ไม่ได้สร้างไฟล์เอกสารแนบ");
             else if (lost.length) notify.warning(`เอกสารแนบขาด ${lost.length} ไฟล์ (ไม่พบหรือเปิดไม่ได้): ${lost.join(", ")}`);
                     } catch (err) { notify.error("สร้าง Word ไม่สำเร็จ: " + err); }
-        finally { setLoadingDoc(false); }
+        finally { setLoadingDoc(false); setBusyMsg(""); }
+    };
+
+    // ปิดหน้าต่างระหว่างสร้างไฟล์ = ไฟล์ที่กำลังสร้างหาย → ถามก่อน
+    const handleClose = async () => {
+        if (loadingPdf || loadingDoc) {
+            const ok = await askConfirm("ระบบกำลังสร้างไฟล์อยู่ ถ้าปิดตอนนี้จะไม่ได้ไฟล์ที่กำลังสร้าง ปิดหน้าต่างเลยไหม?", { title: "ยังสร้างไฟล์ไม่เสร็จ", confirmLabel: "ปิดเลย", cancelLabel: "รอให้เสร็จ", danger: true });
+            if (!ok) return;
+        }
+        onClose();
     };
 
     const download = (blob: Blob, name: string) => {
@@ -158,7 +172,7 @@ export default function IssueLetterModal({ student, group, batchMates, onOpenBat
             <div className="letter-modal-card" style={{ width: '95%', maxWidth: 1200, height: '90vh' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: 12, borderBottom: '1px solid #eee', flexShrink: 0 }}>
                     <h3 style={{ margin: 0 }}>📄 ออกหนังสือขอความอนุเคราะห์{members ? ` (รวม ${members.length} คน)` : ""}</h3>
-                    <button onClick={onClose} className="modal-close" aria-label="ปิด">&times;</button>
+                    <button onClick={handleClose} className="modal-close" aria-label="ปิด">&times;</button>
                 </div>
 
                 <div className="letter-split" style={{ display: 'flex', gap: 20, flex: 1, minHeight: 0, paddingTop: 16 }}>
@@ -210,6 +224,10 @@ export default function IssueLetterModal({ student, group, batchMates, onOpenBat
 
                         <div>
                             <div style={{ ...sec, borderColor: '#f59e0b' }}>2. สร้างเอกสาร</div>
+                            <div style={{ fontSize: 11, color: '#475569', marginTop: 6, lineHeight: 1.6 }}>
+                                📄 <b>PDF</b> = หนังสือ + เอกสารแนบรวมเป็นไฟล์เดียว พร้อมพิมพ์<br />
+                                📝 <b>Word</b> = หนังสือ (แก้ไขได้) + เอกสารแนบ (PDF) อีกไฟล์ — พิมพ์หนังสือแล้วตามด้วยเอกสารแนบ
+                            </div>
                             <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
                                 <button className="btn btn-secondary" style={{ flex: 1 }} onClick={handleCreatePdf} disabled={loadingPdf || loadingDoc}>
                                     {loadingPdf ? '⏳...' : '📄 PDF'}
@@ -223,6 +241,12 @@ export default function IssueLetterModal({ student, group, batchMates, onOpenBat
                                     {pdfDraft && <FileReady label="PDF" onDownload={() => downloadDraft(pdfDraft, `Dispatch_${members ? `รวม${members.length}คน_${student.studentId}` : student.studentId}.pdf`)} />}
                                     {docDraft && <FileReady label="Word (.doc)" onDownload={() => downloadDraft(docDraft, `Dispatch_${members ? `รวม${members.length}คน_${student.studentId}` : student.studentId}.doc`)} />}
                                     {docDraft && attachDraft && <FileReady label="เอกสารแนบ (PDF)" onDownload={() => download(attachDraft, `Dispatch_${members ? `รวม${members.length}คน_${student.studentId}` : student.studentId}-เอกสารแนบ.pdf`)} />}
+                                </div>
+                            )}
+                            {busyMsg && (
+                                <div role="status" aria-live="polite" style={{ marginTop: 8, padding: '8px 10px', background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 8, fontSize: 12, color: '#92400e', fontWeight: 600, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                                    <span aria-hidden="true">⏳</span>
+                                    <span>{busyMsg}</span>
                                 </div>
                             )}
                             <p style={{ fontSize: 11, color: '#64748b', margin: '6px 0 0' }}>ตัวอย่างแสดงด้านซ้าย · กดโหลดร่างไปเสนอลงนาม → ขึ้นสถานะ "รอลงนาม"</p>

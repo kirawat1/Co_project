@@ -5,7 +5,7 @@ import { apiFetch } from "../utils/apiFetch";
 import { fmtDate } from "../utils/dateFormat";
 import { notify, askConfirm } from "../utils/notify";
 import {
-    GLOBAL_ROOM, roomMeta, yearLabel, fetchRooms, fetchStream, setPinned, deleteAnnouncement,
+    GLOBAL_ROOM, roomMeta, yearLabel, yearOptionLabel, groupYears, fetchRooms, fetchStream, setPinned, deleteAnnouncement,
     type Ann, type AnnRoom, type AnnViewer,
 } from "../utils/announcements";
 import AnnouncementCard from "./AnnouncementCard";
@@ -16,6 +16,7 @@ const ROOM_KEY = "coop.annRoom"; // จำรอบ/ห้องที่เป�
 export default function AnnouncementRooms() {
     const [years, setYears] = useState<string[]>([]);
     const [year, setYear] = useState("");
+    const [openYear, setOpenYear] = useState(""); // รอบที่เปิดอยู่ ("2/2569") — ป้าย "(เปิดอยู่)" ในรายการ
     const [rooms, setRooms] = useState<AnnRoom[]>([]);
     const [viewer, setViewer] = useState<AnnViewer | null>(null);
     const [room, setRoom] = useState<string | null>(null);
@@ -38,6 +39,7 @@ export default function AnnouncementRooms() {
             try { saved = JSON.parse(localStorage.getItem(ROOM_KEY) || "{}"); } catch { /* ignore */ }
             const first = saved.year && fromPeriods.includes(saved.year) ? saved.year : active ? `${active.semester}/${active.academicYear}` : fromPeriods[0] || "";
             setYears(fromPeriods);
+            setOpenYear(active ? `${active.semester}/${active.academicYear}` : "");
             setYear(first);
             if (saved.room && saved.year === first) setRoom(saved.room);
         })();
@@ -63,7 +65,8 @@ export default function AnnouncementRooms() {
 
     useEffect(() => { setLoading(true); loadRooms().finally(() => setLoading(false)); }, [loadRooms]);
     useEffect(() => { loadStream(); }, [loadStream]);
-    useEffect(() => { try { localStorage.setItem(ROOM_KEY, JSON.stringify({ year, room })); } catch { /* ignore */ } }, [year, room]);
+    // ยังไม่รู้รอบ (ตอนเปิดหน้า) = ไม่บันทึก — เดิมบันทึกค่าว่างทับรอบที่จำไว้ก่อนอ่านทัน (อ่านหลังโหลดรายการรอบ) เลยจำรอบไม่ได้
+    useEffect(() => { if (!year) return; try { localStorage.setItem(ROOM_KEY, JSON.stringify({ year, room })); } catch { /* ignore */ } }, [year, room]);
 
     const refresh = () => { loadRooms(); loadStream(); };
     const current = rooms.find((r) => r.room === room) || null;
@@ -80,15 +83,20 @@ export default function AnnouncementRooms() {
         try { await deleteAnnouncement(a.id); notify.success("ลบประกาศแล้ว"); refresh(); } catch (e: any) { notify.error(e.message); }
     };
 
-    const yearTabs = (
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-            {years.map((y) => (
-                <button key={y} type="button" onClick={() => { setYear(y); setRoom(null); }} aria-pressed={y === year}
-                    style={{ ...tab, ...(y === year ? tabOn : null) }}>
-                    {yearLabel(y)}
-                </button>
-            ))}
-        </div>
+    // เลือกรอบเป็นรายการเลื่อนลง (เหมือนหน้าอื่น) จัดกลุ่มตามปีการศึกษา ใหม่สุดอยู่บน — รอบสะสมทุกปีก็ไม่รก (เดิมเป็นปุ่มเรียงทุกรอบ)
+    const yearGroups = groupYears(years);
+    const yearPicker = (
+        <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 700, color: "#334155", maxWidth: "100%" }}>
+            รอบ
+            <select className="input" aria-label="เลือกรอบ" value={year} onChange={(e) => { setYear(e.target.value); setRoom(null); }}
+                style={{ width: "auto", maxWidth: "100%", background: "#f8fafc", fontWeight: 600 }}>
+                {yearGroups.map(([academicYear, list]) => (
+                    <optgroup key={academicYear} label={`ปีการศึกษา ${academicYear}`}>
+                        {list.map((y) => <option key={y} value={y}>{yearOptionLabel(y)}{y === openYear ? " (เปิดอยู่)" : ""}</option>)}
+                    </optgroup>
+                ))}
+            </select>
+        </label>
     );
 
     return (
@@ -100,7 +108,7 @@ export default function AnnouncementRooms() {
                         {room ? "สตรีมของห้อง · ประกาศส่วนกลางขึ้นทุกห้อง" : "เลือกรอบ แล้วเลือกห้องของหลักสูตร"}
                     </div>
                 </div>
-                {yearTabs}
+                {yearPicker}
             </header>
 
             {!room ? (
@@ -183,8 +191,6 @@ export default function AnnouncementRooms() {
     );
 }
 
-const tab: CSSProperties = { padding: "8px 14px", borderRadius: 999, borderWidth: 1, borderStyle: "solid", borderColor: "#cbd5e1", background: "#fff", color: "#334155", fontSize: 13, fontWeight: 700, cursor: "pointer" };
-const tabOn: CSSProperties = { background: "#0f172a", borderColor: "#0f172a", color: "#fff" };
 const empty: CSSProperties = { padding: 40, textAlign: "center", color: "#64748b", background: "#fff", borderRadius: 14, border: "1px dashed #cbd5e1" };
 const roomCard: CSSProperties = { padding: 0, borderWidth: 1, borderStyle: "solid", borderColor: "#e2e8f0", borderRadius: 16, overflow: "hidden", background: "#fff", cursor: "pointer", boxShadow: "0 1px 3px rgba(15,23,42,0.06)", textAlign: "left" };
 const roomBanner: CSSProperties = { display: "flex", alignItems: "center", gap: 12, padding: "22px 16px", color: "#fff", minHeight: 90 };
