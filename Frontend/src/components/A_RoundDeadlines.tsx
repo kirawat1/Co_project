@@ -1,6 +1,7 @@
 // ปฏิทินของรอบ — กำหนดส่งของแต่ละขั้นในรอบนี้ (ฝังในหน้ารอบสหกิจ)
 //   ค่าวิทยาลัย = ค่าตั้งต้น (เจ้าหน้าที่) · หลักสูตร = ค่าที่ใช้จริง (เจ้าหน้าที่ + อาจารย์ประจำวิชาที่ดูแล)
 //   ขั้นที่หลักสูตรยังไม่ตั้ง → ระบบใช้ช่วงเวลาเดิม (แสดงเป็น "ใช้ค่าเดิม")
+import { BusyLabel, LoadingBlock } from "./Spinner";
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import axios from "axios";
 import DateInput from "./DateInput";
@@ -83,7 +84,7 @@ export default function A_RoundDeadlines({ period, periods }: Props) {
     }, [period.id, periods.length]);
 
     if (error) return <div style={{ ...box, color: "#b91c1c" }}>⚠️ {error}</div>;
-    if (!data) return <div style={{ ...box, color: "#64748b" }}>⏳ กำลังโหลดปฏิทินของรอบ...</div>;
+    if (!data) return <LoadingBlock text="กำลังโหลดปฏิทินของรอบ…" style={{ ...box, color: "#64748b" }} />;
 
     const readOnly = tab === COLLEGE && !data.canEditCollege;
     const dirty = JSON.stringify(cleanDraft(draft)) !== JSON.stringify(cleanDraft(saved));
@@ -278,7 +279,7 @@ export default function A_RoundDeadlines({ period, periods }: Props) {
                 <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
                     <button type="button" className="btn-secondary" disabled={!dirty || saving} onClick={() => setDraft(saved)}>ยกเลิกที่แก้</button>
                     <button type="button" className="btn" disabled={!dirty || saving} onClick={save}>
-                        {saving ? "⏳ กำลังบันทึก..." : tab === COLLEGE ? "บันทึกค่าวิทยาลัย" : `บันทึกของหลักสูตร ${tab}`}
+                        {saving ? <BusyLabel text="กำลังบันทึก…" /> : tab === COLLEGE ? "บันทึกค่าวิทยาลัย" : `บันทึกของหลักสูตร ${tab}`}
                     </button>
                 </div>
             )}

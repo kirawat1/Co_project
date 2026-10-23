@@ -1,4 +1,5 @@
 // หน้าต่างดาวน์โหลดหนังสือที่ออกแล้วเป็น zip — เลือกประเภท/รอบ/หลักสูตร เห็นจำนวน ขนาด รายชื่อ ก่อนกดยืนยัน
+import { BusyLabel, LoadingBlock } from "./Spinner";
 import { useEffect, useState, type CSSProperties } from "react";
 import Modal from "./Modal";
 import { apiFetch } from "../utils/apiFetch";
@@ -113,7 +114,7 @@ export default function LetterZipModal({ types, periods, defaultPeriodId, onClos
                 {/* สรุปสิ่งที่จะได้ */}
                 <div style={summaryBox}>
                     {loading ? (
-                        <div style={{ color: "#64748b" }}>⏳ กำลังตรวจรายการหนังสือ...</div>
+                        <LoadingBlock text="กำลังตรวจรายการหนังสือ…" style={{ color: "#64748b" }} />
                     ) : error ? (
                         <div style={{ color: "#b91c1c" }}>⚠️ {error}</div>
                     ) : count === 0 ? (
@@ -161,7 +162,7 @@ export default function LetterZipModal({ types, periods, defaultPeriodId, onClos
                 <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, borderTop: "1px solid #e2e8f0", paddingTop: 14 }}>
                     <button type="button" className="btn-secondary" onClick={onClose}>ยกเลิก</button>
                     <button type="button" className="btn" disabled={loading || starting || count === 0} onClick={confirm}>
-                        {starting ? "⏳ กำลังเริ่มดาวน์โหลด..." : count ? `⬇️ ดาวน์โหลด ${count} ฉบับ` : "⬇️ ดาวน์โหลด"}
+                        {starting ? <BusyLabel text="กำลังเริ่มดาวน์โหลด…" /> : count ? `⬇️ ดาวน์โหลด ${count} ฉบับ` : "⬇️ ดาวน์โหลด"}
                     </button>
                 </div>
             </div>

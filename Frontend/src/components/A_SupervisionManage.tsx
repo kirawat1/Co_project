@@ -10,7 +10,7 @@ import SupervisionScheduleTable from "./SupervisionScheduleTable";
 import { useSupervisionSchedule } from "../hooks/useSupervisionSchedule";
 import { useToast } from "./Toast";
 import ConfirmDialog from "./ConfirmDialog";
-import Spinner from "./Spinner";
+import { BusyLabel, LoadingBlock } from "./Spinner";
 import DateInput from './DateInput';
 import LoadMoreFooter from "./LoadMoreFooter";
 import { useLoadMore } from "../utils/useLoadMore";
@@ -418,7 +418,7 @@ export default function A_SupervisionManage() {
     // ปฏิทิน + ตารางนิเทศใช้ข้อมูลจาก API ปฏิทิน (มีผู้นิเทศ/ช่วงเวลา) — โหลดใหม่ทุกครั้งที่รายการนิเทศรีเฟรช
     const { events: calendarEvents, degraded: scheduleDegraded } = useSupervisionSchedule(supervisions);
 
-    if (loading) return <div style={{ padding: 40, textAlign: 'center' }}>กำลังโหลดข้อมูล...</div>;
+    if (loading) return <LoadingBlock text="กำลังโหลดข้อมูล…" style={{ padding: 40, textAlign: 'center' }} />;
 
     return (
         <div className="page" style={{ padding: 4, margin: 28, marginLeft: 65 }}>
@@ -490,7 +490,7 @@ export default function A_SupervisionManage() {
                     </div>
                     <button className="btn-success"
                         onClick={handleSaveConfig} disabled={savingConfig || !selectedPeriodId}>
-                        {savingConfig ? "กำลังบันทึก..." : "💾 บันทึก"}
+                        {savingConfig ? <BusyLabel text="กำลังบันทึก…" /> : "💾 บันทึก"}
                     </button>
                 </div>
             </section>
@@ -739,7 +739,7 @@ export default function A_SupervisionManage() {
                                 disabled={!editDateValue || savingDate}
                                 onClick={() => setConfirmEditOpen(true)}
                             >
-                                {savingDate ? <><Spinner size={16} color="#fff" /> กำลังบันทึก...</> : '💾 บันทึกวันใหม่'}
+                                {savingDate ? <BusyLabel text="กำลังบันทึก…" /> : '💾 บันทึกวันใหม่'}
                             </button>
                         </div>
                     </div>

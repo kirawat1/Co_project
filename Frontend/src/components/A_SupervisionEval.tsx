@@ -1,3 +1,4 @@
+import { BusyLabel, LoadingBlock } from "./Spinner";
 import { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import AutoTextarea from "./AutoTextarea";
@@ -106,7 +107,7 @@ export default function A_SupervisionEval() {
   };
 
   if (loading) {
-    return <div className="page" style={{ padding: 40, textAlign: "center", color: "#0074B7" }}>กำลังโหลดข้อมูล...</div>;
+    return <LoadingBlock text="กำลังโหลดข้อมูล…" style={{ padding: 40, textAlign: "center", color: "#0074B7" }} />;
   }
 
   return (
@@ -150,7 +151,7 @@ export default function A_SupervisionEval() {
         </div>
         <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", flexWrap: "wrap" }}>
           <button className="btn-secondary" onClick={copyMessage} disabled={!savedLink}>📋 คัดลอกข้อความ</button>
-          <button className="btn" onClick={handleSave} disabled={saving}>{saving ? "กำลังบันทึก..." : "💾 บันทึกการตั้งค่า"}</button>
+          <button className="btn" onClick={handleSave} disabled={saving}>{saving ? <BusyLabel text="กำลังบันทึก…" /> : "💾 บันทึกการตั้งค่า"}</button>
         </div>
       </div>
 

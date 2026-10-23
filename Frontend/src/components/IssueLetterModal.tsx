@@ -1,4 +1,5 @@
 ﻿import LetterBatchNotice, { sharesDraft } from "./LetterBatchNotice";
+import Spinner, { BusyLabel } from "./Spinner";
 import React, { useState } from "react";
 import { apiFetch } from "../utils/apiFetch";
 import { createDispatchPDF, createDispatchAttachmentsPDF, type AttachmentReport } from "../utils/pdfDispatchGenerator";
@@ -230,10 +231,10 @@ export default function IssueLetterModal({ student, group, batchMates, onOpenBat
                             </div>
                             <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
                                 <button className="btn btn-secondary" style={{ flex: 1 }} onClick={handleCreatePdf} disabled={loadingPdf || loadingDoc}>
-                                    {loadingPdf ? '⏳...' : '📄 PDF'}
+                                    {loadingPdf ? <BusyLabel text="กำลังสร้าง…" /> : '📄 PDF'}
                                 </button>
                                 <button className="btn btn-outline" style={{ flex: 1 }} onClick={handleCreateDoc} disabled={loadingPdf || loadingDoc}>
-                                    {loadingDoc ? '⏳...' : '📝 Word'}
+                                    {loadingDoc ? <BusyLabel text="กำลังสร้าง…" /> : '📝 Word'}
                                 </button>
                             </div>
                             {(pdfDraft || docDraft) && (
@@ -245,7 +246,7 @@ export default function IssueLetterModal({ student, group, batchMates, onOpenBat
                             )}
                             {busyMsg && (
                                 <div role="status" aria-live="polite" style={{ marginTop: 8, padding: '8px 10px', background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 8, fontSize: 12, color: '#92400e', fontWeight: 600, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-                                    <span aria-hidden="true">⏳</span>
+                                    <span style={{ paddingTop: 2 }}><Spinner size={14} /></span>
                                     <span>{busyMsg}</span>
                                 </div>
                             )}

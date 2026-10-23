@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { BusyLabel } from "./Spinner";
 import React, { useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
 import { apiFetch } from "../utils/apiFetch";
@@ -335,7 +336,7 @@ export default function A_CompanyImport({ onClose, onImported }: Props) {
 
         {progress && (
           <div style={{ marginBottom: 16, fontSize: 13 }}>
-            กำลังนำเข้า {progress.done} / {progress.total} รายการ...
+            <BusyLabel size={14} text={`กำลังนำเข้า ${progress.done} / ${progress.total} รายการ…`} />
             <div style={{ height: 6, background: "#e5e7eb", borderRadius: 3, marginTop: 6, overflow: "hidden" }}>
               <div style={{ width: `${Math.round((progress.done / progress.total) * 100)}%`, height: "100%", background: "#2563eb", transition: "width .2s" }} />
             </div>
@@ -360,7 +361,7 @@ export default function A_CompanyImport({ onClose, onImported }: Props) {
           </button>
           {rows.length > 0 && !result && (
             <button className="btn" onClick={handleImport} disabled={loading}>
-              {loading ? "กำลังนำเข้า..." : `นำเข้า ${rows.length} รายการ`}
+              {loading ? <BusyLabel text="กำลังนำเข้า…" /> : `นำเข้า ${rows.length} รายการ`}
             </button>
           )}
         </div>

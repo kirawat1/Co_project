@@ -1,5 +1,6 @@
 // ประกาศแบบห้องเรียน: เลือกรอบ → การ์ดห้อง (ส่วนกลาง + หลักสูตร) → สตรีมของห้อง
 // ใช้ทั้งเจ้าหน้าที่ / อาจารย์ประจำวิชา (โพสต์ได้ตามสิทธิ์) และอาจารย์ทั่วไป (อ่านอย่างเดียว) — server บอกสิทธิ์ผ่าน canPost/canEdit
+import { LoadingBlock } from "./Spinner";
 import { useCallback, useEffect, useState, type CSSProperties } from "react";
 import { apiFetch } from "../utils/apiFetch";
 import { fmtDate } from "../utils/dateFormat";
@@ -114,7 +115,7 @@ export default function AnnouncementRooms() {
             {!room ? (
                 /* ── การ์ดห้อง ── */
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 240px), 1fr))", gap: 16 }}>
-                    {loading && !rooms.length ? <div style={empty}>กำลังโหลด...</div> : rooms.map((r) => {
+                    {loading && !rooms.length ? <LoadingBlock text="กำลังโหลดห้องประกาศ…" style={empty} /> : rooms.map((r) => {
                         const m = roomMeta(r.room);
                         const n = r.room === GLOBAL_ROOM ? r.count : r.ownCount;
                         return (
@@ -161,7 +162,7 @@ export default function AnnouncementRooms() {
                         </button>
                     )}
 
-                    {loading ? <div style={empty}>กำลังโหลด...</div>
+                    {loading ? <LoadingBlock text="กำลังโหลดประกาศ…" style={empty} />
                         : list.length === 0 ? <div style={empty}>📭 ยังไม่มีประกาศในห้องนี้</div>
                         : list.map((a) => (
                             <AnnouncementCard key={a.id} a={a} showRooms={viewer?.kind === "staff" || viewer?.kind === "coop"}

@@ -1,4 +1,5 @@
 ﻿// Frontend/src/components/IssuePlacementLetterModal.tsx
+import { BusyLabel } from "./Spinner";
 import LetterBatchNotice, { sharesDraft } from "./LetterBatchNotice";
 import React, { useState } from "react";
 import { apiFetch } from "../utils/apiFetch";
@@ -162,8 +163,8 @@ export default function IssuePlacementLetterModal({ student, group, batchMates, 
                         <div>
                             <div style={{ ...sec, borderColor: '#f59e0b' }}>2. สร้างเอกสาร</div>
                             <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                                <button className="btn btn-secondary" style={{ flex: 1 }} onClick={handleCreatePdf} disabled={loadingPdf || loadingDoc}>{loadingPdf ? '⏳...' : '📄 PDF'}</button>
-                                <button className="btn btn-outline" style={{ flex: 1 }} onClick={handleCreateDoc} disabled={loadingPdf || loadingDoc}>{loadingDoc ? '⏳...' : '📝 Word'}</button>
+                                <button className="btn btn-secondary" style={{ flex: 1 }} onClick={handleCreatePdf} disabled={loadingPdf || loadingDoc}>{loadingPdf ? <BusyLabel text="กำลังสร้าง…" /> : '📄 PDF'}</button>
+                                <button className="btn btn-outline" style={{ flex: 1 }} onClick={handleCreateDoc} disabled={loadingPdf || loadingDoc}>{loadingDoc ? <BusyLabel text="กำลังสร้าง…" /> : '📝 Word'}</button>
                             </div>
                             {(pdfDraft || docDraft) && (
                                 <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>

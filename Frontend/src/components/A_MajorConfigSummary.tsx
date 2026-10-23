@@ -1,3 +1,4 @@
+import { LoadingBlock } from "./Spinner";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { apiFetch } from "../utils/apiFetch";
@@ -45,7 +46,7 @@ export default function A_MajorConfigSummary() {
 
       <div className="card" style={{ padding: 0, overflow: "hidden" }}>
         {loading ? (
-          <div style={{ padding: 32, textAlign: "center", color: "#64748b" }}>กำลังโหลด...</div>
+          <LoadingBlock text="กำลังโหลด…" style={{ padding: 32, textAlign: "center", color: "#64748b" }} />
         ) : error ? (
           <div style={{ padding: 32, textAlign: "center", color: "#dc2626" }}>{error}</div>
         ) : (

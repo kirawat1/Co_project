@@ -1,3 +1,4 @@
+import { BusyLabel } from "./Spinner";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { apiFetch } from "../utils/apiFetch";
@@ -170,7 +171,7 @@ export default function A_Logs() {
                     </div>
                 </div>
                 <button className="btn" style={{ background: "#16a34a", color: "#fff" }} onClick={handleExport} disabled={downloading}>
-                    {downloading ? "กำลังสร้างไฟล์..." : "📊 Export Excel"}
+                    {downloading ? <BusyLabel text="กำลังสร้างไฟล์…" /> : "📊 Export Excel"}
                 </button>
             </div>
 
@@ -229,7 +230,7 @@ export default function A_Logs() {
                     })}
                 </div>
                 <div style={{ fontSize: 13, color: "#64748b", marginBottom: 10 }}>
-                    แสดง {total.toLocaleString()} รายการ {loading && "· กำลังโหลด..."}
+                    แสดง {total.toLocaleString()} รายการ {loading && <>· <BusyLabel size={12} text="กำลังโหลด…" /></>}
                 </div>
                 <div style={{ overflowX: "auto" }}>
                     <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>

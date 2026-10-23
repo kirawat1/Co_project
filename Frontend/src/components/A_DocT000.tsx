@@ -1,4 +1,5 @@
 ﻿import React, { useState, useEffect, useMemo, useRef, useCallback, lazy, Suspense } from "react";
+import { BusyLabel } from "./Spinner";
 import { apiFetch } from "../utils/apiFetch";
 import { fmtDate } from '../utils/dateFormat';
 import IssueLetterModal from "./IssueLetterModal";
@@ -651,7 +652,7 @@ export default function A_DocT000() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
                     <h3 style={{ margin: 0 }}>รายการส่งเอกสาร ({list.length})</h3>
                     <button className="btn" style={{ background: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1' }} onClick={fetchAllData} disabled={loading}>
-                        {loading ? 'กำลังโหลดข้อมูล...' : 'รีเฟรชข้อมูล'}
+                        {loading ? <BusyLabel text="กำลังโหลดข้อมูล…" /> : 'รีเฟรชข้อมูล'}
                     </button>
                 </div>
 
@@ -929,7 +930,7 @@ export default function A_DocT000() {
                                                     onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) handleReplaceAcceptance(f); }} />
                                                 <button onClick={() => acceptanceFileRef.current?.click()} disabled={replacingAcceptance}
                                                     style={{ fontSize: 12, background: '#0f766e', color: 'white', border: 'none', padding: '6px 12px', borderRadius: 6, cursor: replacingAcceptance ? 'wait' : 'pointer', fontWeight: 600, boxShadow: '0 2px 4px rgba(15, 118, 110, 0.2)' }}>
-                                                    {replacingAcceptance ? 'กำลังอัปโหลด...' : hasFile ? 'เปลี่ยนไฟล์ใบตอบรับ' : 'อัปโหลดใบตอบรับแทน'}
+                                                    {replacingAcceptance ? <BusyLabel text="กำลังอัปโหลด…" /> : hasFile ? 'เปลี่ยนไฟล์ใบตอบรับ' : 'อัปโหลดใบตอบรับแทน'}
                                                 </button>
                                             </>
                                         );
@@ -1061,7 +1062,7 @@ function AcceptanceReceivedModal({ student, onClose, onSuccess }: { student: Stu
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
                     <button className="btn-secondary" onClick={onClose} disabled={saving}>ยกเลิก</button>
                     <button className="btn" onClick={submit} disabled={saving}>
-                        {saving ? 'กำลังบันทึก...' : 'บันทึก'}
+                        {saving ? <BusyLabel text="กำลังบันทึก…" /> : 'บันทึก'}
                     </button>
                 </div>
         </Modal>

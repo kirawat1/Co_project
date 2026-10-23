@@ -1,3 +1,4 @@
+import { BusyLabel } from "./Spinner";
 import React, { useState, useEffect } from "react";
 import { apiFetch } from "../utils/apiFetch";
 import { fmtDate } from '../utils/dateFormat';
@@ -214,7 +215,7 @@ export default function A_Settings() {
                         cursor: uploadingKey === item.key ? 'wait' : 'pointer',
                       }}
                     >
-                      {uploadingKey === item.key ? 'กำลังอัปโหลด...' : (current ? '🔄 เปลี่ยนไฟล์' : '📤 อัปโหลด')}
+                      {uploadingKey === item.key ? <BusyLabel text="กำลังอัปโหลด…" /> : (current ? '🔄 เปลี่ยนไฟล์' : '📤 อัปโหลด')}
                     </label>
                   </div>
 

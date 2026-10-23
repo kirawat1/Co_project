@@ -1,3 +1,4 @@
+import { BusyLabel } from "./Spinner";
 import React, { useMemo, useState } from "react";
 import { apiFetch } from "../utils/apiFetch";
 import { notify, askConfirm } from "../utils/notify";
@@ -319,13 +320,13 @@ export default function BulkLetterDraftModal({ students, onClose }: { students: 
                 <div style={{ display: "flex", gap: 8, alignItems: "center", justifyContent: "flex-end", flexWrap: "wrap", marginTop: 12 }}>
                     {busy && (
                         <span style={{ fontSize: 13, color: "#475569", marginRight: "auto" }}>
-                            {phase}{progress ? ` ${progress.done} / ${progress.total}` : ""}
+                            <BusyLabel size={14} text={`${phase.replace(/\.\.\.$/, "…")}${progress ? ` ${progress.done} / ${progress.total}` : ""}`} />
                         </span>
                     )}
                     <button type="button" className="btn btn-secondary" onClick={onClose} disabled={busy}>ปิด</button>
                     <button type="button" className="btn btn-primary" onClick={handleDownload} disabled={!canDownload}
                         style={{ opacity: canDownload ? 1 : 0.5 }}>
-                        {busy ? "กำลังทำงาน..." : summary || retryMsg ? "โหลดอีกครั้ง (ใช้เลขเดิม)" : `จองเลขและโหลด zip (${groups.length} ฉบับ)`}
+                        {busy ? <BusyLabel text="กำลังทำงาน…" /> : summary || retryMsg ? "โหลดอีกครั้ง (ใช้เลขเดิม)" : `จองเลขและโหลด zip (${groups.length} ฉบับ)`}
                     </button>
                 </div>
             </div>

@@ -1,3 +1,4 @@
+import { BusyLabel, LoadingBlock } from "./Spinner";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
 import { apiFetch } from "../utils/apiFetch";
@@ -142,7 +143,7 @@ export default function A_Feedback() {
             {error && <div role="alert" style={errorBox}>❌ {error}</div>}
 
             {loading ? (
-                <div style={emptyBox}>กำลังโหลด...</div>
+                <LoadingBlock text="กำลังโหลด…" style={emptyBox} />
             ) : rows.length === 0 ? (
                 <div style={emptyBox}>ยังไม่มีเรื่องในหมวดนี้</div>
             ) : (
@@ -212,7 +213,7 @@ export default function A_Feedback() {
                                                 disabled={saving === f.id}
                                                 onClick={() => update(f.id, { staffReply: replyDraft[f.id] ?? f.staffReply ?? "", status: "RESOLVED" })}
                                             >
-                                                {saving === f.id ? "กำลังบันทึก..." : "✅ ตอบกลับและปิดเรื่อง"}
+                                                {saving === f.id ? <BusyLabel text="กำลังบันทึก…" /> : "✅ ตอบกลับและปิดเรื่อง"}
                                             </button>
                                             <button
                                                 className="btn-secondary"

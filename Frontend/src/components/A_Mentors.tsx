@@ -1,3 +1,4 @@
+import { LoadingBlock } from "./Spinner";
 import { useState, useEffect, useMemo } from "react";
 import { IcSave, IcUser } from "./icons"; // อย่าลืมเช็ค path icons
 import { apiFetch } from "../utils/apiFetch";
@@ -123,7 +124,7 @@ export default function A_Mentors() {
   // แสดงทีละ 30 คน เลื่อนถึงท้ายตารางแล้วแสดงเพิ่ม แทนโหลดทั้งหมดในตารางเดียว
   const { shown: shownItems, hasMore, sentinelRef, showMore, total } = useLoadMore(filtered, q);
 
-  if (loading) return <div style={{ padding: 28, marginLeft: 35 }}>กำลังโหลดข้อมูลพี่เลี้ยง...</div>;
+  if (loading) return <LoadingBlock text="กำลังโหลดข้อมูลพี่เลี้ยง…" style={{ padding: 28, marginLeft: 35 }} />;
 
   return (
     <div className="page" style={{ padding: 28, marginLeft: 35 }}>
