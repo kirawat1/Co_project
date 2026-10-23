@@ -97,6 +97,23 @@ export function roomMeta(room: string): { label: string; emoji: string; from: st
 /** "2/2569" → "เทอม 2/2569" */
 export const yearLabel = (y?: string | null) => (y ? `เทอม ${y}` : "ยังไม่มีรอบ");
 
+/** ตัวเลือกในรายการรอบ — แบบเดียวกับหน้าอื่น ("2/2569" → "เทอม 2 / 2569") */
+export const yearOptionLabel = (y: string) => { const [s, a] = y.split("/"); return `เทอม ${s} / ${a}`; };
+
+/** จัดรอบ ("2/2569") เป็นกลุ่มตามปีการศึกษา ปีใหม่สุดก่อน เทอมมากก่อน (ไม่ซ้ำ) — สำหรับ <optgroup> */
+export function groupYears(years: string[]): [string, string[]][] {
+    const groups = new Map<string, Set<string>>();
+    for (const y of years) {
+        const academicYear = y.split("/")[1] || "";
+        if (!groups.has(academicYear)) groups.set(academicYear, new Set());
+        groups.get(academicYear)!.add(y);
+    }
+    const term = (y: string) => Number(y.split("/")[0]) || 0;
+    return [...groups.entries()]
+        .sort(([a], [b]) => Number(b) - Number(a))
+        .map(([academicYear, set]) => [academicYear, [...set].sort((x, z) => term(z) - term(x))]);
+}
+
 // ── ป้าย "ใหม่" ฝั่งนักศึกษา (จำต่อเครื่อง) ───────────────────────
 const seenKey = () => `coop.annSeen.${localStorage.getItem("coop.userId") || "anon"}`;
 
