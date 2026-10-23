@@ -1,4 +1,5 @@
 // หน้าต่างเขียน/แก้ไขประกาศ — ส่งถึงห้องไหน · ไฟล์/รูป/ลิงก์ · ปักหมุด · ตั้งเวลาเผยแพร่
+import { BusyLabel } from "./Spinner";
 import { useState, type CSSProperties } from "react";
 import Modal from "./Modal";
 import AutoTextarea from "./AutoTextarea";
@@ -178,7 +179,7 @@ export default function AnnouncementEditor({ initial, years, year: year0, room, 
                 <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, borderTop: "1px solid #e2e8f0", paddingTop: 14 }}>
                     <button type="button" className="btn-secondary" onClick={onClose}>ยกเลิก</button>
                     <button type="button" className="btn" disabled={saving} onClick={save}>
-                        {saving ? "⏳ กำลังบันทึก..." : initial ? "บันทึก" : schedule ? "⏰ ตั้งเวลาเผยแพร่" : "📢 ประกาศ"}
+                        {saving ? <BusyLabel text="กำลังบันทึก…" /> : initial ? "บันทึก" : schedule ? "⏰ ตั้งเวลาเผยแพร่" : "📢 ประกาศ"}
                     </button>
                 </div>
             </div>

@@ -1,3 +1,4 @@
+import { BusyLabel, LoadingBlock } from "./Spinner";
 import { useState, useEffect, useRef } from "react";
 import { fmtDate } from '../utils/dateFormat';
 
@@ -227,7 +228,7 @@ export default function A_CriteriaPage() {
                 onClick={handleAdd}
                 disabled={addSaving || !newName.trim()}
               >
-                {addSaving ? "กำลังบันทึก..." : "บันทึก"}
+                {addSaving ? <BusyLabel text="กำลังบันทึก…" /> : "บันทึก"}
               </button>
               <button
                 style={btn("#64748b", "#f1f5f9", "#e2e8f0")}
@@ -242,7 +243,7 @@ export default function A_CriteriaPage() {
 
         {/* Department Cards */}
         {loading ? (
-          <div style={{ textAlign: "center", padding: 40, color: "#64748b" }}>กำลังโหลด...</div>
+          <LoadingBlock text="กำลังโหลด…" style={{ textAlign: "center", padding: 40, color: "#64748b" }} />
         ) : departments.length === 0 ? (
           <div style={{ textAlign: "center", padding: 40, color: "#64748b" }}>
             ยังไม่มีหลักสูตร — กดปุ่ม "+ เพิ่มหลักสูตร" เพื่อเพิ่ม

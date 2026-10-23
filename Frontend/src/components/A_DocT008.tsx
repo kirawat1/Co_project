@@ -1,3 +1,4 @@
+import { BusyLabel, LoadingBlock } from "./Spinner";
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import AutoTextarea from "./AutoTextarea";
@@ -97,7 +98,7 @@ export default function A_DocT008() {
         }
     };
 
-    if (isFetching) return <div className="page" style={{ padding: 40, textAlign: 'center', color: '#0074B7' }}>กำลังโหลดข้อมูลล่าสุด...</div>;
+    if (isFetching) return <LoadingBlock text="กำลังโหลดข้อมูลล่าสุด…" style={{ padding: 40, textAlign: 'center', color: '#0074B7' }} />;
 
     return (
         <div className="page" style={{ padding: 4, margin: "28px 28px 28px 65px" }}>
@@ -159,7 +160,7 @@ export default function A_DocT008() {
 
                 <div className="action-row" style={{ marginTop: 24, display: 'flex', justifyContent: 'flex-end' }}>
                     <button className="btn btn-primary" onClick={handleSave} disabled={isSaving} style={{ padding: '12px 28px', fontSize: 15 }}>
-                        {isSaving ? '⏳ กำลังบันทึก...' : '💾 บันทึกการเปลี่ยนแปลง'}
+                        {isSaving ? <BusyLabel text="กำลังบันทึก…" /> : '💾 บันทึกการเปลี่ยนแปลง'}
                     </button>
                 </div>
 

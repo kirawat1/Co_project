@@ -1,3 +1,4 @@
+import { LoadingBlock } from "./Spinner";
 import { useState, useEffect, useMemo } from "react";
 import { IcUser } from "./icons";
 import { apiFetch } from "../utils/apiFetch";
@@ -78,7 +79,7 @@ export default function A_Contacts() {
 
   const { shown, hasMore, sentinelRef, showMore, total } = useLoadMore(filtered, q);
 
-  if (loading) return <div style={{ padding: 28, marginLeft: 35 }}>กำลังโหลดข้อมูลผู้ติดต่อ...</div>;
+  if (loading) return <LoadingBlock text="กำลังโหลดข้อมูลผู้ติดต่อ…" style={{ padding: 28, marginLeft: 35 }} />;
 
   return (
     <div className="page" style={{ padding: 28, marginLeft: 35 }}>

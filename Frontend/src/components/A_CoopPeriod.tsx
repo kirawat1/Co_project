@@ -8,6 +8,7 @@ import Modal from "./Modal";
 import { useAdminRole } from "./adminRole";
 import { getMajorFilter, NO_MAJOR } from "../utils/majorFilter";
 import A_RoundDeadlines from "./A_RoundDeadlines";
+import { BusyLabel, LoadingBlock } from "./Spinner";
 
 // รอบสหกิจ = ปี/เทอม ใช้ร่วมกันทุกหลักสูตร · วันรับสมัคร / เปิด-ปิด / ช่วงนิเทศ ตั้งแยกหลักสูตร
 type PeriodRow = {
@@ -47,6 +48,10 @@ export default function A_CoopPeriod() {
     const [modal, setModal] = useState<ModalState | null>(null);
     // รอบที่เปิดดูปฏิทิน (กำหนดส่งของแต่ละขั้น)
     const [calendarFor, setCalendarFor] = useState<number | null>(null);
+    // กำลังทำงาน: โหลดครั้งแรก · บันทึกฟอร์ม · ปุ่มในรายการ (เปิด/ปิด · เอาออก · ลบรอบ) — ปุ่มที่กดหมุน ปุ่มอื่นรอจนเสร็จ
+    const [loaded, setLoaded] = useState(false);
+    const [saving, setSaving] = useState(false);
+    const [busy, setBusy] = useState<string | null>(null);
 
     // Form State
     const [academicYear, setAcademicYear] = useState(new Date().getFullYear() + 543 + "");
@@ -66,6 +71,22 @@ export default function A_CoopPeriod() {
             if (res.data.ok) setPeriods(res.data.periods);
         } catch (err) {
             console.error(err);
+        } finally {
+            setLoaded(true);
+        }
+    };
+
+    // ทำงานของปุ่มในรายการ: หมุนปุ่มนั้นจนรายการโหลดใหม่เสร็จ
+    const runRowAction = async (key: string, work: () => Promise<unknown>, failMsg: string) => {
+        setBusy(key);
+        try {
+            await work();
+            await fetchPeriods();
+        } catch (err) {
+            console.error(err);
+            notify.error(errMsg(err, failMsg));
+        } finally {
+            setBusy(null);
         }
     };
 
@@ -102,7 +123,8 @@ export default function A_CoopPeriod() {
 
     const save = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!modal) return;
+        if (!modal || saving) return;
+        setSaving(true);
         try {
             if (modal.mode === "create") {
                 if (!academicYear.trim()) return notify.warning("กรุณากรอกปีการศึกษา");
@@ -115,11 +137,13 @@ export default function A_CoopPeriod() {
             } else {
                 await axios.put(`/api/admin/coop-periods/${modal.period.id}`, { major: modal.major, startDate, endDate });
             }
+            await fetchPeriods();
             setModal(null);
-            fetchPeriods();
         } catch (err) {
             console.error(err);
             notify.error(errMsg(err, "เกิดข้อผิดพลาดในการบันทึก"));
+        } finally {
+            setSaving(false);
         }
     };
 
@@ -135,35 +159,19 @@ export default function A_CoopPeriod() {
                 : `เปิดรับสมัครรอบ ${label} ของ${who}?`;
             if (!(await askConfirm(msg, { confirmLabel: "เปิดรับสมัคร" }))) return;
         } else if (!(await askConfirm(`ปิดรับสมัครรอบ ${label} ของ${who}?`, { confirmLabel: "ปิดรับสมัคร", danger: true, icon: "🔒" }))) return;
-        try {
-            await axios.patch(`/api/admin/coop-periods/${p.id}/toggle`, { isActive: open, ...(major ? { major } : {}) });
-            fetchPeriods();
-        } catch (err) {
-            console.error(err);
-            notify.error(errMsg(err, "ไม่สามารถเปลี่ยนสถานะได้"));
-        }
+        await runRowAction(`toggle:${p.id}:${major ?? "*"}`,
+            () => axios.patch(`/api/admin/coop-periods/${p.id}/toggle`, { isActive: open, ...(major ? { major } : {}) }),
+            "ไม่สามารถเปลี่ยนสถานะได้");
     };
 
     const removeRow = async (p: CoopPeriod, major: string) => {
         if (!(await askConfirm(`เอารอบ ${p.semester}/${p.academicYear} ออกจากหลักสูตร ${major}?\nหลักสูตรนี้จะไม่มีรอบนี้ (ปิดรับสมัครและปิดนัดนิเทศ)`, { confirmLabel: "เอาออก", danger: true }))) return;
-        try {
-            await axios.delete(`/api/admin/coop-periods/${p.id}/majors/${encodeURIComponent(major)}`);
-            fetchPeriods();
-        } catch (err) {
-            console.error(err);
-            notify.error(errMsg(err, "เอาออกไม่สำเร็จ"));
-        }
+        await runRowAction(`row:${p.id}:${major}`, () => axios.delete(`/api/admin/coop-periods/${p.id}/majors/${encodeURIComponent(major)}`), "เอาออกไม่สำเร็จ");
     };
 
     const removeTerm = async (p: CoopPeriod) => {
         if (!(await askConfirm(`ลบรอบ ${p.semester}/${p.academicYear} ของทุกหลักสูตร?\n(ลบไม่ได้ถ้ามีนักศึกษาอยู่ในรอบนี้)`, { confirmLabel: "ลบรอบ", danger: true }))) return;
-        try {
-            await axios.delete(`/api/admin/coop-periods/${p.id}`);
-            fetchPeriods();
-        } catch (err) {
-            console.error(err);
-            notify.error(errMsg(err, "ลบไม่สำเร็จ"));
-        }
+        await runRowAction(`term:${p.id}`, () => axios.delete(`/api/admin/coop-periods/${p.id}`), "ลบไม่สำเร็จ");
     };
 
     /* ================= RENDER ================= */
@@ -188,7 +196,9 @@ export default function A_CoopPeriod() {
             <section style={card}>
                 <h3 style={sectionTitle}>รายการรอบ</h3>
 
-                {periods.length === 0 ? (
+                {!loaded ? (
+                    <LoadingBlock text="กำลังโหลดรอบรับสมัคร…" style={{ padding: 40 }} />
+                ) : periods.length === 0 ? (
                     <div style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>ยังไม่มีข้อมูลรอบรับสมัคร</div>
                 ) : (
                     <div style={{ display: 'grid', gap: 16 }}>
@@ -211,12 +221,14 @@ export default function A_CoopPeriod() {
                                         {isStaff && (
                                             <>
                                                 {rowsShown.length > 1 && (
-                                                    <button className={anyOpen ? "btn-secondary small" : "btn-success small"} onClick={() => toggle(p, null, !anyOpen)}>
-                                                        {anyOpen ? "ปิดทุกหลักสูตร" : "เปิดทุกหลักสูตร"}
+                                                    <button className={anyOpen ? "btn-secondary small" : "btn-success small"} disabled={!!busy} onClick={() => toggle(p, null, !anyOpen)}>
+                                                        {busy === `toggle:${p.id}:*` ? <BusyLabel size={12} text={anyOpen ? "กำลังปิด…" : "กำลังเปิด…"} /> : anyOpen ? "ปิดทุกหลักสูตร" : "เปิดทุกหลักสูตร"}
                                                     </button>
                                                 )}
-                                                <button className="btn-secondary small" onClick={() => openTerm(p)}>แก้ไขปี/เทอม</button>
-                                                <button className="btn-danger small" onClick={() => removeTerm(p)}>ลบรอบ</button>
+                                                <button className="btn-secondary small" disabled={!!busy} onClick={() => openTerm(p)}>แก้ไขปี/เทอม</button>
+                                                <button className="btn-danger small" disabled={!!busy} onClick={() => removeTerm(p)}>
+                                                    {busy === `term:${p.id}` ? <BusyLabel size={12} text="กำลังลบ…" /> : "ลบรอบ"}
+                                                </button>
                                             </>
                                         )}
                                         </div>
@@ -260,11 +272,13 @@ export default function A_CoopPeriod() {
                                                             </td>
                                                             <td style={{ ...td, textAlign: 'right' }}>
                                                                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                                                                    <button className={r.isActive ? "btn-danger small" : "btn-success small"} onClick={() => toggle(p, m, !r.isActive)}>
-                                                                        {r.isActive ? 'ปิดรับสมัคร' : 'เปิดรับสมัคร'}
+                                                                    <button className={r.isActive ? "btn-danger small" : "btn-success small"} disabled={!!busy} onClick={() => toggle(p, m, !r.isActive)}>
+                                                                        {busy === `toggle:${p.id}:${m}` ? <BusyLabel size={12} text={r.isActive ? "กำลังปิด…" : "กำลังเปิด…"} /> : r.isActive ? 'ปิดรับสมัคร' : 'เปิดรับสมัคร'}
                                                                     </button>
-                                                                    <button className="btn-secondary small" onClick={() => openRow(p, m)}>แก้วัน</button>
-                                                                    <button className="btn-secondary small" title="หลักสูตรนี้ไม่ใช้รอบนี้" onClick={() => removeRow(p, m)}>เอาออก</button>
+                                                                    <button className="btn-secondary small" disabled={!!busy} onClick={() => openRow(p, m)}>แก้วัน</button>
+                                                                    <button className="btn-secondary small" title="หลักสูตรนี้ไม่ใช้รอบนี้" disabled={!!busy} onClick={() => removeRow(p, m)}>
+                                                                        {busy === `row:${p.id}:${m}` ? <BusyLabel size={12} text="กำลังเอาออก…" /> : "เอาออก"}
+                                                                    </button>
                                                                 </div>
                                                             </td>
                                                         </tr>
@@ -322,8 +336,8 @@ export default function A_CoopPeriod() {
                         </div>
 
                         <div style={{ display: "flex", gap: 8, justifyContent: 'flex-end', marginTop: 8 }}>
-                            <button type="button" className="btn-secondary" onClick={() => setModal(null)}>ยกเลิก</button>
-                            <button className="btn" type="submit">บันทึกข้อมูล</button>
+                            <button type="button" className="btn-secondary" disabled={saving} onClick={() => setModal(null)}>ยกเลิก</button>
+                            <button className="btn" type="submit" disabled={saving}>{saving ? <BusyLabel text="กำลังบันทึก…" /> : "บันทึกข้อมูล"}</button>
                         </div>
                     </form>
                 </Modal>

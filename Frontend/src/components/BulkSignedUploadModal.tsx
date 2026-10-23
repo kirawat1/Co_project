@@ -1,3 +1,4 @@
+import { BusyLabel } from "./Spinner";
 import React, { useMemo, useRef, useState } from "react";
 import { apiFetch } from "../utils/apiFetch";
 import { notify, askConfirm } from "../utils/notify";
@@ -292,10 +293,10 @@ export default function BulkSignedUploadModal({ students, onClose }: { students:
                 </div>
 
                 <div style={{ display: "flex", gap: 8, alignItems: "center", justifyContent: "flex-end", flexWrap: "wrap", marginTop: 12 }}>
-                    {busy && <span style={{ fontSize: 13, color: "#475569", marginRight: "auto" }}>กำลังบันทึกทีละฉบับ...</span>}
+                    {busy && <span style={{ fontSize: 13, color: "#475569", marginRight: "auto" }}><BusyLabel size={14} text="กำลังบันทึกทีละฉบับ… อย่าเพิ่งปิดหน้าต่าง" /></span>}
                     <button type="button" className="btn btn-secondary" onClick={onClose} disabled={busy}>ปิด</button>
                     <button type="button" className="btn btn-primary" onClick={handleSave} disabled={!canSave} style={{ opacity: canSave ? 1 : 0.5 }}>
-                        {busy ? "กำลังบันทึก..." : `บันทึก ${toSave.length} ฉบับ`}
+                        {busy ? <BusyLabel text="กำลังบันทึก…" /> : `บันทึก ${toSave.length} ฉบับ`}
                     </button>
                 </div>
             </div>

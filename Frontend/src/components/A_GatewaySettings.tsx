@@ -1,3 +1,4 @@
+import { BusyLabel, LoadingBlock } from "./Spinner";
 import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import { useToast } from "./Toast";
@@ -86,7 +87,7 @@ export default function A_GatewaySettings() {
     await handleSave(DEFAULTS);
   };
 
-  if (loading) return <div style={{ padding: 32 }}>กำลังโหลด...</div>;
+  if (loading) return <LoadingBlock text="กำลังโหลด…" style={{ padding: 32 }} />;
 
   if (loadError) return (
     <div className="card" style={{ maxWidth: 720, margin: "0 auto" }}>
@@ -205,7 +206,7 @@ export default function A_GatewaySettings() {
           รีเซ็ตค่าเริ่มต้น
         </button>
         <button className="btn btn-success" onClick={() => handleSave()} disabled={saving} type="button">
-          {saving ? 'กำลังบันทึก...' : '💾 บันทึก'}
+          {saving ? <BusyLabel text="กำลังบันทึก…" /> : '💾 บันทึก'}
         </button>
       </div>
 

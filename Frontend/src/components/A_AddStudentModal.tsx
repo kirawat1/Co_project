@@ -1,4 +1,5 @@
 // Frontend/src/components/A_AddStudentModal.tsx
+import { BusyLabel } from "./Spinner";
 import { useEffect, useState } from "react";
 import { apiFetch } from "../utils/apiFetch";
 import { notify } from "../utils/notify";
@@ -159,7 +160,7 @@ export default function A_AddStudentModal({ onClose, onSuccess }: Props) {
             onClick={handleSubmit}
             disabled={loading}
           >
-            {loading ? "กำลังบันทึก..." : "เพิ่มนักศึกษา"}
+            {loading ? <BusyLabel text="กำลังบันทึก…" /> : "เพิ่มนักศึกษา"}
           </button>
         </div>
     </Modal>

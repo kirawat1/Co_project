@@ -1,3 +1,4 @@
+import { LoadingBlock } from "./Spinner";
 import { useEffect, useState, lazy, Suspense } from "react";
 import { apiFetch } from "../utils/apiFetch";
 import { ThemeToggleBtn } from "./ThemeContext";
@@ -143,7 +144,7 @@ export default function AdminApp() {
   }
 
   if (loading || !roleReady || (!isStaff && !isCoopTeacher)) {
-    return <div style={{ padding: 24 }}>กำลังโหลด...</div>;
+    return <LoadingBlock text="กำลังโหลด…" style={{ padding: 24 }} />;
   }
 
   return (
@@ -194,7 +195,7 @@ export default function AdminApp() {
         <main className="main">
           <AdminRoleContext.Provider value={{ isStaff, majors: coopMajors }}>
           {/* เปลี่ยนตัวกรองหลักสูตร → remount หน้าเพื่อโหลดข้อมูลใหม่ */}
-          <Suspense fallback={<div style={{ padding: 24, color: "var(--text-muted)" }}>กำลังโหลด...</div>}>
+          <Suspense fallback={<LoadingBlock text="กำลังโหลดหน้า…" style={{ padding: 24 }} />}>
           <Routes key={effectiveFilter}>
             <Route index element={<Navigate to="/admin/dashboard" replace />} />
             <Route path="dashboard" element={<Dashboard />} />

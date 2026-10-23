@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { apiFetch } from "../utils/apiFetch";
 import { IcUsers, IcDocs, IcAnnounce } from "./icons";
+import { LoadingBlock } from "./Spinner";
 import { notify } from "../utils/notify";
 import { defaultPeriod } from "../utils/defaultPeriod";
 
@@ -183,10 +184,7 @@ export default function A_Dashboard() {
       </div>
 
       {loading ? (
-        <div style={{ padding: '40px 0', textAlign: 'center', color: '#64748b' }}>
-          <div style={{ fontSize: '24px', marginBottom: '10px' }}>⏳</div>
-          กำลังสรุปข้อมูลสถิติ...
-        </div>
+        <LoadingBlock text="กำลังสรุปข้อมูลสถิติ…" style={{ padding: '40px 0' }} />
       ) : (
         <>
           {/* =========================

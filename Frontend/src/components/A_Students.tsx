@@ -1,3 +1,4 @@
+import { BusyLabel, LoadingBlock } from "./Spinner";
 import { useState, useEffect, useRef } from "react";
 import { apiFetch } from "../utils/apiFetch";
 import { fmtDate, fmtDateTime } from "../utils/dateFormat";
@@ -479,7 +480,7 @@ export default function A_Students() {
   const filtered = items;
   const isAllShownSelected = allShownSelected(filtered, selectedIds, s => s.id);
 
-  if (loading) return <div style={{ padding: 28, marginLeft: 35 }}>กำลังโหลดข้อมูล...</div>;
+  if (loading) return <LoadingBlock text="กำลังโหลดข้อมูล…" style={{ padding: 28, marginLeft: 35 }} />;
 
   return (
     <div style={{ padding: 28, marginLeft: 35 }}>
@@ -521,7 +522,7 @@ export default function A_Students() {
               onClick={() => handlePreview()}
               disabled={importPreviewLoading}
             >
-              {importPreviewLoading ? "กำลังโหลด..." : "ดูตัวอย่าง"}
+              {importPreviewLoading ? <BusyLabel text="กำลังโหลด…" /> : "ดูตัวอย่าง"}
             </button>
           </>
         )}
@@ -553,7 +554,7 @@ export default function A_Students() {
                 disabled={importLoading || unknownMajors.length > 0}
                 title={unknownMajors.length > 0 ? "เลือกหลักสูตรให้ชื่อที่ระบบไม่รู้จักก่อน" : undefined}
               >
-                {importLoading ? "กำลังนำเข้า..." : "ยืนยันนำเข้า"}
+                {importLoading ? <BusyLabel text="กำลังนำเข้า…" /> : "ยืนยันนำเข้า"}
               </button>
               <button
                 style={{ padding: "6px 14px", background: "#fff", color: "#475569", border: "1px solid #e2e8f0", borderRadius: 8, fontWeight: 600, cursor: "pointer", fontSize: 13 }}
@@ -606,7 +607,7 @@ export default function A_Students() {
                   handlePreview({ ...importMajorMap, ...picked });
                 }}
               >
-                {importPreviewLoading ? "กำลังตรวจ..." : "ใช้การจับคู่นี้"}
+                {importPreviewLoading ? <BusyLabel text="กำลังตรวจ…" /> : "ใช้การจับคู่นี้"}
               </button>
             </div>
           )}
@@ -796,7 +797,7 @@ export default function A_Students() {
             onClick={handleBulkDeleteStudents}
             disabled={bulkDeleting || selectedIds.size === 0}
           >
-            🗑️ {bulkDeleting ? "กำลังลบ..." : `ย้ายไปถังขยะ (${selectedIds.size})`}
+            {bulkDeleting ? <BusyLabel text="กำลังลบ…" /> : <>🗑️ {`ย้ายไปถังขยะ (${selectedIds.size})`}</>}
           </button>
           <button
             className="btn-secondary"

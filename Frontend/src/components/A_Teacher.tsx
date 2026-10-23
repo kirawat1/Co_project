@@ -3,7 +3,7 @@ import { apiFetch } from "../utils/apiFetch";
 import { IcSave, IcUser } from "./icons";
 import { useToast } from "./Toast";
 import ConfirmDialog from "./ConfirmDialog";
-import Spinner from "./Spinner";
+import { BusyLabel, LoadingBlock } from "./Spinner";
 import PasswordReveal from "./PasswordReveal";
 import LoadMoreFooter from "./LoadMoreFooter";
 import { useLoadMore, toggleSelectAllShown, allShownSelected } from "../utils/useLoadMore";
@@ -259,7 +259,7 @@ export default function A_Teacher() {
   const { shown: shownItems, hasMore, sentinelRef, showMore, total } = useLoadMore(filtered, `${q}|${filterMajor.join(",")}`);
   const isAllShownSelected = allShownSelected(shownItems, selectedIds, t => t.id);
 
-  if (loading) return <div style={{ padding: 40, textAlign: "center", color: "#64748b" }}>กำลังโหลดข้อมูลอาจารย์...</div>;
+  if (loading) return <LoadingBlock text="กำลังโหลดข้อมูลอาจารย์…" style={{ padding: 40, textAlign: "center", color: "#64748b" }} />;
 
   return (
     <div className="page" style={{ padding: 28, marginLeft: 35 }}>
@@ -335,7 +335,7 @@ export default function A_Teacher() {
             onClick={() => setConfirmBulkDel(true)}
             disabled={bulkDeleting || selectedIds.size === 0}
           >
-            🗑️ {bulkDeleting ? "กำลังลบ..." : `ลบที่เลือก (${selectedIds.size})`}
+            {bulkDeleting ? <BusyLabel text="กำลังลบ…" /> : <>🗑️ {`ลบที่เลือก (${selectedIds.size})`}</>}
           </button>
           <button
             className="btn"
@@ -469,7 +469,7 @@ export default function A_Teacher() {
               <div style={modalFooter}>
                 <button type="button" style={ghostBtn} onClick={() => { setCreateModal(false); setCreatePassword(""); }}>ยกเลิก</button>
                 <button type="submit" style={{ ...saveBtn, display: "flex", alignItems: "center", gap: 8 }} disabled={saving}>
-                  {saving ? <><Spinner size={16} color="#fff" /> กำลังบันทึก...</> : "✅ เพิ่มอาจารย์"}
+                  {saving ? <BusyLabel text="กำลังบันทึก…" /> : "✅ เพิ่มอาจารย์"}
                 </button>
               </div>
             </form>
@@ -514,7 +514,7 @@ export default function A_Teacher() {
               <div style={modalFooter}>
                 <button type="button" style={ghostBtn} onClick={() => setPwModal(null)}>ยกเลิก</button>
                 <button type="submit" style={{ ...saveBtn, background: "#7c3aed", display: "flex", alignItems: "center", gap: 8 }} disabled={saving}>
-                  {saving ? <><Spinner size={16} color="#fff" /> กำลังบันทึก...</> : "🔑 บันทึกรหัสผ่าน"}
+                  {saving ? <BusyLabel text="กำลังบันทึก…" /> : "🔑 บันทึกรหัสผ่าน"}
                 </button>
               </div>
             </form>
@@ -552,7 +552,7 @@ function TeacherFormModal({ title, data, prefixOptions, departments, saving, onC
         <div style={modalFooter}>
           <button style={ghostBtn} onClick={onClose}>ยกเลิก</button>
           <button style={{ ...saveBtn, display: "flex", alignItems: "center", gap: 8 }} onClick={() => onSave(form)} disabled={saving}>
-            {saving ? <><Spinner size={16} color="#fff" /> กำลังบันทึก...</> : <><IcSave width={16} height={16} /> บันทึกข้อมูล</>}
+            {saving ? <BusyLabel text="กำลังบันทึก…" /> : <><IcSave width={16} height={16} /> บันทึกข้อมูล</>}
           </button>
         </div>
       </div>

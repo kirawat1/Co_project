@@ -1,6 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { BusyLabel, LoadingBlock } from "./Spinner";
 import React, { useMemo, useState, useEffect } from "react";
 import { apiFetch } from "../utils/apiFetch";
 import { applyAddressChange } from "../utils/addressAutofill";
@@ -351,7 +352,7 @@ export default function A_Companies() {
   }
 
   /* ---------------- UI ---------------- */
-  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>กำลังโหลดข้อมูล...</div>;
+  if (loading) return <LoadingBlock text="กำลังโหลดข้อมูล…" style={{ padding: 40, textAlign: 'center', color: '#64748b' }} />;
 
   return (
     <div className="page" style={{ padding: 4, margin: 28, marginLeft: 65 }}>
@@ -399,7 +400,7 @@ export default function A_Companies() {
             onClick={handleBulkDeleteCompanies}
             disabled={bulkDeleting || selectedIds.size === 0}
           >
-            🗑️ {bulkDeleting ? "กำลังลบ..." : `ลบที่เลือก (${selectedIds.size})`}
+            {bulkDeleting ? <BusyLabel text="กำลังลบ…" /> : <>🗑️ {`ลบที่เลือก (${selectedIds.size})`}</>}
           </button>
           <button
             className="btn-secondary"

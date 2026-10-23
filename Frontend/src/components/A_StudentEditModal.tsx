@@ -1,3 +1,4 @@
+import { BusyLabel } from "./Spinner";
 import { useState, useEffect, useRef } from "react";
 import type { StudentProfile } from "./A_Students";
 import { apiFetch } from "../utils/apiFetch";
@@ -198,7 +199,7 @@ export default function A_StudentEditModal({ student, onClose, onSaved }: Props)
           <div style={{ fontSize: 13, color: "#64748b", marginBottom: 8, fontWeight: 600 }}>รหัสผ่านเข้าสู่ระบบ</div>
           <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
             <button type="button" className="btn-secondary" onClick={handleResetPassword} disabled={resetting || saving}>
-              {resetting ? "กำลังรีเซ็ต..." : "🔑 รีเซ็ตรหัสผ่านเป็นรหัสนักศึกษา"}
+              {resetting ? <BusyLabel text="กำลังรีเซ็ต…" /> : "🔑 รีเซ็ตรหัสผ่านเป็นรหัสนักศึกษา"}
             </button>
             <span style={{ fontSize: 12, color: "#64748b" }}>ใช้เมื่อนักศึกษาลืมรหัสผ่าน</span>
           </div>
@@ -209,7 +210,7 @@ export default function A_StudentEditModal({ student, onClose, onSaved }: Props)
 
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 24 }}>
           <button type="button" className="btn-secondary" onClick={onClose} disabled={saving}>ยกเลิก</button>
-          <button type="submit" className="btn" disabled={saving}>{saving ? "กำลังบันทึก..." : "บันทึก"}</button>
+          <button type="submit" className="btn" disabled={saving}>{saving ? <BusyLabel text="กำลังบันทึก…" /> : "บันทึก"}</button>
         </div>
       </form>
     </Modal>

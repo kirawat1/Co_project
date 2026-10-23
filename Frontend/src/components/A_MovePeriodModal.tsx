@@ -1,3 +1,4 @@
+import { BusyLabel } from "./Spinner";
 import { useState } from "react";
 import { apiFetch } from "../utils/apiFetch";
 import { notify } from "../utils/notify";
@@ -89,7 +90,7 @@ export default function A_MovePeriodModal({ student, periods, onClose, onMoved }
 
                 <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
                     <button className="btn-secondary" onClick={onClose} disabled={saving}>ยกเลิก</button>
-                    <button className="btn" onClick={submit} disabled={saving || targets.length === 0}>{saving ? "กำลังย้าย..." : "ย้ายรอบ"}</button>
+                    <button className="btn" onClick={submit} disabled={saving || targets.length === 0}>{saving ? <BusyLabel text="กำลังย้าย…" /> : "ย้ายรอบ"}</button>
                 </div>
             </div>
         </Modal>

@@ -1,4 +1,5 @@
 ﻿import { useState, useEffect, useMemo } from "react";
+import Spinner from "./Spinner";
 import type { CSSProperties } from "react";
 import { apiFetch } from "../utils/apiFetch";
 import { defaultPeriodId } from "../utils/defaultPeriod";
@@ -280,7 +281,7 @@ export default function A_DocT003Review() {
                         )}
 
                         <button className="btn-ghost" style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 6 }} onClick={fetchAllData} disabled={loading}>
-                            {loading ? '⏳' : '🔄'} รีเฟรช
+                            {loading ? <Spinner size={14} /> : '🔄'} รีเฟรช
                         </button>
 
                         <div style={{ background: '#dbeafe', color: '#1e40af', padding: '10px 16px', borderRadius: 8, fontWeight: 700, border: '1px solid #bfdbfe' }}>

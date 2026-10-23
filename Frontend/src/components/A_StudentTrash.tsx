@@ -1,3 +1,4 @@
+import { BusyLabel, LoadingBlock } from "./Spinner";
 import { useEffect, useState } from "react";
 import { apiFetch } from "../utils/apiFetch";
 import type { StudentProfile } from "./A_Students";
@@ -72,7 +73,7 @@ export default function A_StudentTrash() {
   // แสดงทีละ 30 คน เลื่อนถึงท้ายตารางแล้วแสดงเพิ่ม แทนโหลดทั้งหมดในตารางเดียว
   const { shown: shownItems, hasMore, sentinelRef, showMore, total } = useLoadMore(items);
 
-  if (loading) return <div style={{ padding: 20 }}>กำลังโหลด...</div>;
+  if (loading) return <LoadingBlock text="กำลังโหลด…" style={{ padding: 20 }} />;
 
   return (
     <section style={card}>
@@ -115,7 +116,7 @@ export default function A_StudentTrash() {
                           disabled={confirmText.trim() !== s.studentId || deleting}
                           onClick={() => handlePermanentDelete(s)}
                         >
-                          {deleting ? "กำลังลบ..." : "ยืนยันลบถาวร"}
+                          {deleting ? <BusyLabel text="กำลังลบ…" /> : "ยืนยันลบถาวร"}
                         </button>
                         <button className="btn-secondary small" onClick={cancelConfirm} disabled={deleting}>ยกเลิก</button>
                       </>

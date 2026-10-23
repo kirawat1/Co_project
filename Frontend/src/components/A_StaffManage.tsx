@@ -1,3 +1,4 @@
+import { BusyLabel, LoadingBlock } from "./Spinner";
 import React, { useEffect, useState } from "react";
 import type { CSSProperties } from "react";
 import axios from "axios";
@@ -103,7 +104,7 @@ export default function A_StaffManage() {
       {error && <div style={{ color: "red", marginBottom: 16 }}>{error}</div>}
 
       <div style={card}>
-        {loading ? <div style={{ padding: 32, textAlign: "center", color: "#64748b" }}>กำลังโหลด...</div> : (
+        {loading ? <LoadingBlock text="กำลังโหลด…" style={{ padding: 32, textAlign: "center", color: "#64748b" }} /> : (
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr style={TABLE_HEADER_ROW}>
@@ -154,7 +155,7 @@ export default function A_StaffManage() {
               {addErr && <div style={{ color: "red", fontSize: 13, margin: "8px 0" }}>{addErr}</div>}
               <div style={{ display: "flex", gap: 12, justifyContent: "flex-end", marginTop: 20 }}>
                 <button type="button" className="btn-ghost" onClick={() => setAddOpen(false)}>ยกเลิก</button>
-                <button type="submit" className="btn" disabled={adding}>{adding ? "กำลังสร้าง..." : "สร้างบัญชี"}</button>
+                <button type="submit" className="btn" disabled={adding}>{adding ? <BusyLabel text="กำลังสร้าง…" /> : "สร้างบัญชี"}</button>
               </div>
             </form>
           </div>
@@ -176,7 +177,7 @@ export default function A_StaffManage() {
               {resetErr && <div style={{ color: "red", fontSize: 13, margin: "8px 0" }}>{resetErr}</div>}
               <div style={{ display: "flex", gap: 12, justifyContent: "flex-end", marginTop: 20 }}>
                 <button type="button" className="btn-ghost" onClick={() => setResetTarget(null)}>ยกเลิก</button>
-                <button type="submit" className="btn" disabled={resetting}>{resetting ? "กำลังบันทึก..." : "บันทึก"}</button>
+                <button type="submit" className="btn" disabled={resetting}>{resetting ? <BusyLabel text="กำลังบันทึก…" /> : "บันทึก"}</button>
               </div>
             </form>
           </div>
@@ -199,7 +200,7 @@ export default function A_StaffManage() {
             )}
             <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
               <button className="btn-ghost" onClick={() => setDeleteTarget(null)}>ยกเลิก</button>
-              <button className="btn" style={{ background: "#dc2626" }} onClick={handleDelete} disabled={deleting}>{deleting ? "กำลังลบ..." : "ลบบัญชี"}</button>
+              <button className="btn" style={{ background: "#dc2626" }} onClick={handleDelete} disabled={deleting}>{deleting ? <BusyLabel text="กำลังลบ…" /> : "ลบบัญชี"}</button>
             </div>
           </div>
         </div>
