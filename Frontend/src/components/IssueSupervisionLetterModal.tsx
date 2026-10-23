@@ -2,6 +2,7 @@
 import { apiFetch } from "../utils/apiFetch";
 import { createSupervisionLetterPDF } from "../utils/pdfSupervisionLetterGenerator";
 import { createWordBlob, createPreviewBlob, buildSupervisionLetterHtml, thaiPrefix, supervisionSupervisorNames, supervisionTimeText, normalizeDocNumber } from "../utils/docGeneratorUtils";
+import { loadEmblem } from "../utils/letterAssets";
 import { FileReady, DeliveryPicker, CompanyAddressBox, RecipientNotice, MODAL_CSS, useLetterPending, LetterPendingBanner, confirmMatchesDraft, type LetterDraft } from "./LetterModalShared";
 import DateInput from './DateInput';
 import { notify, askConfirm } from "../utils/notify";
@@ -76,7 +77,8 @@ export default function IssueSupervisionLetterModal({ supervision: primary, grou
     const handleCreateDoc = async () => {
         setLoadingDoc(true);
         try {
-            const { deanName, deanPosition, studentName, supervisorNames, companyName, visitDate, visitTime, visitMode } = await getDocData();
+            const { getAsset, deanName, deanPosition, studentName, supervisorNames, companyName, visitDate, visitTime, visitMode } = await getDocData();
+            const emblem = await loadEmblem(getAsset("KRUT"));
             const html = buildSupervisionLetterHtml({
                 docNumber, docDate, studentName,
                 studentId: student.studentId || "",
@@ -85,8 +87,8 @@ export default function IssueSupervisionLetterModal({ supervision: primary, grou
                 companyRecipient: recipientText(letterRecipient(student.coop)) || undefined,
                 students: members ? members.map(m => toLetterStudent(m.student)) : undefined,
             });
-            setDocDraft({ blob: createWordBlob(html), docNumber, docDate });
-            setPreviewUrl(URL.createObjectURL(createPreviewBlob(html)));
+            setDocDraft({ blob: createWordBlob(html, emblem), docNumber, docDate });
+            setPreviewUrl(URL.createObjectURL(createPreviewBlob(html, emblem)));
         } catch (err) { notify.error("สร้าง Word ไม่สำเร็จ: " + err); }
         finally { setLoadingDoc(false); }
     };

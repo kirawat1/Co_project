@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { toLetterStudent, isGroup, sameDates, studentLines, studentListHtml, letterAttachmentDocs } from "../src/utils/letterGroup";
 import { daysLeft } from "../src/utils/deadline";
-import { createWordBlob, buildDispatchLetterHtml, buildPlacementLetterHtml, buildSupervisionLetterHtml } from "../src/utils/docGeneratorUtils";
+import { createWordBlob, createPreviewBlob, emblemSizePt, buildDispatchLetterHtml, buildPlacementLetterHtml, buildSupervisionLetterHtml } from "../src/utils/docGeneratorUtils";
 
 // ฟังก์ชันล้วน ไม่เปิดเบราว์เซอร์ — หนังสือรวม / ไฟล์แนบหนังสือ / กำหนดส่ง T005–T008
 
@@ -132,5 +132,54 @@ test.describe("Word — หน้ากระดาษและส่วนท�
   test("ส่วนติดต่อของหนังสือขอนิเทศยังมีบรรทัดสาขาวิชา", () => {
     expect(letters.supervision).toMatch(/<table class="footer-table">[\s\S]*<p>สาขาวิชา[^<]*<\/p>\s*<p>วิทยาลัยการคอมพิวเตอร์<\/p>/);
     expect(letters.request).not.toMatch(/<table class="footer-table">[\s\S]*สาขาวิชา/);
+  });
+});
+
+// ตราสัญลักษณ์มหาวิทยาลัยในหนังสือ Word — เดิมมีเฉพาะ PDF · Word ฝังรูปในไฟล์แบบ MHTML (ไม่ต้องต่อเน็ต/login ตอนเปิด)
+// วัดด้วย Word จริง: ตรา 30×28 มม. + ขอบบน 0.8 ล่าง 1.5 ซม. หนังสือคนเดียวทั้ง 3 แบบยังจบหน้าเดียว (รวมชื่อบริษัทยาว + ผู้รับยาว)
+test.describe("Word — ตราสัญลักษณ์มหาวิทยาลัย", () => {
+  const png = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10, 1, 2, 3, 4, 250, 251, 252]);
+  const emblem = { data: png, mime: "image/png", ...emblemSizePt(3185, 2963) };
+  const parts = (mhtml: string) => {
+    const boundary = mhtml.match(/boundary="([^"]+)"/)![1];
+    return mhtml.split(`--${boundary}`).slice(1, -1).map((p) => {
+      const [head, body] = p.split(/\r\n\r\n/);
+      return { head, data: Buffer.from(body.replace(/\s+/g, ""), "base64") };
+    });
+  };
+
+  test("emblemSizePt: พอดีกรอบ 30×28 มม. (เท่า PDF) คงสัดส่วนรูป", () => {
+    const wide = emblemSizePt(3185, 2963);
+    expect(wide.widthPt).toBeCloseTo(85.04, 1);
+    expect(wide.heightPt).toBeCloseTo(79.12, 1);
+    const tall = emblemSizePt(1000, 2000);
+    expect(tall.heightPt).toBeCloseTo(79.37, 1);
+    expect(tall.widthPt).toBeCloseTo(39.69, 1);
+  });
+
+  test("createWordBlob + ตรา: MHTML ฝังรูป · ตราบนสุดกลางหน้า · ขอบบน 0.8 ล่าง 1.5 ซม.", async () => {
+    const text = await createWordBlob("<p>เนื้อหา</p>", emblem).text();
+    expect(text.startsWith("MIME-Version: 1.0")).toBe(true);
+    const [html, img] = parts(text);
+    expect(html.head).toContain('Content-Type: text/html; charset="utf-8"');
+    const doc = html.data.toString("utf8");
+    expect(doc).toContain("@page WordSection1 { size: 21cm 29.7cm; margin: 0.8cm 2cm 1.5cm 3cm;");
+    expect(doc).toMatch(/<div class="WordSection1"><p class="center emblem"[^>]*><img src="emblem\.png" width="113" height="105" style="width:85\.0pt;height:79\.1pt"[^>]*><\/p><p>เนื้อหา<\/p>/);
+    expect(img.head).toContain("Content-Type: image/png");
+    expect(img.head).toContain("Content-Location: file:///C:/emblem.png");
+    expect([...img.data]).toEqual([...png]);
+  });
+
+  test("createWordBlob ไม่มีตรา: HTML แบบเดิม ขอบบน 2.5 ซม.", async () => {
+    const text = await createWordBlob("<p>เนื้อหา</p>", null).text();
+    expect(text).not.toContain("MIME-Version");
+    expect(text).toContain("margin: 2.5cm 2cm 2cm 3cm;");
+    expect(text).not.toContain("<img");
+  });
+
+  test("createPreviewBlob + ตรา: ตัวอย่างในหน้าต่างมีตราด้วย (data URI)", async () => {
+    const text = await createPreviewBlob("<p>เนื้อหา</p>", emblem).text();
+    expect(text).toContain(`<img src="data:image/png;base64,${Buffer.from(png).toString("base64")}"`);
+    expect(await createPreviewBlob("<p>เนื้อหา</p>").text()).not.toContain("<img");
   });
 });

@@ -53,7 +53,7 @@ export default function IssuePlacementLetterModal({ student, group, batchMates, 
     const handleCreateDoc = async () => {
         setLoadingDoc(true);
         try {
-            const { deanName, deanPosition } = await loadLetterAssets();
+            const { deanName, deanPosition, emblem } = await loadLetterAssets();
             const studentName = `${thaiPrefix(student.prefix)}${student.firstName} ${student.lastName}`;
             const html = buildPlacementLetterHtml({
                 docNumber: placeDocNumber, docDate: placeDocDate, studentName,
@@ -63,8 +63,8 @@ export default function IssuePlacementLetterModal({ student, group, batchMates, 
                 startDate, endDate, deanName, deanPosition,
                 students: members ? members.map(toLetterStudent) : undefined,
             });
-            setDocDraft({ blob: createWordBlob(html), docNumber: placeDocNumber, docDate: placeDocDate });
-            setPreviewUrl(URL.createObjectURL(createPreviewBlob(html)));
+            setDocDraft({ blob: createWordBlob(html, emblem), docNumber: placeDocNumber, docDate: placeDocDate });
+            setPreviewUrl(URL.createObjectURL(createPreviewBlob(html, emblem)));
         } catch (err) { notify.error("สร้าง Word ไม่สำเร็จ: " + err); }
         finally { setLoadingDoc(false); }
     };

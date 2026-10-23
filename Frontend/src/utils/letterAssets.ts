@@ -1,5 +1,6 @@
 import { apiFetch } from "./apiFetch";
 import { letterAttachmentDocs } from "./letterGroup";
+import { emblemSizePt, type LetterEmblem } from "./docGeneratorUtils";
 
 // ไฟล์/ค่าที่หนังสือต้องใช้ร่วมกัน: ตราสัญลักษณ์มหาวิทยาลัย (คีย์ KRUT), รายละเอียดโครงการ, ใบตอบรับ, ชื่อ-ตำแหน่งคณบดี
 // (ใช้ร่วมกันระหว่างหน้าต่างออกหนังสือรายคนกับออกร่างหลายคน)
@@ -9,6 +10,24 @@ export interface LetterAssets {
   acceptUrl: string | null;
   deanName: string;
   deanPosition: string;
+  /** รูปตราสำหรับหนังสือแบบ Word — null = ยังไม่อัปโหลด/โหลดไม่ได้ (Word ออกได้โดยไม่มีตรา) */
+  emblem?: LetterEmblem | null;
+}
+
+/** โหลดรูปตราสัญลักษณ์มหาวิทยาลัยมาฝังในหนังสือ Word · โหลดไม่ได้ = null */
+export async function loadEmblem(url: string | null): Promise<LetterEmblem | null> {
+  if (!url) return null;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    const bmp = await createImageBitmap(blob);
+    const size = emblemSizePt(bmp.width, bmp.height);
+    bmp.close();
+    return { data: new Uint8Array(await blob.arrayBuffer()), mime: blob.type || "image/png", ...size };
+  } catch {
+    return null;
+  }
 }
 
 export async function loadLetterAssets(): Promise<LetterAssets> {
@@ -29,7 +48,8 @@ export async function loadLetterAssets(): Promise<LetterAssets> {
     if (d.deanName) deanName = d.deanName;
     if (d.deanPosition) deanPosition = d.deanPosition;
   }
-  return { krutUrl: getAsset("KRUT"), projectUrl: getAsset("PROJECT_DETAILS"), acceptUrl: getAsset("ACCEPTANCE_FORM"), deanName, deanPosition };
+  const krutUrl = getAsset("KRUT");
+  return { krutUrl, projectUrl: getAsset("PROJECT_DETAILS"), acceptUrl: getAsset("ACCEPTANCE_FORM"), deanName, deanPosition, emblem: await loadEmblem(krutUrl) };
 }
 
 /** เอกสารแนบของนักศึกษา (ตาม letterAttachmentDocs) ที่ยังอยู่บนเซิร์ฟเวอร์ · missing = ชื่อไฟล์ที่หาย */
