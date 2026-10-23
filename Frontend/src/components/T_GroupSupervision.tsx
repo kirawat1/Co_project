@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { fmtDate } from '../utils/dateFormat';
-import Spinner from "./Spinner";
+import Spinner, { BusyLabel } from "./Spinner";
 import { askConfirm } from "../utils/notify";
 
 interface StudentAppointment {
@@ -283,7 +283,7 @@ export default function T_GroupSupervision() {
                   cursor: "pointer", opacity: (submitting || checkedIds.size === 0) ? 0.5 : 1
                 }}
               >
-                {submitting ? "กำลังยืนยัน..." : `ยืนยัน (${checkedIds.size} คน)`}
+                {submitting ? <BusyLabel text="กำลังยืนยัน…" /> : `ยืนยัน (${checkedIds.size} คน)`}
               </button>
             </div>
           </div>

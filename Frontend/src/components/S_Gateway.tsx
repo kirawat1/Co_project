@@ -1,3 +1,4 @@
+import { BusyLabel, LoadingBlock } from "./Spinner";
 import React, { useState, useEffect } from "react";
 import { apiFetch } from "../utils/apiFetch";
 import { fmtDate } from '../utils/dateFormat';
@@ -8,7 +9,6 @@ import { useToast } from "../components/Toast";
 import AutoTextarea from "./AutoTextarea";
 import ConfirmDialog from "../components/ConfirmDialog";
 import { contactName, type CompanyContact } from "../utils/contacts";
-import Spinner from "../components/Spinner";
 import Modal from "./Modal";
 
 const CURRICULUM_DISPLAY: Record<string, string> = {
@@ -298,7 +298,7 @@ export default function CoopRequestPage() {
     }
   };
 
-  if (!profile) return <div style={{ padding: 40, textAlign: 'center' }}>กำลังโหลดข้อมูล...</div>;
+  if (!profile) return <LoadingBlock text="กำลังโหลดข้อมูล…" style={{ padding: 40, textAlign: 'center' }} />;
 
   const currentStatus = profile.coop?.status || "NOT_SUBMITTED";
   const canEdit = currentStatus === "NOT_SUBMITTED" || currentStatus === "APPLICATION_EDITS_REQUIRED" || currentStatus === "EDITS_REQUIRED";
@@ -587,7 +587,7 @@ export default function CoopRequestPage() {
             }}
           >
             {submitting
-              ? <><Spinner size={18} color="#fff" /> กำลังส่ง...</>
+              ? <BusyLabel text="กำลังส่ง…" />
               : !isTimeValid() ? '🚫 นอกช่วงเวลาการยื่นคำร้อง'
               : currentStatus === 'EDITS_REQUIRED' ? '📤 ส่งแก้ไขคำร้อง'
               : '🚀 ส่งคำร้องขอสหกิจศึกษา'}

@@ -1,3 +1,4 @@
+import { LoadingBlock } from "./Spinner";
 import { useState, useEffect } from "react";
 import { apiFetch } from "../utils/apiFetch";
 import StatusBadge from "../components/StatusBadge";
@@ -208,7 +209,7 @@ export default function T_Students({ isCoopTeacher = false }: Props) {
   // การกรอง/ค้นหาทำที่ server ทั้งหมด — allStudents คือรายการที่โหลดมาแสดงแล้ว (ต่อท้ายเรื่อยๆ เมื่อเลื่อน)
   const filteredStudents = allStudents;
 
-  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>กำลังโหลดข้อมูล...</div>;
+  if (loading) return <LoadingBlock text="กำลังโหลดข้อมูล…" style={{ padding: 40, textAlign: 'center', color: '#64748b' }} />;
 
   return (
     <div className="page" style={{ padding: 4, margin: 28, marginLeft: 65 }}>

@@ -1,3 +1,4 @@
+import { BusyLabel } from "./Spinner";
 import { useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { apiFetch } from "../utils/apiFetch";
@@ -120,7 +121,7 @@ export default function S_FormPhoto({ photoPath, onChange, disabled }: Props) {
                 />
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                     <button type="button" className="btn-secondary" disabled={disabled || busy} onClick={() => inputRef.current?.click()}>
-                        {busy ? "กำลังอัปโหลด..." : photoPath ? "🔄 เปลี่ยนรูป" : "📷 อัปโหลดรูปถ่าย"}
+                        {busy ? <BusyLabel text="กำลังอัปโหลด…" /> : photoPath ? "🔄 เปลี่ยนรูป" : "📷 อัปโหลดรูปถ่าย"}
                     </button>
                     {photoPath && (
                         <button type="button" className="btn-ghost" disabled={disabled || busy} onClick={remove}>ลบรูป</button>

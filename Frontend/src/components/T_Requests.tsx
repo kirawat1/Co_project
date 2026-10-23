@@ -1,3 +1,4 @@
+import Spinner from "./Spinner";
 import { useMemo, useState, useEffect, useRef } from "react";
 import type { CSSProperties } from "react";
 import StatusBadge from "../components/StatusBadge";
@@ -266,7 +267,7 @@ export default function T_Requests() {
             ⚡ อนุมัติทั้งหมด ({pendingList.length})
           </button>
           <button className="btn-ghost" onClick={fetchData} disabled={loading}>
-            {loading ? '⏳' : '🔄'} รีเฟรช
+            {loading ? <Spinner size={14} /> : '🔄'} รีเฟรช
           </button>
         </div>
       </section>

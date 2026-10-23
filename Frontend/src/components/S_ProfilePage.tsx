@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { IcEdit } from "./icons";
-import Spinner from "./Spinner";
+import Spinner, { BusyLabel } from "./Spinner";
 import { apiFetch } from "../utils/apiFetch";
 import S_ChangePasswordModal from "./S_ChangePasswordModal";
 import { notify, askConfirm } from "../utils/notify";
@@ -452,7 +452,7 @@ export default function S_ProfilePage() {
 
           {/* บันทึกอัตโนมัติ — แสดงสถานะแทนปุ่มบันทึก */}
           <div className="company-save-status" aria-live="polite" style={{ fontSize: 13, minHeight: 20 }}>
-            {companySave === "saving" && <span style={{ color: '#64748b' }}>⏳ กำลังบันทึก...</span>}
+            {companySave === "saving" && <span style={{ color: '#64748b' }}><BusyLabel size={13} text="กำลังบันทึก…" /></span>}
             {companySave === "saved" && <span style={{ color: '#15803d' }}>✓ บันทึกแล้ว</span>}
             {companySave === "error" && (
               <span style={{ color: '#b91c1c' }}>

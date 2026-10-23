@@ -1,4 +1,5 @@
 // ประกาศของนักศึกษา — ห้องเรียนของตัวเอง (รอบ × หลักสูตร) + ประกาศส่วนกลาง · server เลือกห้องให้เอง
+import { LoadingBlock } from "./Spinner";
 import { useEffect, useState, type CSSProperties } from "react";
 import AnnouncementCard from "./AnnouncementCard";
 import { fetchStream, roomMeta, yearLabel, seenIds, markSeen, GLOBAL_ROOM, type Ann, type AnnViewer } from "../utils/announcements";
@@ -36,7 +37,7 @@ export default function S_Announcements() {
                 <div style={{ opacity: 0.9, marginTop: 4 }}>{yearLabel(viewer?.year)}{major ? " · รวมประกาศส่วนกลาง" : " · ยังไม่ระบุหลักสูตร"}</div>
             </div>
 
-            {loading ? <div style={empty}>กำลังโหลด...</div>
+            {loading ? <LoadingBlock text="กำลังโหลด…" style={empty} />
                 : error ? <div style={{ ...empty, color: "#b91c1c" }}>⚠️ {error}</div>
                 : !viewer?.year ? <div style={empty}>ยังไม่มีรอบสหกิจของคุณ — ประกาศจะขึ้นเมื่อเจ้าหน้าที่เปิดรอบของหลักสูตร</div>
                 : list.length === 0 ? <div style={empty}>📭 ยังไม่มีประกาศในรอบนี้</div>

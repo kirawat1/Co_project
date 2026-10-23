@@ -1,6 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // Frontend/src/components/S_Company.tsx
+import { LoadingBlock } from "./Spinner";
 import React, { useEffect, useState, useMemo, useRef } from "react";
 import { apiFetch } from "../utils/apiFetch";
 import { applyAddressChange } from "../utils/addressAutofill";
@@ -199,7 +200,7 @@ export default function Company({ profile }: { profile: any }) {
     }
 
     /* ---------------- UI ---------------- */
-    if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>กำลังโหลดข้อมูล...</div>;
+    if (loading) return <LoadingBlock text="กำลังโหลดข้อมูล…" style={{ padding: 40, textAlign: 'center', color: '#64748b' }} />;
 
     return (
         <div className="page" style={{ padding: 4, margin: 28, marginLeft: 65 }}>

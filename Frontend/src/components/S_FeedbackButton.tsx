@@ -1,3 +1,4 @@
+import { BusyLabel } from "./Spinner";
 import { useEffect, useState } from "react";
 import type { CSSProperties } from "react";
 import { useLocation } from "react-router-dom";
@@ -161,7 +162,7 @@ export default function S_FeedbackButton({ coopStatus }: { coopStatus?: string |
                                 <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 14 }}>
                                     <button type="button" className="btn-secondary" onClick={close}>ยกเลิก</button>
                                     <button type="button" className="btn" onClick={submit} disabled={sending}>
-                                        {sending ? "กำลังส่ง..." : "ส่งเรื่อง"}
+                                        {sending ? <BusyLabel text="กำลังส่ง…" /> : "ส่งเรื่อง"}
                                     </button>
                                 </div>
                             </>

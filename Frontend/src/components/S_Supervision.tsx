@@ -1,4 +1,5 @@
 ﻿import React, { useState, useEffect } from "react";
+import { LoadingBlock } from "./Spinner";
 import DateInput from './DateInput';
 import axios from "axios";
 import { fmtDate, fmtDateTime } from '../utils/dateFormat';
@@ -316,7 +317,7 @@ export default function S_Supervision() {
     // 🟢 ตรรกะแสดงฟอร์ม: ให้แสดงถ้ายังไม่เคยนัดหมาย, อาจารย์ตีกลับ, หรือผู้ใช้กดปุ่มแก้ไข (ยกเว้นถูกล็อกแล้ว)
     const showFormView = !appointment || appointment.status === 'TEACHER_REJECTED' || (isEditing && !isConfirmed);
 
-    if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#0074B7' }}>กำลังโหลดข้อมูล...</div>;
+    if (loading) return <LoadingBlock text="กำลังโหลดข้อมูล…" style={{ padding: 40, textAlign: 'center', color: '#0074B7' }} />;
 
     const coopAdvisorFullName = coopAdvisor
         ? `${coopAdvisor.prefix || ''}${coopAdvisor.firstName} ${coopAdvisor.lastName}`.trim()

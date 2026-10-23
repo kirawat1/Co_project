@@ -1,3 +1,4 @@
+import { BusyLabel } from "./Spinner";
 import React, { useState, useEffect, useRef } from "react";
 import { createT002PDF } from "../utils/pdfGeneratorT002";
 import StatusBadge from "./StatusBadge";
@@ -528,7 +529,7 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
                 {canEdit && (
                     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 10 }}>
                         <button type="button" onClick={handlePreviewPDF} disabled={loading} style={btnOutline}>
-                            {loading ? '⏳ กำลังทำงาน...' : '👁️ ดูตัวอย่าง / โหลด PDF'}
+                            {loading ? <BusyLabel text="กำลังทำงาน…" /> : '👁️ ดูตัวอย่าง / โหลด PDF'}
                         </button>
                     </div>
                 )}
@@ -584,7 +585,7 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
                                 <div style={{ display: 'flex', gap: 10 }}>
                                     <button onClick={() => setSelectedUploadFile(null)} disabled={loading} style={{ flex: 1, padding: 10, background: '#fee2e2', color: '#b91c1c', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>ยกเลิก</button>
                                     <button onClick={handleConfirmUpload} disabled={loading} style={{ flex: 1, padding: 10, background: '#059669', color: 'white', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>
-                                        {loading ? '⏳ กำลังอัปโหลด...' : '🚀 ยืนยันส่งไฟล์ T002'}
+                                        {loading ? <BusyLabel text="กำลังอัปโหลด…" /> : '🚀 ยืนยันส่งไฟล์ T002'}
                                     </button>
                                 </div>
                             </div>

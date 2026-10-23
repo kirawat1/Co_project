@@ -1,3 +1,4 @@
+import { LoadingBlock } from "./Spinner";
 import { useEffect, useRef, useState } from "react";
 import { IcUser, IcEdit } from "./icons";
 import { apiFetch } from "../utils/apiFetch";
@@ -127,7 +128,7 @@ export default function T_Profile() {
     }
   };
 
-  if (loading) return <div style={{ padding: 100, textAlign: 'center', color: '#64748b' }}>กำลังโหลดข้อมูลโปรไฟล์...</div>;
+  if (loading) return <LoadingBlock text="กำลังโหลดข้อมูลโปรไฟล์…" style={{ padding: 100, textAlign: 'center', color: '#64748b' }} />;
 
   const isFirstTime = !profile.firstName || profile.firstName === "";
 

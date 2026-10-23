@@ -13,7 +13,7 @@ import AutoTextarea from "./AutoTextarea";
 import { PendingSignBadge } from "./LetterModalShared";
 import { useToast } from "./Toast";
 import ConfirmDialog from "./ConfirmDialog";
-import Spinner from "./Spinner";
+import Spinner, { BusyLabel, LoadingBlock } from "./Spinner";
 import T_GroupSupervision from "./T_GroupSupervision";
 import DateInput from './DateInput';
 import LoadMoreFooter from "./LoadMoreFooter";
@@ -504,7 +504,7 @@ export default function T_SupervisionReview() {
                                 <option value="all">📚 ทุกปีการศึกษา</option>
                                 {periods.map(p => <option key={p.id} value={p.id}>เทอม {p.semester} / {p.academicYear}</option>)}
                             </select>
-                            <button className="btn-secondary" onClick={fetchMine} disabled={myLoading}>{myLoading ? "⏳" : "🔄"} รีเฟรช</button>
+                            <button className="btn-secondary" onClick={fetchMine} disabled={myLoading}>{myLoading ? <Spinner size={14} /> : "🔄"} รีเฟรช</button>
                             <div style={{ background: "#ecfdf5", color: "#047857", padding: "10px 16px", borderRadius: 8, fontWeight: 700, border: "1px solid #a7f3d0" }}>
                                 ทั้งหมด: {totalMine} รายการ
                             </div>
@@ -548,7 +548,7 @@ export default function T_SupervisionReview() {
                             : <SupervisionCalendar events={majorCalendarEvents} title="📅 ปฏิทินนิเทศหลักสูตรของคุณ (วันที่ยืนยันแล้ว)" />}
                     </section>
 
-                    {myLoading ? <div style={{ textAlign: 'center', padding: 40, color: '#0074B7' }}>กำลังโหลด...</div> : (
+                    {myLoading ? <LoadingBlock text="กำลังโหลด…" style={{ textAlign: 'center', padding: 40, color: '#0074B7' }} /> : (
                         <section style={card}>
                             <div style={{ overflowX: "auto" }}>
                                 <table style={tableStyle}>
@@ -714,7 +714,7 @@ export default function T_SupervisionReview() {
                                                     })()}
                                                 </div>
                                                 <button className="btn-success" style={{ marginTop: 16 }} onClick={saveAvailability} disabled={isSubmitting}>
-                                                    {isSubmitting ? "กำลังบันทึก..." : myFreeDays.length ? `💾 บันทึกวันว่าง (${myFreeDays.length} วัน)` : "💾 บันทึก — ไม่ว่างทุกวันที่เสนอ"}
+                                                    {isSubmitting ? <BusyLabel text="กำลังบันทึก…" /> : myFreeDays.length ? `💾 บันทึกวันว่าง (${myFreeDays.length} วัน)` : "💾 บันทึก — ไม่ว่างทุกวันที่เสนอ"}
                                                 </button>
                                             </>
                                         )}
@@ -741,7 +741,7 @@ export default function T_SupervisionReview() {
                             <h2 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: '#1e293b' }}>🗂️ จัดการนิเทศสหกิจ (ทั้งหมด)</h2>
                             <div style={{ color: "#64748b", fontSize: 14, marginTop: 4 }}>ตั้งค่าช่วงเวลา และจัดการอาจารย์ร่วม (หนังสือขอนิเทศออกโดยเจ้าหน้าที่)</div>
                         </div>
-                        <button className="btn-secondary" onClick={fetchAll} disabled={allLoading}>{allLoading ? "⏳" : "🔄"} รีเฟรช</button>
+                        <button className="btn-secondary" onClick={fetchAll} disabled={allLoading}>{allLoading ? <Spinner size={14} /> : "🔄"} รีเฟรช</button>
                     </div>
 
                     {/* ── ช่วงนิเทศ (ดูอย่างเดียว · ตั้งแยกหลักสูตรที่หน้าจัดการหลักสูตร) ── */}
@@ -796,7 +796,7 @@ export default function T_SupervisionReview() {
                                 </button>
                             )}
                         </div>
-                        {allLoading ? <div style={{ textAlign: 'center', padding: 40 }}>กำลังโหลด...</div> : (
+                        {allLoading ? <LoadingBlock text="กำลังโหลด…" style={{ textAlign: 'center', padding: 40 }} /> : (
                             <div style={{ overflowX: 'auto' }}>
                                 <table style={tableStyle}>
                                     <thead>
@@ -933,7 +933,7 @@ export default function T_SupervisionReview() {
                         <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
                             <button className="btn-ghost" onClick={() => setEditDateSup(null)}>ยกเลิก</button>
                             <button className="btn" style={{ background: '#d97706', padding: '10px 20px', display: 'flex', alignItems: 'center', gap: 8 }} disabled={!editDateVal || savingDate} onClick={() => setConfirmEditOpen(true)}>
-                                {savingDate ? <><Spinner size={16} color="#fff" /> กำลังบันทึก...</> : '💾 บันทึกวันใหม่'}
+                                {savingDate ? <BusyLabel text="กำลังบันทึก…" /> : '💾 บันทึกวันใหม่'}
                             </button>
                         </div>
                     </div>
