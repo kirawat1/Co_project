@@ -8,7 +8,14 @@
 import type { CSSProperties } from "react";
 
 // ผู้ที่ตั้งค่าลดการเคลื่อนไหว: หมุนช้าลงแทนหยุด (ยังต้องรู้ว่าระบบทำงานอยู่)
+// ใส่ครั้งเดียวที่ <head> — ไม่ใส่ <style> ในตัวหมุนแต่ละตัว (ข้อความ CSS ปนในกล่องสถานะ role="status")
 const SPIN_CSS = "@keyframes coop-spin{to{transform:rotate(360deg)}}@media (prefers-reduced-motion: reduce){.coop-spin{animation-duration:2.4s!important}}";
+if (typeof document !== "undefined" && !document.getElementById("coop-spin-css")) {
+  const el = document.createElement("style");
+  el.id = "coop-spin-css";
+  el.textContent = SPIN_CSS;
+  document.head.appendChild(el);
+}
 
 export default function Spinner({
   size = 18,
@@ -35,9 +42,7 @@ export default function Spinner({
         animation: "coop-spin .7s linear infinite",
         verticalAlign: "middle",
       }}
-    >
-      <style>{SPIN_CSS}</style>
-    </span>
+    />
   );
 }
 

@@ -1,4 +1,5 @@
 //frontend/src/components/S_App.tsx
+import { LoadingBlock } from "./Spinner";
 import { useEffect, useState, useCallback, lazy, Suspense } from "react";
 import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import Sidebar from "./S_Sidebar";
@@ -85,7 +86,7 @@ export default function StudentApp() {
       </div>
     );
   }
-  if (!profile) return <div style={{ padding: 40, textAlign: "center" }}>กำลังโหลดข้อมูล...</div>;
+  if (!profile) return <LoadingBlock text="กำลังโหลดข้อมูล…" style={{ padding: 40, textAlign: "center" }} />;
 
   const fullName = `${profile.firstName || ""} ${profile.lastName || ""}`.trim();
   const displayName = profile.studentId || fullName || "นักศึกษา";
@@ -125,7 +126,7 @@ export default function StudentApp() {
         <Sidebar profile={profile} isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
         <main className="main">
-          <Suspense fallback={<div style={{ padding: 24, color: "var(--text-muted)" }}>กำลังโหลด...</div>}>
+          <Suspense fallback={<LoadingBlock text="กำลังโหลดหน้า…" style={{ padding: 24 }} />}>
           <Routes>
             <Route index element={<Navigate to="dashboard" replace />} />
             <Route path="dashboard" element={<DashboardPage />} />

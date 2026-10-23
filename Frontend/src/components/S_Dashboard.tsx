@@ -1,3 +1,4 @@
+import { LoadingBlock } from "./Spinner";
 import { useEffect, useMemo, useState } from "react";
 import S_RoundTimeline from "./S_RoundTimeline";
 import { Link } from "react-router-dom";
@@ -193,7 +194,7 @@ export default function S_Dashboard() {
   }, [nearestDeadline]);
 
 
-  if (loading) return <div style={{ padding: 40, textAlign: 'center' }}>กำลังโหลดข้อมูลภาพรวม...</div>;
+  if (loading) return <LoadingBlock text="กำลังโหลดข้อมูลภาพรวม…" style={{ padding: 40, textAlign: 'center' }} />;
 
   return (
     <div className="dashboard-wrapper">

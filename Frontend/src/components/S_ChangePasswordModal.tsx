@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useToast } from "./Toast";
-import Spinner from "./Spinner";
+import { BusyLabel } from "./Spinner";
 import { apiFetch } from "../utils/apiFetch";
 import Modal from "./Modal";
 
@@ -91,7 +91,7 @@ export default function S_ChangePasswordModal({ onClose }: Props) {
         <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 8 }}>
           <button type="button" className="btn-secondary" onClick={onClose} disabled={saving}>ยกเลิก</button>
           <button type="submit" className="btn" disabled={!canSubmit}>
-            {saving ? <><Spinner size={16} color="#fff" /> กำลังบันทึก...</> : "เปลี่ยนรหัสผ่าน"}
+            {saving ? <BusyLabel text="กำลังบันทึก…" /> : "เปลี่ยนรหัสผ่าน"}
           </button>
         </div>
       </form>

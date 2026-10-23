@@ -1,4 +1,5 @@
 ﻿import { useState, useEffect } from "react";
+import { LoadingBlock } from "./Spinner";
 import { useParams, Link } from "react-router-dom";
 import StatusBadge from "../components/StatusBadge";
 import { apiFetch } from "../utils/apiFetch";
@@ -256,7 +257,7 @@ export default function T_StudentDetail() {
   };
 
   // --- UI ---
-  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>กำลังโหลดข้อมูล...</div>;
+  if (loading) return <LoadingBlock text="กำลังโหลดข้อมูล…" style={{ padding: 40, textAlign: 'center', color: '#64748b' }} />;
   if (!student) return <div style={{ padding: 40, textAlign: 'center', color: '#ef4444' }}>ไม่พบข้อมูลนักศึกษา</div>;
 
   const fullName = `${student.firstName || ""} ${student.lastName || ""}`.trim();

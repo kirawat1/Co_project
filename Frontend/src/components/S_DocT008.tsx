@@ -1,3 +1,4 @@
+import { LoadingBlock } from "./Spinner";
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { DeadlineBanner } from "./DocDeadline";
@@ -72,7 +73,7 @@ export default function S_DocT008() {
         setTimeout(() => setCopiedKey(""), 2000);
     };
 
-    if (loading || !config) return <div style={{ padding: 40, textAlign: 'center', color: '#0074B7' }}>กำลังโหลดข้อมูล...</div>;
+    if (loading || !config) return <LoadingBlock text="กำลังโหลดข้อมูล…" style={{ padding: 40, textAlign: 'center', color: '#0074B7' }} />;
 
     return (
         <div className="page" style={{ padding: 4, margin: 28 }}>

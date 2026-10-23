@@ -1,5 +1,6 @@
 ﻿import React, { useState, useEffect, useMemo, useRef } from "react";
 import DocTable from "./S_DocTable";
+import { BusyLabel } from "./Spinner";
 import { createT000PDF, type T000FormData } from "../utils/pdfGeneratorT000";
 import PlacementLetterCard from "./PlacementLetterCard";
 import LetterDeliveryNotice from "./LetterDeliveryNotice";
@@ -504,7 +505,7 @@ export default function S_Docs({ profile, setProfile }: { profile: LocalStudentP
 
   return (
     <div className="page" style={{ padding: 4, margin: 28, maxWidth: 1200, marginInline: 'auto' }}>
-      {loading && <div className="loading-overlay">กำลังประมวลผล...</div>}
+      {loading && <div className="loading-overlay"><BusyLabel size={22} text="กำลังประมวลผล…" /></div>}
 
       <StudentStatusCard status={displayStatus} comment={profile.teacherComment} />
 

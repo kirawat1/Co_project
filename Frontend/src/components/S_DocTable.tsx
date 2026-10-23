@@ -1,3 +1,4 @@
+import { BusyLabel } from "./Spinner";
 import React from "react";
 import { useState, useEffect } from "react";
 import { fmtDate } from '../utils/dateFormat';
@@ -197,7 +198,7 @@ export default function DocTable({
                           ยกเลิก
                         </button>
                         <button type="button" className="btn-confirm" disabled={uploadingId === it.id} onClick={() => confirmUpload(it.id)}>
-                          {uploadingId === it.id ? "⏳ กำลังอัปโหลด..." : "🚀 ยืนยันส่งไฟล์"}
+                          {uploadingId === it.id ? <BusyLabel text="กำลังอัปโหลด…" /> : "🚀 ยืนยันส่งไฟล์"}
                         </button>
                       </div>
                     </div>

@@ -1,3 +1,4 @@
+import Spinner from "./Spinner";
 import { useState, useEffect, useMemo } from "react";
 import type { CSSProperties } from "react";
 import axios from "axios";
@@ -207,7 +208,7 @@ export default function T_T002Review() {
                         )}
 
                     <button className="btn-ghost" style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 6 }} onClick={fetchStudents} disabled={loading}>
-                        {loading ? '⏳' : '🔄'} รีเฟรช
+                        {loading ? <Spinner size={14} /> : '🔄'} รีเฟรช
                     </button>
 
                     <div style={{ background: '#ecfdf5', color: '#047857', padding: '10px 16px', borderRadius: 8, fontWeight: 700, border: '1px solid #a7f3d0' }}>

@@ -1,6 +1,7 @@
 import { useEffect, useState, lazy, Suspense } from "react";
 import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { apiFetch } from "../utils/apiFetch";
+import { LoadingBlock } from "./Spinner";
 import { ThemeToggleBtn } from "./ThemeContext";
 
 import Sidebar from "./T_Sidebar";
@@ -132,7 +133,7 @@ export default function TeacherApp() {
         <div className={`sidebar-overlay${sidebarOpen ? " open" : ""}`} onClick={() => setSidebarOpen(false)} />
         <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} isCoopTeacher={!!isCoopTeacher} />
         <main className="main">
-          <Suspense fallback={<div style={{ padding: 24, color: "var(--text-muted)" }}>กำลังโหลด...</div>}>
+          <Suspense fallback={<LoadingBlock text="กำลังโหลดหน้า…" style={{ padding: 24 }} />}>
           <Routes>
             <Route index element={<Navigate to="dashboard" replace />} />
 

@@ -1,3 +1,4 @@
+import { BusyLabel } from "./Spinner";
 import React, { useState, useEffect, useRef } from "react";
 import { apiFetch } from "../utils/apiFetch";
 import { createT003PDF } from "../utils/pdfGeneratorT003";
@@ -392,7 +393,7 @@ export default function S_DocsT003Form({ profile, onRefresh }: Props) {
                 {canEdit && (
                     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 10 }}>
                         <button type="button" onClick={handlePreviewPDF} disabled={loading} style={{ ...btnOutline, borderColor: '#2563eb', color: '#2563eb' }}>
-                            {loading ? '⏳ กำลังทำงาน...' : '👁️ ดูตัวอย่าง / โหลด PDF'}
+                            {loading ? <BusyLabel text="กำลังทำงาน…" /> : '👁️ ดูตัวอย่าง / โหลด PDF'}
                         </button>
                     </div>
                 )}
@@ -446,7 +447,7 @@ export default function S_DocsT003Form({ profile, onRefresh }: Props) {
                                 <div style={{ display: 'flex', gap: 10 }}>
                                     <button onClick={() => setSelectedUploadFile(null)} disabled={loading} style={{ flex: 1, padding: 10, background: '#fee2e2', color: '#b91c1c', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>ยกเลิก</button>
                                     <button onClick={handleConfirmUpload} disabled={loading} style={{ flex: 1, padding: 10, background: '#2563eb', color: 'white', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>
-                                        {loading ? '⏳ กำลังอัปโหลด...' : '🚀 ยืนยันส่งไฟล์ T003'}
+                                        {loading ? <BusyLabel text="กำลังอัปโหลด…" /> : '🚀 ยืนยันส่งไฟล์ T003'}
                                     </button>
                                 </div>
                             </div>

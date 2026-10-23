@@ -1,3 +1,4 @@
+import { LoadingBlock } from "./Spinner";
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { apiFetch } from "../utils/apiFetch";
@@ -242,7 +243,7 @@ export default function T_Dashboard() {
       </section>
 
       {loading ? (
-        <div style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>กำลังโหลดข้อมูล...</div>
+        <LoadingBlock text="กำลังโหลดข้อมูล…" style={{ padding: 40, textAlign: 'center', color: '#64748b' }} />
       ) : (
         <>
           {/* ================= ACTION REQUIRED ================= */}
