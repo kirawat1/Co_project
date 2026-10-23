@@ -153,17 +153,45 @@ function buildFullHtml(bodyHtml: string): string {
 </html>`;
 }
 
-/** สร้าง Blob สำหรับ preview ในเบราว์เซอร์ */
-export function createPreviewBlob(bodyHtml: string): Blob {
-  return new Blob([buildFullHtml(bodyHtml)], { type: "text/html; charset=utf-8" });
+/** ตราสัญลักษณ์มหาวิทยาลัย (ไฟล์ระบบคีย์ KRUT) สำหรับหัวหนังสือ — ขนาดเป็น pt */
+export interface LetterEmblem { data: Uint8Array; mime: string; widthPt: number; heightPt: number }
+
+/** ขนาดตราบนหนังสือ: พอดีกรอบ 30×28 มม. เท่ากับ PDF โดยคงสัดส่วนรูปจริง */
+export function emblemSizePt(naturalWidth: number, naturalHeight: number): { widthPt: number; heightPt: number } {
+  const mmToPt = 72 / 25.4;
+  const k = Math.min(30 / naturalWidth, 28 / naturalHeight);
+  return { widthPt: naturalWidth * k * mmToPt, heightPt: naturalHeight * k * mmToPt };
+}
+
+const emblemExt = (e: LetterEmblem) => (/png/i.test(e.mime) ? "png" : "jpg");
+
+function bytesToBase64(bytes: Uint8Array): string {
+  let s = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(s);
+}
+
+// ย่อหน้าตรากลางหน้า · width/height ของ <img> เป็น px (96 dpi) ส่วน style เป็น pt ที่ Word ใช้จริง
+function emblemParagraph(src: string, e: LetterEmblem): string {
+  const px = (pt: number) => Math.round((pt * 4) / 3);
+  return `<p class="center emblem" style="margin:0"><img src="${src}" width="${px(e.widthPt)}" height="${px(e.heightPt)}" style="width:${e.widthPt.toFixed(1)}pt;height:${e.heightPt.toFixed(1)}pt" alt="ตราสัญลักษณ์มหาวิทยาลัย"></p>`;
+}
+
+/** สร้าง Blob สำหรับ preview ในเบราว์เซอร์ — มีตรา = ใส่เป็น data URI (iframe ของ blob อ้างไฟล์ด้วย path ไม่ได้) */
+export function createPreviewBlob(bodyHtml: string, emblem?: LetterEmblem | null): Blob {
+  const top = emblem ? emblemParagraph(`data:${emblem.mime};base64,${bytesToBase64(emblem.data)}`, emblem) : "";
+  return new Blob([buildFullHtml(top + bodyHtml)], { type: "text/html; charset=utf-8" });
 }
 
 /**
  * สร้าง Word-compatible HTML Blob (.doc)
  * Word อ่านขนาด/ขอบกระดาษจาก @page ที่ตั้งชื่อ + div ของ section เท่านั้น (@page เปล่าถูกข้าม → ขอบ 1 นิ้วทุกด้าน)
  * ย่อหน้าเล็กท้ายเอกสาร = ย่อหน้าที่ Word ต้องมีหลังตารางสุดท้าย (ไม่งั้น Word เติมย่อหน้าขนาดปกติจนส่วนติดต่อล้นหน้า)
+ * มีตรา → ไฟล์ MHTML (แบบ "Single File Web Page" ของ Word) ฝังรูปในไฟล์ · ขอบบน 0.8 ล่าง 1.5 ซม. (ส่วนติดต่ออยู่ใกล้ขอบล่างแบบ PDF) ให้ตรา 28 มม. แล้วหนังสือคนเดียวยังจบหน้าเดียว
  */
-export function createWordBlob(bodyHtml: string): Blob {
+export function createWordBlob(bodyHtml: string, emblem?: LetterEmblem | null): Blob {
+  const pageMargin = emblem ? "0.8cm 2cm 1.5cm 3cm" : "2.5cm 2cm 2cm 3cm";
+  const top = emblem ? emblemParagraph(`emblem.${emblemExt(emblem)}`, emblem) : "";
   const doc = `<html xmlns:o='urn:schemas-microsoft-com:office:office'
     xmlns:w='urn:schemas-microsoft-com:office:word'
     xmlns='http://www.w3.org/TR/REC-html40'>
@@ -172,7 +200,7 @@ export function createWordBlob(bodyHtml: string): Blob {
   <meta name="color-scheme" content="light only">
   <style>
     :root { color-scheme: light only; }
-    @page WordSection1 { size: 21cm 29.7cm; margin: 2.5cm 2cm 2cm 3cm; mso-header-margin: 1.25cm; mso-footer-margin: 1.25cm; }
+    @page WordSection1 { size: 21cm 29.7cm; margin: ${pageMargin}; mso-header-margin: 1.25cm; mso-footer-margin: 1.25cm; }
     div.WordSection1 { page: WordSection1; }
     html, body {
       font-family: "TH Sarabun New", "TH SarabunPSK", Sarabun, sans-serif;
@@ -184,10 +212,38 @@ export function createWordBlob(bodyHtml: string): Blob {
     ${SHARED_LETTER_CSS}
   </style>
 </head>
-<body><div class="WordSection1">${bodyHtml}
+<body><div class="WordSection1">${top}${bodyHtml}
 <p style="font-size:1pt;line-height:1pt;margin:0">&nbsp;</p></div></body>
 </html>`;
-  return new Blob(["﻿", doc], { type: "application/msword" });
+  if (!emblem) return new Blob(["﻿", doc], { type: "application/msword" });
+  return new Blob([wordMhtml(doc, emblem)], { type: "application/msword" });
+}
+
+// MHTML: ส่วน HTML + ส่วนรูป อ้างกันด้วย Content-Location (รูปใน <img src="emblem.png"> ชี้ไปส่วนที่สอง)
+function wordMhtml(html: string, emblem: LetterEmblem): string {
+  const boundary = "----=_NextPart_COOP_LETTER";
+  const wrap = (b64: string) => b64.replace(/.{76}/g, "$&\r\n");
+  return [
+    "MIME-Version: 1.0",
+    `Content-Type: multipart/related; boundary="${boundary}"; type="text/html"`,
+    "",
+    `--${boundary}`,
+    'Content-Type: text/html; charset="utf-8"',
+    "Content-Transfer-Encoding: base64",
+    "Content-Location: file:///C:/letter.htm",
+    "",
+    wrap(bytesToBase64(new TextEncoder().encode(html))),
+    "",
+    `--${boundary}`,
+    `Content-Type: ${emblem.mime}`,
+    "Content-Transfer-Encoding: base64",
+    `Content-Location: file:///C:/emblem.${emblemExt(emblem)}`,
+    "",
+    wrap(bytesToBase64(emblem.data)),
+    "",
+    `--${boundary}--`,
+    "",
+  ].join("\r\n");
 }
 
 // ── 1. หนังสือขอความอนุเคราะห์ ─────────────────────────────────────────

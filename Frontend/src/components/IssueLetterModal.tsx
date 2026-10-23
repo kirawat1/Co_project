@@ -1,7 +1,7 @@
 ﻿import LetterBatchNotice, { sharesDraft } from "./LetterBatchNotice";
 import React, { useState } from "react";
 import { apiFetch } from "../utils/apiFetch";
-import { createDispatchPDF } from "../utils/pdfDispatchGenerator";
+import { createDispatchPDF, createDispatchAttachmentsPDF, type AttachmentReport } from "../utils/pdfDispatchGenerator";
 import { createWordBlob, createPreviewBlob, buildDispatchLetterHtml, thaiPrefix, normalizeDocNumber } from "../utils/docGeneratorUtils";
 import { FileReady, DeliveryPicker, CompanyAddressBox, RecipientNotice, MODAL_CSS, useLetterPending, LetterPendingBanner, confirmMatchesDraft, type LetterDraft } from "./LetterModalShared";
 import DateInput from './DateInput';
@@ -31,6 +31,8 @@ export default function IssueLetterModal({ student, group, batchMates, onOpenBat
     const [loadingDoc, setLoadingDoc] = useState(false);
     const [pdfDraft, setPdfDraft] = useState<LetterDraft | null>(null);
     const [docDraft, setDocDraft] = useState<LetterDraft | null>(null);
+    // แบบ Word: เอกสารแนบรวมเล่มเป็น PDF อีกไฟล์ (แบบเดียวกับออกร่างหลายคน) — เดิมโหลด Word แล้วไม่ได้เอกสารแนบ
+    const [attachDraft, setAttachDraft] = useState<Blob | null>(null);
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
     // พิมพ์ซ้ำ → ใช้วิธีจัดส่งที่เลือกไว้ครั้งก่อน
     const [deliveryMethod, setDeliveryMethod] = useState<"STUDENT" | "STAFF">(student.coop?.reqLetterDelivery === "STAFF" ? "STAFF" : "STUDENT");
@@ -74,7 +76,7 @@ export default function IssueLetterModal({ student, group, batchMates, onOpenBat
         if (missingDatesMsg) return notify.warning(missingDatesMsg);
         setLoadingDoc(true);
         try {
-            const { deanName, deanPosition } = await loadLetterAssets();
+            const { deanName, deanPosition, emblem, projectUrl, acceptUrl } = await loadLetterAssets();
             const studentName = `${thaiPrefix(student.prefix)}${student.firstName} ${student.lastName}`;
             const html = buildDispatchLetterHtml({
                 docNumber, docDate, studentName,
@@ -87,9 +89,19 @@ export default function IssueLetterModal({ student, group, batchMates, onOpenBat
                 startDate, endDate, deanName, deanPosition,
                 students: members ? members.map(toLetterStudent) : undefined,
             });
-            setDocDraft({ blob: createWordBlob(html), docNumber, docDate });
+            setDocDraft({ blob: createWordBlob(html, emblem), docNumber, docDate });
             // preview doc ใน iframe ด้วย HTML blob
-            setPreviewUrl(URL.createObjectURL(createPreviewBlob(html)));
+            setPreviewUrl(URL.createObjectURL(createPreviewBlob(html, emblem)));
+
+            // เอกสารแนบ: รายละเอียดโครงการ → เอกสารนักศึกษา → แบบฟอร์มตอบรับ (ตัวรวมเดียวกับ PDF/ออกร่างหลายคน)
+            setAttachDraft(null);
+            const attach = await existingAttachmentFiles(members || [student]);
+            const report: AttachmentReport = { skipped: [], pages: 0 };
+            const attachments = await createDispatchAttachmentsPDF(projectUrl || "", acceptUrl || "", attach.files, report);
+            const lost = [...attach.missing, ...report.skipped];
+            if (report.pages > 0) setAttachDraft(attachments);
+            if (report.pages === 0) notify.warning("ไม่มีเอกสารแนบที่รวมได้เลย — ไม่ได้สร้างไฟล์เอกสารแนบ");
+            else if (lost.length) notify.warning(`เอกสารแนบขาด ${lost.length} ไฟล์ (ไม่พบหรือเปิดไม่ได้): ${lost.join(", ")}`);
                     } catch (err) { notify.error("สร้าง Word ไม่สำเร็จ: " + err); }
         finally { setLoadingDoc(false); }
     };
@@ -210,6 +222,7 @@ export default function IssueLetterModal({ student, group, batchMates, onOpenBat
                                 <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
                                     {pdfDraft && <FileReady label="PDF" onDownload={() => downloadDraft(pdfDraft, `Dispatch_${members ? `รวม${members.length}คน_${student.studentId}` : student.studentId}.pdf`)} />}
                                     {docDraft && <FileReady label="Word (.doc)" onDownload={() => downloadDraft(docDraft, `Dispatch_${members ? `รวม${members.length}คน_${student.studentId}` : student.studentId}.doc`)} />}
+                                    {docDraft && attachDraft && <FileReady label="เอกสารแนบ (PDF)" onDownload={() => download(attachDraft, `Dispatch_${members ? `รวม${members.length}คน_${student.studentId}` : student.studentId}-เอกสารแนบ.pdf`)} />}
                                 </div>
                             )}
                             <p style={{ fontSize: 11, color: '#64748b', margin: '6px 0 0' }}>ตัวอย่างแสดงด้านซ้าย · กดโหลดร่างไปเสนอลงนาม → ขึ้นสถานะ "รอลงนาม"</p>
