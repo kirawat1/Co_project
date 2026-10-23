@@ -37,7 +37,7 @@ export default function IssuePlacementLetterModal({ student, group, batchMates, 
         setLoadingPdf(true);
         try {
             const { krutUrl, deanName, deanPosition } = await loadLetterAssets();
-            if (!krutUrl) return notify.error("⚠️ ไม่พบไฟล์ตราครุฑ (KRUT) กรุณาอัปโหลดในหน้าตั้งค่า");
+            if (!krutUrl) return notify.error("⚠️ ไม่พบไฟล์ตราสัญลักษณ์มหาวิทยาลัย กรุณาอัปโหลดในหน้าตั้งค่า");
             const doc = await createPlacementPDF(
                 student, { placeDocNumber, placeDocDate, actualStartDate: startDate, actualEndDate: endDate },
                 krutUrl, deanName, deanPosition,

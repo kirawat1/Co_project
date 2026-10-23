@@ -27,7 +27,7 @@ export async function buildLetterFiles(opts: {
   const names = letterFileNames(letter, format, docNumber, student.coop?.company?.name || "");
   const { krutUrl, projectUrl, acceptUrl, deanName, deanPosition } = assets;
   const studentName = `${thaiPrefix(student.prefix)}${student.firstName} ${student.lastName}`;
-  const needKrut = () => { if (!krutUrl) throw new Error("ไม่พบไฟล์ตราครุฑ (KRUT) กรุณาอัปโหลดในหน้าตั้งค่า"); return krutUrl; };
+  const needKrut = () => { if (!krutUrl) throw new Error("ไม่พบไฟล์ตราสัญลักษณ์มหาวิทยาลัย กรุณาอัปโหลดในหน้าตั้งค่า"); return krutUrl; };
 
   if (letter === "REQUEST") {
     const attach = await existingAttachmentFiles(students);

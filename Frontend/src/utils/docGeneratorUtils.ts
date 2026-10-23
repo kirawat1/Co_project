@@ -90,11 +90,43 @@ const SHARED_LETTER_CSS = `
     .right { text-align: right; }
     table { border-collapse: collapse; width: 100%; }
     td { vertical-align: top; padding: 0 4px; }
-    .sig-block { margin-top: 40pt; text-align: center; }
+    .gap { font-size: 8pt; }
+    .sig-block { margin-top: 20pt; text-align: center; }
     .footer-table { margin-top: 30pt; width: 100%; }
-    .footer-table td { vertical-align: bottom; font-size: 14pt; }
+    .footer-table td { vertical-align: bottom; font-size: 12pt; }
     u { text-decoration: underline; }
 `;
+
+// บรรทัดว่างคั่นตอน (ครึ่งบรรทัด) — บรรทัดว่างเต็มทุกตอนทำให้หนังสือคนเดียวล้นไปหน้า 2 ใน Word
+const GAP = `<p class="gap">&nbsp;</p>`;
+
+// ส่วนลงนาม: ทุกย่อหน้า "ไปกับย่อหน้าถัดไป" (Word) — ลงนามกับส่วนติดต่อย้ายหน้าไปด้วยกัน ไม่ขาดกลางช่องลงนาม
+// เว้นที่ว่าง 3 บรรทัดเต็มให้คณบดีลงนามจริง
+function signatureBlockHtml(deanName: string, deanPosition: string): string {
+  const p = (html: string) => `<p style="page-break-after:avoid">${html}</p>`;
+  return `<div class="sig-block">
+  ${p("ขอแสดงความนับถือ")}
+  ${p("&nbsp;")}${p("&nbsp;")}${p("&nbsp;")}
+  ${p(`(${deanName})`)}
+  ${p(deanPosition)}
+</div>`;
+}
+
+// ส่วนติดต่อท้ายหนังสือ — แถวเดียวห้ามแยกหน้า (เดิม Word ตัดครึ่งแถวไปหน้าถัดไป)
+function contactFooterHtml(lines: string[]): string {
+  return `<table class="footer-table">
+  <tr style="page-break-inside:avoid">
+    <td style="width:60%">
+      ${lines.map((l) => `<p>${l}</p>`).join("\n      ")}
+    </td>
+    <td style="text-align:right">
+      <p>ผู้ร่าง/พิมพ์: วิจิตรา ขจร</p>
+    </td>
+  </tr>
+</table>`;
+}
+
+const CONTACT_LINES = ["วิทยาลัยการคอมพิวเตอร์", "โทรศัพท์ 0 4300 9700 ต่อ 50523", "Email: wijika@kku.ac.th"];
 
 /** สร้าง full HTML string (ใช้ทั้ง Word blob และ preview) */
 function buildFullHtml(bodyHtml: string): string {
@@ -126,7 +158,11 @@ export function createPreviewBlob(bodyHtml: string): Blob {
   return new Blob([buildFullHtml(bodyHtml)], { type: "text/html; charset=utf-8" });
 }
 
-/** สร้าง Word-compatible HTML Blob (.doc) */
+/**
+ * สร้าง Word-compatible HTML Blob (.doc)
+ * Word อ่านขนาด/ขอบกระดาษจาก @page ที่ตั้งชื่อ + div ของ section เท่านั้น (@page เปล่าถูกข้าม → ขอบ 1 นิ้วทุกด้าน)
+ * ย่อหน้าเล็กท้ายเอกสาร = ย่อหน้าที่ Word ต้องมีหลังตารางสุดท้าย (ไม่งั้น Word เติมย่อหน้าขนาดปกติจนส่วนติดต่อล้นหน้า)
+ */
 export function createWordBlob(bodyHtml: string): Blob {
   const doc = `<html xmlns:o='urn:schemas-microsoft-com:office:office'
     xmlns:w='urn:schemas-microsoft-com:office:word'
@@ -136,7 +172,8 @@ export function createWordBlob(bodyHtml: string): Blob {
   <meta name="color-scheme" content="light only">
   <style>
     :root { color-scheme: light only; }
-    @page { size: A4; margin: 2.5cm 2.5cm 2cm 3cm; }
+    @page WordSection1 { size: 21cm 29.7cm; margin: 2.5cm 2cm 2cm 3cm; mso-header-margin: 1.25cm; mso-footer-margin: 1.25cm; }
+    div.WordSection1 { page: WordSection1; }
     html, body {
       font-family: "TH Sarabun New", "TH SarabunPSK", Sarabun, sans-serif;
       font-size: 16pt;
@@ -147,7 +184,8 @@ export function createWordBlob(bodyHtml: string): Blob {
     ${SHARED_LETTER_CSS}
   </style>
 </head>
-<body>${bodyHtml}</body>
+<body><div class="WordSection1">${bodyHtml}
+<p style="font-size:1pt;line-height:1pt;margin:0">&nbsp;</p></div></body>
 </html>`;
   return new Blob(["﻿", doc], { type: "application/msword" });
 }
@@ -197,14 +235,14 @@ export function buildDispatchLetterHtml(opts: {
   </tr>
 </table>
 <p class="center">${dateStr}</p>
-<p>&nbsp;</p>
+${GAP}
 <p><b>เรื่อง</b>&nbsp;&nbsp;&nbsp;ขอความอนุเคราะห์พิจารณานักศึกษาเข้าร่วมปฏิบัติงานสหกิจศึกษา</p>
 <p><b>เรียน</b>&nbsp;&nbsp;&nbsp;${rearnLine}</p>
-<table style="width:100%;margin:4pt 0">
+<table style="width:100%">
   <tr>
-    <td style="width:120pt"><b>สิ่งที่ส่งมาด้วย</b></td>
+    <td style="width:95pt"><b>สิ่งที่ส่งมาด้วย</b></td>
     <td>1. รายละเอียดโครงการสหกิจศึกษา</td>
-    <td style="width:100pt;text-align:right">จำนวน&nbsp;&nbsp;1&nbsp;&nbsp;ชุด</td>
+    <td style="width:80pt;text-align:right">จำนวน&nbsp;&nbsp;1&nbsp;&nbsp;ชุด</td>
   </tr>
   <tr>
     <td></td>
@@ -217,32 +255,16 @@ export function buildDispatchLetterHtml(opts: {
     <td style="text-align:right">จำนวน&nbsp;&nbsp;1&nbsp;&nbsp;ชุด</td>
   </tr>
 </table>
-<p>&nbsp;</p>
+${GAP}
 <p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ตามที่ ${companyName} ได้เข้าร่วมโครงการสหกิจศึกษากับมหาวิทยาลัยขอนแก่น วิทยาลัยการคอมพิวเตอร์ และยินดีรับนักศึกษาหลักสูตร${majorName} เข้าปฏิบัติงานสหกิจศึกษากับบริษัทของท่าน ${groupSameDates ? `ซึ่งมีกำหนดช่วงเวลาปฏิบัติงาน ระหว่างวันที่ ${group ? toThaiDate(group[0].startDate || undefined) : startStr} ถึงวันที่ ${group ? toThaiDate(group[0].endDate || undefined) : endStr}` : 'ซึ่งมีกำหนดช่วงเวลาปฏิบัติงานตามที่ระบุท้ายรายชื่อนักศึกษาแต่ละคน'} นั้น ในการนี้ ทางวิทยาลัยการคอมพิวเตอร์ จึงใคร่ขอให้ท่านพิจารณานักศึกษาเข้าร่วมโครงการสหกิจศึกษากับทาง ${companyName} จำนวน ${group ? group.length : 1} คน ดังมีรายชื่อต่อไปนี้</p>
-<p>&nbsp;</p>
+${GAP}
 ${group
   ? studentListHtml(group, { withProgram: true, withDates: !groupSameDates })
   : `<p class="center">${studentName}&nbsp;&nbsp;&nbsp;&nbsp;รหัสประจำตัว ${studentId}${spLabel ? `&nbsp;&nbsp;&nbsp;&nbsp;${spLabel}` : ''}</p>`}
-<p>&nbsp;</p>
+${GAP}
 <p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;จึงเรียนมาเพื่อโปรดพิจารณาให้ความอนุเคราะห์ในการรับนักศึกษาเข้าร่วมโครงการสหกิจศึกษา หากผลการพิจารณาเป็นประการใด กรุณาแจ้งผลกลับมายัง<u>วิทยาลัยการคอมพิวเตอร์ มหาวิทยาลัยขอนแก่น 40002</u> หรือ E-mail: wijika@kku.ac.th ด้วยจักขอบคุณยิ่ง</p>
-<div class="sig-block">
-  <p>ขอแสดงความนับถือ</p>
-  <p>&nbsp;</p><p>&nbsp;</p><p>&nbsp;</p>
-  <p>(${deanName})</p>
-  <p>${deanPosition}</p>
-</div>
-<table class="footer-table">
-  <tr>
-    <td style="width:60%">
-      <p>วิทยาลัยการคอมพิวเตอร์</p>
-      <p>โทรศัพท์ 0 4300 9700 ต่อ 50523</p>
-      <p>Email: wijika@kku.ac.th</p>
-    </td>
-    <td style="text-align:right">
-      <p>ผู้ร่าง/พิมพ์: วิจิตรา ขจร</p>
-    </td>
-  </tr>
-</table>`;
+${signatureBlockHtml(deanName, deanPosition)}
+${contactFooterHtml(CONTACT_LINES)}`;
 }
 
 // ── 2. หนังสือส่งตัวฝึกสหกิจ (บันทึกข้อความ) ────────────────────────────
@@ -283,31 +305,17 @@ export function buildPlacementLetterHtml(opts: {
   </tr>
 </table>
 <p class="center">${dateStr}</p>
-<p>&nbsp;</p>
+${GAP}
 <p><b>เรื่อง</b>&nbsp;&nbsp;&nbsp;ขอส่งตัวนักศึกษาเข้ารับการปฏิบัติงานสหกิจศึกษา</p>
 <p><b>เรียน</b>&nbsp;&nbsp;&nbsp;${recipient}</p>
-<p>&nbsp;</p>
+${GAP}
 ${group ? `<p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ตามแบบตอบรับนักศึกษาปฏิบัติงานสหกิจศึกษา ที่ทางบริษัท ${companyName} ยินดีรับนักศึกษาหลักสูตร${major} วิทยาลัยการคอมพิวเตอร์ เข้ารับการปฏิบัติงานสหกิจศึกษา จำนวน ${group.length} คน ดังรายชื่อต่อไปนี้</p>
 ${studentListHtml(group, { withDates: !groupSameDates })}
 <p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ในการนี้ มหาวิทยาลัยขอนแก่น วิทยาลัยการคอมพิวเตอร์ ใคร่ขอส่งตัวนักศึกษาปฏิบัติงานสหกิจศึกษาดังกล่าว เข้ารับการปฏิบัติงาน${groupSameDates ? `ในระหว่างวันที่ ${toThaiDate(group[0].startDate || undefined)} ถึงวันที่ ${toThaiDate(group[0].endDate || undefined)}` : 'ตามช่วงเวลาที่ระบุท้ายรายชื่อข้างต้น'} และขอความอนุเคราะห์` : `<p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ตามแบบตอบรับนักศึกษาปฏิบัติงานสหกิจศึกษา ที่ทางบริษัท ${companyName} ยินดีรับนักศึกษาหลักสูตร${major} วิทยาลัยการคอมพิวเตอร์ เข้ารับการปฏิบัติงานสหกิจศึกษา จำนวน 1 คน คือ ${studentName} รหัสประจำตัว ${studentId} ในการนี้ มหาวิทยาลัยขอนแก่น วิทยาลัยการคอมพิวเตอร์ ใคร่ขอส่งตัวนักศึกษาปฏิบัติงานสหกิจศึกษาดังกล่าว เข้ารับการปฏิบัติงานในระหว่างวันที่ ${startStr} ถึงวันที่ ${endStr} และขอความอนุเคราะห์`}จากท่านตรวจสอบรายงานผลการปฏิบัติงานของนักศึกษาสหกิจศึกษา และส่งกลับมายัง วิทยาลัยการคอมพิวเตอร์ มหาวิทยาลัยขอนแก่น ภายหลังครบกำหนดระยะเวลาการปฏิบัติงานของนักศึกษา ภายใน 10 วัน เพื่อวิทยาลัยการคอมพิวเตอร์จักได้ดำเนินการประเมินผลการปฏิบัติงานสหกิจศึกษานักศึกษาดังกล่าวต่อไป ทั้งนี้ ใคร่ขอขอบพระคุณหน่วยงานของท่าน ที่ได้อนุเคราะห์ให้นักศึกษาเข้ารับการปฏิบัติงานสหกิจศึกษาในครั้งนี้ หวังเป็นอย่างยิ่งว่าจะได้รับความอนุเคราะห์จากท่านอีกในโอกาสต่อไป</p>
-<p>&nbsp;</p>
+${GAP}
 <p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;จึงเรียนมาเพื่อโปรดทราบ</p>
-<div class="sig-block">
-  <p>ขอแสดงความนับถือ</p>
-  <p>&nbsp;</p><p>&nbsp;</p><p>&nbsp;</p>
-  <p>(${deanName})</p>
-  <p>${deanPosition}</p>
-</div>
-<table class="footer-table">
-  <tr>
-    <td style="width:60%">
-      <p>วิทยาลัยการคอมพิวเตอร์</p>
-      <p>โทรศัพท์ 0 4300 9700 ต่อ 50523</p>
-      <p>Email: wijika@kku.ac.th</p>
-    </td>
-    <td style="text-align:right"><p>ผู้ร่าง/พิมพ์: วิจิตรา ขจร</p></td>
-  </tr>
-</table>`;
+${signatureBlockHtml(deanName, deanPosition)}
+${contactFooterHtml(CONTACT_LINES)}`;
 }
 
 // ── 3. หนังสือขอนิเทศสหกิจศึกษา ────────────────────────────────────────
@@ -355,34 +363,17 @@ export function buildSupervisionLetterHtml(opts: {
   </tr>
 </table>
 <p class="center">${dateStr}</p>
-<p>&nbsp;</p>
+${GAP}
 <p><b>เรื่อง</b>&nbsp;&nbsp;&nbsp;ขอเข้านิเทศงานนักศึกษาปฏิบัติงานสหกิจศึกษา</p>
 <p><b>เรียน</b>&nbsp;&nbsp;&nbsp;${recipient}</p>
-<p>&nbsp;</p>
+${GAP}
 <p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ตามที่ท่านให้ความอนุเคราะห์รับนักศึกษาสาขาวิชา${majorName} ${group ? `จำนวน ${group.length} คน ดังรายชื่อต่อไปนี้</p>
 ${studentListHtml(group)}
 <p>เข้าปฏิบัติงานสหกิจศึกษากับทาง${companyName} นั้น ในการนี้` : `จำนวน 1 คน คือ ${studentName} รหัสประจำตัว ${studentId} เข้าปฏิบัติงานสหกิจศึกษากับทาง${companyName} นั้น ในการนี้`} สาขาวิชา${majorName} วิทยาลัยการคอมพิวเตอร์ มหาวิทยาลัยขอนแก่น ใคร่ขอเข้านิเทศนักศึกษาปฏิบัติงานสหกิจศึกษา ในหน่วยงานของท่าน เพื่อแนะนำแนวทางการจัดทำรายงานสหกิจศึกษาและรับทราบปัญหาอุปสรรคของนักศึกษาในรูปแบบ${modeStr} โดยนิเทศงานใน<u>วันที่ ${visitStr} เวลา ${timeStr}</u> โดยมีอาจารย์ผู้นิเทศงานคือ ${supervisorStr}</p>
-<p>&nbsp;</p>
+${GAP}
 <p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;สาขาวิชา${majorName} วิทยาลัยการคอมพิวเตอร์ มหาวิทยาลัยขอนแก่น ใคร่ขอขอบคุณท่านที่ให้ความอนุเคราะห์เข้านิเทศงาน และร่วมประเมินเบื้องต้นและแจ้งลักษณะการมอบหมายงานของนักศึกษาในครั้งนี้ด้วย จักขอบพระคุณยิ่ง</p>
-<p>&nbsp;</p>
+${GAP}
 <p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;จึงเรียนมาเพื่อโปรดทราบ</p>
-<div class="sig-block">
-  <p>ขอแสดงความนับถือ</p>
-  <p>&nbsp;</p><p>&nbsp;</p><p>&nbsp;</p>
-  <p>(${deanName})</p>
-  <p>${deanPosition}</p>
-</div>
-<table class="footer-table">
-  <tr>
-    <td style="width:60%">
-      <p>สาขาวิชา${majorName}</p>
-      <p>วิทยาลัยการคอมพิวเตอร์</p>
-      <p>โทรศัพท์ 0 4300 9700 ต่อ 50523</p>
-      <p>Email: wijika@kku.ac.th</p>
-    </td>
-    <td style="text-align:right">
-      <p>ผู้ร่าง/พิมพ์: วิจิตรา ขจร</p>
-    </td>
-  </tr>
-</table>`;
+${signatureBlockHtml(deanName, deanPosition)}
+${contactFooterHtml([`สาขาวิชา${majorName}`, ...CONTACT_LINES])}`;
 }

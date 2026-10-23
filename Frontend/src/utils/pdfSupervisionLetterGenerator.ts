@@ -98,7 +98,7 @@ export const createSupervisionLetterPDF = async (
   const margin = 25; // กั้นหน้าซ้าย
   let y = 20;
 
-  // 2. ตรามหาวิทยาลัย (ครุฑ) - กึ่งกลาง
+  // 2. ตราสัญลักษณ์มหาวิทยาลัย (คีย์ KRUT) - กึ่งกลาง
   try {
     if (typeof krutUrl === "string" && krutUrl.trim() !== "") {
       const krutImg = await getImageArrayBuffer(krutUrl);

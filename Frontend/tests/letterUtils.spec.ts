@@ -1,6 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { toLetterStudent, isGroup, sameDates, studentLines, studentListHtml, letterAttachmentDocs } from "../src/utils/letterGroup";
 import { daysLeft } from "../src/utils/deadline";
+import { createWordBlob, buildDispatchLetterHtml, buildPlacementLetterHtml, buildSupervisionLetterHtml } from "../src/utils/docGeneratorUtils";
 
 // ฟังก์ชันล้วน ไม่เปิดเบราว์เซอร์ — หนังสือรวม / ไฟล์แนบหนังสือ / กำหนดส่ง T005–T008
 
@@ -87,5 +88,49 @@ test.describe("กำหนดส่ง T005–T008 (daysLeft) — นับต�
 
   test("ข้ามเดือน/ปี", () => {
     expect(daysLeft("2027-01-02", at("2026-12-31T05:00:00Z"))).toBe(2);
+  });
+});
+
+// Word อ่านขอบกระดาษจาก section ที่ตั้งชื่อเท่านั้น (@page เปล่าถูกข้าม → ขอบ 1 นิ้ว) และแปลง margin ของตารางเป็นช่องไฟทุกย่อหน้าในเซลล์
+// ผลวัดด้วย Word จริง: หนังสือขอความอนุเคราะห์คนเดียวล้นไปหน้า 2 แม้ชื่อบริษัทสั้น — เทสต์นี้ล็อกโครงสร้างที่ทำให้จบหน้าเดียว
+test.describe("Word — หน้ากระดาษและส่วนท้ายหนังสือ", () => {
+  const common = { docNumber: "660301.26.6.2/811", docDate: "2026-10-23", studentName: "นายก ข", studentId: "650000001",
+    companyName: "บริษัท ทดสอบ จำกัด", deanName: "ชื่อ คณบดี", deanPosition: "คณบดีวิทยาลัยการคอมพิวเตอร์" };
+  const letters = {
+    request: buildDispatchLetterHtml({ ...common, startDate: "2026-06-01", endDate: "2026-09-30" }),
+    placement: buildPlacementLetterHtml({ ...common, major: "วิทยาการคอมพิวเตอร์", startDate: "2026-06-01", endDate: "2026-09-30" }),
+    supervision: buildSupervisionLetterHtml({ ...common, supervisorNames: ["อ.ก"], visitDate: "2026-07-01" }),
+  };
+  const sigOf = (html: string) => html.slice(html.indexOf('<div class="sig-block">'), html.indexOf("</div>", html.indexOf('<div class="sig-block">')));
+
+  test("createWordBlob: ขอบกระดาษอยู่ใน section ที่ Word อ่าน + ย่อหน้าท้ายเล็ก", async () => {
+    const text = await createWordBlob("<p>เนื้อหา</p>").text();
+    expect(text).toContain("@page WordSection1 { size: 21cm 29.7cm; margin: 2.5cm 2cm 2cm 3cm;");
+    expect(text).toContain("div.WordSection1 { page: WordSection1; }");
+    expect(text).not.toMatch(/@page\s*\{/);
+    expect(text).toMatch(/<div class="WordSection1"><p>เนื้อหา<\/p>\s*<p style="font-size:1pt;line-height:1pt;margin:0">&nbsp;<\/p><\/div>/);
+  });
+
+  for (const [name, html] of Object.entries(letters)) {
+    test(`${name}: บรรทัดคั่นตอนเป็นครึ่งบรรทัด · ช่องลงนาม 3 บรรทัดเต็ม · ส่วนลงนาม+ส่วนติดต่อไม่แยกหน้า`, () => {
+      const beforeSig = html.slice(0, html.indexOf('<div class="sig-block">'));
+      expect(beforeSig).not.toContain("<p>&nbsp;</p>");
+      expect(beforeSig).toContain('<p class="gap">&nbsp;</p>');
+      const sig = sigOf(html);
+      expect(sig.match(/<p style="page-break-after:avoid">&nbsp;<\/p>/g)).toHaveLength(3);
+      expect(sig).not.toMatch(/<p>/);
+      expect(html).toMatch(/<table class="footer-table">\s*<tr style="page-break-inside:avoid">/);
+    });
+  }
+
+  test("ตารางสิ่งที่ส่งมาด้วย: ไม่มี margin ที่ Word แปลงเป็นช่องไฟ · คอลัมน์กลางกว้างพอให้ข้อ 3 ไม่ตัดบรรทัด", () => {
+    expect(letters.request).not.toContain("margin:4pt 0");
+    expect(letters.request).toContain('<td style="width:95pt"><b>สิ่งที่ส่งมาด้วย</b></td>');
+    expect(letters.request).toContain('<td style="width:80pt;text-align:right">จำนวน');
+  });
+
+  test("ส่วนติดต่อของหนังสือขอนิเทศยังมีบรรทัดสาขาวิชา", () => {
+    expect(letters.supervision).toMatch(/<table class="footer-table">[\s\S]*<p>สาขาวิชา[^<]*<\/p>\s*<p>วิทยาลัยการคอมพิวเตอร์<\/p>/);
+    expect(letters.request).not.toMatch(/<table class="footer-table">[\s\S]*สาขาวิชา/);
   });
 });
