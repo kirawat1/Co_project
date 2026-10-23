@@ -195,4 +195,8 @@ export const MODAL_CSS = `
   .letter-modal-backdrop .letter-modal-card .btn-secondary:hover { background: #f1f5f9 !important; }
   .letter-modal-backdrop .letter-modal-card .btn-outline { background: #fff !important; color: #0074b7 !important; border: 1px solid #0074b7 !important; }
   .letter-modal-backdrop .letter-modal-card .btn-outline:hover { background: rgba(10,132,255,.08) !important; }
+  /* ตัวอย่างหนังสือคือกระดาษจริง — ไม่กลับสีตามกฎ iframe ของธีมมืด (เดิมขึ้นพื้นดำตัวอักษรขาวบนการ์ดสว่าง) */
+  .letter-modal-backdrop .letter-modal-card iframe { filter: none; }
+  /* radio/checkbox ที่ไม่ได้เลือก: ธีมมืดถมพื้นทุก input เป็นสีเข้ม → ดูเหมือนถูกเลือก (วิธีจัดส่ง 2 ตัวเลือกดูติ๊กทั้งคู่) */
+  .letter-modal-backdrop .letter-modal-card input[type="radio"], .letter-modal-backdrop .letter-modal-card input[type="checkbox"] { background-color: transparent !important; color-scheme: light; }
 `;
