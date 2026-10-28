@@ -86,7 +86,6 @@ export default function IssueLetterModal({ student, group, batchMates, onOpenBat
             const html = buildDispatchLetterHtml({
                 docNumber, docDate, studentName,
                 studentId: student.studentId,
-                studyProgram: student.studyProgram,
                 major: student.major,
                 majorNameTh: student.majorNameTh,
                 companyName: student.coop?.company?.name || "....",

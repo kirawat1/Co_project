@@ -1,6 +1,6 @@
 // หนังสือรวมหลายคน (ขอความอนุเคราะห์ / ส่งตัว / ขอนิเทศ) — รายชื่อนักศึกษาในหนังสือฉบับเดียว
 // ใช้ร่วมกันทั้ง PDF (jsPDF) และ Word/ตัวอย่าง (HTML) · น้อยกว่า 2 คน = หนังสือเดี่ยวแบบเดิมทุกอย่าง
-import { thaiPrefix, toThaiDate, studyProgramLabel } from "./docGeneratorUtils";
+import { thaiPrefix, toThaiDate } from "./docGeneratorUtils";
 
 export interface LetterStudent {
     name: string;
@@ -38,19 +38,14 @@ export function sameDates(list: LetterStudent[]): boolean {
     return list.every((s) => key(s) === key(list[0]));
 }
 
-/** บรรทัดรายชื่อ: "1. นายก ข  รหัสประจำตัว 650000001  ภาคปกติ  (1 มิถุนายน 2569 – 30 กันยายน 2569)" */
-export function studentLines(list: LetterStudent[], opts: { withDates?: boolean; withProgram?: boolean } = {}): string[] {
-    return list.map((s, i) => {
-        const parts = [`${i + 1}. ${s.name}`, `รหัสประจำตัว ${s.studentId}`];
-        const sp = opts.withProgram ? studyProgramLabel(s.studyProgram || undefined) : "";
-        if (sp) parts.push(sp);
-        let line = parts.join("   ");
-        if (opts.withDates) line += `   (${toThaiDate(s.startDate || undefined)} – ${toThaiDate(s.endDate || undefined)})`;
-        return line;
-    });
-}
+/** แถวรายชื่อในหนังสือ (PDF/Word วาดเป็นคอลัมน์ ชื่อ · นามสกุล · รหัสประจำตัว ตามหนังสือจริง) · dates = วันฝึกของคนนั้น เมื่อแต่ละคนฝึกไม่พร้อมกัน */
+export interface StudentRow { no: number; name: string; studentId: string; dates?: string }
 
-/** รายชื่อแบบ HTML (Word/ตัวอย่าง) — ย่อหน้าเดียวกับเนื้อหา */
-export function studentListHtml(list: LetterStudent[], opts: { withDates?: boolean; withProgram?: boolean } = {}): string {
-    return studentLines(list, opts).map((l) => `<p style="margin-left:36pt">${l.replace(/ {3}/g, "&nbsp;&nbsp;&nbsp;")}</p>`).join("\n");
+export function studentRows(list: LetterStudent[], opts: { withDates?: boolean } = {}): StudentRow[] {
+    return list.map((s, i) => ({
+        no: i + 1,
+        name: s.name,
+        studentId: s.studentId,
+        ...(opts.withDates ? { dates: `${toThaiDate(s.startDate || undefined)} – ${toThaiDate(s.endDate || undefined)}` } : {}),
+    }));
 }

@@ -29,8 +29,10 @@ const OLD_TERMS = /สาขา|ระบบการศึกษา|แผน�
     expect(read('pdfGeneratorParentalConsent.ts')).toMatch(/หลักสูตร \$\{curriculum\} สาขาวิชา \$\{major\}/);
     // คำว่า "สาขาวิชา" (ถ้อยคำทางการ) ต้องคงอยู่ — แต่ชื่อหลักสูตรที่ตามหลังต้องเป็นค่าจริงของนักศึกษา (ตัวแปร)
     // ไม่ใช่ฮาร์ดโค้ด "วิทยาการคอมพิวเตอร์" ตรงๆ (บั๊กเดิม: นักศึกษาสาขาอื่น เช่น AI ก็ขึ้นว่า "วิทยาการคอมพิวเตอร์" ในหนังสือทุกฉบับ)
-    const supervisionSrc = read('pdfSupervisionLetterGenerator.ts');
+    // เนื้อหาหนังสือขอนิเทศ (PDF + Word) อยู่ที่ supervisionLetterModel ใน docGeneratorUtils.ts
+    const supervisionSrc = read('docGeneratorUtils.ts');
     expect(supervisionSrc).toMatch(/สาขาวิชา\$\{majorName\}/);
+    expect(read('pdfSupervisionLetterGenerator.ts')).toMatch(/supervisionLetterModel\(/);
     expect(supervisionSrc).not.toMatch(/สาขาวิชาวิทยาการคอมพิวเตอร์/);
     expect(read('pdfGeneratorT000.ts')).toMatch(/drawText\("สาขาวิชา"/);
   });

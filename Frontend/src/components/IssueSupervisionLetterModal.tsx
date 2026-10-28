@@ -58,7 +58,9 @@ export default function IssueSupervisionLetterModal({ supervision: primary, grou
             visitDate: supervision.confirmedDate || docDate,
             // เวลาอยู่ใน confirmedDate (เดิมอ่าน supervision.visitTime ซึ่งไม่มี เลยขึ้น 13.30 น. ทุกฉบับ)
             visitTime: supervisionTimeText(supervision.confirmedDate),
-            visitMode: supervision.supervisionType === "ONLINE" ? "รูปแบบออนไลน์" : "ณ สถานประกอบการ",
+            // เดิมส่ง "รูปแบบออนไลน์" ให้ประโยค "ในรูปแบบ…" → หนังสือขึ้น "ในรูปแบบรูปแบบออนไลน์"
+            online: supervision.supervisionType === "ONLINE",
+            onlineLink: supervision.onlineLink,
         };
     };
 
@@ -78,13 +80,13 @@ export default function IssueSupervisionLetterModal({ supervision: primary, grou
     const handleCreateDoc = async () => {
         setLoadingDoc(true);
         try {
-            const { getAsset, deanName, deanPosition, studentName, supervisorNames, companyName, visitDate, visitTime, visitMode } = await getDocData();
+            const { getAsset, deanName, deanPosition, studentName, supervisorNames, companyName, visitDate, visitTime, online, onlineLink } = await getDocData();
             const emblem = await loadEmblem(getAsset("KRUT"));
             const html = buildSupervisionLetterHtml({
                 docNumber, docDate, studentName,
                 studentId: student.studentId || "",
                 major: student.major, majorNameTh: student.majorNameTh,
-                companyName, supervisorNames, visitDate, visitTime, visitMode, deanName, deanPosition,
+                companyName, supervisorNames, visitDate, visitTime, online, onlineLink, deanName, deanPosition,
                 companyRecipient: recipientText(letterRecipient(student.coop)) || undefined,
                 students: members ? members.map(m => toLetterStudent(m.student)) : undefined,
             });
