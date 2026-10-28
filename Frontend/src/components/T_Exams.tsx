@@ -262,13 +262,13 @@ export default function T_Exams() {
                     className="btn-secondary small"
                     onClick={() => openEdit(x)}
                   >
-                    แก้ไข
+                    ✏️ แก้ไข
                   </button>{" "}
                   <button
-                    className="btn-danger small"
+                    className="btn-danger-outline small"
                     onClick={() => remove(x.id)}
                   >
-                    ลบ
+                    🗑️ ลบ
                   </button>
                 </td>
               </tr>

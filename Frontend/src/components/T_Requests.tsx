@@ -255,18 +255,13 @@ export default function T_Requests() {
 
         <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
           <button
-            className="btn"
+            className="btn-success"
             onClick={handleBulkApprove}
             disabled={pendingList.length === 0 || loading}
-            style={{
-              background: pendingList.length > 0 ? '#059669' : '#e5e7eb',
-              color: pendingList.length > 0 ? 'white' : '#9ca3af',
-              padding: '10px 20px'
-            }}
           >
             ⚡ อนุมัติทั้งหมด ({pendingList.length})
           </button>
-          <button className="btn-ghost" onClick={fetchData} disabled={loading}>
+          <button className="btn-secondary" onClick={fetchData} disabled={loading}>
             {loading ? <Spinner size={14} /> : '🔄'} รีเฟรช
           </button>
         </div>

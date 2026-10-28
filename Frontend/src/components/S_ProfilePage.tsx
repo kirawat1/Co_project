@@ -457,7 +457,7 @@ export default function S_ProfilePage() {
             {companySave === "error" && (
               <span style={{ color: '#b91c1c' }}>
                 บันทึกไม่สำเร็จ{" "}
-                <button type="button" className="btn-secondary" style={{ padding: '2px 10px', fontSize: 12 }} onClick={() => persistCompany(profile.company)}>ลองอีกครั้ง</button>
+                <button type="button" className="btn-secondary small" onClick={() => persistCompany(profile.company)}>ลองอีกครั้ง</button>
               </span>
             )}
             {companySave === "idle" && <span style={{ color: '#64748b' }}>เลือกแล้วระบบบันทึกให้ทันที</span>}
@@ -682,7 +682,7 @@ function SearchableDropdown({ options, value, onChange, placeholder, noOptionTex
             <div style={{ padding: "14px", textAlign: "center", color: "#64748b", fontSize: 14 }}>
               {noOptionText}
               {onAddClick && (
-                <button type="button" className="btn" style={{ width: "100%", marginTop: 10, justifyContent: "center", padding: "8px" }} onMouseDown={(e) => { e.preventDefault(); onAddClick(); }}>
+                <button type="button" className="btn" style={{ width: "100%", marginTop: 10 }} onMouseDown={(e) => { e.preventDefault(); onAddClick(); }}>
                   + เพิ่มบริษัทใหม่
                 </button>
               )}

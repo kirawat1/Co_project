@@ -191,7 +191,7 @@ export default function A_GatewaySettings() {
             <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '0 0 12px', lineHeight: 1.5 }}>
               {settings.gradeSheetDescription || <em style={{ color: 'var(--text-sub)' }}>(ยังไม่มีคำอธิบาย)</em>}
             </p>
-            <span className="btn btn-primary" style={{ fontSize: 13, height: 36, padding: '0 16px', pointerEvents: 'none' }}>
+            <span className="btn" style={{ fontSize: 13, height: 36, padding: '0 16px', pointerEvents: 'none' }}>
               {settings.gradeSheetLinkText.trim() || <em style={{ opacity: .6 }}>(ข้อความว่าง)</em>}
             </span>
           </div>
@@ -202,7 +202,7 @@ export default function A_GatewaySettings() {
       </div>
 
       <div className="action-row" style={{ marginTop: 24, borderTop: '1px solid var(--border)', paddingTop: 20 }}>
-        <button className="btn btn-secondary" onClick={handleReset} disabled={saving} type="button">
+        <button className="btn-secondary" onClick={handleReset} disabled={saving} type="button">
           รีเซ็ตค่าเริ่มต้น
         </button>
         <button className="btn" onClick={() => handleSave()} disabled={saving} type="button">

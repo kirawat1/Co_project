@@ -237,8 +237,8 @@ export default function Company({ profile }: { profile: any }) {
                                     <td style={{ ...TABLE_TD, textAlign: "right" }}>
                                         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
                                             <button className="btn-secondary small" onClick={() => setViewCompany(c)}>ดูรายละเอียด</button>
-                                            <button className="btn-secondary small" onClick={() => { setForm(c); setShowEdit(true); }}>แก้ไข</button>
-                                            <button className="btn-danger small" onClick={() => removeCompany(c.id)}>ลบ</button>
+                                            <button className="btn-secondary small" onClick={() => { setForm(c); setShowEdit(true); }}>✏️ แก้ไข</button>
+                                            <button className="btn-danger-outline small" onClick={() => removeCompany(c.id)}>🗑️ ลบ</button>
                                         </div>
                                     </td>
                                 </tr>
@@ -304,8 +304,8 @@ export default function Company({ profile }: { profile: any }) {
                                     <td style={TABLE_TD} data-label="ติดต่อ">{c.phone || "-"} <br /><span style={{ color: '#64748b', fontSize: 12 }}>{c.email}</span></td>
                                     <td style={{ ...TABLE_TD, textAlign: "center" }}>
                                         <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
-                                            <button className="btn-secondary small" onClick={() => setContactModal(c)}>แก้ไข</button>
-                                            <button className="btn-danger small" onClick={() => removeContact(c)}>ลบ</button>
+                                            <button className="btn-secondary small" onClick={() => setContactModal(c)}>✏️ แก้ไข</button>
+                                            <button className="btn-danger-outline small" onClick={() => removeContact(c)}>🗑️ ลบ</button>
                                         </div>
                                     </td>
                                 </tr>

@@ -247,7 +247,7 @@ export default function S_Dashboard() {
             <StatusBadge status={studentStatus} hidePrefix />
           </div>
         </div>
-        <button onClick={() => setStatusExpanded((v) => !v)} style={{ padding:"8px 18px", background:"#eff6ff", color:"#2563eb", border:"1px solid #bfdbfe", borderRadius:10, fontWeight:700, fontSize:13, cursor:"pointer", whiteSpace:"nowrap" }}>
+        <button className="btn-secondary" onClick={() => setStatusExpanded((v) => !v)}>
           {statusExpanded ? "ซ่อนรายละเอียด ↑" : "ดูรายละเอียด →"}
         </button>
       </div>

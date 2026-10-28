@@ -189,8 +189,8 @@ const DispatchManagementCard = ({ profile, onUpload, onRefresh }: { profile: any
               <div>
                 <div style={{ fontSize: 14, fontWeight: 600, color: '#5b21b6', marginBottom: 12, wordBreak: 'break-all' }}>📎 {dispatchFileName}</div>
                 <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
-                  <button className="btn-secondary" onClick={() => handlePreview(dispatchUrl, "ตัวอย่างหนังสืออนุเคราะห์")} style={{ flex: 1, fontSize: 13, padding: '10px' }}>👁️ ดูตัวอย่าง</button>
-                  <button className="btn-primary" onClick={handleDownloadAndAck} style={{ flex: 1, background: '#7c3aed', border: 'none' }}>⬇️ ดาวน์โหลด</button>
+                  <button className="btn-secondary" onClick={() => handlePreview(dispatchUrl, "ตัวอย่างหนังสืออนุเคราะห์")} style={{ flex: 1 }}>👁️ ดูตัวอย่าง</button>
+                  <button className="btn" onClick={handleDownloadAndAck} style={{ flex: 1 }}>⬇️ ดาวน์โหลด</button>
                 </div>
                 <div style={{ fontSize: 11, color: '#6b7280', marginTop: 10, textAlign: 'center' }}>
                   {reqDelivery === 'STAFF'
@@ -238,10 +238,10 @@ const DispatchManagementCard = ({ profile, onUpload, onRefresh }: { profile: any
                     : <>✅ <strong>อัปโหลดสำเร็จ:</strong> {uploadedAcceptance.name}</>}
                 </div>
                 <div style={{ display: 'flex', gap: 10 }}>
-                  <button className="btn-secondary" style={{ flex: 1, fontSize: 13, padding: '10px' }} onClick={() => handlePreview(`/uploads/${uploadedAcceptance.path}`, "ใบตอบรับที่ส่งแล้ว")}>👁️ ดูไฟล์ที่ส่ง</button>
+                  <button className="btn-secondary" style={{ flex: 1 }} onClick={() => handlePreview(`/uploads/${uploadedAcceptance.path}`, "ใบตอบรับที่ส่งแล้ว")}>👁️ ดูไฟล์ที่ส่ง</button>
                   {/* ออกหนังสือส่งตัวแล้ว เปลี่ยนไฟล์ไม่ได้ (เดิมเปลี่ยนแล้วสถานะถอยกลับไปรอตรวจใบตอบรับ) */}
                   {!acceptanceLocked && <>
-                    <label htmlFor="upload-acceptance-change" className="btn-secondary" style={{ flex: 1, cursor: 'pointer', textAlign: 'center', fontSize: 13, padding: '10px' }}>🔄 เปลี่ยนไฟล์</label>
+                    <label htmlFor="upload-acceptance-change" className="btn-secondary" style={{ flex: 1 }}>🔄 เปลี่ยนไฟล์</label>
                     <input type="file" id="upload-acceptance-change" style={{ display: 'none' }} accept=".pdf,.jpg,.png" onChange={(e) => e.target.files?.[0] && setSelectedFile(e.target.files[0])} />
                   </>}
                 </div>
@@ -255,17 +255,17 @@ const DispatchManagementCard = ({ profile, onUpload, onRefresh }: { profile: any
                   <div>
                     <div style={{ fontSize: 14, color: '#c2410c', marginBottom: 12, fontWeight: 600 }}>⏳ รอการยืนยัน: {selectedFile.name}</div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                      <button className="btn-secondary" onClick={() => handlePreview(URL.createObjectURL(selectedFile), "ตัวอย่างไฟล์ที่เลือก")} style={{ width: '100%', fontSize: 13, padding: '10px' }}>👁️ กดดูตัวอย่างก่อนส่ง</button>
+                      <button className="btn-secondary" onClick={() => handlePreview(URL.createObjectURL(selectedFile), "ตัวอย่างไฟล์ที่เลือก")} style={{ width: '100%' }}>👁️ กดดูตัวอย่างก่อนส่ง</button>
                       <div style={{ display: 'flex', gap: 10 }}>
-                        <button className="btn-secondary" onClick={() => setSelectedFile(null)} style={{ flex: 1, background: '#fee2e2', color: '#b91c1c', border: 'none' }}>ยกเลิก</button>
-                        <button className="btn-primary" onClick={handleConfirmUpload} style={{ flex: 1, background: '#ea580c', border: 'none' }}>🚀 ยืนยันส่งไฟล์</button>
+                        <button className="btn-secondary" onClick={() => setSelectedFile(null)} style={{ flex: 1 }}>ยกเลิก</button>
+                        <button className="btn" onClick={handleConfirmUpload} style={{ flex: 1 }}>🚀 ยืนยันส่งไฟล์</button>
                       </div>
                     </div>
                   </div>
                 ) : (
                   <div style={{ textAlign: 'center', padding: '10px 0' }}>
                     <input type="file" id="upload-acceptance" style={{ display: 'none' }} accept=".pdf,.jpg,.png" onChange={(e) => e.target.files?.[0] && setSelectedFile(e.target.files[0])} />
-                    <label htmlFor="upload-acceptance" className="btn-primary" style={{ background: '#059669', border: 'none', cursor: 'pointer', display: 'inline-block', padding: '10px 20px' }}>📂 เลือกไฟล์ใบตอบรับ</label>
+                    <label htmlFor="upload-acceptance" className="btn">📂 เลือกไฟล์ใบตอบรับ</label>
                     <div style={{ fontSize: 12, color: '#64748b', marginTop: 8 }}>(รองรับ .pdf, .jpg, .png)</div>
                   </div>
                 )}
@@ -281,13 +281,13 @@ const DispatchManagementCard = ({ profile, onUpload, onRefresh }: { profile: any
           <div className="pdf-modal-card">
             <div className="pdf-modal-header">
               <h3 style={{ margin: 0, color: '#333' }}>{previewTitle}</h3>
-              <button onClick={() => setPreviewUrl(null)} className="btn-close">&times;</button>
+              <button onClick={() => setPreviewUrl(null)} className="modal-close" aria-label="ปิด">&times;</button>
             </div>
             <div className="pdf-modal-body">
               <iframe src={previewUrl} style={{ width: '100%', height: '100%', border: 'none' }} title="Preview" />
             </div>
             <div className="pdf-modal-footer">
-              <button className="btn btn-secondary" onClick={() => setPreviewUrl(null)}>ปิดหน้าต่าง</button>
+              <button className="btn-secondary" onClick={() => setPreviewUrl(null)}>ปิดหน้าต่าง</button>
             </div>
           </div>
         </div>
@@ -624,8 +624,8 @@ export default function S_Docs({ profile, setProfile }: { profile: LocalStudentP
               </div>
             </div>
             <div style={{ display: 'flex', gap: 10, flexDirection: 'column' }}>
-              <button className="btn-secondary" style={{ width: '100%', justifyContent: 'center' }} onClick={() => handleGeneratePDF("preview")}>👁️ ดูตัวอย่างใบสมัคร</button>
-              <button className="btn-primary" style={{ width: '100%', justifyContent: 'center', background: '#0284c7' }} onClick={() => handleGeneratePDF("download")}>⬇️ ดาวน์โหลดไปเซ็นชื่อ</button>
+              <button className="btn-secondary" style={{ width: '100%' }} onClick={() => handleGeneratePDF("preview")}>👁️ ดูตัวอย่างใบสมัคร</button>
+              <button className="btn" style={{ width: '100%' }} onClick={() => handleGeneratePDF("download")}>⬇️ ดาวน์โหลดไปเซ็นชื่อ</button>
             </div>
           </div>
 
@@ -638,8 +638,8 @@ export default function S_Docs({ profile, setProfile }: { profile: LocalStudentP
               </div>
             </div>
             <div style={{ display: 'flex', gap: 10, flexDirection: 'column' }}>
-              <button className="btn-secondary" style={{ width: '100%', justifyContent: 'center', borderColor: '#c084fc', color: '#6b21a8' }} onClick={() => handleGenerateConsentPDF("preview")}>👁️ ดูตัวอย่างใบยินยอม</button>
-              <button className="btn-primary" style={{ width: '100%', justifyContent: 'center', background: '#7c3aed' }} onClick={() => handleGenerateConsentPDF("download")}>⬇️ ดาวน์โหลดไปให้ผู้ปกครองเซ็น</button>
+              <button className="btn-secondary" style={{ width: '100%' }} onClick={() => handleGenerateConsentPDF("preview")}>👁️ ดูตัวอย่างใบยินยอม</button>
+              <button className="btn" style={{ width: '100%' }} onClick={() => handleGenerateConsentPDF("download")}>⬇️ ดาวน์โหลดไปให้ผู้ปกครองเซ็น</button>
             </div>
           </div>
         </div>
@@ -709,14 +709,14 @@ export default function S_Docs({ profile, setProfile }: { profile: LocalStudentP
                   <p style={{ margin: 0, fontSize: 13, color: '#64748b' }}>ตรวจสอบความถูกต้องก่อนดาวน์โหลดไปเซ็นชื่อ</p>
                 </div>
               </div>
-              <button onClick={() => setShowPDFPopup(false)} className="btn-close" title="ปิดหน้าต่าง">&times;</button>
+              <button onClick={() => setShowPDFPopup(false)} className="modal-close" aria-label="ปิด" title="ปิดหน้าต่าง">&times;</button>
             </div>
             <div className="pdf-modal-body">
               <iframe src={pdfDataUrl} title="PDF Preview" className="pdf-iframe" />
             </div>
             <div className="pdf-modal-footer">
-              <button className="btn-secondary" style={{ padding: '10px 20px', borderRadius: 8, fontWeight: 700 }} onClick={() => setShowPDFPopup(false)}>ปิด</button>
-              <button className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px', borderRadius: 8, fontWeight: 700 }} onClick={() => handleGeneratePDF("download")}>
+              <button className="btn-secondary" onClick={() => setShowPDFPopup(false)}>ปิด</button>
+              <button className="btn" onClick={() => handleGeneratePDF("download")}>
                 <span>⬇️</span> ดาวน์โหลด PDF
               </button>
             </div>
@@ -736,8 +736,6 @@ export default function S_Docs({ profile, setProfile }: { profile: LocalStudentP
         .pdf-modal-backdrop { position: fixed; inset: 0; background-color: rgba(15, 23, 42, 0.7); backdrop-filter: blur(4px); z-index: 9999; display: flex; align-items: center; justify-content: center; animation: fadeIn 0.2s ease-out; padding: 20px; }
         .pdf-modal-card { background: white; width: 100%; max-width: 1000px; height: 90vh; border-radius: 16px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); display: flex; flex-direction: column; overflow: hidden; animation: scaleIn 0.2s ease-out; }
         .pdf-modal-header { padding: 16px 24px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #fff; }
-        .btn-close { background: transparent; border: none; font-size: 28px; line-height: 1; color: #64748b; cursor: pointer; transition: color 0.2s; padding: 0 8px; border-radius: 4px; }
-        .btn-close:hover { color: #ef4444; background: #fee2e2; }
         .pdf-modal-body { flex: 1; background: #334155; position: relative; overflow: hidden; }
         .pdf-iframe { width: 100%; height: 100%; border: none; display: block; }
         .pdf-modal-footer { padding: 16px 24px; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 12px; background: #f8fafc; }

@@ -394,7 +394,7 @@ export default function T_StudentDetail() {
                 <label className="input-label">บันทึกรายละเอียด / สถานที่</label>
                 <input type="text" className="input" placeholder="ระบุรายละเอียด..." value={visitForm.note} onChange={e => setVisitForm({ ...visitForm, note: e.target.value })} />
               </div>
-              <button className="btn-primary" style={{ height: 44, padding: '0 24px' }} onClick={addVisit}>➕ เพิ่มนัดหมาย</button>
+              <button className="btn" onClick={addVisit}>➕ เพิ่มนัดหมาย</button>
             </div>
 
             {/* Table นัดหมาย */}
@@ -423,10 +423,10 @@ export default function T_StudentDetail() {
                     </td>
                     <td style={{ textAlign: 'right' }}>
                       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                        <button className="btn-ghost small" onClick={() => toggleDone(v.id)}>
+                        <button className="btn-secondary small" onClick={() => toggleDone(v.id)}>
                           {v.status === 'done' ? 'ยกเลิกสถานะ' : 'มาร์คว่าเสร็จแล้ว'}
                         </button>
-                        <button className="btn-danger small" onClick={() => removeVisit(v.id)}>ลบ</button>
+                        <button className="btn-danger-outline small" onClick={() => removeVisit(v.id)}>🗑️ ลบ</button>
                       </div>
                     </td>
                   </tr>

@@ -418,8 +418,8 @@ export default function S_Supervision() {
                                         {isEditing ? '✏️ แก้ไขวันนิเทศ' : 'ยื่นเสนอวันนิเทศ'}
                                     </h3>
                                     {isEditing && (
-                                        <button className="btn-secondary" style={{ padding: '6px 12px', fontSize: 12, borderColor: '#fca5a5', color: '#dc2626' }} onClick={() => { setIsEditing(false); fetchData(); }}>
-                                            ❌ ยกเลิกการแก้ไข
+                                        <button className="btn-secondary small" onClick={() => { setIsEditing(false); fetchData(); }}>
+                                            ยกเลิกการแก้ไข
                                         </button>
                                     )}
                                 </div>
@@ -488,7 +488,7 @@ export default function S_Supervision() {
                                                                     </div>
                                                                 ))}
                                                             </div>
-                                                            <button className="btn-secondary" style={{ fontSize: 12, padding: '6px 10px' }} onClick={() => handleJoinCompanyDate(date)}>
+                                                            <button className="btn-secondary small" onClick={() => handleJoinCompanyDate(date)}>
                                                                 ➕ ขอนัดวันนี้ (ต่อคิว)
                                                             </button>
                                                         </div>
@@ -547,7 +547,7 @@ export default function S_Supervision() {
                                                         </select>
 
                                                         {dates.length > 1 && (
-                                                            <button onClick={() => handleRemoveDate(idx)} style={{ background: '#fee2e2', color: '#dc2626', border: 'none', padding: '10px 14px', borderRadius: 8, cursor: 'pointer' }}>✕</button>
+                                                            <button className="btn-danger-outline" aria-label="ลบวันนี้" title="ลบวันนี้" onClick={() => handleRemoveDate(idx)}>✕</button>
                                                         )}
                                                         {(() => {
                                                             const warn = slotClashWarning(currentVal);
@@ -561,7 +561,7 @@ export default function S_Supervision() {
                                         })}
 
                                         {dates.length < MAX_PROPOSED_DATES && (
-                                            <button className="btn-secondary" onClick={handleAddDate} style={{ width: '100%', marginTop: 5, borderStyle: 'dashed' }}>
+                                            <button className="btn-secondary" onClick={handleAddDate} style={{ width: '100%', marginTop: 5 }}>
                                                 + เพิ่มตัวเลือกวันที่
                                             </button>
                                         )}
@@ -569,7 +569,7 @@ export default function S_Supervision() {
                                 </div>
 
                                 <div style={{ borderTop: '1px solid #e2e8f0', marginTop: 24, paddingTop: 20, textAlign: 'right' }}>
-                                    <button className="btn btn-primary" onClick={handleSubmit} disabled={!activePeriod?.isSupervisionOpen || !coopAdvisor}>
+                                    <button className="btn" onClick={handleSubmit} disabled={!activePeriod?.isSupervisionOpen || !coopAdvisor}>
                                         🚀 ส่งข้อมูลให้อาจารย์พิจารณา
                                     </button>
                                 </div>
@@ -651,9 +651,9 @@ export default function S_Supervision() {
                                                     ✅ เจ้าหน้าที่อนุมัติการฝึกสหกิจและอัปโหลดหนังสือเรียบร้อยแล้ว<br />โปรดดาวน์โหลดไปมอบให้หน่วยงาน
                                                 </div>
                                                 <button
-                                                    className="btn btn-primary"
+                                                    className="btn"
                                                     onClick={() => window.open(`/uploads/supervision/${appointment.officialLetterPath}`, '_blank')}
-                                                    style={{ width: '100%', justifyContent: 'center' }}
+                                                    style={{ width: '100%' }}
                                                 >
                                                     ⬇️ ดาวน์โหลดหนังสือนิเทศ (PDF)
                                                 </button>

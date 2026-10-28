@@ -584,13 +584,13 @@ export default function T_SupervisionReview() {
                                                     <td style={td}><StatusBadge status={sup.status} /></td>
                                                     <td style={{ ...td, textAlign: "right" }}>
                                                         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-                                                            {sup.status === "LETTER_UPLOADED" && isPrimary && <button className="btn" style={{ background: "#7c3aed", padding: "8px 16px" }} onClick={() => handleMyComplete(sup.id)}>🏁 จบนิเทศ</button>}
+                                                            {sup.status === "LETTER_UPLOADED" && isPrimary && <button className="btn small" onClick={() => handleMyComplete(sup.id)}>🏁 จบนิเทศ</button>}
                                                             {(() => {
                                                                 // อาจารย์ร่วม + รออาจารย์หลักเลือกวัน → ปุ่มระบุวันว่าง (ยังไม่ตอบ = เด่น)
                                                                 const coAsk = sup.status === "PENDING_TEACHER" && !isPrimary;
                                                                 const answered = !!sup.myAvailableDates;
                                                                 return (
-                                                                    <button className={(sup.status === "PENDING_TEACHER" && isPrimary) || (coAsk && !answered) ? "btn-success" : "btn"} style={{ padding: "8px 16px" }} onClick={() => openReviewModal(sup)}>
+                                                                    <button className={(sup.status === "PENDING_TEACHER" && isPrimary) || (coAsk && !answered) ? "btn small" : "btn-secondary small"} onClick={() => openReviewModal(sup)}>
                                                                         {sup.status === "PENDING_TEACHER" && isPrimary ? "พิจารณาวันนิเทศ" : coAsk ? (answered ? "📅 แก้วันว่าง" : "📅 ระบุวันว่าง") : "🔍 ดูรายละเอียด"}
                                                                     </button>
                                                                 );
@@ -713,7 +713,7 @@ export default function T_SupervisionReview() {
                                                         });
                                                     })()}
                                                 </div>
-                                                <button className="btn-success" style={{ marginTop: 16 }} onClick={saveAvailability} disabled={isSubmitting}>
+                                                <button className="btn" style={{ marginTop: 16 }} onClick={saveAvailability} disabled={isSubmitting}>
                                                     {isSubmitting ? <BusyLabel text="กำลังบันทึก…" /> : myFreeDays.length ? `💾 บันทึกวันว่าง (${myFreeDays.length} วัน)` : "💾 บันทึก — ไม่ว่างทุกวันที่เสนอ"}
                                                 </button>
                                             </>
@@ -844,15 +844,15 @@ export default function T_SupervisionReview() {
                                                 </td>
                                                 <td style={{ ...td, textAlign: 'center' }}>
                                                     <div style={{ display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap' }}>
-                                                        <button className="btn-ghost" style={{ fontSize: 12, padding: '6px 10px', ...(sup.coTeacherName ? {} : { background: 'rgba(234,179,8,.15)', borderColor: '#d97706', color: '#b45309', fontWeight: 700 }) }} onClick={() => openAssignModal(sup)}>👥 {sup.coTeacherName ? 'อาจารย์ร่วม' : 'มอบหมายอาจารย์ร่วม'}</button>
+                                                        <button className={sup.coTeacherName ? "btn-secondary small" : "btn small"} onClick={() => openAssignModal(sup)}>👥 {sup.coTeacherName ? 'อาจารย์ร่วม' : 'มอบหมายอาจารย์ร่วม'}</button>
                                                         {sup.status === "DATE_CONFIRMED" && !sup.officialLetterPath && (
-                                                            <button className="btn-ghost" style={{ fontSize: 12, padding: '6px 10px', color: '#d97706', borderColor: '#d97706' }} onClick={() => openEditDateModal(sup)}>✏️ แก้ไขวัน</button>
+                                                            <button className="btn-secondary small" onClick={() => openEditDateModal(sup)}>✏️ แก้ไขวัน</button>
                                                         )}
                                                         {(sup.status === "LETTER_UPLOADED" || sup.status === "COMPLETED") && sup.officialLetterPath && (
-                                                            <button className="btn-ghost" style={{ fontSize: 12, color: '#10b981', borderColor: '#10b981', padding: '6px 10px' }} onClick={() => window.open(`/uploads/supervision/${encodeURIComponent(sup.officialLetterPath!)}`, '_blank', 'noopener')}>👁️ ดูเอกสาร</button>
+                                                            <button className="btn-secondary small" onClick={() => window.open(`/uploads/supervision/${encodeURIComponent(sup.officialLetterPath!)}`, '_blank', 'noopener')}>👁️ ดูเอกสาร</button>
                                                         )}
                                                         {sup.status === "LETTER_UPLOADED" && (
-                                                            <button className="btn" style={{ background: '#7c3aed', color: 'white', padding: '6px 10px', fontSize: 12 }} onClick={() => handleAllComplete(sup)}>🏁 จบนิเทศ</button>
+                                                            <button className="btn small" onClick={() => handleAllComplete(sup)}>🏁 จบนิเทศ</button>
                                                         )}
                                                     </div>
                                                 </td>
@@ -880,7 +880,7 @@ export default function T_SupervisionReview() {
                     <div style={{ ...modalContent, maxWidth: 600 }} onClick={e => e.stopPropagation()}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 15, borderBottom: '1px solid #e2e8f0', marginBottom: 20 }}>
                             <h3 style={{ margin: 0 }}>👥 จัดการอาจารย์นิเทศ</h3>
-                            <button onClick={() => setAssignSup(null)} style={{ background: 'none', border: 'none', fontSize: 24, cursor: 'pointer', color: '#64748b' }}>&times;</button>
+                            <button className="modal-close" aria-label="ปิด" onClick={() => setAssignSup(null)}>&times;</button>
                         </div>
                         <div style={{ marginBottom: 16 }}>
                             <div style={{ fontSize: 14, color: '#475569', marginBottom: 4 }}>นักศึกษา: <b>{assignSup.student.firstName} {assignSup.student.lastName}</b></div>
@@ -907,8 +907,8 @@ export default function T_SupervisionReview() {
                             </div>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 24, paddingTop: 16, borderTop: '1px solid #e2e8f0' }}>
-                            <button className="btn-ghost" onClick={() => setAssignSup(null)}>ยกเลิก</button>
-                            <button className="btn" style={{ background: '#2563eb', padding: '10px 20px' }} onClick={handleSaveCoTeachers}>💾 บันทึก</button>
+                            <button className="btn-secondary" onClick={() => setAssignSup(null)}>ยกเลิก</button>
+                            <button className="btn" onClick={handleSaveCoTeachers}>💾 บันทึก</button>
                         </div>
                     </div>
                 </div>
@@ -920,7 +920,7 @@ export default function T_SupervisionReview() {
                     <div style={{ ...modalContent, maxWidth: 480 }} onClick={e => e.stopPropagation()}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, paddingBottom: 16, borderBottom: '1px solid #e2e8f0' }}>
                             <h3 style={{ margin: 0 }}>✏️ แก้ไขวัน-เวลานิเทศ</h3>
-                            <button onClick={() => setEditDateSup(null)} style={{ background: 'none', border: 'none', fontSize: 24, cursor: 'pointer' }}>&times;</button>
+                            <button className="modal-close" aria-label="ปิด" onClick={() => setEditDateSup(null)}>&times;</button>
                         </div>
                         <div style={{ fontSize: 14, color: '#475569', marginBottom: 20, padding: 12, background: '#f8fafc', borderRadius: 8 }}>
                             <div>นักศึกษา: <b>{editDateSup.student.firstName} {editDateSup.student.lastName}</b></div>
@@ -931,8 +931,8 @@ export default function T_SupervisionReview() {
                             <div><label style={labelStyle}>เวลา *</label><input type="time" className="input" value={editDateTime} onChange={e => setEditDateTime(e.target.value)} /></div>
                         </div>
                         <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
-                            <button className="btn-ghost" onClick={() => setEditDateSup(null)}>ยกเลิก</button>
-                            <button className="btn" style={{ background: '#d97706', padding: '10px 20px', display: 'flex', alignItems: 'center', gap: 8 }} disabled={!editDateVal || savingDate} onClick={() => setConfirmEditOpen(true)}>
+                            <button className="btn-secondary" onClick={() => setEditDateSup(null)}>ยกเลิก</button>
+                            <button className="btn" disabled={!editDateVal || savingDate} onClick={() => setConfirmEditOpen(true)}>
                                 {savingDate ? <BusyLabel text="กำลังบันทึก…" /> : '💾 บันทึกวันใหม่'}
                             </button>
                         </div>

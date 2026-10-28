@@ -111,25 +111,19 @@ export default function PlacementLetterCard({
                 {/* ===== Actions ===== */}
                 <div style={actionStyle}>
                     <button
+                        className="btn-secondary"
                         onClick={handlePreview}
                         disabled={!canDownload}
-                        style={{
-                            ...btnStyle,
-                            background: canDownload ? "#ede9fe" : "#e5e7eb",
-                            color: canDownload ? "#5b21b6" : "#9ca3af"
-                        }}
+                        style={{ flex: 1 }}
                     >
                         👁️ ดูตัวอย่าง
                     </button>
 
                     <button
+                        className="btn"
                         onClick={handleDownloadAndAck}
                         disabled={!canDownload || acking}
-                        style={{
-                            ...btnStyle,
-                            background: canDownload ? "#7c3aed" : "#e5e7eb",
-                            color: canDownload ? "white" : "#9ca3af"
-                        }}
+                        style={{ flex: 1 }}
                     >
                         {acking ? <BusyLabel size={14} text="กำลังบันทึก…" /> : "⬇️ ดาวน์โหลด"}
                     </button>
@@ -155,8 +149,9 @@ export default function PlacementLetterCard({
                         <div style={modalHeader}>
                             <h3 style={{ margin: 0 }}>ตัวอย่างหนังสือส่งตัว</h3>
                             <button
+                                className="modal-close"
+                                aria-label="ปิด"
                                 onClick={() => setPreviewUrl(null)}
-                                style={closeBtn}
                             >
                                 ×
                             </button>
@@ -216,15 +211,6 @@ const actionStyle: React.CSSProperties = {
     gap: 10
 };
 
-const btnStyle: React.CSSProperties = {
-    flex: 1,
-    border: "none",
-    padding: "10px",
-    borderRadius: 8,
-    fontWeight: 600,
-    cursor: "pointer"
-};
-
 const hintStyle: React.CSSProperties = {
     fontSize: 11,
     color: "#6b7280",
@@ -259,13 +245,6 @@ const modalHeader: React.CSSProperties = {
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 10
-};
-
-const closeBtn: React.CSSProperties = {
-    border: "none",
-    background: "none",
-    fontSize: 24,
-    cursor: "pointer"
 };
 
 const iframeStyle: React.CSSProperties = {

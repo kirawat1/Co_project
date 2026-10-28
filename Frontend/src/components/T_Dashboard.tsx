@@ -223,20 +223,8 @@ export default function T_Dashboard() {
                 return <option key={p.id} value={val}>เทอม {val} {p.isActive ? "⭐" : ""}</option>;
               })}
             </select>
-            <button
-              onClick={handleExport}
-              style={{
-                padding: '6px 12px',
-                borderRadius: 6,
-                border: '1px solid #16a34a',
-                background: '#16a34a',
-                color: '#fff',
-                fontWeight: 700,
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              📥 Export Excel
+            <button className="btn-success" onClick={handleExport}>
+              📊 Export Excel
             </button>
           </div>
         </div>
