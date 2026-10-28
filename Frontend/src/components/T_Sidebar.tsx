@@ -10,7 +10,7 @@ import {
   IcSettings,
   IcAnnounce,
 } from "./icons";
-import { useNotifCounts } from "../hooks/useNotifCounts";
+import { usePendingCounts, type PendingKey } from "../hooks/usePendingCounts";
 
 interface SidebarProps { isOpen?: boolean; onClose?: () => void; isCoopTeacher?: boolean; }
 
@@ -38,9 +38,9 @@ function NavItem({ to, label, icon, count, onClick, end }: {
 
 export default function T_Sidebar({ isOpen = false, onClose = () => {}, isCoopTeacher = false }: SidebarProps) {
   const nav = () => onClose();
-  const { markRead, sum } = useNotifCounts();
-  // ป้ายแจ้งเตือนของเมนู = ชนิดที่ต้องไปทำที่หน้านั้น · กดแล้วอ่านเฉพาะชนิดของเมนูนั้น
-  const badge = (types: string[]) => ({ count: sum(types), onClick: () => { onClose(); markRead(types); } });
+  const pending = usePendingCounts();
+  // ป้ายของเมนู = จำนวนงานที่รออยู่จริงในหน้านั้น (ไม่หายเมื่อกด — หายเมื่องานเสร็จ)
+  const badge = (key: PendingKey) => ({ count: pending[key], onClick: nav });
   return (
     <aside className={`sidebar${isOpen ? " open" : ""}`}>
       {/* BRAND HEADER */}
@@ -66,15 +66,14 @@ export default function T_Sidebar({ isOpen = false, onClose = () => {}, isCoopTe
 
         <div className="sec-label">เอกสารและบันทึก</div>
 
-        {/* ใบตอบรับอาจารย์ไม่ได้ตรวจ (เจ้าหน้าที่ตรวจที่หน้า T000) — ไม่นับในป้าย */}
         <NavItem to="/teacher/requests" label="ตรวจสอบคำร้องสหกิจ" icon={<IcInbox />}
-          {...badge(["COOP_APPLICATION_SUBMITTED"])} />
+          {...badge("teacherRequests")} />
         <NavItem to="/teacher/review-t002" label="T002 เอกสารรายละเอียด" icon={<IcList />}
-          {...badge(["T002_SUBMITTED"])} />
+          {...badge("t002")} />
         <NavItem to="/teacher/review-t003" label="T003 โครงร่างรายงาน" icon={<IcRoute />}
-          {...badge(["T003_SUBMITTED"])} />
+          {...badge("t003")} />
         <NavItem to="/teacher/review-supervision" label="นัดหมายนิเทศ" icon={<IcCalendar />}
-          {...badge(["SUPERVISION_PROPOSED"])} />
+          {...badge("teacherSupervision")} />
 
         {/* งานจัดการหลักสูตร (ตั้งค่า, ประกาศ, ตรวจเอกสารทั้งหลักสูตร) อยู่ที่หน้า "จัดการหลักสูตร" (/admin) */}
         {isCoopTeacher && (

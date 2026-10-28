@@ -541,7 +541,7 @@ describe('docController', () => {
     test('200 — ส่ง T002 แล้วสร้าง/ผูกพี่เลี้ยงจากข้อ 3 ของแบบฟอร์ม (ทุกคน)', async () => {
       prisma.$transaction.mockImplementation((arg) => Array.isArray(arg) ? Promise.all(arg) : arg(prisma));
       prisma.systemConfig.findUnique.mockResolvedValue(null);
-      prisma.student.findUnique.mockResolvedValue({ id: 10, userId: 1, deletedAt: null });
+      prisma.student.findUnique.mockResolvedValue({ id: 10, userId: 1, deletedAt: null, major: 'AI' });
       prisma.document.findFirst.mockResolvedValue(null);
       prisma.document.create.mockResolvedValue({ id: 99 });
       prisma.studentCoop.findUnique.mockResolvedValue({ status: 'INTERNSHIP_STARTED', companyId: 'c1' });
@@ -563,10 +563,10 @@ describe('docController', () => {
       expect(prisma.studentCoop.update).toHaveBeenCalledWith({ where: { studentId: 10 }, data: { mentors: { connect: [{ id: 'm1' }, { id: 'm2' }] } } });
       expect(res.json.mock.calls[0][0]).toMatchObject({ ok: true, mentorSync: { linked: 2, created: 2 } });
 
-      // T002 อาจารย์ประจำวิชาสหกิจตรวจได้ (มีเมนู T002) → แจ้งทั้งเจ้าหน้าที่และอาจารย์ประจำวิชา
+      // T002 อาจารย์ประจำวิชาสหกิจตรวจได้ (มีเมนู T002) → แจ้งเจ้าหน้าที่ + อาจารย์ประจำวิชาของหลักสูตรนักศึกษาเท่านั้น
       for (let i = 0; i < 4; i++) await new Promise((r) => setImmediate(r));
       expect(prisma.user.findMany).toHaveBeenCalledWith(expect.objectContaining({
-        where: { OR: [{ role: 'staff' }, { role: 'teacher', teacher: { isCoopTeacher: true } }] },
+        where: { OR: [{ role: 'staff' }, { role: 'teacher', teacher: { isCoopTeacher: true, coopMajors: { some: { major: 'AI' } } } }] },
       }));
     });
   });

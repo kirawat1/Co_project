@@ -17,7 +17,7 @@ import {
   IcClipboardCheck,
   IcBook,
 } from "./icons";
-import { useNotifCounts } from "../hooks/useNotifCounts";
+import { usePendingCounts, type PendingKey } from "../hooks/usePendingCounts";
 
 interface SidebarProps { isOpen?: boolean; onClose?: () => void; isStaff?: boolean; roleLabel?: string; }
 
@@ -46,9 +46,9 @@ function NavItem({ to, label, icon, count, onClick }: {
 
 export default function A_Sidebar({ isOpen = false, onClose = () => {}, isStaff = true, roleLabel = "Staff" }: SidebarProps) {
   const nav = () => onClose();
-  const { markRead, sum } = useNotifCounts();
-  // ป้ายแจ้งเตือนของเมนู = ชนิดที่ต้องไปทำที่หน้านั้น · กดแล้วอ่านเฉพาะชนิดของเมนูนั้น
-  const badge = (types: string[]) => ({ count: sum(types), onClick: () => { onClose(); markRead(types); } });
+  const pending = usePendingCounts();
+  // ป้ายของเมนู = จำนวนงานที่รออยู่จริงในหน้านั้น (ไม่หายเมื่อกด — หายเมื่องานเสร็จ)
+  const badge = (key: PendingKey) => ({ count: pending[key], onClick: nav });
   return (
     <aside className={`sidebar${isOpen ? " open" : ""}`}>
       {/* BRAND BLOCK */}
@@ -83,16 +83,16 @@ export default function A_Sidebar({ isOpen = false, onClose = () => {}, isStaff 
         <div className="sec-label">เอกสารและบันทึก</div>
 
         <NavItem to="/admin/coop-applications" label="ตรวจสอบคำร้องสหกิจ" icon={<IcInbox />}
-          {...badge(["COOP_APPLICATION_SUBMITTED"])} />
+          {...badge("coopApplications")} />
         {/* ใบตอบรับที่นักศึกษาอัปโหลดตรวจที่หน้า T000 (ตรวจสอบใบตอบรับ) */}
         <NavItem to="/admin/doct000" label="T000 เอกสารใบสมัคร" icon={<IcClipboard />}
-          {...badge(["T000_SUBMITTED", "ACCEPTANCE_UPLOADED"])} />
+          {...badge("t000")} />
         <NavItem to="/admin/doct002" label="T002 เอกสารรายละเอียด" icon={<IcList />}
-          {...badge(["T002_SUBMITTED"])} />
+          {...badge("t002")} />
         <NavItem to="/admin/doct003" label="T003 โครงร่างรายงาน" icon={<IcRoute />}
-          {...badge(["T003_SUBMITTED"])} />
+          {...badge("t003")} />
         <NavItem to="/admin/supervision-manager" label="จัดการการนิเทศ" icon={<IcCalendar />}
-          {...badge(["SUPERVISION_PROPOSED"])} />
+          {...badge("supervisionManager")} />
 
         <NavLink
           to="/admin/doc-t005-006"
@@ -173,7 +173,7 @@ export default function A_Sidebar({ isOpen = false, onClose = () => {}, isStaff 
             </NavLink>
 
             {/* เรื่องที่ผู้ใช้แจ้งเข้ามาจากปุ่มแจ้งปัญหา — ป้ายนับเฉพาะเรื่องที่ยังไม่ได้อ่าน */}
-            <NavItem to="/admin/feedback" label="เรื่องที่ผู้ใช้แจ้ง" icon={<IcInbox />} {...badge(["FEEDBACK_NEW"])} />
+            <NavItem to="/admin/feedback" label="เรื่องที่ผู้ใช้แจ้ง" icon={<IcInbox />} {...badge("feedback")} />
 
             {/* บันทึกการใช้งาน — ใครทำอะไรกับระบบ */}
             <NavItem to="/admin/logs" label="บันทึกการใช้งาน" icon={<IcClipboard />} onClick={nav} />

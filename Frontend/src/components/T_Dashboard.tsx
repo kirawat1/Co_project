@@ -3,6 +3,15 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { apiFetch } from "../utils/apiFetch";
 import { notify } from "../utils/notify";
+import PendingWorkPanel, { type PendingItem } from "./PendingWorkPanel";
+
+// งานที่รอของอาจารย์ — ตัวเลขชุดเดียวกับป้ายบนเมนู (เดิมหน้านี้นับเอง: T002/T003 ดึงจาก /api/admin/students ที่อาจารย์ทั่วไปไม่มีสิทธิ์ ได้ 0 เงียบๆ · นิเทศไม่นับงานอาจารย์ร่วม)
+const TEACHER_PENDING: PendingItem[] = [
+  { key: "teacherRequests", label: "คำร้องรอพิจารณา", to: "/teacher/requests" },
+  { key: "t002", label: "T002 รอตรวจ", to: "/teacher/review-t002" },
+  { key: "t003", label: "T003 รอตรวจ", to: "/teacher/review-t003" },
+  { key: "teacherSupervision", label: "นัดนิเทศรอเลือกวัน / ระบุวันว่าง", to: "/teacher/review-supervision" },
+];
 
 const IOS_BLUE = "#0074B7";
 
@@ -88,9 +97,6 @@ export default function T_Dashboard() {
   const [pendingStudents, setPendingStudents] = useState<StudentRequest[]>([]);
   const [approvedStudents, setApprovedStudents] = useState<StudentRequest[]>([]);
   const [supervisions, setSupervisions] = useState<SupervisionAppt[]>([]);
-  const [t002Count, setT002Count] = useState(0);
-  const [t003Count, setT003Count] = useState(0);
-  const [supPendingCount, setSupPendingCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
   /* ==========================================
@@ -150,20 +156,9 @@ export default function T_Dashboard() {
           if (supData?.ok) {
             const supList = supData.supervisions || supData.list || [];
             setSupervisions(supList);
-            setSupPendingCount(supList.filter((s: SupervisionAppt) => s.status === "PENDING_TEACHER").length);
           }
         }
       } catch (err) { console.warn("Supervision API not ready or error", err); }
-
-      // 2.4 ดึงจำนวน T002/T003 รอตรวจ
-      try {
-        const [t002Res, t003Res] = await Promise.allSettled([
-          apiFetch(`/api/admin/students${query ? query + "&" : "?"}status=T002_SUBMITTED&limit=1`).then(r => r.json()),
-          apiFetch(`/api/admin/students${query ? query + "&" : "?"}status=T003_SUBMITTED&limit=1`).then(r => r.json()),
-        ]);
-        if (t002Res.status === "fulfilled" && t002Res.value?.meta) setT002Count(t002Res.value.meta.total ?? 0);
-        if (t003Res.status === "fulfilled" && t003Res.value?.meta) setT003Count(t003Res.value.meta.total ?? 0);
-      } catch { /* silent */ }
 
     } catch (err) {
       console.error("Teacher Dashboard Fetch Error:", err);
@@ -234,40 +229,14 @@ export default function T_Dashboard() {
         <LoadingBlock text="กำลังโหลดข้อมูล…" style={{ padding: 40, textAlign: 'center', color: '#64748b' }} />
       ) : (
         <>
-          {/* ================= ACTION REQUIRED ================= */}
-          {(stats.pendingRequests > 0 || t002Count > 0 || t003Count > 0 || supPendingCount > 0) && (
-            <section className="card" style={{ borderLeft: `5px solid #f59e0b`, background: 'linear-gradient(135deg,#fffbeb,#fef3c7)' }}>
-              <div style={{ fontWeight: 800, fontSize: 16, color: '#92400e', marginBottom: 14 }}>⚡ สิ่งที่ต้องดำเนินการ</div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-                {stats.pendingRequests > 0 && (
-                  <Link to="/teacher/requests" style={actionChip('#ef4444')}>
-                    📋 คำร้องสหกิจ <strong>{stats.pendingRequests}</strong> รายการ →
-                  </Link>
-                )}
-                {t002Count > 0 && (
-                  <Link to="/teacher/review-t002" style={actionChip('#0ea5e9')}>
-                    📄 T002 รอตรวจ <strong>{t002Count}</strong> ราย →
-                  </Link>
-                )}
-                {t003Count > 0 && (
-                  <Link to="/teacher/review-t003" style={actionChip('#8b5cf6')}>
-                    📘 T003 รอตรวจ <strong>{t003Count}</strong> ราย →
-                  </Link>
-                )}
-                {supPendingCount > 0 && (
-                  <Link to="/teacher/review-supervision" style={actionChip('#10b981')}>
-                    📅 นิเทศรอยืนยัน <strong>{supPendingCount}</strong> ราย →
-                  </Link>
-                )}
-              </div>
-            </section>
-          )}
+          {/* ================= งานที่รอ (ทุกรอบ — ตัวเลขเดียวกับป้ายบนเมนู) ================= */}
+          <PendingWorkPanel items={TEACHER_PENDING} />
 
           {/* ================= Stats ================= */}
           <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 250px), 1fr))", gap: 16 }}>
             <CardStat title="นักศึกษาในดูแล" value={stats.myStudentsCount} hint="นักศึกษาที่คุณเป็นที่ปรึกษา" color="#0ea5e9" />
             <CardStat title="คำร้องรอพิจารณา" value={stats.pendingRequests} hint="นักศึกษาที่ยื่นคำร้องเข้ามาใหม่" color="#f59e0b" />
-            <CardStat title="ผ่านคุณสมบัติ" value={stats.approvedStudents ?? approvedStudents.length} hint="นักศึกษาที่ได้ออกฝึกสหกิจ" color="#10b981" />
+            <CardStat title="ผ่านคุณสมบัติ" value={stats.approvedStudents ?? approvedStudents.length} hint="ผ่านคุณสมบัติแล้ว รอนักศึกษาส่งเอกสาร T000" color="#10b981" />
           </section>
 
           {/* ================= นัดนิเทศ ================= */}
@@ -307,7 +276,7 @@ export default function T_Dashboard() {
                         <td style={td()} data-label="สถานะ">{chip(sup.status)}</td>
                         <td style={td()}>
                           {sup.status === "PENDING_TEACHER" && (
-                            <Link to="/teacher/review-supervision" style={{ fontSize: 12, fontWeight: 700, color: '#fff', background: IOS_BLUE, padding: '5px 12px', borderRadius: 8, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+                            <Link to="/teacher/review-supervision" className="btn small" style={{ textDecoration: 'none' }}>
                               พิจารณา →
                             </Link>
                           )}
@@ -393,13 +362,3 @@ function td(customStyle?: React.CSSProperties): React.CSSProperties {
   return { padding: "14px 8px", fontSize: 14, color: "#334155", ...customStyle };
 }
 
-function actionChip(color: string): React.CSSProperties {
-  return {
-    display: "inline-flex", alignItems: "center", gap: 6,
-    padding: "8px 16px", borderRadius: 10,
-    background: color, color: "#fff",
-    fontWeight: 700, fontSize: 14,
-    textDecoration: "none", transition: ".15s",
-    boxShadow: `0 4px 12px ${color}40`,
-  };
-}

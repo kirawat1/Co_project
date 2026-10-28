@@ -4,6 +4,17 @@ import { IcUsers, IcDocs, IcAnnounce } from "./icons";
 import { LoadingBlock } from "./Spinner";
 import { notify } from "../utils/notify";
 import { defaultPeriod } from "../utils/defaultPeriod";
+import PendingWorkPanel, { type PendingItem } from "./PendingWorkPanel";
+
+// งานที่รอบนหน้าจัดการ — เมนูที่ผู้ใช้ไม่มี (อาจารย์ประจำวิชา: หนังสือนิเทศ/เรื่องที่ผู้ใช้แจ้ง) backend ไม่ส่งมา จึงไม่แสดง
+const ADMIN_PENDING: PendingItem[] = [
+  { key: "coopApplications", label: "คำร้องรอตรวจคุณสมบัติ", to: "/admin/coop-applications" },
+  { key: "t000", label: "T000 รอตรวจ / รอออกหนังสือ", to: "/admin/doct000" },
+  { key: "t002", label: "T002 รอตรวจ", to: "/admin/doct002" },
+  { key: "t003", label: "T003 รอตรวจ", to: "/admin/doct003" },
+  { key: "supervisionManager", label: "หนังสือขอนิเทศรอออก", to: "/admin/supervision-manager" },
+  { key: "feedback", label: "เรื่องที่ผู้ใช้แจ้งใหม่", to: "/admin/feedback" },
+];
 
 // --- Types ---
 interface DashboardStats {
@@ -170,6 +181,8 @@ export default function A_Dashboard() {
           </button>
         </div>
       </div>
+
+      <PendingWorkPanel items={ADMIN_PENDING} />
 
       {loading ? (
         <LoadingBlock text="กำลังสรุปข้อมูลสถิติ…" style={{ padding: '40px 0' }} />

@@ -331,6 +331,33 @@ function css(IOS_BLUE: string) {
   .filter-chip .count { font-size: 11px; padding: 1px 7px; border-radius: 999px; background: rgba(15,23,42,.08); }
   .filter-chip.on .count { background: rgba(255,255,255,.25); }
 
+  /* ── เครื่องหมายขั้นตอนบนเมนูนักศึกษา (utils/studentSteps.ts) ── */
+  .step-mark { flex-shrink: 0; font-size: 12px; font-weight: 800; line-height: 1; }
+  .step-mark.done { color: #16a34a; }
+  .step-mark.current { color: var(--ios-blue); font-size: 10px; }
+  .item.later:not(.active) { opacity: .55; }
+  [data-theme="dark"] .step-mark.done { color: #4ade80; }
+  [data-theme="dark"] .step-mark.current { color: #60a5fa; }
+
+  /* ── แผง "งานที่รอคุณ" (PendingWorkPanel) — ช่องที่มีงานรอเป็นสีแดงเหมือนป้ายบนเมนู ── */
+  .pending-panel { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 190px), 1fr)); gap: 10px; }
+  .pending-tile {
+    display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; border-radius: 12px;
+    border: 1px solid #e2e8f0; background: #fff; color: #475569; font-size: 13px; font-weight: 600;
+    text-decoration: none; transition: border-color .15s, background-color .15s;
+  }
+  .pending-tile:hover { border-color: var(--ios-blue); }
+  .pending-tile:focus-visible { outline: 2px solid var(--ios-blue); outline-offset: 2px; }
+  .pending-tile .n { font-size: 26px; font-weight: 800; line-height: 1.15; color: #94a3b8; font-variant-numeric: tabular-nums; }
+  .pending-tile.has { border-color: #fca5a5; background: #fef2f2; color: #334155; }
+  .pending-tile.has .n { color: #dc2626; }
+  .pending-tile .go { margin-top: 4px; font-size: 12px; font-weight: 700; color: var(--ios-blue); }
+  [data-theme="dark"] .pending-tile { background: #1e293b; border-color: #334155; color: #94a3b8; }
+  [data-theme="dark"] .pending-tile .n { color: #64748b; }
+  [data-theme="dark"] .pending-tile.has { background: rgba(220,38,38,.12); border-color: rgba(248,113,113,.45); color: #e2e8f0; }
+  [data-theme="dark"] .pending-tile.has .n { color: #f87171; }
+  [data-theme="dark"] .pending-tile .go { color: #60a5fa; }
+
   /* ── Generic outlined action button (compact — used inline in table rows) ── */
   .action-btn {
     padding: 6px 10px; border-radius: 6px; font-size: 12px; font-weight: 600;

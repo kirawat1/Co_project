@@ -1,20 +1,27 @@
 import { NavLink } from "react-router-dom";
 import { IcDashboard, IcUser, IcInbox, IcClipboard, IcList, IcRoute, IcCalendar, IcStar, IcClipboardCheck, IcBook } from "./icons";
 import { useNotifCounts } from "../hooks/useNotifCounts";
+import { stepState, type StepState } from "../utils/studentSteps";
 
-function NavItem({ to, label, icon, count, onClick, end }: {
+const STEP_TITLE: Record<StepState, string> = { done: "ผ่านขั้นนี้แล้ว", current: "ขั้นที่ต้องทำตอนนี้", later: "ยังไม่ถึงขั้นนี้" };
+
+function NavItem({ to, label, icon, count, onClick, end, step }: {
   to: string; label: string; icon: React.ReactNode;
   count?: number; onClick?: () => void; end?: boolean;
+  step?: StepState | null; // ✓ ผ่านแล้ว / ● ขั้นปัจจุบัน / จาง = ยังไม่ถึง (ยังกดเข้าได้ — เช่นกรอก T002 ไว้ก่อน)
 }) {
   const hasCount = (count ?? 0) > 0;
   return (
     <NavLink to={to} end={end}
-      className={({ isActive }) => "item" + (isActive ? " active" : "")}
+      className={({ isActive }) => "item" + (isActive ? " active" : "") + (step === "later" ? " later" : "")}
       onClick={onClick}
+      title={step ? STEP_TITLE[step] : undefined}
       style={hasCount ? { border: "1.5px solid #ef4444", borderRadius: 10 } : undefined}
     >
       <span className="ico">{icon}</span>
       <span className="text" style={{ flex: 1 }}>{label}</span>
+      {step === "done" && <span className="step-mark done" aria-label={STEP_TITLE.done}>✓</span>}
+      {step === "current" && <span className="step-mark current" aria-label={STEP_TITLE.current}>●</span>}
       {hasCount && (
         <span style={{ background: "#ef4444", color: "#fff", borderRadius: 99, padding: "1px 7px", fontSize: 11, fontWeight: 800, flexShrink: 0 }}>
           {count}
@@ -90,18 +97,18 @@ export default function S_Sidebar({ profile, isOpen = false, onClose = () => {} 
 
         {/* ยื่นคำร้อง = ขั้นแรกของกระบวนการ จึงอยู่นอกเงื่อนไข showDocsMenu
             (เงื่อนไขนั้นเปิดตั้งแต่ผ่านคุณสมบัติขึ้นไป ถ้าเอาไว้ข้างใน คนที่ยังไม่ได้ยื่นจะเข้าหน้ายื่นไม่ได้) */}
-        <NavItem to="/student/gateway" label="ยื่นคำร้องสหกิจ" icon={<IcInbox />} onClick={handleNav} />
+        <NavItem to="/student/gateway" label="ยื่นคำร้องสหกิจ" icon={<IcInbox />} onClick={handleNav} step={stepState("gateway", coop?.status)} />
 
         {showDocsMenu && (
           <>
             {/* ผลตรวจ T000 / หนังสือขอความอนุเคราะห์ / ใบตอบรับ / หนังสือส่งตัว (REQ/PLACEMENT_LETTER_ISSUED = ชนิดเก่า) */}
-            <NavItem to="/student/docs" label="เอกสารสหกิจ (CP-T000)" icon={<IcClipboard />}
+            <NavItem to="/student/docs" label="เอกสารสหกิจ (CP-T000)" icon={<IcClipboard />} step={stepState("docs", coop?.status)}
               {...badge(["DOCS_UPDATED", "REQ_LETTER_ISSUED", "PLACEMENT_LETTER_ISSUED"])} />
 
-            <NavItem to="/student/docs-t002" label="T002 รายละเอียดงาน" icon={<IcList />}
+            <NavItem to="/student/docs-t002" label="T002 รายละเอียดงาน" icon={<IcList />} step={stepState("t002", coop?.status)}
               {...badge(["T002_REVIEWED"])} />
 
-            <NavItem to="/student/docs-t003" label="T003 โครงร่างรายงาน" icon={<IcRoute />}
+            <NavItem to="/student/docs-t003" label="T003 โครงร่างรายงาน" icon={<IcRoute />} step={stepState("t003", coop?.status)}
               {...badge(["T003_REVIEWED"])} />
 
             <NavItem to="/student/supervision" label="นัดหมายนิเทศ" icon={<IcCalendar />}

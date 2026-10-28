@@ -43,15 +43,15 @@ const ACTION_CONFIG: Record<string, { text: string; link?: string; linkText?: st
   PENDING_GRADE:               { text: "รอพิจารณาเกรด — เจ้าหน้าที่จะตรวจคำร้องอีกครั้งเมื่อเกรดออก ไม่ต้องยื่นใหม่" },
   APPLICATION_EDITS_REQUIRED:  { text: "ต้องแก้ไขใบสมัคร — ดูความคิดเห็นและส่งใหม่", link: "/student/gateway", linkText: "ไปแก้ไข", isWarning: true },
   QUALIFICATION_FAILED:        { text: "คุณสมบัติไม่ผ่านเกณฑ์ กรุณาติดต่อเจ้าหน้าที่", isWarning: true },
-  QUALIFIED:                   { text: "ผ่านคุณสมบัติแล้ว รอเจ้าหน้าที่ตรวจเอกสาร T000" },
+  QUALIFIED:                   { text: "ผ่านคุณสมบัติแล้ว — ส่งเอกสารประกอบการสมัคร (T000) ในหน้าเอกสารสหกิจ", link: "/student/docs", linkText: "ไปส่งเอกสาร" },
   WAITING_FOR_STAFF_CHECK:     { text: "รอเจ้าหน้าที่ตรวจเอกสาร T000 (1-3 วันทำการ)" },
   EDITS_REQUIRED:              { text: "ต้องแก้ไขเอกสาร T000 — ดูความคิดเห็นจากเจ้าหน้าที่", link: "/student/docs", linkText: "ไปแก้ไข", isWarning: true },
   DOCS_APPROVED:               { text: "เอกสาร T000 ผ่านแล้ว รอเจ้าหน้าที่ออกหนังสือขอความอนุเคราะห์" },
-  REQ_LETTER_ISSUED:           { text: "ออกหนังสือขอความอนุเคราะห์แล้ว รอบริษัทตอบรับ" },
-  WAITING_FOR_PLACEMENT_LETTER:{ text: "รอใบตอบรับจากบริษัท" },
+  REQ_LETTER_ISSUED:           { text: "ออกหนังสือขอความอนุเคราะห์แล้ว — ดูวิธีจัดส่งหนังสือ และอัปโหลดใบตอบรับเมื่อบริษัทตอบรับ", link: "/student/docs", linkText: "ไปหน้าเอกสาร" },
+  WAITING_FOR_PLACEMENT_LETTER:{ text: "รอบริษัทตอบรับ — ได้ใบตอบรับแล้วอัปโหลดที่หน้าเอกสารสหกิจ", link: "/student/docs", linkText: "อัปโหลดใบตอบรับ" },
   WAITING_FOR_STAFF_CHECK_LETTER:{ text: "รอเจ้าหน้าที่ตรวจใบตอบรับ" },
   ACCEPTANCE_CHECKED:          { text: "ตรวจใบตอบรับแล้ว รอออกหนังสือส่งตัว" },
-  PLACEMENT_LETTER_ISSUED:     { text: "ได้รับหนังสือส่งตัวแล้ว 🎉 เตรียมตัวออกปฏิบัติงาน" },
+  PLACEMENT_LETTER_ISSUED:     { text: "ได้รับหนังสือส่งตัวแล้ว 🎉 — กดดาวน์โหลดหนังสือส่งตัวในหน้าเอกสารสหกิจ (ดาวน์โหลดแล้วจึงส่ง T002 ได้)", link: "/student/docs", linkText: "ไปดาวน์โหลด" },
   INTERNSHIP_STARTED:          { text: "กำลังฝึกสหกิจ — ส่งเอกสาร T002 แบบแจ้งรายละเอียดงาน", link: "/student/docs-t002", linkText: "ไปหน้า T002" },
   T002_SUBMITTED:              { text: "รออาจารย์ตรวจสอบ T002" },
   T002_EDITS_REQUIRED:         { text: "ต้องแก้ไข T002 — แบบแจ้งรายละเอียดงานและที่พัก", link: "/student/docs-t002", linkText: "ไปแก้ไข", isWarning: true },
@@ -67,13 +67,33 @@ function getCurrentPhaseIndex(status: string): number {
   return 0;
 }
 
-interface Props { status: string; lastComment?: string }
+interface Props { status: string; lastComment?: string; showNextStep?: boolean }
 
-export default function S_StatusTracker({ status, lastComment }: Props) {
+// กล่อง "ขั้นตอนถัดไป" + ปุ่มพาไปทำ — Dashboard แสดงตลอด (เดิมซ่อนอยู่หลัง "ดูรายละเอียด")
+export function NextStepBar({ status, lastComment }: { status: string; lastComment?: string }) {
   const navigate = useNavigate();
+  const action = ACTION_CONFIG[status] ?? { text: "ดำเนินการตามขั้นตอนที่กำหนด" };
+  return (
+    <div style={{ background:action.isWarning?"#fff7ed":"#eff6ff", border:`1px solid ${action.isWarning?"#fed7aa":"#bfdbfe"}`, borderRadius:16, padding:"14px 20px", display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, flexWrap:"wrap" }}>
+      <div style={{ flex:"1 1 240px", minWidth:0 }}>
+        <div style={{ fontSize:12, fontWeight:700, color:action.isWarning?"#9a3412":"#1e40af", marginBottom:4, textTransform:"uppercase", letterSpacing:".5px" }}>
+          {action.isWarning ? "⚠️ ต้องดำเนินการ" : "▶ ขั้นตอนถัดไป"}
+        </div>
+        <div style={{ fontSize:14, color:action.isWarning?"#7c2d12":"#1e3a8a", fontWeight:600 }}>{action.text}</div>
+        {lastComment && action.isWarning && <div style={{ fontSize:12, color:"#92400e", marginTop:4, fontStyle:"italic" }}>💬 "{lastComment}"</div>}
+      </div>
+      {action.link && (
+        <button className="btn" style={{ flexShrink: 0 }} onClick={() => navigate(action.link!)}>
+          {action.linkText} →
+        </button>
+      )}
+    </div>
+  );
+}
+
+export default function S_StatusTracker({ status, lastComment, showNextStep = true }: Props) {
   const currentPhaseIdx = getCurrentPhaseIndex(status);
   const currentPhase = PHASES[currentPhaseIdx];
-  const action = ACTION_CONFIG[status] ?? { text: "ดำเนินการตามขั้นตอนที่กำหนด" };
 
   return (
     <div style={{ marginBottom: 24 }}>
@@ -115,20 +135,7 @@ export default function S_StatusTracker({ status, lastComment }: Props) {
         </div>
       </div>
 
-      <div style={{ background:action.isWarning?"#fff7ed":"#eff6ff", border:`1px solid ${action.isWarning?"#fed7aa":"#bfdbfe"}`, borderRadius:16, padding:"14px 20px", display:"flex", alignItems:"center", justifyContent:"space-between", gap:12 }}>
-        <div style={{ flex:1 }}>
-          <div style={{ fontSize:12, fontWeight:700, color:action.isWarning?"#9a3412":"#1e40af", marginBottom:4, textTransform:"uppercase", letterSpacing:".5px" }}>
-            {action.isWarning ? "⚠️ ต้องดำเนินการ" : "▶ ขั้นตอนถัดไป"}
-          </div>
-          <div style={{ fontSize:14, color:action.isWarning?"#7c2d12":"#1e3a8a", fontWeight:600 }}>{action.text}</div>
-          {lastComment && action.isWarning && <div style={{ fontSize:12, color:"#92400e", marginTop:4, fontStyle:"italic" }}>💬 "{lastComment}"</div>}
-        </div>
-        {action.link && (
-          <button className="btn" style={{ flexShrink: 0 }} onClick={() => navigate(action.link!)}>
-            {action.linkText} →
-          </button>
-        )}
-      </div>
+      {showNextStep && <NextStepBar status={status} lastComment={lastComment} />}
     </div>
   );
 }

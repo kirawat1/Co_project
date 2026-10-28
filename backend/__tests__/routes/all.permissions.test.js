@@ -144,6 +144,7 @@ const EXPECTED = {
     'GET /counts':         '✓ ✓ ✓ ✓',
     'POST /mark-all-read': '✓ ✓ ✓ ✓',
     'POST /mark-read':     '✓ ✓ ✓ ✓',
+    'GET /pending':        '✓ ✓ ✓ ✓',
   },
   feedback: {
     'POST /':  '✓ ✓ ✓ ✓',
