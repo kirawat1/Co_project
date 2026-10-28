@@ -1,4 +1,5 @@
 // src/components/LoginPage.tsx
+import { BusyLabel } from "./Spinner";
 import { useEffect, useMemo, useState } from "react";
 import { AuthAPI } from "./api";
 import type { Role, TokenClaims } from "./api";
@@ -280,7 +281,7 @@ export default function LoginPage() {
             </div>
 
             <button className="btn" type="submit" disabled={loading}>
-              {loading ? "กำลังดำเนินการ..." : "เข้าสู่ระบบ"}
+              {loading ? <BusyLabel text="กำลังเข้าสู่ระบบ…" /> : "เข้าสู่ระบบ"}
             </button>
           </form>
 

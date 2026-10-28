@@ -1,5 +1,6 @@
 // ขยายเวลาส่งรายคน (ปฏิทินของรอบ) — T000/T002/T003 · ส่งได้ถึงสิ้นวันที่ขยาย แต่ยังนับว่าส่งช้า
 // เจ้าหน้าที่ / อาจารย์ประจำวิชาของหลักสูตรนักศึกษา · เหตุผลเก็บในบันทึกการใช้งาน
+import { BusyLabel } from "./Spinner";
 import { useEffect, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import axios from "axios";
@@ -108,7 +109,7 @@ export default function DeadlineExtensionButton({ studentId, studentName, extens
                             </div>
                             <div style={{ display: "flex", gap: 8 }}>
                                 <button type="button" className="btn-secondary" disabled={saving} onClick={() => setOpen(false)}>ยกเลิก</button>
-                                <button type="button" className="btn" disabled={saving} onClick={save}>{saving ? "กำลังบันทึก..." : "บันทึก"}</button>
+                                <button type="button" className="btn" disabled={saving} onClick={save}>{saving ? <BusyLabel text="กำลังบันทึก…" /> : "บันทึก"}</button>
                             </div>
                         </div>
                     </div>

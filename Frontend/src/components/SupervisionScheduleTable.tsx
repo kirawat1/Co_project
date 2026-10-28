@@ -1,3 +1,4 @@
+import { BusyLabel } from "./Spinner";
 import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
 import type { CalendarEvent } from "./SupervisionCalendar";
@@ -129,7 +130,7 @@ export default function SupervisionScheduleTable({ events, canExport = false, ex
                     )}
                     {canExport && exportUrl && (
                         <button className="btn" style={{ background: "#16a34a", color: "#fff" }} onClick={handleExport} disabled={downloading}>
-                            {downloading ? "กำลังสร้างไฟล์..." : "📊 Export Excel"}
+                            {downloading ? <BusyLabel text="กำลังสร้างไฟล์…" /> : "📊 Export Excel"}
                         </button>
                     )}
                 </div>

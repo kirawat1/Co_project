@@ -3,6 +3,7 @@ import { apiFetch } from "../utils/apiFetch";
 import { fmtDate } from '../utils/dateFormat';
 import LetterDeliveryNotice, { type LetterDelivery } from "./LetterDeliveryNotice";
 import { notify } from "../utils/notify";
+import { BusyLabel } from "./Spinner";
 
 interface Props {
     placeLetterUrl?: string;
@@ -29,6 +30,8 @@ export default function PlacementLetterCard({
     const fileUrl = placeLetterUrl ? `${baseUrl}/${placeLetterUrl}` : null;
 
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+    // บันทึกการรับหนังสือ (ออกฝึกสหกิจ) หลังเปิดไฟล์ — หมุนปุ่ม กันกดซ้ำ
+    const [acking, setAcking] = useState(false);
 
     const canDownload = !!fileUrl;
 
@@ -46,8 +49,9 @@ export default function PlacementLetterCard({
 
         // เปลี่ยนสถานะเฉพาะครั้งแรก (ออกหนังสือส่งตัวแล้ว → ออกฝึกสหกิจ) — เดิมกดดาวน์โหลดซ้ำตอนออกฝึกแล้วขึ้น error
         // (เจ้าหน้าที่ส่งหนังสือให้บริษัทเอง ระบบเปลี่ยนเป็นออกฝึกสหกิจให้แล้วตั้งแต่ออกหนังสือ)
-        if (docStatus !== "PLACEMENT_LETTER_ISSUED") return;
+        if (docStatus !== "PLACEMENT_LETTER_ISSUED" || acking) return;
 
+        setAcking(true);
         try {
             const res = await apiFetch(
                 "/api/students/download-placement-letter",
@@ -68,6 +72,8 @@ export default function PlacementLetterCard({
         } catch (err) {
             console.error("ack placement error", err);
             notify.error("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้");
+        } finally {
+            setAcking(false);
         }
     };
 
@@ -118,14 +124,14 @@ export default function PlacementLetterCard({
 
                     <button
                         onClick={handleDownloadAndAck}
-                        disabled={!canDownload}
+                        disabled={!canDownload || acking}
                         style={{
                             ...btnStyle,
                             background: canDownload ? "#7c3aed" : "#e5e7eb",
                             color: canDownload ? "white" : "#9ca3af"
                         }}
                     >
-                        ⬇️ ดาวน์โหลด
+                        {acking ? <BusyLabel size={14} text="กำลังบันทึก…" /> : "⬇️ ดาวน์โหลด"}
                     </button>
                 </div>
 

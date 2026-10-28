@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { fmtDate } from '../utils/dateFormat';
+import { BusyLabel } from "./Spinner";
 
 interface CountdownTimerProps {
     endDate?: string;
@@ -75,7 +76,7 @@ export default function CountdownTimer({ endDate, isOpen }: CountdownTimerProps)
                     🚫 หมดเขตการส่งเอกสาร
                 </div>
             ) : (
-                <span style={{ color: "#9ca3af", fontSize: 13 }}>กำลังคำนวณเวลา...</span>
+                <span style={{ color: "#9ca3af", fontSize: 13 }}><BusyLabel size={12} text="กำลังคำนวณเวลา…" /></span>
             )}
         </div>
     );

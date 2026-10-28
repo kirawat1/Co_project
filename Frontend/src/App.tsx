@@ -1,6 +1,7 @@
 import { lazy, Suspense } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import LoginPage from "./components/loginpage";
+import { LoadingBlock } from "./components/Spinner";
 import StudentTheme from "./components/S_Theme";
 
 // หน้าในส่วนนี้โหลดตอนเปิดหน้านั้น (แบ่งไฟล์ — ไม่ต้องโหลดทุกหน้า/ไลบรารี PDF/Excel ตั้งแต่แรก)
@@ -13,7 +14,7 @@ export default function App() {
     <>
       {/* Global theme CSS — must be rendered at root so LoginPage also gets dark mode overrides */}
       <StudentTheme />
-      <Suspense fallback={<div style={{ padding: 24, color: "var(--text-muted)" }}>กำลังโหลด...</div>}>
+      <Suspense fallback={<LoadingBlock text="กำลังโหลด…" style={{ padding: 24 }} />}>
       <Routes>
         <Route path="/" element={<LoginPage />} />
         {/* นักศึกษา */}

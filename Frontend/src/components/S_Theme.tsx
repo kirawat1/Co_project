@@ -352,6 +352,8 @@ function css(IOS_BLUE: string) {
   }
   .modal-card-header h2, .modal-card-header h3 { margin: 0; font-size: 20px; font-weight: 800; color: #0f172a; }
   [data-theme="dark"] .modal-card-header { border-color: rgba(255,255,255,.1); }
+  /* หัวข้อหน้าต่าง: เดิมคงสีเข้ม #0f172a บนพื้นการ์ดมืด อ่านแทบไม่ออก */
+  [data-theme="dark"] .modal-card-header h2, [data-theme="dark"] .modal-card-header h3 { color: #f1f5f9; }
   /* ปุ่มปิดแบบตัวอักษร × ล้วน (มาตรฐานของหัวโมดัลทั่วไป) — ใช้ .close-btn ด้านบนสำหรับหัวโมดัลแบบวงกลม/กำหนดเอง */
   .modal-close {
     background: none; border: none; font-size: 24px; line-height: 1;

@@ -1,3 +1,4 @@
+import { BusyLabel } from "./Spinner";
 import { useState } from "react";
 import { apiFetch } from "../utils/apiFetch";
 import { notify } from "../utils/notify";
@@ -66,7 +67,7 @@ export default function ContactForm({ companyId, contact, onSaved, onCancel }: {
       ))}
       <div style={{ gridColumn: "1 / -1", display: "flex", gap: 8, justifyContent: "flex-end" }}>
         <button type="button" className="btn-secondary" onClick={onCancel} disabled={saving}>ยกเลิก</button>
-        <button type="button" className="btn" disabled={saving} onClick={submit}>{saving ? "กำลังบันทึก..." : "💾 บันทึกผู้ติดต่อ"}</button>
+        <button type="button" className="btn" disabled={saving} onClick={submit}>{saving ? <BusyLabel text="กำลังบันทึก…" /> : "💾 บันทึกผู้ติดต่อ"}</button>
       </div>
     </div>
   );
