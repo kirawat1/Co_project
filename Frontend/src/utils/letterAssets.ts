@@ -1,6 +1,7 @@
 import { apiFetch } from "./apiFetch";
 import { letterAttachmentDocs } from "./letterGroup";
 import { emblemSizePt, type LetterEmblem } from "./docGeneratorUtils";
+import { trimBox } from "./letterLayout";
 
 // ไฟล์/ค่าที่หนังสือต้องใช้ร่วมกัน: ตราสัญลักษณ์มหาวิทยาลัย (คีย์ KRUT), รายละเอียดโครงการ, ใบตอบรับ, ชื่อ-ตำแหน่งคณบดี
 // (ใช้ร่วมกันระหว่างหน้าต่างออกหนังสือรายคนกับออกร่างหลายคน)
@@ -14,20 +15,46 @@ export interface LetterAssets {
   emblem?: LetterEmblem | null;
 }
 
-/** โหลดรูปตราสัญลักษณ์มหาวิทยาลัยมาฝังในหนังสือ Word · โหลดไม่ได้ = null */
-export async function loadEmblem(url: string | null): Promise<LetterEmblem | null> {
-  if (!url) return null;
-  try {
-    const res = await fetch(url);
-    if (!res.ok) return null;
-    const blob = await res.blob();
-    const bmp = await createImageBitmap(blob);
-    const size = emblemSizePt(bmp.width, bmp.height);
-    bmp.close();
-    return { data: new Uint8Array(await blob.arrayBuffer()), mime: blob.type || "image/png", ...size };
-  } catch {
-    return null;
+// ความสูงพิกเซลของตราที่ฝังในหนังสือ — ตราสูง 4 ซม. ≈ 300 dpi
+// (ไฟล์ต้นฉบับ 3185 px ทำให้ PDF หนังสือหน้าเดียวหนัก 38 MB เพราะ jsPDF ฝังรูปแบบไม่บีบอัด)
+const EMBLEM_MAX_PX = 480;
+const emblemCache = new Map<string, Promise<LetterEmblem | null>>();
+
+/** ตัดขอบว่างรอบตรา + ย่อขนาด → PNG ขนาดตราบนหนังสือสูง 4 ซม. */
+async function prepareEmblem(blob: Blob): Promise<LetterEmblem> {
+  const bmp = await createImageBitmap(blob);
+  const src = document.createElement("canvas");
+  src.width = bmp.width; src.height = bmp.height;
+  const sctx = src.getContext("2d")!;
+  sctx.drawImage(bmp, 0, 0);
+  const box = trimBox(sctx.getImageData(0, 0, src.width, src.height).data, src.width, src.height);
+  const k = Math.min(1, EMBLEM_MAX_PX / box.h);
+  const out = document.createElement("canvas");
+  out.width = Math.max(1, Math.round(box.w * k)); out.height = Math.max(1, Math.round(box.h * k));
+  out.getContext("2d")!.drawImage(bmp, box.x, box.y, box.w, box.h, 0, 0, out.width, out.height);
+  bmp.close();
+  const png = await new Promise<Blob>((ok, fail) => out.toBlob((b) => (b ? ok(b) : fail(new Error("toBlob"))), "image/png"));
+  return { data: new Uint8Array(await png.arrayBuffer()), mime: "image/png", ...emblemSizePt(out.width, out.height) };
+}
+
+/** โหลดตราสัญลักษณ์มหาวิทยาลัยสำหรับหนังสือ (Word + PDF ใช้ร่วมกัน · จำต่อ URL) · โหลดไม่ได้ = null */
+export function loadEmblem(url: string | null): Promise<LetterEmblem | null> {
+  if (!url) return Promise.resolve(null);
+  let p = emblemCache.get(url);
+  if (!p) {
+    p = (async () => {
+      try {
+        const res = await fetch(url);
+        if (!res.ok) return null;
+        return await prepareEmblem(await res.blob());
+      } catch {
+        return null;
+      }
+    })();
+    p.then((e) => { if (!e) emblemCache.delete(url); });
+    emblemCache.set(url, p);
   }
+  return p;
 }
 
 export async function loadLetterAssets(): Promise<LetterAssets> {

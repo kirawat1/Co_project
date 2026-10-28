@@ -1,49 +1,11 @@
 // utils/pdfGeneratorPlacement.ts
-import { jsPDF } from "jspdf";
-import { letterMajorName } from "./docGeneratorUtils";
-import { notify } from "./notify";
+// PDF หนังสือส่งตัว — เนื้อหาเดียวกับ Word (placementLetterModel) วาดด้วย jsPDF
+import type { jsPDF } from "jspdf";
+import { letterMajorName, placementLetterModel, thaiPrefix } from "./docGeneratorUtils";
 import { letterRecipient, recipientText } from "./letterRecipient";
-import { isGroup, sameDates, studentLines, type LetterStudent } from "./letterGroup";
-
-// Helper: โหลด Font
-const getFontBase64 = async (url: string): Promise<string> => {
-  const response = await fetch(url);
-  if (!response.ok) throw new Error("Font not found");
-  const blob = await response.blob();
-  return new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.onloadend = () => resolve((reader.result as string).split(",")[1]);
-    reader.readAsDataURL(blob);
-  });
-};
-
-// ✅ Helper ใหม่: โหลดรูป + เช็ค Format อัตโนมัติ (ไม่ต้องเดาจาก URL)
-const getImageData = async (url: string) => {
-  try {
-    const res = await fetch(url);
-    if (!res.ok) {
-      console.error(`❌ Failed to fetch image: ${url} (Status: ${res.status})`);
-      throw new Error(`Image not found: ${url}`);
-    }
-
-    const blob = await res.blob();
-    const buffer = await blob.arrayBuffer();
-
-    // ตรวจสอบชนิดไฟล์จาก Header หรือ Blob type
-    let format = "JPEG";
-    if (blob.type === "image/png") format = "PNG";
-    else if (blob.type === "image/jpeg" || blob.type === "image/jpg")
-      format = "JPEG";
-
-    return {
-      data: new Uint8Array(buffer),
-      format: format as "PNG" | "JPEG",
-    };
-  } catch (e) {
-    console.error("⚠️ Image Load Error:", e);
-    return null; // คืนค่า null ถ้าโหลดไม่ได้
-  }
-};
+import { type LetterStudent } from "./letterGroup";
+import { loadEmblem } from "./letterAssets";
+import { newLetterDoc, renderLetterPdf } from "./pdfLetter";
 
 export const createPlacementPDF = async (
   student: any,
@@ -53,151 +15,22 @@ export const createPlacementPDF = async (
   deanPosition: string = "คณบดีวิทยาลัยการคอมพิวเตอร์", // รับค่าตำแหน่ง
   students?: LetterStudent[], // หนังสือรวมหลายคน — วันฝึกต่างกันได้ (ใส่ท้ายชื่อแต่ละคน)
 ): Promise<jsPDF> => {
-  const group = isGroup(students) ? students : null;
-  const groupSameDates = group ? sameDates(group) : true;
-  const doc = new jsPDF({ unit: "mm", format: "a4" });
-
-  // 1. Load Fonts
-  try {
-    const fontNormal = await getFontBase64("/fonts/THSarabunNew.ttf");
-    const fontBold = await getFontBase64("/fonts/THSarabunNew Bold.ttf");
-
-    doc.addFileToVFS("THSarabunNew.ttf", fontNormal);
-    doc.addFileToVFS("THSarabunNew Bold.ttf", fontBold);
-    doc.addFont("THSarabunNew.ttf", "THSarabun", "normal");
-    doc.addFont("THSarabunNew Bold.ttf", "THSarabun", "bold");
-    doc.setFont("THSarabun", "normal");
-  } catch (e) {
-    console.error("Error loading fonts:", e);
-    notify.error("ไม่พบไฟล์ฟอนต์ใน /fonts/ กรุณาตรวจสอบ");
-    return doc;
-  }
-
-  // --- ข้อมูล ---
-  const docNumber = formData.placeDocNumber || "อว xxxx/xxxx";
-  const formatDate = (date: string | Date) => {
-    if (!date) return "....................";
-    return new Date(date).toLocaleDateString("th-TH", {
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    });
-  };
-
-  const docDateStr = formatDate(formData.placeDocDate);
-  const startDateStr = formatDate(formData.actualStartDate);
-  const endDateStr = formatDate(formData.actualEndDate);
-  const companyName =
-    student.coop?.company?.name ||
-    "..................................................";
-
-  const prefix =
-    student.prefix === "MR"
-      ? "นาย"
-      : student.prefix === "MS"
-        ? "นางสาว"
-        : student.prefix || "";
-  const studentName = `${prefix}${student.firstName} ${student.lastName}`;
-  const studentId = student.studentId;
-  // ชื่อหลักสูตรภาษาไทย — student.major เป็นรหัสสาขา (CS) เดิมพิมพ์ "หลักสูตรCS"
-  const majorName = letterMajorName(student);
-
-  // --- เริ่มวาด PDF ---
-  const pageWidth = 210;
-  let y = 15;
-
-  // ✅ 1. วาดตราสัญลักษณ์มหาวิทยาลัย (คีย์ KRUT ในหน้าตั้งค่า)
-  const krutImg = await getImageData(krutUrl);
-  if (krutImg) {
-    // x, y, w, h
-    doc.addImage(krutImg.data, krutImg.format, pageWidth / 2 - 15, y, 30, 28);
-  }
-
-  // 2. Header
-  doc.setFontSize(16);
-  doc.text(`ที่ ${docNumber}`, 20, 45);
-
-  doc.text("มหาวิทยาลัยขอนแก่น", 190, 45, { align: "right" });
-  doc.text("123 ถนนมิตรภาพ", 190, 52, { align: "right" });
-  doc.text("อำเภอเมืองขอนแก่น", 190, 59, { align: "right" });
-  doc.text("จังหวัดขอนแก่น 40002", 190, 66, { align: "right" });
-
-  // 3. วันที่
-  const centerX = 105;
-  doc.text(docDateStr, centerX, 75, { align: "center" });
-
-  // 4. เรื่อง & เรียน
-  doc.text("เรื่อง  ขอส่งตัวนักศึกษาเข้ารับการปฏิบัติงานสหกิจศึกษา", 20, 85);
-  // ผู้รับ = ผู้ติดต่อ (HR) ของคำร้อง → ผู้ติดต่อเดิมของบริษัท → ผู้จัดการบริษัท (เดิมอ่านตำแหน่งผิดช่อง ตำแหน่งไม่เคยขึ้น)
-  const recipientStr = recipientText(letterRecipient(student.coop)) || `ผู้จัดการบริษัท ${companyName}`;
-  doc.text(`เรียน  ${recipientStr}`, 20, 92);
-
-  // 5. เนื้อหา (paragraph เดียวต่อเนื่องตามต้นแบบจริง)
-  const mainPara = `       ตามแบบตอบรับนักศึกษาปฏิบัติงานสหกิจศึกษา ที่ทางบริษัท ${companyName} ยินดีรับนักศึกษาหลักสูตร${majorName} วิทยาลัยการคอมพิวเตอร์ เข้ารับการปฏิบัติงานสหกิจศึกษา จำนวน 1 คน คือ ${studentName} รหัสประจำตัว ${studentId} ในการนี้ มหาวิทยาลัยขอนแก่น วิทยาลัยการคอมพิวเตอร์ ใคร่ขอส่งตัวนักศึกษาปฏิบัติงานสหกิจศึกษาดังกล่าว เข้ารับการปฏิบัติงานในระหว่างวันที่ ${startDateStr} ถึงวันที่ ${endDateStr} และขอความอนุเคราะห์จากท่านตรวจสอบรายงานผลการปฏิบัติงานของนักศึกษาสหกิจศึกษา และส่งกลับมายัง วิทยาลัยการคอมพิวเตอร์ มหาวิทยาลัยขอนแก่น ภายหลังครบกำหนดระยะเวลาการปฏิบัติงานของนักศึกษา ภายใน 10 วัน เพื่อวิทยาลัยการคอมพิวเตอร์จักได้ดำเนินการประเมินผลการปฏิบัติงานสหกิจศึกษานักศึกษาดังกล่าวต่อไป ทั้งนี้ ใคร่ขอขอบพระคุณหน่วยงานของท่าน ที่ได้อนุเคราะห์ให้นักศึกษาเข้ารับการปฏิบัติงานสหกิจศึกษาในครั้งนี้ หวังเป็นอย่างยิ่งว่าจะได้รับความอนุเคราะห์จากท่านอีกในโอกาสต่อไป`;
-
-  let currentY = 102;
-  const lineHeight = 7;
-
-  if (group) {
-    // หนังสือรวม: ย่อหน้าแนะนำ → รายชื่อ → ย่อหน้าส่งตัว
-    const intro = `       ตามแบบตอบรับนักศึกษาปฏิบัติงานสหกิจศึกษา ที่ทางบริษัท ${companyName} ยินดีรับนักศึกษาหลักสูตร${majorName} วิทยาลัยการคอมพิวเตอร์ เข้ารับการปฏิบัติงานสหกิจศึกษา จำนวน ${group.length} คน ดังรายชื่อต่อไปนี้`;
-    const introLines = doc.splitTextToSize(intro, 165);
-    doc.text(introLines, 20, currentY);
-    currentY += introLines.length * lineHeight + 2;
-    for (const line of studentLines(group, { withDates: !groupSameDates })) {
-      const wrapped = doc.splitTextToSize(line, 150);
-      if (currentY + wrapped.length * lineHeight > 255) { doc.addPage(); currentY = 25; }
-      doc.text(wrapped, 35, currentY);
-      currentY += wrapped.length * lineHeight;
-    }
-    currentY += 2;
-    const period = groupSameDates
-      ? `ในระหว่างวันที่ ${formatDate(group[0].startDate as any)} ถึงวันที่ ${formatDate(group[0].endDate as any)}`
-      : "ตามช่วงเวลาที่ระบุท้ายรายชื่อข้างต้น";
-    const rest = `       ในการนี้ มหาวิทยาลัยขอนแก่น วิทยาลัยการคอมพิวเตอร์ ใคร่ขอส่งตัวนักศึกษาปฏิบัติงานสหกิจศึกษาดังกล่าว เข้ารับการปฏิบัติงาน${period} และขอความอนุเคราะห์จากท่านตรวจสอบรายงานผลการปฏิบัติงานของนักศึกษาสหกิจศึกษา และส่งกลับมายัง วิทยาลัยการคอมพิวเตอร์ มหาวิทยาลัยขอนแก่น ภายหลังครบกำหนดระยะเวลาการปฏิบัติงานของนักศึกษา ภายใน 10 วัน เพื่อวิทยาลัยการคอมพิวเตอร์จักได้ดำเนินการประเมินผลการปฏิบัติงานสหกิจศึกษานักศึกษาดังกล่าวต่อไป ทั้งนี้ ใคร่ขอขอบพระคุณหน่วยงานของท่าน ที่ได้อนุเคราะห์ให้นักศึกษาเข้ารับการปฏิบัติงานสหกิจศึกษาในครั้งนี้ หวังเป็นอย่างยิ่งว่าจะได้รับความอนุเคราะห์จากท่านอีกในโอกาสต่อไป`;
-    const restLines = doc.splitTextToSize(rest, 165);
-    if (currentY + restLines.length * lineHeight > 255) { doc.addPage(); currentY = 25; }
-    doc.text(restLines, 20, currentY);
-    currentY += restLines.length * lineHeight + 5;
-  } else {
-    const mainLines = doc.splitTextToSize(mainPara, 165);
-    doc.text(mainLines, 20, currentY);
-    currentY += mainLines.length * lineHeight + 5;
-  }
-  // หนังสือรวม: "จึงเรียนมา…" + ลายเซ็น (ราว 60 มม.) ต้องอยู่หน้าเดียวกัน · หนังสือเดี่ยวคงรูปแบบเดิม
-  if (group && currentY > 220) { doc.addPage(); currentY = 30; }
-
-  doc.text(`       จึงเรียนมาเพื่อโปรดทราบ`, 20, currentY);
-  currentY += lineHeight + 15;
-
-  // 6. คำลงท้าย & ลายเซ็น
-  doc.text("ขอแสดงความนับถือ", centerX, currentY, { align: "center" });
-
-  currentY += 5; // เว้นที่
-
-  // ที่ว่างให้คณบดีลงนามจริง (ไม่มีรูปลายเซ็น — หนังสือโหลดไปลงนาม)
-  currentY += 15;
-
-  currentY += 20;
-  doc.text(`(${deanName})`, centerX, currentY, {
-    align: "center",
+  const model = placementLetterModel({
+    // เดิมพิมพ์ "ที่ 660301…" ไม่มี "อว" — ตัวสร้างใหม่เติม "ที่ อว" ให้เหมือนหนังสือแบบอื่น
+    docNumber: formData.placeDocNumber || "",
+    docDate: formData.placeDocDate,
+    studentName: `${thaiPrefix(student.prefix)}${student.firstName} ${student.lastName}`,
+    studentId: student.studentId,
+    // ชื่อหลักสูตรภาษาไทย — student.major เป็นรหัสสาขา (CS)
+    major: letterMajorName(student),
+    companyName: student.coop?.company?.name || "..................................................",
+    // ผู้รับ = ผู้ติดต่อ (HR) ของคำร้อง → ผู้ติดต่อเดิมของบริษัท → ผู้จัดการบริษัท
+    companyRecipient: recipientText(letterRecipient(student.coop)) || undefined,
+    startDate: formData.actualStartDate,
+    endDate: formData.actualEndDate,
+    deanName, deanPosition, students,
   });
-  doc.text(`${deanPosition}`, centerX, currentY + 7, {
-    align: "center",
-  });
-
-  // 7. Footer
-  currentY += 25;
-  if (currentY > 280) {
-    doc.addPage();
-    currentY = 20;
-  }
-
-  doc.setFontSize(14);
-  doc.text("วิทยาลัยการคอมพิวเตอร์", 20, currentY);
-  doc.text("โทรศัพท์ 0 4300 9700 ต่อ 50523", 20, currentY + 6);
-  doc.text("Email: wijika@kku.ac.th", 20, currentY + 12);
-  doc.text("ผู้ร่าง/พิมพ์: วิจิตรา ขจร", 190, currentY + 12, { align: "right" });
-
+  const doc = await newLetterDoc();
+  renderLetterPdf(doc, model, await loadEmblem(krutUrl));
   return doc;
 };

@@ -1,23 +1,14 @@
 // Frontend/src/utils/pdfDispatchGenerator.ts
-// PDF Generator สำหรับหนังสืออนุเคราหาะส่งตัวสหกิจศึกษา
-import { jsPDF } from "jspdf";
+// PDF หนังสือขอความอนุเคราะห์ (หน้าหนังสือ + เอกสารแนบต่อท้าย)
 import { PDFDocument } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
-import { normalizeDocNumber, formMajorName } from "./docGeneratorUtils";
+import { dispatchLetterModel, thaiPrefix } from "./docGeneratorUtils";
 import { letterRecipient, recipientText } from "./letterRecipient";
-import { isGroup, sameDates, studentLines, type LetterStudent } from "./letterGroup";
+import { type LetterStudent } from "./letterGroup";
+import { loadEmblem } from "./letterAssets";
+import { newLetterDoc, renderLetterPdf } from "./pdfLetter";
 
 // --- Helpers ---
-const getFontBase64 = async (url: string): Promise<string> => {
-  const res = await fetch(url);
-  const blob = await res.blob();
-  return new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.onloadend = () => resolve((reader.result as string).split(",")[1]);
-    reader.readAsDataURL(blob);
-  });
-};
-
 const getImageArrayBuffer = async (url: string): Promise<ArrayBuffer> => {
   if (!url) throw new Error("URL is empty");
 
@@ -33,26 +24,6 @@ const getImageArrayBuffer = async (url: string): Promise<ArrayBuffer> => {
   }
 
   return await res.arrayBuffer();
-};
-
-const toThaiDate = (dateStr?: string | Date) => {
-  if (!dateStr) return "....................";
-  const d = new Date(dateStr);
-  const months = [
-    "มกราคม",
-    "กุมภาพันธ์",
-    "มีนาคม",
-    "เมษายน",
-    "พฤษภาคม",
-    "มิถุนายน",
-    "กรกฎาคม",
-    "สิงหาคม",
-    "กันยายน",
-    "ตุลาคม",
-    "พฤศจิกายน",
-    "ธันวาคม",
-  ];
-  return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear() + 543}`;
 };
 
 /** ผลรวมเอกสารแนบ (out-param ทางเลือก): skipped = รายการที่รวมไม่ได้ · pages = จำนวนหน้าเอกสารแนบที่รวมได้ */
@@ -200,158 +171,27 @@ export const createDispatchPDF = async (
   students?: LetterStudent[], // หนังสือรวมหลายคน (บริษัทเดียวกัน) — ไม่ส่ง/คนเดียว = หนังสือเดี่ยว
   report?: AttachmentReport, // out-param ทางเลือก: รายการเอกสารแนบที่รวมไม่ได้ (หน้าต่างรายคนไม่ส่ง)
 ) => {
-  const group = isGroup(students) ? students : null;
-  const groupSameDates = group ? sameDates(group) : true;
   // ---------------------------------------------------------
-  // PART 1: สร้างหน้าปก (Cover Letter) ด้วย jsPDF
+  // PART 1: หน้าหนังสือ — เนื้อหาเดียวกับ Word (dispatchLetterModel) วาดด้วย jsPDF
   // ---------------------------------------------------------
-  const doc = new jsPDF({ unit: "mm", format: "a4" });
-
-  // 1. Load Font
-  // ตรวจสอบ path font ให้ตรงกับใน public/fonts/ ของคุณ
-  const fontNormal = await getFontBase64("/fonts/THSarabunNew.ttf");
-  const fontBold = await getFontBase64("/fonts/THSarabunNew Bold.ttf");
-  doc.addFileToVFS("THSarabunNew.ttf", fontNormal);
-  doc.addFileToVFS("THSarabunNew Bold.ttf", fontBold);
-  doc.addFont("THSarabunNew.ttf", "Sarabun", "normal");
-  doc.addFont("THSarabunNew Bold.ttf", "Sarabun", "bold");
-  doc.setFont("Sarabun", "normal");
-
-  const pageWidth = 210;
-  const margin = 20;
-  let y = 15;
-
-  // 2. ตรามหาวิทยาลัย (กลางหน้ากระดาษ)
-  try {
-    const krutImg = await getImageArrayBuffer(krutUrl);
-    const krutUint8 = new Uint8Array(krutImg);
-    // ตรวจสอบนามสกุลไฟล์เพื่อเลือก format
-    const format = krutUrl.toLowerCase().endsWith("png") ? "PNG" : "JPEG";
-    doc.addImage(krutUint8, format, pageWidth / 2 - 15, y, 30, 28);
-  } catch (e) {
-    console.error("Krut load error", e);
-  }
-
-  // 3. เลขที่หนังสือ & ส่วนราชการ
-  y += 35;
-  doc.setFontSize(16);
-  doc.text(`ที่ อว ${normalizeDocNumber(docNumber)}`, margin, y);
-
-  doc.text(`มหาวิทยาลัยขอนแก่น`, pageWidth - margin - 50, y);
-  y += 7;
-  doc.text(`123 ถนนมิตรภาพ`, pageWidth - margin - 50, y);
-  y += 7;
-  doc.text(`อำเภอเมืองขอนแก่น`, pageWidth - margin - 50, y);
-  y += 7;
-  doc.text(`จังหวัดขอนแก่น 40002`, pageWidth - margin - 50, y);
-
-  // 4. วันที่
-  y += 10;
-  const dateText = toThaiDate(docDate);
-  const dateX = pageWidth / 2 - doc.getTextWidth(dateText) / 2;
-  doc.text(dateText, dateX, y);
-
-  // 5. เรื่อง & เรียน
-  y += 15;
-  doc.text(
-    `เรื่อง   ขอความอนุเคราะห์พิจารณานักศึกษาเข้าร่วมปฏิบัติงานสหกิจศึกษา`,
-    margin,
-    y,
-  );
-  y += 8;
-  const companyName =
-    profile.company?.name || profile.coop?.company?.name || "...............";
-
+  const company = profile.coop?.company || profile.company;
   // ผู้รับ = ผู้ติดต่อ (HR) ของคำร้อง → ผู้ติดต่อเดิมของบริษัท → กรรมการผู้จัดการ
-  // (เดิมอ่าน contactPersonName / contactPersonPosition ซึ่งไม่มีอยู่จริง — ขึ้น "กรรมการผู้จัดการ" ทุกฉบับ)
-  const recipient = recipientText(letterRecipient({ contacts: profile.coop?.contacts, company: profile.coop?.company || profile.company }));
-  doc.text(`เรียน   ${recipient || `กรรมการผู้จัดการ ${companyName}`}`, margin, y);
-
-  // 6. สิ่งที่ส่งมาด้วย
-  y += 8;
-  const attachmentX = margin;
-  doc.text(`สิ่งที่ส่งมาด้วย`, attachmentX, y);
-  doc.text(`1. รายละเอียดโครงการสหกิจศึกษา`, attachmentX + 28, y);
-  doc.text(`จำนวน   1   ชุด`, pageWidth - margin - 35, y);
-  y += 7;
-  doc.text(`2. ประวัตินักศึกษาและใบแสดงผลการเรียน`, attachmentX + 28, y);
-  doc.text(`จำนวน   ${group ? group.length : 1}   ชุด`, pageWidth - margin - 35, y);
-  y += 7;
-  doc.text(
-    `3. แบบฟอร์มตอบรับนักศึกษาเข้าปฏิบัติงานในหน่วยงาน`,
-    attachmentX + 28,
-    y,
-  );
-  doc.text(`จำนวน   1   ชุด`, pageWidth - margin - 35, y);
-
-  // 7. เนื้อหา
-  y += 12;
-  const studentName = `${profile.prefix || ""}${profile.firstName} ${
-    profile.lastName
-  }`;
-  const studentId = profile.studentId;
-  const startDate = toThaiDate(
-    profile.coop?.actualStartDate ||
-      profile.coop?.coopApplicationForm?.startDate,
-  );
-  const endDate = toThaiDate(
-    profile.coop?.actualEndDate || profile.coop?.coopApplicationForm?.endDate,
-  );
-
-  const contentWidth = pageWidth - margin * 2;
-
-  // major เป็นรหัสสาขา (CS/AI) — หนังสือส่งตัวต้องใช้ชื่อหลักสูตรภาษาไทยจริงของนักศึกษา ไม่ใช่ค่าคงที่
-  const majorName = formMajorName(profile, "วิทยาการคอมพิวเตอร์");
-  const p1 = `       ตามที่ ${companyName} ได้เข้าร่วมโครงการสหกิจศึกษากับ มหาวิทยาลัยขอนแก่น วิทยาลัยการคอมพิวเตอร์ และยินดีรับนักศึกษาหลักสูตร${majorName} เข้าปฏิบัติงานสหกิจศึกษากับบริษัทของท่าน ${groupSameDates ? `ซึ่งมีกำหนดช่วงเวลาปฏิบัติงาน ระหว่างวันที่ ${group ? toThaiDate(group[0].startDate || undefined) : startDate} ถึงวันที่ ${group ? toThaiDate(group[0].endDate || undefined) : endDate}` : "ซึ่งมีกำหนดช่วงเวลาปฏิบัติงานตามที่ระบุท้ายรายชื่อนักศึกษาแต่ละคน"} นั้น ในการนี้ ทางวิทยาลัยการคอมพิวเตอร์ จึงใคร่ขอให้ท่านพิจารณานักศึกษาเข้าร่วมโครงการสหกิจศึกษากับทาง ${companyName} จำนวน ${group ? group.length : 1} คน ดังมีรายชื่อต่อไปนี้`;
-
-  const splitP1 = doc.splitTextToSize(p1, contentWidth);
-  doc.text(splitP1, margin, y);
-  y += splitP1.length * 7 + 5;
-
-  if (group) {
-    // รายชื่อหลายคน — ยาวเกินหน้าขึ้นหน้าใหม่
-    for (const line of studentLines(group, { withDates: !groupSameDates })) {
-      const wrapped = doc.splitTextToSize(line, contentWidth - 15);
-      if (y + wrapped.length * 7 > 250) { doc.addPage(); y = 25; }
-      doc.text(wrapped, margin + 15, y);
-      y += wrapped.length * 7;
-    }
-    y += 3;
-  } else {
-    const nameLine = `1. ${studentName}        รหัสประจำตัว  ${studentId}`;
-    const nameX = pageWidth / 2 - doc.getTextWidth(nameLine) / 2;
-    doc.text(nameLine, nameX, y);
-    y += 10;
-  }
-
-  const p2 = `       จึงเรียนมาเพื่อโปรดพิจารณาให้ความอนุเคราะห์ในการรับนักศึกษาเข้าร่วมโครงการสหกิจศึกษา หากผลการพิจารณาเป็นประการใด กรุณาแจ้งผลกลับมายังวิทยาลัยการคอมพิวเตอร์ มหาวิทยาลัยขอนแก่น 40002 หรือ E-mail: wijika@kku.ac.th ด้วยจักขอบคุณยิ่ง`;
-  const splitP2 = doc.splitTextToSize(p2, contentWidth);
-  if (group && y + splitP2.length * 7 > 255) { doc.addPage(); y = 25; }
-  doc.text(splitP2, margin, y);
-  y += splitP2.length * 7 + 20;
-  // หนังสือรวม: ลายเซ็น (ถึง y+32) ต้องไม่ทับท้ายกระดาษ (y = 275) · หนังสือเดี่ยวคงรูปแบบเดิม
-  if (group && y > 238) { doc.addPage(); y = 30; }
-
-  // 8. คำลงท้าย + ที่ว่างให้คณบดีลงนามจริง
-  const signCenter = pageWidth / 2 + 25;
-  doc.text(`ขอแสดงความนับถือ`, signCenter, y, { align: "center" });
-  y += 5;
-  y += 20;
-  doc.text(`(${deanName})`, signCenter, y, {
-    align: "center",
+  const contact = recipientText(letterRecipient({ contacts: profile.coop?.contacts, company }));
+  const model = dispatchLetterModel({
+    docNumber, docDate,
+    // prefix เก็บเป็น MR/MS — เดิมพิมพ์ "MRชื่อ" ลงหนังสือ
+    studentName: `${thaiPrefix(profile.prefix)}${profile.firstName} ${profile.lastName}`,
+    studentId: profile.studentId,
+    major: profile.major,
+    majorNameTh: profile.majorNameTh,
+    companyName: company?.name || "...............",
+    companyContact: contact || undefined,
+    startDate: profile.coop?.actualStartDate || profile.coop?.coopApplicationForm?.startDate,
+    endDate: profile.coop?.actualEndDate || profile.coop?.coopApplicationForm?.endDate,
+    deanName, deanPosition, students,
   });
-  y += 7;
-  doc.text(`${deanPosition}`, signCenter, y, { align: "center" });
-
-  // 9. Footer
-  y = 275;
-  doc.setFontSize(12);
-  doc.text(`วิทยาลัยการคอมพิวเตอร์`, margin, y);
-  doc.text(`โทรศัพท์ 0 4300 9700 ต่อ 50523`, margin, y + 5);
-  doc.text(`Email: wijika@kku.ac.th`, margin, y + 10);
-  doc.text(`ผู้ร่าง/พิมพ์: วิจิตรา ขจร`, pageWidth - margin, y + 10, {
-    align: "right",
-  });
+  const doc = await newLetterDoc();
+  renderLetterPdf(doc, model, await loadEmblem(krutUrl));
 
   const coverBytes = doc.output("arraybuffer");
 
