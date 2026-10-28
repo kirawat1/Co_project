@@ -21,16 +21,12 @@ async function createNotifications(userIds, { type, title, message, link, relate
   });
 }
 
-async function getStaffAndCoopTeacherIds() {
-  const users = await prisma.user.findMany({
-    where: {
-      OR: [
-        { role: 'staff' },
-        { role: 'teacher', teacher: { isCoopTeacher: true } },
-      ],
-    },
-    select: { id: true },
-  });
+// เจ้าหน้าที่ + อาจารย์ประจำวิชาที่ดูแลหลักสูตรของนักศึกษา (major) · ไม่ระบุหลักสูตร = เจ้าหน้าที่เท่านั้น
+// (เดิมส่งอาจารย์ประจำวิชาทุกคนทุกหลักสูตร — อาจารย์ AI ได้แจ้งเตือนของนักศึกษา CS ที่หน้ารายการของตัวเองไม่แสดง)
+async function getStaffAndCoopTeacherIds(major) {
+  const or = [{ role: 'staff' }];
+  if (major) or.push({ role: 'teacher', teacher: { isCoopTeacher: true, coopMajors: { some: { major } } } });
+  const users = await prisma.user.findMany({ where: { OR: or }, select: { id: true } });
   return users.map(u => u.id);
 }
 

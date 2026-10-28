@@ -160,7 +160,7 @@ const submitCoopApplication = async (req, res) => {
     res.json({ ok: true, message: "ยื่นคำร้องให้ตรวจสอบเรียบร้อยแล้ว" });
 
     // Fire notification async without blocking response
-    getStaffAndCoopTeacherIds().then(ids =>
+    getStaffAndCoopTeacherIds(student.major).then(ids =>
       createNotifications(ids, {
         type: 'COOP_APPLICATION_SUBMITTED',
         title: 'นักศึกษายื่นคำร้องสหกิจ',

@@ -7,7 +7,7 @@ import { fmtDate, fmtDateTime } from '../utils/dateFormat';
 import { IcAnnounce, IcDocs } from "./icons";
 import { seenIds } from "../utils/announcements";
 import StatusBadge from "./StatusBadge";
-import S_StatusTracker from "./S_StatusTracker";
+import S_StatusTracker, { NextStepBar } from "./S_StatusTracker";
 
 function safeHref(url: string | null | undefined): string | undefined {
   if (!url) return undefined;
@@ -248,11 +248,13 @@ export default function S_Dashboard() {
           </div>
         </div>
         <button className="btn-secondary" onClick={() => setStatusExpanded((v) => !v)}>
-          {statusExpanded ? "ซ่อนรายละเอียด ↑" : "ดูรายละเอียด →"}
+          {statusExpanded ? "ซ่อนขั้นตอน ↑" : "ดูทุกขั้นตอน →"}
         </button>
       </div>
 
-      {statusExpanded && <S_StatusTracker status={studentStatus} lastComment={lastComment} />}
+      {/* ขั้นตอนถัดไป + ปุ่มพาไปทำ แสดงตลอด (เดิมต้องกด "ดูรายละเอียด" ก่อน) · รายละเอียด = ไทม์ไลน์ทุกขั้น */}
+      <div style={{ marginBottom: 16 }}><NextStepBar status={studentStatus} lastComment={lastComment} /></div>
+      {statusExpanded && <S_StatusTracker status={studentStatus} lastComment={lastComment} showNextStep={false} />}
 
       {/* ===== COUNTDOWN ===== */}
       {nearestDeadline && countdown && (

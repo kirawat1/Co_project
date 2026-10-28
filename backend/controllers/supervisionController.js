@@ -476,7 +476,7 @@ exports.proposeSupervisionDate = async (req, res) => {
         // Fire notification async without blocking response
         // Staff / coop-teachers (excluding the assigned teacher to avoid duplicate)
         // then notify the assigned teacher separately with the teacher-facing link
-        getStaffAndCoopTeacherIds().then(async ids => {
+        getStaffAndCoopTeacherIds(student.major).then(async ids => {
           const staffIds = teacher?.userId ? ids.filter(id => id !== teacher.userId) : ids;
           if (staffIds.length) {
             await createNotifications(staffIds, {
