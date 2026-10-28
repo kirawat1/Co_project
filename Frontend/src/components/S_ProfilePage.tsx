@@ -110,7 +110,8 @@ function AdvisorRow({
       {advisor?.email && (
         <a
           href={`mailto:${advisor.email}`}
-          style={{ padding: '6px 14px', background: '#eff6ff', color: '#2563eb', borderRadius: 8, fontSize: 12, fontWeight: 700, textDecoration: 'none', border: '1px solid #bfdbfe' }}
+          className="btn-secondary small"
+          style={{ textDecoration: 'none' }}
         >
           ติดต่อ
         </a>

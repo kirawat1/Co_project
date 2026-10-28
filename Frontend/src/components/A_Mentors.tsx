@@ -141,10 +141,6 @@ export default function A_Mentors() {
             onChange={(e) => setQ(e.target.value)}
             style={{ width: 320, maxWidth: '100%', padding: '8px', borderRadius: 8, border: '1px solid #e5e7eb' }}
           />
-
-          {/* <button className="btn" style={{ ...saveBtn, marginLeft: 'auto', background: '#f1f5f9', color: '#64748b', border: '1px solid #e2e8f0' }} onClick={() => setQ("")}>
-            ล้างคำค้นหา
-          </button> */}
         </div>
       </section>
 

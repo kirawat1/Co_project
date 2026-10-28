@@ -454,7 +454,7 @@ export default function S_DocsT003Form({ profile, onRefresh }: Props) {
                         ) : (
                             <div style={{ textAlign: 'center', opacity: canSubmit ? 1 : 0.5 }}>
                                 <input type="file" id="upload-t003" style={{ display: 'none' }} accept=".pdf,.jpg,.png" onChange={(e) => e.target.files?.[0] && setSelectedUploadFile(e.target.files[0])} disabled={!canSubmit} />
-                                <label htmlFor="upload-t003" className="btn" style={{ cursor: canSubmit ? 'pointer' : 'not-allowed' }}>
+                                <label htmlFor="upload-t003" className={canSubmit ? "btn" : "btn-secondary"} aria-disabled={!canSubmit} style={{ cursor: canSubmit ? 'pointer' : 'not-allowed' }}>
                                     {canSubmit ? '📂 เลือกไฟล์ T003 เพื่ออัปโหลด' : !canEdit ? '🔒 ระบบปิดรับเอกสาร' : '🔒 ยังส่ง T003 ไม่ได้'}
                                 </label>
                                 {canEdit && !canSubmit ? (
