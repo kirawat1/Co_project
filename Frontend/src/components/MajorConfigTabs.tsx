@@ -1,3 +1,4 @@
+import { BusyLabel, LoadingBlock } from "./Spinner";
 import { useCallback, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { apiFetch } from "../utils/apiFetch";
@@ -150,7 +151,7 @@ function MajorOverrideEditor({ configKey, major, onSaved }: { configKey: string;
     finally { setSaving(false); }
   };
 
-  if (loading) return <div style={{ padding: 16, color: "#64748b" }}>กำลังโหลด...</div>;
+  if (loading) return <LoadingBlock text="กำลังโหลด…" style={{ padding: 16, color: "#64748b" }} />;
 
   return (
     <div style={{ border: "1px solid #bfdbfe", background: "#f8fbff", borderRadius: 12, padding: 16 }}>
@@ -198,7 +199,7 @@ function MajorOverrideEditor({ configKey, major, onSaved }: { configKey: string;
 
       <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 16 }}>
         <button type="button" className="btn" onClick={save} disabled={saving}>
-          {saving ? "กำลังบันทึก..." : `💾 บันทึกของหลักสูตร ${major}`}
+          {saving ? <BusyLabel text="กำลังบันทึก…" /> : `💾 บันทึกของหลักสูตร ${major}`}
         </button>
       </div>
     </div>

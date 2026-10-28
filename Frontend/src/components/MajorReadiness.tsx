@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { apiFetch } from "../utils/apiFetch";
+import { LoadingBlock } from "./Spinner";
 
 // เช็กลิสต์ความพร้อมของหลักสูตร — เพิ่มหลักสูตรใหม่แล้วต้องตั้งอะไรบ้างก่อนนักศึกษาเริ่มใช้
 interface Check { key: string; required: boolean; ok: boolean; page: string; label: string; detail: string }
@@ -30,7 +31,7 @@ export default function MajorReadiness() {
   }, []);
 
   if (error) return <div className="card" style={{ padding: 20, color: "#dc2626", marginBottom: 20 }}>{error}</div>;
-  if (!data) return <div className="card" style={{ padding: 20, color: "#64748b", marginBottom: 20 }}>กำลังตรวจความพร้อมของหลักสูตร...</div>;
+  if (!data) return <div className="card" style={{ marginBottom: 20 }}><LoadingBlock text="กำลังตรวจความพร้อมของหลักสูตร…" style={{ padding: 20, justifyContent: "flex-start" }} /></div>;
 
   const notReady = data.items.filter(i => !i.ready).length;
 

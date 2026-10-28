@@ -1,6 +1,7 @@
 // กำหนดส่งของขั้นหนึ่งในรอบที่หน้าเลือกอยู่ — แสดงอย่างเดียว ตั้งที่หน้ารอบสหกิจ (ปฏิทินของรอบ) ที่เดียว
 import { useEffect, useState, type CSSProperties } from "react";
 import { Link } from "react-router-dom";
+import { BusyLabel } from "./Spinner";
 import axios from "axios";
 import { deadlineStatus, entryText, legacyText, type StepKey, type Tone } from "../utils/deadlines";
 import type { CalendarData } from "./A_RoundDeadlines";
@@ -30,7 +31,7 @@ export default function RoundDeadlineNote({ stepKey, periodId }: Props) {
 
     if (!single) return <div style={wrap}><span style={muted}>เลือกรอบเดียวเพื่อดูกำหนดส่งของรอบนั้น</span>{link}</div>;
     if (failed) return <div style={wrap}><span style={muted}>โหลดกำหนดส่งไม่สำเร็จ</span>{link}</div>;
-    if (!data) return <div style={wrap}><span style={muted}>กำลังโหลดกำหนดส่ง...</span></div>;
+    if (!data) return <div style={wrap}><span style={muted}><BusyLabel size={13} text="กำลังโหลดกำหนดส่ง…" /></span></div>;
 
     return (
         <div style={wrap}>
