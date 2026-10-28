@@ -135,9 +135,9 @@ export default function AnnouncementEditor({ initial, years, year: year0, room, 
                 <div>
                     <div style={label}>ไฟล์แนบ · รูปภาพ · ลิงก์</div>
                     <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                        <label style={smallBtn}>📄 ไฟล์<input type="file" hidden multiple onChange={(e) => addFiles(e.target.files, "file")} /></label>
-                        <label style={smallBtn}>🖼️ รูปภาพ<input type="file" hidden multiple accept="image/*" onChange={(e) => addFiles(e.target.files, "image")} /></label>
-                        <button type="button" style={smallBtn} onClick={() => { setLinkDraft(linkDraft === null ? "" : null); setLinkError(""); }}>🔗 ลิงก์</button>
+                        <label className="btn-secondary small">📄 ไฟล์<input type="file" hidden multiple onChange={(e) => addFiles(e.target.files, "file")} /></label>
+                        <label className="btn-secondary small">🖼️ รูปภาพ<input type="file" hidden multiple accept="image/*" onChange={(e) => addFiles(e.target.files, "image")} /></label>
+                        <button type="button" className="btn-secondary small" onClick={() => { setLinkDraft(linkDraft === null ? "" : null); setLinkError(""); }}>🔗 ลิงก์</button>
                     </div>
                     {linkDraft !== null && (
                         <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
@@ -191,7 +191,6 @@ const label: CSSProperties = { fontSize: 13, fontWeight: 700, color: "#334155", 
 const hint: CSSProperties = { fontSize: 12, color: "#64748b", marginTop: 6 };
 const pill: CSSProperties = { padding: "7px 14px", borderRadius: 999, borderWidth: 1, borderStyle: "solid", borderColor: "#cbd5e1", background: "#fff", color: "#334155", fontSize: 13, fontWeight: 600, cursor: "pointer" };
 const pillOn = (c: string): CSSProperties => ({ background: c, borderColor: c, color: "#fff" });
-const smallBtn: CSSProperties = { display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 8, borderWidth: 1, borderStyle: "solid", borderColor: "#cbd5e1", background: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", color: "#334155" };
 const attChip: CSSProperties = { display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 6px 5px 10px", borderRadius: 999, background: "#f1f5f9", fontSize: 12 };
 const xBtn: CSSProperties = { border: "none", background: "#e2e8f0", borderRadius: 999, width: 20, height: 20, cursor: "pointer", lineHeight: "18px" };
 const optionBox: CSSProperties = { display: "flex", alignItems: "flex-start", gap: 10, padding: "12px 14px", borderRadius: 10, borderWidth: 1, borderStyle: "solid", borderColor: "#e2e8f0", background: "#f8fafc", cursor: "pointer", fontSize: 14 };

@@ -14,6 +14,14 @@ import { useEffect, useRef } from "react";
    />
 ============================================================ */
 
+// สีปุ่มยืนยันที่ส่งมาเป็น hex (ของเดิมหลายเฉด) -> ปุ่มแบบกลาง: แดง = ลบ/ไม่ผ่าน · เขียว = อนุมัติ · ส้ม = ส่งกลับแก้ · อื่น = ปุ่มหลัก
+const TONES: [RegExp, string][] = [
+  [/^#(ef4444|dc2626|b91c1c)$/i, "btn-danger"],
+  [/^#(10b981|059669|16a34a|22c55e)$/i, "btn-success"],
+  [/^#(f59e0b|d97706|ea580c)$/i, "btn-warning"],
+];
+const toneClass = (color: string) => TONES.find(([re]) => re.test(color))?.[1] ?? "btn";
+
 interface Props {
   open: boolean;
   title?: string;
@@ -102,9 +110,9 @@ export default function ConfirmDialog({
             style={{ flex: 1, maxWidth: 160 }}
           >{cancelLabel}</button>
           <button
-            className="btn"
+            className={toneClass(confirmColor)}
             onClick={onConfirm}
-            style={{ flex: 1, maxWidth: 160, background: confirmColor }}
+            style={{ flex: 1, maxWidth: 160 }}
           >{confirmLabel}</button>
         </div>
       </div>

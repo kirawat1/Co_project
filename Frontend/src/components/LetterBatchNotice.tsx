@@ -20,7 +20,7 @@ export default function LetterBatchNotice({ mates, docNumber, draft, onOpenBatch
             {mates.map((m: any) => <div key={m.id}>• {m.studentId} {m.firstName} {m.lastName}</div>)}
             <div style={{ marginTop: 4 }}>{draft ? "บันทึกฉบับลงนามต้องทำในหนังสือรวมทั้งฉบับ · ออกเดี่ยวต้องใช้เลขที่ใหม่" : "พิมพ์ซ้ำด้วยเลขเดิมต้องออกเป็นหนังสือรวมทั้งฉบับ · ออกเดี่ยวต้องใช้เลขที่ใหม่"}</div>
             {onOpenBatch && (
-                <button className="btn" style={{ marginTop: 6, background: '#d97706', color: 'white', fontSize: 12 }} onClick={onOpenBatch}>เปิดหนังสือรวมทั้งฉบับ</button>
+                <button className="btn small" style={{ marginTop: 6 }} onClick={onOpenBatch}>เปิดหนังสือรวมทั้งฉบับ</button>
             )}
         </div>
     );

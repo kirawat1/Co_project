@@ -163,8 +163,8 @@ export default function IssuePlacementLetterModal({ student, group, batchMates, 
                         <div>
                             <div style={{ ...sec, borderColor: '#f59e0b' }}>2. สร้างเอกสาร</div>
                             <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                                <button className="btn btn-secondary" style={{ flex: 1 }} onClick={handleCreatePdf} disabled={loadingPdf || loadingDoc}>{loadingPdf ? <BusyLabel text="กำลังสร้าง…" /> : '📄 PDF'}</button>
-                                <button className="btn btn-outline" style={{ flex: 1 }} onClick={handleCreateDoc} disabled={loadingPdf || loadingDoc}>{loadingDoc ? <BusyLabel text="กำลังสร้าง…" /> : '📝 Word'}</button>
+                                <button className="btn-secondary" style={{ flex: 1 }} onClick={handleCreatePdf} disabled={loadingPdf || loadingDoc}>{loadingPdf ? <BusyLabel text="กำลังสร้าง…" /> : '📄 PDF'}</button>
+                                <button className="btn-secondary" style={{ flex: 1 }} onClick={handleCreateDoc} disabled={loadingPdf || loadingDoc}>{loadingDoc ? <BusyLabel text="กำลังสร้าง…" /> : '📝 Word'}</button>
                             </div>
                             {(pdfDraft || docDraft) && (
                                 <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -179,11 +179,11 @@ export default function IssuePlacementLetterModal({ student, group, batchMates, 
                             <div style={{ marginTop: 8 }}>
                                 <input type="file" id="signed-file-placement" accept=".pdf,.jpg,.jpeg,.png" style={{ display: 'none' }}
                                     onChange={e => setSignedFile(e.target.files?.[0] || null)} />
-                                <label htmlFor="signed-file-placement" className="btn btn-outline" style={{ width: '100%', display: 'block', textAlign: 'center', cursor: 'pointer', boxSizing: 'border-box' }}>
+                                <label htmlFor="signed-file-placement" className="btn-secondary" style={{ width: '100%', boxSizing: 'border-box' }}>
                                     {signedFile ? `📎 ${signedFile.name}` : '📤 เลือกไฟล์ที่ลงนามแล้ว'}
                                 </label>
                                 {signedFile && (
-                                    <button type="button" onClick={() => setSignedFile(null)} style={{ fontSize: 11, color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', marginTop: 4, padding: 0 }}>ลบไฟล์ที่เลือก</button>
+                                    <button type="button" className="btn-danger-outline small" style={{ marginTop: 6 }} onClick={() => setSignedFile(null)}>🗑️ ลบไฟล์ที่เลือก</button>
                                 )}
                                 <p style={{ fontSize: 11, color: '#64748b', margin: '6px 0 0' }}>ต้องอัปโหลดไฟล์ที่ลงนามแล้วก่อน จึงจะบันทึกเข้าระบบได้ — ไฟล์นี้จะถูกใช้แทนไฟล์ร่างด้านบนทั้งหมด</p>
                             </div>
@@ -195,7 +195,7 @@ export default function IssuePlacementLetterModal({ student, group, batchMates, 
                             {deliveryMethod === "STAFF" && <CompanyAddressBox company={student.coop?.company} coop={student.coop} />}
                         </div>
                         <div style={{ marginTop: 'auto', paddingTop: 8 }}>
-                            <button className="btn btn-success" onClick={handleConfirm} disabled={!signedFile} style={{ width: '100%', padding: 14 }}>🚀 บันทึกเข้าระบบ & แจ้งนักศึกษา</button>
+                            <button className="btn" onClick={handleConfirm} disabled={!signedFile} style={{ width: '100%' }}>🚀 บันทึกเข้าระบบ & แจ้งนักศึกษา</button>
                         </div>
                     </div>
                 </div>

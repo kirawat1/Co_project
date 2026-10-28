@@ -85,7 +85,7 @@ export default function LetterZipModal({ types, periods, defaultPeriodId, onClos
                         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                             {types.map((t) => (
                                 <button key={t} type="button" onClick={() => setType(t)} aria-pressed={type === t}
-                                    style={{ ...segStyle, ...(type === t ? segActive : null) }}>
+                                    className={type === t ? "filter-chip on" : "filter-chip"}>
                                     {LETTER_LABEL[t]}
                                 </button>
                             ))}
@@ -180,8 +180,6 @@ export function LetterZipButton({ onClick, label = "ดาวน์โหลด�
 }
 
 const labelStyle: CSSProperties = { fontSize: 13, fontWeight: 700, color: "#334155", marginBottom: 6 };
-const segStyle: CSSProperties = { padding: "8px 14px", borderRadius: 999, borderWidth: 1, borderStyle: "solid", borderColor: "#cbd5e1", background: "#fff", color: "#334155", fontSize: 13, fontWeight: 600, cursor: "pointer" };
-const segActive: CSSProperties = { background: "#2563eb", borderColor: "#2563eb", color: "#fff" };
 const summaryBox: CSSProperties = { padding: "14px 16px", borderRadius: 10, background: "#f8fafc", border: "1px solid #e2e8f0", display: "flex", flexDirection: "column", gap: 8 };
 const noteStyle: CSSProperties = { padding: "8px 12px", borderRadius: 8, border: "1px solid", fontSize: 13 };
 const listBox: CSSProperties = { maxHeight: 220, overflowY: "auto", border: "1px solid #e2e8f0", borderRadius: 8 };
