@@ -100,7 +100,7 @@ export default function S_DocT007() {
                             </button>
                         </div>
 
-                        <button className="btn btn-primary" style={{ width: '100%' }} onClick={() => { const s = safeHref(config.t007Link); if (s) window.open(s, "_blank"); }}>
+                        <button className="btn" style={{ width: '100%' }} onClick={() => { const s = safeHref(config.t007Link); if (s) window.open(s, "_blank"); }}>
                             🔗 เปิดฟอร์มประเมิน T007
                         </button>
                     </div>

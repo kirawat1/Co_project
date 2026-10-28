@@ -469,7 +469,7 @@ export default function CoopRequestPage() {
             <div style={{ textAlign: 'center', padding: '30px 10px', background: '#fee2e2', borderRadius: '12px', border: '1px dashed #fca5a5' }}>
               <div style={{ fontSize: 40, marginBottom: 10 }}>🏢</div>
               <p style={{ color: '#b91c1c', fontWeight: 'bold', fontSize: 16, margin: '0 0 15px 0' }}>ท่านยังไม่ได้เลือกบริษัทฝึกงาน</p>
-              <button className="btn-danger" style={{ margin: '0 auto' }} onClick={() => navigate('/student/profile')}>
+              <button className="btn" style={{ margin: '0 auto' }} onClick={() => navigate('/student/profile')}>
                 ไปหน้าโปรไฟล์ เพื่อเลือกหน่วยงาน
               </button>
             </div>
@@ -571,20 +571,12 @@ export default function CoopRequestPage() {
         </div>
 
         <div className="action-row" style={{ marginTop: 30, borderTop: '1px solid #e2e8f0', paddingTop: 20 }}>
-          <button className="btn btn-secondary" onClick={() => handleGeneratePDF("preview")}>👁️ ดูตัวอย่างใบคำร้อง (PDF)</button>
+          <button className="btn-secondary" onClick={() => handleGeneratePDF("preview")}>👁️ ดูตัวอย่างใบคำร้อง (PDF)</button>
 
           <button
-            className="btn btn-success"
+            className="btn"
             onClick={handleSubmitApplication}
             disabled={!canSubmit || submitting}
-            style={{
-              padding: '12px 30px', fontSize: '16px',
-              display: 'inline-flex', alignItems: 'center', gap: 8,
-              opacity: canSubmit && !submitting ? 1 : 0.5,
-              cursor: canSubmit && !submitting ? "pointer" : "not-allowed",
-              backgroundColor: !isTimeValid() ? "#94a3b8" :
-                currentStatus === 'EDITS_REQUIRED' ? "#f59e0b" : "#10b981"
-            }}
           >
             {submitting
               ? <BusyLabel text="กำลังส่ง…" />

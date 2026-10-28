@@ -118,7 +118,7 @@ export default function S_DocT005_006() {
                             </button>
                         </div>
 
-                        <button className="btn btn-primary" style={{ width: '100%' }} onClick={() => { const s = safeHref(config.t005Link); if (s) window.open(s, "_blank"); }}>
+                        <button className="btn" style={{ width: '100%' }} onClick={() => { const s = safeHref(config.t005Link); if (s) window.open(s, "_blank"); }}>
                             🔗 เปิดหน้าฟอร์ม T005
                         </button>
                     </div>
@@ -144,7 +144,7 @@ export default function S_DocT005_006() {
                             </button>
                         </div>
 
-                        <button className="btn btn-primary" style={{ width: '100%' }} onClick={() => { const s = safeHref(config.t006Link); if (s) window.open(s, "_blank"); }}>
+                        <button className="btn" style={{ width: '100%' }} onClick={() => { const s = safeHref(config.t006Link); if (s) window.open(s, "_blank"); }}>
                             🔗 เปิดหน้าฟอร์ม T006
                         </button>
                     </div>

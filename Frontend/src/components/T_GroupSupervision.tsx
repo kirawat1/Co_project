@@ -167,12 +167,8 @@ export default function T_GroupSupervision() {
               <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                 {company.commonDates.length > 0 && (
                   <button
+                    className="btn small"
                     onClick={e => { e.stopPropagation(); openModal(company); }}
-                    style={{
-                      padding: "6px 14px", borderRadius: 7, border: "none",
-                      background: "#0074B7", color: "#fff", fontWeight: 700,
-                      cursor: "pointer", fontSize: 13,
-                    }}
                   >
                     นัดพร้อมกัน ({company.commonDates.length} วัน)
                   </button>
@@ -268,20 +264,13 @@ export default function T_GroupSupervision() {
             )}
             {confirmError && <div style={{ color: '#ef4444', fontSize: 13, marginBottom: 8 }}>{confirmError}</div>}
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 20 }}>
-              <button
-                onClick={() => setModal(null)}
-                style={{ padding: "8px 18px", borderRadius: 7, border: "1px solid #e2e8f0", cursor: "pointer" }}
-              >
+              <button className="btn-secondary" onClick={() => setModal(null)}>
                 ยกเลิก
               </button>
               <button
+                className="btn"
                 onClick={handleConfirm}
                 disabled={submitting || checkedIds.size === 0}
-                style={{
-                  padding: "8px 20px", borderRadius: 7, border: "none",
-                  background: "#0074B7", color: "#fff", fontWeight: 700,
-                  cursor: "pointer", opacity: (submitting || checkedIds.size === 0) ? 0.5 : 1
-                }}
               >
                 {submitting ? <BusyLabel text="กำลังยืนยัน…" /> : `ยืนยัน (${checkedIds.size} คน)`}
               </button>

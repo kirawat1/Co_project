@@ -450,9 +450,8 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
                         <div key={i} style={{ marginTop: 16, paddingTop: 12, borderTop: '1px dashed #cbd5e1' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <div style={supervisorHeading}>พี่เลี้ยงคนที่ {i + 2}</div>
-                                <button type="button" onClick={() => removeExtraSupervisor(i)}
-                                    style={{ border: 'none', background: 'none', color: '#dc2626', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
-                                    ✕ ลบคนนี้
+                                <button type="button" className="btn-danger-outline small" onClick={() => removeExtraSupervisor(i)}>
+                                    🗑️ ลบคนนี้
                                 </button>
                             </div>
                             <div style={grid3} className="grid3">
@@ -470,7 +469,7 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
                             เมื่ออัปโหลดไฟล์ T002 ระบบจะบันทึกพี่เลี้ยงทุกคนในข้อนี้เป็นพี่เลี้ยงของบริษัทและของคุณให้อัตโนมัติ
                         </div>
                         {formData.extraSupervisors.length < MAX_EXTRA_SUPERVISORS && (
-                            <button type="button" onClick={addExtraSupervisor} style={{ ...btnOutline, padding: '6px 12px', fontSize: 13 }}>
+                            <button type="button" className="btn-secondary" onClick={addExtraSupervisor}>
                                 + เพิ่มพี่เลี้ยงอีกคน
                             </button>
                         )}
@@ -528,7 +527,7 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
 
                 {canEdit && (
                     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 10 }}>
-                        <button type="button" onClick={handlePreviewPDF} disabled={loading} style={btnOutline}>
+                        <button type="button" className="btn-secondary" onClick={handlePreviewPDF} disabled={loading}>
                             {loading ? <BusyLabel text="กำลังทำงาน…" /> : '👁️ ดูตัวอย่าง / โหลด PDF'}
                         </button>
                     </div>
@@ -564,12 +563,12 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
                             <div style={{ fontSize: 12, color: '#10b981', marginTop: 4 }}>ไฟล์: {uploadedT002.name}</div>
                         </div>
                         <div style={{ display: 'flex', gap: 10 }}>
-                            <button className="btn-outline" onClick={() => window.open(`/uploads/${uploadedT002.path}`, '_blank')} style={{ ...btnOutline, borderColor: '#10b981', color: '#10b981' }}>👁️ ดูไฟล์ที่ส่ง</button>
+                            <button className="btn-secondary" onClick={() => window.open(`/uploads/${uploadedT002.path}`, '_blank')}>👁️ ดูไฟล์ที่ส่ง</button>
 
                             {/* ส่งใหม่ได้เฉพาะตอนถูกขอให้แก้ (ระหว่างรอตรวจ backend ไม่รับไฟล์ใหม่) */}
                             {canSubmit && (
                                 <>
-                                    <label htmlFor="upload-t002-change" style={{ ...btnOutline, cursor: 'pointer', textAlign: 'center', borderColor: currentStatusToShow === 'T002_EDITS_REQUIRED' ? '#ef4444' : '#f59e0b', color: currentStatusToShow === 'T002_EDITS_REQUIRED' ? '#dc2626' : '#d97706' }}>
+                                    <label htmlFor="upload-t002-change" className={currentStatusToShow === 'T002_EDITS_REQUIRED' ? "btn" : "btn-secondary"}>
                                         {currentStatusToShow === 'T002_EDITS_REQUIRED' ? '🔄 ส่งไฟล์ใหม่' : '🔄 เปลี่ยนไฟล์'}
                                     </label>
                                     <input type="file" id="upload-t002-change" style={{ display: 'none' }} accept=".pdf,.jpg,.png" onChange={(e) => e.target.files?.[0] && setSelectedUploadFile(e.target.files[0])} />
@@ -583,8 +582,8 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
                             <div>
                                 <div style={{ fontSize: 14, color: '#d97706', marginBottom: 12, fontWeight: 'bold' }}>⏳ ไฟล์ที่เลือก: {selectedUploadFile.name}</div>
                                 <div style={{ display: 'flex', gap: 10 }}>
-                                    <button onClick={() => setSelectedUploadFile(null)} disabled={loading} style={{ flex: 1, padding: 10, background: '#fee2e2', color: '#b91c1c', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>ยกเลิก</button>
-                                    <button onClick={handleConfirmUpload} disabled={loading} style={{ flex: 1, padding: 10, background: '#059669', color: 'white', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>
+                                    <button className="btn-secondary" onClick={() => setSelectedUploadFile(null)} disabled={loading} style={{ flex: 1 }}>ยกเลิก</button>
+                                    <button className="btn" onClick={handleConfirmUpload} disabled={loading} style={{ flex: 1 }}>
                                         {loading ? <BusyLabel text="กำลังอัปโหลด…" /> : '🚀 ยืนยันส่งไฟล์ T002'}
                                     </button>
                                 </div>
@@ -592,7 +591,7 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
                         ) : (
                             <div style={{ textAlign: 'center', opacity: canSubmit ? 1 : 0.5 }}>
                                 <input type="file" id="upload-t002" style={{ display: 'none' }} accept=".pdf,.jpg,.png" onChange={(e) => e.target.files?.[0] && setSelectedUploadFile(e.target.files[0])} disabled={!canSubmit} />
-                                <label htmlFor="upload-t002" style={{ ...btnSubmit, background: canSubmit ? '#10b981' : '#9ca3af', display: 'inline-block', cursor: canSubmit ? 'pointer' : 'not-allowed' }}>
+                                <label htmlFor="upload-t002" className="btn" style={{ cursor: canSubmit ? 'pointer' : 'not-allowed' }}>
                                     {canSubmit ? '📂 เลือกไฟล์ T002 เพื่ออัปโหลด' : !canEdit ? '🔒 ระบบปิดรับเอกสาร' : '🔒 ยังส่ง T002 ไม่ได้'}
                                 </label>
                                 {canEdit && !canSubmit ? (
@@ -617,14 +616,14 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
                     <div style={modalCardStyle}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', borderBottom: '1px solid #e2e8f0' }}>
                             <h3 style={{ margin: 0, color: '#1e293b' }}>📄 ตัวอย่างแบบฟอร์ม CP-T002</h3>
-                            <button onClick={handleCloseModal} style={{ background: 'none', border: 'none', fontSize: 24, cursor: 'pointer', color: '#64748b' }}>&times;</button>
+                            <button className="modal-close" aria-label="ปิด" onClick={handleCloseModal}>&times;</button>
                         </div>
                         <div style={{ flex: 1, background: '#525659', padding: '10px' }}>
                             <iframe src={previewUrl} style={{ width: '100%', height: '100%', border: 'none', borderRadius: 4 }} title="PDF Preview" />
                         </div>
                         <div style={{ padding: '16px 24px', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', gap: 12, background: '#f8fafc' }}>
-                            <button onClick={handleCloseModal} style={btnOutline}>ปิด</button>
-                            <button onClick={handleDownloadPDF} style={btnDownloadStyle}>⬇️ ดาวน์โหลด PDF ลงเครื่อง</button>
+                            <button className="btn-secondary" onClick={handleCloseModal}>ปิด</button>
+                            <button className="btn" onClick={handleDownloadPDF}>⬇️ ดาวน์โหลด PDF ลงเครื่อง</button>
                         </div>
                     </div>
                 </div>
@@ -655,9 +654,6 @@ const supervisorHeading: React.CSSProperties = { fontSize: 13, fontWeight: 700, 
 const grid4 = { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 15 };
 const lblStyle: React.CSSProperties = { display: 'block', fontSize: 13, fontWeight: 600, color: '#475569', marginBottom: 4 };
 const inputStyle: React.CSSProperties = { width: '100%', padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: 6, boxSizing: 'border-box', fontFamily: 'inherit', fontSize: 14 };
-const btnOutline: React.CSSProperties = { padding: '10px 16px', background: 'white', border: '1px solid #7c3aed', color: '#7c3aed', borderRadius: 8, cursor: 'pointer', fontWeight: 600 };
-const btnSubmit: React.CSSProperties = { padding: '10px 24px', background: '#7c3aed', border: 'none', color: 'white', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: 15 };
-const btnDownloadStyle: React.CSSProperties = { padding: '10px 20px', background: '#059669', color: 'white', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600 };
 
 const modalBackdropStyle: React.CSSProperties = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 9999 };
 const modalCardStyle: React.CSSProperties = { background: 'white', width: '90%', maxWidth: '1000px', height: '90vh', borderRadius: 12, display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' };

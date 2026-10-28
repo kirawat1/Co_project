@@ -306,7 +306,8 @@ export default function T_Students({ isCoopTeacher = false }: Props) {
                           href={safeHref(s.coopApplicationForm.gradeSheetUrl)}
                           target="_blank"
                           rel="noreferrer"
-                          style={{ padding: "6px 10px", borderRadius: 7, fontSize: 12, background: "#eff6ff", color: "#2563eb", border: "1px solid #bfdbfe", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4, fontWeight: 700 }}
+                          className="btn-secondary small"
+                          style={{ textDecoration: "none" }}
                         >
                           📊 แบบฟอร์มเกรด
                         </a>

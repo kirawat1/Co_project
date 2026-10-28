@@ -124,7 +124,7 @@ export default function S_StatusTracker({ status, lastComment }: Props) {
           {lastComment && action.isWarning && <div style={{ fontSize:12, color:"#92400e", marginTop:4, fontStyle:"italic" }}>💬 "{lastComment}"</div>}
         </div>
         {action.link && (
-          <button onClick={() => navigate(action.link!)} style={{ padding:"8px 18px", background:action.isWarning?"#ea580c":"#2563eb", color:"#fff", border:"none", borderRadius:10, fontWeight:700, fontSize:13, cursor:"pointer", whiteSpace:"nowrap", flexShrink:0 }}>
+          <button className="btn" style={{ flexShrink: 0 }} onClick={() => navigate(action.link!)}>
             {action.linkText} →
           </button>
         )}
