@@ -1,7 +1,12 @@
 const prisma = require('../config/prismaClient');
 
-async function createNotifications(userIds, { type, title, message, link, relatedId = null }) {
-  if (!userIds || !userIds.length) return;
+// แจ้งเตือนมีหน้าจอให้อ่านเฉพาะนักศึกษา (เมนูนักศึกษา) — เจ้าหน้าที่/อาจารย์ดูงานจากตัวเลขงานที่รอจริงบนเมนู (/api/notifications/pending)
+// ผู้รับที่ไม่ใช่นักศึกษาจึงถูกข้าม (เดิมสร้างค้างเป็นแถวที่ไม่มีหน้าไหนแสดง) · จุดที่เรียกแจ้งเจ้าหน้าที่/อาจารย์ยังอยู่ ไว้ต่ออีเมลแจ้งเหตุการณ์สำคัญภายหลัง
+async function createNotifications(allUserIds, { type, title, message, link, relatedId = null }) {
+  if (!allUserIds || !allUserIds.length) return;
+  const students = await prisma.user.findMany({ where: { id: { in: allUserIds }, role: 'student' }, select: { id: true } });
+  const userIds = students.map(u => u.id);
+  if (!userIds.length) return;
 
   await prisma.$transaction(async (tx) => {
     // ต้องเทียบ message ด้วย — ไม่งั้นแจ้งเตือนคนละเหตุการณ์ที่ใช้ type/relatedId เดียวกัน

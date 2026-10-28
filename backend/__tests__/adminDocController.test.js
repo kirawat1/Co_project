@@ -23,7 +23,12 @@ function makeRes() {
   };
 }
 
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => {
+  jest.clearAllMocks();
+  // createNotifications แจ้งเฉพาะผู้รับที่เป็นนักศึกษา — ผู้รับในไฟล์นี้คือนักศึกษาทั้งหมด
+  prisma.user.findMany.mockImplementation(async ({ where } = {}) =>
+    where?.role === 'student' && where?.id?.in ? where.id.in.map((id) => ({ id })) : []);
+});
 
 describe('getAllStudentsForReview', () => {
   const mockStudents = [
