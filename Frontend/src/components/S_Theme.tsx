@@ -309,6 +309,13 @@ function css(IOS_BLUE: string) {
   }
   /* เงาปุ่มหลักขนาดเต็มฟุ้งเกินไปสำหรับปุ่มในแถวตาราง */
   .btn.small, .btn-primary.small { box-shadow: 0 2px 6px rgba(10,132,255,.22); }
+  /* จอสัมผัส: ปุ่มขนาดย่อสูงอย่างน้อย 44 ทุกที่ (เดิมขยายเฉพาะคอลัมน์สุดท้ายของตาราง — ปุ่มคอลัมน์กลางของ T000 เหลือ 30) */
+  @media (pointer: coarse) {
+    .btn.small, .btn-primary.small, .btn-secondary.small, .btn-outline.small,
+    .btn-success.small, .btn-danger.small, .btn-warning.small, .btn-ghost.small, .btn-danger-outline.small {
+      min-height: 44px;
+    }
+  }
 
   /* ── ตัวเลือก/ตัวกรองแบบเม็ด (แท็บหลักสูตร · แท็บบันทึกการใช้งาน · ตัวกรองสถานะ) — ตัวที่เลือกอยู่ = ฟ้าทึบทุกที่ ── */
   .filter-chip {

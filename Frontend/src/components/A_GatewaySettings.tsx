@@ -191,7 +191,7 @@ export default function A_GatewaySettings() {
             <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '0 0 12px', lineHeight: 1.5 }}>
               {settings.gradeSheetDescription || <em style={{ color: 'var(--text-sub)' }}>(ยังไม่มีคำอธิบาย)</em>}
             </p>
-            <span className="btn" style={{ fontSize: 13, height: 36, padding: '0 16px', pointerEvents: 'none' }}>
+            <span className="btn" style={{ pointerEvents: 'none' }}>
               {settings.gradeSheetLinkText.trim() || <em style={{ opacity: .6 }}>(ข้อความว่าง)</em>}
             </span>
           </div>

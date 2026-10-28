@@ -508,7 +508,8 @@ export default function CoopRequestPage() {
             href={safeHref(gatewaySettings.gradeSheetUrl)}
             target="_blank"
             rel="noreferrer"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', background: '#2563eb', color: '#fff', borderRadius: 8, fontWeight: 700, fontSize: 13, textDecoration: 'none', marginBottom: 14 }}
+            className="btn"
+            style={{ textDecoration: 'none', marginBottom: 14 }}
           >
             {gatewaySettings.gradeSheetLinkText || '📋 Make a Copy แบบฟอร์ม'}
           </a>
