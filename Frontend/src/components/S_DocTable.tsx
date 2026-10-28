@@ -194,10 +194,10 @@ export default function DocTable({
                         <span className="pending-size"> ({formatSize(pending[it.id].size)})</span>
                       </div>
                       <div className="pending-actions">
-                        <button type="button" className="btn-cancel" disabled={uploadingId === it.id} onClick={() => clearPending(it.id)}>
+                        <button type="button" className="btn-secondary small" disabled={uploadingId === it.id} onClick={() => clearPending(it.id)}>
                           ยกเลิก
                         </button>
-                        <button type="button" className="btn-confirm" disabled={uploadingId === it.id} onClick={() => confirmUpload(it.id)}>
+                        <button type="button" className="btn small" disabled={uploadingId === it.id} onClick={() => confirmUpload(it.id)}>
                           {uploadingId === it.id ? <BusyLabel text="กำลังอัปโหลด…" /> : "🚀 ยืนยันส่งไฟล์"}
                         </button>
                       </div>
@@ -269,7 +269,7 @@ export default function DocTable({
           border: 1px dashed #cbd5e1; background: #f8fafc; 
           cursor: pointer; font-weight: 600; display: inline-flex; 
           align-items: center; justify-content: center; font-size: 13px; color: #334155; 
-          transition: all 0.2s; width: 50%; box-sizing: border-box;
+          transition: all 0.2s; min-width: 50%; max-width: 100%; white-space: nowrap; box-sizing: border-box;
         }
         .btn-light:hover { background: #f1f5f9; border-color: #94a3b8; color: #0f172a; }
 
@@ -282,14 +282,11 @@ export default function DocTable({
           overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
         }
         .pending-size { font-weight: 500; color: #92400e; }
+        /* ธีมมืด: เดิมพื้นเหลืองอ่อนคงอยู่ แต่ตัวอักษรถูกทำสว่าง อ่านไม่ออก */
+        [data-theme="dark"] .pending-wrap { background: rgba(245,158,11,.12); border-color: rgba(245,158,11,.55); }
+        [data-theme="dark"] .pending-name, [data-theme="dark"] .pending-size { color: #fbbf24; }
         .pending-actions { display: flex; gap: 8px; }
-        .pending-actions button {
-          flex: 1; height: 34px; border-radius: 8px; border: none; cursor: pointer;
-          font-weight: 700; font-size: 13px;
-        }
-        .pending-actions button:disabled { opacity: .6; cursor: not-allowed; }
-        .btn-cancel { background: #fee2e2; color: #b91c1c; }
-        .btn-confirm { background: #10b981; color: #fff; }
+        .pending-actions button { flex: 1; }
 
         .file-wrap { 
           display: flex; align-items: center; justify-content: space-between; 
