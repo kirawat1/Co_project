@@ -263,7 +263,7 @@ test("P4: เจ้าหน้าที่กดอนุมัติเอก�
   const row = page.locator("tbody tr", { hasText: fx.student.studentId });
   await expect(row).toBeVisible({ timeout: 15_000 });
 
-  await row.getByRole("button", { name: /ตรวจสอบ T000/ }).click();
+  await row.getByRole("button", { name: /ตรวจสอบเอกสาร/ }).click();
 
   const modal = page.locator(".modal-backdrop");
   await expect(modal).toBeVisible();
