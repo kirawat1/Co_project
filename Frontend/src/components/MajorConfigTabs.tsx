@@ -78,11 +78,7 @@ function TabButton({ active, onClick, title, children }: { active: boolean; onCl
       aria-selected={active}
       title={title}
       onClick={onClick}
-      style={{
-        padding: "6px 14px", borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: "pointer",
-        border: `1px solid ${active ? "#2563eb" : "#cbd5e1"}`,
-        background: active ? "#2563eb" : "#fff", color: active ? "#fff" : "#334155",
-      }}
+      className={active ? "filter-chip on" : "filter-chip"}
     >
       {children}
     </button>

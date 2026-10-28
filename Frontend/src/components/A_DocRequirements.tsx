@@ -110,7 +110,7 @@ export default function A_DocRequirements() {
                         กำหนดรายการเอกสารที่นักศึกษาต้องอัปโหลด — หัวข้อ "ทุกหลักสูตร" ปิดใช้รายหลักสูตรได้ · เพิ่มหัวข้อเฉพาะหลักสูตรได้
                     </div>
                 </div>
-                <button className="btn" style={{ padding: '10px 20px', fontSize: 15 }} onClick={openAddModal}>
+                <button className="btn" onClick={openAddModal}>
                     + เพิ่มหัวข้อเอกสารใหม่
                 </button>
             </section>
@@ -182,8 +182,8 @@ export default function A_DocRequirements() {
                                 <td style={{ ...td, textAlign: 'right', whiteSpace: 'nowrap' }}>
                                     {r.canManage ? (
                                         <>
-                                            <button className="btn-ghost" style={{ marginRight: 8, padding: '6px 12px' }} onClick={() => openEditModal(r)}>✏️ แก้ไข</button>
-                                            <button className="btn-danger" style={{ padding: '6px 12px' }} onClick={() => removeRequirement(r.id, r.title)}>🗑️ ลบ</button>
+                                            <button className="btn-secondary small" style={{ marginRight: 8 }} onClick={() => openEditModal(r)}>✏️ แก้ไข</button>
+                                            <button className="btn-danger-outline small" onClick={() => removeRequirement(r.id, r.title)}>🗑️ ลบ</button>
                                         </>
                                     ) : (
                                         <span style={{ fontSize: 12, color: '#64748b' }}>หัวข้อกลาง (เจ้าหน้าที่แก้ไข)</span>
@@ -280,7 +280,7 @@ export default function A_DocRequirements() {
                             </div>
 
                             <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 16 }}>
-                                <button type="button" className="btn-ghost" onClick={() => setModalOpen(false)}>ยกเลิก</button>
+                                <button type="button" className="btn-secondary" onClick={() => setModalOpen(false)}>ยกเลิก</button>
                                 <button type="submit" className="btn">💾 บันทึกหัวข้อเอกสาร</button>
                             </div>
                         </form>

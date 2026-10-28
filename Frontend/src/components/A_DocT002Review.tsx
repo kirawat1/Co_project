@@ -262,7 +262,7 @@ export default function A_T002Review() {
                             <span style={{ fontSize: 12, color: '#b45309', fontWeight: 600 }}>แสดง {students.length} จาก {listTotal} คน — เลือกรอบเพื่อดูครบ</span>
                         )}
 
-                        <button className="btn-ghost" style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 6 }} onClick={fetchAllData} disabled={loading}>
+                        <button className="btn-secondary" onClick={fetchAllData} disabled={loading}>
                             {loading ? <Spinner size={14} /> : '🔄'} รีเฟรช
                         </button>
 
@@ -321,7 +321,7 @@ export default function A_T002Review() {
                                         <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
                                         <DeadlineExtensionButton compact step="T002" studentId={s.id} studentName={`${s.firstName} ${s.lastName}`} extensions={s.coop?.deadlineExtensions} />
                                         {getT002FileUrl(s.documents || []) && (
-                                        <button className="btn" style={{ padding: '8px 16px', fontSize: 13, background: statusInfo.label.includes('รอการตรวจสอบ') ? '#0ea5e9' : '#64748b' }} onClick={() => openReviewModal(s)}>
+                                        <button className={statusInfo.label.includes('รอการตรวจสอบ') ? "btn small" : "btn-secondary small"} onClick={() => openReviewModal(s)}>
                                             🔍 ตรวจเอกสาร
                                         </button>
                                         )}
@@ -343,7 +343,7 @@ export default function A_T002Review() {
                             <h3 style={{ margin: 0, color: '#0f172a', fontSize: 20 }}>
                                 🔍 ตรวจสอบ T002: {selectedStudent.firstName} {selectedStudent.lastName}
                             </h3>
-                            <button onClick={() => setModalOpen(false)} style={{ background: 'none', border: 'none', fontSize: 24, cursor: 'pointer', color: '#64748b' }}>&times;</button>
+                            <button className="modal-close" aria-label="ปิด" onClick={() => setModalOpen(false)}>&times;</button>
                         </div>
 
                         <div className="review-split" style={{ display: 'flex', gap: 24, height: '70vh' }}>

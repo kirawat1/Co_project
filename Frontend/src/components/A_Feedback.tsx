@@ -124,9 +124,9 @@ export default function A_Feedback() {
                     <button
                         key={t.key}
                         onClick={() => setTab(t.key)}
-                        style={{ ...tabBtn, ...(tab === t.key ? tabBtnOn : {}) }}
+                        className={tab === t.key ? "filter-chip on" : "filter-chip"}
                     >
-                        {t.label} <span style={{ opacity: 0.75 }}>({counts[t.key] ?? 0})</span>
+                        {t.label} <span className="count">{counts[t.key] ?? 0}</span>
                     </button>
                 ))}
                 <input
@@ -247,11 +247,6 @@ export default function A_Feedback() {
 
 const card: CSSProperties = { background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 16 };
 const chip: CSSProperties = { fontSize: 12, fontWeight: 700, padding: "2px 10px", borderRadius: 999 };
-const tabBtn: CSSProperties = {
-    padding: "7px 14px", borderRadius: 999, border: "1px solid #e2e8f0",
-    background: "#fff", color: "#475569", fontSize: 13.5, fontWeight: 600, cursor: "pointer",
-};
-const tabBtnOn: CSSProperties = { background: "#0f766e", borderColor: "#0f766e", color: "#fff" };
 const textarea: CSSProperties = {
     width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid #cbd5e1",
     fontSize: 14, fontFamily: "inherit", resize: "vertical", marginBottom: 10, boxSizing: "border-box",

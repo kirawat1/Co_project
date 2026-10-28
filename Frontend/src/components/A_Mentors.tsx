@@ -4,7 +4,7 @@ import { IcSave, IcUser } from "./icons"; // อย่าลืมเช็ค p
 import { apiFetch } from "../utils/apiFetch";
 import LoadMoreFooter from "./LoadMoreFooter";
 import { useLoadMore } from "../utils/useLoadMore";
-import { notify, askConfirm } from "../utils/notify";
+import { notify, askConfirm } from "../utils/notify";
 import { TABLE_TH, TABLE_TD, TABLE_HEADER_ROW } from "../utils/tableStyles";
 
 /* =========================
@@ -189,10 +189,10 @@ export default function A_Mentors() {
                 <td style={td} data-label="เบอร์โทร">{m.phone || "-"}</td>
                 <td style={td}>
                   <div style={{ display: 'flex', gap: 8 }}>
-                    <button className="btn" style={ghostBtn} onClick={() => setModalData(m)}>
+                    <button className="btn-secondary small" onClick={() => setModalData(m)}>
                       ✏️ แก้ไข
                     </button>
-                    <button className="btn" style={{ ...ghostBtn, color: "#ef4444", borderColor: "#ef4444" }} onClick={() => handleDelete(m.id)}>
+                    <button className="btn-danger-outline small" onClick={() => handleDelete(m.id)}>
                       🗑️ ลบ
                     </button>
                   </div>
@@ -229,7 +229,7 @@ function MentorModal({ data, onClose, onSave }: { data: Mentor, onClose: () => v
       <div style={modal}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <h2 style={{ margin: 0, fontSize: 22 }}>แก้ไขข้อมูลพี่เลี้ยง</h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#64748b' }}>✕</button>
+          <button className="modal-close" aria-label="ปิด" onClick={onClose}>✕</button>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
@@ -295,11 +295,9 @@ function MentorModal({ data, onClose, onSave }: { data: Mentor, onClose: () => v
         </div>
 
         <div style={modalFooter}>
-          <button style={ghostBtn} onClick={onClose}>ยกเลิก</button>
-          <button style={saveBtn} onClick={() => onSave(form)}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <IcSave width={16} height={16} /> บันทึกข้อมูล
-            </div>
+          <button className="btn-secondary" onClick={onClose}>ยกเลิก</button>
+          <button className="btn" onClick={() => onSave(form)}>
+            <IcSave width={16} height={16} /> บันทึกข้อมูล
           </button>
         </div>
       </div>
@@ -315,8 +313,6 @@ const filterRow: React.CSSProperties = { display: "flex", gap: 12, alignItems: "
 const th: React.CSSProperties = TABLE_TH;
 const td: React.CSSProperties = TABLE_TD;
 
-const ghostBtn: React.CSSProperties = { background: "#fff", color: "#0074B7", boxShadow: "none", border: "1px solid rgba(10,132,255,.25)", height: 34, borderRadius: 8, padding: '0 12px', cursor: 'pointer', fontWeight: 600, fontSize: 13 };
-const saveBtn: React.CSSProperties = { background: "#0074B7", color: "#fff", boxShadow: "none", border: "1px solid rgba(10,132,255,.25)", height: 36, borderRadius: 8, padding: '0 16px', cursor: 'pointer', fontWeight: 600, fontSize: 14 };
 
 const overlay: React.CSSProperties = { position: "fixed", inset: 0, background: "rgba(15,23,42,.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, backdropFilter: 'blur(4px)' };
 const modal: React.CSSProperties = { background: "#fff", borderRadius: 20, padding: 32, width: 600, maxWidth: "95%", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)" };

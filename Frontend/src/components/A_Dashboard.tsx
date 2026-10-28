@@ -165,20 +165,8 @@ export default function A_Dashboard() {
               );
             })}
           </select>
-          <button
-            onClick={handleExport}
-            style={{
-              padding: '8px 14px',
-              borderRadius: 8,
-              border: '1px solid #16a34a',
-              background: '#16a34a',
-              color: '#fff',
-              fontWeight: 700,
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            📥 Export Excel
+          <button className="btn-success" onClick={handleExport}>
+            📊 Export Excel
           </button>
         </div>
       </div>

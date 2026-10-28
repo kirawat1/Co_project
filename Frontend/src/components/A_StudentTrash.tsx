@@ -123,7 +123,7 @@ export default function A_StudentTrash() {
                     ) : (
                       <>
                         <button className="btn-secondary small" onClick={() => handleRestore(s)}>กู้คืน</button>
-                        <button className="btn-danger small" onClick={() => { setConfirmId(s.id); setConfirmText(""); }}>🗑️ ลบถาวร</button>
+                        <button className="btn-danger-outline small" onClick={() => { setConfirmId(s.id); setConfirmText(""); }}>🗑️ ลบถาวร</button>
                       </>
                     )}
                   </div>

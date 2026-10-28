@@ -19,7 +19,7 @@ import type { StepKey } from "../utils/deadlines";
 // โหลดเมื่อเปิดหน้าต่าง — ลากไลบรารี xlsx มาด้วย ไม่ให้ก้อนหน้านี้โตขึ้น
 const BulkLetterDraftModal = lazy(() => import("./BulkLetterDraftModal"));
 const BulkSignedUploadModal = lazy(() => import("./BulkSignedUploadModal"));
-import LetterZipModal, { LetterZipButton, toolbarBtn } from "./LetterZipModal";
+import LetterZipModal, { LetterZipButton } from "./LetterZipModal";
 import { defaultPeriodId, pendingOutside, periodCountLabel, type PeriodCount } from "../utils/defaultPeriod";
 
 // --- Interfaces ---
@@ -99,7 +99,6 @@ interface DocRequirement {
 type SortKey = 'studentId' | 'name' | 'filesCount' | 'submittedAt' | 'docStatus';
 type SortDirection = 'asc' | 'desc';
 
-const IOS_BLUE = "#0074B7";
 
 // สถานะตั้งแต่เริ่มฝึกงานเป็นต้นไป (ออกหนังสือส่งตัวแล้ว) — นักศึกษาผ่านทุกขั้นตอนเอกสาร T000 มาแล้ว
 // เดิมปุ่มพิมพ์ซ้ำ/ตรวจสอบย้อนหลังไม่ครอบคลุมสถานะกลุ่มนี้ ทำให้เจ้าหน้าที่กลับมาดู/พิมพ์เอกสารเก่าไม่ได้เลย
@@ -651,7 +650,7 @@ export default function A_DocT000() {
             <section className="card">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
                     <h3 style={{ margin: 0 }}>รายการส่งเอกสาร ({list.length})</h3>
-                    <button className="btn" style={{ background: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1' }} onClick={fetchAllData} disabled={loading}>
+                    <button className="btn-secondary" onClick={fetchAllData} disabled={loading}>
                         {loading ? <BusyLabel text="กำลังโหลดข้อมูล…" /> : 'รีเฟรชข้อมูล'}
                     </button>
                 </div>
@@ -688,19 +687,18 @@ export default function A_DocT000() {
                     {/* หนังสือรวม · ดาวน์โหลดหนังสือที่ออกแล้วเป็น zip (เลือกประเภท/รอบ/หลักสูตร และยืนยันในหน้าต่าง) */}
                     <div style={{ marginLeft: "auto", display: "flex", gap: 8, flexWrap: "wrap" }}>
                         {isStaff && (
-                            <button type="button" onClick={() => { setBatchMode(m => !m); setBatchIds([]); }}
-                                style={batchMode ? { ...toolbarBtn, background: "#1e293b", borderColor: "#1e293b", color: "#fff" } : toolbarBtn}>
+                            <button type="button" className={batchMode ? "btn" : "btn-secondary"} onClick={() => { setBatchMode(m => !m); setBatchIds([]); }}>
                                 {batchMode ? "ปิดโหมดหนังสือรวม" : "ออกหนังสือรวมหลายคน"}
                             </button>
                         )}
                         {isStaff && (
-                            <button type="button" onClick={() => { refreshStudents(); setBulkDraftOpen(true); }} style={toolbarBtn}
+                            <button type="button" className="btn-secondary" onClick={() => { refreshStudents(); setBulkDraftOpen(true); }}
                                 title="ออกร่างหนังสือของหลายคนพร้อมกัน ได้ zip + รายการเลขหนังสือ">
                                 ออกร่างหนังสือหลายคน
                             </button>
                         )}
                         {isStaff && (
-                            <button type="button" onClick={() => { refreshStudents(); setBulkSignedOpen(true); }} style={toolbarBtn}
+                            <button type="button" className="btn-secondary" onClick={() => { refreshStudents(); setBulkSignedOpen(true); }}
                                 title="อัปโหลดหนังสือที่ลงนามแล้วหลายฉบับพร้อมกัน จับคู่จากเลขหน้าชื่อไฟล์">
                                 อัปโหลดฉบับลงนามหลายฉบับ
                             </button>
@@ -739,8 +737,8 @@ export default function A_DocT000() {
                         <span style={{ fontWeight: 700, color: '#1e3a8a' }}>หนังสือรวม: เลือกแล้ว {batchIds.length} คน</span>
                         <span style={{ color: '#475569' }}>ติ๊กนักศึกษาบริษัทเดียวกัน (กรองด้วยช่อง "ทุกบริษัท" ด้านบนได้)</span>
                         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                            <button className="btn" style={{ background: '#16a34a', color: 'white', fontSize: 12 }} disabled={batchIds.length < 2} onClick={() => openBatchLetter("REQUEST")}>ออกหนังสือขอความอนุเคราะห์รวม</button>
-                            <button className="btn" style={{ background: '#0284c7', color: 'white', fontSize: 12 }} disabled={batchIds.length < 2} onClick={() => openBatchLetter("PLACEMENT")}>ออกหนังสือส่งตัวรวม</button>
+                            <button className="btn" disabled={batchIds.length < 2} onClick={() => openBatchLetter("REQUEST")}>ออกหนังสือขอความอนุเคราะห์รวม</button>
+                            <button className="btn" disabled={batchIds.length < 2} onClick={() => openBatchLetter("PLACEMENT")}>ออกหนังสือส่งตัวรวม</button>
                         </div>
                     </div>
                 )}
@@ -793,7 +791,7 @@ export default function A_DocT000() {
                                     <td style={td}>
                                         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                                         {(s.documents?.length || 0) > 0 && !POST_LETTER_STATUSES.includes(s.docStatus || '') && (
-                                            <button className="btn" style={{ background: IOS_BLUE, color: 'white', fontSize: 12 }} onClick={() => openCheckModal(s, 1)}>
+                                            <button className="btn small" onClick={() => openCheckModal(s, 1)}>
                                                 ตรวจสอบเอกสาร
                                             </button>
                                         )}
@@ -807,7 +805,7 @@ export default function A_DocT000() {
                                         {/* ออกหนังสือ = เจ้าหน้าที่เท่านั้น — อาจารย์ประจำวิชาเห็นแค่สถานะ */}
                                         {!isStaff && s.docStatus === 'DOCS_APPROVED' && <span style={{ fontSize: 12, color: '#64748b' }}>รอเจ้าหน้าที่ออกหนังสือ</span>}
                                         {isStaff && CAN_ISSUE_REQUEST_LETTER_STATUSES.includes(s.docStatus || '') && (
-                                            <button className="btn" style={{ background: s.coop?.reqLetterPendingAt ? '#d97706' : s.docStatus === 'DOCS_APPROVED' ? '#16a34a' : '#64748b', color: 'white', fontSize: 12 }} onClick={() => setIssueModalData(s)}>
+                                            <button className={s.coop?.reqLetterPendingAt || s.docStatus === 'DOCS_APPROVED' ? "btn small" : "btn-secondary small"} onClick={() => setIssueModalData(s)}>
                                                 {s.coop?.reqLetterPendingAt ? 'อัปโหลดฉบับลงนาม' : s.docStatus === 'DOCS_APPROVED' ? 'ออกหนังสือขอความอนุเคราะห์' : 'พิมพ์ซ้ำ'}
                                             </button>
                                         )}
@@ -815,12 +813,12 @@ export default function A_DocT000() {
                                     <td style={td}>
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-start' }}>
                                             {CAN_CHECK_ACCEPTANCE_STATUSES.includes(s.docStatus || '') && (
-                                                <button className="btn" style={{ background: '#3b82f6', color: 'white', fontSize: 12 }} onClick={() => openCheckModal(s, 2)}>
+                                                <button className="btn small" onClick={() => openCheckModal(s, 2)}>
                                                     ตรวจสอบใบตอบรับ
                                                 </button>
                                             )}
                                             {ACCEPTANCE_RECEIVABLE_STATUSES.includes(s.docStatus || '') && (
-                                                <button className="btn" style={{ background: '#fff', color: '#0f766e', border: '1px solid #14b8a6', fontSize: 12 }} onClick={() => setAcceptanceReceivedFor(s)}>
+                                                <button className="btn-secondary small" onClick={() => setAcceptanceReceivedFor(s)}>
                                                     บันทึกใบตอบรับจากบริษัท
                                                 </button>
                                             )}
@@ -829,7 +827,7 @@ export default function A_DocT000() {
                                     <td style={td}>
                                         {!isStaff && s.docStatus === 'ACCEPTANCE_CHECKED' && <span style={{ fontSize: 12, color: '#64748b' }}>รอเจ้าหน้าที่ออกหนังสือ</span>}
                                         {isStaff && (s.docStatus === 'ACCEPTANCE_CHECKED' || s.docStatus === 'PLACEMENT_LETTER_ISSUED' || AFTER_PLACEMENT_STATUSES.includes(s.docStatus || '')) && (
-                                            <button className="btn" style={{ background: s.coop?.placeLetterPendingAt ? '#d97706' : s.docStatus === 'ACCEPTANCE_CHECKED' ? '#0284c7' : '#64748b', color: 'white', fontSize: 12 }} onClick={() => setPlacementModalData(s)}>
+                                            <button className={s.coop?.placeLetterPendingAt || s.docStatus === 'ACCEPTANCE_CHECKED' ? "btn small" : "btn-secondary small"} onClick={() => setPlacementModalData(s)}>
                                                 {s.coop?.placeLetterPendingAt ? 'อัปโหลดฉบับลงนาม' : s.docStatus === 'ACCEPTANCE_CHECKED' ? 'ออกหนังสือส่งตัว' : 'พิมพ์ซ้ำ'}
                                             </button>
                                         )}
@@ -928,15 +926,14 @@ export default function A_DocT000() {
                                             <>
                                                 <input ref={acceptanceFileRef} type="file" accept=".pdf,.jpg,.jpeg,.png" style={{ display: 'none' }}
                                                     onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) handleReplaceAcceptance(f); }} />
-                                                <button onClick={() => acceptanceFileRef.current?.click()} disabled={replacingAcceptance}
-                                                    style={{ fontSize: 12, background: '#0f766e', color: 'white', border: 'none', padding: '6px 12px', borderRadius: 6, cursor: replacingAcceptance ? 'wait' : 'pointer', fontWeight: 600, boxShadow: '0 2px 4px rgba(15, 118, 110, 0.2)' }}>
+                                                <button className="btn-secondary small" onClick={() => acceptanceFileRef.current?.click()} disabled={replacingAcceptance}>
                                                     {replacingAcceptance ? <BusyLabel text="กำลังอัปโหลด…" /> : hasFile ? 'เปลี่ยนไฟล์ใบตอบรับ' : 'อัปโหลดใบตอบรับแทน'}
                                                 </button>
                                             </>
                                         );
                                     })()}
                                     {checkPhase === 1 && canEditInModal(selectedStudent, 1) && (
-                                        <button onClick={handleApproveAll} style={{ fontSize: 12, background: '#059669', color: 'white', border: 'none', padding: '6px 12px', borderRadius: 6, cursor: 'pointer', fontWeight: 600, boxShadow: '0 2px 4px rgba(16, 185, 129, 0.2)' }}>
+                                        <button className="btn-success small" onClick={handleApproveAll}>
                                             อนุมัติทั้งหมด
                                         </button>
                                     )}

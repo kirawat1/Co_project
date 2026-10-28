@@ -34,12 +34,12 @@ const ROLE_LABEL: Record<string, string> = { staff: "เจ้าหน้าท
 
 // แท็บแยกดูตามสิทธิ์ · anonymous = ยังไม่ได้ล็อกอิน (เช่น เข้าสู่ระบบไม่ผ่าน)
 type RoleCounts = { all: number; staff: number; teacher: number; student: number; anonymous: number };
-const ROLE_TABS: { key: string; countKey: keyof RoleCounts; label: string; icon: string; color: string; bg: string }[] = [
-    { key: "", countKey: "all", label: "ทั้งหมด", icon: "📋", color: "#1e293b", bg: "#f1f5f9" },
-    { key: "staff", countKey: "staff", label: "เจ้าหน้าที่", icon: "🛠️", color: "#1d4ed8", bg: "#eff6ff" },
-    { key: "teacher", countKey: "teacher", label: "อาจารย์", icon: "👨‍🏫", color: "#0f766e", bg: "#f0fdfa" },
-    { key: "student", countKey: "student", label: "นักศึกษา", icon: "🎓", color: "#7c3aed", bg: "#f5f3ff" },
-    { key: "anonymous", countKey: "anonymous", label: "ไม่ได้ล็อกอิน", icon: "🔒", color: "#b45309", bg: "#fffbeb" },
+const ROLE_TABS: { key: string; countKey: keyof RoleCounts; label: string; icon: string }[] = [
+    { key: "", countKey: "all", label: "ทั้งหมด", icon: "📋" },
+    { key: "staff", countKey: "staff", label: "เจ้าหน้าที่", icon: "🛠️" },
+    { key: "teacher", countKey: "teacher", label: "อาจารย์", icon: "👨‍🏫" },
+    { key: "student", countKey: "student", label: "นักศึกษา", icon: "🎓" },
+    { key: "anonymous", countKey: "anonymous", label: "ไม่ได้ล็อกอิน", icon: "🔒" },
 ];
 const PAGE_SIZE = 50;
 
@@ -170,7 +170,7 @@ export default function A_Logs() {
                         ใครทำอะไรกับระบบ — บันทึกทุกการเปลี่ยนแปลงข้อมูลและการเข้าสู่ระบบ · เก็บย้อนหลัง {retentionDays} วัน
                     </div>
                 </div>
-                <button className="btn" style={{ background: "#16a34a", color: "#fff" }} onClick={handleExport} disabled={downloading}>
+                <button className="btn-success" onClick={handleExport} disabled={downloading}>
                     {downloading ? <BusyLabel text="กำลังสร้างไฟล์…" /> : "📊 Export Excel"}
                 </button>
             </div>
@@ -201,7 +201,7 @@ export default function A_Logs() {
                 </label>
 
                 {hasFilter && (
-                    <button className="btn-secondary" style={{ fontSize: 13 }} onClick={clearFilters}>ล้างตัวกรอง</button>
+                    <button className="btn-secondary" onClick={clearFilters}>ล้างตัวกรอง</button>
                 )}
             </div>
 
@@ -216,15 +216,9 @@ export default function A_Logs() {
                                 role="tab"
                                 aria-selected={active}
                                 onClick={() => { setRole(t.key); setUserId(""); }}
-                                style={{
-                                    border: `1px solid ${active ? t.color : "#e2e8f0"}`,
-                                    background: active ? t.bg : "#fff",
-                                    color: active ? t.color : "#475569",
-                                    fontWeight: active ? 700 : 500,
-                                    borderRadius: 99, padding: "6px 14px", fontSize: 13, cursor: "pointer",
-                                }}
+                                className={active ? "filter-chip on" : "filter-chip"}
                             >
-                                {t.icon} {t.label} <span style={{ opacity: 0.75 }}>({(roleCounts[t.countKey] ?? 0).toLocaleString()})</span>
+                                {t.icon} {t.label} <span className="count">{(roleCounts[t.countKey] ?? 0).toLocaleString()}</span>
                             </button>
                         );
                     })}

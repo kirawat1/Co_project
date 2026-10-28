@@ -238,7 +238,7 @@ function css(IOS_BLUE: string) {
      .action-btn, .btn-copy and .close-btn are compact utility buttons and keep their own sizing below. */
   .btn, .btn-primary,
   .btn-secondary, .btn-ghost, .btn-outline,
-  .btn-success, .btn-danger, .btn-warning {
+  .btn-success, .btn-danger, .btn-warning, .btn-danger-outline {
     height: 44px; border-radius: 10px;
     padding: 0 16px; font-weight: 700;
     display: inline-flex; align-items: center; justify-content: center; gap: 6px;
@@ -247,13 +247,13 @@ function css(IOS_BLUE: string) {
   }
   .btn:disabled, .btn-primary:disabled,
   .btn-secondary:disabled, .btn-ghost:disabled, .btn-outline:disabled,
-  .btn-success:disabled, .btn-danger:disabled, .btn-warning:disabled,
+  .btn-success:disabled, .btn-danger:disabled, .btn-warning:disabled, .btn-danger-outline:disabled,
   .action-btn:disabled, .btn-copy:disabled, .close-btn:disabled {
     opacity: .6; cursor: not-allowed; filter: none !important; pointer-events: none;
   }
   .btn:focus-visible, .btn-primary:focus-visible,
   .btn-secondary:focus-visible, .btn-ghost:focus-visible, .btn-outline:focus-visible,
-  .btn-success:focus-visible, .btn-danger:focus-visible, .btn-warning:focus-visible,
+  .btn-success:focus-visible, .btn-danger:focus-visible, .btn-warning:focus-visible, .btn-danger-outline:focus-visible,
   .action-btn:focus-visible, .btn-copy:focus-visible, .close-btn:focus-visible,
   .btn-ico:focus-visible, .btn-link:focus-visible {
     outline: 2px solid var(--ios-blue); outline-offset: 2px;
@@ -297,11 +297,32 @@ function css(IOS_BLUE: string) {
   .btn-warning:hover { filter: brightness(.92); }
   .btn-warning:active { filter: brightness(.85); }
 
-  /* ── ปุ่มขนาดย่อ (แก้ไข/ลบ ในแถวตาราง) — ต่อกับ .btn ชนิดไหนก็ได้ เช่น "btn-secondary small", "btn-danger small" ── */
+  /* ── Danger outline (ปุ่มลบในแถวตาราง — ตารางยาวไม่แดงทั้งคอลัมน์; แดงทึบเก็บไว้ที่ "ยืนยันลบ") ── */
+  .btn-danger-outline { background: #fff; color: #dc2626; border: 1px solid #fca5a5; }
+  .btn-danger-outline:hover { background: #fef2f2; border-color: #f87171; }
+  .btn-danger-outline:active { transform: scale(.98); }
+
+  /* ── ปุ่มขนาดย่อ (แก้ไข/ลบ ในแถวตาราง) — ต่อกับ .btn ชนิดไหนก็ได้ เช่น "btn-secondary small", "btn-danger-outline small" ── */
   .btn.small, .btn-primary.small, .btn-secondary.small, .btn-outline.small,
-  .btn-success.small, .btn-danger.small, .btn-warning.small, .btn-ghost.small {
+  .btn-success.small, .btn-danger.small, .btn-warning.small, .btn-ghost.small, .btn-danger-outline.small {
     height: 30px; padding: 0 10px; font-size: 12px;
   }
+  /* เงาปุ่มหลักขนาดเต็มฟุ้งเกินไปสำหรับปุ่มในแถวตาราง */
+  .btn.small, .btn-primary.small { box-shadow: 0 2px 6px rgba(10,132,255,.22); }
+
+  /* ── ตัวเลือก/ตัวกรองแบบเม็ด (แท็บหลักสูตร · แท็บบันทึกการใช้งาน · ตัวกรองสถานะ) — ตัวที่เลือกอยู่ = ฟ้าทึบทุกที่ ── */
+  .filter-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    min-height: 34px; padding: 0 14px; border-radius: 999px;
+    font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap;
+    background: #fff; color: #334155; border: 1px solid #cbd5e1;
+    transition: background-color .15s, border-color .15s;
+  }
+  .filter-chip:hover { background: #f1f5f9; }
+  .filter-chip.on { background: var(--ios-blue); border-color: var(--ios-blue); color: #fff; }
+  .filter-chip:focus-visible { outline: 2px solid var(--ios-blue); outline-offset: 2px; }
+  .filter-chip .count { font-size: 11px; padding: 1px 7px; border-radius: 999px; background: rgba(15,23,42,.08); }
+  .filter-chip.on .count { background: rgba(255,255,255,.25); }
 
   /* ── Generic outlined action button (compact — used inline in table rows) ── */
   .action-btn {
@@ -665,6 +686,11 @@ function css(IOS_BLUE: string) {
   [data-theme="dark"] .btn-success:hover { filter: brightness(1.1) !important; }
   [data-theme="dark"] .btn-danger { background: #b91c1c !important; color: #fff !important; }
   [data-theme="dark"] .btn-danger:hover { filter: brightness(1.15) !important; }
+  [data-theme="dark"] .btn-danger-outline { background: #1e293b !important; color: #f87171 !important; border-color: rgba(248,113,113,.45) !important; }
+  [data-theme="dark"] .btn-danger-outline:hover { background: rgba(220,38,38,.15) !important; }
+  [data-theme="dark"] .filter-chip:not(.on) { background: #1e293b !important; color: #e2e8f0 !important; border-color: #475569 !important; }
+  [data-theme="dark"] .filter-chip:not(.on):hover { background: #334155 !important; }
+  [data-theme="dark"] .filter-chip .count { background: rgba(255,255,255,.12); }
   [data-theme="dark"] .btn-warning { background: #b45309 !important; color: #fff !important; }
   [data-theme="dark"] .btn-warning:hover { filter: brightness(1.15) !important; }
   [data-theme="dark"] .btn-link { color: #60a5fa !important; }

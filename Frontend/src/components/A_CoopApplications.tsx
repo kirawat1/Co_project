@@ -278,19 +278,14 @@ export default function A_CoopApplications() {
 
                 <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
                     <button
-                        className="btn"
+                        className="btn-success"
                         onClick={handleBulkApprove}
                         disabled={qualifiedPendingList.length === 0 || loading}
-                        style={{
-                            background: qualifiedPendingList.length > 0 ? '#059669' : '#e5e7eb',
-                            color: qualifiedPendingList.length > 0 ? 'white' : '#9ca3af',
-                            padding: '10px 20px'
-                        }}
                     >
-                        {loading ? <Spinner size={16} color={qualifiedPendingList.length > 0 ? "#fff" : "#9ca3af"} /> : "⚡"}
+                        {loading ? <Spinner size={16} color="#fff" /> : "⚡"}
                         {" "}อนุมัติผู้ผ่านคุณสมบัติทั้งหมด ({qualifiedPendingList.length})
                     </button>
-                    <button className="btn-ghost" onClick={fetchApplications} disabled={loading} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <button className="btn-secondary" onClick={fetchApplications} disabled={loading}>
                         {loading ? <Spinner size={15} /> : "🔄"} รีเฟรช
                     </button>
                 </div>
@@ -464,7 +459,7 @@ export default function A_CoopApplications() {
                                     </div>
                                     {/* เกรดยังไม่ออก — พักคำร้องไว้ เกรดออกแล้วค่อยกลับมากดผ่าน/ไม่ผ่าน */}
                                     {selectedApp.status !== "PENDING_GRADE" && !isReviewedPass(selectedApp.status) && (
-                                        <button className="btn-secondary" style={{ width: '100%', marginTop: 10, color: '#6d28d9', borderColor: '#c4b5fd' }} onClick={() => updateStatus("PENDING_GRADE")}>📊 รอพิจารณาเกรด</button>
+                                        <button className="btn-secondary" style={{ width: '100%', marginTop: 10 }} onClick={() => updateStatus("PENDING_GRADE")}>📊 รอพิจารณาเกรด</button>
                                     )}
                                 </div>
                             </div>

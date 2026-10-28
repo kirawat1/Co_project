@@ -226,7 +226,7 @@ export default function A_CoopPeriod() {
                                                     </button>
                                                 )}
                                                 <button className="btn-secondary small" disabled={!!busy} onClick={() => openTerm(p)}>แก้ไขปี/เทอม</button>
-                                                <button className="btn-danger small" disabled={!!busy} onClick={() => removeTerm(p)}>
+                                                <button className="btn-danger-outline small" disabled={!!busy} onClick={() => removeTerm(p)}>
                                                     {busy === `term:${p.id}` ? <BusyLabel size={12} text="กำลังลบ…" /> : "ลบรอบ"}
                                                 </button>
                                             </>
