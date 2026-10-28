@@ -4,7 +4,7 @@ import type { CSSProperties } from "react";
 import type { CalendarEvent } from "./SupervisionCalendar";
 import { fmtDate } from "../utils/dateFormat";
 import { apiFetch } from "../utils/apiFetch";
-import { notify } from "../utils/notify";
+import { notify } from "../utils/notify";
 import { TABLE_TH, TABLE_TD, TABLE_HEADER_ROW } from "../utils/tableStyles";
 import { defaultPeriod } from "../utils/defaultPeriod";
 
@@ -129,7 +129,7 @@ export default function SupervisionScheduleTable({ events, canExport = false, ex
                         </label>
                     )}
                     {canExport && exportUrl && (
-                        <button className="btn" style={{ background: "#16a34a", color: "#fff" }} onClick={handleExport} disabled={downloading}>
+                        <button className="btn-success" onClick={handleExport} disabled={downloading}>
                             {downloading ? <BusyLabel text="กำลังสร้างไฟล์…" /> : "📊 Export Excel"}
                         </button>
                     )}

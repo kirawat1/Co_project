@@ -487,14 +487,11 @@ export default function A_Students() {
       {/* ── Import toolbar ── */}
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12, padding: "12px 16px", background: "#f8fafc", borderRadius: 12, border: "1px solid #e2e8f0", flexWrap: "wrap" }}>
         <span style={{ fontSize: 13, fontWeight: 700, color: "#334155" }}>📥 นำเข้าข้อมูลนักศึกษา</span>
-        <button
-          onClick={() => setShowAddModal(true)}
-          style={{ padding: "6px 14px", background: "#2563eb", color: "#fff", border: "none", borderRadius: 8, fontWeight: 700, cursor: "pointer", fontSize: 13 }}
-        >
+        <button className="btn small" onClick={() => setShowAddModal(true)}>
           + เพิ่มทีละคน
         </button>
         {/* นำเข้าจาก Excel — เจ้าหน้าที่: ทุกหลักสูตร · อาจารย์ประจำวิชา: เฉพาะหลักสูตรที่ดูแล · หลักสูตรที่ไม่รู้จักต้องจับคู่ก่อน (ไม่สร้างใหม่ให้เอง) */}
-        <label style={{ cursor: "pointer", fontSize: 12, padding: "6px 14px", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, fontWeight: 600, color: "#475569" }}>
+        <label className="btn-secondary small">
           เลือกไฟล์ Excel
           <input
             key={fileInputKey}
@@ -518,7 +515,7 @@ export default function A_Students() {
           <>
             <span style={{ fontSize: 12, color: "#64748b" }}>📄 {importFile.name}</span>
             <button
-              style={{ padding: "6px 16px", background: "#0f766e", color: "#fff", border: "none", borderRadius: 8, fontWeight: 700, cursor: "pointer", fontSize: 13 }}
+              className="btn small"
               onClick={() => handlePreview()}
               disabled={importPreviewLoading}
             >
@@ -549,7 +546,7 @@ export default function A_Students() {
             )}
             <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
               <button
-                style={{ padding: "6px 18px", background: "#2563eb", color: "#fff", border: "none", borderRadius: 8, fontWeight: 700, cursor: importLoading || unknownMajors.length > 0 ? "not-allowed" : "pointer", fontSize: 13, opacity: importLoading || unknownMajors.length > 0 ? 0.5 : 1 }}
+                className="btn small"
                 onClick={handleImport}
                 disabled={importLoading || unknownMajors.length > 0}
                 title={unknownMajors.length > 0 ? "เลือกหลักสูตรให้ชื่อที่ระบบไม่รู้จักก่อน" : undefined}
@@ -557,7 +554,7 @@ export default function A_Students() {
                 {importLoading ? <BusyLabel text="กำลังนำเข้า…" /> : "ยืนยันนำเข้า"}
               </button>
               <button
-                style={{ padding: "6px 14px", background: "#fff", color: "#475569", border: "1px solid #e2e8f0", borderRadius: 8, fontWeight: 600, cursor: "pointer", fontSize: 13 }}
+                className="btn-secondary small"
                 onClick={clearImportState}
                 disabled={importLoading}
               >
@@ -600,7 +597,8 @@ export default function A_Students() {
                 ))}
               </div>
               <button
-                style={{ marginTop: 10, padding: "6px 16px", background: "#b45309", color: "#fff", border: "none", borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: "pointer", opacity: importPreviewLoading ? 0.7 : 1 }}
+                className="btn small"
+                style={{ marginTop: 10 }}
                 disabled={importPreviewLoading || unknownMajors.some(u => (pendingMajorChoice[u.name] ?? "?") === "?")}
                 onClick={() => {
                   const picked = Object.fromEntries(unknownMajors.map(u => [u.name, pendingMajorChoice[u.name]]));
@@ -767,8 +765,8 @@ export default function A_Students() {
             onChange={setFilterCurriculums}
           />
 
-          <button onClick={resetFilters} style={clearBtn}>
-            ✕ ล้าง
+          <button className="btn-secondary" style={{ marginLeft: "auto" }} onClick={resetFilters}>
+            ล้างตัวกรอง
           </button>
         </div>
       </section>
@@ -892,7 +890,7 @@ export default function A_Students() {
                         ✏️ แก้ไข
                       </button>
                       <button
-                        className="btn-danger small"
+                        className="btn-danger-outline small"
                         onClick={() => handleDeleteStudent(s)}
                       >
                         🗑️ ลบ
@@ -902,7 +900,8 @@ export default function A_Students() {
                           href={safeHref(s.coopApplicationForm.gradeSheetUrl)}
                           target="_blank"
                           rel="noreferrer"
-                          style={{ background: "#eff6ff", color: "#2563eb", border: "1px solid #bfdbfe", height: 34, padding: "5px 10px", borderRadius: 7, fontSize: 12, cursor: "pointer", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4, fontWeight: 700 }}
+                          className="btn-secondary small"
+                          style={{ textDecoration: "none" }}
                         >
                           📊 แบบฟอร์มเกรด
                         </a>
@@ -1117,7 +1116,6 @@ function StudentModal({
 // UI Helpers & Styles
 const card: React.CSSProperties = { background: "#fff", borderRadius: 14, padding: 20, border: "1px solid #e5e7eb" };
 const filterRow: React.CSSProperties = { display: "flex", gap: 16, flexWrap: "wrap", alignItems: "flex-end" };
-const clearBtn: React.CSSProperties = { height: 28, padding: '0 10px', fontSize: 12, background: 'transparent', border: '1px solid #cbd5e1', borderRadius: 6, color: '#64748b', cursor: 'pointer', alignSelf: 'flex-end', marginBottom: 2 };
 const th: React.CSSProperties = TABLE_TH;
 const td: React.CSSProperties = TABLE_TD;
 const modalFooter: React.CSSProperties = { display: "flex", justifyContent: "flex-end", marginTop: 24 };

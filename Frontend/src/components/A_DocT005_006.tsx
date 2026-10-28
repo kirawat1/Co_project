@@ -134,7 +134,7 @@ export default function A_DocT005_006() {
                 </div>
 
                 <div className="action-row" style={{ marginTop: 24, display: 'flex', justifyContent: 'flex-end' }}>
-                    <button className="btn btn-primary" onClick={handleSave} disabled={isSaving} style={{ padding: '12px 28px', fontSize: 15 }}>
+                    <button className="btn" onClick={handleSave} disabled={isSaving}>
                         {isSaving ? <BusyLabel text="กำลังบันทึก…" /> : '💾 บันทึกการเปลี่ยนแปลง'}
                     </button>
                 </div>

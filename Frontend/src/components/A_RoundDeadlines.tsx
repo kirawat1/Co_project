@@ -220,7 +220,7 @@ export default function A_RoundDeadlines({ period, periods }: Props) {
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 16 }} role="tablist">
                 {columns.map(c => (
                     <button key={c || "college"} type="button" role="tab" aria-selected={tab === c} onClick={() => switchTab(c)}
-                        style={{ ...tabBtn, ...(tab === c ? tabActive : {}) }}>
+                        className={tab === c ? "filter-chip on" : "filter-chip"}>
                         {c === COLLEGE ? "ทั้งวิทยาลัย" : `หลักสูตร ${c}`}
                     </button>
                 ))}
@@ -315,8 +315,6 @@ const table: CSSProperties = { width: "100%", borderCollapse: "collapse", fontSi
 const th: CSSProperties = { textAlign: "left", padding: "6px 8px", fontSize: 12, fontWeight: 700, color: "#64748b", borderBottom: "1px solid #e2e8f0", whiteSpace: "nowrap" };
 const td: CSSProperties = { padding: "8px", borderBottom: "1px solid #eef2f7", color: "#334155", whiteSpace: "nowrap" };
 const diffCell: CSSProperties = { background: "#fefce8" };
-const tabBtn: CSSProperties = { padding: "6px 12px", borderRadius: 999, borderWidth: 1, borderStyle: "solid", borderColor: "#cbd5e1", background: "#fff", color: "#334155", fontSize: 13, fontWeight: 600, cursor: "pointer" };
-const tabActive: CSSProperties = { background: "#2563eb", borderColor: "#2563eb", color: "#fff" };
 const stepRow: CSSProperties = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 220px), 1fr))", gap: 10, padding: 12, border: "1px solid #eef2f7", borderRadius: 10, alignItems: "end" };
 const stepFields: CSSProperties = { display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end", minWidth: 0 };
 const fieldLabel: CSSProperties = { display: "flex", flexDirection: "column", gap: 4, fontSize: 12, fontWeight: 600, color: "#475569", minWidth: 0 };

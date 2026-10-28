@@ -488,7 +488,7 @@ export default function A_SupervisionManage() {
                             <option value="OPEN">🟢 เปิดระบบให้จอง</option>
                         </select>
                     </div>
-                    <button className="btn-success"
+                    <button className="btn"
                         onClick={handleSaveConfig} disabled={savingConfig || !selectedPeriodId}>
                         {savingConfig ? <BusyLabel text="กำลังบันทึก…" /> : "💾 บันทึก"}
                     </button>
@@ -510,7 +510,7 @@ export default function A_SupervisionManage() {
             <section style={card}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
                     <h3 style={{ margin: 0, color: '#0f172a' }}>รายการนัดหมายนิเทศทั้งหมด</h3>
-                    <button className="btn-ghost" onClick={fetchData}>🔄 รีเฟรช</button>
+                    <button className="btn-secondary" onClick={fetchData}>🔄 รีเฟรช</button>
                 </div>
 
                 <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
@@ -635,15 +635,14 @@ export default function A_SupervisionManage() {
                                     <td style={{ ...td, textAlign: 'center' }}>
                                         <div style={{ display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap' }}>
                                             {/* ปุ่มเลือกอาจารย์นิเทศร่วม */}
-                                            <button className="btn-ghost" style={{ fontSize: 12, padding: '6px 10px' }} onClick={() => openAssignTeacherModal(sup)}>
+                                            <button className="btn-secondary small" onClick={() => openAssignTeacherModal(sup)}>
                                                 👥 จัดการอาจารย์
                                             </button>
 
                                             {/* ปุ่มจัดการเอกสาร */}
                                             {sup.status === "DATE_CONFIRMED" && !sup.officialLetterPath && (
                                                 <button
-                                                    className="btn-ghost"
-                                                    style={{ fontSize: 12, padding: '6px 10px', color: '#d97706', borderColor: '#d97706' }}
+                                                    className="btn-secondary small"
                                                     onClick={() => openEditDateModal(sup)}
                                                 >
                                                     ✏️ แก้ไขวัน
@@ -652,24 +651,24 @@ export default function A_SupervisionManage() {
                                             {/* ออกหนังสือขอนิเทศ = เจ้าหน้าที่เท่านั้น */}
                                             {!isStaff && sup.status === "DATE_CONFIRMED" && <span style={{ fontSize: 12, color: '#64748b', alignSelf: 'center' }}>🕒 รอเจ้าหน้าที่ออกหนังสือ</span>}
                                             {isStaff && sup.status === "DATE_CONFIRMED" && (
-                                                <button className="btn" style={{ background: sup.letterPendingAt ? '#d97706' : '#2563eb', color: 'white', padding: '6px 10px', fontSize: 12 }} onClick={() => setSelectedSupForModal(sup)}>
+                                                <button className="btn small" onClick={() => setSelectedSupForModal(sup)}>
                                                     {sup.letterPendingAt ? '✍️ อัปโหลดฉบับลงนาม' : '📄 ออกหนังสือ'}
                                                 </button>
                                             )}
                                             {/* กลุ่มนิเทศ (บริษัท/วันเดียวกัน ยืนยันพร้อมกัน) → หนังสือฉบับเดียวทั้งกลุ่ม */}
                                             {isStaff && sup.status === "DATE_CONFIRMED" && pendingGroupOf(sup).length > 1 && (
-                                                <button className="btn" style={{ background: '#1e40af', color: 'white', padding: '6px 10px', fontSize: 12 }} onClick={() => { setLetterGroup(pendingGroupOf(sup)); setSelectedSupForModal(sup); }}>
+                                                <button className="btn-secondary small" onClick={() => { setLetterGroup(pendingGroupOf(sup)); setSelectedSupForModal(sup); }}>
                                                     👥 หนังสือรวมทั้งกลุ่ม ({pendingGroupOf(sup).length})
                                                 </button>
                                             )}
                                             {(sup.status === "LETTER_UPLOADED" || sup.status === "COMPLETED") && sup.officialLetterPath && (
-                                                <button className="btn-ghost" style={{ fontSize: 12, color: '#059669', borderColor: '#059669', padding: '6px 10px' }} onClick={() => window.open(`/uploads/supervision/${encodeURIComponent(sup.officialLetterPath!)}`, '_blank', 'noopener')}>
+                                                <button className="btn-secondary small" onClick={() => window.open(`/uploads/supervision/${encodeURIComponent(sup.officialLetterPath!)}`, '_blank', 'noopener')}>
                                                     👁️ ดูเอกสาร
                                                 </button>
                                             )}
                                             {/* จบนิเทศ: เจ้าหน้าที่ + อาจารย์ประจำวิชา (รายการในหน้านี้กรองเฉพาะหลักสูตรที่ดูแลแล้ว) */}
                                             {sup.status === "LETTER_UPLOADED" && (
-                                                <button className="btn" style={{ background: '#7c3aed', color: 'white', padding: '6px 10px', fontSize: 12 }} onClick={() => handleComplete(sup)}>
+                                                <button className="btn small" onClick={() => handleComplete(sup)}>
                                                     🏁 จบนิเทศ
                                                 </button>
                                             )}
@@ -714,7 +713,7 @@ export default function A_SupervisionManage() {
                     <div style={{ ...modalContentLarge, maxWidth: 480 }} onClick={e => e.stopPropagation()}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, paddingBottom: 16, borderBottom: '1px solid #e2e8f0' }}>
                             <h3 style={{ margin: 0, fontSize: 20, color: '#0f172a' }}>✏️ แก้ไขวัน-เวลานิเทศ</h3>
-                            <button onClick={() => setEditDateSup(null)} style={{ background: 'none', border: 'none', fontSize: 24, cursor: 'pointer', color: '#64748b' }}>&times;</button>
+                            <button className="modal-close" aria-label="ปิด" onClick={() => setEditDateSup(null)}>&times;</button>
                         </div>
                         <div style={{ fontSize: 14, color: '#475569', marginBottom: 20, padding: 12, background: '#f8fafc', borderRadius: 8 }}>
                             <div>นักศึกษา: <b>{editDateSup.student.firstName} {editDateSup.student.lastName}</b></div>
@@ -732,10 +731,9 @@ export default function A_SupervisionManage() {
                             </div>
                         </div>
                         <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
-                            <button className="btn-ghost" onClick={() => setEditDateSup(null)}>ยกเลิก</button>
+                            <button className="btn-secondary" onClick={() => setEditDateSup(null)}>ยกเลิก</button>
                             <button
                                 className="btn"
-                                style={{ background: '#d97706', padding: '10px 20px', display: 'flex', alignItems: 'center', gap: 8 }}
                                 disabled={!editDateValue || savingDate}
                                 onClick={() => setConfirmEditOpen(true)}
                             >
@@ -766,7 +764,7 @@ export default function A_SupervisionManage() {
                     <div style={{ ...modalContentLarge, maxWidth: 600 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 15, borderBottom: '1px solid #e2e8f0', marginBottom: 20 }}>
                             <h3 style={{ margin: 0, fontSize: 20, color: '#0f172a' }}>👥 จัดการอาจารย์นิเทศ</h3>
-                            <button onClick={() => { setAssignTeacherModalOpen(false); setSelectedSupForModal(null); }} style={{ background: 'none', border: 'none', fontSize: 24, cursor: 'pointer', color: '#64748b' }}>&times;</button>
+                            <button className="modal-close" aria-label="ปิด" onClick={() => { setAssignTeacherModalOpen(false); setSelectedSupForModal(null); }}>&times;</button>
                         </div>
 
                         <div style={{ marginBottom: 16 }}>
@@ -811,8 +809,8 @@ export default function A_SupervisionManage() {
                         </div>
 
                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 24, paddingTop: 16, borderTop: '1px solid #e2e8f0' }}>
-                            <button className="btn-ghost" onClick={() => { setAssignTeacherModalOpen(false); setSelectedSupForModal(null); }}>ยกเลิก</button>
-                            <button className="btn" style={{ background: '#2563eb', padding: '10px 20px' }} onClick={handleSaveCoTeachers}>💾 บันทึกการเปลี่ยนแปลง</button>
+                            <button className="btn-secondary" onClick={() => { setAssignTeacherModalOpen(false); setSelectedSupForModal(null); }}>ยกเลิก</button>
+                            <button className="btn" onClick={handleSaveCoTeachers}>💾 บันทึกการเปลี่ยนแปลง</button>
                         </div>
                     </div>
                 </div>

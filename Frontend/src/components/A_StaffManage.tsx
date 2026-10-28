@@ -125,10 +125,10 @@ export default function A_StaffManage() {
                   <td style={td}>{s.staffProfile?.phone || "-"}</td>
                   <td style={td}>{fmtDate(s.createdAt)}</td>
                   <td style={{ ...td, whiteSpace: "nowrap" }}>
-                    <button className="btn-ghost" style={{ marginRight: 8, fontSize: 13 }} onClick={() => { setResetTarget(s); setNewPw(""); setResetErr(""); }}>🔑 Reset รหัสผ่าน</button>
+                    <button className="btn-secondary small" style={{ marginRight: 8 }} onClick={() => { setResetTarget(s); setNewPw(""); setResetErr(""); }}>🔑 รหัสผ่าน</button>
                     {s.id === myUserId
                       ? <span style={{ fontSize: 12, color: "#64748b" }}>(บัญชีของคุณ)</span>
-                      : <button className="btn-ghost" style={{ color: "#ef4444", fontSize: 13 }} onClick={() => { setDeleteTarget(s); setDeleteErr(""); }}>ลบ</button>}
+                      : <button className="btn-danger-outline small" onClick={() => { setDeleteTarget(s); setDeleteErr(""); }}>🗑️ ลบ</button>}
                   </td>
                 </tr>
               ))}
@@ -154,7 +154,7 @@ export default function A_StaffManage() {
               <Field label="เบอร์โทร" value={form.phone} onChange={v => setForm(f => ({ ...f, phone: v }))} />
               {addErr && <div style={{ color: "red", fontSize: 13, margin: "8px 0" }}>{addErr}</div>}
               <div style={{ display: "flex", gap: 12, justifyContent: "flex-end", marginTop: 20 }}>
-                <button type="button" className="btn-ghost" onClick={() => setAddOpen(false)}>ยกเลิก</button>
+                <button type="button" className="btn-secondary" onClick={() => setAddOpen(false)}>ยกเลิก</button>
                 <button type="submit" className="btn" disabled={adding}>{adding ? <BusyLabel text="กำลังสร้าง…" /> : "สร้างบัญชี"}</button>
               </div>
             </form>
@@ -176,7 +176,7 @@ export default function A_StaffManage() {
               <Field label="รหัสผ่านใหม่ (อย่างน้อย 6 ตัวอักษร)" type="password" autoComplete="new-password" value={newPw} onChange={setNewPw} />
               {resetErr && <div style={{ color: "red", fontSize: 13, margin: "8px 0" }}>{resetErr}</div>}
               <div style={{ display: "flex", gap: 12, justifyContent: "flex-end", marginTop: 20 }}>
-                <button type="button" className="btn-ghost" onClick={() => setResetTarget(null)}>ยกเลิก</button>
+                <button type="button" className="btn-secondary" onClick={() => setResetTarget(null)}>ยกเลิก</button>
                 <button type="submit" className="btn" disabled={resetting}>{resetting ? <BusyLabel text="กำลังบันทึก…" /> : "บันทึก"}</button>
               </div>
             </form>
@@ -199,8 +199,8 @@ export default function A_StaffManage() {
               </div>
             )}
             <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
-              <button className="btn-ghost" onClick={() => setDeleteTarget(null)}>ยกเลิก</button>
-              <button className="btn" style={{ background: "#dc2626" }} onClick={handleDelete} disabled={deleting}>{deleting ? <BusyLabel text="กำลังลบ…" /> : "ลบบัญชี"}</button>
+              <button className="btn-secondary" onClick={() => setDeleteTarget(null)}>ยกเลิก</button>
+              <button className="btn-danger" onClick={handleDelete} disabled={deleting}>{deleting ? <BusyLabel text="กำลังลบ…" /> : "ลบบัญชี"}</button>
             </div>
           </div>
         </div>

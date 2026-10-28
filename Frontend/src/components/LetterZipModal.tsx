@@ -173,7 +173,7 @@ export default function LetterZipModal({ types, periods, defaultPeriodId, onClos
 /** ปุ่มเปิดหน้าต่างดาวน์โหลด — ใช้หน้าตาเดียวกันทุกหน้า */
 export function LetterZipButton({ onClick, label = "ดาวน์โหลดหนังสือ (zip)" }: { onClick: () => void; label?: string }) {
     return (
-        <button type="button" onClick={onClick} style={toolbarBtn} title="ดาวน์โหลดหนังสือที่ออกแล้ว (ฉบับลงนาม) หลายฉบับเป็นไฟล์ zip">
+        <button type="button" className="btn-secondary" onClick={onClick} title="ดาวน์โหลดหนังสือที่ออกแล้ว (ฉบับลงนาม) หลายฉบับเป็นไฟล์ zip">
             {label}
         </button>
     );
@@ -187,7 +187,3 @@ const noteStyle: CSSProperties = { padding: "8px 12px", borderRadius: 8, border:
 const listBox: CSSProperties = { maxHeight: 220, overflowY: "auto", border: "1px solid #e2e8f0", borderRadius: 8 };
 const listRow: CSSProperties = { display: "flex", alignItems: "center", gap: 10, padding: "7px 12px", borderBottom: "1px solid #f1f5f9", fontSize: 13 };
 const majorChip: CSSProperties = { fontSize: 11, fontWeight: 700, color: "#1d4ed8", background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 999, padding: "1px 8px" };
-export const toolbarBtn: CSSProperties = {
-    display: "inline-flex", alignItems: "center", gap: 6, height: 42, padding: "0 16px", borderRadius: 10,
-    borderWidth: 1, borderStyle: "solid", borderColor: "#cbd5e1", background: "#fff", color: "#1e293b", fontSize: 13, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap",
-};

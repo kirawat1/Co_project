@@ -205,7 +205,7 @@ export default function A_GatewaySettings() {
         <button className="btn btn-secondary" onClick={handleReset} disabled={saving} type="button">
           รีเซ็ตค่าเริ่มต้น
         </button>
-        <button className="btn btn-success" onClick={() => handleSave()} disabled={saving} type="button">
+        <button className="btn" onClick={() => handleSave()} disabled={saving} type="button">
           {saving ? <BusyLabel text="กำลังบันทึก…" /> : '💾 บันทึก'}
         </button>
       </div>

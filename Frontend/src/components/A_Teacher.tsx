@@ -291,7 +291,7 @@ export default function A_Teacher() {
       <section style={card}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
           <h2 style={{ margin: 0 }}>จัดการข้อมูลอาจารย์</h2>
-          {isStaff && <button style={addBtn} onClick={() => { setCreateForm(EMPTY_TEACHER); setCreatePassword(""); setCreateModal(true); }}>
+          {isStaff && <button className="btn" onClick={() => { setCreateForm(EMPTY_TEACHER); setCreatePassword(""); setCreateModal(true); }}>
             + เพิ่มอาจารย์
           </button>}
         </div>
@@ -304,7 +304,7 @@ export default function A_Teacher() {
             style={{ width: 280, padding: "8px", borderRadius: 8, border: "1px solid #e5e7eb" }}
           />
           <FilterBox title="หลักสูตร" items={Object.fromEntries(departments.map(d => [d, d]))} values={filterMajor} onChange={setFilterMajor} />
-          <button className="btn" style={{ ...saveBtn, marginLeft: "auto" }} onClick={() => { setQ(""); setFilterMajor([]); }}>
+          <button className="btn-secondary" style={{ marginLeft: "auto" }} onClick={() => { setQ(""); setFilterMajor([]); }}>
             ล้างตัวกรอง
           </button>
         </div>
@@ -313,7 +313,7 @@ export default function A_Teacher() {
       {/* ─── Bulk action bar ─── */}
       {!isStaff ? null : !selectMode ? (
         <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 20 }}>
-          <button className="btn" style={ghostBtn} onClick={() => setSelectMode(true)}>
+          <button className="btn-secondary" onClick={() => setSelectMode(true)}>
             ☑️ เลือกหลายคน
           </button>
         </div>
@@ -326,20 +326,19 @@ export default function A_Teacher() {
             เลือกแล้ว {selectedIds.size} คน
           </span>
           {/* อยู่ในแถบนี้แทนหัวตาราง เพราะจอ ≤1024px ซ่อน thead ทั้งแถว (S_Theme.tsx) */}
-          <button className="btn" style={ghostBtn} onClick={toggleSelectAll} disabled={bulkDeleting || shownItems.length === 0}>
+          <button className="btn-secondary" onClick={toggleSelectAll} disabled={bulkDeleting || shownItems.length === 0}>
             {isAllShownSelected ? "ยกเลิกเลือกทั้งหมด" : `เลือกทั้งหมด (${shownItems.length})`}
           </button>
           <button
-            className="btn"
-            style={{ ...ghostBtn, color: "#ef4444", borderColor: "#ef4444", opacity: bulkDeleting || selectedIds.size === 0 ? 0.6 : 1, cursor: bulkDeleting || selectedIds.size === 0 ? "not-allowed" : "pointer" }}
+            className="btn-danger"
             onClick={() => setConfirmBulkDel(true)}
             disabled={bulkDeleting || selectedIds.size === 0}
           >
             {bulkDeleting ? <BusyLabel text="กำลังลบ…" /> : <>🗑️ {`ลบที่เลือก (${selectedIds.size})`}</>}
           </button>
           <button
-            className="btn"
-            style={{ ...ghostBtn, marginLeft: "auto" }}
+            className="btn-secondary"
+            style={{ marginLeft: "auto" }}
             onClick={exitSelectMode}
             disabled={bulkDeleting}
           >
@@ -409,13 +408,13 @@ export default function A_Teacher() {
                 </td>
                 <td style={{ ...td, whiteSpace: "nowrap" }}>
                   <div style={{ display: "flex", gap: 6 }}>
-                    {canEdit(t) && <button style={ghostBtn} onClick={() => setEditModal(t)}>
+                    {canEdit(t) && <button className="btn-secondary small" onClick={() => setEditModal(t)}>
                       ✏️ แก้ไข
                     </button>}
-                    {isStaff && <button style={{ ...ghostBtn, color: "#7c3aed", borderColor: "#7c3aed" }} onClick={() => { setPwModal(t); setNewPassword(""); }}>
+                    {isStaff && <button className="btn-secondary small" onClick={() => { setPwModal(t); setNewPassword(""); }}>
                       🔑 รหัสผ่าน
                     </button>}
-                    {isStaff && <button style={{ ...ghostBtn, color: "#ef4444", borderColor: "#ef4444" }} onClick={() => setConfirmDel(t)}>
+                    {isStaff && <button className="btn-danger-outline small" onClick={() => setConfirmDel(t)}>
                       🗑️ ลบ
                     </button>}
                   </div>
@@ -449,7 +448,7 @@ export default function A_Teacher() {
           <div style={modal}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
               <h2 style={{ margin: 0, fontSize: 20 }}>➕ เพิ่มอาจารย์ใหม่</h2>
-              <button onClick={() => { setCreateModal(false); setCreatePassword(""); }} style={closeBtn}>✕</button>
+              <button className="modal-close" aria-label="ปิด" onClick={() => { setCreateModal(false); setCreatePassword(""); }}>✕</button>
             </div>
             {/* form แยก + new-password: บัญชีของอาจารย์คนใหม่ ไม่ให้ password manager เติมบัญชีของเจ้าหน้าที่ที่ login อยู่ */}
             <form autoComplete="off" onSubmit={e => { e.preventDefault(); handleCreate(); }}>
@@ -467,8 +466,8 @@ export default function A_Teacher() {
                 />
               </div>
               <div style={modalFooter}>
-                <button type="button" style={ghostBtn} onClick={() => { setCreateModal(false); setCreatePassword(""); }}>ยกเลิก</button>
-                <button type="submit" style={{ ...saveBtn, display: "flex", alignItems: "center", gap: 8 }} disabled={saving}>
+                <button type="button" className="btn-secondary" onClick={() => { setCreateModal(false); setCreatePassword(""); }}>ยกเลิก</button>
+                <button type="submit" className="btn" disabled={saving}>
                   {saving ? <BusyLabel text="กำลังบันทึก…" /> : "✅ เพิ่มอาจารย์"}
                 </button>
               </div>
@@ -483,7 +482,7 @@ export default function A_Teacher() {
           <div style={{ ...modal, maxWidth: 420 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
               <h2 style={{ margin: 0, fontSize: 20 }}>🔑 รีเซ็ตรหัสผ่าน</h2>
-              <button onClick={() => setPwModal(null)} style={closeBtn}>✕</button>
+              <button className="modal-close" aria-label="ปิด" onClick={() => setPwModal(null)}>✕</button>
             </div>
             <div style={{ marginBottom: 16, padding: 12, background: "#f8fafc", borderRadius: 8, fontSize: 14, color: "#475569" }}>
               อาจารย์: <strong>{pwModal.firstName} {pwModal.lastName}</strong><br />
@@ -512,8 +511,8 @@ export default function A_Teacher() {
                 💡 ต้องมีตัวอักษรพิมพ์ใหญ่ พิมพ์เล็ก ตัวเลข และอักขระพิเศษ เช่น !@#$%
               </div>
               <div style={modalFooter}>
-                <button type="button" style={ghostBtn} onClick={() => setPwModal(null)}>ยกเลิก</button>
-                <button type="submit" style={{ ...saveBtn, background: "#7c3aed", display: "flex", alignItems: "center", gap: 8 }} disabled={saving}>
+                <button type="button" className="btn-secondary" onClick={() => setPwModal(null)}>ยกเลิก</button>
+                <button type="submit" className="btn" disabled={saving}>
                   {saving ? <BusyLabel text="กำลังบันทึก…" /> : "🔑 บันทึกรหัสผ่าน"}
                 </button>
               </div>
@@ -546,12 +545,12 @@ function TeacherFormModal({ title, data, prefixOptions, departments, saving, onC
       <div style={modal}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
           <h2 style={{ margin: 0, fontSize: 20 }}>{title}</h2>
-          <button onClick={onClose} style={closeBtn}>✕</button>
+          <button className="modal-close" aria-label="ปิด" onClick={onClose}>✕</button>
         </div>
         <TeacherFields form={form} setForm={setForm} prefixOptions={prefixOptions} departments={departments} allowEmailEdit={allowEmailEdit} allowCoop={allowCoop} />
         <div style={modalFooter}>
-          <button style={ghostBtn} onClick={onClose}>ยกเลิก</button>
-          <button style={{ ...saveBtn, display: "flex", alignItems: "center", gap: 8 }} onClick={() => onSave(form)} disabled={saving}>
+          <button className="btn-secondary" onClick={onClose}>ยกเลิก</button>
+          <button className="btn" onClick={() => onSave(form)} disabled={saving}>
             {saving ? <BusyLabel text="กำลังบันทึก…" /> : <><IcSave width={16} height={16} /> บันทึกข้อมูล</>}
           </button>
         </div>
@@ -695,12 +694,8 @@ const card: React.CSSProperties = { background: "#fff", borderRadius: 14, paddin
 const filterRow: React.CSSProperties = { display: "flex", gap: 24, flexWrap: "wrap", alignItems: "flex-end" };
 const th: React.CSSProperties = TABLE_TH;
 const td: React.CSSProperties = TABLE_TD;
-const ghostBtn: React.CSSProperties = { background: "#fff", color: "#0074B7", border: "1px solid rgba(10,132,255,.25)", height: 34, borderRadius: 8, padding: "0 12px", cursor: "pointer", fontWeight: 600, fontSize: 13 };
-const saveBtn: React.CSSProperties = { background: "#0074B7", color: "#fff", border: "none", height: 38, borderRadius: 8, padding: "0 16px", cursor: "pointer", fontWeight: 600, fontSize: 14 };
-const addBtn: React.CSSProperties = { background: "#059669", color: "#fff", border: "none", height: 38, borderRadius: 10, padding: "0 20px", cursor: "pointer", fontWeight: 700, fontSize: 14 };
 const overlay: React.CSSProperties = { position: "fixed", inset: 0, background: "rgba(15,23,42,.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, backdropFilter: "blur(4px)" };
 const modal: React.CSSProperties = { background: "#fff", borderRadius: 20, padding: 32, width: 600, maxWidth: "95%", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)" };
 const modalFooter: React.CSSProperties = { display: "flex", justifyContent: "flex-end", gap: 12, marginTop: 28 };
-const closeBtn: React.CSSProperties = { background: "none", border: "none", fontSize: 22, cursor: "pointer", color: "#64748b" };
 const labelStyle: React.CSSProperties = { display: "block", fontSize: 13, fontWeight: 700, color: "#64748b", marginBottom: 6 };
 const inputStyle: React.CSSProperties = { width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1", fontSize: 15, boxSizing: "border-box", fontFamily: "inherit" };

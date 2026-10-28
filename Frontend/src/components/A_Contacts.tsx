@@ -89,7 +89,7 @@ export default function A_Contacts() {
             <h2 style={{ margin: 0 }}>ผู้ติดต่อ (HR)</h2>
             <div style={{ fontSize: 13, color: "#64748b", marginTop: 4 }}>ผู้ติดต่อของบริษัท — นักศึกษาเลือกก่อนยื่นคำร้อง และใช้เป็นผู้รับหนังสือจากวิทยาลัย</div>
           </div>
-          <button className="btn" style={saveBtn} onClick={() => setModal("new")}>+ เพิ่มผู้ติดต่อ</button>
+          <button className="btn" onClick={() => setModal("new")}>+ เพิ่มผู้ติดต่อ</button>
         </div>
         <input
           className="input"
@@ -132,8 +132,8 @@ export default function A_Contacts() {
                 <td style={td} data-label="นักศึกษาที่เลือก">{c._count?.studentCoops ?? 0} คน</td>
                 <td style={td}>
                   <div style={{ display: "flex", gap: 8 }}>
-                    <button className="btn" style={ghostBtn} onClick={() => setModal(c)}>✏️ แก้ไข</button>
-                    <button className="btn" style={{ ...ghostBtn, color: "#ef4444", borderColor: "#ef4444" }} onClick={() => handleDelete(c)}>🗑️ ลบ</button>
+                    <button className="btn-secondary small" onClick={() => setModal(c)}>✏️ แก้ไข</button>
+                    <button className="btn-danger-outline small" onClick={() => handleDelete(c)}>🗑️ ลบ</button>
                   </div>
                 </td>
               </tr>
@@ -149,7 +149,7 @@ export default function A_Contacts() {
           <div style={modalBox} onClick={(e) => e.stopPropagation()} role="dialog" aria-label={modal === "new" ? "เพิ่มผู้ติดต่อ" : "แก้ไขผู้ติดต่อ"}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
               <h2 style={{ margin: 0, fontSize: 20 }}>{modal === "new" ? "เพิ่มผู้ติดต่อ" : `แก้ไขผู้ติดต่อ · ${modal.company?.name}`}</h2>
-              <button onClick={() => setModal(null)} aria-label="ปิด" style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "#64748b" }}>✕</button>
+              <button className="modal-close" onClick={() => setModal(null)} aria-label="ปิด">✕</button>
             </div>
             {modal === "new" ? (
               <>
@@ -175,7 +175,5 @@ export default function A_Contacts() {
 const card: React.CSSProperties = { background: "#fff", borderRadius: 14, padding: 24, border: "1px solid #e5e7eb" };
 const th: React.CSSProperties = TABLE_TH;
 const td: React.CSSProperties = TABLE_TD;
-const ghostBtn: React.CSSProperties = { background: "#fff", color: "#0074B7", boxShadow: "none", border: "1px solid rgba(10,132,255,.25)", height: 34, borderRadius: 8, padding: "0 12px", cursor: "pointer", fontWeight: 600, fontSize: 13 };
-const saveBtn: React.CSSProperties = { background: "#0074B7", color: "#fff", boxShadow: "none", border: "1px solid rgba(10,132,255,.25)", height: 36, borderRadius: 8, padding: "0 16px", cursor: "pointer", fontWeight: 600, fontSize: 14 };
 const overlay: React.CSSProperties = { position: "fixed", inset: 0, background: "rgba(15,23,42,.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, backdropFilter: "blur(4px)", padding: 16 };
 const modalBox: React.CSSProperties = { background: "#fff", borderRadius: 20, padding: 28, width: 640, maxWidth: "100%", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)" };

@@ -26,8 +26,7 @@ export default function LoadMoreFooter({ shownCount, total, hasMore, onShowMore,
           // ปุ่มสำรอง เผื่อเลื่อนแล้วไม่โหลดเพิ่ม (เบราว์เซอร์เก่า/จอพิเศษ)
           <button
             type="button"
-            className="btn"
-            style={{ padding: "6px 14px", borderRadius: 8, border: "1px solid #d1d5db", background: "#fff", color: "#334155", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+            className="btn-secondary"
             onClick={onShowMore}
           >
             แสดงเพิ่ม

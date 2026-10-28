@@ -17,18 +17,6 @@ const card: React.CSSProperties = {
   boxShadow: "0 4px 6px -1px rgba(0,0,0,0.05)",
 };
 
-const btn = (color: string, bg: string, border = "transparent"): React.CSSProperties => ({
-  padding: "6px 14px",
-  borderRadius: 8,
-  border: `1px solid ${border}`,
-  background: bg,
-  color,
-  fontWeight: 600,
-  fontSize: 13,
-  cursor: "pointer",
-  transition: "opacity .15s",
-});
-
 const input: React.CSSProperties = {
   border: "1px solid var(--border)",
   borderRadius: 8,
@@ -183,7 +171,7 @@ export default function A_CriteriaPage() {
             </p>
           </div>
           {!showAddForm && (
-            <button style={btn("#fff", "#0284c7")} onClick={() => setShowAddForm(true)}>
+            <button className="btn" onClick={() => setShowAddForm(true)}>
               + เพิ่มหลักสูตร
             </button>
           )}
@@ -224,14 +212,14 @@ export default function A_CriteriaPage() {
                 />
               </div>
               <button
-                style={btn("#fff", addSaving ? "#94a3b8" : "#22c55e")}
+                className="btn"
                 onClick={handleAdd}
                 disabled={addSaving || !newName.trim()}
               >
                 {addSaving ? <BusyLabel text="กำลังบันทึก…" /> : "บันทึก"}
               </button>
               <button
-                style={btn("#64748b", "#f1f5f9", "#e2e8f0")}
+                className="btn-secondary"
                 onClick={() => { setShowAddForm(false); setNewName(""); setNewNameTh(""); setError(""); }}
                 disabled={addSaving}
               >
@@ -294,10 +282,10 @@ export default function A_CriteriaPage() {
                       </div>
                     </div>
                     <div style={{ display: "flex", gap: 8 }}>
-                      <button style={{ ...btn("#fff", editSaving ? "#94a3b8" : "#22c55e"), flex: 1 }} onClick={handleEdit} disabled={editSaving || !editName.trim()}>
-                        {editSaving ? "..." : "บันทึก"}
+                      <button className="btn" style={{ flex: 1 }} onClick={handleEdit} disabled={editSaving || !editName.trim()}>
+                        {editSaving ? <BusyLabel text="กำลังบันทึก…" /> : "บันทึก"}
                       </button>
-                      <button style={btn("var(--text-muted)", "var(--border)", "var(--border)")} onClick={() => { setEditId(null); setEditNameTh(""); setError(""); }} disabled={editSaving}>
+                      <button className="btn-secondary" onClick={() => { setEditId(null); setEditNameTh(""); setError(""); }} disabled={editSaving}>
                         ยกเลิก
                       </button>
                     </div>
@@ -329,8 +317,8 @@ export default function A_CriteriaPage() {
                       </div>
                     </div>
                     <div style={{ display: "flex", gap: 8 }}>
-                      <button style={{ ...btn("#0369a1", "rgba(14,165,233,.1)"), flex: 1 }} onClick={() => startEdit(dept)}>แก้ไข</button>
-                      <button style={{ ...btn("#dc2626", "rgba(220,38,38,.08)"), flex: 1 }} onClick={() => confirmDelete(dept)}>ลบ</button>
+                      <button className="btn-secondary small" style={{ flex: 1 }} onClick={() => startEdit(dept)}>✏️ แก้ไข</button>
+                      <button className="btn-danger-outline small" style={{ flex: 1 }} onClick={() => confirmDelete(dept)}>🗑️ ลบ</button>
                     </div>
                   </>
                 )}
@@ -368,8 +356,8 @@ export default function A_CriteriaPage() {
               <br />นักศึกษาที่เลือกหลักสูตรนี้ไว้จะยังคงข้อมูลเดิม แต่จะไม่สามารถเลือกหลักสูตรนี้ใหม่ได้
             </p>
             <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
-              <button style={btn("#64748b", "#f1f5f9", "#e2e8f0")} onClick={() => { setDeleteId(null); setError(""); }}>ยกเลิก</button>
-              <button style={btn("#fff", "#dc2626")} onClick={handleDelete}>ยืนยันลบ</button>
+              <button className="btn-secondary" onClick={() => { setDeleteId(null); setError(""); }}>ยกเลิก</button>
+              <button className="btn-danger" onClick={handleDelete}>ยืนยันลบ</button>
             </div>
           </div>
         </div>

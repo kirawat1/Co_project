@@ -209,11 +209,7 @@ export default function A_Settings() {
                     <label
                       htmlFor={`upload-${item.key}`}
                       className="btn"
-                      style={{
-                        display: 'block', textAlign: 'center', width: '100%', boxSizing: 'border-box',
-                        background: uploadingKey === item.key ? '#cbd5e1' : '#3b82f6',
-                        cursor: uploadingKey === item.key ? 'wait' : 'pointer',
-                      }}
+                      style={{ display: 'flex', width: '100%', boxSizing: 'border-box', cursor: uploadingKey === item.key ? 'wait' : 'pointer' }}
                     >
                       {uploadingKey === item.key ? <BusyLabel text="กำลังอัปโหลด…" /> : (current ? '🔄 เปลี่ยนไฟล์' : '📤 อัปโหลด')}
                     </label>
@@ -222,17 +218,11 @@ export default function A_Settings() {
                   {/* แสดงปุ่มลบเฉพาะตอนที่มีไฟล์อยู่แล้ว */}
                   {current && (
                     <button
+                      className="btn-danger-outline"
                       onClick={() => handleDeleteAsset(item.key)}
-                      style={{
-                        background: '#fee2e2', color: '#dc2626', border: '1px solid #fca5a5',
-                        borderRadius: 8, padding: '0 12px', cursor: 'pointer', fontWeight: 600,
-                        transition: '0.2s'
-                      }}
-                      onMouseOver={(e) => e.currentTarget.style.background = '#fecaca'}
-                      onMouseOut={(e) => e.currentTarget.style.background = '#fee2e2'}
                       title="ลบไฟล์แม่แบบนี้"
                     >
-                      🗑️
+                      🗑️ ลบ
                     </button>
                   )}
                 </div>

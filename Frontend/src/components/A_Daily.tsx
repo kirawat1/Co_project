@@ -332,16 +332,11 @@ export default function A_Daily() {
           <div style={{ display: "flex", justifyContent: "flex-end" }}>
             <button
               type="button"
-              className="btn"
+              className="btn-success"
               onClick={exportCsv}
-              style={{
-                fontSize: 14,
-                height: 40,
-                whiteSpace: "nowrap",
-                marginTop: 4,
-              }}
+              style={{ marginTop: 4 }}
             >
-              Export Excel (.csv)
+              📊 Export Excel (.csv)
             </button>
           </div>
         </div>

@@ -473,7 +473,7 @@ export default function A_Companies() {
                     <button className="btn-secondary small" onClick={() => { setForm(c); setShowEdit(true); }}>
                       ✏️ แก้ไข
                     </button>
-                    <button className="btn-danger small" onClick={() => remove(c.id)}>
+                    <button className="btn-danger-outline small" onClick={() => remove(c.id)}>
                       🗑️ ลบ
                     </button>
                   </div>
@@ -568,7 +568,7 @@ export default function A_Companies() {
                     <td style={{ ...TABLE_TD, textAlign: "center" }}>
                       <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
                         <button className="btn-secondary small" onClick={() => setContactModal(c)}>✏️ แก้ไข</button>
-                        <button className="btn-danger small" onClick={() => removeContact(c)}>🗑️ ลบ</button>
+                        <button className="btn-danger-outline small" onClick={() => removeContact(c)}>🗑️ ลบ</button>
                       </div>
                     </td>
                   </tr>
@@ -603,7 +603,7 @@ export default function A_Companies() {
                     <td style={{ ...TABLE_TD, textAlign: "center" }}>
                       <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
                         <button className="btn-secondary small" onClick={() => { setEditingMentor(m); setMentorForm(m); setShowAddMentor(true); }}>✏️ แก้ไข</button>
-                        <button className="btn-danger small" onClick={() => removeMentor(m.id)}>🗑️ ลบ</button>
+                        <button className="btn-danger-outline small" onClick={() => removeMentor(m.id)}>🗑️ ลบ</button>
                       </div>
                     </td>
                   </tr>
