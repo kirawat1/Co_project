@@ -940,7 +940,7 @@ export default function T_SupervisionReview() {
                 </div>
             )}
 
-            <ConfirmDialog open={confirmEditOpen} title="ยืนยันการแก้ไขวันนิเทศ" message={`เปลี่ยนวันนิเทศเป็น ${editDateVal} เวลา ${editDateTime} น.?`} icon="✏️" confirmLabel="บันทึก" confirmColor="#d97706" onConfirm={handleSaveEditDate} onCancel={() => setConfirmEditOpen(false)} />
+            <ConfirmDialog open={confirmEditOpen} title="ยืนยันการแก้ไขวันนิเทศ" message={`เปลี่ยนวันนิเทศเป็น ${editDateVal} เวลา ${editDateTime} น.?`} icon="✏️" confirmLabel="บันทึก" onConfirm={handleSaveEditDate} onCancel={() => setConfirmEditOpen(false)} />
 
             {/* ══════════════════ TAB: นิเทศตามบริษัท ══════════════════ */}
             {activeTab === 'group' && <T_GroupSupervision />}

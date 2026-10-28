@@ -124,7 +124,7 @@ export default function S_FormPhoto({ photoPath, onChange, disabled }: Props) {
                         {busy ? <BusyLabel text="กำลังอัปโหลด…" /> : photoPath ? "🔄 เปลี่ยนรูป" : "📷 อัปโหลดรูปถ่าย"}
                     </button>
                     {photoPath && (
-                        <button type="button" className="btn-ghost" disabled={disabled || busy} onClick={remove}>ลบรูป</button>
+                        <button type="button" className="btn-danger-outline" disabled={disabled || busy} onClick={remove}>🗑️ ลบรูป</button>
                     )}
                 </div>
                 {error && <div role="alert" style={{ marginTop: 8, fontSize: 13, color: "#b91c1c" }}>{error}</div>}

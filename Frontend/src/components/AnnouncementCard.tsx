@@ -90,9 +90,9 @@ export default function AnnouncementCard({ a, isNew, showRooms, onEdit, onDelete
                     )}
                     {a.canEdit && (
                         <div style={{ display: "flex", gap: 6, marginLeft: "auto" }}>
-                            {onTogglePin && <button type="button" style={actBtn} onClick={() => onTogglePin(a)}>{a.pinned ? "เลิกปักหมุด" : "📌 ปักหมุด"}</button>}
-                            {onEdit && <button type="button" style={actBtn} onClick={() => onEdit(a)}>แก้ไข</button>}
-                            {onDelete && <button type="button" style={{ ...actBtn, color: "#b91c1c", borderColor: "#fecaca" }} onClick={() => onDelete(a)}>ลบ</button>}
+                            {onTogglePin && <button type="button" className="btn-secondary small" onClick={() => onTogglePin(a)}>{a.pinned ? "เลิกปักหมุด" : "📌 ปักหมุด"}</button>}
+                            {onEdit && <button type="button" className="btn-secondary small" onClick={() => onEdit(a)}>✏️ แก้ไข</button>}
+                            {onDelete && <button type="button" className="btn-danger-outline small" onClick={() => onDelete(a)}>🗑️ ลบ</button>}
                         </div>
                     )}
                 </footer>
@@ -116,4 +116,3 @@ const thumb: CSSProperties = { width: "100%", height: "100%", objectFit: "cover"
 const chip: CSSProperties = { display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 10, background: "#f8fafc", borderWidth: 1, borderStyle: "solid", borderColor: "#e2e8f0", color: "#1e293b", fontSize: 13, textDecoration: "none" };
 const foot: CSSProperties = { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginTop: 14, paddingTop: 12, borderTop: "1px solid #f1f5f9" };
 const roomChip: CSSProperties = { fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 999, borderWidth: 1, borderStyle: "solid", background: "#fff" };
-const actBtn: CSSProperties = { fontSize: 12, fontWeight: 600, padding: "5px 10px", borderRadius: 8, borderWidth: 1, borderStyle: "solid", borderColor: "#cbd5e1", background: "#fff", color: "#334155", cursor: "pointer" };

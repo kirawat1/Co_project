@@ -51,7 +51,7 @@ export default function PasswordReveal({ endpoint }: { endpoint: string }) {
     return (
       <span style={row}>
         <span style={{ letterSpacing: 2, color: "#64748b" }}>••••••••</span>
-        <button type="button" style={btn} onClick={reveal} disabled={loading}>
+        <button type="button" className="btn-secondary small" onClick={reveal} disabled={loading}>
           {loading ? <BusyLabel text="กำลังโหลด…" /> : "👁 แสดง"}
         </button>
         {error && <span role="alert" style={{ color: "#dc2626", fontSize: 12, fontWeight: 500 }}>{error}</span>}
@@ -63,8 +63,8 @@ export default function PasswordReveal({ endpoint }: { endpoint: string }) {
     return (
       <span style={row}>
         <code data-testid="revealed-password" style={code}>{revealed.password}</code>
-        <button type="button" style={btn} onClick={copy}>{copied ? "✓ คัดลอกแล้ว" : "📋 คัดลอก"}</button>
-        <button type="button" style={btn} onClick={hide}>🙈 ซ่อน</button>
+        <button type="button" className="btn-secondary small" onClick={copy}>{copied ? "✓ คัดลอกแล้ว" : "📋 คัดลอก"}</button>
+        <button type="button" className="btn-secondary small" onClick={hide}>🙈 ซ่อน</button>
         {revealed.source === "default" && <span style={note}>(รหัสเริ่มต้น ยังไม่เคยเปลี่ยน)</span>}
         {error && <span role="alert" style={{ color: "#dc2626", fontSize: 12, fontWeight: 500 }}>{error}</span>}
       </span>
@@ -78,16 +78,12 @@ export default function PasswordReveal({ endpoint }: { endpoint: string }) {
           ? "บัญชีนี้เข้าสู่ระบบด้วย Google — ไม่มีรหัสผ่านในระบบ"
           : "ยังไม่ทราบรหัส (ตั้งไว้ก่อนเปิดให้ดูรหัสได้) — จะเห็นหลังเจ้าของบัญชี login ครั้งถัดไป หรือรีเซ็ตรหัสผ่านให้ใหม่"}
       </span>
-      <button type="button" style={btn} onClick={hide}>ปิด</button>
+      <button type="button" className="btn-secondary small" onClick={hide}>ปิด</button>
     </span>
   );
 }
 
 const row: CSSProperties = { display: "inline-flex", alignItems: "center", gap: 8, flexWrap: "wrap" };
-const btn: CSSProperties = {
-  padding: "3px 10px", borderRadius: 6, border: "1px solid #cbd5e1", background: "#fff",
-  color: "#334155", fontSize: 12, fontWeight: 600, cursor: "pointer",
-};
 const code: CSSProperties = {
   fontFamily: "ui-monospace, SFMono-Regular, Consolas, monospace", fontSize: 14, padding: "2px 8px",
   borderRadius: 6, background: "#fef3c7", color: "#92400e", border: "1px solid #fcd34d", userSelect: "all",

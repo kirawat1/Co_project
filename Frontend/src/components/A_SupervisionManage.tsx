@@ -702,7 +702,6 @@ export default function A_SupervisionManage() {
                 message={`เปลี่ยนวันนิเทศเป็น ${editDateValue} เวลา ${editDateTime} น.?`}
                 icon="✏️"
                 confirmLabel="บันทึก"
-                confirmColor="#d97706"
                 onConfirm={handleSaveEditDate}
                 onCancel={() => setConfirmEditOpen(false)}
             />

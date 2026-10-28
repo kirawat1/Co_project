@@ -14,7 +14,6 @@ const MAX_BYTES = 50 * 1024 * 1024;
 const MAX_FILES = 100;
 const ALLOWED_EXT = /\.(pdf|jpe?g|png|gif|webp|bmp)$/i;
 
-const smallBtn: React.CSSProperties = { fontSize: 12, padding: "2px 8px", borderRadius: 6, border: "1px solid #cbd5e1", background: "#fff", color: "#475569", cursor: "pointer" };
 const sectionTitle: React.CSSProperties = { fontSize: 13, fontWeight: 800, margin: "0 0 8px", color: "#0f172a" };
 const box: React.CSSProperties = { border: "1px solid #e2e8f0", borderRadius: 10, padding: 12, background: "#fff" };
 const selectStyle: React.CSSProperties = { fontSize: 12, padding: "4px 6px", borderRadius: 6, border: "1px solid #cbd5e1", maxWidth: "100%", minWidth: 0 };
@@ -157,7 +156,7 @@ export default function BulkSignedUploadModal({ students, onClose }: { students:
             <div className="letter-modal-card" style={{ width: "95%", maxWidth: 900, maxHeight: "92vh", overflow: "hidden" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginBottom: 12 }}>
                     <h2 style={{ margin: 0, fontSize: 18 }}>อัปโหลดฉบับลงนามหลายฉบับ</h2>
-                    <button type="button" onClick={onClose} disabled={busy} style={{ ...smallBtn, fontSize: 14, padding: "4px 12px" }}>ปิด</button>
+                    <button type="button" className="modal-close" aria-label="ปิด" onClick={onClose} disabled={busy}>✕</button>
                 </div>
 
                 <div style={{ overflowY: "auto", overflowX: "hidden", display: "flex", flexDirection: "column", gap: 12, paddingRight: 2 }}>
@@ -181,7 +180,7 @@ export default function BulkSignedUploadModal({ students, onClose }: { students:
                         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                             {(["REQUEST", "PLACEMENT"] as BulkLetterType[]).map(l => (
                                 <button key={l} type="button" disabled={busy} onClick={() => changeLetter(l)}
-                                    style={{ ...smallBtn, fontSize: 13, padding: "6px 14px", ...(letter === l ? { background: "#0074b7", color: "#fff", border: "1px solid #0074b7" } : {}) }}>
+                                    className={letter === l ? "filter-chip on" : "filter-chip"}>
                                     {LETTER_FILE_LABEL[l]}
                                 </button>
                             ))}
@@ -196,7 +195,7 @@ export default function BulkSignedUploadModal({ students, onClose }: { students:
                             onDrop={e => { e.preventDefault(); setDragging(false); if (!busy) addFiles(e.dataTransfer.files); }}
                             style={{ border: `2px dashed ${dragging ? "#0074b7" : "#cbd5e1"}`, background: dragging ? "#eff6ff" : "#f8fafc", borderRadius: 10, padding: 16, textAlign: "center", fontSize: 13, color: "#475569" }}>
                             <div>ลากไฟล์มาวางที่นี่ (สูงสุด {MAX_FILES} ไฟล์ · PDF/รูป · ไฟล์ละไม่เกิน 50 MB)</div>
-                            <button type="button" className="btn btn-secondary" disabled={busy} style={{ marginTop: 8 }} onClick={() => inputRef.current?.click()}>เลือกไฟล์</button>
+                            <button type="button" className="btn-secondary" disabled={busy} style={{ marginTop: 8 }} onClick={() => inputRef.current?.click()}>เลือกไฟล์</button>
                             <input ref={inputRef} type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.gif,.webp,.bmp" style={{ display: "none" }}
                                 onChange={e => { if (e.target.files) addFiles(e.target.files); e.target.value = ""; }} />
                         </div>
@@ -229,7 +228,7 @@ export default function BulkSignedUploadModal({ students, onClose }: { students:
                                                 <option key={l.key} value={l.key}>{l.docNumber} · {l.companyName || "ไม่มีบริษัท"}</option>
                                             ))}
                                         </select>
-                                        <button type="button" style={smallBtn} disabled={busy} onClick={() => removeFile(i.id)}>เอาไฟล์ออก</button>
+                                        <button type="button" className="btn-danger-outline small" disabled={busy} onClick={() => removeFile(i.id)}>🗑️ เอาไฟล์ออก</button>
                                     </div>
                                 ))}
                             </div>
@@ -294,8 +293,8 @@ export default function BulkSignedUploadModal({ students, onClose }: { students:
 
                 <div style={{ display: "flex", gap: 8, alignItems: "center", justifyContent: "flex-end", flexWrap: "wrap", marginTop: 12 }}>
                     {busy && <span style={{ fontSize: 13, color: "#475569", marginRight: "auto" }}><BusyLabel size={14} text="กำลังบันทึกทีละฉบับ… อย่าเพิ่งปิดหน้าต่าง" /></span>}
-                    <button type="button" className="btn btn-secondary" onClick={onClose} disabled={busy}>ปิด</button>
-                    <button type="button" className="btn btn-primary" onClick={handleSave} disabled={!canSave} style={{ opacity: canSave ? 1 : 0.5 }}>
+                    <button type="button" className="btn-secondary" onClick={onClose} disabled={busy}>ปิด</button>
+                    <button type="button" className="btn" onClick={handleSave} disabled={!canSave}>
                         {busy ? <BusyLabel text="กำลังบันทึก…" /> : `บันทึก ${toSave.length} ฉบับ`}
                     </button>
                 </div>

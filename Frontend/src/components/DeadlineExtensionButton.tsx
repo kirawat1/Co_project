@@ -104,7 +104,7 @@ export default function DeadlineExtensionButton({ studentId, studentName, extens
                         <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
                             <div>
                                 {ext[stepKey] && (
-                                    <button type="button" className="btn-danger small" disabled={saving} onClick={clear}>ยกเลิกการขยาย {stepKey}</button>
+                                    <button type="button" className="btn-danger-outline small" disabled={saving} onClick={clear}>ยกเลิกการขยาย {stepKey}</button>
                                 )}
                             </div>
                             <div style={{ display: "flex", gap: 8 }}>

@@ -18,7 +18,6 @@ const ESTIMATE_MB_PER_LETTER = 8;
 const CONFIRM_OVER = 15;
 
 const lbl: React.CSSProperties = { display: "block", fontSize: 12, fontWeight: 700, marginBottom: 4 };
-const smallBtn: React.CSSProperties = { fontSize: 12, padding: "2px 8px", borderRadius: 6, border: "1px solid #cbd5e1", background: "#fff", color: "#475569", cursor: "pointer" };
 const sectionTitle: React.CSSProperties = { fontSize: 13, fontWeight: 800, margin: "0 0 8px", color: "#0f172a" };
 
 const nameOf = (s: any) => `${thaiPrefix(s.prefix)}${s.firstName ?? ""} ${s.lastName ?? ""}`.trim();
@@ -179,7 +178,7 @@ export default function BulkLetterDraftModal({ students, onClose }: { students: 
             <div className="letter-modal-card" style={{ width: "95%", maxWidth: 860, maxHeight: "92vh", overflow: "hidden" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginBottom: 12 }}>
                     <h2 style={{ margin: 0, fontSize: 18 }}>ออกร่างหนังสือหลายคน</h2>
-                    <button type="button" onClick={onClose} disabled={busy} style={{ ...smallBtn, fontSize: 14, padding: "4px 12px" }}>ปิด</button>
+                    <button type="button" className="modal-close" aria-label="ปิด" onClick={onClose} disabled={busy}>✕</button>
                 </div>
 
                 <div style={{ overflowY: "auto", overflowX: "hidden", display: "flex", flexDirection: "column", gap: 12, paddingRight: 2 }}>
@@ -198,7 +197,7 @@ export default function BulkLetterDraftModal({ students, onClose }: { students: 
                         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                             {(["REQUEST", "PLACEMENT"] as BulkLetterType[]).map(l => (
                                 <button key={l} type="button" disabled={busy} onClick={() => changeLetter(l)}
-                                    style={{ ...smallBtn, fontSize: 13, padding: "6px 14px", ...(letter === l ? { background: "#0074b7", color: "#fff", border: "1px solid #0074b7" } : {}) }}>
+                                    className={letter === l ? "filter-chip on" : "filter-chip"}>
                                     {LETTER_FILE_LABEL[l]}
                                 </button>
                             ))}
@@ -272,8 +271,8 @@ export default function BulkLetterDraftModal({ students, onClose }: { students: 
                                             {g.students.map(s => (
                                                 <div key={s.id} style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 12, color: "#475569", flexWrap: "wrap", marginTop: 2 }}>
                                                     <span style={{ flex: "1 1 160px", minWidth: 0, overflowWrap: "anywhere" }}>{s.studentId} {nameOf(s)}</span>
-                                                    {g.students.length >= 2 && <button type="button" disabled={busy} style={smallBtn} onClick={() => toggleSplit(s.id, true)}>แยกฉบับ</button>}
-                                                    {splitIds.has(s.id) && g.students.length === 1 && <button type="button" disabled={busy} style={smallBtn} onClick={() => toggleSplit(s.id, false)}>รวมกลับ</button>}
+                                                    {g.students.length >= 2 && <button type="button" className="btn-secondary small" disabled={busy} onClick={() => toggleSplit(s.id, true)}>แยกฉบับ</button>}
+                                                    {splitIds.has(s.id) && g.students.length === 1 && <button type="button" className="btn-secondary small" disabled={busy} onClick={() => toggleSplit(s.id, false)}>รวมกลับ</button>}
                                                 </div>
                                             ))}
                                         </div>
@@ -323,9 +322,8 @@ export default function BulkLetterDraftModal({ students, onClose }: { students: 
                             <BusyLabel size={14} text={`${phase.replace(/\.\.\.$/, "…")}${progress ? ` ${progress.done} / ${progress.total}` : ""}`} />
                         </span>
                     )}
-                    <button type="button" className="btn btn-secondary" onClick={onClose} disabled={busy}>ปิด</button>
-                    <button type="button" className="btn btn-primary" onClick={handleDownload} disabled={!canDownload}
-                        style={{ opacity: canDownload ? 1 : 0.5 }}>
+                    <button type="button" className="btn-secondary" onClick={onClose} disabled={busy}>ปิด</button>
+                    <button type="button" className="btn" onClick={handleDownload} disabled={!canDownload}>
                         {busy ? <BusyLabel text="กำลังทำงาน…" /> : summary || retryMsg ? "โหลดอีกครั้ง (ใช้เลขเดิม)" : `จองเลขและโหลด zip (${groups.length} ฉบับ)`}
                     </button>
                 </div>
