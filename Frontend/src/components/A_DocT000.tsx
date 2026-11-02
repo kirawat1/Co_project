@@ -648,11 +648,34 @@ export default function A_DocT000() {
 
             {/* 2. TABLE LIST */}
             <section className="card">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
                     <h3 style={{ margin: 0 }}>รายการส่งเอกสาร ({list.length})</h3>
                     <button className="btn-secondary" onClick={fetchAllData} disabled={loading}>
                         {loading ? <BusyLabel text="กำลังโหลดข้อมูล…" /> : 'รีเฟรชข้อมูล'}
                     </button>
+                </div>
+
+                {/* ปุ่มงานหนังสือ — แถวของตัวเอง ชิดซ้าย (เดิมอยู่แถวตัวกรองแบบชิดขวา จอแคบแล้วตกบรรทัดไปค้างขวาคนเดียว) */}
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+                    {isStaff && (
+                        <button type="button" className={batchMode ? "btn" : "btn-secondary"} onClick={() => { setBatchMode(m => !m); setBatchIds([]); }}>
+                            {batchMode ? "ปิดโหมดหนังสือรวม" : "ออกหนังสือรวมหลายคน"}
+                        </button>
+                    )}
+                    {isStaff && (
+                        <button type="button" className="btn-secondary" onClick={() => { refreshStudents(); setBulkDraftOpen(true); }}
+                            title="ออกร่างหนังสือของหลายคนพร้อมกัน ได้ zip + รายการเลขหนังสือ">
+                            ออกร่างหนังสือหลายคน
+                        </button>
+                    )}
+                    {isStaff && (
+                        <button type="button" className="btn-secondary" onClick={() => { refreshStudents(); setBulkSignedOpen(true); }}
+                            title="อัปโหลดหนังสือที่ลงนามแล้วหลายฉบับพร้อมกัน จับคู่จากเลขหน้าชื่อไฟล์">
+                            อัปโหลดฉบับลงนามหลายฉบับ
+                        </button>
+                    )}
+                    {/* ดาวน์โหลดหนังสือที่ออกแล้วเป็น zip (เลือกประเภท/รอบ/หลักสูตร และยืนยันในหน้าต่าง) */}
+                    <LetterZipButton onClick={() => setZipOpen(true)} />
                 </div>
 
                 <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
@@ -683,28 +706,6 @@ export default function A_DocT000() {
                             มีรายการรอตรวจในรอบอื่นอีก {pendingOutside(periodCounts, selectedPeriod)} คน — ดูทุกปีการศึกษา
                         </button>
                     )}
-
-                    {/* หนังสือรวม · ดาวน์โหลดหนังสือที่ออกแล้วเป็น zip (เลือกประเภท/รอบ/หลักสูตร และยืนยันในหน้าต่าง) */}
-                    <div style={{ marginLeft: "auto", display: "flex", gap: 8, flexWrap: "wrap" }}>
-                        {isStaff && (
-                            <button type="button" className={batchMode ? "btn" : "btn-secondary"} onClick={() => { setBatchMode(m => !m); setBatchIds([]); }}>
-                                {batchMode ? "ปิดโหมดหนังสือรวม" : "ออกหนังสือรวมหลายคน"}
-                            </button>
-                        )}
-                        {isStaff && (
-                            <button type="button" className="btn-secondary" onClick={() => { refreshStudents(); setBulkDraftOpen(true); }}
-                                title="ออกร่างหนังสือของหลายคนพร้อมกัน ได้ zip + รายการเลขหนังสือ">
-                                ออกร่างหนังสือหลายคน
-                            </button>
-                        )}
-                        {isStaff && (
-                            <button type="button" className="btn-secondary" onClick={() => { refreshStudents(); setBulkSignedOpen(true); }}
-                                title="อัปโหลดหนังสือที่ลงนามแล้วหลายฉบับพร้อมกัน จับคู่จากเลขหน้าชื่อไฟล์">
-                                อัปโหลดฉบับลงนามหลายฉบับ
-                            </button>
-                        )}
-                        <LetterZipButton onClick={() => setZipOpen(true)} />
-                    </div>
                 </div>
 
                 <div style={{ marginBottom: 16 }}>

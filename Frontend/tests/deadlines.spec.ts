@@ -90,3 +90,27 @@ test.describe("differsFromCollege", () => {
         expect(differsFromCollege({ due: "2026-07-03" }, undefined)).toBe(true);
     });
 });
+
+test.describe("แถบกำหนดส่งของรอบ (หน้า T000/T002/T003) — หลักสูตรวันเดียวกันรวมกลุ่ม", () => {
+    const legacy = { isOpen: true, startDate: "2026-03-24", endDate: "2027-01-24" };
+    const base = { period: { id: 2, academicYear: "2569", semester: 2 }, canEditCollege: true, college: {} };
+    const major = (m: string, deadlines: any = {}) => ({ major: m, deadlines, startDate: null });
+
+    test("ทุกหลักสูตรใช้ค่าเดิมเดียวกัน → กลุ่มเดียว (เดิมข้อความเดียวกันซ้ำทีละหลักสูตร)", async () => {
+        const { groupByDeadline } = await import("../src/components/RoundDeadlineNote");
+        const data: any = { ...base, majors: ["AI", "CS", "CYB", "GIS", "IT"].map((m) => major(m)), legacy: Object.fromEntries(["AI", "CS", "CYB", "GIS", "IT"].map((m) => [m, { T000: legacy }])) };
+        const g = groupByDeadline(data, "T000");
+        expect(g).toHaveLength(1);
+        expect(g[0]).toMatchObject({ majors: ["AI", "CS", "CYB", "GIS", "IT"], legacy: true });
+    });
+
+    test("ตั้งวันต่างกัน → แยกกลุ่มตามวัน · ค่าเดิมกับที่ตั้งแล้วไม่ปนกัน · ลำดับตามหลักสูตรแรก", async () => {
+        const { groupByDeadline } = await import("../src/components/RoundDeadlineNote");
+        const due = (d: string) => ({ T002: { due: d, mode: "HARD", closed: false } });
+        const data: any = { ...base, majors: [major("AI", due("2026-12-28")), major("CS"), major("CYB", due("2026-12-28")), major("IT", due("2027-01-05"))],
+            legacy: { CS: { T002: legacy } } };
+        const g = groupByDeadline(data, "T002");
+        expect(g.map((x) => x.majors)).toEqual([["AI", "CYB"], ["CS"], ["IT"]]);
+        expect(g.map((x) => x.legacy)).toEqual([false, true, false]);
+    });
+});
