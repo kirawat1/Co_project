@@ -287,8 +287,10 @@ describe('deleteDocument (coopController)', () => {
     prisma.document.findUnique.mockResolvedValue({
       id: 1,
       path: 'nonexistent_file.pdf',
+      type: 'APPLICATION_DOC',
       student: { userId: 1, user: { id: 1 } },
     });
+    prisma.studentCoop.findUnique.mockResolvedValue(null); // ยังไม่ส่งคำร้อง
     prisma.document.delete.mockResolvedValue({});
 
     const req = { params: { id: '1' }, user: { id: 1 } };
@@ -298,5 +300,39 @@ describe('deleteDocument (coopController)', () => {
 
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: true }));
     expect(prisma.document.delete).toHaveBeenCalledWith({ where: { id: 1 } });
+  });
+
+  // ทางลบของหน้ายื่นคำร้อง — เดิมลบไฟล์ได้ทุกชนิดทุกสถานะ เลี่ยงด่านของหน้าเอกสาร (ไฟล์ T000 ที่ผ่านแล้ว/ใบตอบรับ) ได้
+  test.each([
+    ['CP-TRANSCRIPT', 'QUALIFIED'],
+    ['CP-ACCEPTANCE', 'WAITING_FOR_STAFF_CHECK_LETTER'],
+    ['T002_FORM', 'T002_EDITS_REQUIRED'],
+  ])('409 — ลบ %s ทางหน้ายื่นคำร้องไม่ได้', async (type, status) => {
+    prisma.document.findUnique.mockResolvedValue({ id: 1, path: 'x.pdf', type, studentId: 10, student: { userId: 1, user: { id: 1 } } });
+    prisma.studentCoop.findUnique.mockResolvedValue({ status });
+    prisma.document.delete.mockClear();
+    const res = makeRes();
+    await deleteDocument({ params: { id: '1' }, user: { id: 1 } }, res);
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(prisma.document.delete).not.toHaveBeenCalled();
+  });
+
+  test.each(['APPLYING', 'QUALIFIED', 'DOCS_APPROVED'])('409 — ไฟล์แนบคำร้องลบไม่ได้เมื่อคำร้องอยู่ที่ %s', async (status) => {
+    prisma.document.findUnique.mockResolvedValue({ id: 1, path: 'x.pdf', type: 'APPLICATION_DOC', studentId: 10, student: { userId: 1, user: { id: 1 } } });
+    prisma.studentCoop.findUnique.mockResolvedValue({ status });
+    prisma.document.delete.mockClear();
+    const res = makeRes();
+    await deleteDocument({ params: { id: '1' }, user: { id: 1 } }, res);
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(prisma.document.delete).not.toHaveBeenCalled();
+  });
+
+  test.each(['APPLICATION_EDITS_REQUIRED', 'NOT_SUBMITTED'])('200 — ไฟล์แนบคำร้องลบได้เมื่อคำร้องอยู่ที่ %s', async (status) => {
+    prisma.document.findUnique.mockResolvedValue({ id: 1, path: 'x.pdf', type: 'APPLICATION_DOC', studentId: 10, student: { userId: 1, user: { id: 1 } } });
+    prisma.studentCoop.findUnique.mockResolvedValue({ status });
+    prisma.document.delete.mockResolvedValue({});
+    const res = makeRes();
+    await deleteDocument({ params: { id: '1' }, user: { id: 1 } }, res);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: true }));
   });
 });

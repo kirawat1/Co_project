@@ -108,6 +108,54 @@ describe('docController', () => {
     });
   });
 
+  // ไฟล์ที่ตรวจผ่านแล้ว / ใบตอบรับ — หน้าเว็บไม่มีปุ่มลบ แต่เดิมยิง API ลบได้ (สถานะยังผ่าน ไฟล์หาย)
+  describe('ลบไฟล์ที่ล็อกแล้ว', () => {
+    const own = (extra) => ({ id: 5, path: 'x.pdf', studentId: 10, student: { userId: 1, deletedAt: null, major: 'CS' }, ...extra });
+    beforeEach(() => {
+      prisma.student.findUnique.mockResolvedValue({ deletedAt: null });
+      prisma.document.delete.mockClear();
+    });
+
+    test('409 — ไฟล์ T000 ที่ผ่านแล้ว (อ่านสถานะในทรานแซกชัน)', async () => {
+      // อ่านนอกทรานแซกชันยังรอตรวจ · ในทรานแซกชันเจ้าหน้าที่เพิ่งกดผ่าน
+      prisma.document.findUnique
+        .mockResolvedValueOnce(own({ type: 'CP-CV', status: 'WAITING' }))
+        .mockResolvedValueOnce({ type: 'CP-CV', status: 'APPROVED' });
+      const res = makeRes();
+      await docController.deleteDocument({ params: { id: '5' }, user: { id: 1 } }, res);
+      expect(res.status).toHaveBeenCalledWith(409);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringContaining('ผ่านการตรวจสอบแล้ว') }));
+      expect(prisma.document.delete).not.toHaveBeenCalled();
+    });
+
+    test('200 — ไฟล์ T000 ที่ไม่ผ่าน/รอแก้ ลบได้', async () => {
+      for (const status of ['REJECTED', 'EDITS_REQUIRED', 'WAITING']) {
+        prisma.document.findUnique.mockResolvedValue(own({ type: 'CP-CV', status }));
+        prisma.studentCoop.findUnique.mockResolvedValue({ status: 'EDITS_REQUIRED', t000Status: 'PENDING' });
+        const res = makeRes();
+        await docController.deleteDocument({ params: { id: '5' }, user: { id: 1 } }, res);
+        expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: true }));
+      }
+    });
+
+    test('409 — ใบตอบรับลบไม่ได้ทุกสถานะ', async () => {
+      prisma.document.findUnique.mockResolvedValue(own({ type: 'CP-ACCEPTANCE', status: 'WAITING' }));
+      const res = makeRes();
+      await docController.deleteDocument({ params: { id: '5' }, user: { id: 1 } }, res);
+      expect(res.status).toHaveBeenCalledWith(409);
+      expect(prisma.document.delete).not.toHaveBeenCalled();
+    });
+
+    test('409 — ลบด้วยชนิดเอกสาร: ไฟล์ที่ผ่านแล้ว', async () => {
+      prisma.student.findUnique.mockResolvedValue({ id: 10, deletedAt: null });
+      prisma.document.findFirst.mockResolvedValue({ id: 20, path: 'cv.pdf', studentId: 10, type: 'CV', status: 'APPROVED' });
+      const res = makeRes();
+      await docController.deleteDocumentByType({ params: { docType: 'CP-CV' }, user: { id: 1 } }, res);
+      expect(res.status).toHaveBeenCalledWith(409);
+      expect(prisma.document.delete).not.toHaveBeenCalled();
+    });
+  });
+
   // ลบไฟล์บังคับหลังส่ง T000 ครั้งแรกครบ (ยังไม่ถูกตรวจ) → ไม่ครบแล้ว กลับไปรอนักศึกษาส่ง (ไม่ค้างในรายการรอตรวจ)
   describe('ลบเอกสาร T000 หลังส่งครั้งแรกครบ', () => {
     beforeEach(() => {
@@ -428,6 +476,27 @@ describe('docController', () => {
           expect(res.json.mock.calls[0][0]).toMatchObject({ ok: true });
           expect(prisma.studentCoop.update.mock.calls.filter((c) => c[0].data.status)).toEqual([]);
           expect(prisma.notification.createMany).not.toHaveBeenCalled();
+        });
+
+        // อัปโหลดทับไฟล์ที่ผ่านแล้ว — เดิมไฟล์ใหม่กลายเป็นรอตรวจ แต่สถานะยังเอกสารผ่าน/ออกหนังสือแล้ว ไม่มีใครเห็น
+        test('409 — อัปโหลดทับไฟล์ T000 ที่ผ่านแล้ว ไม่ลบไฟล์เดิม', async () => {
+          prisma.document.findFirst.mockResolvedValue({ id: 7, type: 'CP-CV', status: 'APPROVED', path: 'old.pdf' });
+          prisma.document.delete.mockClear();
+          prisma.document.create.mockClear();
+          const res = makeRes();
+          await docController.uploadDocument(makeUploadReq('CP-CV'), res);
+          expect(res.status).toHaveBeenCalledWith(409);
+          expect(prisma.document.delete).not.toHaveBeenCalled();
+          expect(prisma.document.create).not.toHaveBeenCalled();
+        });
+
+        test('อัปโหลดทับไฟล์ที่ไม่ผ่าน → แทนที่ได้', async () => {
+          prisma.document.findFirst.mockResolvedValue({ id: 7, type: 'CP-CV', status: 'REJECTED', path: 'old.pdf' });
+          prisma.document.findMany.mockResolvedValue([{ type: 'CP-CV' }]);
+          const res = makeRes();
+          await docController.uploadDocument(makeUploadReq('CP-CV'), res);
+          expect(res.json.mock.calls[0][0]).toMatchObject({ ok: true });
+          expect(prisma.document.delete).toHaveBeenCalledWith({ where: { id: 7 } });
         });
       });
 

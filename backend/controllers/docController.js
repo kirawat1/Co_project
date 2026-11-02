@@ -17,6 +17,13 @@ function deadlineClosedMessage(d) {
   return '⛔ ระบบปิดรับเอกสารประเภทนี้แล้ว (หรือเกินกำหนดเวลา)';
 }
 
+// ไฟล์ T000 ที่ตรวจผ่านแล้ว นักศึกษาลบ/อัปโหลดทับเองไม่ได้ (หน้าเว็บไม่มีปุ่มลบให้ไฟล์ที่ผ่านแล้ว)
+// เดิมยิง API ได้ — สถานะยัง "เอกสารผ่าน" แต่ไฟล์หายหรือกลับเป็นรอตรวจโดยไม่มีใครเห็น · หนังสือที่แนบเอกสารนักศึกษาขาดไฟล์
+const APPROVED_DOC_LOCKED = 'เอกสารนี้ผ่านการตรวจสอบแล้ว ลบหรือเปลี่ยนไฟล์เองไม่ได้ — ถ้าต้องแก้ไข กรุณาติดต่อเจ้าหน้าที่';
+const approvedT000 = (doc) => !!doc && doc.status === 'APPROVED' && !NON_T000_TYPES.includes(doc.type);
+// ใบตอบรับเปลี่ยนได้ด้วยการอัปโหลดไฟล์ใหม่เท่านั้น — ลบทิ้งแล้วสถานะค้าง "รอตรวจใบตอบรับ" ไม่มีไฟล์ / หลังออกหนังสือส่งตัวหลักฐานหาย
+const ACCEPTANCE_DELETE_LOCKED = 'ลบใบตอบรับไม่ได้ — ถ้าต้องแก้ไข ให้อัปโหลดไฟล์ใหม่แทน (ก่อนออกหนังสือส่งตัว) หรือติดต่อเจ้าหน้าที่';
+
 // Helper: หา Student ID จาก User ID
 const getStudentIdFromUser = async (userId) => {
   const student = await prisma.student.findUnique({
@@ -170,6 +177,7 @@ exports.uploadDocument = async (req, res) => {
             oldDoc = await tx.document.findFirst({
                 where: { studentId: student.id, type: dbType }
             });
+            if (approvedT000(oldDoc)) throw Object.assign(new Error(APPROVED_DOC_LOCKED), { is409: true });
             if (oldDoc) {
                 await tx.document.delete({ where: { id: oldDoc.id } });
             }
@@ -247,6 +255,9 @@ exports.uploadDocument = async (req, res) => {
         if (err.is403) {
             return res.status(403).json({ ok: false, message: err.message });
         }
+        if (err.is409) {
+            return res.status(409).json({ ok: false, message: err.message });
+        }
         throw err;
     }
 
@@ -315,6 +326,10 @@ exports.deleteDocument = async (req, res) => {
     await prisma.$transaction(async (tx) => {
       const freshSt = await tx.student.findUnique({ where: { id: doc.studentId }, select: { deletedAt: true } });
       if (!freshSt || freshSt.deletedAt) throw Object.assign(new Error('บัญชีถูกระงับการใช้งาน'), { is403: true });
+      if (doc.type === 'CP-ACCEPTANCE') throw Object.assign(new Error(ACCEPTANCE_DELETE_LOCKED), { is409: true });
+      // อ่านสถานะไฟล์ในทรานแซกชัน — เจ้าหน้าที่อาจกดผ่านระหว่างนั้น
+      const freshDoc = await tx.document.findUnique({ where: { id: numId }, select: { status: true, type: true } });
+      if (approvedT000(freshDoc)) throw Object.assign(new Error(APPROVED_DOC_LOCKED), { is409: true });
       if (doc.type === 'T002_FORM' || doc.type === 'T003_FORM') {
         const coop = await tx.studentCoop.findUnique({
           where: { studentId: doc.studentId }, select: { status: true }
@@ -420,6 +435,7 @@ exports.deleteDocumentByType = async (req, res) => {
     if (!doc) {
       return res.status(404).json({ message: "Document not found" });
     }
+    if (approvedT000(doc)) return res.status(409).json({ ok: false, message: APPROVED_DOC_LOCKED });
 
     // ลบ DB ก่อน แล้วค่อยลบไฟล์ · ลบจนไม่ครบหลังส่ง T000 ครั้งแรก → กลับไปรอนักศึกษาส่ง
     await prisma.$transaction(async (tx) => {
