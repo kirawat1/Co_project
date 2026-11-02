@@ -56,6 +56,7 @@ function parseIdList(v) {
 const deleteLetterFileIfUnused = (filename) => removeUnreferencedUploads([filename]);
 
 const { lockDocNumber, DOC_NUMBER_TX } = require('../utils/docNumberLock');
+const { assertLetterNumberFree } = require('../utils/letterNumberFree');
 
 function clearedLetterPending(key) {
   return { [`${key}PendingAt`]: null, [`${key}DraftNumber`]: null, [`${key}DraftDate`]: null };
@@ -63,25 +64,8 @@ function clearedLetterPending(key) {
 
 // เลขที่ห้ามซ้ำกับหนังสือที่ออกให้คนอื่นแล้ว หรือร่างที่รอลงนามของคนอื่น (หนังสือชนิดเดียวกัน)
 // studentIds = นักศึกษาในหนังสือฉบับนี้ (หนังสือรวม = หลายคน ใช้เลขเดียวกันได้) — เลิก unique ระดับ DB แล้ว ด่านนี้คือด่านเดียว
-async function assertDocNumberFree(tx, key, value, studentIds) {
-  if (!value) return;
-  await lockDocNumber(tx, key, value);
-  const { numberField, label } = LETTERS[key];
-  const draftField = `${key}DraftNumber`;
-  const ids = [].concat(studentIds);
-  const clash = await tx.studentCoop.findFirst({
-    where: { OR: [{ [numberField]: value }, { [draftField]: value }], studentId: { notIn: ids } },
-    select: { [numberField]: true, [draftField]: true, student: { select: { studentId: true, firstName: true, lastName: true } } },
-  });
-  if (!clash) return;
-  const who = clash.student
-    ? `${clash.student.studentId} ${clash.student.firstName} ${clash.student.lastName}`
-    : 'นักศึกษารายอื่น';
-  const message = clash[numberField] === value
-    ? `${label} "${value}" ถูกใช้กับ ${who} แล้ว`
-    : `${label} "${value}" อยู่ในร่างหนังสือที่รอลงนามของ ${who} — ถ้าไม่ใช้ร่างนั้นแล้ว ให้กด "ยกเลิกรอลงนาม" ของคนนั้นก่อน`;
-  throw Object.assign(new Error(message), { is409: true });
-}
+// เลขที่ห้ามซ้ำกับหนังสือทุกประเภท (ขอความอนุเคราะห์/ส่งตัว/ขอนิเทศ ใช้เลขชุดเดียวกัน) — ดู utils/letterNumberFree.js
+const assertDocNumberFree = (tx, key, value, studentIds) => assertLetterNumberFree(tx, key, value, studentIds);
 
 // 3. ดึงรายชื่อนักศึกษา (T000 + เอกสารอื่นๆ)
 // หน้า T000: รอเจ้าหน้าที่ตรวจ = รอตรวจเอกสาร / รอตรวจใบตอบรับ
@@ -760,10 +744,15 @@ exports.markLetterPending = async (req, res) => {
       // ทีละคน (หนังสือรวม = หลายคน เลขที่ร่างเดียวกัน)
       for (const sid of ids) {
         const student = await tx.student.findUnique({ where: { id: sid }, select: { deletedAt: true } });
-        const coop = await tx.studentCoop.findUnique({ where: { studentId: sid }, select: { status: true } });
+        const coop = await tx.studentCoop.findUnique({ where: { studentId: sid }, select: { status: true, [`${key}PendingAt`]: true, [`${key}DraftNumber`]: true } });
         if (!student || student.deletedAt || !coop) throw Object.assign(new Error('ไม่พบนักศึกษา'), { is404: true });
         if (!cancel && COOP_STATUS_ORDER.indexOf(coop.status) < COOP_STATUS_ORDER.indexOf(LETTERS[key].minStatus)) {
           throw Object.assign(new Error('นักศึกษายังไม่ถึงขั้นออกหนังสือนี้'), { is400: true });
+        }
+        // รอลงนามอยู่ → รับเฉพาะเลขร่างเดิม (โหลดไฟล์เดิมซ้ำ) · เลขอื่น = ร่างใหม่ทับร่างที่ส่งไปเซ็นแล้ว ต้องยกเลิกรอลงนามก่อน
+        const oldDraft = coop[`${key}DraftNumber`] || null;
+        if (!cancel && coop[`${key}PendingAt`] && oldDraft !== data[`${key}DraftNumber`]) {
+          throw Object.assign(new Error(`มีร่าง${LETTERS[key].label.replace('เลขที่', '')}ที่รอลงนามอยู่ (เลข ${oldDraft || 'ยังไม่ได้กรอก'}) — ถ้าจะออกร่างใหม่ ให้กด "ยกเลิกรอลงนาม" ก่อน`), { is409: true });
         }
       }
       if (!cancel) await assertDocNumberFree(tx, key, data[`${key}DraftNumber`], ids);
@@ -835,21 +824,27 @@ exports.markLetterPendingBulk = async (req, res) => {
     const allIds = letters.flatMap((l) => l.ids);
     const now = new Date();
     await prisma.$transaction(async (tx) => {
-      // ล็อกเลขเรียงลำดับ — สองคนออกชุดซ้อนกันได้ล็อกลำดับเดียวกัน ไม่ deadlock
+      // ล็อกเลขเรียงลำดับ — สองคนออกชุดซ้อนกันได้ล็อกลำดับเดียวกัน ไม่ deadlock (คิว 'letter' เดียวกับ assertDocNumberFree ทุกประเภทหนังสือ)
       const sorted = letters.map((l) => l.docNo).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }) || (a < b ? -1 : a > b ? 1 : 0));
-      for (const n of sorted) await lockDocNumber(tx, key, n);
+      for (const n of sorted) await lockDocNumber(tx, 'letter', n);
 
       const coops = await tx.studentCoop.findMany({
         where: { studentId: { in: allIds } },
-        select: { studentId: true, status: true, companyId: true, [`${key}Url`]: true, student: { select: { deletedAt: true, studentId: true, firstName: true, lastName: true } } },
+        select: { studentId: true, status: true, companyId: true, [`${key}Url`]: true, [`${key}PendingAt`]: true, student: { select: { deletedAt: true, studentId: true, firstName: true, lastName: true } } },
       });
       if (coops.length !== allIds.length || coops.some((c) => !c.student || c.student.deletedAt)) {
         throw Object.assign(new Error('ไม่พบนักศึกษาบางคน'), { is404: true });
       }
+      const names = (list) => list.map((c) => `${c.student.studentId} ${c.student.firstName} ${c.student.lastName}`.trim()).join(', ');
       // ต้องอยู่ขั้นพอดี (DOCS_APPROVED / ACCEPTANCE_CHECKED) และยังไม่มีไฟล์หนังสือ — กันรายการค้างหน้าจอออกซ้ำ
       const bad = coops.filter((c) => c.status !== L.minStatus || c[`${key}Url`]);
       if (bad.length) {
-        throw Object.assign(new Error(`มีนักศึกษาที่ออกหนังสือนี้แล้วหรือไม่อยู่ในขั้นที่ออกหนังสือนี้ได้: ${bad.map((c) => `${c.student.studentId} ${c.student.firstName} ${c.student.lastName}`.trim()).join(', ')}`), { is400: true });
+        throw Object.assign(new Error(`มีนักศึกษาที่ออกหนังสือนี้แล้วหรือไม่อยู่ในขั้นที่ออกหนังสือนี้ได้: ${names(bad)}`), { is400: true });
+      }
+      // รอลงนามอยู่ → ไม่ออกร่างใหม่ทับ (เดิมล้างร่างเดิมแล้วออกเลขใหม่ — ร่างที่ส่งไปเซ็นแล้วไม่ตรงกับในระบบ)
+      const pending = coops.filter((c) => c[`${key}PendingAt`]);
+      if (pending.length) {
+        throw Object.assign(new Error(`มีนักศึกษาที่รอลงนามอยู่ — ยกเลิกรอลงนามที่หน้าต่างออกหนังสือก่อน: ${names(pending)}`), { is409: true });
       }
       // หนังสือรวม (≥ 2 คน) ต้องบริษัทเดียวกัน — ไม่งั้นอัปโหลดฉบับลงนามจะล้มทีหลัง
       const byId = new Map(coops.map((c) => [c.studentId, c]));
@@ -860,9 +855,6 @@ exports.markLetterPendingBulk = async (req, res) => {
           throw Object.assign(new Error(`หนังสือรวมต้องเป็นนักศึกษาบริษัทเดียวกัน (เลขที่ ${l.docNo})`), { is400: true });
         }
       }
-
-      // ล้างร่างเดิมของคนในชุดก่อนตรวจเลข — ออกร่างใหม่ซ้ำเลขเดิมได้
-      await tx.studentCoop.updateMany({ where: { studentId: { in: allIds } }, data: clearedLetterPending(key) });
 
       const conflicts = [];
       for (const l of letters) {

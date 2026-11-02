@@ -41,8 +41,7 @@ export default function BulkLetterDraftModal({ students, onClose }: { students: 
     const busy = phase !== "";
 
     const candidates = useMemo(() => bulkCandidates(students, letter), [students, letter]);
-    const defaultChecked = (s: any) => !blockReason(s, letter) && !pendingDraftOf(s, letter);
-    const isChecked = (s: any) => !blockReason(s, letter) && (touched[s.id] ?? defaultChecked(s));
+    const isChecked = (s: any) => !blockReason(s, letter) && (touched[s.id] ?? true);
     const chosen = candidates.filter(isChecked);
     const groups = useMemo(() => groupByCompany(chosen, splitIds), [chosen.map(s => s.id).join(","), splitIds]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -212,7 +211,6 @@ export default function BulkLetterDraftModal({ students, onClose }: { students: 
                             <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 220, overflowY: "auto" }}>
                                 {candidates.map(s => {
                                     const block = blockReason(s, letter);
-                                    const pend = pendingDraftOf(s, letter);
                                     return (
                                         <label key={s.id} style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 13, opacity: block ? 0.6 : 1, flexWrap: "wrap" }}>
                                             <input type="checkbox" disabled={!!block || busy} checked={isChecked(s)}
@@ -220,8 +218,7 @@ export default function BulkLetterDraftModal({ students, onClose }: { students: 
                                             <span style={{ flex: "1 1 200px", minWidth: 0, overflowWrap: "anywhere" }}>
                                                 {s.studentId} {nameOf(s)} · {s.coop?.company?.name || "ไม่มีบริษัท"}
                                             </span>
-                                            {block && <span style={{ color: "#b91c1c", fontSize: 12 }}>{block}</span>}
-                                            {!block && pend && <span style={{ color: "#b45309", fontSize: 12 }}>รอลงนามอยู่{pend.number ? ` (เลข ${pend.number})` : ""}</span>}
+                                            {block && <span style={{ color: pendingDraftOf(s, letter) ? "#b45309" : "#b91c1c", fontSize: 12 }}>{block}</span>}
                                         </label>
                                     );
                                 })}

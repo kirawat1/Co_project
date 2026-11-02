@@ -100,12 +100,14 @@ describe('markLetterPendingBulk', () => {
     expect(res.status).toHaveBeenCalledWith(404);
   });
 
-  test('ล้างร่างเดิมของคนในชุดก่อนตรวจเลข — ออกร่างใหม่ซ้ำเลขเดิมได้', async () => {
-    await markLetterPendingBulk(req(), makeRes());
-    const clear = prisma.studentCoop.updateMany.mock.calls.findIndex((c) => c[0].data.reqLetterDraftNumber === null);
-    expect(clear).toBeGreaterThanOrEqual(0);
-    expect(prisma.studentCoop.updateMany.mock.calls[clear][0].where).toEqual({ studentId: { in: [1, 2, 3] } });
-    expect(prisma.studentCoop.updateMany.mock.invocationCallOrder[clear]).toBeLessThan(prisma.studentCoop.findFirst.mock.invocationCallOrder[0]);
+  // เดิมล้างร่างเดิมแล้วออกเลขใหม่ทับ — ร่างที่ส่งไปเซ็นแล้วไม่ตรงกับในระบบ
+  test('มีคนที่รอลงนามอยู่ในชุด → 409 บอกชื่อ · ไม่ติดป้ายใครเลย', async () => {
+    prisma.studentCoop.findMany.mockResolvedValue([row(1), { ...row(2), reqLetterPendingAt: new Date() }, row(3)]);
+    const res = makeRes();
+    await markLetterPendingBulk(req(), res);
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(res.json.mock.calls[0][0].message).toContain('มีนักศึกษาที่รอลงนามอยู่ — ยกเลิกรอลงนามที่หน้าต่างออกหนังสือก่อน');
+    expect(prisma.studentCoop.updateMany).not.toHaveBeenCalled();
   });
 
   test('ล็อกเลขทุกฉบับเรียงลำดับก่อนตรวจ (สองคนออกพร้อมกันไม่ deadlock)', async () => {

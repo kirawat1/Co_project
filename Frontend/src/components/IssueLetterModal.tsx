@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { apiFetch } from "../utils/apiFetch";
 import { createDispatchPDF, createDispatchAttachmentsPDF, type AttachmentReport } from "../utils/pdfDispatchGenerator";
 import { createWordBlob, createPreviewBlob, buildDispatchLetterHtml, thaiPrefix, normalizeDocNumber } from "../utils/docGeneratorUtils";
-import { FileReady, DeliveryPicker, CompanyAddressBox, RecipientNotice, MODAL_CSS, useLetterPending, LetterPendingBanner, confirmMatchesDraft, type LetterDraft } from "./LetterModalShared";
+import { FileReady, DeliveryPicker, CompanyAddressBox, RecipientNotice, MODAL_CSS, useLetterPending, LetterPendingBanner, DraftLockedNote, confirmMatchesDraft, type LetterDraft } from "./LetterModalShared";
 import DateInput from './DateInput';
 import { notify, askConfirm } from "../utils/notify";
 import { letterRecipient, recipientText } from "../utils/letterRecipient";
@@ -229,13 +229,14 @@ export default function IssueLetterModal({ student, group, batchMates, onOpenBat
                                 📝 <b>Word</b> = หนังสือ (แก้ไขได้) + เอกสารแนบ (PDF) อีกไฟล์ — พิมพ์หนังสือแล้วตามด้วยเอกสารแนบ
                             </div>
                             <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                                <button className="btn-secondary" style={{ flex: 1 }} onClick={handleCreatePdf} disabled={loadingPdf || loadingDoc}>
+                                <button className="btn-secondary" style={{ flex: 1 }} onClick={handleCreatePdf} disabled={loadingPdf || loadingDoc || !!pending.pendingAt}>
                                     {loadingPdf ? <BusyLabel text="กำลังสร้าง…" /> : '📄 PDF'}
                                 </button>
-                                <button className="btn-secondary" style={{ flex: 1 }} onClick={handleCreateDoc} disabled={loadingPdf || loadingDoc}>
+                                <button className="btn-secondary" style={{ flex: 1 }} onClick={handleCreateDoc} disabled={loadingPdf || loadingDoc || !!pending.pendingAt}>
                                     {loadingDoc ? <BusyLabel text="กำลังสร้าง…" /> : '📝 Word'}
                                 </button>
                             </div>
+                            <DraftLockedNote pendingAt={pending.pendingAt} />
                             {(pdfDraft || docDraft) && (
                                 <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
                                     {pdfDraft && <FileReady label="PDF" onDownload={() => downloadDraft(pdfDraft, `Dispatch_${members ? `รวม${members.length}คน_${student.studentId}` : student.studentId}.pdf`)} />}
