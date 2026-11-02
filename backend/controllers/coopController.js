@@ -292,6 +292,9 @@ const updateCoopStatus = async (req, res) => {
 // ... imports (fs, path, prisma) ...
 
 // ✅ ฟังก์ชันลบเอกสาร
+// ตรงกับ canEdit ของ S_Gateway (ไม่มีแถว StudentCoop = ยังไม่ส่ง)
+const APPLICATION_EDITABLE = new Set(['NOT_SUBMITTED', 'APPLICATION_EDITS_REQUIRED', 'EDITS_REQUIRED']);
+
 const deleteDocument = async (req, res) => {
   try {
     const { id } = req.params; // รับ document ID
@@ -323,17 +326,14 @@ const deleteDocument = async (req, res) => {
     await prisma.$transaction(async (tx) => {
         const freshSt = await tx.student.findUnique({ where: { id: doc.studentId }, select: { deletedAt: true } });
         if (!freshSt || freshSt.deletedAt) throw Object.assign(new Error('บัญชีถูกระงับการใช้งาน'), { is403: true });
-        if (doc.type === 'T002_FORM' || doc.type === 'T003_FORM') {
-            const coop = await tx.studentCoop.findUnique({
-                where: { studentId: doc.studentId },
-                select: { status: true }
-            });
-            const LOCKED_BY_T002 = new Set(['T002_SUBMITTED', 'T003_SUBMITTED', 'T003_EDITS_REQUIRED', 'T003_APPROVED', 'INTERNSHIP_STARTED', 'COMPLETED']);
-            const LOCKED_BY_T003 = new Set(['T003_SUBMITTED', 'T003_APPROVED', 'INTERNSHIP_STARTED', 'COMPLETED']);
-            if (doc.type === 'T002_FORM' && coop && LOCKED_BY_T002.has(coop.status))
-                throw Object.assign(new Error('ไม่สามารถลบ T002 ที่อยู่ระหว่างการตรวจสอบ'), { is409: true });
-            if (doc.type === 'T003_FORM' && coop && LOCKED_BY_T003.has(coop.status))
-                throw Object.assign(new Error('ไม่สามารถลบ T003 ที่อยู่ระหว่างการตรวจสอบ'), { is409: true });
+        // ทางนี้ของหน้ายื่นคำร้อง (S_Gateway) — ลบได้เฉพาะไฟล์แนบคำร้อง ตอนที่หน้านั้นให้แก้ (ยังไม่ส่ง / ส่งกลับแก้)
+        // เดิมลบไฟล์ได้ทุกชนิดทุกสถานะ — เลี่ยงด่านของหน้าเอกสาร (ไฟล์ T000 ที่ผ่านแล้ว · ใบตอบรับ · ถอยสถานะส่งครั้งแรก) ได้
+        if (doc.type !== 'APPLICATION_DOC') {
+            throw Object.assign(new Error('ลบเอกสารนี้ได้ที่หน้าเอกสารสหกิจเท่านั้น'), { is409: true });
+        }
+        const coop = await tx.studentCoop.findUnique({ where: { studentId: doc.studentId }, select: { status: true } });
+        if (coop && !APPLICATION_EDITABLE.has(coop.status)) {
+            throw Object.assign(new Error('คำร้องอยู่ระหว่างพิจารณาหรือพิจารณาแล้ว ลบไฟล์แนบไม่ได้'), { is409: true });
         }
         await tx.document.delete({ where: { id: parsedDocId } });
     });
