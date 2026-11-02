@@ -40,11 +40,12 @@ const COLORS: Record<ToastType, { bg: string; border: string; text: string }> = 
   warning: { bg: "#fffbeb", border: "#f59e0b", text: "#92400e" },
 };
 
+// พื้นทึบ = สีประเภท 20% บนพื้นการ์ดธีมมืด (#1e293b) — เดิม rgba(…,.2) โปร่ง เห็นปุ่ม/ตัวอักษรของหน้าทะลุกล่อง
 const DARK_COLORS: Record<ToastType, { bg: string; border: string; text: string }> = {
-  success: { bg: "rgba(22,163,74,.2)",   border: "#22c55e", text: "#86efac" },
-  error:   { bg: "rgba(239,68,68,.2)",   border: "#ef4444", text: "#fca5a5" },
-  info:    { bg: "rgba(59,130,246,.2)",  border: "#3b82f6", text: "#93c5fd" },
-  warning: { bg: "rgba(245,158,11,.2)",  border: "#f59e0b", text: "#fcd34d" },
+  success: { bg: "#1c413e", border: "#22c55e", text: "#86efac" },
+  error:   { bg: "#482e3d", border: "#ef4444", text: "#fca5a5" },
+  info:    { bg: "#243b60", border: "#3b82f6", text: "#93c5fd" },
+  warning: { bg: "#494031", border: "#f59e0b", text: "#fcd34d" },
 };
 
 // เวลาที่ค้างบนจอ — ผิดพลาด/คำเตือนต้องอ่านสาเหตุและวิธีแก้ จึงค้างนานกว่า
@@ -155,7 +156,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                 display: "flex", alignItems: "flex-start", gap: 10,
                 background: c.bg, border: `1.5px solid ${c.border}`,
                 borderRadius: 12, padding: "12px 16px",
-                boxShadow: "0 8px 24px rgba(0,0,0,.12)",
+                boxShadow: isDark ? "0 8px 24px rgba(0,0,0,.45)" : "0 8px 24px rgba(0,0,0,.12)",
                 animation: "toastIn .25s ease",
                 pointerEvents: "all", cursor: "pointer",
               }}

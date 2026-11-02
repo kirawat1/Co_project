@@ -33,26 +33,43 @@ export default function RoundDeadlineNote({ stepKey, periodId }: Props) {
     if (failed) return <div style={wrap}><span style={muted}>โหลดกำหนดส่งไม่สำเร็จ</span>{link}</div>;
     if (!data) return <div style={wrap}><span style={muted}><BusyLabel size={13} text="กำลังโหลดกำหนดส่ง…" /></span></div>;
 
+    const groups = groupByDeadline(data, stepKey);
     return (
         <div style={wrap}>
-            <div style={{ display: "flex", gap: "6px 14px", flexWrap: "wrap", alignItems: "center", minWidth: 0 }}>
+            <div style={{ display: "flex", gap: "6px 16px", flexWrap: "wrap", alignItems: "center", minWidth: 0 }}>
                 <span style={{ fontSize: 13, fontWeight: 700, color: "#334155" }}>กำหนดส่งรอบ {data.period.semester}/{data.period.academicYear}:</span>
                 {data.majors.length === 0 && <span style={muted}>ยังไม่มีหลักสูตรในรอบนี้</span>}
-                {data.majors.map(m => {
-                    const e = m.deadlines?.[stepKey];
-                    if (!e) return <span key={m.major} style={item}><b>{m.major}</b> ใช้ค่าเดิม: {legacyText(data.legacy[m.major]?.[stepKey])}</span>;
-                    const s = deadlineStatus({ due: e.due, mode: e.mode, closed: e.closed });
-                    return (
-                        <span key={m.major} style={item}>
-                            <b>{m.major}</b> {entryText(e)}
-                            <span style={{ ...pill, ...toneStyle[s.tone] }}>{s.text}</span>
-                        </span>
-                    );
-                })}
+                {groups.map(g => (
+                    <span key={g.key} style={item}>
+                        <b>{g.majors.length > 1 && g.majors.length === data.majors.length ? "ทุกหลักสูตร" : g.majors.join(" · ")}</b> {g.text}
+                        {g.legacy
+                            ? <span style={{ ...pill, ...toneStyle.info }} title="ยังไม่ตั้งในปฏิทินของรอบนี้ — ระบบใช้ช่วงเวลาเดิม">ค่าเดิม</span>
+                            : g.status && <span style={{ ...pill, ...toneStyle[g.status.tone] }}>{g.status.text}</span>}
+                    </span>
+                ))}
             </div>
             {link}
         </div>
     );
+}
+
+/**
+ * หลักสูตรที่กำหนดส่งเหมือนกันรวมเป็นกลุ่มเดียว (ลำดับตามหลักสูตรแรกของกลุ่ม)
+ * เดิมแสดงทีละหลักสูตร — รอบที่ยังไม่ตั้งปฏิทินได้ "ใช้ค่าเดิม: <วันเดียวกัน>" ซ้ำ 5 ครั้งจนยาวอ่านยาก
+ */
+export function groupByDeadline(data: CalendarData, stepKey: StepKey) {
+    const groups = new Map<string, { key: string; majors: string[]; text: string; legacy: boolean; status?: { text: string; tone: Tone } }>();
+    for (const m of data.majors) {
+        const e = m.deadlines?.[stepKey];
+        const g = e
+            ? { text: entryText(e), legacy: false, status: deadlineStatus({ due: e.due, mode: e.mode, closed: e.closed }) }
+            : { text: legacyText(data.legacy[m.major]?.[stepKey]), legacy: true };
+        const key = `${g.legacy}|${g.text}|${g.status?.text ?? ""}`;
+        const found = groups.get(key);
+        if (found) found.majors.push(m.major);
+        else groups.set(key, { key, majors: [m.major], ...g });
+    }
+    return [...groups.values()];
 }
 
 /** ป้ายในแถวรายการตรวจ — จาก API (row.deadline): ส่งช้า / เลยกำหนดยังไม่ส่ง */
