@@ -24,25 +24,11 @@ const SUPERVISION_PROPOSE_STATUSES = [
     'T003_SUBMITTED', 'T003_EDITS_REQUIRED', 'T003_APPROVED',
 ];
 
-// เลขที่หนังสือขอนิเทศห้ามซ้ำกับฉบับที่ออกให้คนอื่นแล้ว หรือร่างที่รอลงนามของคนอื่น
+// เลขที่หนังสือขอนิเทศห้ามซ้ำกับหนังสือทุกประเภท (ใช้เลขชุดเดียวกับขอความอนุเคราะห์/ส่งตัว) — ดู utils/letterNumberFree.js
 // appointmentIds = นัดในหนังสือฉบับนี้ (หนังสือรวมของกลุ่มนิเทศใช้เลขเดียวกันได้) — เลิก unique ระดับ DB แล้ว
-const { lockDocNumber, DOC_NUMBER_TX } = require('../utils/docNumberLock');
-async function assertSupervisionDocNumberFree(tx, value, appointmentIds) {
-    if (!value) return;
-    await lockDocNumber(tx, 'supervisionLetter', value);
-    const clash = await tx.supervisionAppointment.findFirst({
-        where: { OR: [{ letterDocNumber: value }, { letterDraftNumber: value }], id: { notIn: [].concat(appointmentIds) } },
-        select: { letterDocNumber: true, letterDraftNumber: true, student: { select: { studentId: true, firstName: true, lastName: true } } },
-    });
-    if (!clash) return;
-    const who = clash.student
-        ? `${clash.student.studentId} ${clash.student.firstName} ${clash.student.lastName}`
-        : 'นักศึกษารายอื่น';
-    const message = clash.letterDocNumber === value
-        ? `เลขที่หนังสือขอนิเทศ "${value}" ถูกใช้กับ ${who} แล้ว`
-        : `เลขที่หนังสือขอนิเทศ "${value}" อยู่ในร่างหนังสือที่รอลงนามของ ${who} — ถ้าไม่ใช้ร่างนั้นแล้ว ให้กด "ยกเลิกรอลงนาม" ของคนนั้นก่อน`;
-    throw Object.assign(new Error(message), { is409: true });
-}
+const { DOC_NUMBER_TX } = require('../utils/docNumberLock');
+const { assertLetterNumberFree } = require('../utils/letterNumberFree');
+const assertSupervisionDocNumberFree = (tx, value, appointmentIds) => assertLetterNumberFree(tx, 'supervisionLetter', value, appointmentIds);
 
 // ==========================================
 // ⚙️ [ADMIN] จัดการ Config ช่วงเวลานิเทศ (ผูกกับ CoopPeriod)

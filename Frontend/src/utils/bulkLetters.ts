@@ -43,6 +43,9 @@ export function bulkCandidates<T extends BulkStudent>(students: T[], letter: Bul
 
 /** เหตุผลที่ยังออกหนังสือให้คนนี้ไม่ได้ (null = ออกได้) */
 export function blockReason(s: BulkStudent, letter: BulkLetterType): string | null {
+  // ร่างรอลงนามอยู่ → ออกร่างใหม่ไม่ได้จนกว่าจะยกเลิก (เดิมติ๊กเองได้ ได้เลขใหม่ทับร่างที่ส่งไปเซ็นแล้ว)
+  const pend = pendingDraftOf(s, letter);
+  if (pend) return `รอลงนามอยู่${pend.number ? ` (เลข ${pend.number})` : ""} — ยกเลิกรอลงนามที่หน้าต่างออกหนังสือก่อน`;
   if (!s.coop?.companyId) return "ยังไม่มีบริษัท";
   const start = s.coop.actualStartDate || s.coopApplicationForm?.startDate;
   if (letter === "REQUEST") return start ? null : "ยังไม่มีวันเริ่มฝึก";

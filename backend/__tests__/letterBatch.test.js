@@ -133,13 +133,14 @@ describe('ล็อกเลขที่หนังสือ (กันออ�
     return seq;
   };
 
-  test('หนังสือรวม: ล็อก (REQ, เลขที่) ก่อนตรวจซ้ำ · transaction READ COMMITTED', async () => {
+  // คิวล็อก 'letter' เดียวกันทุกประเภท — เลขชุดเดียวกัน สองคนออกเลขเดียวกันคนละประเภทพร้อมกันต้องรอคิวกัน
+  test('หนังสือรวม: ล็อก (letter, เลขที่) ก่อนตรวจซ้ำ · transaction READ COMMITTED', async () => {
     const seq = order();
     prisma.studentCoop.findMany.mockResolvedValue([coop(1, 'DOCS_APPROVED'), coop(2, 'DOCS_APPROVED')]);
     await issueLetterBatch({ body: { letter: 'REQUEST', studentIds: '[1,2]', docNumber: '660301.26.6.2/700' }, file, user: { id: 1, role: 'staff' } }, makeRes());
     expect(seq.slice(0, 2)).toEqual(['lock', 'check']);
     const [, kind, number] = prisma.$executeRaw.mock.calls[0];
-    expect([kind, number]).toEqual(['reqLetter', '660301.26.6.2/700']);
+    expect([kind, number]).toEqual(['letter', '660301.26.6.2/700']);
     expect(prisma.$transaction.mock.calls[0][1]).toEqual(DOC_NUMBER_TX);
     expect(DOC_NUMBER_TX.isolationLevel).toBe('ReadCommitted');
   });
@@ -153,14 +154,93 @@ describe('ล็อกเลขที่หนังสือ (กันออ�
     expect(prisma.$transaction.mock.calls[0][1]).toEqual(DOC_NUMBER_TX);
   });
 
-  test('หนังสือขอนิเทศ: ล็อก (supervisionLetter, เลขที่) ก่อนตรวจซ้ำ', async () => {
+  test('หนังสือขอนิเทศ: ล็อก (letter, เลขที่) ก่อนตรวจซ้ำ', async () => {
     const seq = order();
     prisma.supervisionAppointment.findUnique.mockResolvedValue({ id: 10, status: 'DATE_CONFIRMED', studentId: 1 });
     prisma.supervisionAppointment.update.mockImplementation(async ({ where, data }) => ({ id: where.id, studentId: where.id, ...data }));
     prisma.student.findUnique.mockResolvedValue({ userId: 9 });
     await uploadOfficialLetter({ params: { id: '10' }, body: { docNumber: '660301.26.6.2/702' }, file: { filename: 'sup.pdf' }, user: { id: 1, role: 'staff' } }, makeRes());
     expect(seq.slice(0, 2)).toEqual(['lock', 'check']);
-    expect(prisma.$executeRaw.mock.calls[0].slice(1)).toEqual(['supervisionLetter', '660301.26.6.2/702']);
+    expect(prisma.$executeRaw.mock.calls[0].slice(1)).toEqual(['letter', '660301.26.6.2/702']);
+  });
+});
+
+// รอลงนามอยู่ = ร่างที่ส่งไปเซ็นแล้ว — ออกร่างใหม่ (เลขอื่น) ทับไม่ได้ ต้องยกเลิกรอลงนามก่อน · เลขเดิม (โหลดไฟล์ซ้ำ) ได้
+describe('markLetterPending — รอลงนามอยู่ห้ามออกร่างเลขอื่นทับ', () => {
+  beforeEach(() => { prisma.student.findUnique.mockResolvedValue({ deletedAt: null }); });
+  const pendingCoop = { status: 'DOCS_APPROVED', reqLetterPendingAt: new Date('2026-11-01'), reqLetterDraftNumber: '660301.26.6.2/811' };
+
+  test('เลขอื่น → 409 บอกเลขร่างเดิม · ไม่บันทึก', async () => {
+    prisma.studentCoop.findUnique.mockResolvedValue(pendingCoop);
+    const res = makeRes();
+    await markLetterPending({ body: { studentId: 1, letter: 'REQUEST', docNumber: '660301.26.6.2/812' } }, res);
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(res.json.mock.calls[0][0].message).toBe('มีร่างหนังสือขอความอนุเคราะห์ที่รอลงนามอยู่ (เลข 660301.26.6.2/811) — ถ้าจะออกร่างใหม่ ให้กด "ยกเลิกรอลงนาม" ก่อน');
+    expect(prisma.studentCoop.update).not.toHaveBeenCalled();
+  });
+
+  test('เลขเดิม (โหลดไฟล์เดิมซ้ำ) → ผ่าน · ยกเลิกรอลงนาม → ผ่าน', async () => {
+    prisma.studentCoop.findUnique.mockResolvedValue(pendingCoop);
+    let res = makeRes();
+    await markLetterPending({ body: { studentId: 1, letter: 'REQUEST', docNumber: 'ที่ อว 660301.26.6.2/811' } }, res);
+    expect(res.status).not.toHaveBeenCalled();
+    res = makeRes();
+    await markLetterPending({ body: { studentId: 1, letter: 'REQUEST', cancel: true } }, res);
+    expect(res.status).not.toHaveBeenCalled();
+  });
+
+  test('ป้ายรอลงนามของหนังสืออีกประเภทไม่เกี่ยว', async () => {
+    prisma.studentCoop.findUnique.mockResolvedValue({ ...pendingCoop, status: 'ACCEPTANCE_CHECKED' });
+    const res = makeRes();
+    await markLetterPending({ body: { studentId: 1, letter: 'PLACEMENT', docNumber: '660301.26.6.2/893' } }, res);
+    expect(res.status).not.toHaveBeenCalled();
+  });
+});
+
+// หนังสือจริงใช้เลขชุดเดียวกันทุกประเภท (811 ขอความอนุเคราะห์ → 893 ส่งตัว → 1215 ขอนิเทศ)
+// เดิมตรวจซ้ำเฉพาะประเภทเดียวกัน — เลขหนังสือขอความอนุเคราะห์ใส่เป็นหนังสือส่งตัวได้
+describe('เลขที่หนังสือห้ามซ้ำข้ามประเภท', () => {
+  const stu = { studentId: '650000009', firstName: 'ก', lastName: 'ข' };
+  const pendingReq = (letter, docNumber, ids = [1]) => ({ body: { studentIds: ids, letter, docNumber } });
+  beforeEach(() => {
+    prisma.student.findUnique.mockResolvedValue({ deletedAt: null });
+    prisma.studentCoop.findUnique.mockResolvedValue({ status: 'ACCEPTANCE_CHECKED' });
+    prisma.supervisionAppointment.findFirst.mockResolvedValue(null);
+  });
+
+  test('ร่างหนังสือส่งตัวใช้เลขที่ออกเป็นหนังสือขอความอนุเคราะห์แล้ว → 409 บอกประเภทที่ชน · ไม่ติดป้าย', async () => {
+    prisma.studentCoop.findFirst.mockImplementation(async ({ where }) => (where.OR[0].reqDocNumber === '660301.26.6.2/811' ? { reqDocNumber: '660301.26.6.2/811', student: stu } : null));
+    const res = makeRes();
+    await markLetterPending(pendingReq('PLACEMENT', '660301.26.6.2/811'), res);
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(res.json.mock.calls[0][0].message).toBe('เลขที่ "660301.26.6.2/811" ถูกใช้เป็นหนังสือขอความอนุเคราะห์ของ 650000009 ก ข แล้ว — หนังสือทุกประเภทใช้เลขชุดเดียวกัน กรุณาใช้เลขถัดไป');
+    expect(prisma.studentCoop.update).not.toHaveBeenCalled();
+  });
+
+  test('ข้ามประเภท ห้ามแม้เป็นนักศึกษาคนเดียวกัน (ไม่กรองคนในฉบับ) · ประเภทเดียวกันกรองคนในฉบับ', async () => {
+    await markLetterPending(pendingReq('PLACEMENT', '660301.26.6.2/900', [1]), makeRes());
+    const wheres = prisma.studentCoop.findFirst.mock.calls.map((c) => c[0].where);
+    expect(wheres[0]).toEqual({ OR: [{ placeDocNumber: '660301.26.6.2/900' }, { placeLetterDraftNumber: '660301.26.6.2/900' }], studentId: { notIn: [1] } });
+    expect(wheres[1]).toEqual({ OR: [{ reqDocNumber: '660301.26.6.2/900' }, { reqLetterDraftNumber: '660301.26.6.2/900' }] });
+    expect(prisma.supervisionAppointment.findFirst.mock.calls[0][0].where).toEqual({ OR: [{ letterDocNumber: '660301.26.6.2/900' }, { letterDraftNumber: '660301.26.6.2/900' }] });
+  });
+
+  test('เลขอยู่ในร่างหนังสือขอนิเทศที่รอลงนาม → 409 ให้ยกเลิกรอลงนามของคนนั้นก่อน', async () => {
+    prisma.supervisionAppointment.findFirst.mockResolvedValue({ letterDocNumber: null, letterDraftNumber: '660301.26.6.2/1215', student: stu });
+    const res = makeRes();
+    await markLetterPending(pendingReq('REQUEST', '660301.26.6.2/1215'), res);
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(res.json.mock.calls[0][0].message).toContain('อยู่ในร่างหนังสือขอนิเทศที่รอลงนามของ 650000009 ก ข');
+  });
+
+  test('หนังสือขอนิเทศใช้เลขที่เป็นหนังสือส่งตัวแล้ว → 409', async () => {
+    prisma.studentCoop.findFirst.mockImplementation(async ({ where }) => (where.OR[0].placeDocNumber ? { placeDocNumber: '660301.26.6.2/893', student: stu } : null));
+    prisma.supervisionAppointment.findUnique.mockResolvedValue({ id: 10, status: 'DATE_CONFIRMED', studentId: 1 });
+    const res = makeRes();
+    await uploadOfficialLetter({ params: { id: '10' }, body: { docNumber: '660301.26.6.2/893' }, file: { filename: 'sup.pdf' }, user: { id: 1, role: 'staff' } }, res);
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(res.json.mock.calls[0][0].message).toContain('ถูกใช้เป็นหนังสือส่งตัวของ 650000009 ก ข');
+    expect(prisma.supervisionAppointment.update).not.toHaveBeenCalled();
   });
 });
 

@@ -76,6 +76,17 @@ export function LetterPendingBanner({ pendingAt, draftNumber, draftDate, onCance
     );
 }
 
+// ระหว่างรอลงนาม ปุ่มสร้างเอกสารถูกปิด — ร่างใหม่ (เลขอื่น) จะไม่ตรงกับร่างที่ส่งไปเซ็น
+// ไฟล์ที่สร้างไว้แล้วในหน้าต่างนี้ยังโหลดซ้ำได้ (เลขเดิม) · ช่องเลขที่ยังแก้ได้ (ใช้ตอนบันทึกฉบับลงนาม)
+export function DraftLockedNote({ pendingAt }: { pendingAt: string | null }) {
+    if (!pendingAt) return null;
+    return (
+        <div style={{ marginTop: 6, fontSize: 11, color: '#92400e', lineHeight: 1.6 }}>
+            มีร่างที่รอลงนามอยู่ จึงสร้างเอกสารใหม่ไม่ได้ — ถ้าจะออกร่างใหม่ กด "ยกเลิกรอลงนาม" ด้านบนก่อน
+        </div>
+    );
+}
+
 // ป้ายในตารางรายชื่อ เช่น "✍️ รอลงนามหนังสือส่งตัว · 14 ก.ย. 2569" (ชี้ดูเลขที่ร่าง)
 export function PendingSignBadge({ label, at, draftNumber }: { label: string; at: string; draftNumber?: string | null }) {
     return (

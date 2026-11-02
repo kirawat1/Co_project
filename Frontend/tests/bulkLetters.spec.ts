@@ -48,6 +48,10 @@ test("bulkCandidates / blockReason", () => {
   expect(blockReason({ id: 1, coop: { companyId: 1 }, coopApplicationForm: { startDate: "2026-06-01" } }, "REQUEST")).toBeNull();
   expect(blockReason({ id: 1, coop: { companyId: 1, actualStartDate: "2026-06-01" } }, "PLACEMENT")).toBe("ยังไม่มีวันเริ่ม/สิ้นสุดฝึก");
   expect(blockReason({ id: 1, coop: { companyId: 1, actualStartDate: "2026-06-01" }, coopApplicationForm: { endDate: "2026-09-30" } }, "PLACEMENT")).toBeNull();
+  // รอลงนามอยู่ → ออกร่างใหม่ไม่ได้จนกว่าจะยกเลิก (เดิมติ๊กเองได้ ได้เลขใหม่ทับร่างที่ส่งไปเซ็น) · ป้ายของหนังสืออีกประเภทไม่เกี่ยว
+  const pend = { id: 1, coop: { companyId: 1, actualStartDate: "2026-06-01", actualEndDate: "2026-09-30", reqLetterPendingAt: "2026-11-01T03:00:00Z", reqLetterDraftNumber: "660301.26.6.2/811" } };
+  expect(blockReason(pend, "REQUEST")).toBe("รอลงนามอยู่ (เลข 660301.26.6.2/811) — ยกเลิกรอลงนามที่หน้าต่างออกหนังสือก่อน");
+  expect(blockReason(pend, "PLACEMENT")).toBeNull();
 });
 
 test("groupByCompany: บริษัทเดียวกันรวม · แยกฉบับได้ · เรียงชื่อบริษัทแล้วรหัส", () => {
