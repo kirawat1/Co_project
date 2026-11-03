@@ -70,7 +70,7 @@ describe('downloadPlacementLetter — นักศึกษากดดาวน
 describe('saveT003Form — นักศึกษากรอกโครงร่างรายงาน', () => {
   const req = (body = {}) => ({ user: { id: 50 }, body: { reportTitleTh: 'หัวข้อ', objectives: 'วัตถุประสงค์', ...body } });
 
-  test.each(['T002_SUBMITTED', 'T003_SUBMITTED', 'T003_EDITS_REQUIRED'])('สถานะ %s → บันทึก (upsert ตามนักศึกษา)', async (status) => {
+  test.each(['INTERNSHIP_STARTED', 'T002_SUBMITTED', 'T003_SUBMITTED', 'T003_EDITS_REQUIRED', 'T003_APPROVED'])('สถานะ %s (ช่วงฝึกงาน) → บันทึก (upsert ตามนักศึกษา)', async (status) => {
     prisma.student.findUnique.mockResolvedValue({ id: 5, deletedAt: null });
     prisma.studentCoop.findUnique.mockResolvedValue({ status });
     prisma.coopT003Form.upsert.mockResolvedValue({ id: 1 });
@@ -82,7 +82,7 @@ describe('saveT003Form — นักศึกษากรอกโครงร�
     expect(res.json).toHaveBeenCalledWith({ ok: true, data: { id: 1 } });
   });
 
-  test.each(['INTERNSHIP_STARTED', 'T003_APPROVED', 'QUALIFIED'])('สถานะ %s → 400 (ยังไม่ถึง/ผ่านแล้วแก้ไม่ได้)', async (status) => {
+  test.each(['PLACEMENT_LETTER_ISSUED', 'QUALIFIED', 'COMPLETED'])('สถานะ %s → 400 (ยังไม่ถึงช่วงฝึกงาน)', async (status) => {
     prisma.student.findUnique.mockResolvedValue({ id: 5, deletedAt: null });
     prisma.studentCoop.findUnique.mockResolvedValue({ status });
     const res = makeRes();

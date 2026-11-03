@@ -6,19 +6,18 @@ const prisma = require('../config/prismaClient');
 const { readEffective } = require('./majorConfig');
 const { evaluateDeadline, evaluateLegacyWindow } = require('./deadlines');
 const { periodCloseAt } = require('./coopPeriodHelper');
-const { isLateT002 } = require('./t002Review');
+const { FORM_TYPES, formState } = require('./internshipForms');
 
 // ค่าเดิม: ช่วงรับเอกสาร (T000–T003) · กำหนดส่งที่ติดมากับลิงก์แบบฟอร์ม (T005–T008)
 const LEGACY_WINDOW_KEY = { T000: 'T000_CONFIG', T002: 'T002_CONFIG', T003: 'T003_CONFIG' };
 const LEGACY_DEADLINE_KEY = { T005_T006: 'EVALUATION_FORMS', T007: 'CONFIG_T007', T008: 'CONFIG_T008' };
 
 // สถานะ "ถูกสั่งแก้" ของแต่ละขั้น — ส่งแก้ไม่ติดกำหนด (กลุ่ม T000 ชุดเดียวกับที่ docController ถือว่าเป็นการส่งแก้)
+// T002/T003 ไม่อยู่ในนี้ — สถานะหลักไม่เปลี่ยนแล้ว ดูจากไฟล์ล่าสุดของฟอร์ม (ใน resolveDeadline)
 // T000 ถูกสั่งแก้หลายไฟล์: ไฟล์แรกที่ส่งแก้เปลี่ยนสถานะเป็น WAITING_FOR_STAFF_CHECK → ไฟล์ถัดไปยังเป็นการส่งแก้
 //   ยกเว้นรอตรวจจากการส่งครั้งแรก (t000Status PENDING — utils/submittedSteps.js syncT000Submission)
 const RESUBMIT_STATUSES = {
   T000: ['EDITS_REQUIRED', 'APPLICATION_EDITS_REQUIRED', 'WAITING_FOR_STAFF_CHECK'],
-  T002: ['T002_EDITS_REQUIRED'],
-  T003: ['T003_EDITS_REQUIRED'],
 };
 const isResubmission = (stepKey, coop) => !!coop && (RESUBMIT_STATUSES[stepKey] || []).includes(coop.status)
   && !(stepKey === 'T000' && coop.status === 'WAITING_FOR_STAFF_CHECK' && coop.t000Status === 'PENDING');
@@ -34,10 +33,10 @@ async function resolveDeadline(stepKey, ctx, db = prisma, now = new Date()) {
   const periodId = coop?.coopPeriodId ?? null;
   const extensionUntil = (coop?.deadlineExtensions && coop.deadlineExtensions[stepKey]) || null;
   let resubmission = isResubmission(stepKey, coop);
-  // T002 ถูกตีกลับย้อนหลังหลังนักศึกษาไปขั้น T003 แล้ว (utils/t002Review.js) = ส่งแก้ ไม่ติดกำหนด
-  if (!resubmission && stepKey === 'T002' && isLateT002(coop?.status)) {
-    const doc = await db.document.findFirst({ where: { studentId, type: 'T002_FORM' }, orderBy: { id: 'desc' }, select: { status: true } });
-    resubmission = doc?.status === 'REJECTED';
+  // T002/T003 ถูกตีกลับ (ไฟล์ล่าสุด REJECTED) = ส่งแก้ ไม่ติดกำหนด · ผ่านแล้ว/รอตรวจไม่นับ
+  if (!resubmission && FORM_TYPES[stepKey]) {
+    const doc = await db.document.findFirst({ where: { studentId, type: FORM_TYPES[stepKey] }, orderBy: { id: 'desc' }, select: { status: true } });
+    resubmission = formState(doc) === 'REJECTED';
   }
   if (!periodId) {
     return { ...evaluateDeadline(null, now), source: 'NO_ROUND', periodId: null, startDate: null, extensionUntil, resubmission };

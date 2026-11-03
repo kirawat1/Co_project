@@ -5,6 +5,7 @@
 // HARD = เลยกำหนดส่งครั้งแรกไม่ได้ · SOFT = ส่งได้แต่นับว่าช้า · closed = ปิดรับชั่วคราว (ส่งครั้งแรกไม่ได้ทุกกรณี)
 // ส่งแก้ (resubmission) ไม่ติดกำหนด/สวิตช์ใดๆ
 const { periodCloseAt } = require('./coopPeriodHelper');
+const { INTERNSHIP_STATUSES } = require('./internshipForms');
 
 const STEP_KEYS = ['T000', 'T002', 'T003', 'T005_T006', 'T007', 'T008'];
 // ขั้นที่ส่งในระบบ (ปิดรับ/ติดป้ายส่งช้าได้) — T005–T008 เป็นฟอร์มนอกระบบ แสดงวันอย่างเดียว
@@ -133,7 +134,8 @@ function shiftYears(deadlines, years) {
 }
 
 // สถานะที่ "ส่งครั้งแรกได้" ของแต่ละขั้น — ชุดเดียวกับที่ docController ยอมรับการส่งครั้งแรก
-const FIRST_SUBMIT_STATUSES = { T000: ['QUALIFIED'], T002: ['INTERNSHIP_STARTED'], T003: ['T002_SUBMITTED'] };
+// T002/T003 ส่งครั้งแรกได้ตลอดช่วงฝึกงาน (เท่ากัน ไม่ต่อกัน) — รวมสถานะแบบเก่าที่ยังค้างใน DB
+const FIRST_SUBMIT_STATUSES = { T000: ['QUALIFIED'], T002: INTERNSHIP_STATUSES, T003: INTERNSHIP_STATUSES };
 
 // ป้ายในรายการตรวจ: ส่งช้า (เวลาส่งครั้งแรกเลยกำหนด · ไม่นับเวลาที่เติมย้อนหลัง) / เลยกำหนดยังไม่ส่ง (อยู่ในขั้นที่ส่งได้ · นับวันขยาย)
 function deadlineFlags({ stepKey, due, submitted, status, extensionUntil = null, now = new Date() }) {

@@ -61,13 +61,13 @@ describe('docController', () => {
       expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: true }));
     });
 
-    test('409 — ไม่สามารถลบ T002 ที่อยู่ระหว่างการตรวจสอบ (T002_SUBMITTED)', async () => {
+    test.each(['WAITING', 'APPROVED'])('409 — ไม่สามารถลบ T002 ที่ไฟล์ %s (รอตรวจ/ผ่านแล้ว)', async (status) => {
       prisma.document.findUnique.mockResolvedValue({
-        id: 5, path: 'test.pdf', studentId: 10, type: 'T002_FORM',
+        id: 5, path: 'test.pdf', studentId: 10, type: 'T002_FORM', status,
         student: { userId: 1, deletedAt: null },
       });
       prisma.student.findUnique.mockResolvedValue({ deletedAt: null });
-      prisma.studentCoop.findUnique.mockResolvedValue({ status: 'T002_SUBMITTED' });
+      prisma.studentCoop.findUnique.mockResolvedValue({ status: 'INTERNSHIP_STARTED' });
 
       const req = { params: { id: '5' }, user: { id: 1 } };
       const res = makeRes();
@@ -76,13 +76,13 @@ describe('docController', () => {
       expect(prisma.document.delete).not.toHaveBeenCalled();
     });
 
-    test('409 — ไม่สามารถลบ T003 ที่อยู่ระหว่างการตรวจสอบ (T003_SUBMITTED)', async () => {
+    test.each(['WAITING', 'APPROVED'])('409 — ไม่สามารถลบ T003 ที่ไฟล์ %s (รอตรวจ/ผ่านแล้ว)', async (status) => {
       prisma.document.findUnique.mockResolvedValue({
-        id: 6, path: 'test3.pdf', studentId: 10, type: 'T003_FORM',
+        id: 6, path: 'test3.pdf', studentId: 10, type: 'T003_FORM', status,
         student: { userId: 1, deletedAt: null },
       });
       prisma.student.findUnique.mockResolvedValue({ deletedAt: null });
-      prisma.studentCoop.findUnique.mockResolvedValue({ status: 'T003_SUBMITTED' });
+      prisma.studentCoop.findUnique.mockResolvedValue({ status: 'INTERNSHIP_STARTED' });
 
       const req = { params: { id: '6' }, user: { id: 1 } };
       const res = makeRes();
@@ -91,13 +91,13 @@ describe('docController', () => {
       expect(prisma.document.delete).not.toHaveBeenCalled();
     });
 
-    test('200 — ลบ T002 ได้เมื่อสถานะเป็น T002_EDITS_REQUIRED (ยังไม่ lock)', async () => {
+    test.each(['T002', 'T003'])('200 — ลบ %s ได้เมื่อไฟล์ถูกตีกลับ (REJECTED)', async (form) => {
       prisma.document.findUnique.mockResolvedValue({
-        id: 5, path: 'test.pdf', studentId: 10, type: 'T002_FORM',
+        id: 5, path: 'test.pdf', studentId: 10, type: `${form}_FORM`, status: 'REJECTED',
         student: { userId: 1, deletedAt: null },
       });
       prisma.student.findUnique.mockResolvedValue({ deletedAt: null });
-      prisma.studentCoop.findUnique.mockResolvedValue({ status: 'T002_EDITS_REQUIRED' });
+      prisma.studentCoop.findUnique.mockResolvedValue({ status: 'INTERNSHIP_STARTED' });
       prisma.document.delete.mockResolvedValue({});
 
       const req = { params: { id: '5' }, user: { id: 1 } };
@@ -508,7 +508,9 @@ describe('docController', () => {
       });
 
       test('ส่งแก้ที่ยังไม่มีเวลาของขั้น → เวลาส่งไม่นับว่าช้า (backfill)', async () => {
-        prisma.studentCoop.findUnique.mockResolvedValue({ coopPeriodId: 1, status: 'T002_EDITS_REQUIRED', submittedSteps: null });
+        prisma.studentCoop.findUnique.mockResolvedValue({ coopPeriodId: 1, status: 'INTERNSHIP_STARTED', submittedSteps: null });
+        // ไฟล์ล่าสุดถูกตีกลับ = ส่งแก้ (สถานะหลักไม่เปลี่ยนแล้ว ดูจากไฟล์)
+        prisma.document.findFirst.mockResolvedValue({ id: 7, path: 'old.pdf', status: 'REJECTED' });
         const res = makeRes();
         await docController.uploadDocument(makeUploadReq('T002_FORM'), res);
         const stamp = prisma.studentCoop.update.mock.calls.find((c) => c[0].data.submittedSteps);
@@ -628,7 +630,8 @@ describe('docController', () => {
       await docController.uploadDocument(makeUploadReq('T002_FORM'), res);
 
       expect(res.status).not.toHaveBeenCalled();
-      expect(prisma.studentCoop.update).toHaveBeenCalledWith({ where: { studentId: 10 }, data: { status: 'T002_SUBMITTED' } });
+      // T002/T003 ไม่เขียนสถานะหลักอีกแล้ว
+      expect(prisma.studentCoop.update.mock.calls.some((c) => c[0].data.status)).toBe(false);
       expect(prisma.studentCoop.update).toHaveBeenCalledWith({ where: { studentId: 10 }, data: { mentors: { connect: [{ id: 'm1' }, { id: 'm2' }] } } });
       expect(res.json.mock.calls[0][0]).toMatchObject({ ok: true, mentorSync: { linked: 2, created: 2 } });
 
@@ -637,6 +640,81 @@ describe('docController', () => {
       expect(prisma.user.findMany).toHaveBeenCalledWith(expect.objectContaining({
         where: { OR: [{ role: 'staff' }, { role: 'teacher', teacher: { isCoopTeacher: true, coopMajors: { some: { major: 'AI' } } } }] },
       }));
+    });
+  });
+
+  // T002/T003 เท่ากัน ไม่ต่อกัน — ส่งข้ามกันได้ · ส่งซ้ำได้เฉพาะตอนยังไม่ส่ง/ถูกตีกลับ · ไม่เขียนสถานะหลัก
+  describe('uploadDocument — T002/T003 คู่ขนาน', () => {
+    const makeUploadReq = (docType) => ({
+      body: { docType },
+      file: { path: '/tmp/test.pdf', filename: 'test.pdf', mimetype: 'application/pdf', originalname: 'test.pdf' },
+      user: { id: 1 },
+    });
+    const setupUpload = ({ coopStatus = 'INTERNSHIP_STARTED', oldDoc = null } = {}) => {
+      prisma.$transaction.mockImplementation((arg) => Array.isArray(arg) ? Promise.all(arg) : arg(prisma));
+      prisma.systemConfig.findUnique.mockResolvedValue(null);
+      prisma.student.findUnique.mockResolvedValue({ id: 10, userId: 1, deletedAt: null, major: 'AI' });
+      prisma.document.findFirst.mockResolvedValue(oldDoc);
+      prisma.coopT002Form.findUnique.mockReset().mockResolvedValue(null); // ไม่มีพี่เลี้ยงให้ซิงก์ (กันค่าค้างจากเทสต์ก่อนหน้า)
+      prisma.document.create.mockResolvedValue({ id: 99 });
+      prisma.studentCoop.findUnique.mockResolvedValue({ status: coopStatus, companyId: 'c1' });
+      prisma.studentCoop.update.mockResolvedValue({});
+    };
+    const wroteStatus = () => prisma.studentCoop.update.mock.calls.some((c) => c[0].data && c[0].data.status);
+
+    test('200 — ส่ง T003 ตอน INTERNSHIP_STARTED ได้เลยไม่ต้องมี T002 · ไม่เขียนสถานะหลัก', async () => {
+      setupUpload();
+      const res = makeRes();
+      await docController.uploadDocument(makeUploadReq('T003_FORM'), res);
+      expect(res.status).not.toHaveBeenCalled();
+      expect(res.json.mock.calls[0][0]).toMatchObject({ ok: true });
+      expect(wroteStatus()).toBe(false);
+    });
+
+    test.each([['T002_FORM', 'WAITING'], ['T002_FORM', 'APPROVED'], ['T003_FORM', 'WAITING'], ['T003_FORM', 'APPROVED']])(
+      '400 — ส่ง %s ทับไฟล์ %s ไม่ได้', async (type, status) => {
+        setupUpload({ oldDoc: { id: 7, path: 'old.pdf', type, status } });
+        const res = makeRes();
+        await docController.uploadDocument(makeUploadReq(type), res);
+        expect(res.status).toHaveBeenCalledWith(400);
+        expect(res.json.mock.calls[0][0].message).toContain('ส่งได้เมื่อยังไม่ส่ง หรือถูกตีกลับให้แก้');
+      });
+
+    test.each(['T002_FORM', 'T003_FORM'])('200 — ส่ง %s ทับไฟล์ที่ถูกตีกลับ (REJECTED) ได้', async (type) => {
+      setupUpload({ oldDoc: { id: 7, path: 'old.pdf', type, status: 'REJECTED' } });
+      const res = makeRes();
+      await docController.uploadDocument(makeUploadReq(type), res);
+      expect(res.status).not.toHaveBeenCalled();
+      expect(prisma.document.delete).toHaveBeenCalledWith({ where: { id: 7 } });
+      expect(wroteStatus()).toBe(false);
+    });
+
+    test('200 — ส่ง T002 ตอนสถานะเก่า T003_APPROVED ที่ไม่มีไฟล์ T002 (ข้อมูลค้างก่อน migrate)', async () => {
+      setupUpload({ coopStatus: 'T003_APPROVED' });
+      const res = makeRes();
+      await docController.uploadDocument(makeUploadReq('T002_FORM'), res);
+      expect(res.status).not.toHaveBeenCalled();
+      expect(wroteStatus()).toBe(false);
+    });
+
+    test('400 — ยังไม่ถึงช่วงฝึกงาน ส่ง T003 ไม่ได้', async () => {
+      setupUpload({ coopStatus: 'PLACEMENT_LETTER_ISSUED' });
+      const res = makeRes();
+      await docController.uploadDocument(makeUploadReq('T003_FORM'), res);
+      expect(res.status).toHaveBeenCalledWith(400);
+    });
+  });
+
+  describe('saveT003Form — ร่างตอน INTERNSHIP_STARTED', () => {
+    test('200 — บันทึกร่าง T003 ได้โดยไม่ต้องส่ง T002 ก่อน (เดิม 400)', async () => {
+      prisma.$transaction.mockImplementation((arg) => Array.isArray(arg) ? Promise.all(arg) : arg(prisma));
+      prisma.student.findUnique.mockResolvedValue({ id: 10, deletedAt: null });
+      prisma.studentCoop.findUnique.mockResolvedValue({ status: 'INTERNSHIP_STARTED' });
+      prisma.coopT003Form.upsert.mockResolvedValue({ id: 1 });
+      const res = makeRes();
+      await docController.saveT003Form({ user: { id: 1 }, body: { reportTitleTh: 'x' } }, res);
+      expect(res.status).not.toHaveBeenCalled();
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: true }));
     });
   });
 

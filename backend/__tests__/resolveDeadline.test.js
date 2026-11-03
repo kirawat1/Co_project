@@ -32,10 +32,20 @@ describe('resolveDeadline', () => {
       .toMatchObject({ source: 'ROUND', periodId: 2, due: '2026-12-11', canSubmit: true, late: false });
   });
 
-  test('ส่งแก้ (T002_EDITS_REQUIRED) หลัง HARD due → ส่งได้', async () => {
-    setup({ coop: { coopPeriodId: 1, status: 'T002_EDITS_REQUIRED' } });
-    expect(await resolveDeadline('T002', { studentId: 10 }, prisma, at('2026-07-05T00:00:00Z')))
-      .toMatchObject({ canSubmit: true, late: false });
+  // T002/T003 ส่งแก้ดูจากไฟล์ล่าสุดของฟอร์ม ไม่ใช่สถานะหลัก
+  test.each(['T002', 'T003'])('ส่งแก้ %s (ไฟล์ล่าสุด REJECTED) หลัง HARD due → ส่งได้ · resubmission', async (step) => {
+    setup({ coop: { coopPeriodId: 1, status: 'INTERNSHIP_STARTED' } });
+    prisma.document.findFirst.mockResolvedValue({ status: 'REJECTED' });
+    expect(await resolveDeadline(step, { studentId: 10 }, prisma, at('2026-07-20T00:00:00Z')))
+      .toMatchObject({ canSubmit: true, resubmission: true });
+    expect(prisma.document.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: { studentId: 10, type: step + '_FORM' }, orderBy: { id: 'desc' } }));
+  });
+
+  test.each(['APPROVED', 'WAITING'])('T003 ไฟล์ล่าสุด %s หลัง HARD due → ส่งไม่ได้ (ไม่ใช่ส่งแก้)', async (status) => {
+    setup({ coop: { coopPeriodId: 1, status: 'INTERNSHIP_STARTED' } });
+    prisma.document.findFirst.mockResolvedValue({ status });
+    expect(await resolveDeadline('T003', { studentId: 10 }, prisma, at('2026-07-20T00:00:00Z')))
+      .toMatchObject({ canSubmit: false, resubmission: false });
   });
 
   test('T000 ระหว่างส่งแก้ (WAITING_FOR_STAFF_CHECK หลังส่งแก้ไฟล์แรก) → ยังนับเป็นการส่งแก้', async () => {

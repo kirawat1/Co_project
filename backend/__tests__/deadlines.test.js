@@ -200,10 +200,11 @@ describe('deadlineFlags (ป้ายในรายการตรวจ)', () 
     expect(deadlineFlags({ ...base, due: null, submitted: null, status: 'INTERNSHIP_STARTED' })).toEqual({ due: null, late: false, overdueNotSubmitted: false });
   });
 
-  test('ขั้นที่ส่งครั้งแรกได้: T000 = QUALIFIED · T003 = T002_SUBMITTED', () => {
+  test('ขั้นที่ส่งครั้งแรกได้: T000 = QUALIFIED · T002/T003 = ตลอดช่วงฝึกงาน (เท่ากัน ไม่ต่อกัน)', () => {
     expect(deadlineFlags({ ...base, stepKey: 'T000', submitted: null, status: 'QUALIFIED' }).overdueNotSubmitted).toBe(true);
-    expect(deadlineFlags({ ...base, stepKey: 'T003', submitted: null, status: 'T002_SUBMITTED' }).overdueNotSubmitted).toBe(true);
-    expect(deadlineFlags({ ...base, stepKey: 'T003', submitted: null, status: 'INTERNSHIP_STARTED' }).overdueNotSubmitted).toBe(false);
+    expect(deadlineFlags({ ...base, stepKey: 'T003', submitted: null, status: 'INTERNSHIP_STARTED' }).overdueNotSubmitted).toBe(true);
+    expect(deadlineFlags({ ...base, stepKey: 'T003', submitted: null, status: 'T003_APPROVED' }).overdueNotSubmitted).toBe(true);
+    expect(deadlineFlags({ ...base, stepKey: 'T003', submitted: null, status: 'QUALIFIED' }).overdueNotSubmitted).toBe(false);
   });
 });
 
