@@ -266,11 +266,15 @@ exports.markSupervisionLetterPending = async (req, res) => {
             for (const aid of ids) {
                 const current = await tx.supervisionAppointment.findUnique({
                     where: { id: aid },
-                    select: { status: true, student: { select: { deletedAt: true } } },
+                    select: { status: true, letterPendingAt: true, letterDraftNumber: true, student: { select: { deletedAt: true } } },
                 });
                 if (!current || current.student?.deletedAt) throw Object.assign(new Error('ไม่พบข้อมูลการนัดหมาย'), { is404: true });
                 if (!cancel && current.status !== 'DATE_CONFIRMED') {
                     throw Object.assign(new Error('ออกหนังสือนิเทศได้เฉพาะนัดหมายที่ยืนยันวันแล้ว'), { is400: true });
+                }
+                // รอลงนามอยู่ = ร่างที่ส่งไปเซ็นแล้ว — รับเฉพาะเลขร่างเดิม (โหลดไฟล์เดิมซ้ำ) เหมือนหนังสือขอความอนุเคราะห์/ส่งตัว
+                if (!cancel && current.letterPendingAt && (current.letterDraftNumber || null) !== data.letterDraftNumber) {
+                    throw Object.assign(new Error(`มีร่างหนังสือขอนิเทศที่รอลงนามอยู่ (เลข ${current.letterDraftNumber || 'ยังไม่ได้กรอก'}) — ถ้าจะออกร่างใหม่ ให้กด "ยกเลิกรอลงนาม" ก่อน`), { is409: true });
                 }
             }
             if (!cancel) await assertSupervisionDocNumberFree(tx, data.letterDraftNumber, ids);
@@ -349,6 +353,22 @@ exports.proposeSupervisionDate = async (req, res) => {
             } catch {
                 return res.status(400).json({ ok: false, message: 'onlineLink ต้องเป็น URL แบบ http/https เท่านั้น' });
             }
+        }
+        // ตรงกับที่หน้าเสนอวันกัน (S_Supervision handleSubmit) — เดิมเรียก API ตรงแล้วสร้างนัดที่ไม่มีวันให้อาจารย์เลือก
+        // หรือช่วงเวลากลับหัวได้ · ส่งมาไม่ใช่ข้อความ JSON = 500 จากฐานข้อมูล
+        if (typeof proposedDates !== 'string') {
+            return res.status(400).json({ ok: false, message: 'proposedDates ต้องเป็นรายการวันที่ (JSON)' });
+        }
+        const proposedEntries = parseProposedList(proposedDates);
+        if (!proposedEntries.length) {
+            return res.status(400).json({ ok: false, message: 'กรุณาระบุวันที่ต้องการเสนออย่างน้อย 1 วัน' });
+        }
+        const invertedIdx = proposedEntries.findIndex((e) => e.start && e.end && e.start >= e.end);
+        if (invertedIdx >= 0) {
+            return res.status(400).json({ ok: false, message: `ตัวเลือกที่ ${invertedIdx + 1}: เวลาเริ่มต้องน้อยกว่าเวลาสิ้นสุด` });
+        }
+        if (proposedEntries.some((e) => e.type === 'ONLINE') && !String(onlineLink || '').trim()) {
+            return res.status(400).json({ ok: false, message: 'กรุณาระบุ Link สำหรับการนิเทศออนไลน์ (เช่น Zoom, Google Meet)' });
         }
         const student = await prisma.student.findUnique({
             where: { userId: req.user.id },
@@ -552,6 +572,11 @@ exports.assignCoTeachers = async (req, res) => {
         }
         await assertStudentInScope(req, appt.studentId);
         const prevCoIds = (await prisma.supervisionCoTeacher.findMany({ where: { appointmentId: parsedId }, select: { teacherId: true } })).map(c => c.teacherId);
+        // ร่างหนังสือขอนิเทศที่ส่งไปเซ็นมีรายชื่ออาจารย์ร่วมชุดเดิม — เปลี่ยนตอนนี้ฉบับลงนามจะไม่ตรง (เหมือนแก้วัน)
+        const sameSet = (a, b) => a.length === b.length && a.every((x) => b.includes(x));
+        if (appt.letterPendingAt && !sameSet(prevCoIds, ids.filter(n => n !== appt.teacherId))) {
+            return res.status(409).json({ ok: false, message: `มีร่างหนังสือขอนิเทศที่รอลงนามอยู่ (เลข ${appt.letterDraftNumber || 'ยังไม่ได้กรอก'}) — รายชื่ออาจารย์ในร่างจะไม่ตรง ถ้าจะเปลี่ยนอาจารย์ร่วม ให้กด "ยกเลิกรอลงนาม" ก่อน` });
+        }
 
         const coIds = ids.filter(n => n !== appt.teacherId); // อาจารย์หลักไม่นับเป็นอาจารย์ร่วม
         const teachers = await prisma.teacher.findMany({
@@ -758,6 +783,11 @@ exports.reviewSupervision = async (req, res) => {
 
             const chosenDate = new Date(confirmedDate);
             if (isNaN(chosenDate.getTime())) return res.status(400).json({ ok: false, message: 'วันที่นิเทศไม่ถูกต้อง' });
+            // เลือกได้เฉพาะวันที่นักศึกษาเสนอ (เหมือนยืนยันแบบกลุ่ม · หน้าเว็บมีแต่ปุ่ม "เลือกวันนี้" ของวันที่เสนอ)
+            // เดิมเรียก API ตรงแล้วยืนยันวันที่นักศึกษาไม่ได้เสนอได้ — นักศึกษาอาจไม่ว่าง และอาจารย์ร่วมไม่เคยถูกถามวันนั้น
+            if (!parseProposedList(supervision.proposedDates).some((e) => e.date === dateKey(chosenDate))) {
+                return res.status(400).json({ ok: false, message: 'เลือกได้เฉพาะวันที่นักศึกษาเสนอ — ถ้าต้องการวันอื่น ให้ปฏิเสธพร้อมแจ้งวันที่สะดวกให้นักศึกษาเสนอใหม่' });
+            }
 
             // อาจารย์ร่วมไม่ว่าง/ยังไม่ระบุวันว่าง → เตือนก่อน (อาจารย์หลักยืนยันซ้ำได้ด้วย acknowledgeUnavailable)
             const coList = await prisma.supervisionCoTeacher.findMany({ where: { appointmentId: parsedId }, select: CO_TEACHER_SELECT });
@@ -995,6 +1025,7 @@ exports.updateConfirmedDate = async (req, res) => {
         }
 
         const chosenDate = new Date(confirmedDate);
+        if (isNaN(chosenDate.getTime())) return res.status(400).json({ ok: false, message: 'วันที่นิเทศไม่ถูกต้อง' });
 
         let updated;
         await prisma.$transaction(async (tx) => {
@@ -1011,6 +1042,10 @@ exports.updateConfirmedDate = async (req, res) => {
             }
             if (fresh.status !== 'DATE_CONFIRMED') {
                 throw Object.assign(new Error('สามารถแก้ไขวันนิเทศได้เฉพาะเมื่อสถานะเป็น DATE_CONFIRMED เท่านั้น'), { is400: true });
+            }
+            // ร่างหนังสือที่ส่งไปเซ็นมีวันนิเทศเดิมอยู่ — แก้วันตอนนี้ฉบับลงนามที่กลับมาจะไม่ตรงกับวันในระบบ
+            if (fresh.letterPendingAt) {
+                throw Object.assign(new Error(`มีร่างหนังสือขอนิเทศที่รอลงนามอยู่ (เลข ${fresh.letterDraftNumber || 'ยังไม่ได้กรอก'}) — วันในร่างจะไม่ตรงกับวันใหม่ ถ้าจะแก้วัน ให้กด "ยกเลิกรอลงนาม" ก่อน`), { is409: true });
             }
 
             // ย้ายวัน/เวลา = นัดเดิมที่เลื่อน → คงความยาวคิวเดิมไว้ (เดิมคำนวณใหม่จากช่วงที่นักศึกษาเสนอ

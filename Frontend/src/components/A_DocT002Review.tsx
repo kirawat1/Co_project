@@ -12,6 +12,7 @@ import { notify, askConfirm } from "../utils/notify";
 import RoundDeadlineNote, { DeadlineFlagBadge, type DeadlineFlags } from "./RoundDeadlineNote";
 import DeadlineExtensionButton from "./DeadlineExtensionButton";
 import type { StepKey } from "../utils/deadlines";
+import { t002Reviewable } from "../utils/t002Review";
 
 // --- Types ---
 type Document = {
@@ -177,9 +178,10 @@ export default function A_T002Review() {
     // รีวิวได้เฉพาะตอนสถานะเป็น T002_SUBMITTED/T002_EDITS_REQUIRED เท่านั้น (ตรงกับที่ backend ยอมรับ)
     // รายชื่อในตารางแสดงนักศึกษาที่เคยมีไฟล์ T002 ด้วย แม้สถานะจะเลยจุดตรวจไปแล้ว (เช่น ตรวจผ่านไปแล้ว)
     // เดิมปุ่ม "อนุมัติ"/"ตีกลับ" ขึ้นให้กดได้เสมอ กดแล้วได้ 400 "status ไม่ถูกต้อง" เพราะสถานะไม่อยู่ในช่วงที่ตรวจได้แล้ว
-    const T002_REVIEWABLE_STATUSES = ['T002_SUBMITTED', 'T002_EDITS_REQUIRED'];
+    // ตรวจย้อนหลังได้ด้วย: นักศึกษาไปขั้น T003 แล้วแต่ไฟล์ T002 ยังไม่ถูกตรวจ (utils/t002Review.ts)
+    // · รอนักศึกษาแก้ (T002_EDITS_REQUIRED) ตรวจไม่ได้ — เดิมปุ่มขึ้นแล้วกดได้ 400
     const isSelectedReviewable = (student: Student | null) =>
-        !!student && T002_REVIEWABLE_STATUSES.includes(student.coop?.status || student.docStatus || '');
+        !!student && t002Reviewable(student.coop?.status || student.docStatus, student.documents?.find(d => d.type === "T002_FORM")?.status);
 
     // 4. บันทึกผลการตรวจ
     const submitReview = async (action: 'APPROVE' | 'REJECT') => {
@@ -194,9 +196,8 @@ export default function A_T002Review() {
         setLoading(true);
         try {
             const token = localStorage.getItem("coop.token");
-            // อนุมัติ T002 ไม่ต้องเปลี่ยน coop.status ไปข้างหน้า (ยังไม่มีสถานะ "T002_APPROVED")
-            // ส่งสถานะปัจจุบันกลับไปเฉยๆ ป้องกันค่าเดิมถูกเขียนทับเป็น INTERNSHIP_STARTED (ย้อนสถานะ)
-            const newStatus = action === 'APPROVE' ? (selectedStudent?.coop?.status || 'T002_SUBMITTED') : 'T002_EDITS_REQUIRED';
+            // อนุมัติ = T002_SUBMITTED (ไม่มีสถานะ "T002 ผ่าน" แยก) · ตรวจย้อนหลังตอนอยู่ขั้น T003 server ไม่แตะสถานะสหกิจ
+            const newStatus = action === 'APPROVE' ? 'T002_SUBMITTED' : 'T002_EDITS_REQUIRED';
 
             await axios.put(`/api/admin/documents/review-t002`, {
                 studentId: selectedStudent?.id,

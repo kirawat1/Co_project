@@ -3,6 +3,7 @@
 // เงื่อนไข "รอ" ของแต่ละเมนู = เงื่อนไขเดียวกับหน้านั้น (countsOnly ของหน้ารายการ) — ตัวเลขบนเมนูตรงกับที่หน้าแสดง
 const prisma = require('../config/prismaClient');
 const { getMajorScope, studentWhere, visibleStudentWhere } = require('../utils/majorScope');
+const { T002_PENDING_STATUSES, T002_UNREVIEWED_STUDENT } = require('../utils/t002Review');
 
 // หน้า T000: งานตรวจ (เจ้าหน้าที่ + อาจารย์ประจำวิชา) · งานออกหนังสือ (เจ้าหน้าที่เท่านั้น — รวมร่างที่รอลงนาม)
 const T000_CHECK = ['WAITING_FOR_STAFF_CHECK', 'WAITING_FOR_STAFF_CHECK_LETTER'];
@@ -23,7 +24,7 @@ exports.getPendingCounts = async (req, res) => {
     });
 
     const tasks = {
-      t002: coop('T002_SUBMITTED', visible),
+      t002: coop(T002_PENDING_STATUSES, { AND: [visible, T002_UNREVIEWED_STUDENT] }),
       t003: coop('T003_SUBMITTED', visible),
     };
     // เมนูหน้าจัดการหลักสูตร (/admin) — เจ้าหน้าที่ และอาจารย์ประจำวิชาที่มีหลักสูตรที่ดูแล

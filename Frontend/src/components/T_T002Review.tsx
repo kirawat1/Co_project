@@ -9,6 +9,7 @@ import AutoTextarea from "./AutoTextarea";
 import LoadMoreFooter from "./LoadMoreFooter";
 import { useLoadMore } from "../utils/useLoadMore";
 import { notify, askConfirm } from "../utils/notify";
+import { t002Reviewable } from "../utils/t002Review";
 
 // --- Types ---
 type Document = { id: number; type: string; path: string; name: string; status: string; };
@@ -91,7 +92,9 @@ export default function T_T002Review() {
         const docStatus = t002Doc?.status || 'WAITING';
         const profileStatus = student.coop?.status || student.docStatus;
 
-        if (profileStatus === 'INTERNSHIP_STARTED' || docStatus === 'APPROVED') return { label: "✅ ตรวจผ่านแล้ว", color: "#047857", bg: "#dcfce7" };
+        // ยังไม่มีไฟล์ T002 = ยังไม่ส่ง (เดิม INTERNSHIP_STARTED ขึ้นว่าตรวจผ่านแล้ว — หน้าเจ้าหน้าที่แก้ไปก่อนแล้ว)
+        if (!t002Doc) return { label: "⏳ ยังไม่ส่ง", color: "#475569", bg: "#f1f5f9" };
+        if (docStatus === 'APPROVED') return { label: "✅ ตรวจผ่านแล้ว", color: "#047857", bg: "#dcfce7" };
         if (profileStatus === 'T002_EDITS_REQUIRED' || docStatus === 'EDITS_REQUIRED' || docStatus === 'REJECTED') return { label: "⚠️ ตีกลับให้แก้ไข", color: "#dc2626", bg: "#fee2e2" };
         return { label: "📄 รอการตรวจสอบ", color: "#0d9488", bg: "#ccfbf1" };
     };
@@ -138,6 +141,9 @@ export default function T_T002Review() {
     const { shown: shownStudents, hasMore, sentinelRef, showMore, total } = useLoadMore(processedStudents, `${searchTerm}|${selectedPeriod}`);
 
     const openReviewModal = (student: Student) => { setSelectedStudent(student); setComment(""); setModalOpen(true); };
+    // ตรวจได้ตอนส่ง T002 แล้ว หรือตรวจย้อนหลังตอนไปขั้น T003 แล้วแต่ไฟล์ยังไม่ถูกตรวจ (utils/t002Review.ts) — เดิมปุ่มขึ้นทุกสถานะ กดแล้ว 400
+    const isSelectedReviewable = (student: Student | null) =>
+        !!student && t002Reviewable(student.coop?.status || student.docStatus, student.documents?.find(d => d.type === "T002_FORM")?.status);
 
     const getT002FileUrl = (docs: Document[]) => {
         const file = docs?.find(d => d.type === "T002_FORM");
@@ -145,15 +151,17 @@ export default function T_T002Review() {
     };
 
     const submitReview = async (action: 'APPROVE' | 'REJECT') => {
+        if (!isSelectedReviewable(selectedStudent)) {
+            return notify.error("เอกสารนี้ไม่อยู่ในสถานะที่ตรวจสอบได้แล้ว (อาจถูกตรวจไปแล้ว หรือรอนักศึกษาแก้ไข) กรุณาปิดหน้าต่างแล้วรีเฟรชรายชื่อ");
+        }
         if (action === 'REJECT' && !comment.trim()) return notify.warning("กรุณาระบุเหตุผลที่ตีกลับ");
         if (!(await askConfirm(`ยืนยันการ ${action === 'APPROVE' ? 'อนุมัติ' : 'ตีกลับ'} เอกสาร T002?`, { confirmLabel: action === 'APPROVE' ? "อนุมัติ" : "ตีกลับ", danger: action !== 'APPROVE' }))) return;
 
         setLoading(true);
         try {
             const token = localStorage.getItem("coop.token");
-            // อนุมัติ T002 ไม่ต้องเปลี่ยน coop.status ไปข้างหน้า (ยังไม่มีสถานะ "T002_APPROVED")
-            // ส่งสถานะปัจจุบันกลับไปเฉยๆ ป้องกันค่าเดิมถูกเขียนทับเป็น INTERNSHIP_STARTED (ย้อนสถานะ)
-            const newStatus = action === 'APPROVE' ? (selectedStudent?.coop?.status || 'T002_SUBMITTED') : 'T002_EDITS_REQUIRED';
+            // อนุมัติ = T002_SUBMITTED (ไม่มีสถานะ "T002 ผ่าน" แยก) · ตรวจย้อนหลังตอนอยู่ขั้น T003 server ไม่แตะสถานะสหกิจ
+            const newStatus = action === 'APPROVE' ? 'T002_SUBMITTED' : 'T002_EDITS_REQUIRED';
 
             await axios.put(`/api/teacher/documents/review-t002`, {
                 studentId: selectedStudent?.id,
@@ -164,7 +172,7 @@ export default function T_T002Review() {
             notify.success(`บันทึกผลเรียบร้อย`);
             setModalOpen(false);
             reloadStudents(selectedPeriod);
-        } catch (err) { notify.error("เกิดข้อผิดพลาดในการบันทึกข้อมูล"); }
+        } catch (err: any) { notify.error(err?.response?.data?.message || "เกิดข้อผิดพลาดในการบันทึกข้อมูล"); }
         finally { setLoading(false); }
     };
 
@@ -282,8 +290,14 @@ export default function T_T002Review() {
                                     <AutoTextarea className="input" rows={6} value={comment} onChange={(e) => setComment(e.target.value)} />
                                 </div>
                                 <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
-                                    <button className="btn-danger" style={{ padding: 14 }} onClick={() => submitReview('REJECT')} disabled={loading}>❌ ตีกลับให้แก้ไข</button>
-                                    <button className="btn-success" style={{ padding: 14 }} onClick={() => submitReview('APPROVE')} disabled={loading}>✅ อนุมัติเอกสาร T002</button>
+                                    {isSelectedReviewable(selectedStudent) ? (<>
+                                        <button className="btn-danger" style={{ padding: 14 }} onClick={() => submitReview('REJECT')} disabled={loading}>❌ ตีกลับให้แก้ไข</button>
+                                        <button className="btn-success" style={{ padding: 14 }} onClick={() => submitReview('APPROVE')} disabled={loading}>✅ อนุมัติเอกสาร T002</button>
+                                    </>) : (
+                                        <div style={{ padding: 14, borderRadius: 8, background: getT002Status(selectedStudent).bg, color: getT002Status(selectedStudent).color, fontSize: 13, textAlign: 'center' }}>
+                                            {getT002Status(selectedStudent).label} — ไม่สามารถตรวจสอบซ้ำได้ในสถานะนี้
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>

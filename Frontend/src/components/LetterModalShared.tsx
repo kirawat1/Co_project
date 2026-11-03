@@ -87,6 +87,9 @@ export function DraftLockedNote({ pendingAt }: { pendingAt: string | null }) {
     );
 }
 
+// ปุ่ม "แก้ไขวัน" นิเทศระหว่างรอลงนาม — วันในร่างที่ส่งไปเซ็นจะไม่ตรงกับวันใหม่ (server ตอบ 409 เหมือนกัน)
+export const EDIT_DATE_PENDING_HINT = "มีร่างหนังสือขอนิเทศที่รอลงนามอยู่ — ยกเลิกรอลงนามที่หน้าต่างออกหนังสือก่อน แล้วค่อยแก้วัน";
+
 // ป้ายในตารางรายชื่อ เช่น "✍️ รอลงนามหนังสือส่งตัว · 14 ก.ย. 2569" (ชี้ดูเลขที่ร่าง)
 export function PendingSignBadge({ label, at, draftNumber }: { label: string; at: string; draftNumber?: string | null }) {
     return (

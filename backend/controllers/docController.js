@@ -2,6 +2,7 @@
 const { RULES_INCLUDE, withRules, appliesTo } = require('../utils/docRequirementScope');
 const { resolveDeadline } = require('../utils/resolveDeadline');
 const { markSubmitted, syncT000Submission, NON_T000_TYPES } = require('../utils/submittedSteps');
+const { isLateT002 } = require('../utils/t002Review');
 const { thaiDate } = require('../utils/applyWindow');
 const prisma = require('../config/prismaClient');
 const { buildAddressData } = require('../utils/addressFormat');
@@ -212,13 +213,17 @@ exports.uploadDocument = async (req, res) => {
             } else if (dbType === 'T002_FORM') {
                 const coop = await tx.studentCoop.findUnique({ where: { studentId: student.id } });
                 const T002_VALID = ['INTERNSHIP_STARTED', 'T002_EDITS_REQUIRED'];
-                if (!coop || !T002_VALID.includes(coop.status)) {
+                // ตีกลับ T002 ย้อนหลังตอนอยู่ขั้น T003 แล้ว (utils/t002Review.js) → ส่งใหม่ได้ ขั้น T003 ไม่ถอย
+                const lateResubmit = !!coop && isLateT002(coop.status) && oldDoc?.status === 'REJECTED';
+                if (!coop || (!T002_VALID.includes(coop.status) && !lateResubmit)) {
                     throw Object.assign(new Error('สามารถส่ง T002 ได้เมื่อเริ่มฝึกงานแล้ว หรือหลังได้รับคำขอแก้ไข'), { is400: true });
                 }
-                await tx.studentCoop.update({
-                    where: { studentId: student.id },
-                    data: { status: 'T002_SUBMITTED' }
-                });
+                if (!lateResubmit) {
+                    await tx.studentCoop.update({
+                        where: { studentId: student.id },
+                        data: { status: 'T002_SUBMITTED' }
+                    });
+                }
                 // ส่ง T002 จริง → พี่เลี้ยงที่กรอกในข้อ 3 กลายเป็นพี่เลี้ยงของบริษัท/นักศึกษา (ขึ้นทุกหน้าเหมือนเลือกจากหน้าข้อมูลนักศึกษา)
                 mentorSync = await syncT002SupervisorsToMentors(tx, { studentId: student.id, userId: student.userId });
             } else if (dbType === 'T003_FORM') {

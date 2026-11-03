@@ -1,4 +1,5 @@
 const prisma = require("../config/prismaClient");
+const { applyT002Review } = require('../utils/t002Review');
 const { createNotifications } = require('../utils/notificationHelper');
 const { buildStudentExportWorkbook, exportBaseUrl, STUDENT_EXPORT_INCLUDE } = require('../utils/studentExport');
 const { changeUserEmail } = require('../utils/userEmail');
@@ -330,32 +331,8 @@ exports.reviewT002 = async (req, res) => {
             if (freshStudent.coopAdvisorId !== teacher.id) {
                 throw Object.assign(new Error('คุณไม่ใช่อาจารย์ที่ปรึกษาของนักศึกษาคนนี้'), { is403: true });
             }
-            const coop = await tx.studentCoop.findUnique({ where: { studentId: parsedStudentId }, select: { status: true } });
-            if (!coop || coop.status !== 'T002_SUBMITTED') {
-                throw Object.assign(new Error('สามารถตรวจสอบ T002 ได้เฉพาะเมื่อสถานะเป็น T002_SUBMITTED เท่านั้น'), { is400: true });
-            }
-
-            // 1. อัปเดตสถานะนักศึกษา
-            await tx.studentCoop.update({
-                where: { studentId: parsedStudentId },
-                data: { status: status }
-            });
-
-            // 2. อัปเดตสถานะไฟล์ T002
-            const doc = await tx.document.findFirst({
-                where: { studentId: parsedStudentId, type: 'T002_FORM' },
-                orderBy: { id: 'desc' }
-            });
-
-            if (doc) {
-                await tx.document.update({
-                    where: { id: doc.id },
-                    data: {
-                        status: status === 'T002_EDITS_REQUIRED' ? 'REJECTED' : 'APPROVED',
-                        rejectReason: comment || null
-                    }
-                });
-            }
+            // ตรวจตอนส่ง T002 แล้ว หรือตรวจย้อนหลังหลังนักศึกษาไปขั้น T003 (utils/t002Review.js)
+            await applyT002Review(tx, { studentId: parsedStudentId, reject: status === 'T002_EDITS_REQUIRED', comment });
         });
 
         res.json({ ok: true, message: "บันทึกผลการตรวจสอบสำเร็จ" });
