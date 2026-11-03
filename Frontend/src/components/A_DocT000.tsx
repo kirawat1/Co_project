@@ -1,5 +1,6 @@
 ﻿import React, { useState, useEffect, useMemo, useRef, useCallback, lazy, Suspense } from "react";
 import { BusyLabel } from "./Spinner";
+import { INTERNSHIP_STATUSES, isInternshipStatus, MAIN_STATUS_LABEL } from "../utils/internshipForms";
 import { apiFetch } from "../utils/apiFetch";
 import { fmtDate } from '../utils/dateFormat';
 import IssueLetterModal from "./IssueLetterModal";
@@ -106,11 +107,7 @@ type SortDirection = 'asc' | 'desc';
 // ยังอยู่ในขั้นส่งเอกสาร T000 (ส่งครั้งแรก/ส่งแก้) — ปุ่มขยายเวลา T000 มีความหมายเฉพาะช่วงนี้
 const T000_STAGE_STATUSES = ['QUALIFIED', 'WAITING_FOR_STAFF_CHECK', 'EDITS_REQUIRED', 'APPLICATION_EDITS_REQUIRED'];
 
-const AFTER_PLACEMENT_STATUSES = [
-    'INTERNSHIP_STARTED',
-    'T002_SUBMITTED', 'T002_EDITS_REQUIRED',
-    'T003_SUBMITTED', 'T003_EDITS_REQUIRED', 'T003_APPROVED',
-];
+const AFTER_PLACEMENT_STATUSES = INTERNSHIP_STATUSES;
 
 const CAN_ISSUE_REQUEST_LETTER_STATUSES = [
     'DOCS_APPROVED',
@@ -1093,7 +1090,7 @@ function statusChip(status?: string, t000Submission?: "first" | "resubmit") {
     else if (s === "PENDING_SIGN_REQ") { cls = "sign"; label = "หนังสือขอความอนุเคราะห์ (รอลงนาม)"; }
     else if (s === "PENDING_SIGN_PLACE") { cls = "sign"; label = "หนังสือส่งตัว (รอลงนาม)"; }
     // สถานะนอกขั้น T000 ที่อาจโผล่ในรายการ (ก่อนผ่านคุณสมบัติ / ออกฝึกแล้ว)
-    else if (AFTER_PLACEMENT_STATUSES.includes(s)) { cls = "intern"; label = "อยู่ระหว่างฝึกสหกิจ"; }
+    else if (isInternshipStatus(s)) { cls = "intern"; label = MAIN_STATUS_LABEL; }
     else if (s === "APPLYING") { cls = "neutral"; label = "รอตรวจสอบคุณสมบัติ"; }
     else if (s === "PENDING_GRADE") { cls = "neutral"; label = "รอพิจารณาผลการเรียน"; }
     else if (s === "APPLICATION_EDITS_REQUIRED") { cls = "edit"; label = "ส่งกลับแก้ไขใบสมัคร (รอนักศึกษาดำเนินการ)"; }

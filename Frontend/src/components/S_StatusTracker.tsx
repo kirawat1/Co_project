@@ -1,4 +1,9 @@
 import { useNavigate } from "react-router-dom";
+import { INTERNSHIP_STATUSES, isInternshipStatus, formsDone, FORM_STATE_LABEL, FORMS_DONE_LABEL, type FormState } from "../utils/internshipForms";
+
+// สถานะของฟอร์ม T002/T003 (ส่งมาจากหน้าที่มีรายการเอกสาร) — ไม่ส่ง = ถือว่ายังไม่ส่ง
+export type TrackerForms = { t002: FormState; t003: FormState };
+const NO_FORMS: TrackerForms = { t002: "NONE", t003: "NONE" };
 
 type SubStep = { key: string; label: string; statuses: string[]; doneStatuses: string[] };
 type Phase = { id: number; label: string; icon: string; subSteps: SubStep[]; entryStatuses: string[] };
@@ -20,19 +25,20 @@ const PHASES: Phase[] = [
   },
   {
     id: 3, label: "ออกฝึกสหกิจ", icon: "🚀",
-    entryStatuses: ["INTERNSHIP_STARTED","T002_SUBMITTED","T002_EDITS_REQUIRED","T003_SUBMITTED","T003_EDITS_REQUIRED"],
+    // ช่วงฝึกงาน (INTERNSHIP_STARTED + ค่าเก่า) — ขั้นย่อย T002/T003 ตัดสินจากสถานะของแต่ละฟอร์ม (ดู subStepView)
+    entryStatuses: INTERNSHIP_STATUSES,
     subSteps: [
-      { key:"t002", label:"3.1 T002 แบบแจ้งรายละเอียดงาน", statuses:["T002_SUBMITTED","T002_EDITS_REQUIRED","T003_SUBMITTED","T003_EDITS_REQUIRED"], doneStatuses:["T003_SUBMITTED","T003_EDITS_REQUIRED"] },
-      { key:"t003", label:"3.2 T003 โครงร่างรายงาน", statuses:["T003_SUBMITTED","T003_EDITS_REQUIRED"], doneStatuses:[] },
+      { key:"t002", label:"3.1 T002 แบบแจ้งรายละเอียดงาน", statuses:[], doneStatuses:[] },
+      { key:"t003", label:"3.2 T003 โครงร่างรายงาน", statuses:[], doneStatuses:[] },
     ],
   },
   {
     id: 4, label: "นิเทศและรายงาน", icon: "📚",
-    // T003_APPROVED เป็น entryStatus เดียว — Phase 3 ไม่รวม T003_APPROVED อีกต่อไปเพื่อให้ Phase 4 ถูก reach ได้จริง
-    entryStatuses: ["T003_APPROVED"],
+    // ไม่มีสถานะหลักของตัวเอง — เข้าขั้นนี้เมื่ออยู่ช่วงฝึกงานและ T002+T003 ผ่านครบ (formsDone)
+    entryStatuses: [],
     subSteps: [
-      { key:"supervision", label:"4.1 นัดหมายนิเทศสหกิจ", statuses:["T003_APPROVED"], doneStatuses:[] },
-      { key:"t008", label:"4.2 อัปโหลดเล่มรายงานสหกิจ T008", statuses:["T003_APPROVED"], doneStatuses:[] },
+      { key:"supervision", label:"4.1 นัดหมายนิเทศสหกิจ", statuses:[], doneStatuses:[] },
+      { key:"t008", label:"4.2 อัปโหลดเล่มรายงานสหกิจ T008", statuses:[], doneStatuses:[] },
     ],
   },
 ];
@@ -52,27 +58,46 @@ const ACTION_CONFIG: Record<string, { text: string; link?: string; linkText?: st
   WAITING_FOR_STAFF_CHECK_LETTER:{ text: "รอเจ้าหน้าที่ตรวจใบตอบรับ" },
   ACCEPTANCE_CHECKED:          { text: "ตรวจใบตอบรับแล้ว รอออกหนังสือส่งตัว" },
   PLACEMENT_LETTER_ISSUED:     { text: "ได้รับหนังสือส่งตัวแล้ว 🎉 — กดดาวน์โหลดหนังสือส่งตัวในหน้าเอกสารสหกิจ (ดาวน์โหลดแล้วจึงส่ง T002 ได้)", link: "/student/docs", linkText: "ไปดาวน์โหลด" },
-  INTERNSHIP_STARTED:          { text: "กำลังฝึกสหกิจ — ส่งเอกสาร T002 แบบแจ้งรายละเอียดงาน", link: "/student/docs-t002", linkText: "ไปหน้า T002" },
-  T002_SUBMITTED:              { text: "รออาจารย์ตรวจสอบ T002" },
-  T002_EDITS_REQUIRED:         { text: "ต้องแก้ไข T002 — แบบแจ้งรายละเอียดงานและที่พัก", link: "/student/docs-t002", linkText: "ไปแก้ไข", isWarning: true },
-  T003_SUBMITTED:              { text: "รออาจารย์ตรวจสอบ T003 โครงร่างรายงาน" },
-  T003_EDITS_REQUIRED:         { text: "ต้องแก้ไข T003 — โครงร่างรายงานสหกิจ", link: "/student/docs-t003", linkText: "ไปแก้ไข", isWarning: true },
-  T003_APPROVED:               { text: "T003 ผ่านแล้ว — นัดหมายนิเทศสหกิจกับอาจารย์ และเตรียมส่งเล่มรายงาน T008", link: "/student/supervision", linkText: "ไปนัดหมาย" },
 };
 
-function getCurrentPhaseIndex(status: string): number {
+// ข้อความ "ขั้นตอนถัดไป" ช่วงฝึกงาน — มาจากสถานะของแต่ละฟอร์ม ไม่ผูกกับสถานะหลัก
+function internshipAction(forms: TrackerForms): { text: string; link?: string; linkText?: string; isWarning?: boolean } {
+  const { t002, t003 } = forms;
+  if (formsDone(t002, t003)) return { text: `${FORMS_DONE_LABEL} — นัดหมายนิเทศสหกิจกับอาจารย์ และเตรียมส่งเล่มรายงาน T008`, link: "/student/supervision", linkText: "ไปนัดหมาย" };
+  if (t002 === "REJECTED") return { text: "ต้องแก้ไข T002 — แบบแจ้งรายละเอียดงานและที่พัก", link: "/student/docs-t002", linkText: "ไปแก้ไข", isWarning: true };
+  if (t003 === "REJECTED") return { text: "ต้องแก้ไข T003 — โครงร่างรายงานสหกิจ", link: "/student/docs-t003", linkText: "ไปแก้ไข", isWarning: true };
+  if (t002 === "NONE") return { text: "กำลังฝึกสหกิจ — ส่งเอกสาร T002 แบบแจ้งรายละเอียดงาน (ส่ง T003 ได้เลย ไม่ต้องรอ T002)", link: "/student/docs-t002", linkText: "ไปหน้า T002" };
+  if (t003 === "NONE") return { text: "ส่งเอกสาร T003 โครงร่างรายงาน" + (t002 === "WAITING" ? " (T002 รออาจารย์ตรวจ)" : ""), link: "/student/docs-t003", linkText: "ไปหน้า T003" };
+  return { text: "รออาจารย์ตรวจสอบเอกสาร T002/T003" };
+}
+
+// สถานะของขั้นย่อยในช่วงฝึกงาน (ขั้น 3 = T002/T003 ตามฟอร์มของตัวเอง · ขั้น 4 = ปัจจุบันเมื่อครบ)
+function subStepView(key: string, forms: TrackerForms): { done: boolean; active: boolean; note?: string; link?: string; warn?: boolean } {
+  if (key === "t002" || key === "t003") {
+    const st = forms[key];
+    const to = key === "t002" ? "/student/docs-t002" : "/student/docs-t003";
+    if (st === "APPROVED") return { done: true, active: false };
+    if (st === "REJECTED") return { done: false, active: true, note: `ต้องแก้ไข ${key.toUpperCase()} — ดูเหตุผลที่อาจารย์ตีกลับ`, link: to, warn: true };
+    if (st === "WAITING") return { done: false, active: true, note: "รอตรวจ" };
+    return { done: false, active: true, note: FORM_STATE_LABEL.NONE, link: to };
+  }
+  return { done: false, active: true };
+}
+
+function getCurrentPhaseIndex(status: string, forms: TrackerForms): number {
+  if (isInternshipStatus(status)) return formsDone(forms.t002, forms.t003) ? 3 : 2;
   for (let i = 0; i < PHASES.length; i++) {
     if (PHASES[i].entryStatuses.includes(status)) return i;
   }
   return 0;
 }
 
-interface Props { status: string; lastComment?: string; showNextStep?: boolean }
+interface Props { status: string; lastComment?: string; showNextStep?: boolean; forms?: TrackerForms }
 
 // กล่อง "ขั้นตอนถัดไป" + ปุ่มพาไปทำ — Dashboard แสดงตลอด (เดิมซ่อนอยู่หลัง "ดูรายละเอียด")
-export function NextStepBar({ status, lastComment }: { status: string; lastComment?: string }) {
+export function NextStepBar({ status, lastComment, forms }: { status: string; lastComment?: string; forms?: TrackerForms }) {
   const navigate = useNavigate();
-  const action = ACTION_CONFIG[status] ?? { text: "ดำเนินการตามขั้นตอนที่กำหนด" };
+  const action = isInternshipStatus(status) ? internshipAction(forms ?? NO_FORMS) : (ACTION_CONFIG[status] ?? { text: "ดำเนินการตามขั้นตอนที่กำหนด" });
   return (
     <div style={{ background:action.isWarning?"#fff7ed":"#eff6ff", border:`1px solid ${action.isWarning?"#fed7aa":"#bfdbfe"}`, borderRadius:16, padding:"14px 20px", display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, flexWrap:"wrap" }}>
       <div style={{ flex:"1 1 240px", minWidth:0 }}>
@@ -91,8 +116,11 @@ export function NextStepBar({ status, lastComment }: { status: string; lastComme
   );
 }
 
-export default function S_StatusTracker({ status, lastComment, showNextStep = true }: Props) {
-  const currentPhaseIdx = getCurrentPhaseIndex(status);
+export default function S_StatusTracker({ status, lastComment, showNextStep = true, forms }: Props) {
+  const navigate = useNavigate();
+  const f = forms ?? NO_FORMS;
+  const internship = isInternshipStatus(status);
+  const currentPhaseIdx = getCurrentPhaseIndex(status, f);
   const currentPhase = PHASES[currentPhaseIdx];
 
   return (
@@ -121,12 +149,18 @@ export default function S_StatusTracker({ status, lastComment, showNextStep = tr
         </div>
         <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
           {currentPhase.subSteps.map((step) => {
-            const isDone = step.doneStatuses.includes(status);
-            const isActive = !isDone && step.statuses.includes(status);
+            // ช่วงฝึกงาน: ขั้น 3 ตามฟอร์มของตัวเอง · ขั้น 4 เป็นขั้นปัจจุบัน — ที่เหลือใช้รายการสถานะเดิม
+            const v = internship && currentPhase.id >= 3 ? subStepView(step.key, f) : null;
+            const isDone = v ? v.done : step.doneStatuses.includes(status);
+            const isActive = v ? v.active : !isDone && step.statuses.includes(status);
             return (
               <div key={step.key} style={{ display:"flex", alignItems:"center", gap:10, padding:"8px 12px", borderRadius:10, background:isDone?"#f0fdf4":isActive?"#eff6ff":"#f8fafc", border:`1px solid ${isDone?"#bbf7d0":isActive?"#bfdbfe":"#e2e8f0"}` }}>
                 <span style={{ fontSize:16, flexShrink:0 }}>{isDone?"✅":isActive?"▶":"○"}</span>
-                <span style={{ fontSize:13, fontWeight:isActive?700:500, color:isDone?"#16a34a":isActive?"#1e40af":"#94a3b8", flex:1 }}>{step.label}</span>
+                <span style={{ fontSize:13, fontWeight:isActive?700:500, color:isDone?"#16a34a":isActive?(v?.warn?"#9a3412":"#1e40af"):"#94a3b8", flex:1 }}>
+                  {step.label}
+                  {v?.note && <span style={{ fontWeight:500, marginLeft:8, color:v.warn?"#9a3412":"#64748b" }}>({v.note})</span>}
+                </span>
+                {v?.link && (isActive) && <button className="btn" style={{ flexShrink:0 }} onClick={() => navigate(v.link!)}>{v.warn ? "ไปแก้ไข" : "ไปที่หน้านี้"} →</button>}
                 {isDone && <span style={{ fontSize:11, color:"#16a34a", fontWeight:600, whiteSpace:"nowrap" }}>เสร็จแล้ว</span>}
                 {isActive && <span style={{ fontSize:11, color:"#2563eb", fontWeight:600, whiteSpace:"nowrap" }}>ดำเนินการอยู่</span>}
               </div>
@@ -135,7 +169,7 @@ export default function S_StatusTracker({ status, lastComment, showNextStep = tr
         </div>
       </div>
 
-      {showNextStep && <NextStepBar status={status} lastComment={lastComment} />}
+      {showNextStep && <NextStepBar status={status} lastComment={lastComment} forms={forms} />}
     </div>
   );
 }

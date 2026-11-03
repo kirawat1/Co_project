@@ -4,6 +4,7 @@ import DateInput from './DateInput';
 import axios from "axios";
 import { fmtDate, fmtDateTime } from '../utils/dateFormat';
 import StatusBadge from "./StatusBadge";
+import { isInternshipStatus } from "../utils/internshipForms";
 import SupervisionCalendar from "./SupervisionCalendar";
 import SupervisionScheduleTable from "./SupervisionScheduleTable";
 import type { CalendarEvent } from "./SupervisionCalendar";
@@ -307,10 +308,7 @@ export default function S_Supervision() {
         }
     };
 
-    const isInternshipPhase = [
-        "INTERNSHIP_STARTED", "T002_SUBMITTED", "T002_EDITS_REQUIRED",
-        "T003_SUBMITTED", "T003_EDITS_REQUIRED", "T003_APPROVED"
-    ].includes(coopStatus);
+    const isInternshipPhase = isInternshipStatus(coopStatus);
 
     const isConfirmed = appointment ? LOCKED_STATUSES.includes(appointment.status) : false;
 

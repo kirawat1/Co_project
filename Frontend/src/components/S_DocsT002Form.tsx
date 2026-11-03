@@ -1,10 +1,10 @@
 import { BusyLabel } from "./Spinner";
 import React, { useState, useEffect, useRef } from "react";
 import { createT002PDF } from "../utils/pdfGeneratorT002";
-import StatusBadge from "./StatusBadge";
+import FormStateBadge from "./FormStateBadge";
 import CountdownTimer from "../components/CountdownTimer"; // ✅ Import มาแล้ว
 import AutoTextarea from "./AutoTextarea";
-import { t002CanSubmit } from "../utils/t002Review";
+import { INTERNSHIP_STATUSES, canSubmitForm, formState, latestForm } from "../utils/internshipForms";
 import { apiFetch } from "../utils/apiFetch";
 import AddressFields from "./AddressFields";
 import { composeAddress, readAddressParts } from "../utils/addressFormat";
@@ -41,12 +41,7 @@ const T002_UNLOCK_STATUSES = [
     'WAITING_FOR_STAFF_CHECK_LETTER',
     'ACCEPTANCE_CHECKED',
     'PLACEMENT_LETTER_ISSUED',
-    'INTERNSHIP_STARTED',
-    'T002_SUBMITTED',
-    'T002_EDITS_REQUIRED',
-    'T003_SUBMITTED',
-    'T003_EDITS_REQUIRED',
-    'T003_APPROVED',
+    ...INTERNSHIP_STATUSES, // ช่วงฝึกงานรวมค่าเก่า — T002/T003 เท่ากัน
 ];
 
 export default function S_DocsT002Form({ profile, onRefresh }: Props) {
@@ -67,19 +62,15 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
     const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
     const [saveFailed, setSaveFailed] = useState(false);
 
-    const uploadedT002 = profile?.documents?.find((d: any) => d.type === 'T002_FORM');
+    // ไฟล์ล่าสุดของ T002 → สถานะของฟอร์มนี้เอง (ไม่ขึ้นกับ T003 หรือสถานะหลัก)
+    const uploadedT002 = latestForm<any>(profile?.documents, 'T002');
+    const t002State = formState(uploadedT002);
     const company = profile?.coop?.company || profile?.company || {};
     // เดิมอ่าน profile.coop?.mentor (เอกพจน์) ซึ่งไม่มีอยู่จริง (เก็บเป็น mentors อาเรย์ เพราะเลือกพี่เลี้ยงได้หลายคน) — ใช้คนแรกมาเติมฟอร์ม
     const mentor = profile?.coop?.mentors?.[0] || profile?.mentor || {};
     const appForm = profile?.coopApplicationForm || {};
     const savedT002 = profile?.t002Form || {};
 
-    let currentStatusToShow = profile?.docStatus;
-    if (profile?.docStatus === 'T002_EDITS_REQUIRED' || uploadedT002?.status === 'REJECTED') {
-        currentStatusToShow = 'T002_EDITS_REQUIRED';
-    } else if (uploadedT002 && uploadedT002.status !== 'REJECTED') {
-        currentStatusToShow = 'T002_SUBMITTED';
-    }
 
     // --- State เก็บข้อมูลฟอร์ม ---
     const [formData, setFormData] = useState({
@@ -315,8 +306,8 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
     const isUnlocked = T002_UNLOCK_STATUSES.includes(profile?.coop?.status);
     const canEdit = isSystemOpen && isUnlocked;
     // ส่งไฟล์ได้เฉพาะสถานะที่ backend รับ (uploadDocument T002_FORM) — ก่อนหน้านั้นกรอก/บันทึกฟอร์มไว้ก่อนได้
-    // รวมถูกตีกลับย้อนหลังตอนอยู่ขั้น T003 แล้ว (utils/t002Review.ts)
-    const canSubmit = canEdit && t002CanSubmit(profile?.coop?.status, uploadedT002?.status);
+    // ช่วงฝึกงาน + ยังไม่เคยส่งหรือถูกตีกลับ (utils/internshipForms.ts — ตรงกับ backend)
+    const canSubmit = canEdit && canSubmitForm(profile?.coop?.status, t002State);
     const canEditRef = useRef(canEdit);
     useEffect(() => { canEditRef.current = canEdit; }, [canEdit]);
 
@@ -359,7 +350,7 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
                 <div>
                     <h2 style={{ color: '#4c1d95', margin: '0 0 8px 0', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
                         แบบฟอร์ม T002
-                        <StatusBadge status={currentStatusToShow} />
+                        <FormStateBadge state={t002State} name="T002" />
                     </h2>
                     <p style={{ color: '#64748b', margin: 0 }}>แบบแจ้งรายละเอียดงานและรายละเอียดที่พัก (สัปดาห์แรกของการฝึกงาน)</p>
                 </div>
@@ -544,7 +535,7 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
                     </div>
                 </div>
 
-                {currentStatusToShow === 'T002_EDITS_REQUIRED' && (
+                {t002State === 'REJECTED' && (
                     <div style={{ padding: 16, background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8, marginBottom: 24 }}>
                         <h4 style={{ margin: '0 0 8px 0', color: '#b91c1c', display: 'flex', alignItems: 'center', gap: 8 }}>
                             ⚠️ เอกสารต้องแก้ไข
@@ -567,8 +558,8 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
                             {/* ส่งใหม่ได้เฉพาะตอนถูกขอให้แก้ (ระหว่างรอตรวจ backend ไม่รับไฟล์ใหม่) */}
                             {canSubmit && (
                                 <>
-                                    <label htmlFor="upload-t002-change" className={currentStatusToShow === 'T002_EDITS_REQUIRED' ? "btn" : "btn-secondary"}>
-                                        {currentStatusToShow === 'T002_EDITS_REQUIRED' ? '🔄 ส่งไฟล์ใหม่' : '🔄 เปลี่ยนไฟล์'}
+                                    <label htmlFor="upload-t002-change" className={t002State === 'REJECTED' ? "btn" : "btn-secondary"}>
+                                        {t002State === 'REJECTED' ? '🔄 ส่งไฟล์ใหม่' : '🔄 เปลี่ยนไฟล์'}
                                     </label>
                                     <input type="file" id="upload-t002-change" style={{ display: 'none' }} accept=".pdf,.jpg,.png" onChange={(e) => e.target.files?.[0] && setSelectedUploadFile(e.target.files[0])} />
                                 </>
@@ -595,7 +586,7 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
                                 </label>
                                 {canEdit && !canSubmit ? (
                                     <div style={{ fontSize: 12, color: '#b45309', marginTop: 8 }}>
-                                        ส่ง T002 ได้เมื่อสถานะเป็น "ออกฝึกสหกิจ"
+                                        ส่ง T002 ได้เมื่อสถานะเป็น "ส่งเอกสารฝึกสหกิจ"
                                         {profile?.coop?.status === 'PLACEMENT_LETTER_ISSUED' && ' (กดดาวน์โหลดหนังสือส่งตัวที่หน้าเอกสารสหกิจก่อน)'}
                                         {' '}— ตอนนี้กรอกและบันทึกแบบฟอร์มไว้ก่อนได้
                                     </div>

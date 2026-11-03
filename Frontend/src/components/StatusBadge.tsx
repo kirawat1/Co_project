@@ -1,4 +1,6 @@
 
+import { MAIN_STATUS_LABEL } from "../utils/internshipForms";
+
 export type CoopStatusType =
     // --- Zone 1-3 ---
     | "NOT_SUBMITTED" | "APPLYING" | "PENDING_GRADE" | "QUALIFICATION_FAILED" | "APPLICATION_EDITS_REQUIRED" | "QUALIFIED"
@@ -8,7 +10,7 @@ export type CoopStatusType =
     | "INTERNSHIP_STARTED"
     // --- Sub Status (Documents & Supervision) ---
     | "T002_SUBMITTED" | "T002_EDITS_REQUIRED"
-    | "T003_SUBMITTED" | "T003_EDITS_REQUIRED"
+    | "T003_SUBMITTED" | "T003_EDITS_REQUIRED" | "T003_APPROVED"
     | "T004_SUBMITTED" | "T004_EDITS_REQUIRED"
     | "PENDING_TEACHER" | "TEACHER_REJECTED" | "DATE_CONFIRMED" | "LETTER_UPLOADED" | "COMPLETED"
     | string;
@@ -38,13 +40,15 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; 
     // ==========================================
     // --- Zone 4: ปฏิบัติงาน (ใส่ isInternship: true) ---
     // ==========================================
-    INTERNSHIP_STARTED: { label: "ออกฝึกสหกิจ", color: "#4338ca", bg: "#e0e7ff", icon: "🚀", isInternship: true },
+    // T002/T003 เท่ากัน — สถานะหลักคือ INTERNSHIP_STARTED ค่าเดียว (ค่าเก่าที่ยังค้างใน DB แสดงเหมือนกัน · ไม่ใส่คำนำหน้าเพราะป้ายบอกช่วงอยู่แล้ว)
+    INTERNSHIP_STARTED: { label: MAIN_STATUS_LABEL, color: "#4338ca", bg: "#e0e7ff", icon: "🚀" },
+    T002_SUBMITTED: { label: MAIN_STATUS_LABEL, color: "#4338ca", bg: "#e0e7ff", icon: "🚀" },
+    T002_EDITS_REQUIRED: { label: MAIN_STATUS_LABEL, color: "#4338ca", bg: "#e0e7ff", icon: "🚀" },
+    T003_SUBMITTED: { label: MAIN_STATUS_LABEL, color: "#4338ca", bg: "#e0e7ff", icon: "🚀" },
+    T003_EDITS_REQUIRED: { label: MAIN_STATUS_LABEL, color: "#4338ca", bg: "#e0e7ff", icon: "🚀" },
+    T003_APPROVED: { label: MAIN_STATUS_LABEL, color: "#4338ca", bg: "#e0e7ff", icon: "🚀" },
 
-    // --- เอกสาร T002 - T006 ---
-    T002_SUBMITTED: { label: "ส่งเอกสาร T002 แล้ว", color: "#0d9488", bg: "#ccfbf1", icon: "📄", isInternship: true },
-    T002_EDITS_REQUIRED: { label: "ต้องแก้ไข T002", color: "#dc2626", bg: "#fef2f2", icon: "⚠️", isInternship: true },
-    T003_SUBMITTED: { label: "ส่งโครงร่าง T003 แล้ว", color: "#0d9488", bg: "#ccfbf1", icon: "📘", isInternship: true },
-    T003_EDITS_REQUIRED: { label: "ต้องแก้ไขโครงร่าง T003", color: "#dc2626", bg: "#fef2f2", icon: "⚠️", isInternship: true },
+    // --- เอกสาร T004 ---
     T004_SUBMITTED: { label: "ส่งรายงาน T004 แล้ว", color: "#0d9488", bg: "#ccfbf1", icon: "📗", isInternship: true },
     T004_EDITS_REQUIRED: { label: "ต้องแก้ไขรายงาน T004", color: "#dc2626", bg: "#fef2f2", icon: "⚠️", isInternship: true },
 

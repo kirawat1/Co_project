@@ -2,6 +2,7 @@ import { NavLink } from "react-router-dom";
 import { IcDashboard, IcUser, IcInbox, IcClipboard, IcList, IcRoute, IcCalendar, IcStar, IcClipboardCheck, IcBook } from "./icons";
 import { useNotifCounts } from "../hooks/useNotifCounts";
 import { stepState, type StepState } from "../utils/studentSteps";
+import { isInternshipStatus, formState, latestForm } from "../utils/internshipForms";
 
 const STEP_TITLE: Record<StepState, string> = { done: "ผ่านขั้นนี้แล้ว", current: "ขั้นที่ต้องทำตอนนี้", later: "ยังไม่ถึงขั้นนี้" };
 
@@ -60,12 +61,9 @@ export default function S_Sidebar({ profile, isOpen = false, onClose = () => {} 
     coop?.status === 'WAITING_FOR_STAFF_CHECK_LETTER' ||
     coop?.status === 'ACCEPTANCE_CHECKED' ||
     coop?.status === 'PLACEMENT_LETTER_ISSUED' ||
-    coop?.status === 'INTERNSHIP_STARTED' ||
-    coop?.status === 'T002_SUBMITTED' ||
-    coop?.status === 'T002_EDITS_REQUIRED' ||
-    coop?.status === 'T003_SUBMITTED' ||
-    coop?.status === 'T003_EDITS_REQUIRED' ||
-    coop?.status === 'T003_APPROVED';
+    isInternshipStatus(coop?.status);
+  // สถานะของ T002/T003 จากไฟล์ล่าสุดของแต่ละฟอร์ม — ใช้ตัดสินเครื่องหมายขั้นตอนในช่วงฝึกงาน
+  const forms = { t002: formState(latestForm(profile.documents, "T002")), t003: formState(latestForm(profile.documents, "T003")) };
 
   return (
     <aside className={`sidebar${isOpen ? " open" : ""}`}>
@@ -105,10 +103,10 @@ export default function S_Sidebar({ profile, isOpen = false, onClose = () => {} 
             <NavItem to="/student/docs" label="เอกสารสหกิจ (CP-T000)" icon={<IcClipboard />} step={stepState("docs", coop?.status)}
               {...badge(["DOCS_UPDATED", "REQ_LETTER_ISSUED", "PLACEMENT_LETTER_ISSUED"])} />
 
-            <NavItem to="/student/docs-t002" label="T002 รายละเอียดงาน" icon={<IcList />} step={stepState("t002", coop?.status)}
+            <NavItem to="/student/docs-t002" label="T002 รายละเอียดงาน" icon={<IcList />} step={stepState("t002", coop?.status, forms)}
               {...badge(["T002_REVIEWED"])} />
 
-            <NavItem to="/student/docs-t003" label="T003 โครงร่างรายงาน" icon={<IcRoute />} step={stepState("t003", coop?.status)}
+            <NavItem to="/student/docs-t003" label="T003 โครงร่างรายงาน" icon={<IcRoute />} step={stepState("t003", coop?.status, forms)}
               {...badge(["T003_REVIEWED"])} />
 
             <NavItem to="/student/supervision" label="นัดหมายนิเทศ" icon={<IcCalendar />}

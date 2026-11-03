@@ -8,6 +8,7 @@ import { IcAnnounce, IcDocs } from "./icons";
 import { seenIds } from "../utils/announcements";
 import StatusBadge from "./StatusBadge";
 import S_StatusTracker, { NextStepBar } from "./S_StatusTracker";
+import { isInternshipStatus, formState, latestForm, type FormState } from "../utils/internshipForms";
 
 function safeHref(url: string | null | undefined): string | undefined {
   if (!url) return undefined;
@@ -80,6 +81,8 @@ export default function S_Dashboard() {
   const [supervisions, setSupervisions] = useState<SupervisionAppt | null>(null);
   const [configs, setConfigs] = useState<Record<string, SystemConfig>>({});
   const [studentStatus, setStudentStatus] = useState<string>("NOT_SUBMITTED");
+  // สถานะ T002/T003 ของแต่ละฟอร์ม (ใช้ตอนช่วงฝึกงาน)
+  const [forms, setForms] = useState<{ t002: FormState; t003: FormState }>({ t002: "NONE", t003: "NONE" });
   const [lastComment, setLastComment] = useState<string>("");
   const [statusExpanded, setStatusExpanded] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -95,6 +98,7 @@ export default function S_Dashboard() {
       const profileRes = await apiFetch("/api/students/me");
       const profileData = await profileRes.json();
       setStudentStatus(profileData?.coop?.status || "NOT_SUBMITTED");
+      setForms({ t002: formState(latestForm(profileData?.documents, "T002")), t003: formState(latestForm(profileData?.documents, "T003")) });
       setLastComment(profileData?.coop?.teacherCheckComment || profileData?.coop?.t000Comment || "");
 
       // 1.1 รอบสหกิจ — รอบที่เปิดรับตอนนี้ และรอบที่นักศึกษาสังกัด (ถ้ายื่นแล้ว)
@@ -237,9 +241,9 @@ export default function S_Dashboard() {
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", background:"#fff", borderRadius:16, padding:"14px 20px", marginBottom:16, boxShadow:"0 1px 4px rgba(0,0,0,.06)", border:"1px solid #e2e8f0" }}>
         <div style={{ display:"flex", alignItems:"center", gap:12 }}>
           <span style={{ fontSize:28 }}>
-            {["EDITS_REQUIRED","T002_EDITS_REQUIRED","T003_EDITS_REQUIRED","APPLICATION_EDITS_REQUIRED","QUALIFICATION_FAILED"].includes(studentStatus) ? "⚠️"
+            {["EDITS_REQUIRED","APPLICATION_EDITS_REQUIRED","QUALIFICATION_FAILED"].includes(studentStatus) || (isInternshipStatus(studentStatus) && (forms.t002 === "REJECTED" || forms.t003 === "REJECTED")) ? "⚠️"
               : ["PLACEMENT_LETTER_ISSUED","ACCEPTANCE_CHECKED"].includes(studentStatus) ? "✅"
-              : ["INTERNSHIP_STARTED","T002_SUBMITTED","T003_SUBMITTED"].includes(studentStatus) ? "🚀"
+              : isInternshipStatus(studentStatus) ? "🚀"
               : "📋"}
           </span>
           <div>
@@ -253,8 +257,8 @@ export default function S_Dashboard() {
       </div>
 
       {/* ขั้นตอนถัดไป + ปุ่มพาไปทำ แสดงตลอด (เดิมต้องกด "ดูรายละเอียด" ก่อน) · รายละเอียด = ไทม์ไลน์ทุกขั้น */}
-      <div style={{ marginBottom: 16 }}><NextStepBar status={studentStatus} lastComment={lastComment} /></div>
-      {statusExpanded && <S_StatusTracker status={studentStatus} lastComment={lastComment} showNextStep={false} />}
+      <div style={{ marginBottom: 16 }}><NextStepBar status={studentStatus} lastComment={lastComment} forms={forms} /></div>
+      {statusExpanded && <S_StatusTracker status={studentStatus} lastComment={lastComment} showNextStep={false} forms={forms} />}
 
       {/* ===== COUNTDOWN ===== */}
       {nearestDeadline && countdown && (
