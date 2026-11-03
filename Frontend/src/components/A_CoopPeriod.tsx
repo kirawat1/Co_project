@@ -8,6 +8,7 @@ import Modal from "./Modal";
 import { useAdminRole } from "./adminRole";
 import { getMajorFilter, NO_MAJOR } from "../utils/majorFilter";
 import A_RoundDeadlines from "./A_RoundDeadlines";
+import CoopPeriodExample from "./CoopPeriodExample";
 import { BusyLabel, LoadingBlock } from "./Spinner";
 
 // รอบสหกิจ = ปี/เทอม ใช้ร่วมกันทุกหลักสูตร · วันรับสมัคร / เปิด-ปิด / ช่วงนิเทศ ตั้งแยกหลักสูตร
@@ -48,6 +49,7 @@ export default function A_CoopPeriod() {
     const [modal, setModal] = useState<ModalState | null>(null);
     // รอบที่เปิดดูปฏิทิน (กำหนดส่งของแต่ละขั้น)
     const [calendarFor, setCalendarFor] = useState<number | null>(null);
+    const [showExample, setShowExample] = useState(false);
     // กำลังทำงาน: โหลดครั้งแรก · บันทึกฟอร์ม · ปุ่มในรายการ (เปิด/ปิด · เอาออก · ลบรอบ) — ปุ่มที่กดหมุน ปุ่มอื่นรอจนเสร็จ
     const [loaded, setLoaded] = useState(false);
     const [saving, setSaving] = useState(false);
@@ -189,7 +191,10 @@ export default function A_CoopPeriod() {
                         ปีการศึกษา/ภาคเรียนใช้ร่วมกันทุกหลักสูตร · วันรับสมัครและการเปิด-ปิด ตั้งแยกแต่ละหลักสูตร
                     </div>
                 </div>
-                <button className="btn" onClick={openCreate}>+ สร้างรอบใหม่</button>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <button className="btn-secondary" onClick={() => setShowExample(true)}>💡 ดูตัวอย่างการกรอก</button>
+                    <button className="btn" onClick={openCreate}>+ สร้างรอบใหม่</button>
+                </div>
             </section>
 
             {/* LIST SECTION */}
@@ -295,6 +300,8 @@ export default function A_CoopPeriod() {
                 )}
                 <div style={{ ...meta, marginTop: 16 }}>ช่วงนิเทศตั้งที่หน้า "จัดการนิเทศ"</div>
             </section>
+
+            {showExample && <CoopPeriodExample onClose={() => setShowExample(false)} />}
 
             {/* MODAL */}
             {modal && (
