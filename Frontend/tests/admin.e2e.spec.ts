@@ -88,6 +88,7 @@ test.afterAll(async () => {
   await prisma.supervisionAppointment.deleteMany({ where: { studentId: { in: studentIds } } });
   await prisma.document.deleteMany({ where: { studentId: { in: studentIds } } });
   await prisma.studentCoop.deleteMany({ where: { studentId: { in: studentIds } } });
+  await prisma.company.deleteMany({ where: { name: { startsWith: `บริษัท ZM${tail}` } } });
   await prisma.student.deleteMany({ where: { id: { in: studentIds } } });
   await prisma.teacher.deleteMany({ where: { id: { in: created.teachers } } });
   await prisma.notification.deleteMany({ where: { userId: { in: userIds } } });
@@ -214,6 +215,63 @@ test.describe("C. ตั้งค่า T008", () => {
     r = await put({ instructionText: "ทดสอบ", existingImage: "" });
     expect((await stored()).imagePath).toBeNull();
     expect(fs.existsSync(path.join(UPLOADS, "system", img))).toBe(false);
+  });
+});
+
+// ══════════════════════════════════════════════════════
+// C2. ลบบริษัทที่มีนักศึกษาเลือกอยู่ — เจ้าหน้าที่ต้องยืนยันพร้อมรายชื่อ (เดิมลบเงียบๆ บริษัทของนักศึกษาว่าง)
+// ══════════════════════════════════════════════════════
+test.describe("C2. ลบบริษัทที่มีนักศึกษาเลือกอยู่", () => {
+  async function mkCompany(name: string, studentKey?: string) {
+    const c = await prisma.company.create({ data: { name: `บริษัท ZM${tail} ${name}`, address: "ขอนแก่น", province: "ขอนแก่น" } });
+    let s: Awaited<ReturnType<typeof mkStudent>> | null = null;
+    if (studentKey) {
+      s = await mkStudent(studentKey);
+      await prisma.studentCoop.create({ data: { studentId: s.pk, status: "INTERNSHIP_STARTED", companyId: c.id } });
+    }
+    return { id: c.id as string, name: c.name as string, s };
+  }
+
+  test("API: นักศึกษาลบไม่ได้ (409) · เจ้าหน้าที่ได้ 409 พร้อมรายชื่อ ยังไม่ลบ · ยืนยัน ?confirm=1 → ลบ บริษัทของนักศึกษาว่าง · ไม่มีใครเลือก → ลบเลย", async () => {
+    const used = await mkCompany("ใช้อยู่", "C2a");
+    const other = await mkStudent("C2b");
+    expect((await api(other.token, "DELETE", `/api/companies/${used.id}`)).status).toBe(409);
+
+    let r = await api(staff.token, "DELETE", `/api/companies/${used.id}`);
+    expect(r.status, msg(r)).toBe(409);
+    expect(r.body).toMatchObject({ code: "COMPANY_IN_USE", students: [{ studentId: used.s!.studentId, name: "C2a ทดสอบจัดการ", trashed: false }] });
+    expect(await prisma.company.findUnique({ where: { id: used.id } })).not.toBeNull();
+
+    r = await api(staff.token, "DELETE", `/api/companies/${used.id}?confirm=1`);
+    expect(r.status, msg(r)).toBe(200);
+    expect(await prisma.company.findUnique({ where: { id: used.id } })).toBeNull();
+    expect((await prisma.studentCoop.findUnique({ where: { studentId: used.s!.pk } })).companyId).toBeNull();
+
+    const free = await mkCompany("ว่าง");
+    expect((await api(staff.token, "DELETE", `/api/companies/${free.id}`)).status).toBe(200);
+  });
+
+  test("หน้าเว็บ: กดลบ → ยืนยันครั้งแรก → ขึ้นกล่องเตือนพร้อมรายชื่อ → ยกเลิกไม่ลบ · ยืนยัน → ลบ", async ({ page }) => {
+    const c = await mkCompany("หน้าเว็บ", "C2c");
+    await page.goto("/");
+    await page.evaluate(([t, uid]) => { localStorage.clear(); localStorage.setItem("coop.token", t); localStorage.setItem("coop.userId", uid); }, [staff.token, String(staff.id)]);
+    await page.goto("/admin/company", { waitUntil: "networkidle" });
+    await page.getByPlaceholder(/ค้นหา/).first().fill(c.name);
+    const row = page.locator("tbody tr", { hasText: c.name });
+    const dialog = page.locator('[role="dialog"][aria-modal="true"]');
+
+    await row.getByRole("button", { name: "🗑️ ลบ" }).click();
+    await dialog.getByRole("button", { name: "ลบบริษัท" }).click();
+    await expect(dialog.getByText("บริษัทนี้มีนักศึกษาเลือกอยู่")).toBeVisible();
+    await expect(dialog.getByText(new RegExp(`${c.s!.studentId} C2c`))).toBeVisible();
+    await dialog.getByRole("button", { name: "ยกเลิก" }).click();
+    expect(await prisma.company.findUnique({ where: { id: c.id } })).not.toBeNull();
+
+    await row.getByRole("button", { name: "🗑️ ลบ" }).click();
+    await dialog.getByRole("button", { name: "ลบบริษัท" }).click();
+    await dialog.getByRole("button", { name: "ยืนยันลบ" }).click();
+    await expect(row).toHaveCount(0);
+    expect(await prisma.company.findUnique({ where: { id: c.id } })).toBeNull();
   });
 });
 

@@ -195,6 +195,26 @@ exports.deleteCompany = async (req, res) => {
       // ลบบริษัท = companyId ของนักศึกษาเหล่านั้นกลายเป็นว่าง (ON DELETE SET NULL) + พี่เลี้ยงหายตาม — ให้แก้ไขแทน
       const currentUser = await tx.user.findUnique({ where: { id: Number(currentUserId) } });
       const isStaff = currentUser && currentUser.role === "staff";
+      if (isStaff && req.query?.confirm !== '1') {
+        // เจ้าหน้าที่ลบได้ (เช่น ลบบริษัทซ้ำ) แต่ถ้ามีนักศึกษาเลือกอยู่ ต้องยืนยันอีกครั้งพร้อมรายชื่อ — เดิมลบเงียบๆ
+        // บริษัทของคนเหล่านั้นกลายเป็นว่าง พี่เลี้ยง/ผู้ติดต่อของบริษัทหายตาม · ยืนยันแล้วส่ง ?confirm=1 มาใหม่
+        const coops = await tx.studentCoop.findMany({
+          where: { companyId: id },
+          select: { student: { select: { studentId: true, firstName: true, lastName: true, deletedAt: true } } },
+        });
+        if (coops.length) {
+          throw Object.assign(
+            new Error(`มีนักศึกษาเลือกบริษัทนี้อยู่ ${coops.length} คน — ถ้าลบ บริษัทของนักศึกษาเหล่านี้จะว่าง และพี่เลี้ยง/ผู้ติดต่อของบริษัทนี้จะถูกลบด้วย`),
+            {
+              is409: true,
+              extra: {
+                code: 'COMPANY_IN_USE',
+                students: coops.map(({ student: s }) => ({ studentId: s.studentId, name: `${s.firstName} ${s.lastName}`.trim(), trashed: !!s.deletedAt })),
+              },
+            },
+          );
+        }
+      }
       if (!isStaff) {
         const usedByOthers = await tx.studentCoop.count({
           where: { companyId: id, student: { userId: { not: Number(currentUserId) } } },
@@ -213,9 +233,8 @@ exports.deleteCompany = async (req, res) => {
     res.json({ ok: true, message: "ลบบริษัทและพี่เลี้ยงสำเร็จ" });
   } catch (err) {
     if (err.is404) return res.status(404).json({ ok: false, message: err.message });
-    if (err.is409) return res.status(409).json({ ok: false, message: err.message });
+    if (err.is409) return res.status(409).json({ ok: false, message: err.message, ...(err.extra || {}) });
     if (err.code === 'P2025') return res.status(404).json({ ok: false, message: 'ไม่พบบริษัท' });
-    if (err.code === 'P2003') return res.status(409).json({ ok: false, message: "ไม่สามารถลบบริษัทได้เพราะมีข้อมูลนักศึกษาอ้างอิงอยู่" });
     console.error("Delete Company Error:", err);
     res.status(500).json({ ok: false, message: "ลบไม่สำเร็จ" });
   }

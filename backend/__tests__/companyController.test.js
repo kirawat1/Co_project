@@ -413,9 +413,36 @@ describe('deleteCompany', () => {
     expect(prisma.company.delete).not.toHaveBeenCalled();
   });
 
+  // เจ้าหน้าที่ลบบริษัทที่มีนักศึกษาเลือกอยู่ได้ แต่ต้องยืนยันพร้อมรายชื่อก่อน (เดิมลบเงียบๆ บริษัทของนักศึกษาว่าง)
+  test('409 – staff ลบบริษัทที่มีนักศึกษาเลือกอยู่ → บอกจำนวน + รายชื่อ ยังไม่ลบ · ยืนยัน (?confirm=1) → ลบ', async () => {
+    prisma.company.findUnique.mockResolvedValue({ id: 'c1', createdById: 99 });
+    prisma.user.findUnique.mockResolvedValue({ id: 10, role: 'staff' });
+    prisma.studentCoop.findMany.mockResolvedValue([
+      { student: { studentId: '663380001-1', firstName: 'ก', lastName: 'ข', deletedAt: null } },
+      { student: { studentId: '663380002-2', firstName: 'ค', lastName: 'ง', deletedAt: new Date() } },
+    ]);
+    prisma.company.delete.mockResolvedValue({});
+
+    let res = makeRes();
+    await deleteCompany({ params: { id: 'c1' }, query: {}, user: { id: 10 } }, res);
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(res.json.mock.calls[0][0]).toMatchObject({
+      code: 'COMPANY_IN_USE',
+      message: expect.stringMatching(/2 คน/),
+      students: [{ studentId: '663380001-1', name: 'ก ข', trashed: false }, { studentId: '663380002-2', name: 'ค ง', trashed: true }],
+    });
+    expect(prisma.company.delete).not.toHaveBeenCalled();
+
+    res = makeRes();
+    await deleteCompany({ params: { id: 'c1' }, query: { confirm: '1' }, user: { id: 10 } }, res);
+    expect(prisma.company.delete).toHaveBeenCalledWith({ where: { id: 'c1' } });
+    expect(res.json).toHaveBeenCalledWith({ ok: true, message: 'ลบบริษัทและพี่เลี้ยงสำเร็จ' });
+  });
+
   test('200 – staff user can delete any company', async () => {
     prisma.company.findUnique.mockResolvedValue({ id: 'c1', createdById: 99 });
     prisma.user.findUnique.mockResolvedValue({ id: 10, role: 'staff' });
+    prisma.studentCoop.findMany.mockResolvedValue([]); // ไม่มีใครเลือก → ไม่ต้องยืนยันซ้ำ
     prisma.company.delete.mockResolvedValue({});
 
     const req = {
