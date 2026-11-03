@@ -272,6 +272,11 @@ export default function S_Supervision() {
             if (validDates[i].split('|')[0].slice(0, 10) < todayKey) {
                 return notify.warning(`ตัวเลือก ${i + 1}: วันที่ผ่านมาแล้ว กรุณาเลือกตั้งแต่วันนี้เป็นต้นไป`);
             }
+            // ช่วงนิเทศของหลักสูตร (ถ้าตั้งไว้) — server ปฏิเสธวันนอกช่วง (400) บอกก่อนส่ง
+            const day = validDates[i].split('|')[0].slice(0, 10);
+            if ((windowFrom && day < windowFrom) || (windowTo && day > windowTo)) {
+                return notify.warning(`ตัวเลือก ${i + 1}: อยู่นอกช่วงนิเทศของหลักสูตร (${windowText}) — กรุณาเลือกวันในช่วงนี้`);
+            }
             const timePart = validDates[i].split('|')[1];
             if (timePart) {
                 const [start, end] = timePart.split('-');
@@ -309,6 +314,12 @@ export default function S_Supervision() {
     };
 
     const isInternshipPhase = isInternshipStatus(coopStatus);
+    // ช่วงนิเทศเป็นวันตามเวลาไทย (เก็บเป็นเวลาเที่ยงคืน UTC) — เทียบเป็น YYYY-MM-DD ของเครื่อง
+    const localDayKey = (iso: string) => { const d = new Date(iso); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+    const windowFrom = activePeriod?.supervisionStartDate ? localDayKey(activePeriod.supervisionStartDate) : null;
+    const windowTo = activePeriod?.supervisionEndDate ? localDayKey(activePeriod.supervisionEndDate) : null;
+    const windowText = windowFrom && windowTo ? `${fmtDate(activePeriod!.supervisionStartDate!)} – ${fmtDate(activePeriod!.supervisionEndDate!)}`
+        : windowFrom ? `ตั้งแต่ ${fmtDate(activePeriod!.supervisionStartDate!)}` : windowTo ? `ถึง ${fmtDate(activePeriod!.supervisionEndDate!)}` : "";
 
     const isConfirmed = appointment ? LOCKED_STATUSES.includes(appointment.status) : false;
 
@@ -463,8 +474,9 @@ export default function S_Supervision() {
 
                                     {/* ฝั่งขวา: เลือกวันแบบแยก วันที่ ช่วงเวลา และรูปแบบ */}
                                     <div>
-                                        <label style={lblStyle}>ช่วงเวลาที่เสนอ (สูงสุด 3 ตัวเลือก) <span style={{ color: 'red' }}>*</span></label>
+                                        <label style={lblStyle}>ช่วงเวลาที่เสนอ (เสนอได้หลายตัวเลือก สูงสุด {MAX_PROPOSED_DATES}) <span style={{ color: 'red' }}>*</span></label>
                                         <p style={{ fontSize: 13, color: '#64748b', marginTop: 4, marginBottom: 12 }}>แนะนำให้ปรึกษาพี่เลี้ยงก่อนกำหนดวัน เพื่อไม่ให้กระทบตารางงาน — เลือกรูปแบบ (ออนไลน์/ออนไซต์) แยกแต่ละตัวเลือกได้</p>
+                                        {windowText && <p style={{ fontSize: 13, color: '#0369a1', fontWeight: 600, marginTop: -6, marginBottom: 12 }}>📌 เลือกวันในช่วงนิเทศของหลักสูตร: {windowText}</p>}
 
                                         {companyQueue.length > 0 && (
                                             <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 10, padding: '12px 14px', marginBottom: 14 }}>

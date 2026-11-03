@@ -90,6 +90,30 @@ describe('saveSupervisionPeriod', () => {
     expect(res.status).toHaveBeenCalledWith(403);
   });
 
+  // /scrutinize 2026-11-03: วันที่ผิดรูปแบบเดิมพังเป็น 500 · เริ่มหลังสิ้นสุดบันทึกได้ (ช่วงนี้บังคับวันที่นักศึกษาเสนอแล้ว = นัดไม่ได้ทั้งหลักสูตร)
+  test.each([
+    ['วันเริ่มผิดรูปแบบ', { supervisionStartDate: 'abc' }, /วันเริ่มนัดหมายนิเทศ/],
+    ['วันสิ้นสุดผิดรูปแบบ', { supervisionEndDate: '2024-13-45' }, /วันสิ้นสุดนัดหมายนิเทศ/],
+    ['เริ่มหลังสิ้นสุด', { supervisionStartDate: '2024-07-01', supervisionEndDate: '2024-06-30' }, /ต้องไม่หลังวันสิ้นสุด/],
+  ])('400 — %s · ไม่บันทึก', async (_, over, msg) => {
+    prisma.coopPeriod.findUnique.mockResolvedValue({ id: 3, startDate: new Date('2024-01-01'), endDate: new Date('2024-02-01') });
+    const res = makeRes();
+    await saveSupervisionPeriod({ user: { id: 1, role: 'staff' }, method: 'POST', body: { ...body, major: 'CS', ...over } }, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json.mock.calls[0][0].message).toMatch(msg);
+    expect(prisma.coopPeriodMajor.upsert).not.toHaveBeenCalled();
+  });
+
+  test('วันเริ่ม = วันสิ้นสุด (นิเทศวันเดียว) บันทึกได้ · ล้างวันได้ (ค่าว่าง = ไม่ตั้ง)', async () => {
+    prisma.coopPeriod.findUnique.mockResolvedValue({ id: 3, startDate: new Date('2024-01-01'), endDate: new Date('2024-02-01') });
+    prisma.coopPeriod.findMany.mockResolvedValue([{ id: 3, academicYear: '2569', semester: 1, startDate: new Date(), endDate: new Date(), majors: [pRow(3, 'CS')] }]);
+    prisma.coopPeriodMajor.upsert.mockResolvedValue({});
+    await saveSupervisionPeriod({ user: { id: 1, role: 'staff' }, method: 'POST', body: { ...body, major: 'CS', supervisionStartDate: '2024-06-30', supervisionEndDate: '2024-06-30' } }, makeRes());
+    await saveSupervisionPeriod({ user: { id: 1, role: 'staff' }, method: 'POST', body: { ...body, major: 'CS', supervisionStartDate: '', supervisionEndDate: null } }, makeRes());
+    expect(prisma.coopPeriodMajor.upsert).toHaveBeenCalledTimes(2);
+    expect(prisma.coopPeriodMajor.upsert.mock.calls[1][0].update).toMatchObject({ supervisionStartDate: null, supervisionEndDate: null });
+  });
+
   test('500 — DB error returns server error', async () => {
     prisma.coopPeriod.findUnique.mockResolvedValue({ id: 1, startDate: new Date(), endDate: new Date() });
     prisma.coopPeriodMajor.upsert.mockRejectedValue(new Error('DB crash'));
@@ -440,9 +464,13 @@ describe('proposeSupervisionDate', () => {
   const student = { id: 10, userId: 1, deletedAt: null, coopAdvisorId: 5, major: 'CS', coop: { coopPeriodId: 2, status: 'INTERNSHIP_STARTED' } };
   const teacher = { id: 5, userId: 2 };
   const openPeriod = { id: 2, isSupervisionOpen: true };
+  // วันที่เสนอ = อีก 10 วัน (เดิมตั้งเป็นวันที่ตายตัว — พอวันนั้นผ่านไป เทสต์ 200 จะกลายเป็น "วันที่ผ่านมาแล้ว")
+  const FUTURE = new Date(Date.now() + 10 * 86400000).toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
+  const dayAt = (n) => new Date(Date.now() + n * 86400000);
+  const wrote = () => prisma.supervisionAppointment.create.mock.calls.length + prisma.supervisionAppointment.updateMany.mock.calls.length;
 
   function baseReq(body) {
-    return { user: { id: 1 }, body: { proposedDates: '["2026-11-10|09:00|ONSITE"]', supervisionType: 'ONSITE', ...body } };
+    return { user: { id: 1 }, body: { proposedDates: JSON.stringify([`${FUTURE}|09:00|ONSITE`]), supervisionType: 'ONSITE', ...body } };
   }
 
   // ช่วงนิเทศแยกหลักสูตร — ยังไม่ระบุหลักสูตร = นัดไม่ได้ ต้องบอกสาเหตุจริง (เดิมขึ้น "ระบบยังไม่เปิด" ทำให้เข้าใจผิด)
@@ -452,7 +480,7 @@ describe('proposeSupervisionDate', () => {
     await proposeSupervisionDate(baseReq(), res);
     expect(res.status).toHaveBeenCalledWith(403);
     expect(res.json.mock.calls[0][0].message).toMatch(/ยังไม่ได้ระบุหลักสูตร/);
-    expect(prisma.supervisionAppointment.upsert).not.toHaveBeenCalled();
+    expect(wrote()).toBe(0);
   });
 
   test('400 — invalid supervisionType', async () => {
@@ -481,7 +509,7 @@ describe('proposeSupervisionDate', () => {
     const res = makeRes();
     await proposeSupervisionDate(baseReq(), res);
     expect(res.status).toHaveBeenCalledWith(403);
-    expect(prisma.supervisionAppointment.upsert).not.toHaveBeenCalled();
+    expect(wrote()).toBe(0);
   });
 
   test('403 — ไม่มีข้อมูลสหกิจเลย', async () => {
@@ -537,27 +565,97 @@ describe('proposeSupervisionDate', () => {
     expect(res.status).toHaveBeenCalledWith(403);
   });
 
-  // ป้องกัน regression ของบั๊ก 500 ที่พบระหว่างตรวจระบบ: Prisma upsert() validate ทั้ง
-  // create/update block พร้อมกันเสมอ — ถ้า record มีอยู่แล้วแต่ไม่ส่ง supervisionType มา
-  // ต้อง fallback ไปใช้ค่าเดิมของ record นั้น ไม่ใช่ปล่อย undefined เข้า create block
+  // ถ้า record มีอยู่แล้วแต่ไม่ส่ง supervisionType มา ต้องใช้ค่าเดิมของ record นั้น (เดิม upsert พังเป็น 500 เมื่อปล่อย undefined เข้า create)
   test('200 — เสนอวันใหม่โดยไม่ส่ง supervisionType มา (ใช้ค่าเดิมของนัดที่มีอยู่)', async () => {
     prisma.student.findUnique.mockResolvedValue(student);
     prisma.coopPeriod.findUnique.mockResolvedValue(openPeriod); prisma.coopPeriodMajor.findUnique.mockResolvedValue({ periodId: 2, major: 'CS', isSupervisionOpen: true });
     prisma.teacher.findUnique.mockResolvedValue(teacher);
-    prisma.supervisionAppointment.findUnique.mockResolvedValue({ status: 'TEACHER_REJECTED', supervisionType: 'ONLINE' });
-    prisma.supervisionAppointment.upsert.mockResolvedValue({ id: 1, status: 'PENDING_TEACHER', supervisionType: 'ONLINE' });
+    prisma.supervisionAppointment.findUnique.mockResolvedValue({ id: 1, status: 'TEACHER_REJECTED', supervisionType: 'ONLINE' });
 
     const req = baseReq({ supervisionType: undefined });
     const res = makeRes();
     await proposeSupervisionDate(req, res);
 
-    expect(prisma.supervisionAppointment.upsert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        update: expect.objectContaining({ supervisionType: 'ONLINE' }),
-        create: expect.objectContaining({ supervisionType: 'ONLINE' }),
-      })
-    );
+    expect(prisma.supervisionAppointment.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ supervisionType: 'ONLINE', status: 'PENDING_TEACHER', rejectReason: null }),
+    }));
+    expect(prisma.supervisionAppointment.create).not.toHaveBeenCalled();
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: true }));
+  });
+
+  // บั๊กจาก /scrutinize 2026-11-03: อ่านสถานะแล้ว upsert ไม่มีเงื่อนไข — อาจารย์ยืนยันวันพร้อมกันพอดี นัดที่ยืนยันแล้วถูกเขียนทับกลับเป็นรออาจารย์
+  test('เสนอใหม่: เขียนเฉพาะนัดที่ยังไม่ล็อก (สถานะอยู่ใน where) · อาจารย์ยืนยันไปก่อนพอดี (count 0) → 403 ไม่เขียนทับ', async () => {
+    prisma.student.findUnique.mockResolvedValue(student);
+    prisma.coopPeriod.findUnique.mockResolvedValue(openPeriod); prisma.coopPeriodMajor.findUnique.mockResolvedValue({ periodId: 2, major: 'CS', isSupervisionOpen: true });
+    prisma.teacher.findUnique.mockResolvedValue(teacher);
+    prisma.supervisionAppointment.findUnique.mockResolvedValue({ id: 1, status: 'PENDING_TEACHER', supervisionType: 'ONSITE' });
+    prisma.supervisionAppointment.updateMany.mockResolvedValueOnce({ count: 0 });
+    const res = makeRes();
+    await proposeSupervisionDate(baseReq(), res);
+    expect(prisma.supervisionAppointment.updateMany.mock.calls[0][0].where).toEqual({ studentId: 10, status: { notIn: ['DATE_CONFIRMED', 'LETTER_UPLOADED', 'COMPLETED'] } });
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(prisma.supervisionCoTeacher.updateMany).not.toHaveBeenCalled();
+  });
+
+  test('กดส่งซ้ำพร้อมกันตอนยังไม่มีนัด: อีกคำขอสร้างไปแล้ว (P2002) → 409 ไม่ใช่ 500', async () => {
+    prisma.student.findUnique.mockResolvedValue(student);
+    prisma.coopPeriod.findUnique.mockResolvedValue(openPeriod); prisma.coopPeriodMajor.findUnique.mockResolvedValue({ periodId: 2, major: 'CS', isSupervisionOpen: true });
+    prisma.teacher.findUnique.mockResolvedValue(teacher);
+    prisma.supervisionAppointment.findUnique.mockResolvedValue(null);
+    prisma.supervisionAppointment.create.mockRejectedValueOnce(Object.assign(new Error('dup'), { code: 'P2002' }));
+    const res = makeRes();
+    await proposeSupervisionDate(baseReq(), res);
+    expect(res.status).toHaveBeenCalledWith(409);
+  });
+
+  // ผู้ใช้ตัดสิน 2026-11-03: ช่วงนิเทศบังคับเฉพาะวันที่นักศึกษาเสนอ (เดิมใช้แสดงผลอย่างเดียว)
+  describe('ช่วงนิเทศของหลักสูตร', () => {
+    const withWindow = (start, end) => {
+      prisma.student.findUnique.mockResolvedValue(student);
+      prisma.coopPeriod.findUnique.mockResolvedValue(openPeriod);
+      prisma.coopPeriodMajor.findUnique.mockResolvedValue({ periodId: 2, major: 'CS', isSupervisionOpen: true, supervisionStartDate: start, supervisionEndDate: end });
+      prisma.teacher.findUnique.mockResolvedValue(teacher);
+      prisma.supervisionAppointment.findUnique.mockResolvedValue(null);
+      prisma.supervisionAppointment.create.mockResolvedValue({ id: 1, status: 'PENDING_TEACHER' });
+    };
+    const day = (n) => dayAt(n).toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
+    const ask = async (...days) => {
+      const res = makeRes();
+      await proposeSupervisionDate(baseReq({ proposedDates: JSON.stringify(days.map((d) => `${d}|09:00-10:00|ONSITE`)) }), res);
+      return res;
+    };
+
+    test.each([
+      ['ก่อนวันเริ่ม', 5, 30, [3]],
+      ['หลังวันสิ้นสุด', 5, 30, [31]],
+      ['ตัวเลือกเดียวนอกช่วง (ที่เหลืออยู่ในช่วง)', 5, 30, [10, 40]],
+    ])('400 — %s', async (_, s, e, days) => {
+      withWindow(dayAt(s), dayAt(e));
+      const res = await ask(...days.map(day));
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json.mock.calls[0][0].message).toMatch(/นอกช่วงนิเทศของหลักสูตร/);
+      expect(wrote()).toBe(0);
+    });
+
+    test('วันแรกและวันสุดท้ายของช่วงเสนอได้', async () => {
+      withWindow(dayAt(5), dayAt(30));
+      const res = await ask(day(5), day(30));
+      expect(res.status).not.toHaveBeenCalled();
+      expect(prisma.supervisionAppointment.create).toHaveBeenCalled();
+    });
+
+    test('ตั้งไว้ฝั่งเดียว: มีแต่วันเริ่ม → หลังจากนั้นไกลแค่ไหนก็ได้ · ก่อนวันเริ่มไม่ได้', async () => {
+      withWindow(dayAt(5), null);
+      expect((await ask(day(200))).status).not.toHaveBeenCalled();
+      expect((await ask(day(4))).status).toHaveBeenCalledWith(400);
+    });
+
+    test('ไม่ได้ตั้งช่วง = ไม่บังคับ (มีแต่สวิตช์เปิด/ปิด)', async () => {
+      withWindow(null, null);
+      const res = await ask(day(300));
+      expect(res.status).not.toHaveBeenCalled();
+      expect(prisma.supervisionAppointment.create).toHaveBeenCalled();
+    });
   });
 
   test('400 — สร้างนัดใหม่ (ไม่มี record เดิม) แต่ไม่ส่ง supervisionType มา', async () => {
@@ -570,7 +668,7 @@ describe('proposeSupervisionDate', () => {
     const res = makeRes();
     await proposeSupervisionDate(req, res);
 
-    expect(prisma.supervisionAppointment.upsert).not.toHaveBeenCalled();
+    expect(wrote()).toBe(0);
     expect(res.status).toHaveBeenCalledWith(400);
   });
 
@@ -579,10 +677,11 @@ describe('proposeSupervisionDate', () => {
     prisma.coopPeriod.findUnique.mockResolvedValue(openPeriod); prisma.coopPeriodMajor.findUnique.mockResolvedValue({ periodId: 2, major: 'CS', isSupervisionOpen: true });
     prisma.teacher.findUnique.mockResolvedValue(teacher);
     prisma.supervisionAppointment.findUnique.mockResolvedValue(null);
-    prisma.supervisionAppointment.upsert.mockResolvedValue({ id: 1, status: 'PENDING_TEACHER', supervisionType: 'ONSITE' });
+    prisma.supervisionAppointment.create.mockResolvedValue({ id: 1, status: 'PENDING_TEACHER', supervisionType: 'ONSITE' });
 
     const res = makeRes();
     await proposeSupervisionDate(baseReq(), res);
+    expect(prisma.supervisionAppointment.create).toHaveBeenCalledWith({ data: expect.objectContaining({ studentId: 10, teacherId: 5, status: 'PENDING_TEACHER' }) });
 
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({ ok: true, appointment: expect.objectContaining({ status: 'PENDING_TEACHER' }) })
@@ -663,13 +762,44 @@ describe('reviewSupervision', () => {
     const res = makeRes();
     await reviewSupervision(req, res);
 
-    expect(prisma.supervisionAppointment.update).toHaveBeenCalledWith(
+    // เขียนเฉพาะเมื่อยังรออาจารย์ และวันที่เสนอยังเป็นชุดเดียวกับที่ตรวจ (กันนักศึกษาแก้วันพร้อมกันพอดี)
+    expect(prisma.supervisionAppointment.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: 1 },
+        where: { id: 1, status: 'PENDING_TEACHER', proposedDates: supervision.proposedDates },
         data: expect.objectContaining({ status: 'DATE_CONFIRMED' }),
       })
     );
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: true }));
+  });
+
+  test('409 — นักศึกษาแก้วันที่เสนอพร้อมกันพอดี (เขียนไม่ได้ count 0) · ไม่แจ้งเตือนว่ายืนยันแล้ว', async () => {
+    prisma.teacher.findUnique.mockResolvedValue(teacherRecord);
+    prisma.supervisionAppointment.findUnique.mockResolvedValue(supervision);
+    prisma.supervisionAppointment.findMany.mockResolvedValue([]);
+    prisma.supervisionAppointment.updateMany.mockResolvedValueOnce({ count: 0 });
+    const res = makeRes();
+    await reviewSupervision({ params: { id: '1' }, body: { action: 'APPROVE', confirmedDate: '2024-03-15T10:00:00' }, user: { id: 2 } }, res);
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(res.json.mock.calls[0][0].message).toMatch(/นักศึกษาเพิ่งแก้วันที่เสนอ/);
+  });
+
+  // ผู้ใช้ตัดสิน 2026-11-03: ปฏิเสธต้องมีเหตุผล (หน้าเว็บบังคับอยู่แล้ว แต่ API เดิมรับค่าว่าง)
+  test.each([[undefined], [''], ['   ']])('400 — ปฏิเสธโดยไม่มีเหตุผล (%p) · ไม่เปลี่ยนสถานะ', async (rejectReason) => {
+    prisma.teacher.findUnique.mockResolvedValue(teacherRecord);
+    prisma.supervisionAppointment.findUnique.mockResolvedValue(supervision);
+    const res = makeRes();
+    await reviewSupervision({ params: { id: '1' }, body: { action: 'REJECT', rejectReason }, user: { id: 2 } }, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json.mock.calls[0][0].message).toMatch(/เหตุผล/);
+    expect(prisma.supervisionAppointment.update).not.toHaveBeenCalled();
+  });
+
+  test('ปฏิเสธ: เหตุผลถูกตัดช่องว่างหัวท้ายก่อนบันทึก', async () => {
+    prisma.teacher.findUnique.mockResolvedValue(teacherRecord);
+    prisma.supervisionAppointment.findUnique.mockResolvedValue(supervision);
+    const res = makeRes();
+    await reviewSupervision({ params: { id: '1' }, body: { action: 'REJECT', rejectReason: '  ขอเลื่อนเป็นสัปดาห์หน้า  ' }, user: { id: 2 } }, res);
+    expect(prisma.supervisionAppointment.update.mock.calls[0][0].data.rejectReason).toBe('ขอเลื่อนเป็นสัปดาห์หน้า');
   });
 
   test('200 — REJECT success', async () => {
@@ -1221,15 +1351,20 @@ describe('proposeSupervisionDate — นักศึกษากำหนดอ�
     prisma.coopPeriod.findUnique.mockResolvedValue({ id: 2 }); prisma.coopPeriodMajor.findUnique.mockResolvedValue({ periodId: 2, major: 'CS', isSupervisionOpen: true });
     prisma.teacher.findUnique.mockResolvedValue({ id: 5, userId: 2 });
     prisma.supervisionAppointment.findUnique.mockResolvedValue(null);
-    prisma.supervisionAppointment.upsert.mockResolvedValue({ id: 1, status: 'PENDING_TEACHER' });
+    prisma.supervisionAppointment.create.mockResolvedValue({ id: 1, status: 'PENDING_TEACHER' });
     const res = makeRes();
     await proposeSupervisionDate({
       user: { id: 1 },
       body: { proposedDates: JSON.stringify(['2099-12-01|10:00-11:00|ONSITE']), supervisionType: 'ONSITE', coTeacherName: 'อ.ใครก็ได้ ที่นักศึกษาใส่เอง' },
     }, res);
-    const { create, update } = prisma.supervisionAppointment.upsert.mock.calls[0][0];
-    expect(create).not.toHaveProperty('coTeacherName');
-    expect(update).not.toHaveProperty('coTeacherName');
+    expect(prisma.supervisionAppointment.create.mock.calls[0][0].data).not.toHaveProperty('coTeacherName');
+    // นัดที่มีอยู่แล้ว (เสนอใหม่) ก็ไม่บันทึก
+    prisma.supervisionAppointment.findUnique.mockResolvedValue({ id: 1, status: 'TEACHER_REJECTED', supervisionType: 'ONSITE' });
+    await proposeSupervisionDate({
+      user: { id: 1 },
+      body: { proposedDates: JSON.stringify(['2099-12-01|10:00-11:00|ONSITE']), supervisionType: 'ONSITE', coTeacherName: 'อ.ใครก็ได้ ที่นักศึกษาใส่เอง' },
+    }, makeRes());
+    expect(prisma.supervisionAppointment.updateMany.mock.calls[0][0].data).not.toHaveProperty('coTeacherName');
   });
 });
 
@@ -1324,7 +1459,7 @@ describe('reviewSupervision — ยืนยันได้เฉพาะวั
     const res = makeRes();
     await reviewSupervision({ params: { id: '1' }, body: { action: 'APPROVE', confirmedDate: '2026-12-15T10:00:00' }, user: { id: 2 } }, res);
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: true }));
-    expect(prisma.supervisionAppointment.update.mock.calls[0][0].data).toMatchObject({ status: 'DATE_CONFIRMED' });
+    expect(prisma.supervisionAppointment.updateMany.mock.calls[0][0].data).toMatchObject({ status: 'DATE_CONFIRMED' });
   });
 });
 
