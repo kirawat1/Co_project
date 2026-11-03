@@ -8,6 +8,7 @@ import LoadMoreFooter from "./LoadMoreFooter";
 import { useInfinitePages } from "../utils/useInfinitePages";
 import { contactName } from "../utils/contacts";
 import Modal, { ModalCloseButton } from "./Modal";
+import StudentStatusModal, { type StatusModalStudent } from "./StudentStatusModal";
 
 function safeHref(url: string | null | undefined): string | undefined {
   if (!url) return undefined;
@@ -145,6 +146,8 @@ export default function T_Students({ isCoopTeacher = false }: Props) {
 
   // ✅ State สำหรับควบคุม Modal แบบ Admin
   const [modalStudent, setModalStudent] = useState<StudentProfile | null>(null);
+  // กดป้ายสถานะ → หน้าต่างแถบสถานะของนักศึกษา (เหมือนที่นักศึกษาเห็น)
+  const [statusStudent, setStatusStudent] = useState<StatusModalStudent | null>(null);
 
   // --- 1. Fetch Data ---
   // เปลี่ยนค่านี้เมื่อไหร่ (ค้นหา/ตัวกรอง/ปีการศึกษา) → useInfinitePages โหลดหน้า 1 ใหม่ให้เอง
@@ -294,7 +297,11 @@ export default function T_Students({ isCoopTeacher = false }: Props) {
                   <td style={{ fontWeight: 600, color: '#1e293b' }} data-label="ชื่อ-นามสกุล">{name}</td>
                   <td data-label="รูปแบบการศึกษา">{displayCurriculum}</td>
                   <td style={{ color: '#475569' }} data-label="สถานประกอบการ">{s.company?.name || "-"}</td>
-                  <td data-label="สถานะคำร้อง"><StatusBadge status={st} /></td>
+                  <td data-label="สถานะคำร้อง">
+                    <button type="button" className="status-link" title="ดูสถานะของนักศึกษา" aria-label={`ดูสถานะของ ${s.studentId}`} onClick={() => setStatusStudent({ ...(s as StatusModalStudent), docStatus: st })}>
+                      <StatusBadge status={st} />
+                    </button>
+                  </td>
                   <td style={{ textAlign: 'right' }}>
                     {/* ✅ เปลี่ยนเป็นปุ่มเปิด Modal แทน Link */}
                     <div style={{ display: "flex", gap: 6, justifyContent: "flex-end", flexWrap: "wrap" }}>
@@ -324,6 +331,7 @@ export default function T_Students({ isCoopTeacher = false }: Props) {
       <LoadMoreFooter shownCount={filteredStudents.length} total={totalCount} hasMore={hasMore} onShowMore={loadMore} sentinelRef={sentinelRef} itemLabel="คน" />
 
       {/* ================= Modal (Popup) ================= */}
+      {statusStudent && <StudentStatusModal student={statusStudent} onClose={() => setStatusStudent(null)} />}
       {modalStudent && (
         <StudentViewModal
           student={modalStudent}

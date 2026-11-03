@@ -422,3 +422,37 @@ test.describe("E2. หน้าเว็บ T002 / T003 คู่ขนาน", 
     await expect(page.getByRole("button", { name: "✅ อนุมัติโครงร่างรายงาน" })).toHaveCount(0);
   });
 });
+
+// ══════════════════════════════════════════════════════
+// E3. รายชื่อนักศึกษา: กดป้ายสถานะ → หน้าต่างแถบสถานะของนักศึกษา (ดูอย่างเดียว)
+// ══════════════════════════════════════════════════════
+test.describe("E3. หน้าต่างสถานะของนักศึกษา", () => {
+  async function openStatus(page: Page, listPath: string, studentId: string) {
+    await page.goto(listPath, { waitUntil: "networkidle" });
+    await page.getByPlaceholder(/ค้นหา/).first().fill(studentId);
+    await page.getByRole("button", { name: `ดูสถานะของ ${studentId}` }).first().click();
+    return page.getByRole("dialog", { name: "สถานะของนักศึกษา" });
+  }
+
+  test("เจ้าหน้าที่: ขั้นที่ 3 ส่งเอกสารฝึกสหกิจ · T002/T003 ยังไม่ส่ง · ขั้นถัดไปของนักศึกษา · ไม่มีปุ่มพาไปหน้าของนักศึกษา", async ({ page }) => {
+    const sid = w.s.closed.studentId;
+    await asUser(page, staff(), w.staff.userId);
+    const modal = await openStatus(page, "/admin/students", sid);
+    await expect(modal.getByText(sid)).toBeVisible();
+    await expect(modal.getByText("ขั้นตอนที่ 3: ส่งเอกสารฝึกสหกิจ")).toBeVisible();
+    await expect(modal.getByText("3.1 T002 แบบแจ้งรายละเอียดงาน")).toBeVisible();
+    await expect(modal.getByText("(ยังไม่ส่ง)")).toHaveCount(2);
+    await expect(modal.getByText("▶ ขั้นถัดไปของนักศึกษา")).toBeVisible();
+    await expect(modal.getByRole("button", { name: /→/ })).toHaveCount(0); // ปุ่ม "ไปที่หน้านี้ →" / "ไปหน้า T002 →" ของนักศึกษา
+    await page.keyboard.press("Escape");
+    await expect(modal).toHaveCount(0);
+  });
+
+  test("อาจารย์ที่ปรึกษา: เปิดหน้าต่างเดียวกันจากหน้ารายชื่อนักศึกษาของอาจารย์", async ({ page }) => {
+    const sid = w.s.closed.studentId;
+    await asUser(page, w.t.main.token, w.t.main.userId);
+    const modal = await openStatus(page, "/teacher/students", sid);
+    await expect(modal.getByText("ขั้นตอนที่ 3: ส่งเอกสารฝึกสหกิจ")).toBeVisible();
+    await expect(modal.getByRole("button", { name: /→/ })).toHaveCount(0);
+  });
+});

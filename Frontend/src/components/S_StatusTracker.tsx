@@ -95,22 +95,23 @@ function getCurrentPhaseIndex(status: string, forms: TrackerForms): number {
   return 0;
 }
 
-interface Props { status: string; lastComment?: string; showNextStep?: boolean; forms?: TrackerForms }
+// viewer = เจ้าหน้าที่/อาจารย์ดูสถานะของนักศึกษา (StudentStatusModal) — ไม่มีปุ่มพาไปหน้าของนักศึกษา (เปิดไม่ได้) และเขียนว่า "ขั้นถัดไปของนักศึกษา"
+interface Props { status: string; lastComment?: string; showNextStep?: boolean; forms?: TrackerForms; viewer?: boolean }
 
 // กล่อง "ขั้นตอนถัดไป" + ปุ่มพาไปทำ — Dashboard แสดงตลอด (เดิมซ่อนอยู่หลัง "ดูรายละเอียด")
-export function NextStepBar({ status, lastComment, forms }: { status: string; lastComment?: string; forms?: TrackerForms }) {
+export function NextStepBar({ status, lastComment, forms, viewer = false }: { status: string; lastComment?: string; forms?: TrackerForms; viewer?: boolean }) {
   const navigate = useNavigate();
   const action = isInternshipStatus(status) ? internshipAction(forms ?? NO_FORMS) : (ACTION_CONFIG[status] ?? { text: "ดำเนินการตามขั้นตอนที่กำหนด" });
   return (
     <div style={{ background:action.isWarning?"#fff7ed":"#eff6ff", border:`1px solid ${action.isWarning?"#fed7aa":"#bfdbfe"}`, borderRadius:16, padding:"14px 20px", display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, flexWrap:"wrap" }}>
       <div style={{ flex:"1 1 240px", minWidth:0 }}>
         <div style={{ fontSize:12, fontWeight:700, color:action.isWarning?"#9a3412":"#1e40af", marginBottom:4, textTransform:"uppercase", letterSpacing:".5px" }}>
-          {action.isWarning ? "⚠️ ต้องดำเนินการ" : "▶ ขั้นตอนถัดไป"}
+          {viewer ? (action.isWarning ? "⚠️ นักศึกษาต้องแก้ไข" : "▶ ขั้นถัดไปของนักศึกษา") : (action.isWarning ? "⚠️ ต้องดำเนินการ" : "▶ ขั้นตอนถัดไป")}
         </div>
         <div style={{ fontSize:14, color:action.isWarning?"#7c2d12":"#1e3a8a", fontWeight:600 }}>{action.text}</div>
         {lastComment && action.isWarning && <div style={{ fontSize:12, color:"#92400e", marginTop:4, fontStyle:"italic" }}>💬 "{lastComment}"</div>}
       </div>
-      {action.link && (
+      {action.link && !viewer && (
         <button className="btn" style={{ flexShrink: 0 }} onClick={() => navigate(action.link!)}>
           {action.linkText} →
         </button>
@@ -119,7 +120,7 @@ export function NextStepBar({ status, lastComment, forms }: { status: string; la
   );
 }
 
-export default function S_StatusTracker({ status, lastComment, showNextStep = true, forms }: Props) {
+export default function S_StatusTracker({ status, lastComment, showNextStep = true, forms, viewer = false }: Props) {
   const navigate = useNavigate();
   const f = forms ?? NO_FORMS;
   const internship = isInternshipStatus(status);
@@ -163,7 +164,7 @@ export default function S_StatusTracker({ status, lastComment, showNextStep = tr
                   {step.label}
                   {v?.note && <span style={{ fontWeight:500, marginLeft:8, color:v.warn?"#9a3412":"#64748b" }}>({v.note})</span>}
                 </span>
-                {v?.link && (isActive) && <button className="btn" style={{ flexShrink:0 }} onClick={() => navigate(v.link!)}>{v.warn ? "ไปแก้ไข" : "ไปที่หน้านี้"} →</button>}
+                {v?.link && isActive && !viewer && <button className="btn" style={{ flexShrink:0 }} onClick={() => navigate(v.link!)}>{v.warn ? "ไปแก้ไข" : "ไปที่หน้านี้"} →</button>}
                 {isDone && <span style={{ fontSize:11, color:"#16a34a", fontWeight:600, whiteSpace:"nowrap" }}>เสร็จแล้ว</span>}
                 {isActive && <span style={{ fontSize:11, color:"#2563eb", fontWeight:600, whiteSpace:"nowrap" }}>ดำเนินการอยู่</span>}
               </div>
@@ -172,7 +173,7 @@ export default function S_StatusTracker({ status, lastComment, showNextStep = tr
         </div>
       </div>
 
-      {showNextStep && <NextStepBar status={status} lastComment={lastComment} forms={forms} />}
+      {showNextStep && <NextStepBar status={status} lastComment={lastComment} forms={forms} viewer={viewer} />}
     </div>
   );
 }
