@@ -100,9 +100,9 @@ describe('saveT003Form — นักศึกษากรอกโครงร�
 });
 
 // ─────────────────────────────────────────────
-describe('reviewT003 — อาจารย์ที่ปรึกษาสหกิจตรวจ T003', () => {
+describe('reviewT003 — อาจารย์ที่ปรึกษาสหกิจตรวจ T003 (ฟอร์มคู่ขนาน: แก้เฉพาะไฟล์ ไม่แตะสถานะหลัก)', () => {
   const req = (body) => ({ user: { id: 30, role: 'teacher' }, body: { studentId: 5, status: 'T003_APPROVED', ...body } });
-  const setup = ({ advisor = 3, coopStatus = 'T003_SUBMITTED', doc = { id: 77 } } = {}) => {
+  const setup = ({ advisor = 3, coopStatus = 'INTERNSHIP_STARTED', doc = { id: 77, status: 'WAITING' } } = {}) => {
     prisma.teacher.findUnique.mockResolvedValue({ id: 3 });
     prisma.student.findUnique.mockImplementation(async ({ select }) =>
       select?.userId ? { userId: 50 } : { id: 5, deletedAt: null, coopAdvisorId: advisor });
@@ -110,22 +110,47 @@ describe('reviewT003 — อาจารย์ที่ปรึกษาสห�
     prisma.document.findFirst.mockResolvedValue(doc);
   };
 
-  test('ผ่าน → สถานะ T003_APPROVED + ไฟล์ล่าสุด APPROVED + แจ้งนักศึกษา', async () => {
+  test('ผ่าน (INTERNSHIP_STARTED + ไฟล์ WAITING) → ไฟล์ APPROVED · ไม่เขียนสถานะหลัก · แจ้งนักศึกษา', async () => {
     setup();
     const res = makeRes();
     await reviewT003(req(), res);
-    expect(prisma.studentCoop.update).toHaveBeenCalledWith({ where: { studentId: 5 }, data: { status: 'T003_APPROVED' } });
+    expect(res.status).not.toHaveBeenCalled();
+    expect(prisma.studentCoop.update).not.toHaveBeenCalled();
     expect(prisma.document.update).toHaveBeenCalledWith({ where: { id: 77 }, data: { status: 'APPROVED', rejectReason: null } });
     await flush();
     expect(createNotifications).toHaveBeenCalledWith([50], expect.objectContaining({ type: 'T003_REVIEWED', message: expect.stringContaining('ผ่าน') }));
   });
 
-  test('ให้แก้ไข → T003_EDITS_REQUIRED + ไฟล์ REJECTED พร้อมเหตุผล', async () => {
+  test('ให้แก้ไข + เหตุผล → ไฟล์ REJECTED พร้อมเหตุผล · ไม่เขียนสถานะหลัก', async () => {
     setup();
     const res = makeRes();
     await reviewT003(req({ status: 'T003_EDITS_REQUIRED', comment: 'แก้บทที่ 2' }), res);
-    expect(prisma.studentCoop.update.mock.calls[0][0].data).toEqual({ status: 'T003_EDITS_REQUIRED' });
+    expect(prisma.studentCoop.update).not.toHaveBeenCalled();
     expect(prisma.document.update.mock.calls[0][0].data).toEqual({ status: 'REJECTED', rejectReason: 'แก้บทที่ 2' });
+  });
+
+  test('ตีกลับย้อนหลัง: สถานะเก่า T003_APPROVED + ไฟล์ APPROVED + เหตุผล → 200 ไฟล์ REJECTED', async () => {
+    setup({ coopStatus: 'T003_APPROVED', doc: { id: 77, status: 'APPROVED' } });
+    const res = makeRes();
+    await reviewT003(req({ status: 'T003_EDITS_REQUIRED', comment: 'ผิดอีก' }), res);
+    expect(res.status).not.toHaveBeenCalled();
+    expect(prisma.document.update.mock.calls[0][0].data).toEqual({ status: 'REJECTED', rejectReason: 'ผิดอีก' });
+  });
+
+  test.each([undefined, '', '   '])('ตีกลับโดยไม่มีเหตุผล (%j) → 400 ไม่แก้อะไร', async (comment) => {
+    setup();
+    const res = makeRes();
+    await reviewT003(req({ status: 'T003_EDITS_REQUIRED', comment }), res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(prisma.document.update).not.toHaveBeenCalled();
+  });
+
+  test('อนุมัติไฟล์ที่ APPROVED แล้ว → 400', async () => {
+    setup({ doc: { id: 77, status: 'APPROVED' } });
+    const res = makeRes();
+    await reviewT003(req(), res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(prisma.document.update).not.toHaveBeenCalled();
   });
 
   test('ไม่ใช่อาจารย์ที่ปรึกษาสหกิจของนักศึกษา → 403 ไม่แก้อะไร', async () => {
@@ -133,15 +158,15 @@ describe('reviewT003 — อาจารย์ที่ปรึกษาสห�
     const res = makeRes();
     await reviewT003(req(), res);
     expect(res.status).toHaveBeenCalledWith(403);
-    expect(prisma.studentCoop.update).not.toHaveBeenCalled();
+    expect(prisma.document.update).not.toHaveBeenCalled();
   });
 
-  test('ยังไม่ได้ส่ง T003 (สถานะอื่น) → 400', async () => {
-    setup({ coopStatus: 'T002_SUBMITTED' });
+  test('ยังไม่ถึงช่วงฝึกงาน (สถานะอื่น) → 400', async () => {
+    setup({ coopStatus: 'PLACEMENT_LETTER_ISSUED' });
     const res = makeRes();
     await reviewT003(req(), res);
     expect(res.status).toHaveBeenCalledWith(400);
-    expect(prisma.studentCoop.update).not.toHaveBeenCalled();
+    expect(prisma.document.update).not.toHaveBeenCalled();
   });
 
   test.each([['status ที่ไม่อนุญาต', { status: 'COMPLETED' }], ['studentId ไม่ใช่ตัวเลข', { studentId: 'abc' }]])('%s → 400', async (_n, body) => {

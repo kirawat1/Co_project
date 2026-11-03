@@ -1,5 +1,5 @@
 const prisma = require("../config/prismaClient");
-const { applyT002Review } = require('../utils/t002Review');
+const { reviewForm } = require('../utils/internshipForms');
 const { createNotifications } = require('../utils/notificationHelper');
 const { buildStudentExportWorkbook, exportBaseUrl, STUDENT_EXPORT_INCLUDE } = require('../utils/studentExport');
 const { changeUserEmail } = require('../utils/userEmail');
@@ -221,6 +221,11 @@ exports.reviewT003 = async (req, res) => {
         if (!T003_ALLOWED.includes(status)) {
             return res.status(400).json({ ok: false, message: 'status ไม่ถูกต้อง' });
         }
+        // ตีกลับต้องมีเหตุผล — นักศึกษาเห็นเหตุผลนี้ตอนแก้ไฟล์ (ไม่มีเหตุผล = ไม่รู้ว่าต้องแก้อะไร)
+        const reject = status.endsWith('_EDITS_REQUIRED');
+        if (reject && !String(comment || '').trim()) {
+            return res.status(400).json({ ok: false, message: 'กรุณากรอกเหตุผลที่ต้องแก้ไข' });
+        }
 
         // Ownership: teacher must be the student's assigned coop advisor (coopAdvisorId, นักศึกษาเลือกเอง)
         // ที่ปรึกษาทั่วไป (generalAdvisorId) เป็นแค่ข้อมูลอ้างอิง ไม่มีสิทธิ์ตรวจในระบบสหกิจ
@@ -243,32 +248,8 @@ exports.reviewT003 = async (req, res) => {
             if (freshStudent.coopAdvisorId !== teacher.id) {
                 throw Object.assign(new Error('คุณไม่ใช่อาจารย์ที่ปรึกษาของนักศึกษาคนนี้'), { is403: true });
             }
-            const coop = await tx.studentCoop.findUnique({ where: { studentId: parsedStudentId }, select: { status: true } });
-            if (!coop || coop.status !== 'T003_SUBMITTED') {
-                throw Object.assign(new Error('สามารถตรวจสอบ T003 ได้เฉพาะเมื่อสถานะเป็น T003_SUBMITTED เท่านั้น'), { is400: true });
-            }
-
-            // 1. อัปเดตสถานะในตาราง studentCoop
-            await tx.studentCoop.update({
-                where: { studentId: parsedStudentId },
-                data: { status: status }
-            });
-
-            // 2. ค้นหาไฟล์ T003 ล่าสุดเพื่ออัปเดตสถานะไฟล์และคอมเมนต์
-            const doc = await tx.document.findFirst({
-                where: { studentId: parsedStudentId, type: 'T003_FORM' },
-                orderBy: { id: 'desc' }
-            });
-
-            if (doc) {
-                await tx.document.update({
-                    where: { id: doc.id },
-                    data: {
-                        status: status === 'T003_EDITS_REQUIRED' ? 'REJECTED' : 'APPROVED',
-                        rejectReason: comment || null
-                    }
-                });
-            }
+            // ผลตรวจแก้เฉพาะไฟล์ T003 ล่าสุด — สถานะหลักไม่เปลี่ยน และไม่กระทบ T002
+            await reviewForm(tx, { studentId: parsedStudentId, stepKey: 'T003', reject, comment });
         });
 
         res.json({ ok: true, message: "บันทึกผลตรวจสอบ T003 สำเร็จ" });
@@ -309,6 +290,11 @@ exports.reviewT002 = async (req, res) => {
         if (!T002_ALLOWED.includes(status)) {
             return res.status(400).json({ ok: false, message: 'status ไม่ถูกต้อง' });
         }
+        // ตีกลับต้องมีเหตุผล — นักศึกษาเห็นเหตุผลนี้ตอนแก้ไฟล์ (ไม่มีเหตุผล = ไม่รู้ว่าต้องแก้อะไร)
+        const reject = status.endsWith('_EDITS_REQUIRED');
+        if (reject && !String(comment || '').trim()) {
+            return res.status(400).json({ ok: false, message: 'กรุณากรอกเหตุผลที่ต้องแก้ไข' });
+        }
 
         // Ownership: teacher must be the student's assigned coop advisor (coopAdvisorId, นักศึกษาเลือกเอง)
         // ที่ปรึกษาทั่วไป (generalAdvisorId) เป็นแค่ข้อมูลอ้างอิง ไม่มีสิทธิ์ตรวจในระบบสหกิจ
@@ -331,8 +317,8 @@ exports.reviewT002 = async (req, res) => {
             if (freshStudent.coopAdvisorId !== teacher.id) {
                 throw Object.assign(new Error('คุณไม่ใช่อาจารย์ที่ปรึกษาของนักศึกษาคนนี้'), { is403: true });
             }
-            // ตรวจตอนส่ง T002 แล้ว หรือตรวจย้อนหลังหลังนักศึกษาไปขั้น T003 (utils/t002Review.js)
-            await applyT002Review(tx, { studentId: parsedStudentId, reject: status === 'T002_EDITS_REQUIRED', comment });
+            // ผลตรวจแก้เฉพาะไฟล์ T002 ล่าสุด — สถานะหลักไม่เปลี่ยน และไม่กระทบ T003 (utils/internshipForms.js)
+            await reviewForm(tx, { studentId: parsedStudentId, stepKey: 'T002', reject, comment });
         });
 
         res.json({ ok: true, message: "บันทึกผลการตรวจสอบสำเร็จ" });

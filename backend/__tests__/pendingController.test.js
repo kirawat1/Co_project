@@ -3,6 +3,7 @@ jest.mock('../config/prismaClient', () => require('./__mocks__/prismaClient'));
 
 const prisma = require('./__mocks__/prismaClient');
 const { getPendingCounts } = require('../controllers/pendingController');
+const { INTERNSHIP_STATUSES } = require('../utils/internshipForms');
 
 function makeRes() {
   return { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() };
@@ -29,12 +30,12 @@ describe('เจ้าหน้าที่', () => {
     expect(coopCountFor('APPLYING')[0].where.student).toEqual({ deletedAt: null });
     // T000: ตรวจเอกสาร/ใบตอบรับ + หนังสือที่ต้องออก (เจ้าหน้าที่เท่านั้น)
     expect(coopCountFor({ in: ['WAITING_FOR_STAFF_CHECK', 'WAITING_FOR_STAFF_CHECK_LETTER', 'DOCS_APPROVED', 'ACCEPTANCE_CHECKED'] })).toBeTruthy();
-    // T002: ตรวจผ่านแล้วสถานะยังเป็น T002_SUBMITTED (รอส่ง T003) — นับเฉพาะที่ไฟล์ยังไม่ถูกตรวจ
-    //   รวมคนที่ส่ง T003 ไปก่อน T002 ถูกตรวจ (ตรวจย้อนหลังได้ — utils/t002Review.js)
-    const t002 = coopCountFor({ in: ['T002_SUBMITTED', 'T003_SUBMITTED', 'T003_EDITS_REQUIRED', 'T003_APPROVED'] });
-    expect(t002).toBeTruthy();
-    expect(JSON.stringify(t002[0].where.student)).toContain('{"type":"T002_FORM","status":{"notIn":["APPROVED","REJECTED","EDITS_REQUIRED"]}}');
-    expect(coopCountFor('T003_SUBMITTED')).toBeTruthy();
+    // T002/T003 คู่ขนาน: สถานะหลักอยู่ช่วงฝึกงาน (รวมค่าเก่า) + ไฟล์ล่าสุดของฟอร์มนั้นรอตรวจ (WAITING/PENDING)
+    const internship = prisma.studentCoop.count.mock.calls.filter(([a]) => JSON.stringify(a.where.status) === JSON.stringify({ in: INTERNSHIP_STATUSES }));
+    expect(internship).toHaveLength(2);
+    const wheres = internship.map(([a]) => JSON.stringify(a.where.student));
+    expect(wheres.some((w) => w.includes('"type":"T002_FORM","status":{"in":["WAITING","PENDING"]}'))).toBe(true);
+    expect(wheres.some((w) => w.includes('"type":"T003_FORM","status":{"in":["WAITING","PENDING"]}'))).toBe(true);
     // นิเทศ: ยืนยันวันแล้ว รอออกหนังสือ/อัปโหลดฉบับลงนาม
     expect(prisma.supervisionAppointment.count).toHaveBeenCalledWith({ where: { status: 'DATE_CONFIRMED', student: { deletedAt: null } } });
     expect(prisma.feedback.count).toHaveBeenCalledWith({ where: { status: 'NEW' } });
