@@ -23,9 +23,9 @@
  *     → ACCEPTANCE_CHECKED              เจ้าหน้าที่ตรวจใบตอบรับ (API)
  *     → PLACEMENT_LETTER_ISSUED         เจ้าหน้าที่ออกหนังสือส่งตัว (UI)
  *     → INTERNSHIP_STARTED              เริ่มปฏิบัติงาน (API)
- *     → T002_SUBMITTED                  นศ. ส่ง T002 (API) + อาจารย์ตรวจ (UI)
- *     → T003_SUBMITTED                  นศ. ส่ง T003 (API)
- *     → T003_APPROVED                   อาจารย์ตรวจผ่าน (UI) — สถานะปลายทาง
+ *     (สถานะหลักคงที่ที่ INTERNSHIP_STARTED "ส่งเอกสารฝึกสหกิจ" — T002/T003 คู่ขนาน สถานะรองอยู่ที่ไฟล์)
+ *       T002: นศ. ส่ง (API) → รอตรวจ → อาจารย์ตรวจผ่าน (UI/API)
+ *       T003: นศ. ส่ง (API) → รอตรวจ → อาจารย์ตรวจผ่าน (UI/API) — สถานะปลายทางของสถานะหลักยังเป็น INTERNSHIP_STARTED
  *   SupervisionAppointment:
  *     PENDING_TEACHER → DATE_CONFIRMED → LETTER_UPLOADED → COMPLETED
  *
@@ -428,7 +428,8 @@ test("P9: นักศึกษาดาวน์โหลดหนังสื�
   });
   expect(res.status()).toBe(200);
   await uploadDoc(page, "T002_FORM", "T002.pdf");
-  await expect.poll(() => getCoopStatus(fx.student.studentPk)).toBe("T002_SUBMITTED");
+  await expect.poll(() => getDocument(fx.student.studentPk, "T002_FORM").then((d) => d?.status)).toBe("WAITING");
+  expect(await getCoopStatus(fx.student.studentPk)).toBe("INTERNSHIP_STARTED"); // ส่งฟอร์มไม่เปลี่ยนสถานะหลัก
 
   // อาจารย์ตรวจผ่านหน้าเว็บ
   await loginAs(page, "teacher", fx.teacher.email);
@@ -460,7 +461,8 @@ test("P10: นักศึกษาส่ง T003 → อาจารย์ต�
   });
   expect(res.status()).toBe(200);
   await uploadDoc(page, "T003_FORM", "T003.pdf");
-  await expect.poll(() => getCoopStatus(fx.student.studentPk)).toBe("T003_SUBMITTED");
+  await expect.poll(() => getDocument(fx.student.studentPk, "T003_FORM").then((d) => d?.status)).toBe("WAITING");
+  expect(await getCoopStatus(fx.student.studentPk)).toBe("INTERNSHIP_STARTED");
 
   await loginAs(page, "teacher", fx.teacher.email);
   await page.goto("/teacher/review-t003");
@@ -574,8 +576,10 @@ test("P14: นักศึกษาเห็นสถานะปลายทา
   const coop = await getCoop(fx.student.studentPk);
   const appt = await getSupervision(fx.student.studentPk);
 
-  // สรุปผลปลายทางของทั้ง flow — T003_APPROVED คือสถานะสุดท้ายของ enum CoopStatus
-  expect(coop.status).toBe("T003_APPROVED");
+  // สรุปผลปลายทางของทั้ง flow — สถานะหลักคงที่ที่ INTERNSHIP_STARTED (T002/T003 ผ่านที่ระดับไฟล์)
+  expect(coop.status).toBe("INTERNSHIP_STARTED");
+  expect((await getDocument(fx.student.studentPk, "T002_FORM"))?.status).toBe("APPROVED");
+  expect((await getDocument(fx.student.studentPk, "T003_FORM"))?.status).toBe("APPROVED");
   expect(coop.reqLetterUrl, "หนังสือขอความอนุเคราะห์").toBeTruthy();
   expect(coop.placeLetterUrl, "หนังสือส่งตัว").toBeTruthy();
   expect(coop.acceptanceFileUrl, "ใบตอบรับจากบริษัท").toBeTruthy();

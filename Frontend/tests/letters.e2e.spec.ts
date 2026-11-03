@@ -36,7 +36,7 @@ test.describe("A. ยกเลิกรอลงนามไม่เปลี�
   for (const [key, letter, status, n] of [
     ["reqA1", "REQUEST", "DOCS_APPROVED", 100],
     ["place", "PLACEMENT", "ACCEPTANCE_CHECKED", 101],
-    // พิมพ์ซ้ำของคนที่ฝึกอยู่แล้ว (เลขเดิมของตัวเอง) — ยกเลิกแล้วต้องเห็น "อยู่ระหว่างฝึกสหกิจ" + "พิมพ์ซ้ำ" ตามเดิม
+    // พิมพ์ซ้ำของคนที่ฝึกอยู่แล้ว (เลขเดิมของตัวเอง) — ยกเลิกแล้วต้องเห็น "ส่งเอกสารฝึกสหกิจ" + "พิมพ์ซ้ำ" ตามเดิม
     ["intern", "PLACEMENT", "INTERNSHIP_STARTED", 6],
   ] as const) {
     test(`${letter} ${status}: ตั้งรอลงนาม → ยกเลิก → สถานะเดิม ป้ายหาย`, async () => {
@@ -174,10 +174,10 @@ test.describe("D. หน้า T000 ตามสถานะ", () => {
     expect(c.reqLetterPendingAt).toBeNull();
   });
 
-  test("คนที่ฝึกสหกิจอยู่แล้ว: ป้ายสถานะ \"อยู่ระหว่างฝึกสหกิจ\" · ปุ่ม \"พิมพ์ซ้ำ\"", async ({ page }) => {
+  test("คนที่ฝึกสหกิจอยู่แล้ว: ป้ายสถานะ \"ส่งเอกสารฝึกสหกิจ\" · ปุ่ม \"พิมพ์ซ้ำ\"", async ({ page }) => {
     await asStaff(page);
     const row = await openT000(page, w.s.intern.studentId);
-    await expect(row.getByText("อยู่ระหว่างฝึกสหกิจ")).toBeVisible();
+    await expect(row.getByText("ส่งเอกสารฝึกสหกิจ")).toBeVisible();
     await expect(row.getByRole("button", { name: "พิมพ์ซ้ำ" }).first()).toBeVisible();
   });
 
