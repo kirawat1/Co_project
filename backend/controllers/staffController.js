@@ -28,6 +28,9 @@ exports.createStaff = async (req, res) => {
     const { username, email, password, firstName, lastName, phone } = req.body;
     if (!username || !email || !password || !firstName || !lastName)
       return res.status(400).json({ ok: false, message: 'กรุณากรอกข้อมูลให้ครบ' });
+    // เท่ากับตอนรีเซ็ต (resetPassword) และที่หน้าเว็บบอกไว้ — เดิมตอนสร้างไม่เช็คเลย สร้างบัญชีเจ้าหน้าที่รหัส 1 ตัวได้
+    if (typeof password !== 'string' || password.length < 6)
+      return res.status(400).json({ ok: false, message: 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร' });
 
     const existing = await prisma.user.findFirst({ where: { OR: [{ username }, { email }] } });
     if (existing)

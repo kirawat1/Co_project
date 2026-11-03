@@ -197,11 +197,24 @@ describe('togglePeriod', () => {
 });
 
 describe('deletePeriod / removePeriodMajor', () => {
-  test('ลบรอบที่มีนักศึกษาอ้างอิง → 409', async () => {
-    prisma.coopPeriod.delete.mockRejectedValue(Object.assign(new Error('fk'), { code: 'P2003' }));
+  // FK ของ StudentCoop.coopPeriodId จริงเป็น ON DELETE SET NULL — DB ไม่ตอบ P2003 (เทสต์เดิมจำลอง P2003 เลยซ่อนบั๊กไว้)
+  test('ลบรอบที่มีนักศึกษาอยู่ (รวมในถังขยะ) → 409 ไม่ลบ', async () => {
+    prisma.studentCoop.count.mockResolvedValue(2);
     const res = makeRes();
     await deletePeriod(req(STAFF, { method: 'DELETE', params: { id: '1' } }), res);
     expect(res.status).toHaveBeenCalledWith(409);
+    expect(res.json.mock.calls[0][0].message).toMatch(/2 คน/);
+    expect(prisma.studentCoop.count).toHaveBeenCalledWith({ where: { coopPeriodId: 1 } });
+    expect(prisma.coopPeriod.delete).not.toHaveBeenCalled();
+  });
+
+  test('ลบรอบที่ไม่มีนักศึกษา → ลบ', async () => {
+    prisma.studentCoop.count.mockResolvedValue(0);
+    prisma.coopPeriod.delete.mockResolvedValue({});
+    const res = makeRes();
+    await deletePeriod(req(STAFF, { method: 'DELETE', params: { id: '1' } }), res);
+    expect(prisma.coopPeriod.delete).toHaveBeenCalledWith({ where: { id: 1 } });
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: true }));
   });
 
   test('เอารอบออกจากหลักสูตรที่ยังมีนักศึกษาอยู่ในรอบ → 409', async () => {

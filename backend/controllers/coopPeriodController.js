@@ -156,7 +156,14 @@ exports.deletePeriod = async (req, res) => {
   try {
     const parsedId = parseId(req.params.id);
     if (!parsedId) return fail(res, 400, 'id ไม่ถูกต้อง');
-    await prisma.coopPeriod.delete({ where: { id: parsedId } });
+    // FK ของ StudentCoop.coopPeriodId เป็น ON DELETE SET NULL — เดิมลบได้เสมอ นักศึกษาทั้งรอบหลุดเป็น "ยังไม่เลือกรอบ" เงียบๆ
+    // (ทางดัก P2003 ไม่เคยเกิด) → นับก่อนลบในทรานแซกชันเดียวกัน รวมคนในถังขยะ (กู้คืนแล้วต้องยังมีรอบ)
+    const used = await prisma.$transaction(async (tx) => {
+      const n = await tx.studentCoop.count({ where: { coopPeriodId: parsedId } });
+      if (!n) await tx.coopPeriod.delete({ where: { id: parsedId } });
+      return n;
+    });
+    if (used) return fail(res, 409, `มีนักศึกษาอยู่ในรอบนี้ ${used} คน (รวมในถังขยะ) — ย้ายรอบนักศึกษาก่อนจึงจะลบรอบได้`);
     res.json({ ok: true, message: 'Deleted successfully' });
   } catch (error) {
     if (error.code === 'P2025') return fail(res, 404, 'ไม่พบรอบสหกิจ');

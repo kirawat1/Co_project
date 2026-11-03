@@ -72,6 +72,15 @@ describe('createStaff', () => {
     expect(prisma.user.create).not.toHaveBeenCalled();
   });
 
+  // เดิมตอนสร้างไม่เช็คความยาวเลย (รีเซ็ตเช็ค ≥ 6 และหน้าเว็บบอก "อย่างน้อย 6 ตัวอักษร")
+  test('400 — รหัสผ่านสั้นกว่า 6 ตัว ไม่สร้างบัญชี', async () => {
+    const res = makeRes();
+    await createStaff({ body: { ...validBody, password: '1' } }, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json.mock.calls[0][0].message).toMatch(/6 ตัวอักษร/);
+    expect(prisma.user.create).not.toHaveBeenCalled();
+  });
+
   test('409 — username or email already exists', async () => {
     prisma.user.findFirst.mockResolvedValue({ id: 1 });
     const req = { body: validBody };

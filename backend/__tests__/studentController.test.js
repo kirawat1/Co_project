@@ -403,7 +403,10 @@ describe('permanentlyDeleteStudent', () => {
     const removed = unlinkSpy.mock.calls.map(([p]) => require('path').basename(p)).sort();
     expect(removed).toEqual(['doc-a.pdf', 'place.pdf', 'req.pdf', 'sup.pdf']);
     // ชื่อไฟล์จาก DB ถูกตัดเหลือแค่ชื่อไฟล์ ไม่หลุดออกนอกโฟลเดอร์ uploads
-    unlinkSpy.mock.calls.forEach(([p]) => expect(require('path').dirname(p)).toMatch(/uploads$/));
+    // หนังสือขอนิเทศอยู่ที่ uploads/supervision (เดิมลบที่ uploads/ ซึ่งไม่ใช่ที่อยู่จริง ไฟล์ค้าง)
+    const dirOf = (name) => require('path').dirname(unlinkSpy.mock.calls.find(([p]) => p.endsWith(name))[0]);
+    expect(dirOf('sup.pdf')).toMatch(/uploads[\\/]supervision$/);
+    ['doc-a.pdf', 'place.pdf', 'req.pdf'].forEach((n) => expect(dirOf(n)).toMatch(/uploads$/));
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: true }));
   });
 
@@ -959,5 +962,18 @@ describe('createStudentSingle — major', () => {
 
     expect(prisma.coopCriteria.findFirst).not.toHaveBeenCalled();
     expect(prisma.user.create.mock.calls[0][0].data.student.create.major).toBeNull();
+  });
+
+  // รหัสนักศึกษาซ้ำกับคนในถังขยะ — เดิมเช็คเฉพาะคนที่ไม่อยู่ในถังขยะ แล้วไปชน unique ได้ "ข้อมูลซ้ำ" กลางๆ
+  test('409 — รหัสนักศึกษาอยู่ในถังขยะ → บอกให้กู้คืน · มีอยู่แล้ว → บอกว่ามีแล้ว', async () => {
+    for (const [found, msg] of [[{ deletedAt: new Date() }, /ถังขยะ.*กู้คืน/], [{ deletedAt: null }, /มีในระบบแล้ว/]]) {
+      prisma.student.findFirst.mockResolvedValueOnce(found);
+      const res = makeRes();
+      await createStudentSingle({ body: baseBody }, res);
+      expect(res.status).toHaveBeenCalledWith(409);
+      expect(res.json.mock.calls[0][0].message).toMatch(msg);
+    }
+    expect(prisma.student.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: { studentId: '663380001-1' } }));
+    expect(prisma.user.create).not.toHaveBeenCalled();
   });
 });

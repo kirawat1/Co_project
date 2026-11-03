@@ -183,21 +183,20 @@ exports.updateT008Config = async (req, res) => {
             return res.status(400).json({ ok: false, message: 'กำหนดส่งต้องเป็นวันที่ (YYYY-MM-DD)' });
         }
 
-        let imagePath = existingImage || null;
-        if (req.file) {
-            imagePath = req.file.filename;
-        }
-
+        let imagePath = null;
         let oldImagePath = null;
-        const payload = { instructionText, driveLink: safeUrl(driveLink) || null, imagePath, deadline };
+        let payload;
 
         await prisma.$transaction(async (tx) => {
-            if (req.file) {
-                const old = await tx.systemConfig.findUnique({ where: { key: 'CONFIG_T008' } });
-                if (old) {
-                    try { const prev = JSON.parse(old.value); oldImagePath = prev.imagePath || null; } catch (_) {}
-                }
-            }
+            const old = await tx.systemConfig.findUnique({ where: { key: 'CONFIG_T008' } });
+            let prevImage = null;
+            if (old) { try { prevImage = JSON.parse(old.value).imagePath || null; } catch (_) {} }
+            // รูปเดิมที่ "คงไว้" ต้องเป็นรูปที่ตั้งไว้จริง — เดิมเก็บชื่อจาก body ตรงๆ แล้วตอนเปลี่ยนรูปครั้งถัดไปลบไฟล์ตามชื่อนั้น
+            // (ส่ง existingImage = "../../server.js" ไว้ก่อน → อัปโหลดรูปใหม่ = ลบไฟล์นอกโฟลเดอร์)
+            imagePath = req.file ? req.file.filename : (existingImage && existingImage === prevImage ? prevImage : null);
+            // เปลี่ยนรูป หรือเอารูปออก → ลบไฟล์เดิมหลังบันทึก (เดิมเอารูปออกแล้วไฟล์ค้าง)
+            if (prevImage && prevImage !== imagePath) oldImagePath = prevImage;
+            payload = { instructionText, driveLink: safeUrl(driveLink) || null, imagePath, deadline };
             await tx.systemConfig.upsert({
                 where: { key: 'CONFIG_T008' },
                 update: { value: JSON.stringify(payload) },
@@ -207,9 +206,9 @@ exports.updateT008Config = async (req, res) => {
 
         res.json({ ok: true, message: "บันทึกการตั้งค่าเรียบร้อยแล้ว", imagePath });
 
-        // ลบรูปเก่าหลัง upsert สำเร็จ
-        if (oldImagePath && oldImagePath !== req.file?.filename) {
-            const oldPath = path.join(__dirname, '../uploads/system', oldImagePath);
+        // ลบรูปเก่าหลัง upsert สำเร็จ — เฉพาะชื่อไฟล์ในโฟลเดอร์ uploads/system (ค่าเก่าที่เคยถูกตั้งเป็น path แปลกๆ ก็ออกนอกโฟลเดอร์ไม่ได้)
+        if (oldImagePath) {
+            const oldPath = path.join(__dirname, '../uploads/system', path.basename(String(oldImagePath)));
             if (fs.existsSync(oldPath)) try { fs.unlinkSync(oldPath); } catch (_) {}
         }
     } catch (err) {
