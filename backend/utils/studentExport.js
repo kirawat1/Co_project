@@ -1,6 +1,7 @@
 const XLSX = require('xlsx');
 const { getStatusLabelTh } = require('./coopStatusLabels');
 const { resolveMajorNameTh } = require('./majorName');
+const { FORM_TYPES, FORM_STATE_LABEL, formState } = require('./internshipForms');
 
 const PREFIX_LABEL_TH = { MR: 'นาย', MS: 'นางสาว' };
 const STUDY_PROGRAM_LABEL_TH = { normal: 'ภาคปกติ', special: 'ภาคพิเศษ' };
@@ -44,6 +45,8 @@ const DOC_COLUMNS = [
   ['ไฟล์: T002', ['T002_FORM']],
   ['ไฟล์: T003', ['T003_FORM']],
 ];
+// คอลัมน์สถานะฟอร์ม (ต่อท้ายคอลัมน์ไฟล์ T003) — [หัวคอลัมน์, ฟอร์ม]
+const FORM_STATUS_COLUMNS = [['สถานะ T002', 'T002'], ['สถานะ T003', 'T003']];
 const DOC_TYPE_LABEL_TH = {
   APPLICATION_DOC: 'เอกสารแนบคำร้องสหกิจ',
   OTHER: 'เอกสารอื่นๆ',
@@ -79,8 +82,8 @@ const COLUMNS = [
   ['รูปแบบนิเทศ', 12],
   ['สถานะนิเทศ', 28],
 ];
-const EXPORT_HEADERS = [...COLUMNS.map(([header]) => header), ...DOC_COLUMNS.map(([header]) => header)];
-const COLUMN_WIDTHS = [...COLUMNS.map(([, wch]) => wch), ...DOC_COLUMNS.map(() => 24)];
+const EXPORT_HEADERS = [...COLUMNS.map(([header]) => header), ...DOC_COLUMNS.map(([header]) => header), ...FORM_STATUS_COLUMNS.map(([header]) => header)];
+const COLUMN_WIDTHS = [...COLUMNS.map(([, wch]) => wch), ...DOC_COLUMNS.map(() => 24), ...FORM_STATUS_COLUMNS.map(() => 14)];
 
 // ชีต "เอกสารทั้งหมด" — ไฟล์ทุกไฟล์ 1 แถว (ชนิดที่มีหลายไฟล์ เช่น เอกสารแนบคำร้อง ก็ไม่ตกหล่น)
 const ALL_DOCS_COLUMNS = [
@@ -122,6 +125,13 @@ function latestDocs(student) {
     else if (coopField && student.coop?.[coopField]) out[header] = { name: student.coop[coopField], path: student.coop[coopField] };
   }
   return out;
+}
+
+// สถานะฟอร์มจากไฟล์ล่าสุดของชนิดนั้น (documents เรียง uploadedAt asc อยู่แล้ว) — ไม่นับเงื่อนไข path เพราะสถานะไม่ขึ้นกับไฟล์ที่เปิดได้
+function formStateLabel(student, stepKey) {
+  const docs = Array.isArray(student.documents) ? student.documents : [];
+  const latest = docs.filter((d) => d.type === FORM_TYPES[stepKey]).pop();
+  return FORM_STATE_LABEL[formState(latest)];
 }
 
 function addLink(worksheet, r, c, url, tooltip) {
@@ -231,6 +241,7 @@ function studentToExportRow(student, criteria) {
     'รูปแบบนิเทศ': sup ? (SUPERVISION_TYPE_LABEL_TH[sup.supervisionType] || '-') : '-',
     'สถานะนิเทศ': sup ? (SUPERVISION_STATUS_LABEL_TH[sup.status] || '-') : 'ยังไม่นัดนิเทศ',
     ...Object.fromEntries(DOC_COLUMNS.map(([header]) => [header, files[header]?.name || '-'])),
+    ...Object.fromEntries(FORM_STATUS_COLUMNS.map(([header, stepKey]) => [header, formStateLabel(student, stepKey)])),
   };
 }
 

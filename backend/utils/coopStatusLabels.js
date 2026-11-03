@@ -1,3 +1,4 @@
+const { LEGACY_INTERNSHIP_STATUSES } = require('./internshipForms');
 // พอร์ตจาก Frontend/src/components/StatusBadge.tsx:STATUS_CONFIG — เอาแค่ field label
 // (ไม่เอา color/icon/isInternship เพราะไฟล์ Excel ไม่ต้องใช้)
 const COOP_STATUS_LABEL_TH = {
@@ -15,13 +16,11 @@ const COOP_STATUS_LABEL_TH = {
   WAITING_FOR_PLACEMENT_LETTER: 'รอใบตอบรับ',
   WAITING_FOR_STAFF_CHECK_LETTER: 'รอตรวจใบตอบรับ',
   ACCEPTANCE_CHECKED: 'ตรวจใบตอบรับแล้ว',
-  INTERNSHIP_STARTED: 'ออกฝึกสหกิจ',
-  T002_SUBMITTED: 'ส่งเอกสาร T002 แล้ว',
-  T002_EDITS_REQUIRED: 'ต้องแก้ไข T002',
-  T003_SUBMITTED: 'ส่งโครงร่าง T003 แล้ว',
-  T003_EDITS_REQUIRED: 'ต้องแก้ไขโครงร่าง T003',
-  T003_APPROVED: 'อนุมัติโครงร่าง T003 แล้ว',
+  INTERNSHIP_STARTED: 'ส่งเอกสารฝึกสหกิจ',
 };
+
+// สถานะเก่า (T002/T003 แยกขั้น) ที่ค้างใน DB อยู่ช่วงฝึกงานเดียวกัน → ป้ายเดียวกับ INTERNSHIP_STARTED
+for (const legacy of LEGACY_INTERNSHIP_STATUSES) COOP_STATUS_LABEL_TH[legacy] = COOP_STATUS_LABEL_TH.INTERNSHIP_STARTED;
 
 function getStatusLabelTh(status) {
   if (!status) return COOP_STATUS_LABEL_TH.NOT_SUBMITTED;

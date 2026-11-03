@@ -18,6 +18,9 @@ function formState(doc) {
   return 'APPROVED';
 }
 
+// ป้ายสถานะย่อยของฟอร์ม (Excel/ที่อื่นใช้ร่วมกัน — ที่เดียว)
+const FORM_STATE_LABEL = { NONE: 'ยังไม่ส่ง', WAITING: 'รอตรวจ', REJECTED: 'ต้องแก้', APPROVED: 'ผ่าน' };
+
 /** ส่งฟอร์มได้: อยู่ช่วงฝึกงาน และยังไม่เคยส่ง หรือถูกตีกลับ (รอตรวจ/ผ่านแล้วห้ามส่งซ้ำ) */
 const canSubmitForm = (coopStatus, state) =>
   isInternshipStatus(coopStatus) && (state === 'NONE' || state === 'REJECTED');
@@ -54,6 +57,6 @@ const formPendingStudent = (stepKey) => ({
 });
 
 module.exports = {
-  FORM_TYPES, LEGACY_INTERNSHIP_STATUSES, INTERNSHIP_STATUSES, isInternshipStatus,
+  FORM_TYPES, FORM_STATE_LABEL, LEGACY_INTERNSHIP_STATUSES, INTERNSHIP_STATUSES, isInternshipStatus,
   formState, canSubmitForm, reviewActions, latestFormDoc, reviewForm, formPendingStudent,
 };

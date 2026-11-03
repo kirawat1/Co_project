@@ -3,6 +3,8 @@ const { buildStudentExportWorkbook, EXPORT_HEADERS, ALL_DOCS_HEADERS, DOC_COLUMN
 
 // คอลัมน์ไฟล์เอกสาร — นักศึกษาที่ยังไม่มีไฟล์แสดง '-'
 const NO_FILES = Object.fromEntries(DOC_COLUMNS.map(([h]) => [h, '-']));
+// คอลัมน์สถานะฟอร์ม T002/T003 — ไม่มีไฟล์ = ยังไม่ส่ง
+const NO_FORMS = { 'สถานะ T002': 'ยังไม่ส่ง', 'สถานะ T003': 'ยังไม่ส่ง' };
 
 function sheetToRows(buffer) {
   const workbook = XLSX.read(buffer, { type: 'buffer' });
@@ -80,7 +82,7 @@ describe('buildStudentExportWorkbook', () => {
       'อีเมล': 'somchai@kkumail.com',
       'เบอร์โทร': '0812345678',
       'รอบสหกิจ': '1/2569',
-      'สถานะสหกิจ': 'ออกฝึกสหกิจ',
+      'สถานะสหกิจ': 'ส่งเอกสารฝึกสหกิจ',
       'บริษัทที่ไปฝึกงาน': 'บริษัท ทดสอบ จำกัด',
       'ที่อยู่บริษัท': '123/4 หมู่ 5 ซอยสุขใจ ถนนมิตรภาพ ตำบลในเมือง อำเภอเมืองขอนแก่น จังหวัดขอนแก่น 40000',
       'ผู้ติดต่อ (HR)': '-',
@@ -96,6 +98,7 @@ describe('buildStudentExportWorkbook', () => {
       'รูปแบบนิเทศ': 'ออนไซต์',
       'สถานะนิเทศ': 'อนุมัติหนังสือนิเทศแล้ว',
       ...NO_FILES,
+      ...NO_FORMS,
     }]);
   });
 
@@ -140,6 +143,7 @@ describe('buildStudentExportWorkbook', () => {
       'รูปแบบนิเทศ': '-',
       'สถานะนิเทศ': 'ยังไม่นัดนิเทศ',
       ...NO_FILES,
+      ...NO_FORMS,
     });
   });
 
@@ -176,6 +180,34 @@ describe('buildStudentExportWorkbook', () => {
   ])('ที่อยู่บริษัท: กรุงเทพฯ ใช้แขวง/เขต · ไม่มีช่องแยกใช้ address เดิม · ไม่เติมคำนำหน้าซ้ำ (%#)', (company, expected) => {
     const rows = sheetToRows(buildStudentExportWorkbook([{ studentId: '1', firstName: 'ก', lastName: 'ข', coop: { status: 'INTERNSHIP_STARTED', company } }]));
     expect(rows[0]['ที่อยู่บริษัท']).toBe(expected);
+  });
+});
+
+describe('คอลัมน์สถานะฟอร์ม T002/T003', () => {
+  const base = { studentId: '1', firstName: 'ก', lastName: 'ข', coop: { status: 'INTERNSHIP_STARTED' } };
+
+  test('หัวคอลัมน์อยู่ต่อจาก "ไฟล์: T003"', () => {
+    const i = EXPORT_HEADERS.indexOf('ไฟล์: T003');
+    expect(EXPORT_HEADERS.slice(i + 1, i + 3)).toEqual(['สถานะ T002', 'สถานะ T003']);
+  });
+
+  test('ค่า = สถานะของไฟล์ล่าสุดแต่ละฟอร์ม · ฟอร์มหนึ่งไม่กระทบอีกฟอร์ม', () => {
+    const rows = sheetToRows(buildStudentExportWorkbook([
+      { ...base, documents: [
+        { type: 'T002_FORM', name: 'a.pdf', path: 'a.pdf', status: 'REJECTED', uploadedAt: '2026-06-01T03:00:00Z' },
+        { type: 'T002_FORM', name: 'b.pdf', path: 'b.pdf', status: 'APPROVED', uploadedAt: '2026-06-02T03:00:00Z' },
+      ] },
+      { ...base, studentId: '2', documents: [
+        { type: 'T003_FORM', name: 'c.pdf', path: 'c.pdf', status: 'WAITING', uploadedAt: '2026-06-01T03:00:00Z' },
+      ] },
+      { ...base, studentId: '3', documents: [
+        { type: 'T003_FORM', name: 'd.pdf', path: 'd.pdf', status: 'REJECTED', uploadedAt: '2026-06-01T03:00:00Z' },
+      ] },
+      { ...base, studentId: '4' },
+    ]));
+    expect(rows.map((r) => [r['สถานะ T002'], r['สถานะ T003']])).toEqual([
+      ['ผ่าน', 'ยังไม่ส่ง'], ['ยังไม่ส่ง', 'รอตรวจ'], ['ยังไม่ส่ง', 'ต้องแก้'], ['ยังไม่ส่ง', 'ยังไม่ส่ง'],
+    ]);
   });
 });
 
