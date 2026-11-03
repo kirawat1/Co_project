@@ -19,7 +19,8 @@ const storage = multer.diskStorage({
     },
     filename: function (req, file, cb) {
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, 'SUPERVISION_LETTER_' + uniqueSuffix + '.pdf');
+        // นามสกุลจริงของไฟล์ (fileFilter ตรวจแล้วว่าเป็น PDF/รูป) — เดิมตั้ง .pdf ทุกไฟล์ ฉบับลงนามที่เป็นรูปเปิดไม่ได้
+        cb(null, 'SUPERVISION_LETTER_' + uniqueSuffix + path.extname(file.originalname).toLowerCase());
     }
 });
 const upload = multer({ storage, fileFilter: pdfOrImageFileFilter, limits: { fileSize: 50 * 1024 * 1024 } });

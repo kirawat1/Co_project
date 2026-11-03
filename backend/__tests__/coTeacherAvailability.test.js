@@ -96,7 +96,7 @@ describe('reviewSupervision APPROVE — เตือนเมื่ออาจ�
     await reviewSupervision(req(), res);
     expect(res.status).toHaveBeenCalledWith(409);
     expect(res.json.mock.calls[0][0]).toMatchObject({ code: 'CO_TEACHER_UNAVAILABLE', unavailable: [{ teacherId: 7, reason: 'NOT_FREE' }] });
-    expect(prisma.supervisionAppointment.update).not.toHaveBeenCalled();
+    expect(prisma.supervisionAppointment.updateMany).not.toHaveBeenCalled();
   });
 
   test('อาจารย์หลักยืนยันซ้ำ (acknowledgeUnavailable) → บันทึก', async () => {
@@ -104,7 +104,7 @@ describe('reviewSupervision APPROVE — เตือนเมื่ออาจ�
     const res = makeRes();
     await reviewSupervision(req({ acknowledgeUnavailable: true }), res);
     expect(res.status).not.toHaveBeenCalled();
-    expect(prisma.supervisionAppointment.update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: 'DATE_CONFIRMED' }) }));
+    expect(prisma.supervisionAppointment.updateMany).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: 'DATE_CONFIRMED' }) }));
   });
 
   test('อาจารย์ร่วมทุกคนว่าง → บันทึกทันที', async () => {
@@ -112,6 +112,6 @@ describe('reviewSupervision APPROVE — เตือนเมื่ออาจ�
     const res = makeRes();
     await reviewSupervision(req(), res);
     expect(res.status).not.toHaveBeenCalled();
-    expect(prisma.supervisionAppointment.update).toHaveBeenCalled();
+    expect(prisma.supervisionAppointment.updateMany).toHaveBeenCalled();
   });
 });

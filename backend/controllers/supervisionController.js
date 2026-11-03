@@ -57,11 +57,15 @@ exports.saveSupervisionPeriod = async (req, res) => {
         const period = await prisma.coopPeriod.findUnique({ where: { id: parsedPeriodId } });
         if (!period) return res.status(404).json({ ok: false, message: 'ไม่พบรอบสหกิจ' });
 
+        // วันที่ผิดรูปแบบเดิมพังเป็น 500 · เริ่มหลังสิ้นสุดเดิมบันทึกได้เงียบ ๆ (ตอนนี้ช่วงนี้บังคับวันที่นักศึกษาเสนอ = นัดไม่ได้ทั้งหลักสูตร)
         const data = {
             isSupervisionOpen: !!isSupervisionOpen,
-            supervisionStartDate: supervisionStartDate ? new Date(supervisionStartDate) : null,
-            supervisionEndDate: supervisionEndDate ? new Date(supervisionEndDate) : null,
+            supervisionStartDate: supervisionStartDate ? parseDateOr400(supervisionStartDate, 'วันเริ่มนัดหมายนิเทศ') : null,
+            supervisionEndDate: supervisionEndDate ? parseDateOr400(supervisionEndDate, 'วันสิ้นสุดนัดหมายนิเทศ') : null,
         };
+        if (data.supervisionStartDate && data.supervisionEndDate && data.supervisionStartDate > data.supervisionEndDate) {
+            return res.status(400).json({ ok: false, message: 'วันเริ่มนัดหมายนิเทศต้องไม่หลังวันสิ้นสุด' });
+        }
         await prisma.coopPeriodMajor.upsert({
             where: { periodId_major: { periodId: parsedPeriodId, major: m } },
             update: data,
@@ -71,6 +75,7 @@ exports.saveSupervisionPeriod = async (req, res) => {
         res.json({ ok: true, period: viewPeriod(full, [m]) });
     } catch (err) {
         if (err.status) return res.status(err.status).json({ ok: false, message: err.message });
+        if (err.is400) return res.status(400).json({ ok: false, message: err.message });
         if (err.code === 'P2003') return res.status(400).json({ ok: false, message: 'ไม่พบหลักสูตรนี้ในระบบ' });
         console.error(err);
         res.status(500).json({ ok: false, message: 'Server error' });
@@ -300,6 +305,19 @@ exports.markSupervisionLetterPending = async (req, res) => {
 // ช่วงนิเทศของนักศึกษา = แถวหลักสูตรของนักศึกษาในรอบที่ตัวเองสังกัด (StudentCoop.coopPeriodId) — ไม่มี = ยังไม่เปิด
 const NO_MAJOR_MESSAGE = 'ยังไม่ได้ระบุหลักสูตรของคุณ จึงยังนัดนิเทศไม่ได้ — กรุณาติดต่อเจ้าหน้าที่ให้ระบุหลักสูตร';
 
+// วันที่เสนอที่อยู่นอกช่วงนิเทศของหลักสูตร → ข้อความแจ้ง (null = อยู่ในช่วง / ไม่ได้ตั้งช่วง) · ตั้งไว้ฝั่งเดียวก็เช็คฝั่งนั้น
+const thaiDay = (d) => new Date(d).toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok', dateStyle: 'medium' });
+function outsideSupervisionWindow(entries, period) {
+    const from = period?.supervisionStartDate ? dateKey(new Date(period.supervisionStartDate)) : null;
+    const to = period?.supervisionEndDate ? dateKey(new Date(period.supervisionEndDate)) : null;
+    if (!from && !to) return null;
+    const bad = entries.find((e) => (from && e.date < from) || (to && e.date > to));
+    if (!bad) return null;
+    const range = from && to ? `${thaiDay(period.supervisionStartDate)} – ${thaiDay(period.supervisionEndDate)}`
+        : from ? `ตั้งแต่ ${thaiDay(period.supervisionStartDate)}` : `ถึง ${thaiDay(period.supervisionEndDate)}`;
+    return `วันที่เสนอ ${thaiDay(`${bad.date}T12:00:00+07:00`)} อยู่นอกช่วงนิเทศของหลักสูตร (${range}) — กรุณาเลือกวันในช่วงนี้`;
+}
+
 async function studentSupervisionPeriod(student) {
     const periodId = student.coop?.coopPeriodId;
     if (!periodId || !student.major) return null;
@@ -401,6 +419,10 @@ exports.proposeSupervisionDate = async (req, res) => {
         if (!supervisionPeriod || !supervisionPeriod.isSupervisionOpen) {
             return res.status(403).json({ ok: false, message: '⛔ ระบบยังไม่เปิดให้นัดหมายนิเทศในขณะนี้' });
         }
+        // ช่วงนิเทศของหลักสูตร (ถ้าตั้งไว้) — นักศึกษาเสนอได้เฉพาะวันในช่วง (เดิมใช้แสดงผลอย่างเดียว เสนอนอกช่วงได้)
+        // อาจารย์/เจ้าหน้าที่แก้วันที่ยืนยันแล้วไปนอกช่วงได้ (updateConfirmedDate ไม่เช็ค — กรณีพิเศษ)
+        const outsideWindow = outsideSupervisionWindow(proposedEntries, supervisionPeriod);
+        if (outsideWindow) return res.status(400).json({ ok: false, message: outsideWindow });
 
         // หา Teacher จาก coopAdvisorId (อาจารย์ที่ปรึกษาโครงการสหกิจ) เป็นผู้นิเทศหลัก
         if (!student.coopAdvisorId) {
@@ -435,25 +457,20 @@ exports.proposeSupervisionDate = async (req, res) => {
                 err.status = 400;
                 throw err;
             }
-            const saved = await tx.supervisionAppointment.upsert({
-                where: { studentId: student.id },
-                update: {
-                    teacherId: teacher.id,
-                    proposedDates,
-                    supervisionType: resolvedType,
-                    onlineLink,
-                    status: 'PENDING_TEACHER',
-                    rejectReason: null
-                },
-                create: {
-                    studentId: student.id,
-                    teacherId: teacher.id,
-                    proposedDates,
-                    supervisionType: resolvedType,
-                    onlineLink,
-                    status: 'PENDING_TEACHER'
-                }
-            });
+            const data = { teacherId: teacher.id, proposedDates, supervisionType: resolvedType, onlineLink, status: 'PENDING_TEACHER' };
+            let saved;
+            if (existing) {
+                // เงื่อนไขสถานะอยู่ใน where — อาจารย์ยืนยันวันระหว่างที่คำขอนี้ทำงาน (อีก transaction) ต้องไม่ถูกเขียนทับกลับเป็น "รออาจารย์"
+                // (เดิม upsert ไม่มีเงื่อนไข: นัดที่เพิ่งยืนยันกลับเป็นรอ ทั้งที่ทุกคนได้แจ้งเตือนว่ายืนยันแล้ว)
+                const { count } = await tx.supervisionAppointment.updateMany({
+                    where: { studentId: student.id, status: { notIn: LOCKED_STATUSES } },
+                    data: { ...data, rejectReason: null },
+                });
+                if (!count) throw Object.assign(new Error('LOCKED'), { status: 403 });
+                saved = await tx.supervisionAppointment.findUnique({ where: { studentId: student.id } });
+            } else {
+                saved = await tx.supervisionAppointment.create({ data: { studentId: student.id, ...data } });
+            }
             // วันที่เสนอใหม่ → วันว่างที่อาจารย์ร่วมเคยตอบใช้ไม่ได้แล้ว ต้องตอบใหม่
             if (existing) {
                 await tx.supervisionCoTeacher.updateMany({ where: { appointmentId: saved.id }, data: { availableDates: null, respondedAt: null } });
@@ -469,6 +486,11 @@ exports.proposeSupervisionDate = async (req, res) => {
             }
             if (err.status === 400) {
                 res.status(400).json({ ok: false, message: err.message });
+                return null;
+            }
+            // กดส่งซ้ำพร้อมกันตอนยังไม่มีนัด — อีกคำขอสร้างแถวไปแล้ว (studentId unique)
+            if (err.code === 'P2002') {
+                res.status(409).json({ ok: false, message: 'กำลังบันทึกคำขอก่อนหน้าอยู่ กรุณาโหลดหน้าใหม่แล้วตรวจสอบอีกครั้ง' });
                 return null;
             }
             throw err;
@@ -854,12 +876,17 @@ exports.reviewSupervision = async (req, res) => {
                     excludeIds: [parsedId],
                 });
 
-                await tx.supervisionAppointment.update({
-                    where: { id: parsedId },
+                // วันที่เสนอต้องยังเป็นชุดที่ตรวจไว้ด้านบน — นักศึกษาแก้วันพร้อมกันพอดี (อีก transaction) จะไม่ได้นัดวันที่ไม่ได้เสนอแล้ว
+                const { count } = await tx.supervisionAppointment.updateMany({
+                    where: { id: parsedId, status: 'PENDING_TEACHER', proposedDates: supervision.proposedDates },
                     data: approveData
                 });
+                if (!count) throw Object.assign(new Error('นักศึกษาเพิ่งแก้วันที่เสนอ — กรุณาโหลดหน้าใหม่แล้วเลือกวันอีกครั้ง'), { is409: true });
             });
         } else if (action === 'REJECT') {
+            // นักศึกษาต้องรู้ว่าทำไมและควรเสนอวันแบบไหนใหม่ (เหมือนตีกลับ T002/T003) — หน้าเว็บบังคับอยู่แล้ว API เดิมไม่เช็ค
+            const reason = String(rejectReason ?? '').trim();
+            if (!reason) return res.status(400).json({ ok: false, message: 'กรุณาระบุเหตุผลที่ปฏิเสธ เพื่อให้นักศึกษาเสนอวันใหม่ได้ตรงกับที่อาจารย์สะดวก' });
             await prisma.$transaction(async (tx) => {
                 const current = await tx.supervisionAppointment.findUnique({
                     where: { id: parsedId },
@@ -879,7 +906,7 @@ exports.reviewSupervision = async (req, res) => {
                 }
                 await tx.supervisionAppointment.update({
                     where: { id: parsedId },
-                    data: { status: 'TEACHER_REJECTED', confirmedDate: null, rejectReason: rejectReason }
+                    data: { status: 'TEACHER_REJECTED', confirmedDate: null, rejectReason: reason }
                 });
             });
         }

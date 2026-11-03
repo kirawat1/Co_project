@@ -399,6 +399,8 @@ export default function A_SupervisionManage() {
 
             toast.success("บันทึกรายชื่ออาจารย์นิเทศเรียบร้อยแล้ว");
             setAssignTeacherModalOpen(false);
+            // ล้างนัดที่เลือกด้วย (เหมือนปุ่มยกเลิก) — เดิมค้างไว้ หน้าต่างออกหนังสือ (selectedSupForModal && !assignTeacherModalOpen) เด้งขึ้นเอง
+            setSelectedSupForModal(null);
             fetchData();
         } catch (err: any) {
             // เช่น อาจารย์ร่วมติดนิเทศเวลานั้น (409) — ให้เห็นว่าชนกับใคร
