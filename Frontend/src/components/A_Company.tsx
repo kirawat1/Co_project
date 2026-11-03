@@ -51,6 +51,20 @@ interface MentorRecord {
   phone?: string;
 }
 
+// ลบบริษัทที่มีนักศึกษาเลือกอยู่ — server ตอบ 409 COMPANY_IN_USE พร้อมรายชื่อ ให้ยืนยันอีกครั้ง แล้วส่ง ?confirm=1
+// (เดิมเจ้าหน้าที่ลบได้เงียบๆ บริษัทของนักศึกษาเหล่านั้นว่าง พี่เลี้ยง/ผู้ติดต่อหายตาม)
+type InUseStudent = { studentId: string; name: string; trashed?: boolean };
+const IN_USE_SHOWN = 8;
+function studentLines(list: InUseStudent[]) {
+  const shown = list.slice(0, IN_USE_SHOWN).map(s => `• ${s.studentId} ${s.name}${s.trashed ? " (ในถังขยะ)" : ""}`);
+  const more = list.length > shown.length ? `\n…และอีก ${list.length - shown.length} คน` : "";
+  return shown.join("\n") + more;
+}
+async function deleteCompanyRequest(id: string, confirmed = false): Promise<any> {
+  const res = await apiFetch(`/api/companies/${id}${confirmed ? "?confirm=1" : ""}`, { method: "DELETE" });
+  return res.json().catch(() => ({ ok: false, message: "ลบไม่สำเร็จ" }));
+}
+
 /* ----------------------------------------------------
    Main Component
 ---------------------------------------------------- */
@@ -198,8 +212,13 @@ export default function A_Companies() {
     if (!(await askConfirm("ลบบริษัทนี้พร้อมพี่เลี้ยงทั้งหมดหรือไม่?", { confirmLabel: "ลบบริษัท", danger: true }))) return;
 
     try {
-      const res = await apiFetch(`/api/companies/${id}`, { method: "DELETE" });
-      const data = await res.json();
+      let data = await deleteCompanyRequest(id);
+      if (data.code === "COMPANY_IN_USE") {
+        const ok = await askConfirm(`${data.message}\n\n${studentLines(data.students || [])}\n\nยืนยันลบบริษัทนี้?`,
+          { title: "บริษัทนี้มีนักศึกษาเลือกอยู่", confirmLabel: "ยืนยันลบ", danger: true, icon: "⚠️" });
+        if (!ok) return;
+        data = await deleteCompanyRequest(id, true);
+      }
       if (!data.ok) return notify.error(data.message);
 
       setItems(prev => prev.filter(c => c.id !== id));
@@ -232,24 +251,30 @@ export default function A_Companies() {
     if (!(await askConfirm(`ลบบริษัทที่เลือก ${ids.length} แห่ง พร้อมพี่เลี้ยงทั้งหมดหรือไม่?`, { confirmLabel: "ลบบริษัท", danger: true }))) return;
     setBulkDeleting(true);
     try {
-      const results = await Promise.allSettled(
-        ids.map(id => apiFetch(`/api/companies/${id}`, { method: "DELETE" }).then(async r => {
-          const data = await r.json().catch(() => ({}));
-          if (!data.ok) throw new Error(data.message || "ลบไม่สำเร็จ");
-          return id;
-        }))
-      );
-      const succeededIds = new Set(
-        results.filter((r): r is PromiseFulfilledResult<string> => r.status === "fulfilled").map(r => r.value)
-      );
-      const failed = results.length - succeededIds.size;
+      const first = await Promise.all(ids.map(async id => ({ id, data: await deleteCompanyRequest(id).catch(() => ({ ok: false })) })));
+      const succeededIds = new Set(first.filter(r => r.data.ok).map(r => r.id));
+      // บริษัทที่มีนักศึกษาเลือกอยู่ — ถามครั้งเดียวรวมทุกแห่ง แล้วลบด้วย ?confirm=1
+      const inUse = first.filter(r => r.data.code === "COMPANY_IN_USE");
+      if (inUse.length) {
+        const nameOf = (id: string) => items.find(c => c.id === id)?.name || id;
+        const lines = inUse.map(r => `• ${nameOf(r.id)} — นักศึกษา ${(r.data.students || []).length} คน`).join("\n");
+        const ok = await askConfirm(`บริษัทที่เลือก ${inUse.length} แห่งมีนักศึกษาเลือกอยู่ — ถ้าลบ บริษัทของนักศึกษาเหล่านี้จะว่าง และพี่เลี้ยง/ผู้ติดต่อจะถูกลบด้วย\n\n${lines}\n\nลบบริษัทเหล่านี้ด้วยหรือไม่?`,
+          { title: "มีนักศึกษาเลือกบริษัทอยู่", confirmLabel: "ลบด้วย", cancelLabel: "ไม่ลบแห่งเหล่านี้", danger: true, icon: "⚠️" });
+        if (ok) {
+          for (const r of inUse) {
+            const again = await deleteCompanyRequest(r.id, true).catch(() => ({ ok: false }));
+            if (again.ok) succeededIds.add(r.id);
+          }
+        }
+      }
+      const failed = ids.length - succeededIds.size;
 
       setItems(prev => prev.filter(c => !succeededIds.has(c.id)));
       if (viewCompany && succeededIds.has(viewCompany.id)) setViewCompany(null);
       exitSelectMode();
 
       if (failed > 0) {
-        notify.warning(`ลบสำเร็จ ${succeededIds.size} แห่ง, ไม่สำเร็จ ${failed} แห่ง (อาจมีนักศึกษาอ้างอิงอยู่)`);
+        notify.warning(`ลบสำเร็จ ${succeededIds.size} แห่ง · ไม่ได้ลบ ${failed} แห่ง`);
       }
     } finally {
       setBulkDeleting(false);
