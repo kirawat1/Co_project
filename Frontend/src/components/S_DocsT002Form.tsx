@@ -558,8 +558,8 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
                             {/* ส่งใหม่ได้เฉพาะตอนถูกขอให้แก้ (ระหว่างรอตรวจ backend ไม่รับไฟล์ใหม่) */}
                             {canSubmit && (
                                 <>
-                                    <label htmlFor="upload-t002-change" className={t002State === 'REJECTED' ? "btn" : "btn-secondary"}>
-                                        {t002State === 'REJECTED' ? '🔄 ส่งไฟล์ใหม่' : '🔄 เปลี่ยนไฟล์'}
+                                    <label htmlFor="upload-t002-change" className="btn">
+                                        🔄 ส่งไฟล์ใหม่
                                     </label>
                                     <input type="file" id="upload-t002-change" style={{ display: 'none' }} accept=".pdf,.jpg,.png" onChange={(e) => e.target.files?.[0] && setSelectedUploadFile(e.target.files[0])} />
                                 </>

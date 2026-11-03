@@ -101,12 +101,11 @@ type SortKey = 'studentId' | 'name' | 'filesCount' | 'submittedAt' | 'docStatus'
 type SortDirection = 'asc' | 'desc';
 
 
-// สถานะตั้งแต่เริ่มฝึกงานเป็นต้นไป (ออกหนังสือส่งตัวแล้ว) — นักศึกษาผ่านทุกขั้นตอนเอกสาร T000 มาแล้ว
-// เดิมปุ่มพิมพ์ซ้ำ/ตรวจสอบย้อนหลังไม่ครอบคลุมสถานะกลุ่มนี้ ทำให้เจ้าหน้าที่กลับมาดู/พิมพ์เอกสารเก่าไม่ได้เลย
-// หลังนักศึกษาเข้าสู่ช่วงฝึกงาน (ส่ง T002/T003 เป็นต้นไป)
 // ยังอยู่ในขั้นส่งเอกสาร T000 (ส่งครั้งแรก/ส่งแก้) — ปุ่มขยายเวลา T000 มีความหมายเฉพาะช่วงนี้
 const T000_STAGE_STATUSES = ['QUALIFIED', 'WAITING_FOR_STAFF_CHECK', 'EDITS_REQUIRED', 'APPLICATION_EDITS_REQUIRED'];
 
+// สถานะช่วงฝึกงาน (ออกหนังสือส่งตัวแล้ว — INTERNSHIP_STARTED + ค่าเก่า) นักศึกษาผ่านเอกสาร T000 ครบแล้ว
+// ใช้ให้เจ้าหน้าที่กลับมาดู/พิมพ์เอกสารเก่าและตรวจย้อนหลังได้ แม้เข้าสู่ช่วงฝึกงานแล้ว
 const AFTER_PLACEMENT_STATUSES = INTERNSHIP_STATUSES;
 
 const CAN_ISSUE_REQUEST_LETTER_STATUSES = [
