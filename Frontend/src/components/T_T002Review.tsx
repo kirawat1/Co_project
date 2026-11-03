@@ -148,7 +148,7 @@ export default function T_T002Review() {
         student ? reviewActions(student.coop?.status || student.docStatus, getT002Status(student).state) : { approve: false, reject: false };
 
     const getT002FileUrl = (docs: Document[]) => {
-        const file = docs?.find(d => d.type === "T002_FORM");
+        const file = latestForm(docs, "T002"); // ไฟล์ล่าสุด ตรงกับป้ายสถานะและปุ่มตรวจ
         return file ? `/uploads/${file.path}` : null;
     };
 

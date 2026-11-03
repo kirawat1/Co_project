@@ -170,7 +170,7 @@ export default function A_T002Review() {
 
     // 3. ฟังก์ชันดึง URL ของไฟล์ T002
     const getT002FileUrl = (docs: Document[]) => {
-        const file = docs?.find(d => d.type === "T002_FORM");
+        const file = latestForm(docs, "T002"); // ไฟล์ล่าสุด ตรงกับป้ายสถานะและปุ่มตรวจ
         return file ? `/uploads/${file.path}` : null;
     };
 
