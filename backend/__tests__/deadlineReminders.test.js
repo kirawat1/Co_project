@@ -3,6 +3,7 @@ jest.mock('../config/prismaClient', () => require('./__mocks__/prismaClient'));
 jest.mock('../utils/notificationHelper', () => ({ createNotifications: jest.fn().mockResolvedValue() }));
 const prisma = require('./__mocks__/prismaClient');
 const { createNotifications } = require('../utils/notificationHelper');
+const { INTERNSHIP_STATUSES } = require('../utils/internshipForms');
 const { findStudentsToRemind, runDeadlineReminders } = require('../utils/deadlineReminders');
 
 const NOW = new Date('2026-07-01T02:00:00Z'); // 09:00 เวลาไทย 1 ก.ค.
@@ -19,7 +20,7 @@ describe('findStudentsToRemind', () => {
     rows({ T002: { due: '2026-07-04', mode: 'HARD' } });
     prisma.studentCoop.findMany.mockResolvedValue([coop(1)]);
     expect(await findStudentsToRemind('T002', NOW, prisma)).toEqual([{ userId: 101, due: '2026-07-04' }]);
-    expect(prisma.studentCoop.findMany.mock.calls[0][0].where).toMatchObject({ status: { in: ['INTERNSHIP_STARTED'] }, coopPeriodId: { not: null } });
+    expect(prisma.studentCoop.findMany.mock.calls[0][0].where).toMatchObject({ status: { in: INTERNSHIP_STATUSES }, coopPeriodId: { not: null } });
   });
 
   test.each([

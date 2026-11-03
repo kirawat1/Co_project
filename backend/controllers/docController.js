@@ -2,7 +2,7 @@
 const { RULES_INCLUDE, withRules, appliesTo } = require('../utils/docRequirementScope');
 const { resolveDeadline } = require('../utils/resolveDeadline');
 const { markSubmitted, syncT000Submission, NON_T000_TYPES } = require('../utils/submittedSteps');
-const { isLateT002 } = require('../utils/t002Review');
+const { isInternshipStatus, canSubmitForm, formState } = require('../utils/internshipForms');
 const { thaiDate } = require('../utils/applyWindow');
 const prisma = require('../config/prismaClient');
 const { buildAddressData } = require('../utils/addressFormat');
@@ -210,32 +210,19 @@ exports.uploadDocument = async (req, res) => {
                     where: { studentId: student.id },
                     data: { acceptanceFileUrl: req.file.filename, status: 'WAITING_FOR_STAFF_CHECK_LETTER' }
                 });
-            } else if (dbType === 'T002_FORM') {
+            } else if (dbType === 'T002_FORM' || dbType === 'T003_FORM') {
+                // T002/T003 เท่ากัน ไม่ต่อกัน — ส่งได้เมื่ออยู่ช่วงฝึกงานและไฟล์ล่าสุดของฟอร์มนั้นยังไม่ส่ง/ถูกตีกลับ
+                // ไม่เขียน StudentCoop.status (สถานะย่อยอ่านจากไฟล์) · oldDoc คือไฟล์ชนิดเดียวกันที่อ่านไว้ก่อนลบแล้ว
                 const coop = await tx.studentCoop.findUnique({ where: { studentId: student.id } });
-                const T002_VALID = ['INTERNSHIP_STARTED', 'T002_EDITS_REQUIRED'];
-                // ตีกลับ T002 ย้อนหลังตอนอยู่ขั้น T003 แล้ว (utils/t002Review.js) → ส่งใหม่ได้ ขั้น T003 ไม่ถอย
-                const lateResubmit = !!coop && isLateT002(coop.status) && oldDoc?.status === 'REJECTED';
-                if (!coop || (!T002_VALID.includes(coop.status) && !lateResubmit)) {
-                    throw Object.assign(new Error('สามารถส่ง T002 ได้เมื่อเริ่มฝึกงานแล้ว หรือหลังได้รับคำขอแก้ไข'), { is400: true });
+                const formName = dbType === 'T002_FORM' ? 'T002' : 'T003';
+                if (!coop || !isInternshipStatus(coop.status)) {
+                    throw Object.assign(new Error(`ส่ง ${formName} ได้เมื่อเริ่มฝึกงานแล้วเท่านั้น`), { is400: true });
                 }
-                if (!lateResubmit) {
-                    await tx.studentCoop.update({
-                        where: { studentId: student.id },
-                        data: { status: 'T002_SUBMITTED' }
-                    });
+                if (!canSubmitForm(coop.status, formState(oldDoc))) {
+                    throw Object.assign(new Error('ส่งได้เมื่อยังไม่ส่ง หรือถูกตีกลับให้แก้ (ตอนนี้รอตรวจ หรือผ่านแล้ว)'), { is400: true });
                 }
                 // ส่ง T002 จริง → พี่เลี้ยงที่กรอกในข้อ 3 กลายเป็นพี่เลี้ยงของบริษัท/นักศึกษา (ขึ้นทุกหน้าเหมือนเลือกจากหน้าข้อมูลนักศึกษา)
-                mentorSync = await syncT002SupervisorsToMentors(tx, { studentId: student.id, userId: student.userId });
-            } else if (dbType === 'T003_FORM') {
-                const coop = await tx.studentCoop.findUnique({ where: { studentId: student.id } });
-                const T003_VALID = ['T002_SUBMITTED', 'T003_EDITS_REQUIRED'];
-                if (!coop || !T003_VALID.includes(coop.status)) {
-                    throw Object.assign(new Error('สามารถส่ง T003 ได้หลังส่ง T002 แล้ว หรือหลังได้รับคำขอแก้ไข'), { is400: true });
-                }
-                await tx.studentCoop.update({
-                    where: { studentId: student.id },
-                    data: { status: 'T003_SUBMITTED' }
-                });
+                if (dbType === 'T002_FORM') mentorSync = await syncT002SupervisorsToMentors(tx, { studentId: student.id, userId: student.userId });
             } else {
                 const coop = await tx.studentCoop.findUnique({ where: { studentId: student.id } });
                 if (coop && (coop.status === "EDITS_REQUIRED" || coop.status === "APPLICATION_EDITS_REQUIRED")) {
@@ -339,12 +326,11 @@ exports.deleteDocument = async (req, res) => {
         const coop = await tx.studentCoop.findUnique({
           where: { studentId: doc.studentId }, select: { status: true }
         });
-        const LOCKED_BY_T002 = new Set(['T002_SUBMITTED', 'T003_SUBMITTED', 'T003_EDITS_REQUIRED', 'T003_APPROVED', 'INTERNSHIP_STARTED', 'COMPLETED']);
-        const LOCKED_BY_T003 = new Set(['T003_SUBMITTED', 'T003_APPROVED', 'INTERNSHIP_STARTED', 'COMPLETED']);
-        if (doc.type === 'T002_FORM' && coop && LOCKED_BY_T002.has(coop.status))
-          throw Object.assign(new Error('ไม่สามารถลบ T002 ที่อยู่ระหว่างการตรวจสอบ'), { is409: true });
-        if (doc.type === 'T003_FORM' && coop && LOCKED_BY_T003.has(coop.status))
-          throw Object.assign(new Error('ไม่สามารถลบ T003 ที่อยู่ระหว่างการตรวจสอบ'), { is409: true });
+        // ล็อกตามสถานะย่อยของไฟล์: รอตรวจ/ผ่านแล้วลบไม่ได้ · ถูกตีกลับลบได้ · เรียนจบแล้วล็อกเหมือนเดิม
+        const state = formState(freshDoc);
+        const formName = doc.type === 'T002_FORM' ? 'T002' : 'T003';
+        if ((coop && coop.status === 'COMPLETED') || state === 'WAITING' || state === 'APPROVED')
+          throw Object.assign(new Error(`ไม่สามารถลบ ${formName} ที่อยู่ระหว่างการตรวจสอบหรือผ่านแล้ว`), { is409: true });
       }
       await tx.document.delete({ where: { id: numId } });
       // เอกสาร T000: ลบจนไม่ครบหลังส่งครั้งแรก → กลับไปรอนักศึกษาส่ง
@@ -497,11 +483,10 @@ exports.saveT002Form = async (req, res) => {
             data.extraSupervisors = JSON.stringify(normalizeExtraSupervisors(req.body.extraSupervisors));
         }
 
-        const T002_DRAFT_ALLOWED = ['INTERNSHIP_STARTED', 'T002_SUBMITTED', 'T002_EDITS_REQUIRED'];
         let t002;
         await prisma.$transaction(async (tx) => {
             const freshCoop = await tx.studentCoop.findUnique({ where: { studentId: student.id }, select: { status: true } });
-            if (!freshCoop || !T002_DRAFT_ALLOWED.includes(freshCoop.status)) {
+            if (!freshCoop || !isInternshipStatus(freshCoop.status)) {
                 throw Object.assign(new Error('ยังไม่ถึงขั้นตอนกรอก T002'), { is400: true });
             }
             t002 = await tx.coopT002Form.upsert({
@@ -531,11 +516,10 @@ exports.saveT003Form = async (req, res) => {
             significance, references, methodology, scope, otherSuggestions, workPlan
         } = req.body;
 
-        const T003_DRAFT_ALLOWED = ['T002_SUBMITTED', 'T003_SUBMITTED', 'T003_EDITS_REQUIRED'];
         let t003;
         await prisma.$transaction(async (tx) => {
             const freshCoop = await tx.studentCoop.findUnique({ where: { studentId: student.id }, select: { status: true } });
-            if (!freshCoop || !T003_DRAFT_ALLOWED.includes(freshCoop.status)) {
+            if (!freshCoop || !isInternshipStatus(freshCoop.status)) {
                 throw Object.assign(new Error('ยังไม่ถึงขั้นตอนกรอก T003'), { is400: true });
             }
             t003 = await tx.coopT003Form.upsert({
