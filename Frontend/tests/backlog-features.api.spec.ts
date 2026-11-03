@@ -171,7 +171,8 @@ test.describe("ย้ายรอบ", () => {
     expect(coop).toMatchObject({ status: "QUALIFIED", coopPeriodId: W.otherPeriodId, reqLetterUrl: null, reqLetterBatch: null, reqDocNumber: null });
     expect(await prisma.document.count({ where: { studentId: mv.id, type: { in: ["DISPATCH_LETTER", "PLACEMENT_LETTER", "CP-ACCEPTANCE", "ACCEPTANCE_FORM"] } } })).toBe(0);
     const mateCoop = await prisma.studentCoop.findUnique({ where: { studentId: mate.id } });
-    const file = await fetch(`http://localhost:5000/uploads/${mateCoop.reqLetterUrl}`, { method: "HEAD" });
+    // /uploads ต้อง login ตั้งแต่ 43f02a8 — เดิมเรียกเปล่าๆ เลยได้ 401 ทั้งที่ไฟล์ยังอยู่
+    const file = await fetch(`http://localhost:5000/uploads/${mateCoop.reqLetterUrl}`, { method: "HEAD", headers: { Authorization: `Bearer ${W.staff.token}` } });
     expect(file.status).toBe(200);
   });
 
