@@ -52,8 +52,9 @@ export default function A_DocT007() {
                 headers: { Authorization: `Bearer ${token}` }
             });
             notify.success("✅ บันทึกข้อมูลสำเร็จ");
-        } catch (err) {
-            notify.error("❌ เกิดข้อผิดพลาดในการบันทึก");
+        } catch (err: unknown) {
+            // บอกเหตุผลจาก server (เช่น ลิงก์ไม่ใช่ http/https) — เดิมขึ้นแค่ "เกิดข้อผิดพลาด" ไม่รู้ว่าต้องแก้ช่องไหน
+            notify.error((err as { response?: { data?: { message?: string } } })?.response?.data?.message || "❌ เกิดข้อผิดพลาดในการบันทึก");
         } finally {
             setIsSaving(false);
         }

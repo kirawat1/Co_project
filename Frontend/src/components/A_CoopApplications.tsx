@@ -177,8 +177,9 @@ export default function A_CoopApplications() {
 
     const updateStatus = (status: string) => {
         if (!selectedApp) return;
-        if (status === "APPLICATION_EDITS_REQUIRED" && !comment.trim()) {
-            toast.warning("กรุณาระบุสิ่งที่ต้องแก้ไข เพื่อให้นักศึกษาทราบ");
+        // ส่งกลับแก้ไข / ไม่ผ่าน ต้องมีเหตุผล (ผู้ใช้ตัดสิน 2026-11-04 — server ก็ปฏิเสธค่าว่าง)
+        if ((status === "APPLICATION_EDITS_REQUIRED" || status === "QUALIFICATION_FAILED") && !comment.trim()) {
+            toast.warning(status === "QUALIFICATION_FAILED" ? "กรุณาระบุเหตุผลที่ไม่ผ่าน เพื่อให้นักศึกษาทราบ" : "กรุณาระบุสิ่งที่ต้องแก้ไข เพื่อให้นักศึกษาทราบ");
             return;
         }
         const statusLabel: Record<string, string> = {
@@ -447,10 +448,15 @@ export default function A_CoopApplications() {
                                     </div>
                                 </div>
 
-                                {/* Controls */}
+                                {/* Controls — ส่ง T000 แล้วเปลี่ยนผลคำร้องไม่ได้ (server ก็ปฏิเสธ) */}
+                                {!RESULT_CHANGEABLE.includes(selectedApp.status) ? (
+                                    <div role="note" style={{ marginTop: 30, padding: 14, borderRadius: 10, background: '#f1f5f9', border: '1px solid #e2e8f0', color: '#475569', fontSize: 14 }}>
+                                        🔒 นักศึกษาส่งเอกสาร T000 แล้ว — เปลี่ยนผลคำร้องไม่ได้ จัดการต่อที่หน้าเอกสาร T000
+                                    </div>
+                                ) : (
                                 <div style={{ marginTop: 30 }}>
                                     <AutoTextarea className="input" rows={4} style={{ width: '100%', marginBottom: 12 }}
-                                        placeholder="ความเห็น/เหตุผลที่ตีกลับ (จำเป็นต้องกรอกเมื่อตีกลับ)..." value={comment} onChange={e => setComment(e.target.value)} />
+                                        placeholder="ความเห็น/เหตุผล (จำเป็นต้องกรอกเมื่อส่งกลับแก้ไขหรือไม่ผ่าน)..." value={comment} onChange={e => setComment(e.target.value)} />
 
                                     <button className="btn-success" style={{ width: '100%', padding: 14, marginBottom: 10, fontSize: 15 }} onClick={() => updateStatus("QUALIFIED")}>✅ คำร้องผ่านเกณฑ์</button>
                                     <div style={{ display: 'flex', gap: 10 }}>
@@ -462,6 +468,7 @@ export default function A_CoopApplications() {
                                         <button className="btn-secondary" style={{ width: '100%', marginTop: 10 }} onClick={() => updateStatus("PENDING_GRADE")}>📊 รอพิจารณาเกรด</button>
                                     )}
                                 </div>
+                                )}
                             </div>
                         </div>
                 </Modal>
@@ -487,6 +494,8 @@ const tr: CSSProperties = { borderBottom: "1px solid #f1f5f9" };
 const td: CSSProperties = TABLE_TD;
 // คำร้องที่ตรวจผ่านเกณฑ์แล้ว — ผ่านแล้วนักศึกษาเดินต่อไปขั้น T000/หนังสือ/ฝึกงาน สถานะจริงจึงเปลี่ยนไปเรื่อยๆ
 const APPLICATION_OPEN_STATUSES = ["NOT_SUBMITTED", "APPLYING", "PENDING_GRADE", "APPLICATION_EDITS_REQUIRED", "QUALIFICATION_FAILED"];
+// เปลี่ยนผลคำร้องได้จนกว่านักศึกษาส่ง T000 (ผ่านแล้วแต่ยังไม่ส่ง = QUALIFIED) — ตรงกับ REVIEWABLE ของ updateCoopApplicationStatus
+const RESULT_CHANGEABLE = ["APPLYING", "PENDING_GRADE", "APPLICATION_EDITS_REQUIRED", "QUALIFIED", "QUALIFICATION_FAILED"];
 function isReviewedPass(status?: string | null) {
     return !!status && !APPLICATION_OPEN_STATUSES.includes(status);
 }

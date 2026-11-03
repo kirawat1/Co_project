@@ -387,7 +387,12 @@ export default function T_Requests() {
                   </div>
                 </div>
 
-                {/* 3. Actions */}
+                {/* 3. Actions — พิจารณาได้เฉพาะคำร้องที่รอพิจารณา (server ก็ปฏิเสธสถานะอื่น · เดิมปุ่มขึ้นทุกสถานะ กดแล้วเจอข้อผิดพลาด) */}
+                {!["APPLYING", "PENDING_GRADE"].includes(selectedStudent.coop?.status || "") ? (
+                  <div role="note" style={{ marginTop: 'auto', padding: 12, borderRadius: 10, background: '#f1f5f9', border: '1px solid #e2e8f0', color: '#475569', fontSize: 13 }}>
+                    🔒 คำร้องนี้พิจารณาแล้ว — ไม่มีอะไรต้องทำ
+                  </div>
+                ) : (
                 <div style={{ marginTop: 'auto' }}>
                   <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6, display: 'block' }}>ข้อความแจ้งนักศึกษา:</label>
                   <AutoTextarea className="input" rows={2} style={{ width: '100%', marginBottom: 12, fontSize: 13 }}
@@ -399,6 +404,7 @@ export default function T_Requests() {
                     <button className="btn-danger" style={{ flex: 1 }} onClick={() => updateStatus("REJECTED")}>❌ ไม่ผ่าน</button>
                   </div>
                 </div>
+                )}
 
               </div>
             </div>

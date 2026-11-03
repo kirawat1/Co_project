@@ -58,6 +58,13 @@ exports.saveApplicationForm = async (req, res) => {
 
     const start = startDate ? new Date(startDate) : null;
     const end = endDate ? new Date(endDate) : null;
+    // วันที่ผิดรูปแบบเดิมพังเป็น 500 (ฐานข้อมูลไม่รับ Invalid Date) · เริ่มหลังสิ้นสุดเดิมบันทึกได้ (ไปขึ้นในใบสมัคร/หนังสือ)
+    if ((start && isNaN(start.getTime())) || (end && isNaN(end.getTime()))) {
+      return res.status(400).json({ ok: false, message: 'วันที่เริ่ม/สิ้นสุดการฝึกไม่ถูกต้อง' });
+    }
+    if (start && end && start > end) {
+      return res.status(400).json({ ok: false, message: 'วันที่เริ่มฝึกต้องไม่หลังวันสิ้นสุด' });
+    }
 
     // ที่อยู่กรอกแยกช่อง — ประกอบข้อความรวมที่ฝั่ง server เสมอ (เอกสาร PDF อ่านจากช่องรวม)
     const formData = {

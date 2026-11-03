@@ -301,7 +301,8 @@ export default function CoopRequestPage() {
   if (!profile) return <LoadingBlock text="กำลังโหลดข้อมูล…" style={{ padding: 40, textAlign: 'center' }} />;
 
   const currentStatus = profile.coop?.status || "NOT_SUBMITTED";
-  const canEdit = currentStatus === "NOT_SUBMITTED" || currentStatus === "APPLICATION_EDITS_REQUIRED" || currentStatus === "EDITS_REQUIRED";
+  // EDITS_REQUIRED = เจ้าหน้าที่ให้แก้เอกสาร T000 (แก้ที่หน้าเอกสาร) ไม่ใช่คำร้อง — เดิมปุ่ม "ส่งแก้ไขคำร้อง" ขึ้นแต่ server ปฏิเสธทุกครั้ง (409)
+  const canEdit = currentStatus === "NOT_SUBMITTED" || currentStatus === "APPLICATION_EDITS_REQUIRED";
   const canSubmit = canEdit && isTimeValid();
 
   const displayCompany = profile.coop?.company || profile.company;
@@ -582,7 +583,7 @@ export default function CoopRequestPage() {
             {submitting
               ? <BusyLabel text="กำลังส่ง…" />
               : !isTimeValid() ? '🚫 นอกช่วงเวลาการยื่นคำร้อง'
-              : currentStatus === 'EDITS_REQUIRED' ? '📤 ส่งแก้ไขคำร้อง'
+              : currentStatus === 'APPLICATION_EDITS_REQUIRED' ? '📤 ส่งแก้ไขคำร้อง'
               : '🚀 ส่งคำร้องขอสหกิจศึกษา'}
           </button>
         </div>

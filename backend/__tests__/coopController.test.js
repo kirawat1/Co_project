@@ -212,10 +212,10 @@ describe('updateCoopStatus', () => {
   test('200 — อัปเดตสถานะ REJECTED → QUALIFICATION_FAILED', async () => {
     // Controller re-fetches inside $transaction: TOCTOU check needs student + coop status
     prisma.student.findUnique.mockResolvedValue({ deletedAt: null, generalAdvisorId: null, coopAdvisorId: null });
-    prisma.studentCoop.findUnique.mockResolvedValue({ status: 'WAITING_FOR_STAFF_CHECK' });
+    prisma.studentCoop.findUnique.mockResolvedValue({ status: 'APPLYING' });
     prisma.studentCoop.update.mockResolvedValue({ studentId: 5, status: 'QUALIFICATION_FAILED' });
 
-    const req = { body: { studentId: '5', status: 'REJECTED' }, user: { id: 99, role: 'staff' } };
+    const req = { body: { studentId: '5', status: 'REJECTED', comment: 'เกรดไม่ถึงเกณฑ์' }, user: { id: 99, role: 'staff' } };
     const res = makeRes();
 
     await updateCoopStatus(req, res);

@@ -26,7 +26,11 @@ exports.getEvaluationConfig = async (req, res) => {
 // กำหนดส่ง (YYYY-MM-DD) — ว่าง = ไม่มีกำหนดส่ง · undefined = รูปแบบผิด
 function parseDeadline(v) {
     if (v === undefined || v === null || v === '') return null;
-    return /^\d{4}-\d{2}-\d{2}$/.test(String(v)) ? String(v) : undefined;
+    const s = String(v);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return undefined;
+    // วันที่มีจริง — เดิม 2026-02-31 / 2026-13-01 ผ่านรูปแบบแล้วไปแสดงเป็นวันแปลก ๆ ให้นักศึกษา
+    const d = new Date(`${s}T00:00:00Z`);
+    return !isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s ? s : undefined;
 }
 
 exports.updateEvaluationConfig = async (req, res) => {

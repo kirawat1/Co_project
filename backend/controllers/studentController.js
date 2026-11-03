@@ -83,6 +83,13 @@ exports.getMyProfile = async (req, res) => {
   }
 };
 
+// สถานะก่อนออกหนังสือขอความอนุเคราะห์ — เปลี่ยนบริษัท/ผู้ติดต่อเองได้ (สถานะอื่น/ร่างรอลงนาม = ล็อก)
+const COMPANY_EDITABLE_STATUSES = new Set([
+  'NOT_SUBMITTED', 'APPLYING', 'PENDING_GRADE', 'QUALIFICATION_FAILED', 'APPLICATION_EDITS_REQUIRED',
+  'QUALIFIED', 'WAITING_FOR_STAFF_CHECK', 'EDITS_REQUIRED', 'DOCS_APPROVED',
+]);
+const companyLocked = (coop) => !!coop.reqLetterPendingAt || !COMPANY_EDITABLE_STATUSES.has(coop.status);
+
 // PUT /api/students/me
 exports.updateMyProfile = async (req, res) => {
   try {
@@ -211,6 +218,17 @@ exports.updateMyProfile = async (req, res) => {
         // ผู้ติดต่อ (HR) ต้องเป็นของบริษัทที่เลือกเท่านั้น — เปลี่ยนบริษัทแล้วผู้ติดต่อเก่าต้องหลุด
         // พี่เลี้ยงไม่รับจากหน้านี้แล้ว (กรอกใน T002 ข้อ 3) — ไม่แตะรายการพี่เลี้ยงเดิม
         const contactIds = Array.isArray(data.contactIds) ? [...new Set(data.contactIds.map(String))] : [];
+        // ผู้ใช้ตัดสิน 2026-11-04: เริ่มออกหนังสือขอความอนุเคราะห์แล้ว (รวมร่างรอลงนาม) เปลี่ยนบริษัท/ผู้ติดต่อไม่ได้
+        // — หนังสือที่ออกไปจ่าหน้าถึงบริษัท/ผู้ติดต่อเดิม (เดิมเปลี่ยนได้ทุกสถานะ) · ส่งค่าเดิมซ้ำ (บันทึกช่องอื่น) ผ่านได้
+        const cur = await tx.studentCoop.findUnique({ where: { studentId: currentStudent?.id ?? -1 }, select: { status: true, companyId: true, reqLetterPendingAt: true, contacts: { select: { id: true } } } });
+        if (cur && companyLocked(cur)) {
+          const sameCompany = (cur.companyId ?? null) === (data.companyId ?? null);
+          const curIds = cur.contacts.map((c) => c.id).sort();
+          const sameContacts = curIds.length === contactIds.length && [...contactIds].sort().every((id, i) => id === curIds[i]);
+          if (!sameCompany || !sameContacts) {
+            throw Object.assign(new Error('ออกหนังสือขอความอนุเคราะห์ถึงบริษัทนี้แล้ว — เปลี่ยนบริษัท/ผู้ติดต่อเองไม่ได้ กรุณาติดต่อเจ้าหน้าที่'), { is409: true });
+          }
+        }
         if (contactIds.length > 0) {
           const found = await tx.companyContact.findMany({ where: { id: { in: contactIds } }, select: { id: true, companyId: true } });
           if (found.length !== contactIds.length || found.some((c) => c.companyId !== data.companyId)) {

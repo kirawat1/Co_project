@@ -59,8 +59,11 @@ interface StudentProfile {
     mentors?: Mentor[]; // พี่เลี้ยง — มาจากแบบฟอร์ม T002 ข้อ 3
     contacts?: CompanyContact[];
     status?: string;
+    reqLetterPendingAt?: string | null;
   };
 }
+// สถานะก่อนออกหนังสือขอความอนุเคราะห์ — เปลี่ยนบริษัท/ผู้ติดต่อเองได้ (ตรงกับ COMPANY_EDITABLE_STATUSES ฝั่ง server)
+const COMPANY_EDITABLE = ["NOT_SUBMITTED", "APPLYING", "PENDING_GRADE", "QUALIFICATION_FAILED", "APPLICATION_EDITS_REQUIRED", "QUALIFIED", "WAITING_FOR_STAFF_CHECK", "EDITS_REQUIRED", "DOCS_APPROVED"];
 interface StudentCompany {
   id: string;
   name: string;
@@ -322,6 +325,9 @@ export default function S_ProfilePage() {
     setAddingContact(false);
   };
 
+  // ออกหนังสือขอความอนุเคราะห์แล้ว (รวมร่างรอลงนาม) — server ไม่รับการเปลี่ยนบริษัท/ผู้ติดต่อ (ผู้ใช้ตัดสิน 2026-11-04)
+  const companyLocked = !!profile.coop && (!!profile.coop.reqLetterPendingAt || !COMPANY_EDITABLE.includes(profile.coop.status || "NOT_SUBMITTED"));
+
   return (
     <div style={{ padding: 24, marginLeft: 35 }}>
       <style>{PROFILE_CSS}</style>
@@ -375,11 +381,16 @@ export default function S_ProfilePage() {
             </div>
           </div>
           <div className="divider" style={{ marginTop: 0 }} />
+          {companyLocked && (
+            <div role="note" className="company-locked" style={{ marginBottom: 12, padding: '10px 12px', borderRadius: 10, background: '#f1f5f9', border: '1px solid #e2e8f0', color: '#475569', fontSize: 13 }}>
+              🔒 ออกหนังสือขอความอนุเคราะห์ถึงบริษัทนี้แล้ว — เปลี่ยนบริษัท/ผู้ติดต่อเองไม่ได้ ถ้าต้องเปลี่ยน กรุณาติดต่อเจ้าหน้าที่
+            </div>
+          )}
 
           <div style={{ marginBottom: 15 }}>
             <label className="label">บริษัท</label>
             <div style={{ marginTop: 5 }}>
-              <SearchableDropdown
+              {companyLocked ? <input className="input" value={profile.company?.name || "-"} disabled aria-label="บริษัท" /> : <SearchableDropdown
                 options={companyOptions}
                 value={profile.company?.id || ""}
                 placeholder="พิมพ์ค้นหาชื่อบริษัท..."
@@ -399,7 +410,7 @@ export default function S_ProfilePage() {
                   // เปลี่ยนบริษัท = ผู้ติดต่อที่เลือกไว้เป็นของบริษัทเก่า ต้องล้าง
                   applyCompany(id === "clear" ? undefined : { ...rawData, contacts: rawData.contacts || [], selectedContacts: [] });
                 }}
-              />
+              />}
             </div>
           </div>
 
@@ -410,12 +421,12 @@ export default function S_ProfilePage() {
                 {selectedContacts.map(c => (
                   <span key={c.id} className="contact-chip" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#dbeafe', color: '#1e40af', borderRadius: 16, padding: '3px 10px', fontSize: 13 }}>
                     {contactName(c)}{c.position ? ` (${c.position})` : ''}
-                    <button type="button" aria-label={`เอา ${contactName(c)} ออก`} onClick={() => updateSelectedContacts(list => list.filter(x => x.id !== c.id))} style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#1e40af', fontWeight: 700, fontSize: 14, padding: 0, lineHeight: 1 }}>×</button>
+                    {!companyLocked && <button type="button" aria-label={`เอา ${contactName(c)} ออก`} onClick={() => updateSelectedContacts(list => list.filter(x => x.id !== c.id))} style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#1e40af', fontWeight: 700, fontSize: 14, padding: 0, lineHeight: 1 }}>×</button>}
                   </span>
                 ))}
               </div>
             )}
-            <div style={{ marginTop: 4 }}>
+            {!companyLocked && <div style={{ marginTop: 4 }}>
               <SearchableDropdown
                 options={contactOptions}
                 value=""
@@ -431,13 +442,13 @@ export default function S_ProfilePage() {
                   updateSelectedContacts(list => [...list, rawData]);
                 }}
               />
-            </div>
+            </div>}
             {profile.company && selectedContacts.length === 0 && (
               <div className="contact-required" style={{ fontSize: 12, color: '#b45309', marginTop: 6 }}>
                 ต้องเลือกผู้ติดต่ออย่างน้อย 1 คนก่อนยื่นคำร้อง — ใช้เป็นผู้รับหนังสือจากวิทยาลัย
               </div>
             )}
-            {profile.company?.id && !addingContact && (
+            {profile.company?.id && !addingContact && !companyLocked && (
               <button type="button" className="btn" style={{ marginTop: 8 }} onClick={() => setAddingContact(true)}>+ เพิ่มผู้ติดต่อ</button>
             )}
             {profile.company?.id && addingContact && (
@@ -452,7 +463,7 @@ export default function S_ProfilePage() {
           </div>
 
           {/* บันทึกอัตโนมัติ — แสดงสถานะแทนปุ่มบันทึก */}
-          <div className="company-save-status" aria-live="polite" style={{ fontSize: 13, minHeight: 20 }}>
+          {!companyLocked && <div className="company-save-status" aria-live="polite" style={{ fontSize: 13, minHeight: 20 }}>
             {companySave === "saving" && <span style={{ color: '#64748b' }}><BusyLabel size={13} text="กำลังบันทึก…" /></span>}
             {companySave === "saved" && <span style={{ color: '#15803d' }}>✓ บันทึกแล้ว</span>}
             {companySave === "error" && (
@@ -462,7 +473,7 @@ export default function S_ProfilePage() {
               </span>
             )}
             {companySave === "idle" && <span style={{ color: '#64748b' }}>เลือกแล้วระบบบันทึกให้ทันที</span>}
-          </div>
+          </div>}
 
           {/* รายละเอียดบริษัท / พี่เลี้ยงที่ถูกเลือก */}
           {profile.company && profile.company.id && (
