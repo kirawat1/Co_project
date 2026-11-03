@@ -10,9 +10,11 @@ process.chdir(path.join(__dirname, '..'));
 require('dotenv').config();
 const fs = require('fs');
 const { PrismaClient } = require('@prisma/client');
+const { LEGACY_INTERNSHIP_STATUSES } = require('./../utils/internshipForms');
 const p = new PrismaClient();
-const ORDER = ['NOT_SUBMITTED', 'APPLYING', 'PENDING_GRADE', 'QUALIFICATION_FAILED', 'APPLICATION_EDITS_REQUIRED', 'QUALIFIED', 'DOCS_APPROVED', 'EDITS_REQUIRED', 'REQ_LETTER_ISSUED', 'WAITING_FOR_PLACEMENT_LETTER', 'WAITING_FOR_STAFF_CHECK_LETTER', 'ACCEPTANCE_CHECKED', 'PLACEMENT_LETTER_ISSUED', 'INTERNSHIP_STARTED', 'T002_SUBMITTED', 'T002_EDITS_REQUIRED', 'T003_SUBMITTED', 'T003_EDITS_REQUIRED', 'T003_APPROVED', 'COMPLETED'];
-const rank = (s) => ORDER.indexOf(s);
+const ORDER = ['NOT_SUBMITTED', 'APPLYING', 'PENDING_GRADE', 'QUALIFICATION_FAILED', 'APPLICATION_EDITS_REQUIRED', 'QUALIFIED', 'DOCS_APPROVED', 'EDITS_REQUIRED', 'REQ_LETTER_ISSUED', 'WAITING_FOR_PLACEMENT_LETTER', 'WAITING_FOR_STAFF_CHECK_LETTER', 'ACCEPTANCE_CHECKED', 'PLACEMENT_LETTER_ISSUED', 'INTERNSHIP_STARTED', 'COMPLETED'];
+// สถานะเก่าของ T002/T003 คือช่วงฝึกงานเดียวกับ INTERNSHIP_STARTED → rank เท่ากัน
+const rank = (s) => ORDER.indexOf(LEGACY_INTERNSHIP_STATUSES.includes(s) ? 'INTERNSHIP_STARTED' : s);
 const rows = [];
 const check = (name, list, show) => rows.push(`${list.length ? 'FOUND' : 'ok   '} ${name}: ${list.length}${list.length ? ' — ' + list.slice(0, 4).map(show).join(' ; ') : ''}`);
 

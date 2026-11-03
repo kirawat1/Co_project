@@ -12,6 +12,7 @@ const { studentMajor } = require('../utils/majorConfig');
 const { getMajorScope, studentWhere, assertStudentInScope, inScope } = require('../utils/majorScope');
 const { resolveMajorNameTh } = require('../utils/majorName');
 const { studentPeriodWhere, countByPeriod } = require('../utils/periodFilter');
+const { INTERNSHIP_STATUSES } = require('../utils/internshipForms');
 const { listPeriods, getRow, viewPeriod, viewerMajors, targetMajors } = require('../utils/coopPeriodMajor');
 const { proposedDays, parseAvailable, unavailableOn, unavailableMessage, teacherName, CO_TEACHER_SELECT } = require('../utils/coTeacherAvailability');
 
@@ -19,10 +20,7 @@ const CLEARED_LETTER_PENDING = { letterPendingAt: null, letterDraftNumber: null,
 
 // สถานะสหกิจที่ขอนัดนิเทศได้ (ออกฝึกแล้ว) — ต้องตรงกับ isInternshipPhase ใน Frontend/src/components/S_Supervision.tsx
 const MAX_PROPOSED_DATES = 30; // วันที่นักศึกษาเสนอได้ต่อครั้ง
-const SUPERVISION_PROPOSE_STATUSES = [
-    'INTERNSHIP_STARTED', 'T002_SUBMITTED', 'T002_EDITS_REQUIRED',
-    'T003_SUBMITTED', 'T003_EDITS_REQUIRED', 'T003_APPROVED',
-];
+const SUPERVISION_PROPOSE_STATUSES = INTERNSHIP_STATUSES;
 
 // เลขที่หนังสือขอนิเทศห้ามซ้ำกับหนังสือทุกประเภท (ใช้เลขชุดเดียวกับขอความอนุเคราะห์/ส่งตัว) — ดู utils/letterNumberFree.js
 // appointmentIds = นัดในหนังสือฉบับนี้ (หนังสือรวมของกลุ่มนิเทศใช้เลขเดียวกันได้) — เลิก unique ระดับ DB แล้ว

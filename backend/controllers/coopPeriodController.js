@@ -1,4 +1,5 @@
 const prisma = require('../config/prismaClient');
+const { INTERNSHIP_STATUSES } = require('../utils/internshipForms');
 const { isPeriodExpired } = require('../utils/coopPeriodHelper');
 const { listPeriods, getRow, viewPeriod, viewerMajors, targetMajors, allMajorCodes } = require('../utils/coopPeriodMajor');
 const { getMajorScope } = require('../utils/majorScope');
@@ -212,7 +213,7 @@ exports.getActivePeriod = async (req, res) => {
 // ออกฝึกแล้ว (INTERNSHIP_STARTED / T002 / T003) หรือมีนัดนิเทศแล้ว = ย้ายไม่ได้
 // ==========================================
 const EARLY_STATUSES = new Set(['NOT_SUBMITTED', 'APPLYING', 'PENDING_GRADE', 'QUALIFICATION_FAILED', 'APPLICATION_EDITS_REQUIRED']);
-const MOVE_BLOCKED = new Set(['INTERNSHIP_STARTED', 'T002_SUBMITTED', 'T002_EDITS_REQUIRED', 'T003_SUBMITTED', 'T003_EDITS_REQUIRED', 'T003_APPROVED']);
+const MOVE_BLOCKED = new Set(INTERNSHIP_STATUSES); // ออกฝึกแล้ว (รวมสถานะเก่า) ย้ายรอบไม่ได้
 const T000_RESET = {
   t000Status: 'WAITING', t000Comment: null, staffCheckComment: null,
   reqDocNumber: null, reqDocDate: null, reqLetterUrl: null, reqLetterBatch: null,
