@@ -8,7 +8,7 @@ const { readEffective, callerMajor } = require('../utils/majorConfig');
 const { getMajorScope, studentWhere, visibleStudentWhere, inScope, assertStudentInScope } = require('../utils/majorScope');
 const { setAuditDetail, reviewActionText, letterPendingActionText, letterPendingBulkActionText } = require('../utils/auditActions');
 const { studentPeriodWhere, coopPeriodWhere, countByPeriod } = require('../utils/periodFilter');
-const { T002_PENDING_STATUSES, T002_UNREVIEWED_STUDENT, applyT002Review } = require('../utils/t002Review');
+const { INTERNSHIP_STATUSES, reviewForm, formPendingStudent } = require('../utils/internshipForms');
 const path = require('path');
 const fs = require('fs');
 
@@ -1061,11 +1061,11 @@ exports.updateCoopApplicationStatus = async (req, res) => {
   }
 };
 
-// รายชื่อในหน้าตรวจ T002/T003 = มีไฟล์แบบฟอร์มนั้น หรือสถานะอยู่ในขั้นนั้น (ตรงกับที่หน้าเว็บเคยกรองเอง)
+// รายชื่อในหน้าตรวจ T002/T003 = มีไฟล์แบบฟอร์มนั้น หรืออยู่ช่วงฝึกงาน (ตรงกับที่หน้าเว็บเคยกรองเอง)
+// ฟอร์มคู่ขนาน: สถานะหลักคงที่ INTERNSHIP_STARTED (รวมค่าเก่าที่ยังค้างใน DB) · "รอตรวจ" = ไฟล์ล่าสุดของฟอร์มนั้นรอตรวจ ไม่ใช่สถานะหลัก
 const REVIEW_LISTS = {
-    T002: { docType: 'T002_FORM', statuses: ['T002_SUBMITTED', 'T002_EDITS_REQUIRED', 'INTERNSHIP_STARTED'], pending: T002_PENDING_STATUSES, pendingStudent: T002_UNREVIEWED_STUDENT },
-    // T002_SUBMITTED = ส่ง T002 แล้ว ยังไม่ส่ง T003 (ส่ง T003 ครั้งแรกได้) — เห็นป้ายเลยกำหนด/ปุ่มขยายเวลา
-    T003: { docType: 'T003_FORM', statuses: ['T003_SUBMITTED', 'T003_EDITS_REQUIRED', 'T003_APPROVED', 'INTERNSHIP_STARTED', 'T002_SUBMITTED'], pending: 'T003_SUBMITTED' },
+    T002: { docType: 'T002_FORM', statuses: INTERNSHIP_STATUSES, pending: INTERNSHIP_STATUSES, pendingStudent: formPendingStudent('T002') },
+    T003: { docType: 'T003_FORM', statuses: INTERNSHIP_STATUSES, pending: INTERNSHIP_STATUSES, pendingStudent: formPendingStudent('T003') },
 };
 const reviewWhere = (review) => ({ OR: [{ documents: { some: { type: review.docType } } }, { coop: { status: { in: review.statuses } } }] });
 
@@ -1177,14 +1177,19 @@ exports.reviewT002 = async (req, res) => {
         if (!T002_ALLOWED.includes(status)) {
             return res.status(400).json({ ok: false, message: 'status ไม่ถูกต้อง' });
         }
+        // ตีกลับต้องมีเหตุผล — นักศึกษาเห็นเหตุผลนี้ตอนแก้ไฟล์ (ไม่มีเหตุผล = ไม่รู้ว่าต้องแก้อะไร)
+        const reject = status.endsWith('_EDITS_REQUIRED');
+        if (reject && !String(comment || '').trim()) {
+            return res.status(400).json({ ok: false, message: 'กรุณากรอกเหตุผลที่ต้องแก้ไข' });
+        }
 
         await prisma.$transaction(async (tx) => {
             const student = await tx.student.findUnique({ where: { id: parsedStudentId }, select: { deletedAt: true } });
             if (!student || student.deletedAt) {
                 throw Object.assign(new Error('ไม่พบนักศึกษา'), { is404: true });
             }
-            // ตรวจตอนส่ง T002 แล้ว หรือตรวจย้อนหลังหลังนักศึกษาไปขั้น T003 (utils/t002Review.js)
-            await applyT002Review(tx, { studentId: parsedStudentId, reject: status === 'T002_EDITS_REQUIRED', comment });
+            // ผลตรวจแก้เฉพาะไฟล์ T002 ล่าสุด — สถานะหลักไม่เปลี่ยน และไม่กระทบ T003 (utils/internshipForms.js)
+            await reviewForm(tx, { studentId: parsedStudentId, stepKey: 'T002', reject, comment });
         });
 
         res.json({ ok: true, message: "บันทึกผลการตรวจสอบสำเร็จ" });
@@ -1226,33 +1231,19 @@ exports.reviewT003 = async (req, res) => {
         if (!T003_ALLOWED.includes(status)) {
             return res.status(400).json({ ok: false, message: 'status ไม่ถูกต้อง' });
         }
+        // ตีกลับต้องมีเหตุผล — นักศึกษาเห็นเหตุผลนี้ตอนแก้ไฟล์ (ไม่มีเหตุผล = ไม่รู้ว่าต้องแก้อะไร)
+        const reject = status.endsWith('_EDITS_REQUIRED');
+        if (reject && !String(comment || '').trim()) {
+            return res.status(400).json({ ok: false, message: 'กรุณากรอกเหตุผลที่ต้องแก้ไข' });
+        }
 
         await prisma.$transaction(async (tx) => {
             const student = await tx.student.findUnique({ where: { id: parsedStudentId }, select: { deletedAt: true } });
             if (!student || student.deletedAt) {
                 throw Object.assign(new Error('ไม่พบนักศึกษา'), { is404: true });
             }
-            const coop = await tx.studentCoop.findUnique({ where: { studentId: parsedStudentId }, select: { status: true } });
-            if (!coop || coop.status !== 'T003_SUBMITTED') {
-                throw Object.assign(new Error('สามารถตรวจสอบ T003 ได้เฉพาะเมื่อสถานะเป็น T003_SUBMITTED เท่านั้น'), { is400: true });
-            }
-            await tx.studentCoop.update({
-                where: { studentId: parsedStudentId },
-                data: { status: status }
-            });
-            const doc = await tx.document.findFirst({
-                where: { studentId: parsedStudentId, type: 'T003_FORM' },
-                orderBy: { id: 'desc' }
-            });
-            if (doc) {
-                await tx.document.update({
-                    where: { id: doc.id },
-                    data: {
-                        status: status === 'T003_EDITS_REQUIRED' ? 'REJECTED' : 'APPROVED',
-                        rejectReason: comment || null
-                    }
-                });
-            }
+            // ผลตรวจแก้เฉพาะไฟล์ T003 ล่าสุด — สถานะหลักไม่เปลี่ยน และไม่กระทบ T002
+            await reviewForm(tx, { studentId: parsedStudentId, stepKey: 'T003', reject, comment });
         });
 
         res.json({ ok: true, message: "Review T003 saved successfully" });

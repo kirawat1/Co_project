@@ -172,47 +172,52 @@ describe('reviewT002', () => {
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: false }));
   });
 
-  test('200 — success: upserts studentCoop and updates document', async () => {
+  test('200 — ผ่าน: อัปเดตเฉพาะไฟล์ T002 ล่าสุด ไม่แตะ StudentCoop.status', async () => {
     prisma.teacher.findUnique.mockResolvedValue({ id: 10 });
     prisma.student.findUnique.mockResolvedValue({ id: 1, generalAdvisorId: null, coopAdvisorId: 10, deletedAt: null });
-    // Controller re-fetches inside $transaction: TOCTOU check requires coop.status === 'T002_SUBMITTED'
-    prisma.studentCoop.findUnique.mockResolvedValue({ status: 'T002_SUBMITTED' });
-    prisma.studentCoop.update.mockResolvedValue({});
-    prisma.document.findFirst.mockResolvedValue({ id: 55 });
+    prisma.studentCoop.findUnique.mockResolvedValue({ status: 'INTERNSHIP_STARTED' });
+    prisma.document.findFirst.mockResolvedValue({ id: 55, status: 'WAITING' });
     prisma.document.update.mockResolvedValue({});
 
     const req = { body: { studentId: 1, status: 'T002_SUBMITTED', comment: '' }, user: { id: 99 } };
     const res = makeRes();
     await reviewT002(req, res);
 
-    expect(prisma.studentCoop.update).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { studentId: 1 } })
-    );
+    expect(prisma.studentCoop.update).not.toHaveBeenCalled();
     expect(prisma.document.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({ where: expect.objectContaining({ type: 'T002_FORM' }) })
     );
-    expect(prisma.document.update).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { id: 55 } })
-    );
+    expect(prisma.document.update).toHaveBeenCalledWith({ where: { id: 55 }, data: { status: 'APPROVED', rejectReason: null } });
     const body = res.json.mock.calls[0][0];
     expect(body.ok).toBe(true);
     expect(body.message).toBe('บันทึกผลการตรวจสอบสำเร็จ');
   });
 
-  test('200 — no document found: skips document update', async () => {
+  test('400 — ไม่มีไฟล์ T002 (ยังไม่ส่ง) ตรวจไม่ได้ · ไม่เขียนอะไร', async () => {
     prisma.teacher.findUnique.mockResolvedValue({ id: 10 });
     prisma.student.findUnique.mockResolvedValue({ id: 2, generalAdvisorId: null, coopAdvisorId: 10, deletedAt: null });
-    // Controller re-fetches inside $transaction: TOCTOU check requires coop.status === 'T002_SUBMITTED'
-    prisma.studentCoop.findUnique.mockResolvedValue({ status: 'T002_SUBMITTED' });
-    prisma.studentCoop.update.mockResolvedValue({});
+    prisma.studentCoop.findUnique.mockResolvedValue({ status: 'INTERNSHIP_STARTED' });
     prisma.document.findFirst.mockResolvedValue(null);
 
     const req = { body: { studentId: 2, status: 'T002_EDITS_REQUIRED', comment: 'แก้ด้วย' }, user: { id: 99 } };
     const res = makeRes();
     await reviewT002(req, res);
 
+    expect(res.status).toHaveBeenCalledWith(400);
     expect(prisma.document.update).not.toHaveBeenCalled();
-    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: true }));
+  });
+
+  test('400 — ตีกลับต้องมีเหตุผล (ว่าง/เว้นวรรค)', async () => {
+    prisma.teacher.findUnique.mockResolvedValue({ id: 10 });
+    prisma.student.findUnique.mockResolvedValue({ id: 2, generalAdvisorId: null, coopAdvisorId: 10, deletedAt: null });
+    prisma.studentCoop.findUnique.mockResolvedValue({ status: 'INTERNSHIP_STARTED' });
+    prisma.document.findFirst.mockResolvedValue({ id: 55, status: 'WAITING' });
+    for (const comment of [undefined, '  ']) {
+      const res = makeRes();
+      await reviewT002({ body: { studentId: 2, status: 'T002_EDITS_REQUIRED', comment }, user: { id: 99 } }, res);
+      expect(res.status).toHaveBeenCalledWith(400);
+    }
+    expect(prisma.document.update).not.toHaveBeenCalled();
   });
 
   test('403 — เป็นแค่ที่ปรึกษาทั่วไป (generalAdvisorId) ไม่ใช่ที่ปรึกษาโครงงานสหกิจ → ไม่มีสิทธิ์ตรวจ', async () => {

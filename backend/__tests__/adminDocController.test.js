@@ -6,11 +6,14 @@ jest.mock('@prisma/client', () => {
 jest.mock('../config/prismaClient', () => require('./__mocks__/prismaClient'));
 
 const prisma = require('./__mocks__/prismaClient');
+const { INTERNSHIP_STATUSES } = require('../utils/internshipForms');
 const {
   getAllStudentsForReview,
   getCoopApplications,
   getStudentsForT000,
   reviewStudentStatus,
+  reviewT002,
+  reviewT003,
   updateCoopApplicationStatus,
   markAcceptanceReceived,
   markLetterPending,
@@ -115,9 +118,9 @@ describe('getAllStudentsForReview', () => {
 
   // หน้าตรวจ T002/T003: เดิมโหลดทุกคนพร้อมเอกสารทุกไฟล์มากรองเอง (เกิน 1000 คนถูกตัดเงียบๆ)
   test.each([
-    // T002_SUBMITTED = ส่ง T002 แล้ว ยังไม่ส่ง T003 (สถานะเดียวที่ส่ง T003 ครั้งแรกได้) — ต้องอยู่ในรายการเพื่อเห็นป้าย/ขยายเวลา
-    ['T003', 'T003_FORM', ['T003_SUBMITTED', 'T003_EDITS_REQUIRED', 'T003_APPROVED', 'INTERNSHIP_STARTED', 'T002_SUBMITTED']],
-    ['t002', 'T002_FORM', ['T002_SUBMITTED', 'T002_EDITS_REQUIRED', 'INTERNSHIP_STARTED']],
+    // T002/T003 คู่ขนาน: ทั้งสองหน้าใช้ชุดสถานะช่วงฝึกงานเดียวกัน (INTERNSHIP_STARTED + ค่าเก่า 5 ค่า)
+    ['T003', 'T003_FORM', INTERNSHIP_STATUSES],
+    ['t002', 'T002_FORM', INTERNSHIP_STATUSES],
   ])('review=%s → server กรอง (มีไฟล์แบบฟอร์ม หรือสถานะอยู่ในขั้นนั้น) + แนบเฉพาะไฟล์แบบฟอร์มนั้น', async (review, docType, statuses) => {
     prisma.student.findMany.mockResolvedValue([]);
     prisma.student.count.mockResolvedValue(0);
@@ -139,7 +142,10 @@ describe('getAllStudentsForReview', () => {
       { coopPeriodId: 2, count: 40, pending: 5 },
       { coopPeriodId: null, count: 3, pending: 0 },
     ]);
-    expect(prisma.studentCoop.groupBy.mock.calls[1][0].where.status).toBe('T003_SUBMITTED');
+    // รอตรวจ = สถานะช่วงฝึกงาน + ไฟล์ T003 ล่าสุดรอตรวจ (ไม่ใช่สถานะหลัก T003_SUBMITTED อีกแล้ว)
+    const pendingWhere = prisma.studentCoop.groupBy.mock.calls[1][0].where;
+    expect(pendingWhere.status).toEqual({ in: INTERNSHIP_STATUSES });
+    expect(JSON.stringify(pendingWhere.student)).toContain('"type":"T003_FORM","status":{"in":["WAITING","PENDING"]}');
     expect(prisma.student.findMany).not.toHaveBeenCalled();
   });
 
@@ -900,5 +906,54 @@ describe('markLetterPending', () => {
     const res = makeRes();
     await markLetterPending({ body: { studentId: '1', letter: 'REQUEST' } }, res);
     expect(res.status).toHaveBeenCalledWith(404);
+  });
+});
+
+// ตรวจ T002/T003 (เจ้าหน้าที่/อาจารย์ประจำวิชา) — ฟอร์มคู่ขนาน: แก้เฉพาะไฟล์ ไม่แตะ StudentCoop.status
+describe.each([
+  ['reviewT002', reviewT002, 'T002', 'T002_SUBMITTED', 'T002_EDITS_REQUIRED'],
+  ['reviewT003', reviewT003, 'T003', 'T003_APPROVED', 'T003_EDITS_REQUIRED'],
+])('%s', (_n, fn, step, okStatus, rejStatus) => {
+  const setup = (coopStatus, doc) => {
+    prisma.$transaction.mockImplementation((arg) => arg(prisma));
+    prisma.student.findUnique.mockResolvedValue({ deletedAt: null, userId: 5 });
+    prisma.studentCoop.findUnique.mockResolvedValue({ status: coopStatus });
+    prisma.document.findFirst.mockResolvedValue(doc);
+    prisma.document.update.mockResolvedValue({});
+  };
+
+  test('ผ่าน (INTERNSHIP_STARTED + ไฟล์รอตรวจ) → 200 ไฟล์ APPROVED ไม่เขียนสถานะหลัก', async () => {
+    setup('INTERNSHIP_STARTED', { id: 9, status: 'WAITING' });
+    const res = makeRes();
+    await fn({ body: { studentId: 10, status: okStatus } }, res);
+    expect(res.status).not.toHaveBeenCalled();
+    expect(prisma.document.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ type: step + '_FORM' }) }));
+    expect(prisma.document.update).toHaveBeenCalledWith({ where: { id: 9 }, data: { status: 'APPROVED', rejectReason: null } });
+    expect(prisma.studentCoop.update).not.toHaveBeenCalled();
+  });
+
+  test('ตีกลับไฟล์ที่ผ่านแล้ว + เหตุผล → 200 ไฟล์ REJECTED', async () => {
+    setup('T003_APPROVED', { id: 9, status: 'APPROVED' });
+    const res = makeRes();
+    await fn({ body: { studentId: 10, status: rejStatus, comment: 'แก้ด้วย' } }, res);
+    expect(res.status).not.toHaveBeenCalled();
+    expect(prisma.document.update).toHaveBeenCalledWith({ where: { id: 9 }, data: { status: 'REJECTED', rejectReason: 'แก้ด้วย' } });
+    expect(prisma.studentCoop.update).not.toHaveBeenCalled();
+  });
+
+  test.each([undefined, '   '])('ตีกลับไม่มีเหตุผล (%j) → 400', async (comment) => {
+    setup('INTERNSHIP_STARTED', { id: 9, status: 'WAITING' });
+    const res = makeRes();
+    await fn({ body: { studentId: 10, status: rejStatus, comment } }, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(prisma.document.update).not.toHaveBeenCalled();
+  });
+
+  test('อนุมัติไฟล์ที่ APPROVED แล้ว → 400', async () => {
+    setup('INTERNSHIP_STARTED', { id: 9, status: 'APPROVED' });
+    const res = makeRes();
+    await fn({ body: { studentId: 10, status: okStatus } }, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(prisma.document.update).not.toHaveBeenCalled();
   });
 });
