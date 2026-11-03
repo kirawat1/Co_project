@@ -2,7 +2,8 @@ import { BusyLabel } from "./Spinner";
 import React, { useState, useEffect, useRef } from "react";
 import { apiFetch } from "../utils/apiFetch";
 import { createT003PDF } from "../utils/pdfGeneratorT003";
-import StatusBadge from "./StatusBadge";
+import FormStateBadge from "./FormStateBadge";
+import { INTERNSHIP_STATUSES, canSubmitForm, formState, latestForm } from "../utils/internshipForms";
 import CountdownTimer from "../components/CountdownTimer"; // ✅ Import เข้ามา
 import AutoTextarea from "./AutoTextarea";
 import { notify } from "../utils/notify";
@@ -12,9 +13,6 @@ interface Props {
     onRefresh: () => void;
 }
 
-// ส่งไฟล์ T003 ได้หลังส่ง T002 แล้ว หรือถูกขอให้แก้ไข (ตรงกับ backend uploadDocument)
-const T003_SUBMIT_STATUSES = ['T002_SUBMITTED', 'T003_EDITS_REQUIRED'];
-
 // T003 ปลดล็อกได้ต่อเมื่อเจ้าหน้าที่ออกหนังสือขอความอนุเคราะห์แล้ว (REQ_LETTER_ISSUED) เป็นต้นไป
 const T003_UNLOCK_STATUSES = [
     'REQ_LETTER_ISSUED',
@@ -22,12 +20,7 @@ const T003_UNLOCK_STATUSES = [
     'WAITING_FOR_STAFF_CHECK_LETTER',
     'ACCEPTANCE_CHECKED',
     'PLACEMENT_LETTER_ISSUED',
-    'INTERNSHIP_STARTED',
-    'T002_SUBMITTED',
-    'T002_EDITS_REQUIRED',
-    'T003_SUBMITTED',
-    'T003_EDITS_REQUIRED',
-    'T003_APPROVED',
+    ...INTERNSHIP_STATUSES, // ช่วงฝึกงานรวมค่าเก่า — T002/T003 เท่ากัน
 ];
 
 export default function S_DocsT003Form({ profile, onRefresh }: Props) {
@@ -45,14 +38,9 @@ export default function S_DocsT003Form({ profile, onRefresh }: Props) {
     const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
 
     // --- ตรวจสอบสถานะไฟล์ T003 ---
-    const uploadedT003 = profile?.documents?.find((d: any) => d.type === 'T003_FORM');
-    let currentStatusToShow = profile?.docStatus;
-
-    if (profile?.docStatus === 'T003_EDITS_REQUIRED' || uploadedT003?.status === 'REJECTED') {
-        currentStatusToShow = 'T003_EDITS_REQUIRED';
-    } else if (uploadedT003 && uploadedT003.status !== 'REJECTED') {
-        currentStatusToShow = 'T003_SUBMITTED';
-    }
+    // ไฟล์ล่าสุดของ T003 → สถานะของฟอร์มนี้เอง (ส่งได้เลยไม่ต้องรอ T002)
+    const uploadedT003 = latestForm<any>(profile?.documents, 'T003');
+    const t003State = formState(uploadedT003);
 
     // --- ดึงข้อมูลจาก Profile มาโชว์ (อ่านอย่างเดียว) ---
     const company = profile?.coop?.company || profile?.company || {};
@@ -255,7 +243,7 @@ export default function S_DocsT003Form({ profile, onRefresh }: Props) {
     const isUnlocked = T003_UNLOCK_STATUSES.includes(profile?.coop?.status);
     const canEdit = isSystemOpen && isUnlocked;
     // ส่งไฟล์ได้เฉพาะสถานะที่ backend รับ (uploadDocument T003_FORM) — ก่อนหน้านั้นกรอก/บันทึกฟอร์มไว้ก่อนได้
-    const canSubmit = canEdit && T003_SUBMIT_STATUSES.includes(profile?.coop?.status);
+    const canSubmit = canEdit && canSubmitForm(profile?.coop?.status, t003State);
 
     return (
         <div style={{ maxWidth: 1000, margin: '0 auto', background: '#fff', padding: 30, borderRadius: 12, boxShadow: '0 4px 6px rgba(0,0,0,0.05)' }}>
@@ -287,7 +275,7 @@ export default function S_DocsT003Form({ profile, onRefresh }: Props) {
                 <div>
                     <h2 style={{ color: '#1e3a8a', margin: '0 0 8px 0', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
                         แบบฟอร์ม T003 (Proposal)
-                        <StatusBadge status={currentStatusToShow} />
+                        <FormStateBadge state={t003State} name="T003" />
                     </h2>
                     <p style={{ color: '#64748b', margin: 0 }}>แบบแจ้งโครงร่างรายงานการปฏิบัติงานสหกิจศึกษา (ส่งภายในสัปดาห์ที่ 3)</p>
                 </div>
@@ -411,7 +399,7 @@ export default function S_DocsT003Form({ profile, onRefresh }: Props) {
                 </div>
 
                 {/* กล่องแสดงเหตุผลเมื่อโดนตีกลับ */}
-                {currentStatusToShow === 'T003_EDITS_REQUIRED' && (
+                {t003State === 'REJECTED' && (
                     <div style={{ padding: 16, background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8, marginBottom: 24 }}>
                         <h4 style={{ margin: '0 0 8px 0', color: '#b91c1c', display: 'flex', alignItems: 'center', gap: 8 }}>⚠️ เอกสารต้องแก้ไข</h4>
                         <p style={{ margin: 0, color: '#991b1b', fontSize: 14 }}><b>เหตุผลจากอาจารย์/เจ้าหน้าที่:</b> {uploadedT003?.rejectReason || "กรุณาตรวจสอบและอัปโหลดไฟล์ใหม่"}</p>
@@ -431,8 +419,8 @@ export default function S_DocsT003Form({ profile, onRefresh }: Props) {
                             {/* ส่งใหม่ได้เฉพาะตอนถูกขอให้แก้ (ระหว่างรอตรวจ backend ไม่รับไฟล์ใหม่) */}
                             {canSubmit && (
                                 <>
-                                    <label htmlFor="upload-t003-change" className={currentStatusToShow === 'T003_EDITS_REQUIRED' ? "btn" : "btn-secondary"}>
-                                        {currentStatusToShow === 'T003_EDITS_REQUIRED' ? '🔄 ส่งไฟล์ใหม่' : '🔄 เปลี่ยนไฟล์'}
+                                    <label htmlFor="upload-t003-change" className={t003State === 'REJECTED' ? "btn" : "btn-secondary"}>
+                                        {t003State === 'REJECTED' ? '🔄 ส่งไฟล์ใหม่' : '🔄 เปลี่ยนไฟล์'}
                                     </label>
                                     <input type="file" id="upload-t003-change" style={{ display: 'none' }} accept=".pdf,.jpg,.png" onChange={(e) => e.target.files?.[0] && setSelectedUploadFile(e.target.files[0])} />
                                 </>
@@ -459,7 +447,7 @@ export default function S_DocsT003Form({ profile, onRefresh }: Props) {
                                 </label>
                                 {canEdit && !canSubmit ? (
                                     <div style={{ fontSize: 12, color: '#b45309', marginTop: 8 }}>
-                                        ส่ง T003 ได้หลังส่ง T002 แล้ว — ตอนนี้กรอกและบันทึกแบบฟอร์มไว้ก่อนได้
+                                        ส่ง T003 ได้เมื่อสถานะเป็น "ส่งเอกสารฝึกสหกิจ" — ตอนนี้กรอกและบันทึกแบบฟอร์มไว้ก่อนได้
                                     </div>
                                 ) : (
                                     <div style={{ fontSize: 12, color: '#6b7280', marginTop: 8 }}>(รองรับไฟล์ .pdf, .jpg, .png)</div>

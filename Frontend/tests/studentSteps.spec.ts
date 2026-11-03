@@ -17,19 +17,24 @@ test.describe("เครื่องหมายขั้นตอนบนเ�
     }
   });
 
-  test("หนังสือส่งตัวออกแล้วยังอยู่ขั้นเอกสาร · ออกฝึกแล้ว = ขั้น T002", () => {
+  test("หนังสือส่งตัวออกแล้วยังอยู่ขั้นเอกสาร · ช่วงฝึกงาน T002/T003 เท่ากัน ไม่ต่อกัน", () => {
     expect(stepState("docs", "PLACEMENT_LETTER_ISSUED")).toBe("current");
     expect(stepState("docs", "INTERNSHIP_STARTED")).toBe("done");
+    expect(stepState("t002", "PLACEMENT_LETTER_ISSUED")).toBe("later");
+    expect(stepState("t003", "PLACEMENT_LETTER_ISSUED")).toBe("later");
+    expect(stepState("t002", "INTERNSHIP_STARTED", { t002: "NONE", t003: "NONE" })).toBe("current");
+    expect(stepState("t003", "INTERNSHIP_STARTED", { t002: "NONE", t003: "NONE" })).toBe("current");
+    expect(stepState("t002", "INTERNSHIP_STARTED", { t002: "APPROVED", t003: "NONE" })).toBe("done");
+    expect(stepState("t003", "INTERNSHIP_STARTED", { t002: "APPROVED", t003: "NONE" })).toBe("current");
+    expect(stepState("t003", "INTERNSHIP_STARTED", { t002: "NONE", t003: "WAITING" })).toBe("current");
     expect(stepState("t002", "INTERNSHIP_STARTED")).toBe("current");
-    expect(stepState("t002", "T002_EDITS_REQUIRED")).toBe("current");
   });
 
-  test("ส่ง T002 แล้ว (อนุมัติแล้วสถานะยังเท่าเดิม) → T002 และ T003 เป็นขั้นปัจจุบันทั้งคู่ · T003 ผ่าน = ครบ", () => {
-    expect(stepState("t002", "T002_SUBMITTED")).toBe("current");
-    expect(stepState("t003", "T002_SUBMITTED")).toBe("current");
-    expect(stepState("t002", "T003_SUBMITTED")).toBe("done");
-    expect(stepState("t003", "T003_EDITS_REQUIRED")).toBe("current");
-    expect(stepState("t003", "T003_APPROVED")).toBe("done");
+  test("ค่าเก่าในช่วงฝึกงานปฏิบัติเหมือน INTERNSHIP_STARTED", () => {
+    expect(stepState("docs", "T002_SUBMITTED")).toBe("done");
+    expect(stepState("t002", "T003_APPROVED", { t002: "APPROVED", t003: "APPROVED" })).toBe("done");
+    expect(stepState("t003", "T003_APPROVED", { t002: "APPROVED", t003: "APPROVED" })).toBe("done");
+    expect(stepState("t003", "T002_EDITS_REQUIRED", { t002: "REJECTED", t003: "NONE" })).toBe("current");
   });
 
   test("สถานะไม่รู้จัก → ไม่ใส่เครื่องหมาย", () => {

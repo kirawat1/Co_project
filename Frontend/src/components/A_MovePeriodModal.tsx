@@ -3,12 +3,13 @@ import { useState } from "react";
 import { apiFetch } from "../utils/apiFetch";
 import { notify } from "../utils/notify";
 import Modal from "./Modal";
+import { INTERNSHIP_STATUSES } from "../utils/internshipForms";
 
 // ย้ายรอบสหกิจของนักศึกษา (เช่น ยื่นเทอม 1 แล้วไปไม่ได้ → ไปเทอม 2)
 // ยังไม่ผ่านคุณสมบัติ: คงสถานะเดิม / เริ่มยื่นคำร้องใหม่ · ผ่านคุณสมบัติแล้ว: เริ่ม T000 ใหม่ / เริ่มยื่นคำร้องใหม่
 // ออกฝึกแล้ว (INTERNSHIP_STARTED / T002 / T003) = ย้ายไม่ได้ — server ตรวจซ้ำทุกเงื่อนไข
 export const EARLY_STATUSES = ["NOT_SUBMITTED", "APPLYING", "PENDING_GRADE", "QUALIFICATION_FAILED", "APPLICATION_EDITS_REQUIRED"];
-export const MOVE_BLOCKED_STATUSES = ["INTERNSHIP_STARTED", "T002_SUBMITTED", "T002_EDITS_REQUIRED", "T003_SUBMITTED", "T003_EDITS_REQUIRED", "T003_APPROVED"];
+export const MOVE_BLOCKED_STATUSES = INTERNSHIP_STATUSES;
 
 type Period = { id: number; semester: string | number; academicYear: string };
 type ResetTo = "KEEP" | "QUALIFIED" | "NOT_SUBMITTED";

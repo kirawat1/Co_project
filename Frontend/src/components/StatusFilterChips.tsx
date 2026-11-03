@@ -1,3 +1,4 @@
+import { INTERNSHIP_STATUSES } from "../utils/internshipForms";
 // ใช้เฉพาะ CoopStatus enum values จริงใน Prisma schema
 export const STATUS_GROUPS: Record<string, { label: string; icon: string; color: string; bg: string; statuses: string[] }> = {
   ALL:           { label:"ทั้งหมด",          icon:"📋", color:"#334155", bg:"#f1f5f9", statuses:[] },
@@ -12,7 +13,7 @@ export const STATUS_GROUPS: Record<string, { label: string; icon: string; color:
     statuses:["QUALIFIED","DOCS_APPROVED","REQ_LETTER_ISSUED","WAITING_FOR_PLACEMENT_LETTER","ACCEPTANCE_CHECKED","PLACEMENT_LETTER_ISSUED"] },
   // ฝึกสหกิจ = ออกฝึกแล้ว (รวมส่งเอกสาร T002/T003)
   INTERNSHIP:    { label:"ฝึกสหกิจ",          icon:"🚀", color:"#4338ca", bg:"#e0e7ff",
-    statuses:["INTERNSHIP_STARTED","T002_SUBMITTED","T002_EDITS_REQUIRED","T003_SUBMITTED","T003_EDITS_REQUIRED","T003_APPROVED"] },
+    statuses:INTERNSHIP_STATUSES },
   // ไม่ผ่านคุณสมบัติ
   FAILED:        { label:"ไม่ผ่านเกณฑ์",      icon:"❌", color:"#dc2626", bg:"#fef2f2",
     statuses:["QUALIFICATION_FAILED"] },

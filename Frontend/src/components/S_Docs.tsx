@@ -1,5 +1,6 @@
 ﻿import React, { useState, useEffect, useMemo, useRef } from "react";
 import DocTable from "./S_DocTable";
+import { isInternshipStatus } from "../utils/internshipForms";
 import { BusyLabel } from "./Spinner";
 import { createT000PDF, type T000FormData } from "../utils/pdfGeneratorT000";
 import PlacementLetterCard from "./PlacementLetterCard";
@@ -104,7 +105,7 @@ const DispatchManagementCard = ({ profile, onUpload, onRefresh }: { profile: any
   const currentStatus = profile.docStatus;
   const rawComment = profile.teacherComment || (profile.coop as any)?.t000Comment;
   // ตรงกับ backend uploadDocument (CP-ACCEPTANCE) — หลังออกหนังสือส่งตัวเปลี่ยนใบตอบรับไม่ได้
-  const acceptanceLocked = ['PLACEMENT_LETTER_ISSUED', 'INTERNSHIP_STARTED'].includes(currentStatus);
+  const acceptanceLocked = currentStatus === 'PLACEMENT_LETTER_ISSUED' || isInternshipStatus(currentStatus);
 
   let adminMessagePhase1 = null;
   let adminMessagePhase2 = null;
@@ -689,7 +690,7 @@ export default function S_Docs({ profile, setProfile }: { profile: LocalStudentP
         <DispatchManagementCard profile={profile} onUpload={handleUpload} onRefresh={refreshProfile} />
 
         {/* STEP 5: หนังสือส่งตัว */}
-        {(profile.docStatus === "PLACEMENT_LETTER_ISSUED" || profile.docStatus === "INTERNSHIP_STARTED") && (
+        {(profile.docStatus === "PLACEMENT_LETTER_ISSUED" || isInternshipStatus(profile.docStatus)) && (
           <PlacementLetterCard
             delivery={(profile.coop as any)?.placeLetterDelivery ?? null}
             staffNote={profile.docStatus === "PLACEMENT_LETTER_ISSUED" ? (profile.teacherComment || profile.coop?.t000Comment) : undefined}
