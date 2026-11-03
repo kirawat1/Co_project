@@ -186,7 +186,7 @@ test.describe("D. หน้า T000 ตามสถานะ", () => {
     await asStaff(page);
     await openT000(page, w.s.reqA1.studentId);
     await page.getByPlaceholder(/ค้นหา/).first().fill("");
-    await page.getByRole("button", { name: "ออกร่างหนังสือหลายคน" }).click();
+    await page.getByRole("button", { name: "ออกร่างหลายฉบับพร้อมกัน" }).click();
     const blocked = page.locator("label", { hasText: w.s.reqA1.studentId });
     await expect(blocked.getByText(/รอลงนามอยู่ \(เลข .*\) — ยกเลิกรอลงนาม/)).toBeVisible();
     await expect(blocked.locator('input[type="checkbox"]')).toBeDisabled();

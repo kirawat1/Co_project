@@ -176,7 +176,7 @@ export default function A_DocT000() {
     // State ปีการศึกษา
     const [coopPeriods, setCoopPeriods] = useState<any[]>([]);
     const [selectedPeriod, setSelectedPeriod] = useState<string>(""); // "" = ยังไม่โหลดรอบ → ตั้งเป็นรอบที่เปิดอยู่ (utils/defaultPeriod) ครั้งแรกครั้งเดียว ไม่ทับรอบที่ผู้ใช้เลือกตอนรีเฟรช
-    const [bulkDraftOpen, setBulkDraftOpen] = useState(false); // หน้าต่างออกร่างหนังสือหลายคน
+    const [bulkDraftOpen, setBulkDraftOpen] = useState(false); // หน้าต่างออกร่างหลายฉบับพร้อมกัน
     const [bulkSignedOpen, setBulkSignedOpen] = useState(false); // หน้าต่างอัปโหลดฉบับลงนามหลายฉบับ
     const [zipOpen, setZipOpen] = useState(false); // หน้าต่างดาวน์โหลดหนังสือ (zip)
 
@@ -658,14 +658,15 @@ export default function A_DocT000() {
                 {/* ปุ่มงานหนังสือ — แถวของตัวเอง ชิดซ้าย (เดิมอยู่แถวตัวกรองแบบชิดขวา จอแคบแล้วตกบรรทัดไปค้างขวาคนเดียว) */}
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
                     {isStaff && (
-                        <button type="button" className={batchMode ? "btn" : "btn-secondary"} onClick={() => { setBatchMode(m => !m); setBatchIds([]); }}>
-                            {batchMode ? "ปิดโหมดหนังสือรวม" : "ออกหนังสือรวมหลายคน"}
+                        <button type="button" className={batchMode ? "btn" : "btn-secondary"} onClick={() => { setBatchMode(m => !m); setBatchIds([]); }}
+                            title="เลือกนักศึกษาบริษัทเดียวกัน แล้วออกหนังสือ 1 ฉบับ เลขเดียว ให้ทุกคน">
+                            {batchMode ? "ปิดโหมดหนังสือรวม" : "หนังสือรวม (หลายคนในฉบับเดียว)"}
                         </button>
                     )}
                     {isStaff && (
                         <button type="button" className="btn-secondary" onClick={() => { refreshStudents(); setBulkDraftOpen(true); }}
-                            title="ออกร่างหนังสือของหลายคนพร้อมกัน ได้ zip + รายการเลขหนังสือ">
-                            ออกร่างหนังสือหลายคน
+                            title="ออกร่างหนังสือหลายฉบับพร้อมกัน (คนบริษัทเดียวกันรวมเป็นฉบับเดียวให้เอง) ได้ zip + รายการเลขหนังสือ">
+                            ออกร่างหลายฉบับพร้อมกัน
                         </button>
                     )}
                     {isStaff && (
