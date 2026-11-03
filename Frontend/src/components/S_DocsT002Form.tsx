@@ -4,6 +4,7 @@ import { createT002PDF } from "../utils/pdfGeneratorT002";
 import StatusBadge from "./StatusBadge";
 import CountdownTimer from "../components/CountdownTimer"; // ✅ Import มาแล้ว
 import AutoTextarea from "./AutoTextarea";
+import { t002CanSubmit } from "../utils/t002Review";
 import { apiFetch } from "../utils/apiFetch";
 import AddressFields from "./AddressFields";
 import { composeAddress, readAddressParts } from "../utils/addressFormat";
@@ -32,9 +33,6 @@ function initialExtraSupervisors(savedT002: any, mentors: any[]): ExtraSuperviso
         position: m.position || "", dept: m.department || "", phone: m.phone || "", fax: "", email: m.email || "",
     }));
 }
-
-// ส่งไฟล์ T002 ได้เมื่อเริ่มฝึกงานแล้ว หรือถูกขอให้แก้ไข (ตรงกับ backend uploadDocument)
-const T002_SUBMIT_STATUSES = ['INTERNSHIP_STARTED', 'T002_EDITS_REQUIRED'];
 
 // T002 ปลดล็อกได้ต่อเมื่อเจ้าหน้าที่ออกหนังสือขอความอนุเคราะห์แล้ว (REQ_LETTER_ISSUED) เป็นต้นไป
 const T002_UNLOCK_STATUSES = [
@@ -317,7 +315,8 @@ export default function S_DocsT002Form({ profile, onRefresh }: Props) {
     const isUnlocked = T002_UNLOCK_STATUSES.includes(profile?.coop?.status);
     const canEdit = isSystemOpen && isUnlocked;
     // ส่งไฟล์ได้เฉพาะสถานะที่ backend รับ (uploadDocument T002_FORM) — ก่อนหน้านั้นกรอก/บันทึกฟอร์มไว้ก่อนได้
-    const canSubmit = canEdit && T002_SUBMIT_STATUSES.includes(profile?.coop?.status);
+    // รวมถูกตีกลับย้อนหลังตอนอยู่ขั้น T003 แล้ว (utils/t002Review.ts)
+    const canSubmit = canEdit && t002CanSubmit(profile?.coop?.status, uploadedT002?.status);
     const canEditRef = useRef(canEdit);
     useEffect(() => { canEditRef.current = canEdit; }, [canEdit]);
 

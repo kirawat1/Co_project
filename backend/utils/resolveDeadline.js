@@ -6,6 +6,7 @@ const prisma = require('../config/prismaClient');
 const { readEffective } = require('./majorConfig');
 const { evaluateDeadline, evaluateLegacyWindow } = require('./deadlines');
 const { periodCloseAt } = require('./coopPeriodHelper');
+const { isLateT002 } = require('./t002Review');
 
 // ค่าเดิม: ช่วงรับเอกสาร (T000–T003) · กำหนดส่งที่ติดมากับลิงก์แบบฟอร์ม (T005–T008)
 const LEGACY_WINDOW_KEY = { T000: 'T000_CONFIG', T002: 'T002_CONFIG', T003: 'T003_CONFIG' };
@@ -32,7 +33,12 @@ async function resolveDeadline(stepKey, ctx, db = prisma, now = new Date()) {
   });
   const periodId = coop?.coopPeriodId ?? null;
   const extensionUntil = (coop?.deadlineExtensions && coop.deadlineExtensions[stepKey]) || null;
-  const resubmission = isResubmission(stepKey, coop);
+  let resubmission = isResubmission(stepKey, coop);
+  // T002 ถูกตีกลับย้อนหลังหลังนักศึกษาไปขั้น T003 แล้ว (utils/t002Review.js) = ส่งแก้ ไม่ติดกำหนด
+  if (!resubmission && stepKey === 'T002' && isLateT002(coop?.status)) {
+    const doc = await db.document.findFirst({ where: { studentId, type: 'T002_FORM' }, orderBy: { id: 'desc' }, select: { status: true } });
+    resubmission = doc?.status === 'REJECTED';
+  }
   if (!periodId) {
     return { ...evaluateDeadline(null, now), source: 'NO_ROUND', periodId: null, startDate: null, extensionUntil, resubmission };
   }

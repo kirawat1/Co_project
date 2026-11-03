@@ -8,6 +8,7 @@ const { readEffective, callerMajor } = require('../utils/majorConfig');
 const { getMajorScope, studentWhere, visibleStudentWhere, inScope, assertStudentInScope } = require('../utils/majorScope');
 const { setAuditDetail, reviewActionText, letterPendingActionText, letterPendingBulkActionText } = require('../utils/auditActions');
 const { studentPeriodWhere, coopPeriodWhere, countByPeriod } = require('../utils/periodFilter');
+const { T002_PENDING_STATUSES, T002_UNREVIEWED_STUDENT, applyT002Review } = require('../utils/t002Review');
 const path = require('path');
 const fs = require('fs');
 
@@ -1062,7 +1063,7 @@ exports.updateCoopApplicationStatus = async (req, res) => {
 
 // รายชื่อในหน้าตรวจ T002/T003 = มีไฟล์แบบฟอร์มนั้น หรือสถานะอยู่ในขั้นนั้น (ตรงกับที่หน้าเว็บเคยกรองเอง)
 const REVIEW_LISTS = {
-    T002: { docType: 'T002_FORM', statuses: ['T002_SUBMITTED', 'T002_EDITS_REQUIRED', 'INTERNSHIP_STARTED'], pending: 'T002_SUBMITTED' },
+    T002: { docType: 'T002_FORM', statuses: ['T002_SUBMITTED', 'T002_EDITS_REQUIRED', 'INTERNSHIP_STARTED'], pending: T002_PENDING_STATUSES, pendingStudent: T002_UNREVIEWED_STUDENT },
     // T002_SUBMITTED = ส่ง T002 แล้ว ยังไม่ส่ง T003 (ส่ง T003 ครั้งแรกได้) — เห็นป้ายเลยกำหนด/ปุ่มขยายเวลา
     T003: { docType: 'T003_FORM', statuses: ['T003_SUBMITTED', 'T003_EDITS_REQUIRED', 'T003_APPROVED', 'INTERNSHIP_STARTED', 'T002_SUBMITTED'], pending: 'T003_SUBMITTED' },
 };
@@ -1076,7 +1077,7 @@ async function reviewPeriodCounts(review, visible) {
     const student = { AND: [{ deletedAt: null }, visible, reviewWhere(review)] };
     const [all, pending] = await Promise.all([
         prisma.studentCoop.groupBy({ by: ['coopPeriodId'], where: { student }, _count: { _all: true } }),
-        prisma.studentCoop.groupBy({ by: ['coopPeriodId'], where: { status: review.pending, student }, _count: { _all: true } }),
+        prisma.studentCoop.groupBy({ by: ['coopPeriodId'], where: { status: Array.isArray(review.pending) ? { in: review.pending } : review.pending, student: review.pendingStudent ? { AND: [student, review.pendingStudent] } : student }, _count: { _all: true } }),
     ]);
     // coopPeriodId null = ยังไม่ผูกรอบ — เห็นได้เฉพาะ "ทุกปีการศึกษา"
     return all.map((r) => ({
@@ -1182,27 +1183,8 @@ exports.reviewT002 = async (req, res) => {
             if (!student || student.deletedAt) {
                 throw Object.assign(new Error('ไม่พบนักศึกษา'), { is404: true });
             }
-            const coop = await tx.studentCoop.findUnique({ where: { studentId: parsedStudentId }, select: { status: true } });
-            if (!coop || coop.status !== 'T002_SUBMITTED') {
-                throw Object.assign(new Error('สามารถตรวจสอบ T002 ได้เฉพาะเมื่อสถานะเป็น T002_SUBMITTED เท่านั้น'), { is400: true });
-            }
-            await tx.studentCoop.update({
-                where: { studentId: parsedStudentId },
-                data: { status: status }
-            });
-            const doc = await tx.document.findFirst({
-                where: { studentId: parsedStudentId, type: 'T002_FORM' },
-                orderBy: { id: 'desc' }
-            });
-            if (doc) {
-                await tx.document.update({
-                    where: { id: doc.id },
-                    data: {
-                        status: status === 'T002_EDITS_REQUIRED' ? 'REJECTED' : 'APPROVED',
-                        rejectReason: comment || null
-                    }
-                });
-            }
+            // ตรวจตอนส่ง T002 แล้ว หรือตรวจย้อนหลังหลังนักศึกษาไปขั้น T003 (utils/t002Review.js)
+            await applyT002Review(tx, { studentId: parsedStudentId, reject: status === 'T002_EDITS_REQUIRED', comment });
         });
 
         res.json({ ok: true, message: "บันทึกผลการตรวจสอบสำเร็จ" });

@@ -3,7 +3,7 @@ import type { CSSProperties } from "react";
 import axios from "axios";
 import { fmtDate, fmtDateTime } from '../utils/dateFormat';
 import IssueSupervisionLetterModal from "./IssueSupervisionLetterModal";
-import { PendingSignBadge } from "./LetterModalShared";
+import { PendingSignBadge, EDIT_DATE_PENDING_HINT } from "./LetterModalShared";
 import StatusBadge from "./StatusBadge";
 import SupervisionCalendar from "./SupervisionCalendar";
 import SupervisionScheduleTable from "./SupervisionScheduleTable";
@@ -644,6 +644,8 @@ export default function A_SupervisionManage() {
                                                 <button
                                                     className="btn-secondary small"
                                                     onClick={() => openEditDateModal(sup)}
+                                                    disabled={!!sup.letterPendingAt}
+                                                    title={sup.letterPendingAt ? EDIT_DATE_PENDING_HINT : undefined}
                                                 >
                                                     ✏️ แก้ไขวัน
                                                 </button>

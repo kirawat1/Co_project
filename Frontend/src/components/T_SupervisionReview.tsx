@@ -10,7 +10,7 @@ import SupervisionScheduleTable from "./SupervisionScheduleTable";
 import { useSupervisionSchedule } from "../hooks/useSupervisionSchedule";
 import type { CalendarEvent } from "./SupervisionCalendar";
 import AutoTextarea from "./AutoTextarea";
-import { PendingSignBadge } from "./LetterModalShared";
+import { PendingSignBadge, EDIT_DATE_PENDING_HINT } from "./LetterModalShared";
 import { useToast } from "./Toast";
 import ConfirmDialog from "./ConfirmDialog";
 import Spinner, { BusyLabel, LoadingBlock } from "./Spinner";
@@ -846,7 +846,8 @@ export default function T_SupervisionReview() {
                                                     <div style={{ display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap' }}>
                                                         <button className={sup.coTeacherName ? "btn-secondary small" : "btn small"} onClick={() => openAssignModal(sup)}>👥 {sup.coTeacherName ? 'อาจารย์ร่วม' : 'มอบหมายอาจารย์ร่วม'}</button>
                                                         {sup.status === "DATE_CONFIRMED" && !sup.officialLetterPath && (
-                                                            <button className="btn-secondary small" onClick={() => openEditDateModal(sup)}>✏️ แก้ไขวัน</button>
+                                                            <button className="btn-secondary small" onClick={() => openEditDateModal(sup)} disabled={!!sup.letterPendingAt}
+                                                                title={sup.letterPendingAt ? EDIT_DATE_PENDING_HINT : undefined}>✏️ แก้ไขวัน</button>
                                                         )}
                                                         {(sup.status === "LETTER_UPLOADED" || sup.status === "COMPLETED") && sup.officialLetterPath && (
                                                             <button className="btn-secondary small" onClick={() => window.open(`/uploads/supervision/${encodeURIComponent(sup.officialLetterPath!)}`, '_blank', 'noopener')}>👁️ ดูเอกสาร</button>
