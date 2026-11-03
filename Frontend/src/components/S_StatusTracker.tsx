@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { INTERNSHIP_STATUSES, isInternshipStatus, formsDone, FORM_STATE_LABEL, FORMS_DONE_LABEL, type FormState } from "../utils/internshipForms";
+import { INTERNSHIP_STATUSES, isInternshipStatus, formsDone, FORM_STATE_LABEL, FORMS_DONE_LABEL, MAIN_STATUS_LABEL, type FormState } from "../utils/internshipForms";
 
 // สถานะของฟอร์ม T002/T003 (ส่งมาจากหน้าที่มีรายการเอกสาร) — ไม่ส่ง = ถือว่ายังไม่ส่ง
 export type TrackerForms = { t002: FormState; t003: FormState };
@@ -24,7 +24,7 @@ const PHASES: Phase[] = [
     ],
   },
   {
-    id: 3, label: "ออกฝึกสหกิจ", icon: "🚀",
+    id: 3, label: MAIN_STATUS_LABEL, icon: "🚀",
     // ช่วงฝึกงาน (INTERNSHIP_STARTED + ค่าเก่า) — ขั้นย่อย T002/T003 ตัดสินจากสถานะของแต่ละฟอร์ม (ดู subStepView)
     entryStatuses: INTERNSHIP_STATUSES,
     subSteps: [
