@@ -162,23 +162,34 @@ test.describe("A. T002 / T003 คู่ขนาน", () => {
 
   test("ค่าสถานะหลักแบบเก่า (T003_SUBMITTED + T002 รอตรวจ): ขึ้นในรายการ/ป้าย · ตรวจได้ · สถานะหลักไม่ถูกแตะ", async () => {
     const b0 = await pending();
-    const counts = await api(staff(), "GET", "/api/admin/students?review=T002&countsOnly=1");
-    expect(counts.body.periods.find((p: any) => p.coopPeriodId === w.openPeriodId).pending).toBeGreaterThanOrEqual(1);
+    const periodPending = async () => (await api(staff(), "GET", "/api/admin/students?review=T002&countsOnly=1")).body.periods.find((p: any) => p.coopPeriodId === w.openPeriodId).pending;
+    const listed = async () => {
+      const l = await api(staff(), "GET", `/api/students?coopPeriodId=${w.openPeriodId}&search=${w.s.legacy.studentId}`);
+      return (Array.isArray(l.body) ? l.body : l.body.data).find((s: any) => s.studentId === w.s.legacy.studentId);
+    };
+    const row = await listed();
+    expect(row, "นักศึกษาสถานะเก่าต้องอยู่ในรายการของรอบ").toBeTruthy();
+    expect(row.coop.status).toBe("T003_SUBMITTED");
+    expect(row.documents.find((d: any) => d.type === "T002_FORM")?.status).toBe("WAITING");
+    const c0 = await periodPending();
 
     let r = await rev2(staff(), "admin", "t002", "legacy", BAD2, "ลายเซ็นไม่ชัด");
     expect(r.status, msg(r)).toBe(200);
     expect((await w.doc("legacy", "T002_FORM"))!.status).toBe("REJECTED");
     expect((await w.coop("legacy")).status).toBe("T003_SUBMITTED");
     expect((await pending()).t002).toBe(b0.t002 - 1);
+    expect(await periodPending()).toBe(c0 - 1);
 
     r = await upload("legacy", "T002_FORM");
     expect(r.status, msg(r)).toBe(200);
     expect((await pending()).t002).toBe(b0.t002);
+    expect(await periodPending()).toBe(c0);
     r = await rev2(w.t.main.token, "teacher", "t002", "legacy", OK2);
     expect(r.status, msg(r)).toBe(200);
     expect((await w.doc("legacy", "T002_FORM"))!.status).toBe("APPROVED");
     expect((await w.coop("legacy")).status).toBe("T003_SUBMITTED");
     expect((await pending()).t002).toBe(b0.t002 - 1);
+    expect(await periodPending()).toBe(c0 - 1);
   });
 });
 
@@ -379,12 +390,23 @@ test.describe("E2. หน้าเว็บ T002 / T003 คู่ขนาน", 
     await expect(page.getByText("ส่งเอกสารฝึกสหกิจ").first()).toBeVisible();
   });
 
-  test("เจ้าหน้าที่: ไฟล์ T003 ที่ผ่านแล้วมีปุ่มตีกลับ แต่ไม่มีปุ่มอนุมัติ", async ({ page }) => {
+  test("เจ้าหน้าที่: ไฟล์ T003 ที่ผ่านแล้วมีปุ่มตีกลับ แต่ไม่มีปุ่มอนุมัติ (มีกลุ่มควบคุม: ไฟล์รอตรวจมีปุ่มอนุมัติ)", async ({ page }) => {
+    const openFor = async (key: string) => {
+      await page.goto("/admin/doct003", { waitUntil: "networkidle" });
+      await page.locator("select", { has: page.locator(`option[value="${w.openPeriodId}"]`) }).first().selectOption(String(w.openPeriodId));
+      await page.getByPlaceholder(/ค้นหา/).first().fill(w.s[key].studentId);
+      const row = page.locator("tbody tr", { hasText: w.s[key].studentId });
+      return row;
+    };
     await asUser(page, staff(), w.staff.userId);
-    await page.goto("/admin/doct003", { waitUntil: "networkidle" });
-    await page.locator("select", { has: page.locator(`option[value="${w.openPeriodId}"]`) }).first().selectOption(String(w.openPeriodId));
-    await page.getByPlaceholder(/ค้นหา/).first().fill(w.s.uiOk.studentId);
-    const row = page.locator("tbody tr", { hasText: w.s.uiOk.studentId });
+    // กลุ่มควบคุม: T003 รอตรวจ → มีทั้งปุ่มอนุมัติ (ป้ายตรงตัวที่ใช้ตรวจด้านล่าง) และปุ่มตีกลับ
+    let row = await openFor("del");
+    await expect(row.getByText("รอตรวจ", { exact: true })).toBeVisible();
+    await row.getByRole("button", { name: "🔍 พิจารณา" }).click();
+    await expect(page.getByRole("button", { name: "✅ อนุมัติโครงร่างรายงาน" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "❌ ตีกลับให้แก้ไข" })).toBeVisible();
+
+    row = await openFor("uiOk");
     await expect(row.getByText("ผ่าน", { exact: true })).toBeVisible();
     await row.getByRole("button", { name: "🔍 พิจารณา" }).click();
     await expect(page.getByRole("button", { name: "❌ ตีกลับให้แก้ไข" })).toBeVisible();
