@@ -178,7 +178,7 @@ export default function A_DocT003Review() {
     };
 
     const getT003FileUrl = (docs: Document[]) => {
-        const file = docs.find(d => d.type === "T003_FORM");
+        const file = latestForm(docs, "T003"); // ไฟล์ล่าสุด ตรงกับป้ายสถานะและปุ่มตรวจ
         return file ? `/uploads/${file.path}` : null;
     };
 
@@ -341,7 +341,7 @@ export default function A_DocT003Review() {
                                     <td style={{ padding: '14px 16px', textAlign: 'right' }}>
                                         <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
                                         <DeadlineExtensionButton compact step="T003" studentId={s.id} studentName={`${s.firstName} ${s.lastName}`} extensions={s.coop?.deadlineExtensions} />
-                                        {s.documents?.some(d => d.type === "T003_FORM") && (
+                                        {getT003FileUrl(s.documents || []) && (
                                         <button className={statusInfo.state === 'WAITING' ? "btn small" : "btn-secondary small"} onClick={() => openReviewModal(s)}>
                                             🔍 พิจารณา
                                         </button>
