@@ -72,19 +72,23 @@ export class InternWorld {
     // key → [สถานะ, รอบ, ไฟล์ {ชนิด: สถานะ}]
     const plan: [string, string, "open" | "late", Record<string, string>][] = [
       ["t2", "INTERNSHIP_STARTED", "open", {}],                       // เดิน T002 → T003 ครบวง
-      ["t2late", "T002_EDITS_REQUIRED", "late", { T002_FORM: "REJECTED" }], // ส่งแก้หลังกำหนด
+      ["t2late", "INTERNSHIP_STARTED", "late", { T002_FORM: "REJECTED" }], // ตีกลับแล้วส่งใหม่หลังกำหนด
       ["closed", "INTERNSHIP_STARTED", "late", {}],                   // เลยกำหนด T002 · ปิดนัดนิเทศ
       ["notYet", "DOCS_APPROVED", "open", {}],                        // ยังไม่ออกฝึก
       ["sup", "INTERNSHIP_STARTED", "open", {}],                      // นัดนิเทศครบวง
-      ["rej", "T002_SUBMITTED", "open", { T002_FORM: "WAITING" }],    // อาจารย์ปฏิเสธ → เสนอใหม่
+      ["rej", "INTERNSHIP_STARTED", "open", { T002_FORM: "WAITING" }],    // อาจารย์ปฏิเสธ → เสนอใหม่
       ["clashX", "INTERNSHIP_STARTED", "open", {}],                   // คิวที่ยืนยันแล้วของอาจารย์หลัก
       ["clashY", "INTERNSHIP_STARTED", "open", {}],                   // เสนอเวลาทับ clashX
       ["gP", "INTERNSHIP_STARTED", "open", {}],                       // ยืนยันแบบกลุ่ม
       ["gQ", "INTERNSHIP_STARTED", "open", {}],
-      // ส่ง T003 ไปก่อน T002 ถูกตรวจ → ตรวจ T002 ย้อนหลัง
-      ["t23", "INTERNSHIP_STARTED", "open", {}],
-      // ถูกตีกลับ T002 ย้อนหลังแล้ว ในรอบที่เลยกำหนด T002 — ส่งใหม่ต้องได้
-      ["late23", "T003_SUBMITTED", "late", { T002_FORM: "REJECTED", T003_FORM: "WAITING" }],
+      // สถานะหลักแบบเก่า (ก่อนรันสคริปต์ migrate) — ต้องตรวจได้และนับในรายการเหมือน INTERNSHIP_STARTED
+      ["legacy", "T003_SUBMITTED", "open", { T002_FORM: "WAITING" }],
+      // หน้าเว็บ: นักศึกษาที่ยังไม่ส่งอะไรเลย (หน้า T003 ต้องมีปุ่มส่งโดยไม่ต้องส่ง T002)
+      ["uiNone", "INTERNSHIP_STARTED", "open", {}],
+      // หน้าเว็บเจ้าหน้าที่: T003 ผ่านแล้ว (ตีกลับย้อนหลังได้ ไม่มีปุ่มอนุมัติ)
+      ["uiOk", "INTERNSHIP_STARTED", "open", { T003_FORM: "APPROVED" }],
+      // ลบไฟล์: T002 ถูกตีกลับ (ลบได้) · T003 รอตรวจ (ลบไม่ได้)
+      ["del", "INTERNSHIP_STARTED", "open", { T002_FORM: "REJECTED", T003_FORM: "WAITING" }],
     ];
     let i = 0;
     for (const [key, status, round, docs] of plan) {

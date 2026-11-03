@@ -5,7 +5,7 @@
  * backend + DB จริง (ข้อมูลจาก helpers/internWorld.ts ลบทิ้งตอนจบ) · ต้องรัน backend ที่ :5000 และ frontend ที่ :5173
  *
  * บั๊กที่เคยเจอ (ล็อกไว้ไม่ให้กลับมา):
- *   - อนุมัติ T002 ดึงสถานะย้อนกลับไป "เริ่มฝึกงาน" · ลบ T002/T003 ระหว่างตรวจได้ · ส่ง T003 ข้าม T002
+ *   - อนุมัติ T002 ดึงสถานะย้อนกลับไป "เริ่มฝึกงาน" · ลบ T002/T003 ระหว่างตรวจได้ · ส่ง T003 ข้าม T002 (เดิม — ตอนนี้ส่งได้ทุกลำดับ ดู A)
  *   - นัดนิเทศก่อนออกฝึก / ตอนระบบปิด / เสนอวันในอดีต · แก้นัดหลังอาจารย์ยืนยันแล้ว
  *   - ยืนยันวันชนคิวอาจารย์คนเดียวกัน · อาจารย์ร่วมไม่ว่างต้องเตือนก่อน · เสนอวันใหม่ต้องล้างวันว่างของอาจารย์ร่วม
  *   - ยืนยันแบบกลุ่ม: คิวเรียงตามลำดับที่ส่ง ต่อกันไม่ทับ
@@ -46,130 +46,139 @@ const supPending = (id: number, body: object) => api(staff(), "PUT", `/api/admin
 const no = (n: number) => `ZI${w.tail}.26/${n}`;
 
 // ══════════════════════════════════════════════════════
-// A. T002 → T003 ครบวง
+// A. T002 / T003 คู่ขนาน — สถานะหลักคงที่ที่ INTERNSHIP_STARTED · สถานะรองต่อฟอร์มอ่านจากไฟล์ล่าสุด
 // ══════════════════════════════════════════════════════
-test.describe("A. T002 / T003", () => {
-  test("ส่ง T003 ก่อน T002 ไม่ได้ · ส่ง T002 → รอตรวจ · ลบระหว่างตรวจไม่ได้ · ตีกลับ → ลบ/ส่งใหม่ได้", async () => {
-    expect((await upload("t2", "T003_FORM")).status).toBe(400);
-    let r = await upload("t2", "T002_FORM");
-    expect(r.status, msg(r)).toBe(200);
-    expect((await w.coop("t2")).status).toBe("T002_SUBMITTED");
-    const t002 = (await w.doc("t2", "T002_FORM"))!;
-    expect((await api(st("t2"), "DELETE", `/api/docs/delete/${t002.id}`)).status).toBe(409);
+const rev2 = (token: string, who: "admin" | "teacher", form: "t002" | "t003", key: string, status: string, comment?: string) =>
+  api(token, "PUT", `/api/${who}/documents/review-${form}`, { studentId: pk(key), status, comment });
+const OK2 = "T002_SUBMITTED", BAD2 = "T002_EDITS_REQUIRED", OK3 = "T003_APPROVED", BAD3 = "T003_EDITS_REQUIRED";
 
-    r = await api(staff(), "PUT", "/api/admin/documents/review-t002", { studentId: pk("t2"), status: "T002_EDITS_REQUIRED", comment: "แก้ข้อ 3" });
+test.describe("A. T002 / T003 คู่ขนาน", () => {
+  test("ส่ง T003 ก่อน T002 ได้ · ทั้งคู่รอตรวจ สถานะหลักไม่เปลี่ยน · ป้ายเมนูนับแยกกัน · ส่งซ้ำตอนรอตรวจ 400 · ลบตอนรอตรวจ 409", async () => {
+    const b0 = await pending();
+    let r = await upload("t2", "T003_FORM");
     expect(r.status, msg(r)).toBe(200);
-    expect((await w.coop("t2")).status).toBe("T002_EDITS_REQUIRED");
-    expect((await w.doc("t2", "T002_FORM"))!.status).toBe("REJECTED");
-    await expect.poll(async () => (await w.notes("t2", "T002_REVIEWED")).length).toBeGreaterThan(0);
+    expect((await w.coop("t2")).status).toBe("INTERNSHIP_STARTED");
+    expect((await w.doc("t2", "T003_FORM"))!.status).toBe("WAITING");
+    const b1 = await pending();
+    expect([b1.t002, b1.t003]).toEqual([b0.t002, b0.t003 + 1]); // T003 +1 · T002 ไม่ขยับ
 
     r = await upload("t2", "T002_FORM");
     expect(r.status, msg(r)).toBe(200);
-    expect((await w.coop("t2")).status).toBe("T002_SUBMITTED");
+    expect((await w.coop("t2")).status).toBe("INTERNSHIP_STARTED");
     expect((await w.doc("t2", "T002_FORM"))!.status).toBe("WAITING");
+    const b2 = await pending();
+    expect([b2.t002, b2.t003]).toEqual([b1.t002 + 1, b1.t003]);
+
+    expect((await upload("t2", "T002_FORM")).status).toBe(400);
+    expect((await upload("t2", "T003_FORM")).status).toBe(400);
+    const t002 = (await w.doc("t2", "T002_FORM"))!;
+    expect((await api(st("t2"), "DELETE", `/api/docs/delete/${t002.id}`)).status).toBe(409);
   });
 
-  test("อาจารย์อื่นตรวจไม่ได้ · ที่ปรึกษาอนุมัติ → สถานะไม่ถอย · ป้ายเมนู T002 ลดลง (เดิมนับค้างจนส่ง T003)", async () => {
-    let r = await api(w.t.other.token, "PUT", "/api/teacher/documents/review-t002", { studentId: pk("t2"), status: "T002_SUBMITTED" });
-    expect(r.status, msg(r)).toBe(403);
+  test("ตีกลับ T002 (ต้องมีเหตุผล) → T003 ไม่เปลี่ยน · สถานะหลักไม่เปลี่ยน · ตีกลับซ้ำ 400 · ส่ง T002 ใหม่ → รอตรวจ", async () => {
+    expect((await rev2(staff(), "admin", "t002", "t2", BAD2)).status).toBe(400); // ไม่มีเหตุผล
+    expect((await w.doc("t2", "T002_FORM"))!.status).toBe("WAITING");
 
-    const before = (await pending()).t002;
-    r = await api(w.t.main.token, "PUT", "/api/teacher/documents/review-t002", { studentId: pk("t2"), status: "T002_SUBMITTED" });
+    const b0 = await pending();
+    let r = await rev2(staff(), "admin", "t002", "t2", BAD2, "แก้ข้อ 3");
     expect(r.status, msg(r)).toBe(200);
-    expect((await w.coop("t2")).status).toBe("T002_SUBMITTED");
+    expect((await w.coop("t2")).status).toBe("INTERNSHIP_STARTED");
+    expect((await w.doc("t2", "T002_FORM"))!.status).toBe("REJECTED");
+    expect((await w.doc("t2", "T003_FORM"))!.status).toBe("WAITING");
+    const b1 = await pending();
+    expect([b1.t002, b1.t003]).toEqual([b0.t002 - 1, b0.t003]);
+    await expect.poll(async () => (await w.notes("t2", "T002_REVIEWED")).length).toBeGreaterThan(0);
+    expect((await rev2(staff(), "admin", "t002", "t2", BAD2, "อีกที")).status).toBe(400); // ตีกลับแล้ว
+    expect((await rev2(staff(), "admin", "t002", "t2", OK2)).status).toBe(400);
+
+    r = await upload("t2", "T002_FORM");
+    expect(r.status, msg(r)).toBe(200);
+    expect((await w.coop("t2")).status).toBe("INTERNSHIP_STARTED");
+    expect((await w.doc("t2", "T002_FORM"))!.status).toBe("WAITING");
+    expect((await pending()).t002).toBe(b0.t002);
+  });
+
+  test("นัดนิเทศระหว่างที่ฟอร์มค้างตรวจได้ · อาจารย์อื่นตรวจไม่ได้ · อนุมัติทั้งคู่ (ที่ปรึกษา + เจ้าหน้าที่) → สถานะหลักไม่ถอย · ป้ายลดแยกกัน", async () => {
+    const r0 = await propose("t2", [`${day(30)}|10:00-12:00|ONSITE`]);
+    expect(r0.status, msg(r0)).toBe(200);
+
+    expect((await rev2(w.t.other.token, "teacher", "t002", "t2", OK2)).status).toBe(403);
+    const b0 = await pending();
+    let r = await rev2(w.t.main.token, "teacher", "t002", "t2", OK2);
+    expect(r.status, msg(r)).toBe(200);
     expect((await w.doc("t2", "T002_FORM"))!.status).toBe("APPROVED");
-    expect((await pending()).t002).toBe(before - 1);
-    expect((await pending(w.t.main.token)).t002).toBeGreaterThanOrEqual(0);
+    expect((await w.doc("t2", "T003_FORM"))!.status).toBe("WAITING");
+    const b1 = await pending();
+    expect([b1.t002, b1.t003]).toEqual([b0.t002 - 1, b0.t003]);
 
-    // จำนวนรอตรวจของรอบในหน้าตรวจ T002 ก็ไม่นับ
-    const counts = await api(staff(), "GET", "/api/admin/students?review=T002&countsOnly=1");
-    const row = counts.body.periods.find((p: any) => p.coopPeriodId === w.openPeriodId);
-    expect(row.pending).toBe(1); // rej (T002 ยังไม่ตรวจ) — t2 ตรวจผ่านแล้วไม่นับ
+    r = await rev2(staff(), "admin", "t003", "t2", OK3);
+    expect(r.status, msg(r)).toBe(200);
+    expect((await w.doc("t2", "T003_FORM"))!.status).toBe("APPROVED");
+    expect((await w.coop("t2")).status).toBe("INTERNSHIP_STARTED");
+    const b2 = await pending();
+    expect([b2.t002, b2.t003]).toEqual([b0.t002 - 1, b0.t003 - 1]);
   });
 
-  test("T003: ส่ง → ตีกลับ → ส่งใหม่ → อนุมัติ · ตรวจซ้ำ 400 · T002 ตรวจไม่ได้แล้ว", async () => {
-    let r = await upload("t2", "T003_FORM");
-    expect(r.status, msg(r)).toBe(200);
-    expect((await w.coop("t2")).status).toBe("T003_SUBMITTED");
+  test("ไฟล์ที่ผ่านแล้ว: อนุมัติซ้ำ 400 · ส่ง/ลบไม่ได้ · ตีกลับ T003 ที่ผ่านแล้วได้ (ต้องมีเหตุผล) → ส่งใหม่ → อนุมัติ", async () => {
+    expect((await rev2(staff(), "admin", "t003", "t2", OK3)).status).toBe(400);
+    expect((await rev2(staff(), "admin", "t002", "t2", OK2)).status).toBe(400);
+    expect((await upload("t2", "T003_FORM")).status).toBe(400);
     const t003 = (await w.doc("t2", "T003_FORM"))!;
     expect((await api(st("t2"), "DELETE", `/api/docs/delete/${t003.id}`)).status).toBe(409);
 
-    r = await api(staff(), "PUT", "/api/admin/documents/review-t003", { studentId: pk("t2"), status: "T003_EDITS_REQUIRED", comment: "แผนงานไม่ครบ" });
+    expect((await rev2(staff(), "admin", "t003", "t2", BAD3)).status).toBe(400); // ไม่มีเหตุผล
+    let r = await rev2(staff(), "admin", "t003", "t2", BAD3, "แผนงานไม่ครบ");
     expect(r.status, msg(r)).toBe(200);
-    expect((await w.coop("t2")).status).toBe("T003_EDITS_REQUIRED");
-    expect((await upload("t2", "T003_FORM")).status).toBe(200);
-    expect((await w.coop("t2")).status).toBe("T003_SUBMITTED");
+    expect((await w.doc("t2", "T003_FORM"))!.status).toBe("REJECTED");
+    expect((await w.doc("t2", "T002_FORM"))!.status).toBe("APPROVED"); // อีกฟอร์มไม่กระทบ
+    expect((await w.coop("t2")).status).toBe("INTERNSHIP_STARTED");
 
-    r = await api(staff(), "PUT", "/api/admin/documents/review-t003", { studentId: pk("t2"), status: "T003_APPROVED" });
+    const b0 = await pending();
+    r = await upload("t2", "T003_FORM");
     expect(r.status, msg(r)).toBe(200);
-    expect((await w.coop("t2")).status).toBe("T003_APPROVED");
-    expect((await api(staff(), "PUT", "/api/admin/documents/review-t003", { studentId: pk("t2"), status: "T003_EDITS_REQUIRED", comment: "x" })).status).toBe(400);
-    expect((await api(staff(), "PUT", "/api/admin/documents/review-t002", { studentId: pk("t2"), status: "T002_EDITS_REQUIRED", comment: "x" })).status).toBe(400);
-    expect((await upload("t2", "T002_FORM")).status).toBe(400);
+    expect((await pending()).t003).toBe(b0.t003 + 1);
+    r = await rev2(staff(), "admin", "t003", "t2", OK3);
+    expect(r.status, msg(r)).toBe(200);
+    expect((await w.doc("t2", "T003_FORM"))!.status).toBe("APPROVED");
+    expect((await w.coop("t2")).status).toBe("INTERNSHIP_STARTED");
   });
 
-  test("กำหนดส่ง: ส่ง T002 ครั้งแรกหลังกำหนด 403 · ส่งแก้หลังกำหนดได้", async () => {
+  test("ลบไฟล์: เฉพาะที่ถูกตีกลับ (T002) · รอตรวจ (T003) ลบไม่ได้ 409", async () => {
+    const t002 = (await w.doc("del", "T002_FORM"))!, t003 = (await w.doc("del", "T003_FORM"))!;
+    expect((await api(st("del"), "DELETE", `/api/docs/delete/${t003.id}`)).status).toBe(409);
+    const r = await api(st("del"), "DELETE", `/api/docs/delete/${t002.id}`);
+    expect(r.status, msg(r)).toBe(200);
+    expect(await w.doc("del", "T002_FORM")).toBeNull();
+  });
+
+  test("กำหนดส่ง: ส่งครั้งแรกหลังกำหนด 403 · ถูกตีกลับแล้วส่งใหม่หลังกำหนดได้ (สถานะหลักไม่เปลี่ยน)", async () => {
     let r = await upload("closed", "T002_FORM");
     expect(r.status, msg(r)).toBe(403);
     r = await upload("t2late", "T002_FORM");
     expect(r.status, msg(r)).toBe(200);
-    expect((await w.coop("t2late")).status).toBe("T002_SUBMITTED");
-  });
-});
-
-// ══════════════════════════════════════════════════════
-// A2. ส่ง T003 ไปก่อน T002 ถูกตรวจ → ตรวจ T002 ย้อนหลัง
-//     (เดิมหน้าตรวจขึ้น "📄 รอการตรวจสอบ — ไม่สามารถตรวจสอบซ้ำได้ในสถานะนี้" ตรวจไม่ได้อีกเลย)
-// ══════════════════════════════════════════════════════
-test.describe("A2. ตรวจ T002 ย้อนหลัง", () => {
-  test("ส่ง T002 แล้วส่ง T003 ทันที → ป้ายเมนูยังนับ T002 · หน้าตรวจมีปุ่มอนุมัติ/ตีกลับ", async ({ page }) => {
-    const before = (await pending()).t002;
-    expect((await upload("t23", "T002_FORM")).status).toBe(200);
-    expect((await upload("t23", "T003_FORM")).status).toBe(200);
-    expect((await w.coop("t23")).status).toBe("T003_SUBMITTED");
-    expect((await pending()).t002).toBe(before + 1);
-
-    await asUser(page, staff(), w.staff.userId);
-    await page.goto("/admin/doct002", { waitUntil: "networkidle" });
-    await page.locator("select", { has: page.locator(`option[value="${w.openPeriodId}"]`) }).first().selectOption(String(w.openPeriodId));
-    await page.getByPlaceholder(/ค้นหา/).first().fill(w.s.t23.studentId);
-    const row = page.locator("tbody tr", { hasText: w.s.t23.studentId });
-    await expect(row.getByText("📄 รอการตรวจสอบ")).toBeVisible();
-    await row.getByRole("button", { name: "🔍 ตรวจเอกสาร" }).click();
-    await expect(page.getByRole("button", { name: "✅ อนุมัติเอกสาร T002" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "❌ ตีกลับให้แก้ไข" })).toBeVisible();
-    await expect(page.getByText(/ไม่สามารถตรวจสอบซ้ำได้/)).toHaveCount(0);
+    expect((await w.coop("t2late")).status).toBe("INTERNSHIP_STARTED");
+    expect((await w.doc("t2late", "T002_FORM"))!.status).toBe("WAITING");
   });
 
-  test("ตีกลับย้อนหลัง → ขั้น T003 ไม่ถอย · นักศึกษาส่ง T002 ใหม่ได้ (สถานะยังเป็น T003) · ที่ปรึกษาอนุมัติ → ป้ายลด · ตรวจซ้ำ 400", async () => {
-    let r = await api(staff(), "PUT", "/api/admin/documents/review-t002", { studentId: pk("t23"), status: "T002_EDITS_REQUIRED", comment: "ข้อ 3 ไม่ครบ" });
-    expect(r.status, msg(r)).toBe(200);
-    expect((await w.coop("t23")).status).toBe("T003_SUBMITTED");
-    expect((await w.doc("t23", "T002_FORM"))!.status).toBe("REJECTED");
-    await expect.poll(async () => (await w.notes("t23", "T002_REVIEWED")).length).toBeGreaterThan(0);
+  test("ค่าสถานะหลักแบบเก่า (T003_SUBMITTED + T002 รอตรวจ): ขึ้นในรายการ/ป้าย · ตรวจได้ · สถานะหลักไม่ถูกแตะ", async () => {
+    const b0 = await pending();
+    const counts = await api(staff(), "GET", "/api/admin/students?review=T002&countsOnly=1");
+    expect(counts.body.periods.find((p: any) => p.coopPeriodId === w.openPeriodId).pending).toBeGreaterThanOrEqual(1);
 
-    const before = (await pending()).t002;
-    r = await upload("t23", "T002_FORM");
+    let r = await rev2(staff(), "admin", "t002", "legacy", BAD2, "ลายเซ็นไม่ชัด");
     expect(r.status, msg(r)).toBe(200);
-    expect((await w.coop("t23")).status).toBe("T003_SUBMITTED");
-    expect((await w.doc("t23", "T002_FORM"))!.status).toBe("WAITING");
-    expect((await pending()).t002).toBe(before + 1);
+    expect((await w.doc("legacy", "T002_FORM"))!.status).toBe("REJECTED");
+    expect((await w.coop("legacy")).status).toBe("T003_SUBMITTED");
+    expect((await pending()).t002).toBe(b0.t002 - 1);
 
-    r = await api(w.t.main.token, "PUT", "/api/teacher/documents/review-t002", { studentId: pk("t23"), status: "T002_SUBMITTED" });
+    r = await upload("legacy", "T002_FORM");
     expect(r.status, msg(r)).toBe(200);
-    expect((await w.doc("t23", "T002_FORM"))!.status).toBe("APPROVED");
-    expect((await w.coop("t23")).status).toBe("T003_SUBMITTED");
-    expect((await pending()).t002).toBe(before);
-    expect((await api(staff(), "PUT", "/api/admin/documents/review-t002", { studentId: pk("t23"), status: "T002_EDITS_REQUIRED", comment: "x" })).status).toBe(400);
-    // T003 ยังตรวจตามปกติได้
-    expect((await api(staff(), "PUT", "/api/admin/documents/review-t003", { studentId: pk("t23"), status: "T003_APPROVED" })).status).toBe(200);
-  });
-
-  test("ถูกตีกลับย้อนหลังในรอบที่เลยกำหนด T002 → ส่งใหม่ได้ (นับเป็นส่งแก้)", async () => {
-    const r = await upload("late23", "T002_FORM");
+    expect((await pending()).t002).toBe(b0.t002);
+    r = await rev2(w.t.main.token, "teacher", "t002", "legacy", OK2);
     expect(r.status, msg(r)).toBe(200);
-    expect((await w.coop("late23")).status).toBe("T003_SUBMITTED");
-    expect((await w.doc("late23", "T002_FORM"))!.status).toBe("WAITING");
+    expect((await w.doc("legacy", "T002_FORM"))!.status).toBe("APPROVED");
+    expect((await w.coop("legacy")).status).toBe("T003_SUBMITTED");
+    expect((await pending()).t002).toBe(b0.t002 - 1);
   });
 });
 
@@ -355,5 +364,30 @@ test.describe("E. หน้าเว็บ", () => {
     await page.locator("select", { has: page.locator('option[value="all"]', { hasText: "ทุกปีการศึกษา" }) }).first().selectOption(String(w.openPeriodId));
     await page.getByPlaceholder(/ค้นหา/).first().fill(w.s.clashY.studentId);
     await expect(page.locator("tbody tr", { hasText: w.s.clashY.studentId }).getByRole("button", { name: "✏️ แก้ไขวัน" })).toBeEnabled();
+  });
+});
+
+test.describe("E2. หน้าเว็บ T002 / T003 คู่ขนาน", () => {
+  test("นักศึกษา: หน้า T003 มีปุ่มส่งโดยไม่ต้องส่ง T002 · ป้ายสถานะหลัก \"ส่งเอกสารฝึกสหกิจ\"", async ({ page }) => {
+    await asUser(page, st("uiNone"), w.s.uiNone.userId);
+    await page.goto("/student/docs-t003", { waitUntil: "networkidle" });
+    await expect(page.getByText("📂 เลือกไฟล์ T003 เพื่ออัปโหลด")).toBeVisible();
+    await expect(page.getByText("🔒 ยังส่ง T003 ไม่ได้")).toHaveCount(0);
+    await page.goto("/student/docs-t002", { waitUntil: "networkidle" });
+    await expect(page.getByText("📂 เลือกไฟล์ T002 เพื่ออัปโหลด")).toBeVisible();
+    await page.goto("/student/dashboard", { waitUntil: "networkidle" });
+    await expect(page.getByText("ส่งเอกสารฝึกสหกิจ").first()).toBeVisible();
+  });
+
+  test("เจ้าหน้าที่: ไฟล์ T003 ที่ผ่านแล้วมีปุ่มตีกลับ แต่ไม่มีปุ่มอนุมัติ", async ({ page }) => {
+    await asUser(page, staff(), w.staff.userId);
+    await page.goto("/admin/doct003", { waitUntil: "networkidle" });
+    await page.locator("select", { has: page.locator(`option[value="${w.openPeriodId}"]`) }).first().selectOption(String(w.openPeriodId));
+    await page.getByPlaceholder(/ค้นหา/).first().fill(w.s.uiOk.studentId);
+    const row = page.locator("tbody tr", { hasText: w.s.uiOk.studentId });
+    await expect(row.getByText("ผ่าน", { exact: true })).toBeVisible();
+    await row.getByRole("button", { name: "🔍 พิจารณา" }).click();
+    await expect(page.getByRole("button", { name: "❌ ตีกลับให้แก้ไข" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "✅ อนุมัติโครงร่างรายงาน" })).toHaveCount(0);
   });
 });
