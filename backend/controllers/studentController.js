@@ -4,7 +4,7 @@ const { buildStudentExportWorkbook, exportBaseUrl, STUDENT_EXPORT_INCLUDE } = re
 const { defaultStudentPassword, hashDefaultStudentPassword } = require('../utils/studentPassword');
 const { encryptPassword, revealPassword } = require('../utils/passwordVault');
 const { changeUserEmail, normalizeEmail } = require('../utils/userEmail');
-const { removeUnreferencedUploads } = require('../utils/uploadCleanup');
+const { removeUnreferencedUploads, SUPERVISION_PREFIX } = require('../utils/uploadCleanup');
 const { resolveMajorNameTh } = require('../utils/majorName');
 const { visibleStudentWhere, getMajorScope, studentWhere } = require('../utils/majorScope');
 const { studentPeriodWhere, countByPeriod } = require('../utils/periodFilter');
@@ -516,7 +516,7 @@ exports.permanentlyDeleteStudent = async (req, res) => {
       files = [
         ...(s.documents || []).map((d) => d.path),
         s.coop?.reqLetterUrl, s.coop?.acceptanceFileUrl, s.coop?.placeLetterUrl,
-        s.supervisionAppointment?.officialLetterPath,
+        s.supervisionAppointment?.officialLetterPath && `${SUPERVISION_PREFIX}${s.supervisionAppointment.officialLetterPath}`,
       ];
       await tx.student.delete({ where: { id } });
       const role = s.user?.role;
@@ -710,8 +710,13 @@ exports.createStudentSingle = async (req, res) => {
       const existEmail = await tx.user.findFirst({ where: { OR: [{ email: emailLower }, { username: emailLower }] } });
       if (existEmail) throw Object.assign(new Error("อีเมลนี้มีในระบบแล้ว"), { is409: true });
 
-      const existId = await tx.student.findFirst({ where: { studentId: studentId.trim(), deletedAt: null } });
-      if (existId) throw Object.assign(new Error("รหัสนักศึกษานี้มีในระบบแล้ว"), { is409: true });
+      // รหัสนักศึกษาห้ามซ้ำทั้งตาราง (รวมถังขยะ) — เดิมเช็คเฉพาะคนที่ไม่อยู่ในถังขยะ แล้วไปชน unique ได้ข้อความกลางๆ "ข้อมูลซ้ำ"
+      const existId = await tx.student.findFirst({ where: { studentId: studentId.trim() }, select: { deletedAt: true } });
+      if (existId) {
+        throw Object.assign(new Error(existId.deletedAt
+          ? "รหัสนักศึกษานี้อยู่ในถังขยะ — กู้คืนจากถังขยะแทนการเพิ่มใหม่"
+          : "รหัสนักศึกษานี้มีในระบบแล้ว"), { is409: true });
+      }
 
       user = await tx.user.create({
         data: {
