@@ -331,6 +331,14 @@ function css(IOS_BLUE: string) {
   .filter-chip .count { font-size: 11px; padding: 1px 7px; border-radius: 999px; background: rgba(15,23,42,.08); }
   .filter-chip.on .count { background: rgba(255,255,255,.25); }
 
+  /* ── ป้ายสถานะที่กดได้ (รายชื่อนักศึกษา → หน้าต่างสถานะของนักศึกษา) — หน้าตาเท่าป้ายเดิม มีแค่เคอร์เซอร์/เส้นโฟกัส ── */
+  .status-link {
+    display: inline-flex; padding: 0; margin: 0; border: 0; background: none;
+    border-radius: 999px; cursor: pointer; font: inherit; text-align: left;
+  }
+  .status-link:hover { filter: brightness(.96); }
+  .status-link:focus-visible { outline: 2px solid var(--ios-blue); outline-offset: 2px; }
+
   /* ── เครื่องหมายขั้นตอนบนเมนูนักศึกษา (utils/studentSteps.ts) ── */
   .step-mark { flex-shrink: 0; font-size: 12px; font-weight: 800; line-height: 1; }
   .step-mark.done { color: #16a34a; }

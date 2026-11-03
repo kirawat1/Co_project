@@ -16,6 +16,7 @@ import { notify, askConfirm } from "../utils/notify";
 import { contactName, contactLine } from "../utils/contacts";
 import { TABLE_TH, TABLE_TD, TABLE_HEADER_ROW } from "../utils/tableStyles";
 import Modal, { ModalCloseButton } from "./Modal";
+import StudentStatusModal, { type StatusModalStudent } from "./StudentStatusModal";
 import { useAdminRole } from "./adminRole";
 import A_MovePeriodModal, { MOVE_BLOCKED_STATUSES } from "./A_MovePeriodModal";
 
@@ -219,6 +220,8 @@ export default function A_Students() {
   const [filterStatusGroups, setFilterStatusGroups] = useState<string[]>([]);
 
   const [modalStudent, setModalStudent] = useState<StudentProfile | null>(null);
+  // กดป้ายสถานะ → หน้าต่างแถบสถานะของนักศึกษา (เหมือนที่นักศึกษาเห็น)
+  const [statusStudent, setStatusStudent] = useState<StatusModalStudent | null>(null);
   const [editStudent, setEditStudent] = useState<StudentProfile | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [pageTab, setPageTab] = useState<"list" | "trash">("list");
@@ -874,7 +877,11 @@ export default function A_Students() {
                   <td style={td} data-label="อีเมล">{s.user?.email || "-"}</td>
                   <td style={td} data-label="หลักสูตร">{s.major ? (deptMap[s.major] || s.major) : <span style={{ color: "#64748b" }}>-</span>}</td>
                   <td style={td} data-label="รูปแบบการศึกษา">{CURRICULUM_TH[s.studyProgram ?? ""] ?? s.studyProgram ?? "-"}</td>
-                  <td style={td} data-label="สถานะ"><StatusBadge status={s.coop?.status || s.docStatus} /></td>
+                  <td style={td} data-label="สถานะ">
+                    <button type="button" className="status-link" title="ดูสถานะของนักศึกษา" aria-label={`ดูสถานะของ ${s.studentId}`} onClick={() => setStatusStudent(s as StatusModalStudent)}>
+                      <StatusBadge status={s.coop?.status || s.docStatus} />
+                    </button>
+                  </td>
                   <td style={td} data-label="รายละเอียด">
                     <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                       <button
@@ -921,6 +928,7 @@ export default function A_Students() {
       {pageTab === "trash" && <A_StudentTrash />}
 
       {/* ================= Modal ================= */}
+      {statusStudent && <StudentStatusModal student={statusStudent} onClose={() => setStatusStudent(null)} />}
       {modalStudent && (
         <StudentModal
           student={modalStudent}
