@@ -6,6 +6,9 @@ const NO_FILES = Object.fromEntries(DOC_COLUMNS.map(([h]) => [h, '-']));
 // คอลัมน์สถานะฟอร์ม T002/T003 — ไม่มีไฟล์ = ยังไม่ส่ง
 const NO_FORMS = { 'สถานะ T002': 'ยังไม่ส่ง', 'สถานะ T003': 'ยังไม่ส่ง' };
 
+// ยังไม่ถึงช่วงฝึกสหกิจ (ไม่มี coop/ยังไม่ออกฝึก) และไม่มีไฟล์ = "-" ไม่ใช่ค้างส่ง
+const NOT_YET_FORMS = { 'สถานะ T002': '-', 'สถานะ T003': '-' };
+
 function sheetToRows(buffer) {
   const workbook = XLSX.read(buffer, { type: 'buffer' });
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
@@ -143,7 +146,7 @@ describe('buildStudentExportWorkbook', () => {
       'รูปแบบนิเทศ': '-',
       'สถานะนิเทศ': 'ยังไม่นัดนิเทศ',
       ...NO_FILES,
-      ...NO_FORMS,
+      ...NOT_YET_FORMS,
     });
   });
 
@@ -204,9 +207,10 @@ describe('คอลัมน์สถานะฟอร์ม T002/T003', () => 
         { type: 'T003_FORM', name: 'd.pdf', path: 'd.pdf', status: 'REJECTED', uploadedAt: '2026-06-01T03:00:00Z' },
       ] },
       { ...base, studentId: '4' },
+      { ...base, studentId: '5', coop: { status: 'PLACEMENT_LETTER_ISSUED' } },
     ]));
     expect(rows.map((r) => [r['สถานะ T002'], r['สถานะ T003']])).toEqual([
-      ['ผ่าน', 'ยังไม่ส่ง'], ['ยังไม่ส่ง', 'รอตรวจ'], ['ยังไม่ส่ง', 'ต้องแก้'], ['ยังไม่ส่ง', 'ยังไม่ส่ง'],
+      ['ผ่าน', 'ยังไม่ส่ง'], ['ยังไม่ส่ง', 'รอตรวจ'], ['ยังไม่ส่ง', 'ต้องแก้'], ['ยังไม่ส่ง', 'ยังไม่ส่ง'], ['-', '-'],
     ]);
   });
 });

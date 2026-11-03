@@ -49,6 +49,15 @@ describe('findStudentsToRemind', () => {
   });
 });
 
+test('T002/T003: ไม่เตือนนักศึกษาที่มีไฟล์ของฟอร์มนั้นแล้ว (กรองที่ query) · T000 ไม่กรองตามไฟล์', async () => {
+  rows({ T003: { due: '2026-07-01' }, T000: { due: '2026-07-01' } });
+  prisma.studentCoop.findMany.mockResolvedValue([]);
+  await findStudentsToRemind('T003', NOW, prisma);
+  expect(prisma.studentCoop.findMany.mock.calls[0][0].where.student).toEqual({ deletedAt: null, documents: { none: { type: 'T003_FORM' } } });
+  await findStudentsToRemind('T000', NOW, prisma);
+  expect(prisma.studentCoop.findMany.mock.calls[1][0].where.student).toEqual({ deletedAt: null });
+});
+
 describe('runDeadlineReminders', () => {
   test('แจ้งเตือนรวมตามวันปิด · relatedId = ขั้น:วันปิด (กันซ้ำวันละครั้งด้วยกลไกเดิม)', async () => {
     prisma.coopPeriodMajor.findMany.mockResolvedValue([{ periodId: 1, major: 'CS', deadlines: { T002: { due: '2026-07-04' } } }]);

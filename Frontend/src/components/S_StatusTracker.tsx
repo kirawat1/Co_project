@@ -66,9 +66,12 @@ function internshipAction(forms: TrackerForms): { text: string; link?: string; l
   if (formsDone(t002, t003)) return { text: `${FORMS_DONE_LABEL} — นัดหมายนิเทศสหกิจกับอาจารย์ และเตรียมส่งเล่มรายงาน T008`, link: "/student/supervision", linkText: "ไปนัดหมาย" };
   if (t002 === "REJECTED") return { text: "ต้องแก้ไข T002 — แบบแจ้งรายละเอียดงานและที่พัก", link: "/student/docs-t002", linkText: "ไปแก้ไข", isWarning: true };
   if (t003 === "REJECTED") return { text: "ต้องแก้ไข T003 — โครงร่างรายงานสหกิจ", link: "/student/docs-t003", linkText: "ไปแก้ไข", isWarning: true };
-  if (t002 === "NONE") return { text: "กำลังฝึกสหกิจ — ส่งเอกสาร T002 แบบแจ้งรายละเอียดงาน (ส่ง T003 ได้เลย ไม่ต้องรอ T002)", link: "/student/docs-t002", linkText: "ไปหน้า T002" };
+  if (t002 === "NONE" && t003 === "NONE") return { text: "กำลังฝึกสหกิจ — ส่งเอกสาร T002 แบบแจ้งรายละเอียดงาน และ T003 โครงร่างรายงาน (ส่งเมื่อไรก่อนก็ได้ ไม่ต้องรอกัน)", link: "/student/docs-t002", linkText: "ไปหน้า T002" };
+  // เหลือฟอร์มเดียวที่ยังไม่ส่ง — เอ่ยชื่อฟอร์มนั้น (อีกฟอร์มรอตรวจ/ผ่านแล้ว)
+  if (t002 === "NONE") return { text: "ส่งเอกสาร T002 แบบแจ้งรายละเอียดงาน" + (t003 === "WAITING" ? " (T003 รออาจารย์ตรวจ)" : ""), link: "/student/docs-t002", linkText: "ไปหน้า T002" };
   if (t003 === "NONE") return { text: "ส่งเอกสาร T003 โครงร่างรายงาน" + (t002 === "WAITING" ? " (T002 รออาจารย์ตรวจ)" : ""), link: "/student/docs-t003", linkText: "ไปหน้า T003" };
-  return { text: "รออาจารย์ตรวจสอบเอกสาร T002/T003" };
+  const waiting = [t002 === "WAITING" && "T002", t003 === "WAITING" && "T003"].filter(Boolean).join(" และ ");
+  return { text: `รออาจารย์ตรวจสอบเอกสาร ${waiting}` };
 }
 
 // สถานะของขั้นย่อยในช่วงฝึกงาน (ขั้น 3 = T002/T003 ตามฟอร์มของตัวเอง · ขั้น 4 = ปัจจุบันเมื่อครบ)

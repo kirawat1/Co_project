@@ -108,23 +108,8 @@ export default function S_DocsT003Form({ profile, onRefresh }: Props) {
                     const data = await res.json();
                     setConfig(data);
 
-                    if (!data.isOpen) {
-                        setIsSystemOpen(false);
-                    } else {
-                        const now = new Date().getTime();
-
-                        const targetEnd = data.endDate ? new Date(data.endDate) : null;
-                        if (targetEnd) targetEnd.setHours(23, 59, 59, 999);
-
-                        const start = data.startDate ? new Date(data.startDate).getTime() : 0;
-                        const end = targetEnd ? targetEnd.getTime() : Infinity;
-
-                        if (start === 0 && end === Infinity) {
-                            setIsSystemOpen(true);
-                        } else {
-                            setIsSystemOpen(now >= start && now <= end);
-                        }
-                    }
+                    // เชื่อ server: isOpen มาจาก resolveDeadline().canSubmit (รวมส่งแก้หลังกำหนด/ได้รับขยายเวลา) — ไม่เช็กวันที่ซ้ำฝั่งหน้าเว็บ
+                    setIsSystemOpen(!!data.isOpen);
                 }
             } catch (err) {
                 console.error("Load config error", err);

@@ -151,6 +151,15 @@ test.describe("A. T002 / T003 คู่ขนาน", () => {
     expect(await w.doc("del", "T002_FORM")).toBeNull();
   });
 
+  test("หน้านักศึกษา: ถูกตีกลับแล้วเลยกำหนด (รอบปิดรับครั้งแรก) ยังเห็นปุ่ม \"ส่งไฟล์ใหม่\" เหมือนที่เซิร์ฟเวอร์รับ — ไม่ขึ้นระบบปิดรับ", async ({ page }) => {
+    expect((await w.doc("t2late", "T002_FORM"))!.status).toBe("REJECTED");
+    await asUser(page, st("t2late"), w.s.t2late.userId);
+    await page.goto("/student/docs-t002", { waitUntil: "networkidle" });
+    await expect(page.getByText("🔄 ส่งไฟล์ใหม่")).toBeVisible();
+    await expect(page.locator("#upload-t002-change")).toBeAttached();
+    await expect(page.getByText("🔒 ระบบปิดรับเอกสาร")).toHaveCount(0);
+  });
+
   test("กำหนดส่ง: ส่งครั้งแรกหลังกำหนด 403 · ถูกตีกลับแล้วส่งใหม่หลังกำหนดได้ (สถานะหลักไม่เปลี่ยน)", async () => {
     let r = await upload("closed", "T002_FORM");
     expect(r.status, msg(r)).toBe(403);
