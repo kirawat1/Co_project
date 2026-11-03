@@ -176,7 +176,7 @@ export default function BulkLetterDraftModal({ students, onClose }: { students: 
         <div className="letter-modal-backdrop" style={{ zIndex: 10000 }}>
             <div className="letter-modal-card" style={{ width: "95%", maxWidth: 860, maxHeight: "92vh", overflow: "hidden" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginBottom: 12 }}>
-                    <h2 style={{ margin: 0, fontSize: 18 }}>ออกร่างหนังสือหลายคน</h2>
+                    <h2 style={{ margin: 0, fontSize: 18 }}>ออกร่างหลายฉบับพร้อมกัน</h2>
                     <button type="button" className="modal-close" aria-label="ปิด" onClick={onClose} disabled={busy}>✕</button>
                 </div>
 
