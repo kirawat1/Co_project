@@ -10,6 +10,15 @@ import ConfirmDialog from "./ConfirmDialog";
 import AutoTextarea from "./AutoTextarea";
 import LoadMoreFooter from "./LoadMoreFooter";
 import { useLoadMore } from "../utils/useLoadMore";
+import { formState, latestForm, reviewActions, FORM_STATE_LABEL, type FormState } from "../utils/internshipForms";
+
+// สีป้ายสถานะตามสถานะย่อยของฟอร์ม
+const STATE_COLOR: Record<FormState, { color: string; bg: string }> = {
+    NONE: { color: "#475569", bg: "#f1f5f9" },
+    WAITING: { color: "#2563eb", bg: "#bfdbfe" },
+    REJECTED: { color: "#dc2626", bg: "#fee2e2" },
+    APPROVED: { color: "#1d4ed8", bg: "#dbeafe" },
+};
 
 // --- Types ---
 type Document = { id: number; type: string; path: string; name: string; status: string; };
@@ -95,18 +104,10 @@ export default function T_T003Review() {
         if (selectedPeriod) reloadStudents(selectedPeriod);
     }, [selectedPeriod]);
 
+    // ป้ายสถานะของ T003 = สถานะย่อยจากไฟล์ล่าสุด (สถานะหลักคงที่ที่ INTERNSHIP_STARTED)
     const getT003Status = (student: Student) => {
-        const t003Doc = student.documents?.find(d => d.type === "T003_FORM");
-        const docStatus = t003Doc?.status || 'WAITING';
-        const profileStatus = student.coop?.status || student.docStatus;
-
-        if (profileStatus === 'T003_APPROVED' || profileStatus === 'INTERNSHIP_STARTED' || docStatus === 'APPROVED') {
-            return { label: "✅ พิจารณาผ่านแล้ว", color: "#1d4ed8", bg: "#dbeafe" };
-        }
-        if (profileStatus === 'T003_EDITS_REQUIRED' || docStatus === 'EDITS_REQUIRED' || docStatus === 'REJECTED') {
-            return { label: "⚠️ ตีกลับให้แก้ไข", color: "#dc2626", bg: "#fee2e2" };
-        }
-        return { label: "📄 รอการพิจารณา", color: "#2563eb", bg: "#bfdbfe" };
+        const state = formState(latestForm(student.documents, "T003"));
+        return { state, label: FORM_STATE_LABEL[state], ...STATE_COLOR[state] };
     };
 
     // 🟢 ฟังก์ชันสำหรับจัดการการคลิก Header เพื่อเรียงลำดับ
@@ -152,12 +153,21 @@ export default function T_T003Review() {
 
     const openReviewModal = (student: Student) => { setSelectedStudent(student); setComment(""); setModalOpen(true); };
 
+    // ปุ่มตรวจที่ทำได้ของนักศึกษา (รอตรวจ = ผ่าน/ตีกลับ · ผ่านแล้ว = ตีกลับย้อนหลัง · อื่นๆ ตรวจไม่ได้)
+    const actionsOf = (student: Student | null) =>
+        student ? reviewActions(student.coop?.status || student.docStatus, getT003Status(student).state) : { approve: false, reject: false };
+
     const getT003FileUrl = (docs: Document[]) => {
         const file = docs?.find(d => d.type === "T003_FORM");
         return file ? `/uploads/${file.path}` : null;
     };
 
     const submitReview = (action: 'APPROVE' | 'REJECT') => {
+        const allowed = actionsOf(selectedStudent);
+        if (action === 'APPROVE' ? !allowed.approve : !allowed.reject) {
+            toast.error("โครงร่างนี้ไม่อยู่ในสถานะที่พิจารณาได้แล้ว (อาจถูกพิจารณาไปแล้ว หรือนักศึกษายังไม่ได้ส่ง) กรุณาปิดหน้าต่างแล้วรีเฟรชรายชื่อ");
+            return;
+        }
         if (action === 'REJECT' && !comment.trim()) {
             toast.warning("กรุณาระบุข้อเสนอแนะในการแก้โครงร่าง");
             return;
@@ -181,7 +191,7 @@ export default function T_T003Review() {
                     toast.success(`บันทึกผลเรียบร้อย (${action === 'APPROVE' ? 'อนุมัติ' : 'ตีกลับ'})`);
                     setModalOpen(false);
                     reloadStudents(selectedPeriod);
-                } catch { toast.error("เกิดข้อผิดพลาดในการบันทึกข้อมูล"); }
+                } catch (err) { toast.error(axios.isAxiosError(err) && err.response?.data?.message ? err.response.data.message : "เกิดข้อผิดพลาดในการบันทึกข้อมูล"); }
                 finally { setLoading(false); }
             },
         });
@@ -272,7 +282,7 @@ export default function T_T003Review() {
                                         </span>
                                     </td>
                                     <td style={{ padding: '14px 16px', textAlign: 'right' }}>
-                                        <button className={statusInfo.label.includes('รอการพิจารณา') ? "btn small" : "btn-secondary small"} onClick={() => openReviewModal(s)}>🔍 พิจารณา</button>
+                                        <button className={statusInfo.state === 'WAITING' ? "btn small" : "btn-secondary small"} onClick={() => openReviewModal(s)}>🔍 พิจารณา</button>
                                     </td>
                                 </tr>
                             )
@@ -301,8 +311,14 @@ export default function T_T003Review() {
                                     <AutoTextarea className="input" rows={6} value={comment} onChange={(e) => setComment(e.target.value)} />
                                 </div>
                                 <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
-                                    <button className="btn-danger" style={{ padding: 14 }} onClick={() => submitReview('REJECT')} disabled={loading}>❌ ตีกลับให้แก้ไข</button>
-                                    <button className="btn-success" style={{ padding: 14 }} onClick={() => submitReview('APPROVE')} disabled={loading}>✅ อนุมัติโครงร่างรายงาน</button>
+                                    {actionsOf(selectedStudent).approve || actionsOf(selectedStudent).reject ? (<>
+                                        {actionsOf(selectedStudent).reject && <button className="btn-danger" style={{ padding: 14 }} onClick={() => submitReview('REJECT')} disabled={loading}>❌ ตีกลับให้แก้ไข</button>}
+                                        {actionsOf(selectedStudent).approve && <button className="btn-success" style={{ padding: 14 }} onClick={() => submitReview('APPROVE')} disabled={loading}>✅ อนุมัติโครงร่างรายงาน</button>}
+                                    </>) : (
+                                        <div style={{ padding: 14, borderRadius: 8, background: getT003Status(selectedStudent).bg, color: getT003Status(selectedStudent).color, fontSize: 13, textAlign: 'center' }}>
+                                            {getT003Status(selectedStudent).label} — ไม่สามารถพิจารณาซ้ำได้ในสถานะนี้
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>
