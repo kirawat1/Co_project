@@ -18,27 +18,6 @@ if (!process.env.GOOGLE_CLIENT_ID) {
 }
 
 // ==========================================
-// Helper Functions (สำหรับแปลงข้อมูล)
-// ==========================================
-
-// แปลงชื่อหลักสูตร -> Enum Major (CS, IT, GIS)
-const mapMajor = (programName) => {
-  const name = (programName || "").toLowerCase();
-  if (name.includes("computer science") || name.includes("วิทยาการคอมพิวเตอร์")) return "CS";
-  if (name.includes("information technology") || name.includes("เทคโนโลยีสารสนเทศ")) return "IT";
-  if (name.includes("geo") || name.includes("gis") || name.includes("ภูมิสารสนเทศ")) return "GIS";
-  return null; // หรือ default
-};
-
-// แปลงคำนำหน้า -> Enum Prefix (MR, MS)
-const mapPrefix = (prefix) => {
-  const p = (prefix || "").toLowerCase().replace(".", "");
-  if (["mr", "mister", "นาย"].includes(p)) return "MR";
-  if (["ms", "miss", "mrs", "นาง", "นางสาว"].includes(p)) return "MS";
-  return null;
-};
-
-// ==========================================
 // 1. Manual Sign In 
 // ==========================================
 // อายุการเข้าสู่ระบบ — ติ๊ก "จดจำฉันไว้" = 30 วัน · ไม่ติ๊ก = 8 ชั่วโมง (เครื่องส่วนกลาง) · ไม่ส่งมา (client เก่า) = 7 วันเหมือนเดิม
@@ -53,7 +32,7 @@ exports.signIn = async (req, res) => {
       return res.status(400).json({ ok: false, message: "กรุณากรอกข้อมูลให้ครบ" });
     }
 
-    // lowercase ให้ตรงกับ registerStudent ที่เก็บ email เป็น lowercase เสมอ
+    // lowercase ให้ตรงกับตอนสร้างบัญชี (เพิ่มนักศึกษา/นำเข้า Excel) ที่เก็บ email เป็นตัวพิมพ์เล็กเสมอ
     const email = rawEmail.trim().toLowerCase();
 
     const allowedRoles = ["student", "teacher", "staff"];
@@ -170,82 +149,6 @@ exports.getProfile = async (req, res) => {
     return res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์" });
   }
 };
-// ==========================================
-// 4. Self-Registration (กรณีไม่มี KKU API)
-// POST /api/auth/register
-// ==========================================
-exports.registerStudent = async (req, res) => {
-  try {
-    const { studentId, prefix, firstName, lastName, email, password, major, year } = req.body;
-
-    // Validate required
-    const missing = ["studentId","firstName","lastName","email","password"].filter(f => !req.body[f]?.trim());
-    if (missing.length) {
-      return res.status(400).json({ ok: false, message: `กรุณากรอก: ${missing.join(", ")}` });
-    }
-    const { validatePassword } = require('../utils/validatePassword');
-    const pwError = validatePassword(password.trim());
-    if (pwError) return res.status(400).json({ ok: false, message: pwError });
-    if (!/^[^@\s]+@(kkumail\.com|kku\.ac\.th)$/i.test(email.trim())) {
-      return res.status(400).json({ ok: false, message: "กรุณาใช้อีเมล @kkumail.com หรือ @kku.ac.th" });
-    }
-
-    const emailLower = email.trim().toLowerCase();
-
-    const hashed = await bcrypt.hash(password.trim(), 10);
-    const prefixEnum = mapPrefix(prefix) || undefined;
-
-    let user;
-    await prisma.$transaction(async (tx) => {
-      const existEmail = await tx.user.findFirst({ where: { OR: [{ email: emailLower }, { username: emailLower }] } });
-      if (existEmail) throw Object.assign(new Error("อีเมลนี้มีในระบบแล้ว"), { is409: true });
-
-      const existId = await tx.student.findFirst({ where: { studentId: studentId.trim(), deletedAt: null } });
-      if (existId) throw Object.assign(new Error("รหัสนักศึกษานี้มีในระบบแล้ว"), { is409: true });
-
-      user = await tx.user.create({
-        data: {
-          username: emailLower, email: emailLower, password: hashed, role: "student",
-          passwordEnc: passwordEncFor("student", password.trim()),
-          student: {
-            create: {
-              studentId: studentId.trim(),
-              firstName: firstName.trim(),
-              lastName:  lastName.trim(),
-              major:     major?.trim() || null,
-              year:      year?.trim()  || null,
-              ...(prefixEnum ? { prefix: prefixEnum } : {}),
-            },
-          },
-        },
-        include: { student: true },
-      });
-    });
-
-    const token = signSession({ id: user.id, role: "student", tokenVersion: user.tokenVersion }, "7d");
-    res.json({
-      ok: true,
-      message: "สมัครสมาชิกสำเร็จ",
-      token,
-      user: {
-        id: user.id, email: user.email, role: "student",
-        studentId: user.student.studentId,
-        firstName: user.student.firstName,
-        lastName:  user.student.lastName,
-      },
-    });
-  } catch (err) {
-    if (err.is409) {
-      return res.status(409).json({ ok: false, message: err.message });
-    }
-    if (err.code === 'P2002') {
-      return res.status(409).json({ ok: false, message: "อีเมลหรือรหัสนักศึกษานี้มีในระบบแล้ว" });
-    }
-    console.error("[registerStudent]", err);
-    res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์" });
-  }
-};
-
 // ==========================================
 // เปลี่ยนรหัสผ่านของตัวเอง (นักศึกษา)
 // PUT /api/auth/me/password

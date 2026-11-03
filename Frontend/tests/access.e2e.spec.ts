@@ -177,4 +177,9 @@ test.describe("B. เข้าสู่ระบบและ session", () => {
     const ghost = sign(999_999_999, "staff");
     expect((await get("/api/admin/staff", bearer(ghost))).status).toBe(401);
   });
+
+  test("POST /api/auth/register ถูกเอาออกแล้ว (ไม่มีหน้าไหนใช้ · เพิ่มนักศึกษาที่ /api/admin/students/create)", async () => {
+    const r = await fetch(`${API}/api/auth/register`, { method: "POST", headers: { ...bearer(W.staff.token), "Content-Type": "application/json" }, body: "{}" });
+    expect(r.status).toBe(404);
+  });
 });

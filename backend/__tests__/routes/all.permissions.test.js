@@ -46,7 +46,6 @@ const PUBLIC = {
 // prettier-ignore
 const EXPECTED = {
   auth: {
-    'POST /register':   '· · · ✓',
     'GET /me':          '✓ ✓ ✓ ✓',
     'PUT /me/password': '✓ · · ·',
   },
