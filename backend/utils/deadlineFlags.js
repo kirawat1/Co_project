@@ -3,6 +3,7 @@
 const prisma = require('../config/prismaClient');
 const { readEffective } = require('./majorConfig');
 const { deadlineFlags } = require('./deadlines');
+const { FORM_TYPES } = require('./internshipForms');
 
 const LEGACY_WINDOW_KEY = { T000: 'T000_CONFIG', T002: 'T002_CONFIG', T003: 'T003_CONFIG' };
 const NONE = { due: null, late: false, overdueNotSubmitted: false };
@@ -36,9 +37,11 @@ async function deadlineFlagsFor(students, stepKey, db = prisma, now = new Date()
     if (!coop?.coopPeriodId) { out.set(s.id, NONE); continue; }
     const entry = byPair.get(`${coop.coopPeriodId}|${s.major}`)?.deadlines?.[stepKey];
     const due = entry ? entry.due || null : await legacyFor(s.major || null);
+    // T002/T003: มีไฟล์ของฟอร์มนั้นอยู่ก็นับว่าส่งแล้ว (submittedSteps อาจยังไม่ถูกบันทึกในข้อมูลเก่า) · T000 ดูแต่ submittedSteps
+    const hasFormDoc = !!FORM_TYPES[stepKey] && Array.isArray(s.documents) && s.documents.some((d) => d.type === FORM_TYPES[stepKey]);
     out.set(s.id, deadlineFlags({
       stepKey, due, now,
-      submitted: coop.submittedSteps?.[stepKey] || null,
+      submitted: coop.submittedSteps?.[stepKey] || (hasFormDoc ? { at: null } : null),
       status: coop.status,
       extensionUntil: coop.deadlineExtensions?.[stepKey] || null,
     }));

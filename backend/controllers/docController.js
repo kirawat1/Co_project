@@ -175,8 +175,10 @@ exports.uploadDocument = async (req, res) => {
             }
             const freshStudent = await tx.student.findUnique({ where: { id: student.id }, select: { deletedAt: true } });
             if (!freshStudent || freshStudent.deletedAt) throw Object.assign(new Error('บัญชีถูกระงับการใช้งาน'), { is403: true });
+            // ไฟล์ล่าสุดของชนิดนี้ (id มากสุด) — ถ้ามีแถวซ้ำเก่าค้างอยู่ ไม่เลือกมั่ว · ไม่ลบแถวเก่า
             oldDoc = await tx.document.findFirst({
-                where: { studentId: student.id, type: dbType }
+                where: { studentId: student.id, type: dbType },
+                orderBy: { id: 'desc' }
             });
             if (approvedT000(oldDoc)) throw Object.assign(new Error(APPROVED_DOC_LOCKED), { is409: true });
             if (oldDoc) {

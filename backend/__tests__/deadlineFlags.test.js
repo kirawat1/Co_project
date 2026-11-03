@@ -36,3 +36,15 @@ test('รายการว่าง → ไม่ query', async () => {
   expect((await deadlineFlagsFor([], 'T002', prisma, NOW)).size).toBe(0);
   expect(prisma.coopPeriodMajor.findMany).not.toHaveBeenCalled();
 });
+
+test('T002/T003: มีไฟล์ของฟอร์มนั้นแต่ submittedSteps ว่าง → ไม่ขึ้นเลยกำหนดยังไม่ส่ง · ไฟล์ฟอร์มอื่น/T000 ไม่นับ', async () => {
+  const coop = { coopPeriodId: 1, status: 'INTERNSHIP_STARTED', submittedSteps: null };
+  const flags = await deadlineFlagsFor([
+    { ...st(20, 'AI', coop), documents: [{ type: 'T002_FORM' }] },
+    { ...st(21, 'AI', coop), documents: [{ type: 'T003_FORM' }] },
+    st(22, 'AI', coop),
+  ], 'T002', prisma, NOW);
+  expect(flags.get(20)).toEqual({ due: '2026-07-01', late: false, overdueNotSubmitted: false });
+  expect(flags.get(21).overdueNotSubmitted).toBe(true);
+  expect(flags.get(22).overdueNotSubmitted).toBe(true);
+});

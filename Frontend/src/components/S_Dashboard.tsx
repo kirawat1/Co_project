@@ -8,6 +8,7 @@ import { IcAnnounce, IcDocs } from "./icons";
 import { seenIds } from "../utils/announcements";
 import StatusBadge from "./StatusBadge";
 import S_StatusTracker, { NextStepBar } from "./S_StatusTracker";
+import FormStateBadge from "./FormStateBadge";
 import { isInternshipStatus, formState, latestForm, type FormState } from "../utils/internshipForms";
 
 function safeHref(url: string | null | undefined): string | undefined {
@@ -249,6 +250,12 @@ export default function S_Dashboard() {
           <div>
             <div style={{ fontSize:12, color:"#64748b", fontWeight:700, textTransform:"uppercase", letterSpacing:".5px", marginBottom:4 }}>สถานะปัจจุบัน</div>
             <StatusBadge status={studentStatus} hidePrefix />
+            {isInternshipStatus(studentStatus) && (
+              <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginTop:6 }}>
+                <FormStateBadge state={forms.t002} name="T002" />
+                <FormStateBadge state={forms.t003} name="T003" />
+              </div>
+            )}
           </div>
         </div>
         <button className="btn-secondary" onClick={() => setStatusExpanded((v) => !v)}>

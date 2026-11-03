@@ -137,6 +137,7 @@ function shiftYears(deadlines, years) {
 // T002/T003 ส่งครั้งแรกได้ตลอดช่วงฝึกงาน (เท่ากัน ไม่ต่อกัน) — รวมสถานะแบบเก่าที่ยังค้างใน DB
 const FIRST_SUBMIT_STATUSES = { T000: ['QUALIFIED'], T002: INTERNSHIP_STATUSES, T003: INTERNSHIP_STATUSES };
 
+// submitted = submittedSteps[step] หรือ (T002/T003) มีไฟล์ของฟอร์มนั้นแล้ว — ผู้เรียกเป็นคนตัดสิน
 // ป้ายในรายการตรวจ: ส่งช้า (เวลาส่งครั้งแรกเลยกำหนด · ไม่นับเวลาที่เติมย้อนหลัง) / เลยกำหนดยังไม่ส่ง (อยู่ในขั้นที่ส่งได้ · นับวันขยาย)
 function deadlineFlags({ stepKey, due, submitted, status, extensionUntil = null, now = new Date() }) {
   const at = submitted && submitted.at ? new Date(submitted.at) : null;

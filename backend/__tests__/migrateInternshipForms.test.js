@@ -6,12 +6,15 @@ const { migrateInternshipForms } = require('../scripts/migrate_internship_forms'
 // เอกสารล่าสุดตามนักศึกษา+ชนิด: docs[`${studentId}:${type}`] = { id, status }
 let coops;
 let docs;
+let formRows = [];
 
 beforeEach(() => {
   jest.clearAllMocks();
   prisma.$transaction.mockImplementation((arg) => (Array.isArray(arg) ? Promise.all(arg) : arg(prisma)));
   prisma.studentCoop.findMany.mockImplementation(async () => coops);
   prisma.document.findFirst.mockImplementation(async ({ where }) => docs[`${where.studentId}:${where.type}`] || null);
+  prisma.document.findMany.mockImplementation(async () => formRows);
+  formRows = [];
   prisma.studentCoop.updateMany.mockResolvedValue({ count: 0 });
   prisma.document.update.mockResolvedValue({});
 });
@@ -34,7 +37,10 @@ describe('migrateInternshipForms', () => {
       { studentId: 2, type: 'T002_FORM', from: 'WAITING', to: 'REJECTED' },
       { studentId: 3, type: 'T003_FORM', from: 'WAITING', to: 'APPROVED' },
     ]);
-    expect(r.missingFile).toEqual([{ studentId: 1, status: 'T002_SUBMITTED' }]);
+    expect(r.missingFile).toEqual([
+      { studentId: 1, status: 'T002_SUBMITTED', form: 'T002_FORM' },
+      { studentId: 3, status: 'T003_APPROVED', form: 'T002_FORM' }, // T003_* แต่ไม่มีไฟล์ T002
+    ]);
     expect(prisma.studentCoop.updateMany).not.toHaveBeenCalled();
     expect(prisma.document.update).not.toHaveBeenCalled();
     expect(prisma.$transaction).not.toHaveBeenCalled();
@@ -60,7 +66,7 @@ describe('migrateInternshipForms', () => {
     const r = await migrateInternshipForms(prisma, { dryRun: false });
     expect(prisma.$transaction).toHaveBeenCalledTimes(1);
     expect(r.moved).toBe(6);
-    expect(r.missingFile).toEqual([]);
+    expect(r.missingFile.map((m) => [m.studentId, m.form])).toEqual([3, 4, 5, 6].map((id) => [id, 'T002_FORM'])); // T003_* ที่ไม่มีไฟล์ T002
     expect(r.docFixes).toEqual([
       { studentId: 2, type: 'T002_FORM', from: 'WAITING', to: 'REJECTED' },
       { studentId: 3, type: 'T003_FORM', from: 'WAITING', to: 'REJECTED' },
@@ -75,11 +81,36 @@ describe('migrateInternshipForms', () => {
     });
   });
 
+  test('รายงานผลตรวจขัดกับสถานะเก่า + แถวซ้ำ (ไม่แก้ไฟล์ ไม่ลบแถว)', async () => {
+    coops = [
+      { studentId: 1, status: 'T003_APPROVED' },
+      { studentId: 2, status: 'T002_EDITS_REQUIRED' },
+      { studentId: 3, status: 'T003_EDITS_REQUIRED' },
+      { studentId: 4, status: 'T003_APPROVED' },
+    ];
+    docs = {
+      '1:T002_FORM': { id: 11, status: 'APPROVED' }, '1:T003_FORM': { id: 12, status: 'REJECTED' }, // ขัด: ผ่านแล้วแต่ไฟล์ถูกตีกลับ
+      '2:T002_FORM': { id: 20, status: 'APPROVED' }, // ขัด: ต้องแก้แต่ไฟล์ผ่านแล้ว
+      '3:T002_FORM': { id: 31, status: 'APPROVED' }, '3:T003_FORM': { id: 32, status: 'APPROVED' }, // ขัด
+      '4:T002_FORM': { id: 41, status: 'APPROVED' }, '4:T003_FORM': { id: 42, status: 'APPROVED' }, // ตรงกัน
+    };
+    formRows = [{ studentId: 1, type: 'T003_FORM' }, { studentId: 1, type: 'T003_FORM' }, { studentId: 2, type: 'T002_FORM' }];
+    const r = await migrateInternshipForms(prisma, { dryRun: true });
+    expect(r.conflicts).toEqual([
+      { studentId: 1, status: 'T003_APPROVED', type: 'T003_FORM', fileStatus: 'REJECTED' },
+      { studentId: 2, status: 'T002_EDITS_REQUIRED', type: 'T002_FORM', fileStatus: 'APPROVED' },
+      { studentId: 3, status: 'T003_EDITS_REQUIRED', type: 'T003_FORM', fileStatus: 'APPROVED' },
+    ]);
+    expect(r.duplicates).toEqual([{ studentId: 1, type: 'T003_FORM', count: 2 }]);
+    expect(r.missingFile).toEqual([]);
+    expect(prisma.document.update).not.toHaveBeenCalled();
+  });
+
   test('รันซ้ำบนข้อมูลที่ย้ายแล้ว: moved 0 และไม่มี docFixes', async () => {
     coops = [];
     docs = {};
     const r = await migrateInternshipForms(prisma, { dryRun: false });
-    expect(r).toEqual({ byStatus: {}, moved: 0, docFixes: [], missingFile: [] });
+    expect(r).toEqual({ byStatus: {}, moved: 0, docFixes: [], missingFile: [], conflicts: [], duplicates: [] });
     expect(prisma.document.update).not.toHaveBeenCalled();
   });
 });

@@ -1,7 +1,7 @@
 const XLSX = require('xlsx');
 const { getStatusLabelTh } = require('./coopStatusLabels');
 const { resolveMajorNameTh } = require('./majorName');
-const { FORM_TYPES, FORM_STATE_LABEL, formState } = require('./internshipForms');
+const { FORM_TYPES, FORM_STATE_LABEL, formState, isInternshipStatus } = require('./internshipForms');
 
 const PREFIX_LABEL_TH = { MR: 'นาย', MS: 'นางสาว' };
 const STUDY_PROGRAM_LABEL_TH = { normal: 'ภาคปกติ', special: 'ภาคพิเศษ' };
@@ -131,6 +131,8 @@ function latestDocs(student) {
 function formStateLabel(student, stepKey) {
   const docs = Array.isArray(student.documents) ? student.documents : [];
   const latest = docs.filter((d) => d.type === FORM_TYPES[stepKey]).pop();
+  // ยังไม่ถึงช่วงฝึกสหกิจและไม่มีไฟล์ → "-" (ยังไม่ถึงเวลาส่ง ไม่ใช่ค้างส่ง)
+  if (!latest && !isInternshipStatus(student.coop?.status)) return '-';
   return FORM_STATE_LABEL[formState(latest)];
 }
 

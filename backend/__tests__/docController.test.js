@@ -697,6 +697,30 @@ describe('docController', () => {
       expect(wroteStatus()).toBe(false);
     });
 
+    // มีแถวซ้ำของชนิดเดียวกัน: ต้องตัดสินจากไฟล์ล่าสุด (id มากสุด) ไม่ใช่แถวใดแถวหนึ่งตามใจฐานข้อมูล · ไม่ลบแถวเก่าที่ไม่ใช่ไฟล์ล่าสุด
+    const withRows = (rows) => {
+      setupUpload();
+      prisma.document.findFirst.mockImplementation(async ({ orderBy } = {}) => {
+        const sorted = [...rows].sort((a, b) => (orderBy && orderBy.id === 'desc' ? b.id - a.id : a.id - b.id));
+        return sorted[0] || null;
+      });
+    };
+    test('200 — มีแถวซ้ำ เก่า WAITING + ล่าสุด REJECTED → ส่งใหม่ได้ (ทับเฉพาะไฟล์ล่าสุด)', async () => {
+      withRows([{ id: 3, path: 'a.pdf', type: 'T002_FORM', status: 'WAITING' }, { id: 9, path: 'b.pdf', type: 'T002_FORM', status: 'REJECTED' }]);
+      const res = makeRes();
+      await docController.uploadDocument(makeUploadReq('T002_FORM'), res);
+      expect(res.status).not.toHaveBeenCalled();
+      expect(prisma.document.findFirst).toHaveBeenCalledWith(expect.objectContaining({ orderBy: { id: 'desc' } }));
+      expect(prisma.document.delete).toHaveBeenCalledTimes(1);
+      expect(prisma.document.delete).toHaveBeenCalledWith({ where: { id: 9 } });
+    });
+    test('400 — มีแถวซ้ำ เก่า REJECTED + ล่าสุด APPROVED → ส่งไม่ได้', async () => {
+      withRows([{ id: 3, path: 'a.pdf', type: 'T002_FORM', status: 'REJECTED' }, { id: 9, path: 'b.pdf', type: 'T002_FORM', status: 'APPROVED' }]);
+      const res = makeRes();
+      await docController.uploadDocument(makeUploadReq('T002_FORM'), res);
+      expect(res.status).toHaveBeenCalledWith(400);
+    });
+
     test('400 — ยังไม่ถึงช่วงฝึกงาน ส่ง T003 ไม่ได้', async () => {
       setupUpload({ coopStatus: 'PLACEMENT_LETTER_ISSUED' });
       const res = makeRes();

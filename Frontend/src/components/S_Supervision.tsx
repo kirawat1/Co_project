@@ -341,7 +341,7 @@ export default function S_Supervision() {
                     <div>
                         <h3 style={{ margin: '0 0 5px 0', color: '#991b1b' }}>ยังไม่สามารถนัดหมายนิเทศได้</h3>
                         <div style={{ fontSize: 14, color: '#b91c1c' }}>
-                            สิทธิ์การนัดหมายนิเทศจะเปิดให้ใช้งานเมื่อสถานะเข้าสู่ <b>"กำลังฝึกงาน (INTERNSHIP_STARTED)"</b> ขึ้นไปเท่านั้น<br />
+                            สิทธิ์การนัดหมายนิเทศจะเปิดให้ใช้งานเมื่อสถานะเข้าสู่ <b>"ส่งเอกสารฝึกสหกิจ"</b> ขึ้นไปเท่านั้น<br />
                             <div style={{ marginTop: 8 }}>สถานะปัจจุบันของคุณ: <StatusBadge status={coopStatus} hidePrefix={true} /></div>
                         </div>
                     </div>

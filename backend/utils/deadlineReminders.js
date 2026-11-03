@@ -6,6 +6,7 @@ const prisma = require('../config/prismaClient');
 const { createNotifications } = require('./notificationHelper');
 const { MODE_STEPS, STEP_LABEL, FIRST_SUBMIT_STATUSES } = require('./deadlines');
 const { thaiDate } = require('./applyWindow');
+const { FORM_TYPES } = require('./internshipForms');
 
 const DAY = 24 * 60 * 60 * 1000;
 const REMIND_DAYS = 3;
@@ -20,7 +21,11 @@ function daysUntil(day, now) {
 /** @returns Array<{ userId, due }> — due = วันปิดที่ใช้ (วันขยายถ้ามี) */
 async function findStudentsToRemind(stepKey, now = new Date(), db = prisma) {
   const coops = await db.studentCoop.findMany({
-    where: { status: { in: FIRST_SUBMIT_STATUSES[stepKey] }, coopPeriodId: { not: null }, student: { deletedAt: null } },
+    where: {
+      status: { in: FIRST_SUBMIT_STATUSES[stepKey] }, coopPeriodId: { not: null },
+      // T002/T003: มีไฟล์ของฟอร์มนั้นแล้วถือว่าส่งแล้ว ไม่เตือน (แม้ submittedSteps ยังไม่ถูกบันทึก)
+      student: FORM_TYPES[stepKey] ? { deletedAt: null, documents: { none: { type: FORM_TYPES[stepKey] } } } : { deletedAt: null },
+    },
     select: { studentId: true, coopPeriodId: true, submittedSteps: true, deadlineExtensions: true, student: { select: { userId: true, major: true } } },
   });
   if (!coops.length) return [];
