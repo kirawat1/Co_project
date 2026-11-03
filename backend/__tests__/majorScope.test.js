@@ -64,7 +64,7 @@ describe('อาจารย์ประจำวิชา CS ทำกับน
 
   test('ตรวจคำร้อง: นักศึกษาในหลักสูตร (ไม่ใช่ที่ปรึกษา) ทำได้ · นอกหลักสูตรได้ 403', async () => {
     const { updateCoopApplicationStatus } = require('../controllers/adminDocController');
-    const record = (major) => ({ status: 'WAITING_FOR_STAFF_CHECK', student: { deletedAt: null, id: 5, coopAdvisorId: 99, major } });
+    const record = (major) => ({ status: 'APPLYING', student: { deletedAt: null, id: 5, coopAdvisorId: 99, major } });
     prisma.studentCoop.update.mockResolvedValue({ studentId: 5 });
 
     prisma.studentCoop.findUnique.mockResolvedValueOnce(record('CS'));

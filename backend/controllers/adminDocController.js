@@ -984,13 +984,19 @@ exports.updateCoopApplicationStatus = async (req, res) => {
       return res.status(400).json({ ok: false, message: 'id ไม่ถูกต้อง' });
     }
 
+    // ผลพิจารณาคำร้องเท่านั้น (ปุ่มในหน้าตรวจคำร้อง) — เดิมรับ WAITING_FOR_STAFF_CHECK / EDITS_REQUIRED (สถานะของ T000) ด้วย
+    // ผ่าน API ตรงแล้วข้ามขั้นส่ง T000 ได้
     const APP_STATUS_ALLOWED = new Set([
-      'WAITING_FOR_STAFF_CHECK', 'EDITS_REQUIRED', 'QUALIFIED',
-      'QUALIFICATION_FAILED', 'APPLICATION_EDITS_REQUIRED',
+      'QUALIFIED', 'QUALIFICATION_FAILED', 'APPLICATION_EDITS_REQUIRED',
       'PENDING_GRADE', // เกรดยังไม่ออก — พักคำร้องไว้ ค่อยกดผ่าน/ไม่ผ่านทีหลัง
     ]);
     if (!status || !APP_STATUS_ALLOWED.has(status)) {
       return res.status(400).json({ ok: false, message: 'status ไม่ถูกต้อง' });
+    }
+    // ผู้ใช้ตัดสิน 2026-11-04: ส่งกลับแก้ไข / ไม่ผ่าน ต้องมีเหตุผล
+    const reason = String(comment ?? '').trim();
+    if ((status === 'APPLICATION_EDITS_REQUIRED' || status === 'QUALIFICATION_FAILED') && !reason) {
+      return res.status(400).json({ ok: false, message: 'กรุณาระบุเหตุผล เพื่อให้นักศึกษาทราบว่าต้องแก้ไขอะไร' });
     }
 
     let updated;
@@ -1013,16 +1019,17 @@ exports.updateCoopApplicationStatus = async (req, res) => {
         }
       }
 
+      // ผู้ใช้ตัดสิน 2026-11-04: แก้ผลย้อนหลังได้จนกว่านักศึกษาส่ง T000 (ผ่านแล้วแต่ยังไม่ส่ง = QUALIFIED ยังแก้ได้)
+      // ส่ง T000 แล้ว (รอตรวจ/ต้องแก้) ขึ้นไป = จัดการที่หน้าเอกสาร T000 — เดิมเปลี่ยนกลับเป็นไม่ผ่าน/ส่งกลับแก้คำร้องได้กลางขั้น T000
       const REVIEWABLE = new Set([
-        'APPLYING', 'PENDING_GRADE', 'WAITING_FOR_STAFF_CHECK', 'APPLICATION_EDITS_REQUIRED',
-        'EDITS_REQUIRED', 'QUALIFIED', 'QUALIFICATION_FAILED',
+        'APPLYING', 'PENDING_GRADE', 'APPLICATION_EDITS_REQUIRED', 'QUALIFIED', 'QUALIFICATION_FAILED',
       ]);
       if (!REVIEWABLE.has(record.status)) {
-        throw Object.assign(new Error('ไม่สามารถเปลี่ยนสถานะได้ในขั้นตอนนี้'), { is400: true });
+        throw Object.assign(new Error('นักศึกษาส่งเอกสาร T000 แล้ว — เปลี่ยนผลคำร้องไม่ได้ จัดการต่อที่หน้าเอกสาร T000'), { is400: true });
       }
       updated = await tx.studentCoop.update({
         where: { id: parsedId },
-        data: { status, staffCheckComment: comment || null }
+        data: { status, staffCheckComment: reason || null }
       });
     });
 

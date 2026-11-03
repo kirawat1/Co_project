@@ -109,7 +109,8 @@ exports.addCompany = async (req, res) => {
         contactPerson, contactPosition 
     } = req.body;
 
-    if (!name || typeof name !== 'string') {
+    // มีแต่ช่องว่างเดิมผ่าน → บริษัทไม่มีชื่อในรายการ/หนังสือ
+    if (!name || typeof name !== 'string' || !name.trim()) {
       return res.status(400).json({ ok: false, message: "ชื่อบริษัทเป็นข้อมูลที่จำเป็น" });
     }
 
@@ -119,7 +120,7 @@ exports.addCompany = async (req, res) => {
 
     const company = await prisma.company.create({
       data: {
-        name, nameEn,
+        name: name.trim(), nameEn,
         address, addressNo, moo, soi, road,
         subDistrict, district, province, zipcode,
         email, phone, fax, website: safeUrl(website) ?? null, pastYears,
@@ -154,13 +155,18 @@ exports.updateCompany = async (req, res) => {
       if (website && !safeUrl(website)) {
         throw Object.assign(new Error('เว็บไซต์ไม่ถูกต้อง — ใส่เป็นลิงก์เว็บ เช่น www.example.co.th'), { is400: true });
       }
+      // ส่งชื่อมาแต่ว่าง → บริษัทไม่มีชื่อ (เพิ่มบริษัทกันไว้ แต่แก้ไขไม่กัน)
+      if (name !== undefined && (typeof name !== 'string' || !name.trim())) {
+        throw Object.assign(new Error('ชื่อบริษัทเป็นข้อมูลที่จำเป็น'), { is400: true });
+      }
 
       updated = await tx.company.update({
         where: { id: req.params.id },
         data: {
-          name, nameEn, address, addressNo, moo, soi, road,
+          name: name === undefined ? undefined : name.trim(), nameEn, address, addressNo, moo, soi, road,
           subDistrict, district, province, zipcode,
-          email, phone, fax, website: safeUrl(website) ?? null, pastYears,
+          // ไม่ส่งเว็บไซต์มา = คงเดิม (เดิมกลายเป็นว่างทุกครั้งที่แก้ช่องอื่น) · ส่งค่าว่าง = ล้าง
+          email, phone, fax, website: website === undefined ? undefined : (safeUrl(website) ?? null), pastYears,
           contactPerson, contactPosition
         },
         // หน้าเว็บเอาบริษัทที่ตอบกลับไปแทนของเดิมในรายการ — ต้องมีพี่เลี้ยง/ผู้ติดต่อ ไม่งั้นหายจนกว่าจะรีโหลด
@@ -247,7 +253,7 @@ exports.addMentor = async (req, res) => {
     const userId = req.user.id;
     const companyId = req.params.companyId;
 
-    if (!firstName || typeof firstName !== 'string' || !lastName || typeof lastName !== 'string') {
+    if (typeof firstName !== 'string' || !firstName.trim() || typeof lastName !== 'string' || !lastName.trim()) {
       return res.status(400).json({ ok: false, message: "ชื่อและนามสกุลพี่เลี้ยงเป็นข้อมูลที่จำเป็น" });
     }
 
@@ -277,6 +283,12 @@ exports.updateMentor = async (req, res) => {
   try {
     const { id } = req.params;
     const { firstName, lastName, department, position, email, phone } = req.body;
+    // ชื่อ/นามสกุลเป็นช่องบังคับตอนเพิ่ม — แก้เป็นค่าว่างก็ไม่ได้ (เดิมได้พี่เลี้ยงไม่มีชื่อ)
+    for (const v of [firstName, lastName]) {
+      if (v !== undefined && (typeof v !== 'string' || !v.trim())) {
+        return res.status(400).json({ ok: false, message: "ชื่อและนามสกุลพี่เลี้ยงเป็นข้อมูลที่จำเป็น" });
+      }
+    }
 
     let updatedMentor;
     await prisma.$transaction(async (tx) => {

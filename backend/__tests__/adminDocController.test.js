@@ -664,7 +664,7 @@ describe('updateCoopApplicationStatus', () => {
 
   test('200 — teacher เป็นที่ปรึกษาโครงงานสหกิจ (coopAdvisorId) ตัวจริง → อนุมัติได้', async () => {
     prisma.studentCoop.findUnique.mockResolvedValue({
-      status: 'WAITING_FOR_STAFF_CHECK',
+      status: 'APPLYING',
       student: { deletedAt: null, id: 1, coopAdvisorId: 7 },
     });
     prisma.teacher.findUnique.mockResolvedValue({ id: 7 });

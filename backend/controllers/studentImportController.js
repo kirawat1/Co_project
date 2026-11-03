@@ -42,6 +42,9 @@ function extractStudyProgram(programName) {
   return null;
 }
 
+// ค่าว่างในไฟล์ไม่ทับข้อมูลเดิม (undefined = Prisma ไม่แตะช่องนั้น)
+const keepIfEmpty = (v) => (v === null || v === undefined || v === '' ? undefined : v);
+
 // Normalize a raw Excel row to a consistent internal shape.
 // isKkuFormat = true  → KKU system export (English column headers, names pre-split)
 // isKkuFormat = false → old Thai-header template (combined name columns)
@@ -270,6 +273,8 @@ exports.previewStudents = async (req, res) => {
     }
 
     let willCreate = 0, willUpdate = 0, willSkip = 0, advisorWarnings = 0;
+    // อีเมลซ้ำในไฟล์เดียวกัน: แถวแรกสร้าง แถวถัดไปเป็นอัปเดต (ตรงกับตอนนำเข้าจริง) — เดิมพรีวิวนับเป็น "สร้างใหม่" ทุกแถว
+    const createdInFile = new Set();
 
     const previewRows = normalizedRows.map((norm, i) => {
       const { email, studentId, firstName, lastName, studyProgram, advisorName } = norm;
@@ -295,8 +300,8 @@ exports.previewStudents = async (req, res) => {
       }
       const major = r.major ?? (existingStudent ? existingStudent.major : null);
 
-      const action = userByEmail.has(normalizeEmail(email)) ? 'update' : 'create';
-      if (action === 'create') willCreate++; else willUpdate++;
+      const action = userByEmail.has(normalizeEmail(email)) || createdInFile.has(normalizeEmail(email)) ? 'update' : 'create';
+      if (action === 'create') { willCreate++; createdInFile.add(normalizeEmail(email)); } else willUpdate++;
 
       let advisorStatus = 'empty';
       if (norm.advisorFirstName) {
@@ -497,9 +502,12 @@ exports.importStudents = async (req, res) => {
           }
           await tx.student.upsert({
             where: { studentId },
+            // นักศึกษาที่มีอยู่แล้ว: ช่องที่ไฟล์ไม่มีค่า = คงค่าเดิม — เดิมไฟล์จากระบบทะเบียน (ไม่มีชั้นปี/เบอร์โทร)
+            // นำเข้าซ้ำแล้วล้างเบอร์โทร/ชั้นปีที่นักศึกษากรอกไว้ทั้งรุ่น
             update: {
-              prefix, firstName, lastName, firstNameEn, lastNameEn,
-              year, phone, email, major: resolvedMajor ?? undefined, studyProgram,
+              prefix: keepIfEmpty(prefix), firstName: keepIfEmpty(firstName), lastName: keepIfEmpty(lastName),
+              firstNameEn: keepIfEmpty(firstNameEn), lastNameEn: keepIfEmpty(lastNameEn),
+              year: keepIfEmpty(year), phone: keepIfEmpty(phone), email, major: resolvedMajor ?? undefined, studyProgram: keepIfEmpty(studyProgram),
               advisorName:     generalAdvisorId !== undefined ? advisorName : undefined,
               generalAdvisorId,
             },

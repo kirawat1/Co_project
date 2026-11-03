@@ -210,7 +210,8 @@ const updateCoopStatus = async (req, res) => {
       return res.status(400).json({ ok: false, message: "studentId ไม่ถูกต้อง" });
     }
 
-    const ALLOWED_STATUSES = ['APPROVED', 'REJECTED', 'EDITS_REQUIRED', 'APPLICATION_EDITS_REQUIRED', 'QUALIFIED', 'QUALIFICATION_FAILED'];
+    // ผลพิจารณาคำร้องเท่านั้น (หน้า T_Requests) — เดิมรับ EDITS_REQUIRED (สถานะของ T000) ด้วย ผ่าน API ตรงแล้วโยนนักศึกษาเข้าขั้น T000 ได้
+    const ALLOWED_STATUSES = ['APPROVED', 'REJECTED', 'APPLICATION_EDITS_REQUIRED', 'QUALIFIED', 'QUALIFICATION_FAILED'];
     if (!status || !ALLOWED_STATUSES.includes(status)) {
       return res.status(400).json({ ok: false, message: "status ไม่ถูกต้อง" });
     }
@@ -219,6 +220,11 @@ const updateCoopStatus = async (req, res) => {
     let dbStatus = status;
     if (status === 'APPROVED') dbStatus = 'QUALIFIED';
     else if (status === 'REJECTED') dbStatus = 'QUALIFICATION_FAILED';
+    // ผู้ใช้ตัดสิน 2026-11-04: ส่งกลับแก้ไข / ไม่ผ่าน ต้องมีเหตุผล (หน้าเว็บบังคับอยู่แล้ว API เดิมรับค่าว่าง)
+    const reason = String(comment ?? '').trim();
+    if (dbStatus !== 'QUALIFIED' && !reason) {
+      return res.status(400).json({ ok: false, message: 'กรุณาระบุเหตุผล เพื่อให้นักศึกษาทราบว่าต้องแก้ไขอะไร' });
+    }
 
     let updated;
     await prisma.$transaction(async (tx) => {
@@ -237,18 +243,18 @@ const updateCoopStatus = async (req, res) => {
           throw Object.assign(new Error('คุณไม่ใช่อาจารย์ที่ปรึกษาของนักศึกษาคนนี้'), { is403: true });
         }
       }
-      const coop = await tx.studentCoop.findUnique({ where: { studentId: parsedId }, select: { status: true, t000Status: true } });
-      const REVIEWABLE_STATUSES = ['APPLYING', 'PENDING_GRADE', 'WAITING_FOR_STAFF_CHECK'];
-      // ส่ง T000 ครั้งแรกแล้วรอเจ้าหน้าที่ตรวจ (t000Status PENDING) = ผ่านคุณสมบัติไปแล้ว — เดิมยังเป็น QUALIFIED ซึ่งเปลี่ยนที่นี่ไม่ได้
-      const firstT000Waiting = coop?.status === 'WAITING_FOR_STAFF_CHECK' && coop.t000Status === 'PENDING';
-      if (!coop || !REVIEWABLE_STATUSES.includes(coop.status) || firstT000Waiting) {
+      const coop = await tx.studentCoop.findUnique({ where: { studentId: parsedId }, select: { status: true } });
+      // อาจารย์ที่ปรึกษาพิจารณาเฉพาะคำร้องที่รอพิจารณา — ส่ง T000 แล้ว (WAITING_FOR_STAFF_CHECK ทั้งส่งครั้งแรก/ส่งแก้) เป็นงานของหน้าเอกสาร T000
+      // (เดิมส่งแก้ T000 แล้วอาจารย์ยังกดไม่ผ่าน/ส่งกลับแก้คำร้องได้ — ผู้ใช้ตัดสิน 2026-11-04: ส่ง T000 แล้วล็อกผลคำร้อง)
+      const REVIEWABLE_STATUSES = ['APPLYING', 'PENDING_GRADE'];
+      if (!coop || !REVIEWABLE_STATUSES.includes(coop.status)) {
         throw Object.assign(new Error('ไม่สามารถเปลี่ยนสถานะได้ในขั้นตอนนี้'), { is400: true });
       }
       updated = await tx.studentCoop.update({
         where: { studentId: parsedId },
         data: {
           status: dbStatus,
-          teacherCheckComment: comment,
+          teacherCheckComment: reason || undefined, // อนุมัติโดยไม่พิมพ์ข้อความ = คงข้อความเดิม (เหมือนเดิม)
           teacherCheckDate: new Date()
         }
       });
@@ -292,8 +298,8 @@ const updateCoopStatus = async (req, res) => {
 // ... imports (fs, path, prisma) ...
 
 // ✅ ฟังก์ชันลบเอกสาร
-// ตรงกับ canEdit ของ S_Gateway (ไม่มีแถว StudentCoop = ยังไม่ส่ง)
-const APPLICATION_EDITABLE = new Set(['NOT_SUBMITTED', 'APPLICATION_EDITS_REQUIRED', 'EDITS_REQUIRED']);
+// ตรงกับ canEdit ของ S_Gateway (ไม่มีแถว StudentCoop = ยังไม่ส่ง) — EDITS_REQUIRED (แก้เอกสาร T000) ไม่ใช่การแก้คำร้อง
+const APPLICATION_EDITABLE = new Set(['NOT_SUBMITTED', 'APPLICATION_EDITS_REQUIRED']);
 
 const deleteDocument = async (req, res) => {
   try {
