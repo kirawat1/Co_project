@@ -12,7 +12,15 @@ import { notify, askConfirm } from "../utils/notify";
 import RoundDeadlineNote, { DeadlineFlagBadge, type DeadlineFlags } from "./RoundDeadlineNote";
 import DeadlineExtensionButton from "./DeadlineExtensionButton";
 import type { StepKey } from "../utils/deadlines";
-import { t002Reviewable } from "../utils/t002Review";
+import { formState, latestForm, reviewActions, FORM_STATE_LABEL, type FormState } from "../utils/internshipForms";
+
+// สีป้ายสถานะตามสถานะย่อยของฟอร์ม
+const STATE_COLOR: Record<FormState, { color: string; bg: string }> = {
+    NONE: { color: "#475569", bg: "#f1f5f9" },
+    WAITING: { color: "#0d9488", bg: "#ccfbf1" },
+    REJECTED: { color: "#dc2626", bg: "#fee2e2" },
+    APPROVED: { color: "#047857", bg: "#dcfce7" },
+};
 
 // --- Types ---
 type Document = {
@@ -102,17 +110,10 @@ export default function A_T002Review() {
         if (selectedPeriod) reloadStudents(selectedPeriod);
     }, [selectedPeriod]);
 
-    // Helper หาระดับสถานะของ T002
+    // ป้ายสถานะของ T002 = สถานะย่อยจากไฟล์ล่าสุด (สถานะหลักคงที่ที่ INTERNSHIP_STARTED)
     const getT002Status = (student: Student) => {
-        const t002Doc = student.documents?.find(d => d.type === "T002_FORM");
-        const docStatus = t002Doc?.status || 'WAITING';
-        const profileStatus = student.coop?.status || student.docStatus;
-
-        // ยังไม่มีไฟล์ T002 = ยังไม่ส่ง (INTERNSHIP_STARTED คือเริ่มฝึกแล้วยังไม่ส่ง — เดิมขึ้นว่าตรวจผ่านแล้ว)
-        if (!t002Doc) return { label: "⏳ ยังไม่ส่ง", color: "#475569", bg: "#f1f5f9" };
-        if (docStatus === 'APPROVED') return { label: "✅ ตรวจผ่านแล้ว", color: "#047857", bg: "#dcfce7" };
-        if (profileStatus === 'T002_EDITS_REQUIRED' || docStatus === 'EDITS_REQUIRED' || docStatus === 'REJECTED') return { label: "⚠️ ตีกลับให้แก้ไข", color: "#dc2626", bg: "#fee2e2" };
-        return { label: "📄 รอการตรวจสอบ", color: "#0d9488", bg: "#ccfbf1" };
+        const state = formState(latestForm(student.documents, "T002"));
+        return { state, label: FORM_STATE_LABEL[state], ...STATE_COLOR[state] };
     };
 
     // 🟢 จัดการการกด Header เพื่อเรียงลำดับ
@@ -175,17 +176,14 @@ export default function A_T002Review() {
 
 
 
-    // รีวิวได้เฉพาะตอนสถานะเป็น T002_SUBMITTED/T002_EDITS_REQUIRED เท่านั้น (ตรงกับที่ backend ยอมรับ)
-    // รายชื่อในตารางแสดงนักศึกษาที่เคยมีไฟล์ T002 ด้วย แม้สถานะจะเลยจุดตรวจไปแล้ว (เช่น ตรวจผ่านไปแล้ว)
-    // เดิมปุ่ม "อนุมัติ"/"ตีกลับ" ขึ้นให้กดได้เสมอ กดแล้วได้ 400 "status ไม่ถูกต้อง" เพราะสถานะไม่อยู่ในช่วงที่ตรวจได้แล้ว
-    // ตรวจย้อนหลังได้ด้วย: นักศึกษาไปขั้น T003 แล้วแต่ไฟล์ T002 ยังไม่ถูกตรวจ (utils/t002Review.ts)
-    // · รอนักศึกษาแก้ (T002_EDITS_REQUIRED) ตรวจไม่ได้ — เดิมปุ่มขึ้นแล้วกดได้ 400
-    const isSelectedReviewable = (student: Student | null) =>
-        !!student && t002Reviewable(student.coop?.status || student.docStatus, student.documents?.find(d => d.type === "T002_FORM")?.status);
+    // ปุ่มตรวจที่ทำได้ของนักศึกษา (รอตรวจ = ผ่าน/ตีกลับ · ผ่านแล้ว = ตีกลับย้อนหลัง · อื่นๆ ตรวจไม่ได้)
+    const actionsOf = (student: Student | null) =>
+        student ? reviewActions(student.coop?.status || student.docStatus, getT002Status(student).state) : { approve: false, reject: false };
 
     // 4. บันทึกผลการตรวจ
     const submitReview = async (action: 'APPROVE' | 'REJECT') => {
-        if (!isSelectedReviewable(selectedStudent)) {
+        const allowed = actionsOf(selectedStudent);
+        if (action === 'APPROVE' ? !allowed.approve : !allowed.reject) {
             return notify.error("เอกสารนี้ไม่อยู่ในสถานะที่ตรวจสอบได้แล้ว (อาจถูกตรวจไปแล้ว หรือนักศึกษายังไม่ได้ส่ง) กรุณาปิดหน้าต่างแล้วรีเฟรชรายชื่อ");
         }
         if (action === 'REJECT' && !comment.trim()) {
@@ -196,7 +194,7 @@ export default function A_T002Review() {
         setLoading(true);
         try {
             const token = localStorage.getItem("coop.token");
-            // อนุมัติ = T002_SUBMITTED (ไม่มีสถานะ "T002 ผ่าน" แยก) · ตรวจย้อนหลังตอนอยู่ขั้น T003 server ไม่แตะสถานะสหกิจ
+            // อนุมัติ = T002_SUBMITTED / ตีกลับ = T002_EDITS_REQUIRED (server เปลี่ยนเฉพาะสถานะไฟล์ ไม่แตะสถานะหลัก)
             const newStatus = action === 'APPROVE' ? 'T002_SUBMITTED' : 'T002_EDITS_REQUIRED';
 
             await axios.put(`/api/admin/documents/review-t002`, {
@@ -212,7 +210,7 @@ export default function A_T002Review() {
             reloadStudents(selectedPeriod);
         } catch (err) {
             console.error(err);
-            notify.error("เกิดข้อผิดพลาดในการบันทึกข้อมูล");
+            notify.error(axios.isAxiosError(err) && err.response?.data?.message ? err.response.data.message : "เกิดข้อผิดพลาดในการบันทึกข้อมูล");
         } finally {
             setLoading(false);
         }
@@ -322,7 +320,7 @@ export default function A_T002Review() {
                                         <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
                                         <DeadlineExtensionButton compact step="T002" studentId={s.id} studentName={`${s.firstName} ${s.lastName}`} extensions={s.coop?.deadlineExtensions} />
                                         {getT002FileUrl(s.documents || []) && (
-                                        <button className={statusInfo.label.includes('รอการตรวจสอบ') ? "btn small" : "btn-secondary small"} onClick={() => openReviewModal(s)}>
+                                        <button className={statusInfo.state === 'WAITING' ? "btn small" : "btn-secondary small"} onClick={() => openReviewModal(s)}>
                                             🔍 ตรวจเอกสาร
                                         </button>
                                         )}
@@ -371,14 +369,18 @@ export default function A_T002Review() {
                                 </div>
 
                                 <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
-                                    {isSelectedReviewable(selectedStudent) ? (
+                                    {actionsOf(selectedStudent).approve || actionsOf(selectedStudent).reject ? (
                                         <>
-                                            <button className="btn-danger" style={{ padding: 14 }} onClick={() => submitReview('REJECT')} disabled={loading}>
-                                                ❌ ตีกลับให้แก้ไข
-                                            </button>
-                                            <button className="btn-success" style={{ padding: 14 }} onClick={() => submitReview('APPROVE')} disabled={loading}>
-                                                ✅ อนุมัติเอกสาร T002
-                                            </button>
+                                            {actionsOf(selectedStudent).reject && (
+                                                <button className="btn-danger" style={{ padding: 14 }} onClick={() => submitReview('REJECT')} disabled={loading}>
+                                                    ❌ ตีกลับให้แก้ไข
+                                                </button>
+                                            )}
+                                            {actionsOf(selectedStudent).approve && (
+                                                <button className="btn-success" style={{ padding: 14 }} onClick={() => submitReview('APPROVE')} disabled={loading}>
+                                                    ✅ อนุมัติเอกสาร T002
+                                                </button>
+                                            )}
                                         </>
                                     ) : (
                                         <div style={{ padding: 14, borderRadius: 8, background: getT002Status(selectedStudent).bg, color: getT002Status(selectedStudent).color, fontSize: 13, textAlign: 'center' }}>

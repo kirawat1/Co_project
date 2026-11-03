@@ -12,6 +12,15 @@ import { useLoadMore } from "../utils/useLoadMore";
 import RoundDeadlineNote, { DeadlineFlagBadge, type DeadlineFlags } from "./RoundDeadlineNote";
 import DeadlineExtensionButton from "./DeadlineExtensionButton";
 import type { StepKey } from "../utils/deadlines";
+import { formState, latestForm, reviewActions, FORM_STATE_LABEL, type FormState } from "../utils/internshipForms";
+
+// สีป้ายสถานะตามสถานะย่อยของฟอร์ม
+const STATE_COLOR: Record<FormState, { color: string; bg: string }> = {
+    NONE: { color: "#475569", bg: "#f1f5f9" },
+    WAITING: { color: "#2563eb", bg: "#bfdbfe" },
+    REJECTED: { color: "#dc2626", bg: "#fee2e2" },
+    APPROVED: { color: "#1d4ed8", bg: "#dbeafe" },
+};
 
 // --- Types ---
 type Document = {
@@ -111,21 +120,10 @@ export default function A_DocT003Review() {
         if (selectedPeriod) reloadStudents(selectedPeriod);
     }, [selectedPeriod]);
 
-    // Helper หาระดับสถานะของ T003
+    // ป้ายสถานะของ T003 = สถานะย่อยจากไฟล์ล่าสุด (สถานะหลักคงที่ที่ INTERNSHIP_STARTED)
     const getT003Status = (student: Student) => {
-        const t003Doc = student.documents.find(d => d.type === "T003_FORM");
-        const docStatus = t003Doc?.status || 'WAITING';
-        const profileStatus = student.coop?.status || student.docStatus;
-
-        // ยังไม่มีไฟล์ T003 = ยังไม่ส่ง (INTERNSHIP_STARTED/T002_SUBMITTED — เดิมขึ้นว่าพิจารณาผ่านแล้ว/รอการพิจารณา)
-        if (!t003Doc) return { label: "⏳ ยังไม่ส่ง", color: "#475569", bg: "#f1f5f9" };
-        if (profileStatus === 'T003_APPROVED' || docStatus === 'APPROVED') {
-            return { label: "✅ พิจารณาผ่านแล้ว", color: "#1d4ed8", bg: "#dbeafe" };
-        }
-        if (profileStatus === 'T003_EDITS_REQUIRED' || docStatus === 'EDITS_REQUIRED' || docStatus === 'REJECTED') {
-            return { label: "⚠️ ตีกลับให้แก้ไข", color: "#dc2626", bg: "#fee2e2" };
-        }
-        return { label: "📄 รอการพิจารณา", color: "#2563eb", bg: "#bfdbfe" };
+        const state = formState(latestForm(student.documents, "T003"));
+        return { state, label: FORM_STATE_LABEL[state], ...STATE_COLOR[state] };
     };
 
     // 🟢 จัดการการกด Header เพื่อเรียงลำดับ
@@ -184,14 +182,13 @@ export default function A_DocT003Review() {
         return file ? `/uploads/${file.path}` : null;
     };
 
-    // รีวิวได้เฉพาะตอนสถานะเป็น T003_SUBMITTED เท่านั้น (ตรงกับที่ backend ยอมรับ)
-    // รายชื่อในตารางแสดงนักศึกษาที่เคยส่ง T003 ด้วย แม้สถานะจะเลยจุดพิจารณาไปแล้ว (เช่น พิจารณาผ่านไปแล้ว)
-    // เดิมปุ่ม "อนุมัติ"/"ตีกลับ" ขึ้นให้กดได้เสมอ กดแล้วได้ 400 เพราะสถานะไม่ใช่ T003_SUBMITTED แล้ว
-    const isSelectedT003Reviewable = (student: Student | null) =>
-        !!student && (student.coop?.status || student.docStatus) === 'T003_SUBMITTED';
+    // ปุ่มตรวจที่ทำได้ของนักศึกษา (รอตรวจ = ผ่าน/ตีกลับ · ผ่านแล้ว = ตีกลับย้อนหลัง · อื่นๆ ตรวจไม่ได้)
+    const actionsOf = (student: Student | null) =>
+        student ? reviewActions(student.coop?.status || student.docStatus, getT003Status(student).state) : { approve: false, reject: false };
 
     const submitReview = (action: 'APPROVE' | 'REJECT') => {
-        if (!isSelectedT003Reviewable(selectedStudent)) {
+        const allowed = actionsOf(selectedStudent);
+        if (action === 'APPROVE' ? !allowed.approve : !allowed.reject) {
             toast.error("โครงร่างนี้ไม่อยู่ในสถานะที่พิจารณาได้แล้ว (อาจถูกพิจารณาไปแล้ว หรือนักศึกษายังไม่ได้ส่ง) กรุณาปิดหน้าต่างแล้วรีเฟรชรายชื่อ");
             return;
         }
@@ -210,7 +207,7 @@ export default function A_DocT003Review() {
                 setLoading(true);
                 try {
                     const newStatus = action === 'APPROVE' ? 'T003_APPROVED' : 'T003_EDITS_REQUIRED';
-                    await apiFetch(`/api/admin/documents/review-t003`, {
+                    const res = await apiFetch(`/api/admin/documents/review-t003`, {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
@@ -218,6 +215,12 @@ export default function A_DocT003Review() {
                             comment: action === 'REJECT' ? comment : null
                         })
                     });
+                    // apiFetch ไม่โยน error เมื่อ status ไม่ใช่ 2xx — แสดงข้อความจาก server แทน
+                    if (!res.ok) {
+                        const body = await res.json().catch(() => null);
+                        toast.error(body?.message || "เกิดข้อผิดพลาดในการบันทึกข้อมูล");
+                        return;
+                    }
                     toast.success(`บันทึกผลเรียบร้อย (${action === 'APPROVE' ? 'อนุมัติ' : 'ตีกลับ'})`);
                     setModalOpen(false);
                     reloadStudents(selectedPeriod);
@@ -339,7 +342,7 @@ export default function A_DocT003Review() {
                                         <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
                                         <DeadlineExtensionButton compact step="T003" studentId={s.id} studentName={`${s.firstName} ${s.lastName}`} extensions={s.coop?.deadlineExtensions} />
                                         {s.documents?.some(d => d.type === "T003_FORM") && (
-                                        <button className={statusInfo.label.includes('รอการพิจารณา') ? "btn small" : "btn-secondary small"} onClick={() => openReviewModal(s)}>
+                                        <button className={statusInfo.state === 'WAITING' ? "btn small" : "btn-secondary small"} onClick={() => openReviewModal(s)}>
                                             🔍 พิจารณา
                                         </button>
                                         )}
@@ -389,14 +392,18 @@ export default function A_DocT003Review() {
                                 </div>
 
                                 <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
-                                    {isSelectedT003Reviewable(selectedStudent) ? (
+                                    {actionsOf(selectedStudent).approve || actionsOf(selectedStudent).reject ? (
                                         <>
-                                            <button className="btn-danger" style={{ padding: 14 }} onClick={() => submitReview('REJECT')} disabled={loading}>
-                                                ❌ ตีกลับให้แก้ไข
-                                            </button>
-                                            <button className="btn-success" style={{ padding: 14 }} onClick={() => submitReview('APPROVE')} disabled={loading}>
-                                                ✅ อนุมัติโครงร่างรายงาน
-                                            </button>
+                                            {actionsOf(selectedStudent).reject && (
+                                                <button className="btn-danger" style={{ padding: 14 }} onClick={() => submitReview('REJECT')} disabled={loading}>
+                                                    ❌ ตีกลับให้แก้ไข
+                                                </button>
+                                            )}
+                                            {actionsOf(selectedStudent).approve && (
+                                                <button className="btn-success" style={{ padding: 14 }} onClick={() => submitReview('APPROVE')} disabled={loading}>
+                                                    ✅ อนุมัติโครงร่างรายงาน
+                                                </button>
+                                            )}
                                         </>
                                     ) : (
                                         <div style={{ padding: 14, borderRadius: 8, background: getT003Status(selectedStudent).bg, color: getT003Status(selectedStudent).color, fontSize: 13, textAlign: 'center' }}>
