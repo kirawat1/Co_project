@@ -545,7 +545,7 @@ function StudentModal({ profile, teachers, saveStudentInfo, closeModal, departme
   // ✅ แปลงค่าก่อนนำไปตั้งเป็น State และกำหนดค่าเริ่มต้นคณะ
   const [form, setForm] = useState<StudentProfile>(() => ({
     ...profile,
-    studentId: (profile.studentId ?? "").replace(/\D/g, "").slice(0, 10),
+    studentId: profile.studentId ?? "", // แบบระบบทะเบียนมีขีด (643040001-1) — เดิมตัดขีดทิ้งแล้วบันทึกทับ
     prefix: prefixMapToUI[profile.prefix] || profile.prefix || "",
     studyProgram: studyProgramMapToUI[profile.studyProgram] || profile.studyProgram || "",
     generalAdvisorId: profile.generalAdvisorId ?? null,
@@ -567,16 +567,15 @@ function StudentModal({ profile, teachers, saveStudentInfo, closeModal, departme
             <input
               className="input"
               value={form.studentId}
-              maxLength={10}
+              maxLength={11}
               inputMode="numeric"
-              pattern="\d*"
-              placeholder="ตัวเลข 1–10 หลัก"
+              placeholder="เช่น 643040001-1"
               onChange={(e) => {
-                const val = e.target.value.replace(/\D/g, "").slice(0, 10);
+                const val = e.target.value.replace(/[^\d-]/g, "").slice(0, 11);
                 setForm({ ...form, studentId: val });
               }}
             />
-            {form.studentId && form.studentId.length > 10 && (
+            {form.studentId && form.studentId.replace(/\D/g, "").length > 10 && (
               <span style={{ color: "#dc2626", fontSize: 12 }}>รหัสนักศึกษาต้องไม่เกิน 10 หลัก</span>
             )}
           </div>

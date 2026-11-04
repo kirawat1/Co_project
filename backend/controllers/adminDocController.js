@@ -1,4 +1,5 @@
 const prisma = require('../config/prismaClient');
+const { studentIdSearchOr } = require('../utils/studentId');
 const { deadlineFlagsFor } = require('../utils/deadlineFlags');
 const { createNotifications } = require('../utils/notificationHelper');
 const { removeUnreferencedUploads } = require('../utils/uploadCleanup');
@@ -1127,7 +1128,7 @@ exports.getAllStudentsForReview = async (req, res) => {
         if (search) {
             conditions.push({
                 OR: [
-                    { studentId: { contains: search } },
+                    ...studentIdSearchOr(search), // รหัสแบบมีขีด/ไม่มีขีดก็เจอ
                     { firstName: { contains: search } },
                     { lastName: { contains: search } },
                 ],

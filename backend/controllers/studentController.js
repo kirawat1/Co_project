@@ -8,6 +8,7 @@ const { removeUnreferencedUploads, SUPERVISION_PREFIX } = require('../utils/uplo
 const { resolveMajorNameTh } = require('../utils/majorName');
 const { visibleStudentWhere, getMajorScope, studentWhere } = require('../utils/majorScope');
 const { studentPeriodWhere, countByPeriod } = require('../utils/periodFilter');
+const { normalizeStudentId, studentIdVariants, studentIdSearchOr } = require('../utils/studentId');
 
 // GET /api/students/me
 exports.getMyProfile = async (req, res) => {
@@ -96,17 +97,21 @@ exports.updateMyProfile = async (req, res) => {
     const data = req.body;
     const userId = req.userId;
 
-    if (data.studentId !== undefined && data.studentId !== "") {
-      // strip ตัวอักษรที่ไม่ใช่ตัวเลขออกก่อน (เช่น "u640001" → "640001")
-      data.studentId = String(data.studentId).replace(/\D/g, "");
-      if (data.studentId.length === 0 || data.studentId.length > 10) {
-        return res.status(400).json({ ok: false, message: "รหัสนักศึกษาต้องเป็นตัวเลขไม่เกิน 10 หลัก" });
-      }
-    }
-
     const currentStudent = await prisma.student.findUnique({
       where: { userId: userId }
     });
+
+    // รหัสนักศึกษา: ว่าง/ไม่ส่ง = คงเดิม (เดิมส่งค่าว่างแล้วรหัสกลายเป็นค่าว่าง) · ตัดตัวอักษรอื่นออก (เช่น "u640001")
+    // ตัวเลขเท่าเดิม = รหัสเดิม (หน้าเว็บส่งเลขล้วนมา — เดิมขีดของรหัสแบบระบบทะเบียนหายทุกครั้งที่บันทึก) · รหัสใหม่ 10 หลักเก็บแบบมีขีด
+    if (data.studentId === "" || data.studentId === null) delete data.studentId;
+    if (data.studentId !== undefined) {
+      const compact = String(data.studentId).replace(/\D/g, "");
+      if (compact.length === 0 || compact.length > 10) {
+        return res.status(400).json({ ok: false, message: "รหัสนักศึกษาต้องเป็นตัวเลขไม่เกิน 10 หลัก" });
+      }
+      const same = currentStudent?.studentId && String(currentStudent.studentId).replace(/\D/g, "") === compact;
+      data.studentId = same ? currentStudent.studentId : normalizeStudentId(compact);
+    }
 
     if (currentStudent?.deletedAt) {
       return res.status(403).json({ ok: false, message: "บัญชีถูกระงับการใช้งาน" });
@@ -131,7 +136,7 @@ exports.updateMyProfile = async (req, res) => {
       if (currentCheck?.deletedAt) throw Object.assign(new Error('บัญชีถูกระงับการใช้งาน'), { is403: true });
       if (data.studentId) {
         const taken = await tx.student.findFirst({
-          where: { studentId: data.studentId, NOT: { userId }, deletedAt: null }
+          where: { studentId: { in: studentIdVariants(data.studentId) }, NOT: { userId }, deletedAt: null }
         });
         if (taken) throw Object.assign(new Error("รหัสนักศึกษานี้ถูกใช้งานแล้ว กรุณาตรวจสอบอีกครั้ง"), { is409: true });
       }
@@ -341,7 +346,7 @@ exports.getStudents = async (req, res) => {
     if (search) {
       conditions.push({
         OR: [
-          { studentId: { contains: search } },
+          ...studentIdSearchOr(search), // รหัสพิมพ์แบบมีขีด/ไม่มีขีดก็เจอ
           { firstName: { contains: search } },
           { lastName: { contains: search } },
           { user: { email: { contains: search } } },
@@ -663,6 +668,17 @@ exports.updateStudentBasicInfo = async (req, res) => {
         }
       }
 
+      // รหัสนักศึกษา: เลข 10 หลักเก็บแบบมีขีด · ซ้ำกับคนอื่นแม้พิมพ์คนละรูปแบบ (643040001-1 / 6430400011) → 409 · ว่าง = คงเดิม
+      let studentIdData = {};
+      if (studentId !== undefined && studentId !== null && String(studentId).trim() !== '') {
+        const sid = normalizeStudentId(studentId);
+        if (sid !== student.studentId) {
+          const dup = await tx.student.findFirst({ where: { studentId: { in: studentIdVariants(sid) }, NOT: { id } }, select: { deletedAt: true } });
+          if (dup) throw Object.assign(new Error(dup.deletedAt ? 'รหัสนักศึกษานี้เป็นของนักศึกษาที่อยู่ในถังขยะ' : 'รหัสนักศึกษานี้มีอยู่ในระบบแล้ว (ซ้ำกับบัญชีอื่น)'), { is409: true });
+        }
+        studentIdData = { studentId: sid };
+      }
+
       // หลักสูตรต้องเป็นรหัสที่มีในระบบ (เดิมพิมพ์อะไรก็บันทึก — นักศึกษาหลุดจากทุกหลักสูตร) · ค่าเดิมที่ไม่มีแล้วส่งซ้ำได้
       const majorData = {};
       if (major !== undefined) {
@@ -685,7 +701,7 @@ exports.updateStudentBasicInfo = async (req, res) => {
           // prefix/studyProgram เป็น enum — ค่า '' (ยังไม่เลือก) ต้องแปลงเป็น null ไม่งั้น Prisma ปฏิเสธ
           prefix: prefix === '' ? null : prefix,
           firstName, lastName, firstNameEn, lastNameEn,
-          studentId, ...majorData,
+          ...studentIdData, ...majorData,
           studyProgram: studyProgram === '' ? null : studyProgram,
           year, phone,
           jobPosition, ...advisorData, ...studentEmailData,
@@ -748,8 +764,9 @@ exports.createStudentSingle = async (req, res) => {
       majorCode = criteria.major;
     }
 
-    // รหัสผ่านเริ่มต้น = รหัสนักศึกษา (นักศึกษาไปเปลี่ยนเองทีหลัง)
-    const defaultPasswordHash = await hashDefaultStudentPassword(studentId);
+    // รหัสนักศึกษาแบบระบบทะเบียน (เลข 10 หลัก → มีขีด) · รหัสผ่านเริ่มต้น = รหัสนักศึกษา (นักศึกษาไปเปลี่ยนเองทีหลัง)
+    const sid = normalizeStudentId(studentId);
+    const defaultPasswordHash = await hashDefaultStudentPassword(sid);
 
     let user;
     await prisma.$transaction(async (tx) => {
@@ -757,7 +774,7 @@ exports.createStudentSingle = async (req, res) => {
       if (existEmail) throw Object.assign(new Error("อีเมลนี้มีในระบบแล้ว"), { is409: true });
 
       // รหัสนักศึกษาห้ามซ้ำทั้งตาราง (รวมถังขยะ) — เดิมเช็คเฉพาะคนที่ไม่อยู่ในถังขยะ แล้วไปชน unique ได้ข้อความกลางๆ "ข้อมูลซ้ำ"
-      const existId = await tx.student.findFirst({ where: { studentId: studentId.trim() }, select: { deletedAt: true } });
+      const existId = await tx.student.findFirst({ where: { studentId: { in: studentIdVariants(sid) } }, select: { deletedAt: true } });
       if (existId) {
         throw Object.assign(new Error(existId.deletedAt
           ? "รหัสนักศึกษานี้อยู่ในถังขยะ — กู้คืนจากถังขยะแทนการเพิ่มใหม่"
@@ -767,10 +784,10 @@ exports.createStudentSingle = async (req, res) => {
       user = await tx.user.create({
         data: {
           username: emailLower, email: emailLower, password: defaultPasswordHash, role: "student", provider: "google",
-          passwordEnc: defaultPasswordHash ? encryptPassword(defaultStudentPassword(studentId)) : null,
+          passwordEnc: defaultPasswordHash ? encryptPassword(defaultStudentPassword(sid)) : null,
           student: {
             create: {
-              studentId: studentId.trim(),
+              studentId: sid,
               prefix: prefixEnum,
               firstName: firstName.trim(),
               lastName: lastName.trim(),

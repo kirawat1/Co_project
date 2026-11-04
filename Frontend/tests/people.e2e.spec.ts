@@ -137,6 +137,12 @@ test.describe("B. อาจารย์", () => {
     expect((await api(t.coopCS.token, "PUT", `/api/admin/teachers/${tr.id}`, { major: "AI" })).status).toBe(403);
     expect((await api(staff.token, "PUT", `/api/admin/teachers/${tr.id}`, { major: "NOPE" })).status).toBe(400);
     expect((await api(staff.token, "PUT", `/api/teachers/${tr.id}`, { major: "NOPE" })).status).toBe(400);
+    // (ใหม่) ข้อมูลเก่าที่หลักสูตรไม่มีในตาราง — หน้าแก้ไขส่งค่าเดิมกลับมา ต้องยังแก้ช่องอื่นได้ (ทั้งสองเส้นทาง)
+    const legacy = await k.teacher("หลักสูตรเก่า", { major: `${C()}OLD` });
+    r = await api(staff.token, "PUT", `/api/admin/teachers/${legacy.pk}`, { major: `${C()}OLD`, firstName: "แก้ได้" });
+    expect(r.status, msg(r)).toBe(200);
+    r = await api(staff.token, "PUT", `/api/teachers/${legacy.pk}`, { major: `${C()}OLD`, phone: "0811111111" });
+    expect(r.status, msg(r)).toBe(200);
     r = await api(staff.token, "PUT", `/api/teachers/${tr.id}`, { phone: "0800000000" });
     expect(r.status, msg(r)).toBe(200);
     now = await prisma.teacher.findUnique({ where: { id: tr.id } });
@@ -265,13 +271,22 @@ async function asUser(page: Page, token: string, userId: number, to: string) {
 
 test.describe("E. หน้าจัดการหลักสูตร / อาจารย์", () => {
   test("หลักสูตร: (ใหม่) เพิ่มรหัสซ้ำขึ้นข้อความ ไม่ทับ · ลบหลักสูตรที่มีคนใช้ขึ้นจำนวนที่ใช้อยู่ ไม่ลบ", async ({ page }) => {
-    await asUser(page, staff.token, staff.userId, "/admin/criteria");
-    await page.getByRole("button", { name: /เพิ่ม/ }).first().click();
-    await page.getByPlaceholder("เช่น CS, IT, AI").fill("CS");
-    await page.getByPlaceholder("เช่น วิทยาการคอมพิวเตอร์").fill("ชื่อที่ไม่ควรทับ");
-    await page.getByRole("button", { name: "บันทึก", exact: true }).click();
-    await expect(page.getByText(/รหัสหลักสูตรนี้มีอยู่แล้ว/)).toBeVisible();
-    expect((await prisma.coopCriteria.findUnique({ where: { major: "CS" } }))?.nameTh).not.toBe("ชื่อที่ไม่ควรทับ");
+    // ใช้หลักสูตร CS จริง — เก็บชื่อเดิมไว้คืน ถ้าการแก้ถดถอยกลับไปทับชื่อ · ลบแถวขยะถ้ามีหลุดไปสร้าง
+    const realCS = (await prisma.coopCriteria.findUnique({ where: { major: "CS" } }))?.nameTh;
+    try {
+      await asUser(page, staff.token, staff.userId, "/admin/criteria");
+      await page.getByRole("button", { name: /เพิ่ม/ }).first().click();
+      const code = page.getByPlaceholder("เช่น CS, IT, AI");
+      await expect(code).toBeFocused();        // หน้าเว็บย้ายโฟกัสมาช่องรหัสหลังเปิดฟอร์ม 50 ms — พิมพ์ก่อนนั้นตัวอักษรไปตกช่องรหัส
+      await code.fill("CS");
+      await page.getByPlaceholder("เช่น วิทยาการคอมพิวเตอร์").fill("ชื่อที่ไม่ควรทับ");
+      await page.getByRole("button", { name: "บันทึก", exact: true }).click();
+      await expect(page.getByText(/รหัสหลักสูตรนี้มีอยู่แล้ว/)).toBeVisible();
+      expect((await prisma.coopCriteria.findUnique({ where: { major: "CS" } }))?.nameTh).toBe(realCS);
+    } finally {
+      await prisma.coopCriteria.updateMany({ where: { major: "CS" }, data: { nameTh: realCS ?? null } });
+      await prisma.coopCriteria.deleteMany({ where: { major: { contains: "ชื่อที่ไม่ควรทับ" } } });
+    }
     await page.getByRole("button", { name: "ยกเลิก" }).first().click();
     const card = page.locator("div", { hasText: `${C()}B`, has: page.getByRole("button", { name: "🗑️ ลบ" }) }).last();
     await card.getByRole("button", { name: "🗑️ ลบ" }).click();

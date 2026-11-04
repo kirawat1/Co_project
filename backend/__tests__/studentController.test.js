@@ -877,6 +877,24 @@ describe('updateMyProfile', () => {
     expect(prisma.student.upsert.mock.calls[0][0].update.major).toBe('CS');
   });
 
+  // บั๊กจริง 2026-11-04: หน้าเว็บส่งเลขล้วน (ตัดขีด) → รหัสแบบระบบทะเบียน 643040001-1 กลายเป็น 6430400011 ทุกครั้งที่บันทึก
+  test('รหัสนักศึกษา: ตัวเลขเท่าเดิม = คงรหัสเดิม (มีขีด) · ว่าง/null = ไม่แตะ · รหัสใหม่ 10 หลัก → มีขีด · ตรวจซ้ำทั้งสองรูปแบบ', async () => {
+    setupUpsert();
+    prisma.student.findUnique.mockResolvedValue({ id: 1, deletedAt: null, major: 'CS', studentId: '643040001-1' });
+    prisma.student.findFirst.mockResolvedValue(null);
+    const upd = () => prisma.student.upsert.mock.calls.at(-1)[0].update;
+
+    await updateMyProfile({ userId: 1, body: { studentId: '6430400011' } }, makeRes());
+    expect(upd().studentId).toBe('643040001-1');
+    for (const empty of ['', null]) {
+      await updateMyProfile({ userId: 1, body: { studentId: empty, phone: '0800000000' } }, makeRes());
+      expect(upd().studentId).toBeUndefined();
+    }
+    await updateMyProfile({ userId: 1, body: { studentId: '6530400022' } }, makeRes());
+    expect(upd().studentId).toBe('653040002-2');
+    expect(prisma.student.findFirst).toHaveBeenLastCalledWith(expect.objectContaining({ where: expect.objectContaining({ studentId: { in: ['653040002-2', '6530400022'] } }) }));
+  });
+
   test('200 — หลักสูตรว่าง (\'\' / null เช่นโดนบั๊กล้าง) แม้เข้ารอบแล้วตั้งเองได้ · ส่งค่าว่างซ้ำไม่นับว่าเปลี่ยน', async () => {
     setupUpsert();
     prisma.student.findUnique.mockResolvedValue({ id: 1, deletedAt: null, major: '' });
@@ -1067,7 +1085,7 @@ describe('createStudentSingle — major', () => {
       expect(res.status).toHaveBeenCalledWith(409);
       expect(res.json.mock.calls[0][0].message).toMatch(msg);
     }
-    expect(prisma.student.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: { studentId: '663380001-1' } }));
+    expect(prisma.student.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: { studentId: { in: ['663380001-1', '6633800011'] } } })); // ซ้ำข้ามรูปแบบมีขีด/ไม่มีขีด
     expect(prisma.user.create).not.toHaveBeenCalled();
   });
 });

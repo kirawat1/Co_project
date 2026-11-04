@@ -4,6 +4,10 @@ const { defaultStudentPassword, hashDefaultStudentPassword } = require('../utils
 const { encryptPassword } = require('../utils/passwordVault');
 const { normalizeEmail } = require('../utils/userEmail');
 const { getMajorScope } = require('../utils/majorScope');
+const { normalizeStudentId, studentIdVariants } = require('../utils/studentId');
+
+// นักศึกษาในระบบตามรหัส — รหัสเก่าที่ถูกตัดขีด (6430400011) จับคู่กับรหัสในไฟล์ (643040001-1) ได้ · มีทั้งสองแบบ = ใช้แบบมีขีด
+const byNormalizedId = (rows) => new Map([...rows].sort((a, b) => (a.studentId === normalizeStudentId(a.studentId)) - (b.studentId === normalizeStudentId(b.studentId))).map((st) => [normalizeStudentId(st.studentId), st]));
 
 const ROLE_TH = { teacher: 'อาจารย์', staff: 'เจ้าหน้าที่', student: 'นักศึกษา' };
 
@@ -60,7 +64,7 @@ function normalizeRow(row, isKkuFormat) {
       ? (STUDY_PROGRAM_MAP[levelName] ?? extractStudyProgram(levelName))
       : extractStudyProgram(programName)) ?? null;
     return {
-      studentId:        String(row['STUDENTCODE']       || '').trim(),
+      studentId:        normalizeStudentId(row['STUDENTCODE']), // เลข 10 หลัก → แบบมีขีดเหมือนระบบทะเบียน
       prefix:           mapPrefix(row['PREFIXNAME']),
       firstName:        String(row['STUDENTNAME']       || '').trim(),
       lastName:         String(row['STUDENTSURNAME']    || '').trim(),
@@ -86,7 +90,7 @@ function normalizeRow(row, isKkuFormat) {
   const rawProgram = String(row['ภาคการศึกษา (ปกติ/พิเศษ)'] || '').trim();
   // ไฟล์เก่าอาจยังมีคอลัมน์ "เกรดเฉลี่ยสะสม (GPA)" — ระบบไม่ใช้ GPA แล้ว ไม่นำเข้า
   return {
-    studentId:        String(row['รหัสนักศึกษา'] || '').trim(),
+    studentId:        normalizeStudentId(row['รหัสนักศึกษา']),
     prefix:           mapPrefix(row['คำนำหน้าชื่อ']),
     firstName,
     lastName,
@@ -242,14 +246,14 @@ exports.previewStudents = async (req, res) => {
     const allStudentIds = [...new Set(normalizedRows.map(r => r.studentId).filter(Boolean))];
     const [prefetchedUsers, prefetchedStudents] = await Promise.all([
       prisma.user.findMany({ where: { email: { in: allEmails } } }),
-      prisma.student.findMany({ where: { studentId: { in: allStudentIds } }, select: { studentId: true, deletedAt: true, major: true } }),
+      prisma.student.findMany({ where: { studentId: { in: allStudentIds.flatMap(studentIdVariants) } }, select: { studentId: true, deletedAt: true, major: true } }),
     ]);
     const scope = await getMajorScope(req, { ignoreFilter: true });
     const chosen = await parseChosenMap(req.body?.majorMap, scope);
     if (chosen.error) return res.status(400).json({ ok: false, message: chosen.error });
     const lookup = await loadMajorLookup(normalizedRows, chosen.map);
     const userByEmail        = new Map(prefetchedUsers.map(u => [normalizeEmail(u.email), u]));
-    const studentByStudentId = new Map(prefetchedStudents.map(s => [s.studentId, s]));
+    const studentByStudentId = byNormalizedId(prefetchedStudents);
 
     const uniqueAdvisorPairs = [...new Map(
       normalizedRows
@@ -365,11 +369,11 @@ exports.importStudents = async (req, res) => {
     const [prefetchedUsers, prefetchedByUsername, prefetchedStudents] = await Promise.all([
       prisma.user.findMany({ where: { email: { in: allEmails } }, include: { student: { select: { studentId: true } } } }),
       prisma.user.findMany({ where: { username: { in: allEmails } } }),
-      prisma.student.findMany({ where: { studentId: { in: allStudentIds } }, select: { studentId: true, deletedAt: true, major: true, userId: true, user: { select: { email: true } } } }),
+      prisma.student.findMany({ where: { studentId: { in: allStudentIds.flatMap(studentIdVariants) } }, select: { studentId: true, deletedAt: true, major: true, userId: true, user: { select: { email: true } } } }),
     ]);
     const userByEmail        = new Map(prefetchedUsers.map(u => [normalizeEmail(u.email), u]));
     const userByUsername     = new Map(prefetchedByUsername.map(u => [normalizeEmail(u.username), u]));
-    const studentByStudentId = new Map(prefetchedStudents.map(s => [s.studentId, s]));
+    const studentByStudentId = byNormalizedId(prefetchedStudents);
 
     // Pre-fetch all candidate advisor teachers (deduplicated) to avoid N+1
     const uniqueAdvisorPairs = [...new Map(
@@ -429,7 +433,7 @@ exports.importStudents = async (req, res) => {
             throw new Error(`อีเมล '${email}' เป็นบัญชี${ROLE_TH[existingUser.role] || existingUser.role}อยู่แล้ว`);
           }
           const linkedStudentId = existingUser.student?.studentId;
-          if (linkedStudentId && linkedStudentId !== studentId) {
+          if (linkedStudentId && normalizeStudentId(linkedStudentId) !== studentId) {
             throw new Error(`อีเมล '${email}' ถูกใช้โดยรหัสนักศึกษา '${linkedStudentId}' แล้ว`);
           }
           if (existingStudentRow?.userId != null && existingStudentRow.userId !== existingUser.id) {
@@ -500,11 +504,14 @@ exports.importStudents = async (req, res) => {
               await tx.user.update({ where: { id: existingUser.id }, data: userData });
             }
           }
+          // รหัสเก่าที่ถูกตัดขีด → อัปเดตแถวเดิม + คืนรหัสเป็นแบบมีขีด (เดิมไม่เจอแถวเดิม → ชน/สร้างซ้ำ)
+          const storedId = existingStudent?.studentId ?? studentId;
           await tx.student.upsert({
-            where: { studentId },
+            where: { studentId: storedId },
             // นักศึกษาที่มีอยู่แล้ว: ช่องที่ไฟล์ไม่มีค่า = คงค่าเดิม — เดิมไฟล์จากระบบทะเบียน (ไม่มีชั้นปี/เบอร์โทร)
             // นำเข้าซ้ำแล้วล้างเบอร์โทร/ชั้นปีที่นักศึกษากรอกไว้ทั้งรุ่น
             update: {
+              ...(storedId !== studentId ? { studentId } : {}),
               prefix: keepIfEmpty(prefix), firstName: keepIfEmpty(firstName), lastName: keepIfEmpty(lastName),
               firstNameEn: keepIfEmpty(firstNameEn), lastNameEn: keepIfEmpty(lastNameEn),
               year: keepIfEmpty(year), phone: keepIfEmpty(phone), email, major: resolvedMajor ?? undefined, studyProgram: keepIfEmpty(studyProgram),

@@ -1,4 +1,5 @@
 const prisma = require("../config/prismaClient");
+const { studentIdSearchOr } = require("../utils/studentId");
 const { reviewForm } = require('../utils/internshipForms');
 const { createNotifications } = require('../utils/notificationHelper');
 const { buildStudentExportWorkbook, exportBaseUrl, STUDENT_EXPORT_INCLUDE } = require('../utils/studentExport');
@@ -175,8 +176,9 @@ exports.getAllTeachers = async (req, res) => {
 };
 
 // หลักสูตรของอาจารย์ (ข้อความ ไม่มี FK) ต้องเป็นรหัสที่มีจริง — เดิมพิมพ์อะไรก็ได้ อาจารย์หลุดจากปฏิทิน/รายการตามหลักสูตร
-async function unknownMajorError(major) {
-  if (major === undefined || major === null || major === '') return null;
+// current = หลักสูตรเดิมของอาจารย์ — ส่งค่าเดิมซ้ำ (หน้าแก้ไขส่งมาทุกครั้ง) ไม่ตรวจ: ข้อมูลเก่าที่รหัสไม่มีในตารางหลักสูตรยังแก้ช่องอื่นได้
+async function unknownMajorError(major, current) {
+  if (major === undefined || major === null || major === '' || major === current) return null;
   if (typeof major !== 'string') return 'major ไม่ถูกต้อง';
   const found = await prisma.coopCriteria.findUnique({ where: { major }, select: { major: true } });
   return found ? null : `ไม่พบหลักสูตร ${major} ในระบบ`;
@@ -191,7 +193,8 @@ exports.updateTeacherById = async (req, res) => {
       return res.status(400).json({ ok: false, message: 'id ไม่ถูกต้อง' });
     // สถานะอาจารย์ประจำวิชาแก้ที่ PUT /api/admin/teachers/:id (coopMajors) เท่านั้น
     const { firstName, lastName, phone, major, prefix } = req.body;
-    const majorError = await unknownMajorError(major);
+    const current = major === undefined ? null : await prisma.teacher.findUnique({ where: { id: parsedTeacherId }, select: { major: true } });
+    const majorError = await unknownMajorError(major, current?.major);
     if (majorError) return res.status(400).json({ ok: false, message: majorError });
 
     const updated = await prisma.teacher.update({
@@ -671,7 +674,7 @@ exports.adminUpdateTeacher = async (req, res) => {
 
     const teacher = await prisma.teacher.findUnique({ where: { id: parsedId } });
     if (!teacher) return res.status(404).json({ ok: false, message: "ไม่พบอาจารย์" });
-    const majorError = await unknownMajorError(major);
+    const majorError = await unknownMajorError(major, teacher.major);
     if (majorError) return res.status(400).json({ ok: false, message: majorError });
 
     // อาจารย์ประจำวิชา: แก้ได้เฉพาะอาจารย์ในหลักสูตรที่ดูแล และย้ายไปหลักสูตรอื่นไม่ได้
@@ -737,7 +740,7 @@ exports.getMyStudents = async (req, res) => {
 
     const baseConditions = [
       { deletedAt: null },
-      ...(search ? [{ OR: [{ firstName: { contains: search } }, { lastName: { contains: search } }, { studentId: { contains: search } }] }] : []),
+      ...(search ? [{ OR: [{ firstName: { contains: search } }, { lastName: { contains: search } }, ...studentIdSearchOr(search)] }] : []),
       ...(period.where ? [period.where] : []),
       ...(statuses.length > 0 ? [{ coop: { status: { in: statuses } } }] : []),
       ...(studyPrograms.length > 0 ? [{ studyProgram: { in: studyPrograms } }] : []),

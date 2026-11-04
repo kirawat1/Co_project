@@ -457,6 +457,18 @@ describe('adminUpdateTeacher — coopMajors', () => {
     expect(prisma.teacher.update).toHaveBeenCalledWith({ where: { id: 9 }, data: { isCoopTeacher: true } });
   });
 
+  // ข้อมูลเก่าที่หลักสูตรไม่มีในตาราง — หน้าแก้ไขส่งค่าเดิมกลับมา ต้องยังแก้ช่องอื่นได้ · เปลี่ยนเป็นรหัสที่ไม่มี → 400
+  test('หลักสูตรเดิมที่ไม่มีในตาราง: ส่งค่าเดิมซ้ำผ่าน · เปลี่ยนเป็นรหัสที่ไม่มี 400', async () => {
+    prisma.teacher.findUnique.mockResolvedValue({ id: 9, userId: 90, email: 't@kku.ac.th', major: 'OLDMAJOR' });
+    prisma.coopCriteria.findUnique.mockResolvedValue(null);
+    let res = makeRes();
+    await adminUpdateTeacher({ user: { role: 'staff' }, params: { id: '9' }, body: { ...body, major: 'OLDMAJOR' } }, res);
+    expect(res.status).not.toHaveBeenCalledWith(400);
+    res = makeRes();
+    await adminUpdateTeacher({ user: { role: 'staff' }, params: { id: '9' }, body: { ...body, major: 'NOPE' } }, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+  });
+
   test('ล้างรายการ → isCoopTeacher = false', async () => {
     const res = makeRes();
     await adminUpdateTeacher({ user: { role: 'staff' }, params: { id: '9' }, body: { ...body, coopMajors: [] } }, res);
