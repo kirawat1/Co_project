@@ -34,6 +34,7 @@ const prismaMock = {
     delete: jest.fn(),
   },
   teacher: {
+    updateMany: jest.fn(async () => ({ count: 0 })),
     groupBy: jest.fn(),
     findUnique: jest.fn(),
     findFirst: jest.fn(),
@@ -64,6 +65,7 @@ const prismaMock = {
     delete: jest.fn(),
     deleteMany: jest.fn(),
     update: jest.fn(),
+    updateMany: jest.fn(),
   },
   coopPeriod: {
     findUnique: jest.fn(),
@@ -75,6 +77,7 @@ const prismaMock = {
     delete: jest.fn(),
   },
   coopPeriodMajor: {
+    count: jest.fn(async () => 0),
     findUnique: jest.fn(),
     findFirst: jest.fn(),
     findMany: jest.fn(),
@@ -156,6 +159,7 @@ const prismaMock = {
     updateMany: jest.fn(),
   },
   systemConfig: {
+    delete: jest.fn(),
     findUnique: jest.fn(),
     findMany: jest.fn(),
     upsert: jest.fn(),
@@ -187,6 +191,7 @@ const prismaMock = {
     createMany: jest.fn(),
   },
   coopTeacherMajor: {
+    count: jest.fn(async () => 0),
     findMany: jest.fn(),
     createMany: jest.fn(),
     deleteMany: jest.fn(),
@@ -207,6 +212,7 @@ const prismaMock = {
     update: jest.fn(),
   },
   documentRequirementMajor: {
+    count: jest.fn(async () => 0),
     upsert: jest.fn(),
     deleteMany: jest.fn(),
     createMany: jest.fn(),

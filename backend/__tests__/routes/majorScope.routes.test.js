@@ -23,6 +23,7 @@ const STUDENTS = { 10: { id: 10, major: 'CS' }, 11: { id: 11, major: 'AI' } };
 
 beforeEach(() => {
   jest.clearAllMocks();
+  prisma.coopCriteria.findUnique.mockResolvedValue({ major: 'CS' }); // หลักสูตรที่ส่งมามีจริง
   // อาจารย์ user 2 = อาจารย์ประจำวิชา CS (teacher 20) · teacher 30 = อาจารย์หลักสูตร AI · teacher 40 = CS
   prisma.teacher.findUnique.mockImplementation(async ({ where }) => {
     if (where.userId === 2) return { id: 20, isCoopTeacher: true, coopMajors: [{ major: 'CS' }] };

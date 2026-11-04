@@ -3,6 +3,7 @@ import { apiFetch } from "../utils/apiFetch";
 import { IcSave, IcUser } from "./icons";
 import { useToast } from "./Toast";
 import ConfirmDialog from "./ConfirmDialog";
+import { askConfirm } from "../utils/notify";
 import { BusyLabel, LoadingBlock } from "./Spinner";
 import PasswordReveal from "./PasswordReveal";
 import LoadMoreFooter from "./LoadMoreFooter";
@@ -165,8 +166,16 @@ export default function A_Teacher() {
   const handleDelete = async (t: Teacher) => {
     setSaving(true);
     try {
-      const res = await apiFetch(`/api/admin/teachers/${t.id}`, { method: "DELETE" });
-      const data = await res.json();
+      let res = await apiFetch(`/api/admin/teachers/${t.id}`, { method: "DELETE" });
+      let data = await res.json();
+      // เป็นที่ปรึกษาของนักศึกษาอยู่ — server ตอบรายชื่อมาให้ยืนยันอีกครั้ง แล้วส่ง ?confirm=1 (นักศึกษาต้องเลือกที่ปรึกษาใหม่)
+      if (res.status === 409 && data.code === "TEACHER_HAS_ADVISEES") {
+        const list = (data.students || []) as { studentId: string; name: string; trashed?: boolean }[];
+        const lines = list.slice(0, 8).map(s => `• ${s.studentId} ${s.name}${s.trashed ? " (ในถังขยะ)" : ""}`).join("\n") + (list.length > 8 ? `\n…และอีก ${list.length - 8} คน` : "");
+        if (!(await askConfirm(`${data.message}\n\n${lines}\n\nยืนยันลบอาจารย์คนนี้?`, { confirmLabel: "ลบอาจารย์", danger: true }))) return;
+        res = await apiFetch(`/api/admin/teachers/${t.id}?confirm=1`, { method: "DELETE" });
+        data = await res.json();
+      }
       if (res.ok) {
         toast.success(`ลบ ${t.firstName} ${t.lastName} เรียบร้อย`);
         fetchData();

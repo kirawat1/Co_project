@@ -29,6 +29,16 @@ async function parseMajors(raw, scope) {
   return majors;
 }
 
+// รหัสหัวข้อ = Document.type ของไฟล์ที่นักศึกษาส่ง — ห้ามซ้ำชนิดไฟล์ของระบบ (เดิมตั้ง "T002_FORM" ได้:
+// อัปโหลดไปเข้าทาง T002 แต่รายการ T000 นับไฟล์ T002 เป็นหัวข้อนี้) · ห้ามว่าง
+// T000_SIGNED / CV / TRANSCRIPT / STUDENT_CARD / CITIZEN_CARD / PARENTAL_CONSENT = ชนิดไฟล์ที่ระบบเขียน/ลบเอง (T000 ที่เซ็นแล้ว · ทางลบแบบเดิม CP-xxx → xxx)
+const RESERVED_DOC_KEYS = new Set(['APPLICATION_DOC', 'CP-ACCEPTANCE', 'T002_FORM', 'T003_FORM', 'DISPATCH_LETTER', 'PLACEMENT_LETTER', 'ACCEPTANCE_FORM',
+  'T000_SIGNED', 'CV', 'TRANSCRIPT', 'STUDENT_CARD', 'CITIZEN_CARD', 'PARENTAL_CONSENT']);
+function checkDocKey(docKey) {
+  if (!docKey.trim()) throw httpError(400, 'docKey ต้องไม่ว่าง');
+  if (RESERVED_DOC_KEYS.has(docKey.trim())) throw httpError(400, `รหัส "${docKey.trim()}" เป็นชนิดเอกสารของระบบ — กรุณาใช้รหัสอื่น`);
+}
+
 // อาจารย์ประจำวิชาแก้/ลบได้เฉพาะหัวข้อที่ใช้เฉพาะหลักสูตรของตัวเองทั้งหมด
 const canManage = (scope, r) => scope.all || (!isShared(r) && r.majors.every((m) => scope.majors.includes(m)));
 
@@ -74,11 +84,13 @@ exports.createRequirement = async (req, res) => {
     if (!docKey || typeof docKey !== 'string' || !title || typeof title !== 'string') {
       throw httpError(400, 'docKey และ title เป็นข้อมูลที่จำเป็น');
     }
+    checkDocKey(docKey);
+    if (!title.trim()) throw httpError(400, 'docKey และ title เป็นข้อมูลที่จำเป็น');
     const scope = await getMajorScope(req);
     const majors = (await parseMajors(req.body.majors ?? [], scope));
     const created = await prisma.documentRequirement.create({
       data: {
-        docKey, title, description, isRequired, isActive,
+        docKey: docKey.trim(), title, description, isRequired, isActive,
         majorRules: { create: majors.map((major) => ({ major, excluded: false })) },
       },
       include: RULES_INCLUDE,
@@ -99,10 +111,14 @@ exports.updateRequirement = async (req, res) => {
     const { docKey, title, description, isRequired, isActive } = req.body;
     if (docKey !== undefined && (docKey === null || typeof docKey !== 'string')) throw httpError(400, 'docKey ต้องเป็น string');
     if (title !== undefined && (title === null || typeof title !== 'string')) throw httpError(400, 'title ต้องเป็น string');
+    if (title !== undefined && !title.trim()) throw httpError(400, 'title ต้องไม่ว่าง');
+    // ตรวจเฉพาะตอนเปลี่ยนรหัส — หน้าเว็บส่งรหัสเดิมมาทุกครั้ง (หัวข้อเก่าที่รหัสชนกับระบบยังแก้ช่องอื่นได้)
+    const nextKey = docKey !== undefined ? docKey.trim() : undefined;
+    if (nextKey !== undefined && nextKey !== current.docKey) checkDocKey(nextKey);
     const majors = await parseMajors(req.body.majors, scope);
 
     const data = {};
-    if (docKey !== undefined) data.docKey = docKey;
+    if (nextKey !== undefined) data.docKey = nextKey;
     if (title !== undefined) data.title = title;
     if (description !== undefined) data.description = description;
     if (isRequired !== undefined) data.isRequired = isRequired;
@@ -110,6 +126,10 @@ exports.updateRequirement = async (req, res) => {
 
     await prisma.$transaction(async (tx) => {
       await tx.documentRequirement.update({ where: { id: current.id }, data });
+      // เปลี่ยนรหัสหัวข้อ → ไฟล์ที่นักศึกษาส่งไว้ใต้รหัสเดิมต้องตามมา (เดิมหลุดจากรายการ T000 ทั้งของนักศึกษาและหน้าตรวจ)
+      if (data.docKey !== undefined && data.docKey !== current.docKey) {
+        await tx.document.updateMany({ where: { type: current.docKey }, data: { type: data.docKey } });
+      }
       if (majors !== undefined) {
         // เปลี่ยนหลักสูตรที่ใช้ → รายการ "ปิดหัวข้อกลาง" เดิมไม่มีความหมายแล้ว ล้างทิ้งพร้อมกัน
         await tx.documentRequirementMajor.deleteMany({ where: { requirementId: current.id } });

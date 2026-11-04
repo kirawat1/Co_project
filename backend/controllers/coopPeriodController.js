@@ -45,6 +45,8 @@ exports.createPeriod = async (req, res) => {
     if (!Number.isInteger(parsedSemester) || parsedSemester <= 0) return fail(res, 400, 'semester ไม่ถูกต้อง');
     const start = parseDate(startDate), end = parseDate(endDate);
     if (!start || !end) return fail(res, 400, 'startDate และ endDate ต้องระบุ');
+    // วันปิดก่อนวันเปิด = รอบปิดตั้งแต่สร้าง (เดิมบันทึกได้ — นักศึกษาหลักสูตรนั้นยื่นคำร้องไม่ได้ทั้งรอบ)
+    if (start > end) return fail(res, 400, 'วันเปิดรับสมัครต้องไม่หลังวันปิดรับสมัคร');
 
     // เจ้าหน้าที่ไม่ระบุหลักสูตร = ทุกหลักสูตร · อาจารย์ประจำวิชา = หลักสูตรที่ระบุ / ทุกหลักสูตรที่ดูแล
     let majors;
@@ -84,6 +86,8 @@ exports.updatePeriod = async (req, res) => {
     const { academicYear, semester, startDate, endDate, major } = req.body;
     const start = parseDate(startDate), end = parseDate(endDate);
     if (!start || !end) return fail(res, 400, 'startDate และ endDate ต้องระบุ');
+    // วันปิดก่อนวันเปิด = รอบปิดตั้งแต่สร้าง (เดิมบันทึกได้ — นักศึกษาหลักสูตรนั้นยื่นคำร้องไม่ได้ทั้งรอบ)
+    if (start > end) return fail(res, 400, 'วันเปิดรับสมัครต้องไม่หลังวันปิดรับสมัคร');
 
     const period = await prisma.coopPeriod.findUnique({ where: { id: parsedId } });
     if (!period) return fail(res, 404, 'ไม่พบรอบสหกิจ');
@@ -260,7 +264,8 @@ exports.moveStudentPeriod = async (req, res) => {
       return fail(res, 400, `หลักสูตร ${student.major} ยังไม่ได้ตั้งรอบ ${period.semester}/${period.academicYear} — ตั้งรอบในหน้ารอบสหกิจก่อน`);
     }
 
-    const data = { coopPeriodId: periodId };
+    // วันขยายเวลารายคนให้ไว้เทียบกับกำหนดส่งของรอบเดิม — ย้ายรอบแล้วต้องล้าง (เดิมติดไปใช้กับกำหนดส่งของรอบใหม่)
+    const data = { coopPeriodId: periodId, deadlineExtensions: {} };
     if (resetTo === 'QUALIFIED') Object.assign(data, T000_RESET, { status: 'QUALIFIED' });
     if (resetTo === 'NOT_SUBMITTED') Object.assign(data, T000_RESET, { status: 'NOT_SUBMITTED', teacherCheckComment: null, teacherCheckDate: null });
     let staleFiles = [];

@@ -629,6 +629,23 @@ describe('updateStudentBasicInfo', () => {
 
     expect(res.status).toHaveBeenCalledWith(409);
   });
+
+  test('400 — เจ้าหน้าที่ตั้งหลักสูตรเป็นรหัสที่ไม่มีในระบบ · ค่าเดิมที่ส่งซ้ำไม่ต้องตรวจ', async () => {
+    prisma.student.findUnique.mockResolvedValue({ id: 1, userId: 10, major: 'OLD', user: { email: 'a@kkumail.com' } });
+    prisma.$transaction.mockImplementation((fn) => fn(prisma));
+    prisma.coopCriteria.findUnique.mockResolvedValue(null);
+    prisma.student.update.mockResolvedValue({ id: 1 });
+    let res = makeRes();
+
+    await updateStudentBasicInfo({ params: { id: '1' }, body: { major: 'XYZ' } }, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(prisma.student.update).not.toHaveBeenCalled();
+
+    res = makeRes();
+    await updateStudentBasicInfo({ params: { id: '1' }, body: { major: 'OLD', firstName: 'ก' } }, res);
+    expect(res.status).not.toHaveBeenCalled();
+    expect(prisma.student.update.mock.calls[0][0].data.major).toBe('OLD');
+  });
 });
 
 // =====================
@@ -814,6 +831,83 @@ describe('updateMyProfile', () => {
     expect(arg.update).not.toHaveProperty('mentors');
     expect(arg.create.contacts).toEqual({ connect: [{ id: 'k1' }] });
     expect(res.json.mock.calls[0][0].company.selectedContacts).toEqual([{ id: 'k1' }]);
+  });
+
+  // บั๊กจริง 2026-11-04: หน้าข้อมูลนักศึกษาบันทึกบริษัทแยก ส่งแค่ companyId/contactIds → major = data.major || null ทำหลักสูตรหาย
+  test('200 — ไม่ส่ง major มา (บันทึกบริษัทอย่างเดียว) → ไม่แตะหลักสูตรเดิม', async () => {
+    setupUpsert();
+    prisma.companyContact.findMany.mockResolvedValue([{ id: 'k1', companyId: 'c1' }]);
+    prisma.studentCoop.upsert.mockResolvedValue({ company: { id: 'c1' }, contacts: [{ id: 'k1' }], mentors: [] });
+    const res = makeRes();
+
+    await updateMyProfile({ userId: 1, body: { companyId: 'c1', contactIds: ['k1'] } }, res);
+
+    expect(res.status).not.toHaveBeenCalled();
+    expect(prisma.student.upsert.mock.calls[0][0].update).not.toHaveProperty('major');
+  });
+
+  test('400 — หลักสูตรที่ไม่มีในระบบ', async () => {
+    setupUpsert();
+    prisma.student.findUnique.mockResolvedValue({ id: 1, deletedAt: null, major: 'CS' });
+    prisma.coopCriteria.findUnique.mockResolvedValue(null);
+    const res = makeRes();
+
+    await updateMyProfile({ userId: 1, body: { major: 'XYZ' } }, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(prisma.student.upsert).not.toHaveBeenCalled();
+  });
+
+  test('409 — เข้ารอบสหกิจแล้วเปลี่ยนหลักสูตรเองไม่ได้ · ส่งค่าเดิมซ้ำผ่าน (ไม่ต้องเช็ครอบ)', async () => {
+    setupUpsert();
+    prisma.student.findUnique.mockResolvedValue({ id: 1, deletedAt: null, major: 'CS' });
+    prisma.coopCriteria.findUnique.mockResolvedValue({ id: 2 });
+    prisma.studentCoop.findFirst.mockResolvedValue({ id: 9 });
+    let res = makeRes();
+
+    await updateMyProfile({ userId: 1, body: { major: 'AI' } }, res);
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(prisma.student.upsert).not.toHaveBeenCalled();
+
+    prisma.studentCoop.findFirst.mockClear();
+    res = makeRes();
+    await updateMyProfile({ userId: 1, body: { major: 'CS', phone: '0800000000' } }, res);
+    expect(res.status).not.toHaveBeenCalled();
+    expect(prisma.studentCoop.findFirst).not.toHaveBeenCalled();
+    expect(prisma.student.upsert.mock.calls[0][0].update.major).toBe('CS');
+  });
+
+  test('200 — หลักสูตรว่าง (\'\' / null เช่นโดนบั๊กล้าง) แม้เข้ารอบแล้วตั้งเองได้ · ส่งค่าว่างซ้ำไม่นับว่าเปลี่ยน', async () => {
+    setupUpsert();
+    prisma.student.findUnique.mockResolvedValue({ id: 1, deletedAt: null, major: '' });
+    prisma.coopCriteria.findUnique.mockResolvedValue({ id: 2 });
+    prisma.studentCoop.findFirst.mockResolvedValue({ id: 9 });
+    let res = makeRes();
+
+    await updateMyProfile({ userId: 1, body: { major: '', phone: '0800000000' } }, res);
+    expect(res.status).not.toHaveBeenCalled();
+
+    res = makeRes();
+    await updateMyProfile({ userId: 1, body: { major: 'CS' } }, res);
+    expect(res.status).not.toHaveBeenCalled();
+    expect(prisma.student.upsert.mock.calls[1][0].update.major).toBe('CS');
+    expect(prisma.studentCoop.findFirst).not.toHaveBeenCalled();
+  });
+
+  test('200 — ยังไม่เข้ารอบ เปลี่ยนเป็นหลักสูตรที่มีอยู่ได้ · ส่งค่าว่าง = ล้างหลักสูตร', async () => {
+    setupUpsert();
+    prisma.student.findUnique.mockResolvedValue({ id: 1, deletedAt: null, major: 'CS' });
+    prisma.coopCriteria.findUnique.mockResolvedValue({ id: 2 });
+    prisma.studentCoop.findFirst.mockResolvedValue(null);
+    let res = makeRes();
+
+    await updateMyProfile({ userId: 1, body: { major: ' AI ' } }, res);
+    expect(res.status).not.toHaveBeenCalled();
+    expect(prisma.student.upsert.mock.calls[0][0].update.major).toBe('AI');
+
+    res = makeRes();
+    await updateMyProfile({ userId: 1, body: { major: '' } }, res);
+    expect(prisma.student.upsert.mock.calls[1][0].update.major).toBeNull();
   });
 });
 

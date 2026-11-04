@@ -157,6 +157,39 @@ describe('updateRequirement / deleteRequirement', () => {
     expect(prisma.documentRequirementMajor.createMany).not.toHaveBeenCalled();
   });
 
+  // รหัสหัวข้อ = Document.type — ชนกับชนิดไฟล์ของระบบไม่ได้ (เปลี่ยนรหัสจะย้ายไฟล์ของระบบไปด้วย)
+  test('docKey: รหัสของระบบ (T000_SIGNED) 400 · หัวข้อเก่าที่รหัสชนระบบยังแก้ช่องอื่นได้ · เปลี่ยนรหัส → ตัดช่องว่าง + ย้ายไฟล์ตาม', async () => {
+    prisma.documentRequirement.findUnique.mockResolvedValue(CS_ONLY);
+    const r1 = makeRes();
+    await updateRequirement({ ...STAFF, params: { id: '2' }, body: { docKey: 'T000_SIGNED' } }, r1);
+    expect(r1.status).toHaveBeenCalledWith(400);
+    expect(prisma.documentRequirement.update).not.toHaveBeenCalled();
+
+    prisma.documentRequirement.findUnique.mockResolvedValue(row(5, 'T000_SIGNED', [['CS', false]]));
+    const r2 = makeRes();
+    await updateRequirement({ ...STAFF, params: { id: '5' }, body: { docKey: 'T000_SIGNED', title: 'ชื่อใหม่' } }, r2);
+    expect(r2.status).not.toHaveBeenCalled();
+    expect(prisma.documentRequirement.update).toHaveBeenCalledWith({ where: { id: 5 }, data: { docKey: 'T000_SIGNED', title: 'ชื่อใหม่' } });
+    expect(prisma.document.updateMany).not.toHaveBeenCalled();
+
+    prisma.documentRequirement.findUnique.mockResolvedValue(CS_ONLY);
+    const r3 = makeRes();
+    await updateRequirement({ ...STAFF, params: { id: '2' }, body: { docKey: ' CP-NEW ' } }, r3);
+    expect(prisma.documentRequirement.update).toHaveBeenLastCalledWith({ where: { id: 2 }, data: { docKey: 'CP-NEW' } });
+    expect(prisma.document.updateMany).toHaveBeenCalledWith({ where: { type: 'CP-PORTFOLIO' }, data: { type: 'CP-NEW' } });
+  });
+
+  test('สร้าง: รหัสของระบบ / ว่าง 400 · ตัดช่องว่างหัวท้ายก่อนบันทึก', async () => {
+    for (const docKey of ['T000_SIGNED', 'CV', 'T002_FORM', '   ']) {
+      const res = makeRes();
+      await createRequirement({ ...STAFF, body: { docKey, title: 'X' } }, res);
+      expect(res.status).toHaveBeenCalledWith(400);
+    }
+    prisma.documentRequirement.create.mockResolvedValue(row(9, 'CP-Y'));
+    await createRequirement({ ...STAFF, body: { docKey: ' CP-Y ', title: 'Y' } }, makeRes());
+    expect(prisma.documentRequirement.create.mock.calls[0][0].data.docKey).toBe('CP-Y');
+  });
+
   test('404 — ไม่พบหัวข้อ · 400 — id ไม่ใช่ตัวเลข', async () => {
     prisma.documentRequirement.findUnique.mockResolvedValue(null);
     const r1 = makeRes();

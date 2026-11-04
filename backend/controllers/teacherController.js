@@ -94,7 +94,7 @@ exports.updateProfile = async (req, res) => {
         phone,
         faculty,
         major,
-        prefix: prefix || null,
+        prefix: prefix === undefined ? undefined : (prefix || null), // ไม่ส่งมา = คงเดิม (เดิมคำนำหน้าหาย)
       },
       // กรณีไม่มีข้อมูล (สร้างใหม่) -> ต้องใส่ฟิลด์ Required ให้ครบ
       create: {
@@ -174,6 +174,14 @@ exports.getAllTeachers = async (req, res) => {
   }
 };
 
+// หลักสูตรของอาจารย์ (ข้อความ ไม่มี FK) ต้องเป็นรหัสที่มีจริง — เดิมพิมพ์อะไรก็ได้ อาจารย์หลุดจากปฏิทิน/รายการตามหลักสูตร
+async function unknownMajorError(major) {
+  if (major === undefined || major === null || major === '') return null;
+  if (typeof major !== 'string') return 'major ไม่ถูกต้อง';
+  const found = await prisma.coopCriteria.findUnique({ where: { major }, select: { major: true } });
+  return found ? null : `ไม่พบหลักสูตร ${major} ในระบบ`;
+}
+
 // ✅ 4. [ADMIN] แก้ไขข้อมูลอาจารย์รายคน (แก้ไขโดย ID ของ Teacher)
 exports.updateTeacherById = async (req, res) => {
   try {
@@ -183,6 +191,8 @@ exports.updateTeacherById = async (req, res) => {
       return res.status(400).json({ ok: false, message: 'id ไม่ถูกต้อง' });
     // สถานะอาจารย์ประจำวิชาแก้ที่ PUT /api/admin/teachers/:id (coopMajors) เท่านั้น
     const { firstName, lastName, phone, major, prefix } = req.body;
+    const majorError = await unknownMajorError(major);
+    if (majorError) return res.status(400).json({ ok: false, message: majorError });
 
     const updated = await prisma.teacher.update({
       where: { id: parsedTeacherId },
@@ -191,7 +201,7 @@ exports.updateTeacherById = async (req, res) => {
         lastName,
         phone,
         major,
-        prefix: prefix || null,
+        prefix: prefix === undefined ? undefined : (prefix || null), // ไม่ส่งมา = คงเดิม (เดิมคำนำหน้าหาย)
       },
       include: {
         user: { select: { email: true } }
@@ -504,6 +514,8 @@ exports.createTeacher = async (req, res) => {
     const coopMajors = parseCoopMajors(req.body.coopMajors);
     const pwError = validatePassword(password);
     if (pwError) return res.status(400).json({ ok: false, message: pwError });
+    const majorError = await unknownMajorError(major);
+    if (majorError) return res.status(400).json({ ok: false, message: majorError });
 
     const hashed = await bcrypt.hash(password, 10);
 
@@ -557,6 +569,19 @@ exports.deleteTeacher = async (req, res) => {
         tx.visit.count({ where: { teacherId } }),
         tx.company.count({ where: { createdById: teacher.userId } }),
       ]);
+      // เป็นที่ปรึกษาของนักศึกษาอยู่ → ต้องยืนยันพร้อมรายชื่อก่อน (เดิมลบแล้วนักศึกษาหลุดจากที่ปรึกษาเงียบ ๆ) · ยืนยันแล้วส่ง ?confirm=1
+      if (req.query?.confirm !== '1') {
+        const advisees = await tx.student.findMany({
+          where: { OR: [{ coopAdvisorId: teacherId }, { generalAdvisorId: teacherId }] },
+          select: { studentId: true, firstName: true, lastName: true, deletedAt: true },
+        });
+        if (advisees.length) {
+          throw Object.assign(new Error(`อาจารย์เป็นที่ปรึกษาของนักศึกษา ${advisees.length} คน — ถ้าลบ นักศึกษาเหล่านี้จะไม่มีอาจารย์ที่ปรึกษา ต้องเลือกใหม่`), {
+            is409: true,
+            extra: { code: 'TEACHER_HAS_ADVISEES', students: advisees.map((x) => ({ studentId: x.studentId, name: `${x.firstName} ${x.lastName}`.trim(), trashed: !!x.deletedAt })) },
+          });
+        }
+      }
       if (freshApptCount > 0 || freshVisitCount > 0 || freshCompanyCount > 0) {
         throw Object.assign(new Error(
           `ไม่สามารถลบอาจารย์ได้ เนื่องจากมีนัดหมายนิเทศ ${freshApptCount} รายการ การนิเทศ ${freshVisitCount} รายการ หรือบริษัทที่สร้าง ${freshCompanyCount} รายการ ผูกกับอาจารย์คนนี้อยู่ กรุณาจัดการรายการดังกล่าวก่อน`
@@ -569,7 +594,7 @@ exports.deleteTeacher = async (req, res) => {
     });
     res.json({ ok: true, message: "ลบอาจารย์เรียบร้อย" });
   } catch (err) {
-    if (err.is409) return res.status(409).json({ ok: false, message: err.message });
+    if (err.is409) return res.status(409).json({ ok: false, message: err.message, ...(err.extra || {}) });
     if (err.code === 'P2025') return res.status(404).json({ ok: false, message: 'ไม่พบอาจารย์' });
     console.error("DELETE TEACHER ERROR:", err);
     res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดในการลบอาจารย์" });
@@ -646,6 +671,8 @@ exports.adminUpdateTeacher = async (req, res) => {
 
     const teacher = await prisma.teacher.findUnique({ where: { id: parsedId } });
     if (!teacher) return res.status(404).json({ ok: false, message: "ไม่พบอาจารย์" });
+    const majorError = await unknownMajorError(major);
+    if (majorError) return res.status(400).json({ ok: false, message: majorError });
 
     // อาจารย์ประจำวิชา: แก้ได้เฉพาะอาจารย์ในหลักสูตรที่ดูแล และย้ายไปหลักสูตรอื่นไม่ได้
     // ไม่แตะอีเมล (= username เข้าระบบ) และการกำหนดอาจารย์ประจำวิชา — เจ้าหน้าที่เท่านั้น
@@ -668,7 +695,7 @@ exports.adminUpdateTeacher = async (req, res) => {
         data: {
           firstName, lastName, phone, major,
           ...(emailChange.changed && { email: emailChange.email }),
-          prefix: prefix || null,
+          prefix: prefix === undefined ? undefined : (prefix || null), // ไม่ส่งมา = คงเดิม (เดิมคำนำหน้าหาย)
         },
       });
       if (coopMajors !== undefined) await setCoopMajors(tx, parsedId, coopMajors);
