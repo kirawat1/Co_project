@@ -168,7 +168,9 @@ export class WorldKit {
       await prisma.coopPeriodMajor.updateMany({ where: { periodId: f.periodId, major: f.major, isActive: !f.isActive }, data: { isActive: f.isActive } });
     }
     // นักศึกษาที่ถูกสร้างจากการนำเข้า/หน้าเว็บด้วยรหัสของ world นี้
-    const imported = await prisma.student.findMany({ where: { studentId: { startsWith: `${this.prefix}${this.tail}` } }, select: { id: true, userId: true } });
+    // + นักศึกษาที่สร้างผ่าน API ด้วยรหัสตัวเลขล้วน (ไม่ขึ้นต้นด้วย prefix) แต่อีเมลเป็นของ world นี้
+    const taggedUsers = (await prisma.user.findMany({ where: { email: { startsWith: this.tag } }, select: { id: true } })).map((u: { id: number }) => u.id);
+    const imported = await prisma.student.findMany({ where: { OR: [{ studentId: { startsWith: `${this.prefix}${this.tail}` } }, { userId: { in: taggedUsers } }] }, select: { id: true, userId: true } });
     const pks = [...new Set([...this.students, ...imported.map((s: { id: number }) => s.id)])];
     const importedUsers = await prisma.user.findMany({ where: { OR: [{ email: { startsWith: this.tag } }, { id: { in: imported.map((s: { userId: number }) => s.userId).filter(Boolean) } }] }, select: { id: true } });
     const userIds = [...new Set([...this.users, ...importedUsers.map((u: { id: number }) => u.id)])];

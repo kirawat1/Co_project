@@ -81,9 +81,12 @@ test.describe("A. โปรไฟล์", () => {
     expect(r.status, msg(r)).toBe(409);
     await prisma.student.update({ where: { id: s.y.pk }, data: { studentId: s.y.studentId } });
     const digits = s.free.studentId.replace(/\D/g, "");
-    r = await api(s.free.token, "PUT", "/api/students/me", { studentId: `u${digits}` });
+    r = await api(s.free.token, "PUT", "/api/students/me", { studentId: `u${digits}` });    // ตัวเลขเท่าเดิม = รหัสเดิม ไม่เขียนทับ
     expect(r.status, msg(r)).toBe(200);
-    expect((await stu(s.free.pk)).studentId).toBe(digits);
+    expect((await stu(s.free.pk)).studentId).toBe(s.free.studentId);
+    r = await api(s.free.token, "PUT", "/api/students/me", { studentId: `u7${digits}` });   // รหัสใหม่: ตัดตัวอักษรทิ้ง
+    expect(r.status, msg(r)).toBe(200);
+    expect((await stu(s.free.pk)).studentId).toBe(`7${digits}`);
     await prisma.student.update({ where: { id: s.free.pk }, data: { studentId: s.free.studentId } }); // คืนรหัสเดิม (cleanup หา ZL…)
   });
 

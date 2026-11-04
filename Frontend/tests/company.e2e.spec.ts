@@ -256,6 +256,21 @@ test.describe("D. นำเข้านักศึกษาจาก Excel", ()
     expect([r.status, r.body.summary.created]).toEqual([200, 1]);
     expect((await prisma.student.findUnique({ where: { studentId: k.code(92) } })).major).toBe("CS");
     expect((await k.config("MAJOR_IMPORT_ALIASES"))[UNKNOWN]).toBe("CS");
+
+    // (ใหม่) รหัสเลข 10 หลักในไฟล์ → เก็บแบบระบบทะเบียน (มีขีด) เหมือนเพิ่มทีละคน
+    const id10 = `9${k.tail}0095`;
+    r = await doImport(staff.token, [kkuRow(95, { STUDENTCODE: id10 })]);
+    expect([r.status, r.body.summary.created]).toEqual([200, 1]);
+    expect(await prisma.student.findUnique({ where: { studentId: `${id10.slice(0, 9)}-${id10.slice(9)}` } })).not.toBeNull();
+
+    // (ใหม่) นักศึกษาเดิมที่รหัสถูกตัดขีดไปแล้ว (บันทึกหน้าข้อมูลก่อนแก้บั๊ก) — ไฟล์ทะเบียน (มีขีด) จับคู่แถวเดิมได้ อัปเดต + คืนรหัสเป็นแบบมีขีด
+    const legacy = await k.student("legacyId", 96);
+    const old10 = `9${k.tail}0096`;
+    await prisma.student.update({ where: { id: legacy.pk }, data: { studentId: old10 } });
+    r = await doImport(staff.token, [kkuRow(96, { STUDENTCODE: `${old10.slice(0, 9)}-${old10.slice(9)}`, KKUMAIL: legacy.email, STUDENTNAME: "รหัสเก่า" })]);
+    expect([r.status, r.body.summary.updated, r.body.summary.created, r.body.summary.errors], msg(r)).toEqual([200, 1, 0, 0]);
+    const healed = await prisma.student.findUnique({ where: { id: legacy.pk } });
+    expect([healed.studentId, healed.firstName]).toEqual([`${old10.slice(0, 9)}-${old10.slice(9)}`, "รหัสเก่า"]);
   });
 
   test("อาจารย์ประจำวิชา: นำเข้าได้เฉพาะหลักสูตรที่ดูแล — แถว AI ข้าม · แถว CS นำเข้า", async () => {
