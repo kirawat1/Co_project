@@ -272,7 +272,8 @@ describe('moveStudentPeriod', () => {
     prisma.student.findUnique.mockResolvedValue(stu('APPLYING'));
     const res = makeRes();
     await moveStudentPeriod(mv({ resetTo: 'KEEP' }), res);
-    expect(prisma.studentCoop.update).toHaveBeenCalledWith({ where: { studentId: 5 }, data: { coopPeriodId: 2 } });
+    // /scrutinize 2026-11-04: วันขยายเวลารายคนของรอบเดิมต้องถูกล้าง (เดิมติดไปใช้กับกำหนดส่งของรอบใหม่)
+    expect(prisma.studentCoop.update).toHaveBeenCalledWith({ where: { studentId: 5 }, data: { coopPeriodId: 2, deadlineExtensions: {} } });
     expect(createNotifications).toHaveBeenCalledWith([50], expect.objectContaining({ type: 'COOP_PERIOD_MOVED' }));
   });
 
@@ -284,6 +285,7 @@ describe('moveStudentPeriod', () => {
     expect(data).toMatchObject({ coopPeriodId: 2, status: 'QUALIFIED', t000Status: 'WAITING', reqDocNumber: null, reqLetterUrl: null, placeDocNumber: null, placeLetterUrl: null, acceptanceFileUrl: null });
     // ยกเลิกหนังสือแล้ว ต้องไม่อยู่ในหนังสือรวมฉบับเดิม (ป้าย 👥 หนังสือรวม ค้าง)
     expect(data).toMatchObject({ reqLetterBatch: null, placeLetterBatch: null });
+    expect(data.deadlineExtensions).toEqual({});
     expect(data).not.toHaveProperty('teacherCheckComment');
   });
 

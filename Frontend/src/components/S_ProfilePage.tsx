@@ -60,6 +60,7 @@ interface StudentProfile {
     contacts?: CompanyContact[];
     status?: string;
     reqLetterPendingAt?: string | null;
+    coopPeriodId?: number | null;
   };
 }
 // สถานะก่อนออกหนังสือขอความอนุเคราะห์ — เปลี่ยนบริษัท/ผู้ติดต่อเองได้ (ตรงกับ COMPANY_EDITABLE_STATUSES ฝั่ง server)
@@ -549,6 +550,8 @@ function StudentModal({ profile, teachers, saveStudentInfo, closeModal, departme
     studyProgram: studyProgramMapToUI[profile.studyProgram] || profile.studyProgram || "",
     generalAdvisorId: profile.generalAdvisorId ?? null,
   }));
+  // เข้ารอบสหกิจแล้ว: รอบ/กำหนดส่ง/อาจารย์ประจำวิชาผูกกับหลักสูตร — เปลี่ยนเองไม่ได้ (ฝั่ง server ตอบ 409 เหมือนกัน)
+  const majorLocked = !!profile.coop?.coopPeriodId && !!profile.major; // ยังว่าง (เช่นโดนบั๊กล้าง) เลือกเองได้
 
   return (
     <Modal title="แก้ไขข้อมูลนักศึกษา" onClose={closeModal} maxWidth={750}>
@@ -622,7 +625,7 @@ function StudentModal({ profile, teachers, saveStudentInfo, closeModal, departme
 
           <div>
             <label className="label">หลักสูตร</label>
-            <select className="input" value={form.major ?? ""} onChange={(e) => setForm({ ...form, major: e.target.value })} disabled={departments === null}>
+            <select className="input" value={form.major ?? ""} onChange={(e) => setForm({ ...form, major: e.target.value })} disabled={departments === null || majorLocked}>
               <option value="">{departments === null ? "กำลังโหลด..." : "-- เลือกหลักสูตร --"}</option>
               {(departments ?? []).map((d: { major: string; nameTh: string | null }) => (
                 <option key={d.major} value={d.major}>
@@ -630,6 +633,7 @@ function StudentModal({ profile, teachers, saveStudentInfo, closeModal, departme
                 </option>
               ))}
             </select>
+            {majorLocked && <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>เปลี่ยนหลักสูตรหลังเข้ารอบสหกิจแล้วไม่ได้ — ติดต่อเจ้าหน้าที่หรืออาจารย์ประจำวิชา</div>}
           </div>
 
           <div><label className="label">เบอร์โทรศัพท์</label><input className="input" value={form.phone ?? ""} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>

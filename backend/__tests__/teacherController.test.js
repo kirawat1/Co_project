@@ -20,7 +20,12 @@ function makeRes() {
   };
 }
 
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => {
+  jest.clearAllMocks();
+  // หลักสูตรที่ส่งมามีจริง · อาจารย์ไม่มีนักศึกษาในที่ปรึกษา (ค่าตั้งต้น — เทสต์ที่เกี่ยวตั้งเอง)
+  prisma.coopCriteria.findUnique.mockResolvedValue({ major: 'CS' });
+  prisma.student.findMany.mockResolvedValue([]);
+});
 
 // =====================
 // getProfile

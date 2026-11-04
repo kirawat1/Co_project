@@ -140,6 +140,24 @@ exports.updateMyProfile = async (req, res) => {
       // advisorName เป็นแค่ข้อความที่ derive มาจาก generalAdvisorId เสมอ ห้ามรับ advisorName ดิบๆ จาก client
       // (เดิม endpoint นี้รับ advisorName ตรงๆ จาก client แต่ไม่เคยอัปเดต generalAdvisorId เลย ทำให้ข้อความกับ FK ไม่ตรงกัน
       //  — นักศึกษาเปลี่ยนที่ปรึกษาทั่วไปที่หน้าโปรไฟล์ตัวเอง ข้อความเปลี่ยนแต่ FK ไม่เปลี่ยนตาม)
+      // หลักสูตร: ไม่ส่งมา = คงเดิม (หน้าข้อมูลนักศึกษาบันทึกบริษัทแยก ส่งแค่ companyId/contactIds — เดิม major กลายเป็นว่าง
+      // นักศึกษาหลุดจากหลักสูตร: อาจารย์ประจำวิชามองไม่เห็น กำหนดส่งของหลักสูตรใช้ไม่ได้)
+      // ต้องเป็นรหัสที่มีในระบบ · เข้ารอบสหกิจแล้วเปลี่ยนเองไม่ได้ (รอบ/กำหนดส่ง/อาจารย์ประจำวิชาผูกกับหลักสูตร) — เจ้าหน้าที่ย้ายให้ได้
+      const majorData = {};
+      if (data.major !== undefined) {
+        const nextMajor = data.major ? String(data.major).trim() : null;
+        const curMajor = currentStudent?.major || null; // '' = ว่าง เหมือน null
+        if (nextMajor !== curMajor) {
+          if (nextMajor && !(await tx.coopCriteria.findUnique({ where: { major: nextMajor }, select: { id: true } }))) {
+            throw Object.assign(new Error(`ไม่พบหลักสูตร "${nextMajor}" ในระบบ`), { is400: true });
+          }
+          // ยังว่างอยู่ (เช่นโดนบั๊กล้างหลักสูตร) ตั้งเองได้ — ห้ามเฉพาะเปลี่ยนจากหลักสูตรหนึ่งไปอีกหลักสูตร/ล้างทิ้ง
+          const inRound = curMajor && await tx.studentCoop.findFirst({ where: { studentId: currentStudent.id, coopPeriodId: { not: null } }, select: { id: true } });
+          if (inRound) throw Object.assign(new Error('เข้ารอบสหกิจแล้ว เปลี่ยนหลักสูตรเองไม่ได้ — ติดต่อเจ้าหน้าที่หรืออาจารย์ประจำวิชาให้ย้ายให้'), { is409: true });
+        }
+        majorData.major = nextMajor;
+      }
+
       const advisorData = {};
       if (data.generalAdvisorId !== undefined) {
         if (!data.generalAdvisorId) {
@@ -172,7 +190,7 @@ exports.updateMyProfile = async (req, res) => {
           firstNameEn: data.firstNameEn,
           lastNameEn: data.lastNameEn,
           year: data.year,
-          major: data.major || null,
+          ...majorData,
           studyProgram: data.studyProgram === '' ? null : data.studyProgram,
           phone: data.phone,
           email: data.email,
@@ -187,7 +205,7 @@ exports.updateMyProfile = async (req, res) => {
           studyProgram: data.studyProgram === '' ? null : data.studyProgram,
           firstName: data.firstName || "",
           lastName: data.lastName || "",
-          major: (data.major && data.major !== "") ? data.major : null,
+          major: majorData.major ?? null,
           activityUnit: activityUnit,
           jobPosition: data.jobPosition,
           ...advisorData,
@@ -645,6 +663,16 @@ exports.updateStudentBasicInfo = async (req, res) => {
         }
       }
 
+      // หลักสูตรต้องเป็นรหัสที่มีในระบบ (เดิมพิมพ์อะไรก็บันทึก — นักศึกษาหลุดจากทุกหลักสูตร) · ค่าเดิมที่ไม่มีแล้วส่งซ้ำได้
+      const majorData = {};
+      if (major !== undefined) {
+        const nextMajor = major ? String(major).trim() : null;
+        if (nextMajor && nextMajor !== student.major && !(await tx.coopCriteria.findUnique({ where: { major: nextMajor }, select: { id: true } }))) {
+          throw Object.assign(new Error(`ไม่พบหลักสูตร "${nextMajor}" ในระบบ — เพิ่มที่เมนูจัดการหลักสูตรก่อน`), { is400: true });
+        }
+        majorData.major = nextMajor;
+      }
+
       // Re-check inside transaction to prevent TOCTOU with concurrent softDelete
       const freshCheck = await tx.student.findUnique({ where: { id }, select: { deletedAt: true } });
       if (!freshCheck || freshCheck.deletedAt) {
@@ -657,7 +685,7 @@ exports.updateStudentBasicInfo = async (req, res) => {
           // prefix/studyProgram เป็น enum — ค่า '' (ยังไม่เลือก) ต้องแปลงเป็น null ไม่งั้น Prisma ปฏิเสธ
           prefix: prefix === '' ? null : prefix,
           firstName, lastName, firstNameEn, lastNameEn,
-          studentId, major,
+          studentId, ...majorData,
           studyProgram: studyProgram === '' ? null : studyProgram,
           year, phone,
           jobPosition, ...advisorData, ...studentEmailData,

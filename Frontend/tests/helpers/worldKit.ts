@@ -145,11 +145,27 @@ export class WorldKit {
   docs(pk: number, type?: string) { return prisma.document.findMany({ where: { studentId: pk, ...(type ? { type } : {}) }, orderBy: { id: "asc" } }); }
   notes(userId: number, type: string) { return prisma.notification.findMany({ where: { userId, type, createdAt: { gte: this.startedAt } } }); }
 
+  /** หลักสูตรทดสอบ (รหัสขึ้นต้นด้วย prefix+tail) — cleanup ลบพร้อมค่าตั้งค่า @รหัส */
+  async major(suffix: string, nameTh?: string) {
+    const code = `${this.prefix}${this.tail}${suffix}`;
+    await prisma.coopCriteria.create({ data: { major: code, nameTh: nameTh ?? `หลักสูตรทดสอบ ${code}` } });
+    return code;
+  }
+
+  /** เก็บสถานะเปิดรับสมัครของทุกแถวรอบ×หลักสูตรที่มีอยู่ — เปิดรอบทดสอบจะปิดรอบอื่นของหลักสูตรเดียวกัน (ข้อมูลจริง) */
+  activeFlags: { periodId: number; major: string; isActive: boolean }[] | null = null;
+  async snapshotActiveFlags() {
+    this.activeFlags = await prisma.coopPeriodMajor.findMany({ select: { periodId: true, major: true, isActive: true } });
+  }
+
   async cleanup() {
     // คืนค่าตั้งค่ากลางก่อน (ถ้าเทสต์ล้มกลางทาง ค่าจริงต้องกลับมา)
     for (const [key, value] of this.configs) {
       if (value === null) await prisma.systemConfig.deleteMany({ where: { key } });
       else await prisma.systemConfig.upsert({ where: { key }, update: { value }, create: { key, value } });
+    }
+    for (const f of this.activeFlags || []) {
+      await prisma.coopPeriodMajor.updateMany({ where: { periodId: f.periodId, major: f.major, isActive: !f.isActive }, data: { isActive: f.isActive } });
     }
     // นักศึกษาที่ถูกสร้างจากการนำเข้า/หน้าเว็บด้วยรหัสของ world นี้
     const imported = await prisma.student.findMany({ where: { studentId: { startsWith: `${this.prefix}${this.tail}` } }, select: { id: true, userId: true } });
@@ -169,11 +185,23 @@ export class WorldKit {
     await prisma.mentor.deleteMany({ where: { OR: [{ companyId: { in: companyIds } }, { createdById: { in: userIds } }] } });
     await prisma.companyContact.deleteMany({ where: { OR: [{ companyId: { in: companyIds } }, { createdById: { in: userIds } }] } });
     await prisma.company.deleteMany({ where: { id: { in: companyIds } } });
-    await prisma.coopTeacherMajor.deleteMany({ where: { teacherId: { in: this.teachers } } });
-    await prisma.teacher.deleteMany({ where: { id: { in: this.teachers } } });
+    // ประกาศ / ข้อเสนอแนะที่ผู้ใช้ทดสอบสร้าง (ไฟล์แนบประกาศลบตาม cascade)
+    await prisma.announcement.deleteMany({ where: { OR: [{ authorId: { in: userIds } }, { title: { contains: `${this.prefix}${this.tail}` } }] } });
+    await prisma.feedback.deleteMany({ where: { userId: { in: userIds } } });
+    // อาจารย์ที่สร้างผ่าน API (อีเมลขึ้นต้นด้วย tag)
+    const apiTeachers = (await prisma.teacher.findMany({ where: { OR: [{ email: { startsWith: this.tag } }, { userId: { in: userIds } }] }, select: { id: true } })).map((t: { id: number }) => t.id);
+    const teacherIds = [...new Set([...this.teachers, ...apiTeachers])];
+    await prisma.supervisionCoTeacher.deleteMany({ where: { teacherId: { in: teacherIds } } });
+    await prisma.coopTeacherMajor.deleteMany({ where: { teacherId: { in: teacherIds } } });
+    await prisma.student.updateMany({ where: { OR: [{ coopAdvisorId: { in: teacherIds } }, { generalAdvisorId: { in: teacherIds } }] }, data: { coopAdvisorId: null, generalAdvisorId: null } });
+    await prisma.teacher.deleteMany({ where: { id: { in: teacherIds } } });
     await prisma.staffProfile.deleteMany({ where: { userId: { in: userIds } } });
     await prisma.user.deleteMany({ where: { id: { in: userIds } } });
     await prisma.coopPeriod.deleteMany({ where: { id: { in: this.periods } } });
+    // หลักสูตรทดสอบ (รวมที่เปลี่ยนรหัสระหว่างเทสต์) + ค่าตั้งค่า @รหัส
+    const testMajors = (await prisma.coopCriteria.findMany({ where: { major: { startsWith: `${this.prefix}${this.tail}` } }, select: { major: true } })).map((c: { major: string }) => c.major);
+    for (const m of testMajors) await prisma.systemConfig.deleteMany({ where: { key: { endsWith: `@${m}` } } });
+    await prisma.coopCriteria.deleteMany({ where: { major: { in: testMajors } } });
     for (const f of [...docFiles, ...this.files]) { try { fs.unlinkSync(f); } catch { /* ไม่มีไฟล์จริง */ } }
   }
 
