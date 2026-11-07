@@ -239,6 +239,16 @@ describe('รายชื่อผู้ใช้ในตัวกรอง', (
     ]);
   });
 
+  // เดิม take: 300 — ระบบจริงมีผู้ใช้เกิน 300 คน นักศึกษาที่ใช้งานน้อยเลือกในตัวกรอง "ผู้ทำ" ไม่ได้
+  test('ไม่ตัดจำนวน — ผู้ใช้ที่ทำรายการครั้งเดียวก็อยู่ในตัวเลือก (เกิน 300 คน)', async () => {
+    const rows = Array.from({ length: 350 }, (_, i) => ({ userId: i + 1, actorName: `u${i + 1}`, role: 'student', _count: { _all: 350 - i } }));
+    prisma.auditLog.groupBy.mockResolvedValue(rows);
+    const res = { status: jest.fn(() => res), json: jest.fn(() => res) };
+    await getAuditActors({ query: {} }, res);
+    expect(prisma.auditLog.groupBy.mock.calls.at(-1)[0]).not.toHaveProperty('take');
+    expect(res.json.mock.calls[0][0].actors).toHaveLength(350);
+  });
+
   test('ส่ง role มา → กรองเฉพาะคนในแท็บนั้น', async () => {
     prisma.auditLog.groupBy.mockResolvedValue([]);
     const res = { status: jest.fn(() => res), json: jest.fn(() => res) };

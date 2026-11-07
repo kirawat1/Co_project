@@ -1,5 +1,6 @@
 // backend/controllers/coopController.js
 const prisma = require('../config/prismaClient');
+const { applyState, applyWindowMessage } = require('../utils/applyWindow');
 const { callerMajor } = require('../utils/majorConfig');
 const path = require("path");
 const fs = require("fs");
@@ -53,6 +54,12 @@ const submitCoopApplication = async (req, res) => {
     if (!activePeriod || !activePeriod.isActive) {
       files.forEach(f => { try { fs.unlinkSync(f.path); } catch (_) {} });
       return res.status(400).json({ ok: false, message: "ไม่สามารถยื่นคำร้องได้ เนื่องจากรอบรับสมัครนี้ถูกปิดไปแล้ว" });
+    }
+    // ผู้ใช้ตัดสิน 2026-11-05: ยังไม่ถึงวันเปิดรับสมัคร = ยื่นไม่ได้ (เดิมเจ้าหน้าที่เปิดรอบไว้ล่วงหน้าแล้วนักศึกษายื่นได้ทันที)
+    const windowState = applyState(activePeriod);
+    if (!windowState.open) {
+      files.forEach(f => { try { fs.unlinkSync(f.path); } catch (_) {} });
+      return res.status(400).json({ ok: false, message: applyWindowMessage(windowState) });
     }
 
     // หา Student ID

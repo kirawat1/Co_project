@@ -7,7 +7,7 @@ const prisma = require('../config/prismaClient');
 const { readEffective } = require('../utils/majorConfig');
 const { resolveDeadline, bangkokDay } = require('../utils/resolveDeadline');
 const { autoCloseRows, getRow } = require('../utils/coopPeriodMajor');
-const { applyWindowMessage } = require('../utils/applyWindow');
+const { applyWindowMessage, applyState, notStartedYet } = require('../utils/applyWindow');
 const { STEP_LABEL, MODE_STEPS, deadlineFlags } = require('../utils/deadlines');
 
 const fail = (res, err, label) => {
@@ -81,7 +81,7 @@ exports.getRoundDeadlines = async (req, res) => {
       };
     };
     const steps = [
-      { stepKey: 'APPLY', label: 'ยื่นคำร้อง', startDate: bangkokDay(row?.startDate), due: bangkokDay(row?.endDate), isOpen: !!row?.isActive },
+      { stepKey: 'APPLY', label: 'ยื่นคำร้อง', startDate: bangkokDay(row?.startDate), due: bangkokDay(row?.endDate), isOpen: applyState(row).open },
       await step('T000'), await step('T002'), await step('T003'),
       { stepKey: 'SUPERVISION', label: 'ช่วงนิเทศ', startDate: bangkokDay(row?.supervisionStartDate), due: bangkokDay(row?.supervisionEndDate) },
       await step('T005_T006'), await step('T007'), await step('T008'),
@@ -96,12 +96,13 @@ exports.getApplyConfig = async (req, res) => {
     const student = await callerStudent(req);
     let row = null;
     if (student?.major) {
-      const rows = await autoCloseRows(await prisma.coopPeriodMajor.findMany({ where: { major: student.major, isActive: true } }));
-      row = rows.filter((r) => r.isActive).sort((a, b) => new Date(b.endDate) - new Date(a.endDate))[0] || null;
+      const rows = (await autoCloseRows(await prisma.coopPeriodMajor.findMany({ where: { major: student.major, isActive: true } }))).filter((r) => r.isActive);
+      // เปิดไว้หลายรอบ: รอบที่ถึงวันเปิดรับแล้วมาก่อน (รอบหน้าที่เปิดไว้ล่วงหน้าไม่บังรอบปัจจุบัน) · ไม่มี = รอบที่ใกล้เปิดที่สุด
+      const started = rows.filter((r) => !notStartedYet(r)).sort((a, b) => new Date(b.endDate) - new Date(a.endDate));
+      const upcoming = rows.filter((r) => notStartedYet(r)).sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
+      row = started[0] || upcoming[0] || null;
     }
-    const startDate = row ? bangkokDay(row.startDate) : null;
-    const endDate = row ? bangkokDay(row.endDate) : null;
-    const state = { configured: !!row, open: !!row, reason: row ? null : 'CLOSED', startDate, endDate };
-    res.json({ startDate, endDate, isOpen: !!row, state: { ...state, message: applyWindowMessage(state) } });
+    const st = row ? applyState(row) : { configured: false, open: false, reason: 'CLOSED', startDate: null, endDate: null };
+    res.json({ startDate: st.startDate, endDate: st.endDate, isOpen: st.open, state: { ...st, message: applyWindowMessage(st) } });
   } catch (err) { fail(res, err, 'Get apply window error:'); }
 };
