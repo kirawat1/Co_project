@@ -178,18 +178,22 @@ test.describe("B. อาจารย์", () => {
 // C. เจ้าหน้าที่ · ข้อมูลคณบดี · ไฟล์ระบบ
 // ══════════════════════════════════════════════════════
 test.describe("C. เจ้าหน้าที่และค่าระบบ", () => {
-  test("บัญชีเจ้าหน้าที่: เจ้าหน้าที่เท่านั้น · ช่องบังคับ/รหัสผ่าน ≥6 · ซ้ำ 409 · รีเซ็ตรหัสผ่าน · ลบบัญชีตัวเองไม่ได้ · ลบคนอื่นได้", async () => {
-    const body = { username: `${k.tag}-st3`, email: `${k.tag}-st3@kkumail.com`, password: "abcdef", firstName: "เจ้าหน้าที่", lastName: C() };
+  test("บัญชีเจ้าหน้าที่: เจ้าหน้าที่เท่านั้น · ช่องบังคับ · (ใหม่) รหัสผ่านกฎเดียวกับอาจารย์ · ซ้ำ 409 · รีเซ็ตรหัสผ่าน · ลบบัญชีตัวเองไม่ได้ · ลบคนอื่นได้", async () => {
+    const body = { username: `${k.tag}-st3`, email: `${k.tag}-st3@kkumail.com`, password: PW, firstName: "เจ้าหน้าที่", lastName: C() };
     expect((await api(t.coopCS.token, "POST", "/api/admin/staff", body)).status).toBe(403);
     expect((await api(staff.token, "POST", "/api/admin/staff", { ...body, lastName: "" })).status).toBe(400);
-    expect((await api(staff.token, "POST", "/api/admin/staff", { ...body, password: "12345" })).status).toBe(400);
+    for (const weak of ["12345", "abcdef", "abcdefgh1!", "Abcdefgh1"]) {                    // (ใหม่) เดิม ≥ 6 ตัวก็สร้างได้
+      const w = await api(staff.token, "POST", "/api/admin/staff", { ...body, password: weak });
+      expect(w.status, `${weak} ${msg(w)}`).toBe(400);
+    }
     let r = await api(staff.token, "POST", "/api/admin/staff", body);
     expect(r.status, msg(r)).toBe(201);
     const row = r.body.staff;
     expect((await api(staff.token, "POST", "/api/admin/staff", body)).status).toBe(409);
     expect(JSON.stringify((await api(staff.token, "GET", "/api/admin/staff")).body)).toContain(body.email);
     expect((await api(staff.token, "PATCH", `/api/admin/staff/${row.id}/password`, { password: "123" })).status).toBe(400);
-    expect((await api(staff.token, "PATCH", `/api/admin/staff/${row.id}/password`, { password: "abcdefg" })).status).toBe(200);
+    expect((await api(staff.token, "PATCH", `/api/admin/staff/${row.id}/password`, { password: "Zp!another123" })).status).toBe(200);
+    expect((await api(staff.token, "PATCH", `/api/admin/staff/${row.id}/password`, { password: "abcdefg" })).status).toBe(400);   // (ใหม่) เดิมผ่าน
     expect((await api(staff.token, "DELETE", `/api/admin/staff/${staff.userId}`)).status).toBe(400);
     r = await api(staff.token, "DELETE", `/api/admin/staff/${row.id}`);
     expect(r.status, msg(r)).toBe(200);

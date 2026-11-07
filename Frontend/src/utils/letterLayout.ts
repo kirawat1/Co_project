@@ -153,3 +153,30 @@ export function trimBox(rgba: ArrayLike<number>, w: number, h: number): { x: num
   }
   return x1 < 0 ? { x: 0, y: 0, w, h } : { x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 };
 }
+
+/**
+ * ตัดข้อความเป็นบรรทัดตามคำภาษาไทย — ใช้แทน doc.splitTextToSize ของ jsPDF ในแบบฟอร์มนักศึกษา
+ * (ของ jsPDF ตัดที่ช่องว่างเท่านั้น ภาษาไทยไม่เว้นวรรค → ขึ้นบรรทัดใหม่กลางคำ เช่น "รับผิดชอ" / "บดูแล")
+ * measure = ความกว้างข้อความ (เช่น t => doc.getTextWidth(t)) · ขึ้นบรรทัดใหม่ตาม \n เดิม · ช่องว่างนำหน้าย่อหน้าคงไว้ (ย่อหน้า)
+ * คำเดียวยาวเกินบรรทัด (URL/อีเมล) → ตัดระดับตัวอักษร
+ */
+export function wrapThai(text: string, width: number, measure: (t: string) => number): string[] {
+  const out: string[] = [];
+  for (const para of String(text ?? "").split(/\r?\n/)) {
+    const lead = para.match(/^\s*/)?.[0] ?? "";
+    let line = lead;
+    const push = () => { out.push(line.replace(/\s+$/, "")); line = ""; };
+    for (const tok of segmentThai(para.slice(lead.length))) {
+      if (measure(line + tok) <= width) { line += tok; continue; }
+      if (line.trim()) push();                       // ไม่พอ → ขึ้นบรรทัดใหม่
+      if (/^\s+$/.test(tok)) continue;              // ไม่เอาช่องว่างหัวบรรทัด
+      if (measure(line + tok) <= width) { line += tok; continue; }
+      for (const g of graphemes(tok)) {              // คำเดียวยาวเกินบรรทัด → ตัดตามตัวอักษร
+        if (line.trim() && measure(line + g) > width) push();
+        line += g;
+      }
+    }
+    out.push(line.replace(/\s+$/, ""));
+  }
+  return out;
+}

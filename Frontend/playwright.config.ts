@@ -16,11 +16,17 @@ export default defineConfig({
     headless: true,
   },
 
+  // ปกติรัน Chromium อย่างเดียว · CROSS_BROWSER=1 = เพิ่ม Firefox + WebKit (เครื่องยนต์เดียวกับ Safari)
+  //   ต้องติดตั้งก่อนครั้งแรก: npx playwright install firefox webkit · รันทีละตัว: --project=firefox / --project=webkit
   projects: [
     {
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
     },
+    ...(process.env.CROSS_BROWSER ? [
+      { name: "firefox", use: { ...devices["Desktop Firefox"] } },
+      { name: "webkit", use: { ...devices["Desktop Safari"] } },
+    ] : []),
   ],
 
   /* Start Vite dev server automatically before tests */

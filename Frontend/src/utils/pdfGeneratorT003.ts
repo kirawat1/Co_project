@@ -1,5 +1,6 @@
 // Frontend/src/utils/pdfGeneratorT003.ts
 import { jsPDF } from "jspdf";
+import { wrapThai } from "./letterLayout";
 import { formMajorName } from "./docGeneratorUtils";
 
 // ================= HELPERS =================
@@ -85,7 +86,7 @@ export const createT003PDF = async (
 
     if (content) {
       doc.setFont("THSarabun", "normal");
-      const lines = doc.splitTextToSize(content, contentWidth - 5);
+      const lines = wrapThai(content, contentWidth - 5, (t) => doc.getTextWidth(t));
       doc.text(lines, leftX + 5, currentY);
       currentY += lines.length * 6;
     } else {
@@ -182,11 +183,11 @@ export const createT003PDF = async (
 
   doc.setFont("THSarabun", "normal");
   doc.setFontSize(14);
-  const lines1 = doc.splitTextToSize("          " + introText1, contentWidth);
+  const lines1 = wrapThai("          " + introText1, contentWidth, (t) => doc.getTextWidth(t));
   doc.text(lines1, leftX, y);
   y += lines1.length * 6;
 
-  const lines2 = doc.splitTextToSize("          " + introText2, contentWidth);
+  const lines2 = wrapThai("          " + introText2, contentWidth, (t) => doc.getTextWidth(t));
   doc.text(lines2, leftX, y);
   y += lines2.length * 6 + 10;
 

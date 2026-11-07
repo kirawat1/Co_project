@@ -1,4 +1,5 @@
 import { jsPDF } from "jspdf";
+import { wrapThai } from "./letterLayout";
 import { formMajorName } from "./docGeneratorUtils";
 import { composeAddress } from "./addressFormat";
 import { notify } from "./notify";
@@ -165,7 +166,7 @@ export const createParentalConsentPDF = async (
   const p1 = `       ด้วยข้าพเจ้า นาย/นาง/นางสาว ${parentName} ผู้ปกครองของ ${studentName} รหัสประจำตัว ${studentId} หลักสูตร ${curriculum} สาขาวิชา ${major} วิทยาลัยการคอมพิวเตอร์ มหาวิทยาลัยขอนแก่น ยินยอมให้ ${studentName} ซึ่งเกี่ยวข้องกับข้าพเจ้าโดยเป็น ${relation} เดินทางไปปฏิบัติงานสหกิจศึกษา ณ สถานประกอบการที่ ${companyName} ตั้งอยู่ที่ ${companyAddress}`;
 
   doc.setFont("THSarabun", "normal");
-  const lines1 = doc.splitTextToSize(p1, contentWidth);
+  const lines1 = wrapThai(p1, contentWidth, (t) => doc.getTextWidth(t));
   doc.text(lines1, leftX, y);
   y += lines1.length * 7;
 
@@ -179,14 +180,14 @@ export const createParentalConsentPDF = async (
     : "....... เดือน ..................... พ.ศ. ..........";
 
   const p2 = `       ซึ่งเป็นรายวิชาหนึ่งในหลักสูตรของวิทยาลัยการคอมพิวเตอร์ มหาวิทยาลัยขอนแก่น โดยออกปฏิบัติสหกิจศึกษาในระหว่างวันที่ ${startDateStr} ถึงวันที่ ${endDateStr}`;
-  const lines2 = doc.splitTextToSize(p2, contentWidth);
+  const lines2 = wrapThai(p2, contentWidth, (t) => doc.getTextWidth(t));
   doc.text(lines2, leftX, y);
   y += lines2.length * 7;
 
   // 7. Body Paragraph 3 (รับทราบความเสี่ยง)
   y += 3;
   const p3 = `       โดยนักศึกษาและผู้ปกครองทราบถึงวัตถุประสงค์ของการไปปฏิบัติงานและความเสี่ยงที่จะเกิดขึ้น พร้อมปฏิบัติตามแนวปฏิบัติของวิทยาลัยการคอมพิวเตอร์ มหาวิทยาลัยขอนแก่น และหน่วยงานที่ปฏิบัติงานสหกิจศึกษา และยอมรับผลกระทบที่เกิดขึ้นจากความเสี่ยงดังกล่าวด้วยความเต็มใจ`;
-  const lines3 = doc.splitTextToSize(p3, contentWidth);
+  const lines3 = wrapThai(p3, contentWidth, (t) => doc.getTextWidth(t));
   doc.text(lines3, leftX, y);
   y += lines3.length * 7;
 
@@ -204,7 +205,7 @@ export const createParentalConsentPDF = async (
   doc.setFont("THSarabun", "normal");
 
   // ตัดคำที่อยู่ถ้ายาวเกิน
-  const addressLines = doc.splitTextToSize(parentAddress, contentWidth - 10);
+  const addressLines = wrapThai(parentAddress, contentWidth - 10, (t) => doc.getTextWidth(t));
   doc.text(addressLines, leftX + 10, y);
   y += addressLines.length * 7 + 2;
 

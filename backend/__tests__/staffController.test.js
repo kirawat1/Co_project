@@ -62,7 +62,7 @@ describe('listStaff', () => {
 // createStaff
 // ===========================
 describe('createStaff', () => {
-  const validBody = { username: 'newstaff', email: 'new@x.com', password: 'abc123', firstName: 'ก', lastName: 'ข', phone: '0800000000' };
+  const validBody = { username: 'newstaff', email: 'new@x.com', password: 'Staff!pass123', firstName: 'ก', lastName: 'ข', phone: '0800000000' };
 
   test('400 — missing required fields', async () => {
     const req = { body: { username: 'x' } };
@@ -72,12 +72,14 @@ describe('createStaff', () => {
     expect(prisma.user.create).not.toHaveBeenCalled();
   });
 
-  // เดิมตอนสร้างไม่เช็คความยาวเลย (รีเซ็ตเช็ค ≥ 6 และหน้าเว็บบอก "อย่างน้อย 6 ตัวอักษร")
-  test('400 — รหัสผ่านสั้นกว่า 6 ตัว ไม่สร้างบัญชี', async () => {
+  // ผู้ใช้ตัดสิน 2026-11-07: กฎเดียวกับอาจารย์ — เดิม ≥ 6 ตัวก็พอ (abc123 สร้างได้)
+  test.each([
+    ['1', /8 ตัวอักษร/], ['abc123', /8 ตัวอักษร/], ['abcdefgh1!', /พิมพ์ใหญ่/], ['ABCDEFGH1!', /พิมพ์เล็ก/], ['Abcdefgh!', /ตัวเลข/], ['Abcdefgh1', /อักขระพิเศษ/],
+  ])('400 — รหัสผ่าน %p ไม่ผ่านกฎ ไม่สร้างบัญชี', async (password, msg) => {
     const res = makeRes();
-    await createStaff({ body: { ...validBody, password: '1' } }, res);
+    await createStaff({ body: { ...validBody, password } }, res);
     expect(res.status).toHaveBeenCalledWith(400);
-    expect(res.json.mock.calls[0][0].message).toMatch(/6 ตัวอักษร/);
+    expect(res.json.mock.calls[0][0].message).toMatch(msg);
     expect(prisma.user.create).not.toHaveBeenCalled();
   });
 
@@ -134,14 +136,14 @@ describe('createStaff', () => {
 // ===========================
 describe('resetPassword', () => {
   test('400 — invalid id', async () => {
-    const req = { params: { id: 'abc' }, body: { password: 'abcdef' } };
+    const req = { params: { id: 'abc' }, body: { password: 'Staff!pass123' } };
     const res = makeRes();
     await resetPassword(req, res);
     expect(res.status).toHaveBeenCalledWith(400);
   });
 
-  test('400 — password too short', async () => {
-    const req = { params: { id: '1' }, body: { password: '123' } };
+  test.each(['123', 'abcdef', 'abcdefgh1!'])('400 — รหัสผ่านใหม่ %p ไม่ผ่านกฎเดียวกับอาจารย์', async (password) => {
+    const req = { params: { id: '1' }, body: { password } };
     const res = makeRes();
     await resetPassword(req, res);
     expect(res.status).toHaveBeenCalledWith(400);
@@ -150,7 +152,7 @@ describe('resetPassword', () => {
 
   test('404 — target is not a staff account (prevents cross-role reset)', async () => {
     prisma.user.findUnique.mockResolvedValue({ id: 9, role: 'teacher' });
-    const req = { params: { id: '9' }, body: { password: 'abcdef' } };
+    const req = { params: { id: '9' }, body: { password: 'Staff!pass123' } };
     const res = makeRes();
     await resetPassword(req, res);
     expect(res.status).toHaveBeenCalledWith(404);
@@ -159,7 +161,7 @@ describe('resetPassword', () => {
 
   test('404 — staff not found', async () => {
     prisma.user.findUnique.mockResolvedValue(null);
-    const req = { params: { id: '999' }, body: { password: 'abcdef' } };
+    const req = { params: { id: '999' }, body: { password: 'Staff!pass123' } };
     const res = makeRes();
     await resetPassword(req, res);
     expect(res.status).toHaveBeenCalledWith(404);
@@ -167,7 +169,7 @@ describe('resetPassword', () => {
 
   test('200 — resets password successfully', async () => {
     prisma.user.findUnique.mockResolvedValue({ id: 3, role: 'staff' });
-    const req = { params: { id: '3' }, body: { password: 'newpassword' } };
+    const req = { params: { id: '3' }, body: { password: 'New!pass1234' } };
     const res = makeRes();
     await resetPassword(req, res);
     expect(prisma.user.update).toHaveBeenCalledWith({ where: { id: 3 }, data: { password: 'hashed-password', tokenVersion: { increment: 1 } } }); // รีเซ็ต = เพิกถอน session

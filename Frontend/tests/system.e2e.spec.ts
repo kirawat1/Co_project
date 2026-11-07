@@ -252,6 +252,22 @@ test.describe("C. บัญชี", () => {
     expect((await post("/api/auth/signin", { email: s.login.email, password: "Zz!another123", role: "student" })).status).toBe(200);
   });
 
+  // ทดสอบโหลด 2026-11-07: ทั้งคณะใช้ IP เดียว — เดิมตัวกันเดารหัสนับรวมทั้ง IP (30): เข้าพร้อมกันเกิน 30 คนโดน 429 ทั้งที่รหัสถูก
+  //   และคนละครั้งที่พิมพ์ผิดรวม 30 คน = ทั้ง IP เข้าไม่ได้ 15 นาที
+  test("(ใหม่) ตัวกันเดารหัส: 60 คนเข้าพร้อมกัน (รหัสถูก) เข้าได้ทุกคน · บัญชีหนึ่งพิมพ์ผิดครบ 30 ครั้ง = ล็อกเฉพาะบัญชีนั้น คนอื่นยังเข้าได้", async () => {
+    test.setTimeout(120_000);
+    const crowd = await Promise.all(Array.from({ length: 60 }, (_, i) => k.student(`crowd${i}`, 30 + i, { major: X, status: null })));
+    const hash = bcrypt.hashSync(PW, 8);
+    await prisma.user.updateMany({ where: { id: { in: crowd.map((c) => c.userId) } }, data: { password: hash } });
+    const all = await Promise.all(crowd.map((c) => post("/api/auth/signin", { email: c.email, password: PW, role: "student" })));
+    expect(all.map((r) => r.status).filter((x) => x !== 200)).toEqual([]);
+
+    const [victim, other] = crowd;
+    for (let i = 0; i < 30; i++) expect((await post("/api/auth/signin", { email: victim.email, password: "wrong", role: "student" })).status).toBe(401);
+    expect((await post("/api/auth/signin", { email: victim.email, password: PW, role: "student" })).status).toBe(429);
+    expect((await post("/api/auth/signin", { email: other.email, password: PW, role: "student" })).status).toBe(200);
+  });
+
   test("ออกจากระบบล้าง cookie เปิดไฟล์ (ไม่ต้องมี token) · Google: ไม่มี token/token ปลอม ไม่ผ่าน (ไม่ใช่ 500)", async () => {
     const out = await post("/api/auth/logout", {});
     expect(out.status).toBe(200);
@@ -281,6 +297,34 @@ test.describe("D. หน้าเว็บ", () => {
     await asUser(page, s.x.token, s.x.userId, "/student");
     await expect(page.getByText(`📆 กำหนดส่งของรอบคุณ · เทอม 1/${C()}`)).toBeVisible();
     await expect(page.getByText(/ขยายให้ถึง/)).toBeVisible();
+  });
+
+  // เดิมไม่มีตัวรับข้อผิดพลาด: โหลดโค้ดของหน้าไม่ได้ (เช่น หลัง deploy แท็บเดิมอ้างไฟล์ที่ถูกลบ) = จอขาวทั้งจอ
+  test("(ใหม่) โหลดโค้ดของหน้าไม่ได้: โหลดใหม่ให้เองครั้งเดียว · ยังไม่ได้ = ข้อความ + ปุ่มโหลดใหม่ (ไม่ใช่จอขาว) · กดแล้วกลับมาใช้ได้", async ({ page }) => {
+    let block = true;
+    await page.route(/\/src\/components\/S_Dashboard\.tsx/, (r) => (block ? r.abort() : r.continue()));
+    await asUser(page, s.x.token, s.x.userId, "/student");
+    await expect(page.getByRole("alert")).toContainText("มีการอัปเดตระบบ");
+    expect(await page.evaluate(() => sessionStorage.getItem("coop.chunkReloadAt"))).toBeTruthy();   // พยายามโหลดใหม่ให้แล้ว 1 ครั้ง
+    block = false;
+    await page.getByRole("button", { name: "โหลดหน้าใหม่" }).click();
+    await expect(page.getByText(`📆 กำหนดส่งของรอบคุณ · เทอม 1/${C()}`)).toBeVisible();
+    await expect(page.getByRole("alert")).toHaveCount(0);
+  });
+
+  // เดิม: คัดลอกไม่ได้ (ไม่มีสิทธิ์/หน้า http) → หน้าเว็บมี error ค้าง และขึ้น "Copied!" ทั้งที่ไม่ได้คัดลอก
+  test("(ใหม่) ปุ่มคัดลอกลิงก์แบบประเมิน: คัดลอกไม่ได้ = บอกผู้ใช้ ไม่ขึ้น Copied! หลอก ไม่มี error ค้าง", async ({ page }) => {
+    const errors: string[] = [];
+    page.on("pageerror", (e) => errors.push(e.message));
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, "clipboard", { value: { writeText: () => Promise.reject(new Error("denied")) }, configurable: true });
+      document.execCommand = () => false;
+    });
+    await asUser(page, s.x.token, s.x.userId, "/student/doc-t005-006");
+    await page.getByRole("button", { name: /Copy/ }).first().click();
+    await expect(page.getByText(/คัดลอกไม่สำเร็จ/)).toBeVisible();
+    await expect(page.getByText("Copied!")).toHaveCount(0);
+    expect(errors).toEqual([]);
   });
 
   test("หน้าตั้งค่าตามหลักสูตร: การ์ดความพร้อม X พร้อม · Y ยังไม่พร้อม", async ({ page }) => {

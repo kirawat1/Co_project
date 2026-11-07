@@ -1,6 +1,8 @@
 // Frontend/src/utils/pdfGenerator.ts
 // PDF Generator สำหรับยื่นตรวจสอบเข้าร่วมโครงการสหกิจศึกษา
 import { jsPDF } from "jspdf";
+import { wrapThai } from "./letterLayout";
+import { formMajorName, formProgramLabel } from "./docGeneratorUtils";
 
 // รับ Interface แบบคร่าวๆ เพื่อใช้ในฟังก์ชัน
 interface ProfileData {
@@ -147,20 +149,27 @@ export const createCoopPDF = async (
 
   // Line 3
   y += lineSpace;
-  doc.text(
-    "สาขาวิชาวิทยาการคอมพิวเตอร์ วิทยาลัยการคอมพิวเตอร์ หลักสูตร",
-    leftMargin,
-    y,
-  );
+  // สาขาวิชา = หลักสูตรของนักศึกษา (เดิมพิมพ์ "วิทยาการคอมพิวเตอร์" ตายตัว — นักศึกษา AI/IT/GIS/CYB ได้ชื่อสาขาผิด)
+  const majorName = formMajorName(profile, "วิทยาการคอมพิวเตอร์");
+  let x = leftMargin;
+  doc.text("สาขาวิชา", x, y);
+  x += doc.getTextWidth("สาขาวิชา") + 1;
   doc.setFont("THSarabun", "bold");
-  doc.text("วิทยาลัยการคอมพิวเตอร์", leftMargin + 100, y);
+  doc.text(majorName, x, y);
+  x += doc.getTextWidth(majorName) + 2;
+  doc.setFont("THSarabun", "normal");
+  doc.text("วิทยาลัยการคอมพิวเตอร์ หลักสูตร", x, y);
+  x += doc.getTextWidth("วิทยาลัยการคอมพิวเตอร์ หลักสูตร") + 2;
+  doc.setFont("THSarabun", "bold");
+  doc.text("วิทยาลัยการคอมพิวเตอร์", x, y);
   doc.setFont("THSarabun", "normal");
 
   // Line 4
   y += lineSpace;
-  const isReg =
-    profile.studyProgram === "ภาคปกติ" || profile.studyProgram === "regular";
-  const isSpec = !isReg;
+  // ระบบเก็บเป็น normal/special — เดิมเทียบกับ "ภาคปกติ"/"regular" ไม่เคยตรง → ทุกคนถูกติ๊ก "ภาคพิเศษ"
+  const program = formProgramLabel(profile.studyProgram);
+  const isReg = program === "ภาคปกติ";
+  const isSpec = program === "ภาคพิเศษ";
   drawCheckbox(leftMargin + 25, y, isReg, "ภาคปกติ");
   drawCheckbox(leftMargin + 50, y, isSpec, "ภาคพิเศษ");
   doc.text("มีความประสงค์เข้าร่วม", leftMargin + 75, y);
@@ -201,7 +210,7 @@ export const createCoopPDF = async (
   doc.text("ที่อยู่หน่วยงาน", leftMargin, y);
   const address = getCompanyFullAddress(company);
   doc.setFont("THSarabun", "bold");
-  const addressLines = doc.splitTextToSize(address, 100);
+  const addressLines = wrapThai(address, 100, (t) => doc.getTextWidth(t));
   doc.text(addressLines[0], leftMargin + 32, y);
 
   if (addressLines.length > 1) {
@@ -239,7 +248,7 @@ export const createCoopPDF = async (
   doc.text("มีความประสงค์ฝึกสหกิจศึกษาในด้าน", leftMargin, y);
   if (coopField) {
     doc.setFont("THSarabun", "bold");
-    const jobLines = doc.splitTextToSize(coopField, 155);
+    const jobLines = wrapThai(coopField, 155, (t) => doc.getTextWidth(t));
     doc.text(jobLines[0], leftMargin + 55, y);
     for (let i = 1; i < jobLines.length; i++) {
       y += lineSpace;

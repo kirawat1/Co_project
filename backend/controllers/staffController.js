@@ -1,5 +1,6 @@
 const prisma = require('../config/prismaClient');
 const bcrypt = require('bcryptjs');
+const { validatePassword } = require('../utils/validatePassword');
 
 // ฟิลด์ที่ส่งให้หน้าเว็บได้ — ห้ามส่งแถว User ทั้งแถว (มี hash รหัสผ่าน, kkuAccessToken)
 const STAFF_PUBLIC_SELECT = {
@@ -29,8 +30,10 @@ exports.createStaff = async (req, res) => {
     if (!username || !email || !password || !firstName || !lastName)
       return res.status(400).json({ ok: false, message: 'กรุณากรอกข้อมูลให้ครบ' });
     // เท่ากับตอนรีเซ็ต (resetPassword) และที่หน้าเว็บบอกไว้ — เดิมตอนสร้างไม่เช็คเลย สร้างบัญชีเจ้าหน้าที่รหัส 1 ตัวได้
-    if (typeof password !== 'string' || password.length < 6)
-      return res.status(400).json({ ok: false, message: 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร' });
+    // ผู้ใช้ตัดสิน 2026-11-07: กฎเดียวกับอาจารย์ (8 ตัว · พิมพ์ใหญ่/เล็ก · ตัวเลข · อักขระพิเศษ) — เดิมเจ้าหน้าที่แค่ 6 ตัว
+    //   ทั้งที่บัญชีเจ้าหน้าที่สิทธิ์สูงสุด (ออกหนังสือ · ดู/รีเซ็ตรหัสผ่านทุกคน) · บัญชีเดิมที่รหัสสั้นยังเข้าได้ (ใช้กฎตอนตั้งใหม่)
+    const pwError = typeof password === 'string' ? validatePassword(password) : 'กรุณากรอกรหัสผ่าน';
+    if (pwError) return res.status(400).json({ ok: false, message: pwError });
 
     const existing = await prisma.user.findFirst({ where: { OR: [{ username }, { email }] } });
     if (existing)
@@ -57,8 +60,8 @@ exports.resetPassword = async (req, res) => {
     const id = parseInt(req.params.id, 10);
     if (isNaN(id)) return res.status(400).json({ ok: false, message: 'id ไม่ถูกต้อง' });
     const { password } = req.body;
-    if (!password || password.length < 6)
-      return res.status(400).json({ ok: false, message: 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร' });
+    const pwError = typeof password === 'string' ? validatePassword(password) : 'กรุณากรอกรหัสผ่าน';
+    if (pwError) return res.status(400).json({ ok: false, message: pwError });
 
     const user = await prisma.user.findUnique({ where: { id } });
     if (!user || user.role !== 'staff')

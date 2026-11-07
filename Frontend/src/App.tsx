@@ -1,8 +1,9 @@
 import { lazy, Suspense } from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import LoginPage from "./components/loginpage";
 import { LoadingBlock } from "./components/Spinner";
 import StudentTheme from "./components/S_Theme";
+import AppErrorBoundary from "./components/AppErrorBoundary";
 
 // หน้าในส่วนนี้โหลดตอนเปิดหน้านั้น (แบ่งไฟล์ — ไม่ต้องโหลดทุกหน้า/ไลบรารี PDF/Excel ตั้งแต่แรก)
 const StudentApp = lazy(() => import("./components/S_App"));
@@ -10,10 +11,13 @@ const AdminApp = lazy(() => import("./components/A_App"));
 const TeacherApp = lazy(() => import("./components/T_App"));
 
 export default function App() {
+  const { pathname } = useLocation();
   return (
     <>
       {/* Global theme CSS — must be rendered at root so LoginPage also gets dark mode overrides */}
       <StudentTheme />
+      {/* หน้าพัง/โหลดโค้ดไม่ได้ = ข้อความ + ปุ่มโหลดใหม่ (เดิมจอขาว) · เปลี่ยนหน้าแล้วเริ่มใหม่ */}
+      <AppErrorBoundary resetKey={pathname}>
       <Suspense fallback={<LoadingBlock text="กำลังโหลด…" style={{ padding: 24 }} />}>
       <Routes>
         <Route path="/" element={<LoginPage />} />
@@ -27,6 +31,7 @@ export default function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       </Suspense>
+      </AppErrorBoundary>
     </>
   );
 }

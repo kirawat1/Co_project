@@ -150,7 +150,7 @@ export default function A_StaffManage() {
               </div>
               <Field label="Username *" autoComplete="off" value={form.username} onChange={v => setForm(f => ({ ...f, username: v }))} />
               <Field label="อีเมล *" type="email" autoComplete="off" value={form.email} onChange={v => setForm(f => ({ ...f, email: v }))} />
-              <Field label="รหัสผ่าน * (อย่างน้อย 6 ตัวอักษร)" type="password" autoComplete="new-password" value={form.password} onChange={v => setForm(f => ({ ...f, password: v }))} />
+              <Field label="รหัสผ่าน * (อย่างน้อย 8 ตัว • พิมพ์ใหญ่+เล็ก+เลข+อักขระพิเศษ)" type="password" autoComplete="new-password" value={form.password} onChange={v => setForm(f => ({ ...f, password: v }))} />
               <Field label="เบอร์โทร" value={form.phone} onChange={v => setForm(f => ({ ...f, phone: v }))} />
               {addErr && <div style={{ color: "red", fontSize: 13, margin: "8px 0" }}>{addErr}</div>}
               <div style={{ display: "flex", gap: 12, justifyContent: "flex-end", marginTop: 20 }}>
@@ -173,7 +173,7 @@ export default function A_StaffManage() {
             <form autoComplete="off" onSubmit={handleResetPw}>
               {/* username ของบัญชีที่ถูก reset (ซ่อน) — password manager จะไม่ผูกกับบัญชีของคนที่กด */}
               <input type="text" name="username" autoComplete="username" value={resetTarget.username || ""} readOnly hidden />
-              <Field label="รหัสผ่านใหม่ (อย่างน้อย 6 ตัวอักษร)" type="password" autoComplete="new-password" value={newPw} onChange={setNewPw} />
+              <Field label="รหัสผ่านใหม่ (อย่างน้อย 8 ตัว • พิมพ์ใหญ่+เล็ก+เลข+อักขระพิเศษ)" type="password" autoComplete="new-password" value={newPw} onChange={setNewPw} />
               {resetErr && <div style={{ color: "red", fontSize: 13, margin: "8px 0" }}>{resetErr}</div>}
               <div style={{ display: "flex", gap: 12, justifyContent: "flex-end", marginTop: 20 }}>
                 <button type="button" className="btn-secondary" onClick={() => setResetTarget(null)}>ยกเลิก</button>

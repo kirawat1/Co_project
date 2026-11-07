@@ -1,6 +1,6 @@
 # =====================================================
-# Co-op System — VM Setup Script
-# รันใน PowerShell (Admin) บน Windows 11
+# Co-op System - VM Setup Script
+# Run in PowerShell (Admin) on Windows 11
 # =====================================================
 
 Write-Host "=== Co-op VM Setup ===" -ForegroundColor Cyan
@@ -36,7 +36,7 @@ Remove-Item $nginxZip
 Write-Host "`n=== Refreshing PATH ===" -ForegroundColor Cyan
 $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
 
-# ---- PM2 (ต้องหลัง Node.js) ----
+# ---- PM2 (after Node.js) ----
 Write-Host "`n[+] Installing PM2 globally..." -ForegroundColor Yellow
 npm install -g pm2
 
@@ -51,5 +51,5 @@ Write-Host "Nginx:       $(C:\nginx\nginx.exe -v 2>&1)" -ForegroundColor Green
 Write-Host "Cloudflared: $(cloudflared --version 2>$null)" -ForegroundColor Green
 
 Write-Host "`n=== Done! ===" -ForegroundColor Cyan
-Write-Host "ถ้า Node/Git ยัง error ให้ปิด PowerShell แล้วเปิดใหม่ (PATH refresh)" -ForegroundColor Yellow
-Write-Host "ถ้า MySQL ยัง error ให้ restart เครื่องแล้วลองใหม่" -ForegroundColor Yellow
+Write-Host "If Node/Git still errors, close PowerShell and open it again (PATH refresh)" -ForegroundColor Yellow
+Write-Host "If MySQL still errors, restart the machine and try again" -ForegroundColor Yellow
