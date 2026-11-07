@@ -158,15 +158,22 @@ export function trimBox(rgba: ArrayLike<number>, w: number, h: number): { x: num
  * ตัดข้อความเป็นบรรทัดตามคำภาษาไทย — ใช้แทน doc.splitTextToSize ของ jsPDF ในแบบฟอร์มนักศึกษา
  * (ของ jsPDF ตัดที่ช่องว่างเท่านั้น ภาษาไทยไม่เว้นวรรค → ขึ้นบรรทัดใหม่กลางคำ เช่น "รับผิดชอ" / "บดูแล")
  * measure = ความกว้างข้อความ (เช่น t => doc.getTextWidth(t)) · ขึ้นบรรทัดใหม่ตาม \n เดิม · ช่องว่างนำหน้าย่อหน้าคงไว้ (ย่อหน้า)
- * คำเดียวยาวเกินบรรทัด (URL/อีเมล) → ตัดระดับตัวอักษร
+ * คำเดียวยาวเกินบรรทัด (URL/อีเมล) → ตัดระดับตัวอักษร · keep = รูปแบบข้อความที่ต้องอยู่บรรทัดเดียวกัน (ถ้าพอ)
  */
-export function wrapThai(text: string, width: number, measure: (t: string) => number): string[] {
+const FORM_KEEP_WHOLE = /มหาวิทยาลัยขอนแก่น|วิทยาลัยการคอมพิวเตอร์/;
+
+export function wrapThai(text: string, width: number, measure: (t: string) => number, keep?: RegExp): string[] {
   const out: string[] = [];
   for (const para of String(text ?? "").split(/\r?\n/)) {
     const lead = para.match(/^\s*/)?.[0] ?? "";
     let line = lead;
     const push = () => { out.push(line.replace(/\s+$/, "")); line = ""; };
-    for (const tok of segmentThai(para.slice(lead.length))) {
+    const body = para.slice(lead.length);
+    // keep: ชิ้นที่ตรงรูปแบบเป็นคำเดียว (ไม่ขึ้นบรรทัดใหม่กลางชิ้น) · ชิ้นอื่นตัดตามคำตามปกติ
+    // ชื่อสถาบันไม่ตัดกลาง (เดิม "มหาวิทยาลัย" / "ขอนแก่น", "วิทยาลัยการ" / "คอมพิวเตอร์") + รูปแบบที่ผู้เรียกส่งมา
+    const whole = new RegExp(`(${[FORM_KEEP_WHOLE.source, keep?.source].filter(Boolean).join("|")})`);
+    const tokens = body.split(whole).flatMap((part, i) => (i % 2 ? [part] : part ? segmentThai(part) : []));
+    for (const tok of tokens) {
       if (measure(line + tok) <= width) { line += tok; continue; }
       if (line.trim()) push();                       // ไม่พอ → ขึ้นบรรทัดใหม่
       if (/^\s+$/.test(tok)) continue;              // ไม่เอาช่องว่างหัวบรรทัด
