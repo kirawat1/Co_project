@@ -205,3 +205,25 @@ test("formProgramLabel: normal/special (ที่ระบบเก็บ) · �
   expect(["normal", "NORMAL", "special", "ภาคปกติ", "ภาคพิเศษ", "regular", "", null, undefined, "อื่น ๆ"].map((x) => formProgramLabel(x as string)))
     .toEqual(["ภาคปกติ", "ภาคปกติ", "ภาคพิเศษ", "ภาคปกติ", "ภาคพิเศษ", "ภาคปกติ", "", "", "", ""]);
 });
+
+// หนังสือยินยอมผู้ปกครอง — เดิม "พ.ศ." / "2570" ตกบรรทัดใหม่ตัวเดียว
+test("wrapThai keep: วันที่อยู่บรรทัดเดียวกัน ไม่ตัดกลาง · ข้อความครบ", () => {
+  const len = (t: string) => t.length;
+  const date = /\d{1,2}\s+เดือน\s+\S+\s+พ\.ศ\.\s+\d{4}/;
+  const text = "โดยออกปฏิบัติงานระหว่างวันที่ 16 เดือน พฤศจิกายน พ.ศ. 2569 ถึงวันที่ 16 เดือน มีนาคม พ.ศ. 2570";
+  const lines = wrapThai(text, 40, len, date);
+  expect(lines.join("")).toBe(text.replace(/ (?=\S)/g, (m, i) => (lines.some((l) => text.indexOf(l) === i + 1) ? "" : m)));
+  expect(lines.some((l) => /16 เดือน มีนาคม พ\.ศ\. 2570/.test(l))).toBe(true);
+  expect(lines.some((l) => /16 เดือน พฤศจิกายน พ\.ศ\. 2569/.test(l))).toBe(true);
+  expect(lines.some((l) => /^2570$/.test(l.trim()))).toBe(false);
+});
+
+test("wrapThai: ชื่อสถาบัน (มหาวิทยาลัยขอนแก่น · วิทยาลัยการคอมพิวเตอร์) ไม่ตัดกลาง", () => {
+  const len = (t: string) => t.length;
+  const text = "นักศึกษาวิทยาลัยการคอมพิวเตอร์ มหาวิทยาลัยขอนแก่น ได้รับอนุญาต";
+  for (const w of [12, 20, 25, 30]) {
+    const lines = wrapThai(text, w, len);
+    expect(lines.some((l) => /มหาวิทยาลัย$/.test(l))).toBe(false);
+    expect(lines.some((l) => /วิทยาลัยการ$/.test(l))).toBe(false);
+  }
+});

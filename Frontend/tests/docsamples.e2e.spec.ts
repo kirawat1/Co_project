@@ -47,7 +47,7 @@ test.beforeAll(async () => {
   await prisma.coopT002Form.create({ data: {
     studentId: s1.pk, companyNameTh: `บริษัท ทดสอบเอกสาร ${k.tail} จำกัด`, companyNameEn: "Doc Test Co., Ltd.", addressNo: "99", road: "ศรีจันทร์", subDistrict: "ในเมือง", district: "เมืองขอนแก่น", province: "ขอนแก่น", zipcode: "40000",
     companyPhone: "043123456", companyEmail: "hr@doctest.co.th", managerName: "นายผู้จัดการ ใหญ่", managerPosition: "กรรมการผู้จัดการ", managerPhone: "043123457", managerEmail: "md@doctest.co.th",
-    coordinatorType: "OTHER", coordName: "นางสาวประสาน งาน", coordPosition: "เจ้าหน้าที่บุคคล", coordDept: "ฝ่ายบุคคล", coordPhone: "043123458", coordEmail: "coord@doctest.co.th",
+    coordinatorType: "OTHER", coordName: "นางสาวประสาน งาน", coordPosition: "เจ้าหน้าที่บุคคล", coordDept: "ฝ่ายบุคคล", coordPhone: "043123458", coordEmail: "coordinator.longname@doctest-company.co.th",
     supervisorName: "นายพี่เลี้ยง ดูแล", supervisorPosition: "หัวหน้าทีมพัฒนา", supervisorDept: "ฝ่ายไอที", supervisorPhone: "043123459", supervisorEmail: "mentor@doctest.co.th",
     jobPosition: "นักพัฒนาซอฟต์แวร์ฝึกหัด", jobDescription: "พัฒนาเว็บแอปพลิเคชันด้วย React และ Node.js ทดสอบระบบ และเขียนเอกสารประกอบ",
     accomAddrNo: "45", accomRoad: "กลางเมือง", accomSubDistrict: "ในเมือง", accomDistrict: "เมืองขอนแก่น", accomProvince: "ขอนแก่น", accomZipcode: "40000", accommodationPhone: "0811111111",

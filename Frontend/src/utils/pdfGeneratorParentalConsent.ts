@@ -180,7 +180,7 @@ export const createParentalConsentPDF = async (
     : "....... เดือน ..................... พ.ศ. ..........";
 
   const p2 = `       ซึ่งเป็นรายวิชาหนึ่งในหลักสูตรของวิทยาลัยการคอมพิวเตอร์ มหาวิทยาลัยขอนแก่น โดยออกปฏิบัติสหกิจศึกษาในระหว่างวันที่ ${startDateStr} ถึงวันที่ ${endDateStr}`;
-  const lines2 = wrapThai(p2, contentWidth, (t) => doc.getTextWidth(t));
+  const lines2 = wrapThai(p2, contentWidth, (t) => doc.getTextWidth(t), /\d{1,2}\s+เดือน\s+\S+\s+พ\.ศ\.\s+\d{4}/); // วันที่ไม่ตัดกลาง
   doc.text(lines2, leftX, y);
   y += lines2.length * 7;
 

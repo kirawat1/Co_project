@@ -64,13 +64,19 @@ export const createT002PDF = async (
     // วาดเส้นประ
     doc.setDrawColor(150, 150, 150);
     doc.setLineDashPattern([0.5, 0.5], 0);
-    doc.line(startX, y + 1, startX + lineWidth, y + 1);
+    // ไม่เกินขอบกรอบด้านขวา (ช่องอีเมลอยู่ชิดขวา เดิมเส้นประเลยกรอบ)
+    const endX = Math.min(startX + lineWidth, leftX + contentWidth - 1);
+    doc.line(startX, y + 1, endX, y + 1);
     doc.setLineDashPattern([], 0); // Reset
 
-    // พิมพ์ข้อความ
+    // พิมพ์ข้อความ — ยาวเกินเส้น (อีเมลยาว) ย่อตัวอักษรลงให้พอดี (เดิมล้นออกนอกกรอบ)
     doc.setFont("THSarabun", "bold");
     doc.setTextColor(0, 0, 0);
+    const size = doc.getFontSize();
+    let fit = size;
+    while (value && fit > 7 && doc.setFontSize(fit) && doc.getTextWidth(value) > endX - startX - 2) fit -= 0.5;
     doc.text(value || "", startX + 2, y);
+    doc.setFontSize(size);
   };
 
   // --- Helper วาดกล่องหัวข้อสีเทา ---
@@ -241,10 +247,6 @@ export const createT002PDF = async (
   drawDataLine("โทรสาร", formData.coordFax, leftX + 75, inY, 30);
   drawDataLine("EMail address", formData.coordEmail, leftX + 120, inY, 35);
 
-  // --- Box 3 (Header Only) ---
-  y = inY + 5;
-  drawHeaderBox("3. พนักงานที่ปรึกษา (Job Supervisor)", y);
-
   drawFooter(250);
 
   // ================= PAGE 2 =================
@@ -263,7 +265,9 @@ export const createT002PDF = async (
       : []),
   ];
   const multipleSupervisors = supervisors.length > 1;
-  y = 20;
+  // หัวข้อ 3 อยู่หน้าเดียวกับเนื้อหา (เดิมหัวข้ออยู่ท้ายหน้า 1 เนื้อหาไปหน้า 2)
+  drawHeaderBox("3. พนักงานที่ปรึกษา (Job Supervisor)", 20);
+  y = 28;
   supervisors.forEach((s: any, i: number) => {
     doc.rect(leftX, y, contentWidth, 25);
     inY = y + 8;
@@ -385,9 +389,8 @@ export const createT002PDF = async (
       introY + 6,
     );
   };
-  // ไม่พอที่หน้านี้ → ไปอยู่หัวหน้าแผนที่แทน (ไม่เปิดหน้าใหม่แค่สำหรับ 2 บรรทัด)
-  const mapIntroOnMapPage = inY + 15 + 6 > PAGE_CONTENT_BOTTOM;
-  if (!mapIntroOnMapPage) drawMapIntro(inY + 15);
+  // หัวข้อแผนที่อยู่หน้าเดียวกับกรอบแผนที่เสมอ (เดิมหัวข้ออยู่ท้ายหน้า 2 กรอบไปหน้า 3)
+  const mapIntroOnMapPage = true;
 
   drawFooter(250);
 
