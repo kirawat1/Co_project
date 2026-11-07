@@ -113,8 +113,10 @@ exports.getMyApplication = async (req, res) => {
 
     let formattedForm = { ...form };
     if (form) {
-        if (form.startDate) formattedForm.startDate = form.startDate.toISOString().split('T')[0];
-        if (form.endDate) formattedForm.endDate = form.endDate.toISOString().split('T')[0];
+        // วันที่ตามเวลาไทย (เดิมตัดจาก UTC — วันที่เก็บเป็นเที่ยงคืนเวลาไทยจะเลื่อนไป 1 วัน · ข้อมูลที่เก็บแบบ UTC ได้วันเดิม)
+        const bkk = (d) => d.toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
+        if (form.startDate) formattedForm.startDate = bkk(form.startDate);
+        if (form.endDate) formattedForm.endDate = bkk(form.endDate);
     }
 
     res.json({ ok: true, form: formattedForm });

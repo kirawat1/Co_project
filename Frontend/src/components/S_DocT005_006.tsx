@@ -2,6 +2,8 @@ import { LoadingBlock } from "./Spinner";
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { DeadlineBanner } from "./DocDeadline";
+import { copyText } from "../utils/copyText";
+import { notify } from "../utils/notify";
 
 function safeHref(url: string | null | undefined): string | undefined {
   if (!url) return undefined;
@@ -49,8 +51,9 @@ export default function S_DocT005_006() {
     }, [token]);
 
     // ฟังก์ชันสำหรับ Copy ข้อความ
-    const handleCopy = (text: string, key: string) => {
-        navigator.clipboard.writeText(text);
+    const handleCopy = async (text: string, key: string) => {
+        // คัดลอกไม่ได้ (ไม่มีสิทธิ์/หน้า http) → บอกตรง ๆ ไม่ขึ้น "Copied!" หลอก
+        if (!(await copyText(text))) { notify.error("คัดลอกไม่สำเร็จ — เลือกข้อความแล้วคัดลอกเอง"); return; }
         setCopiedKey(key);
         // ให้กลับมาเป็นสถานะปกติหลังจาก 2 วินาที
         setTimeout(() => {

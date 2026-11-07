@@ -1,5 +1,6 @@
 // Frontend/src/utils/pdfGeneratorT002.ts
 import { jsPDF } from "jspdf";
+import { wrapThai } from "./letterLayout";
 
 // ================= HELPERS =================
 const getFontBase64 = async (url: string): Promise<string> => {
@@ -153,7 +154,7 @@ export const createT002PDF = async (
   y += 5;
   const introText =
     "เพื่อให้การประสานงานระหว่างงานสหกิจศึกษา วิทยาลัยการคอมพิวเตอร์ มหาวิทยาลัยขอนแก่น และสถานประกอบการเป็นไปโดยความเรียบร้อยและมีประสิทธิภาพ จึงใคร่ขอความกรุณาผู้จัดการฝ่ายบุคคลหรือผู้ที่รับผิดชอบดูแลการปฏิบัติงานสหกิจศึกษาของนักศึกษาได้โปรดประสานงานกับพนักงานที่ปรึกษา (Job Supervisor) เพื่อจัดทำข้อมูลตำแหน่งงาน ลักษณะงาน และผู้ทำหน้าที่พนักงานที่ปรึกษา แบบฟอร์ม (KKU CP-T002) ฉบับนี้ และโปรดส่งกลับคืนงานสหกิจศึกษา วิทยาลัยการคอมพิวเตอร์ ภายในสัปดาห์แรกตามปฏิทินการปฏิบัติงานสหกิจศึกษาด้วยจักขอบคุณยิ่ง";
-  const introLines = doc.splitTextToSize(introText, contentWidth - 10);
+  const introLines = wrapThai(introText, contentWidth - 10, (t) => doc.getTextWidth(t));
   doc.text(introLines, leftX + 10, y);
 
   // --- Box 1 ---
@@ -310,7 +311,7 @@ export const createT002PDF = async (
   drawText("ลักษณะงานที่นักศึกษาปฏิบัติ (Job Description)", leftX + 5, inY);
 
   // ปริ้นลักษณะงานพร้อมวาดบรรทัดเส้นประ
-  const jobLines = doc.splitTextToSize(formData.jobDescription || "", 155);
+  const jobLines = wrapThai(formData.jobDescription || "", 155, (t) => doc.getTextWidth(t));
   doc.text(jobLines, leftX + 10, inY + 7);
   for (let i = 0; i < 6; i++) {
     doc.setDrawColor(150, 150, 150);

@@ -91,6 +91,7 @@ test("เอาผู้ติดต่อ (HR) ออก 2 คนพร้อ�
   await page.getByRole("textbox", { name: "รหัสผ่าน" }).fill(E2E_PASSWORD);
   await page.getByRole("button", { name: "เข้าสู่ระบบ" }).click();
   await page.waitForURL("**/student/dashboard", { timeout: 15_000 });
+  await page.waitForLoadState("networkidle");   // ให้โค้ดหน้าแดชบอร์ดโหลดเสร็จก่อนเปลี่ยนหน้า (Firefox แจ้ง error ถ้าตัดกลางทาง)
 
   await page.goto("/student/profile");
   await page.locator(".contact-chip", { hasText: "REPRO-RACE-A" }).waitFor({ timeout: 15_000 });

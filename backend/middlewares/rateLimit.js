@@ -16,6 +16,8 @@ function rateLimitKey(req) {
   return `ip:${req.ip}`;
 }
 
+const SKIP_PATHS = new Set(['/api/internal-status', '/api/auth/signin', '/api/auth/login/google', '/api/auth/logout']);
+
 function createApiLimiter({ windowMs = 15 * 60 * 1000, max }) {
   return rateLimit({
     windowMs,
@@ -24,7 +26,11 @@ function createApiLimiter({ windowMs = 15 * 60 * 1000, max }) {
     standardHeaders: true,
     legacyHeaders: false,
     message: { ok: false, message: 'Too many requests, please try again later.' },
-    skip: (req) => req.originalUrl === '/api/internal-status', // VM-local health check ไม่ต้อง limit
+    // VM-local health check ไม่ต้อง limit
+    // เข้าสู่ระบบ/ออกจากระบบไม่นับในเพดานรวม — ยังไม่มี token = นับต่อ IP และทั้งคณะใช้ IP เดียวกัน:
+    //   เดิมการเข้าสู่ระบบกินโควตา 2000 ครั้ง/15 นาทีของทั้ง IP → ช่วงคนเข้าเยอะโควตาหมด ทุกคนเข้าไม่ได้
+    //   (เส้นเข้าสู่ระบบมีตัวกันเดารหัสของตัวเองใน routes/authRoutes.js)
+    skip: (req) => SKIP_PATHS.has(req.originalUrl.split('?')[0]),
   });
 }
 

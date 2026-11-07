@@ -90,7 +90,19 @@ function withOptionFile(db, fn) {
   fs.writeFileSync(file, `[client]\nuser=${q(db.user)}\npassword=${q(db.password)}\nhost=${q(db.host)}\nport=${db.port}\n`, { mode: 0o600 });
   return Promise.resolve()
     .then(() => fn(file))
-    .finally(() => fs.rmSync(file, { force: true }));
+    .finally(() => removeSecretFile(file));
+}
+
+// ไฟล์นี้มีรหัสผ่านฐานข้อมูล — ต้องลบให้ได้เสมอ และห้ามบังข้อผิดพลาดจริง
+// (เดิม: ไฟล์สำรองเสีย → mysql ยังจับไฟล์อยู่ → ลบไม่ได้ EBUSY → ข้อความเป็น EBUSY แทน "ไฟล์เสีย" และไฟล์รหัสผ่านค้างใน Temp)
+async function removeSecretFile(file) {
+  for (let i = 0; i < 50; i++) {
+    try { fs.rmSync(file, { force: true }); return; } catch (e) {
+      if (e.code !== 'EBUSY' && e.code !== 'EPERM') break;
+      await new Promise((r) => setTimeout(r, 100));
+    }
+  }
+  console.error(`[WARN] ลบไฟล์ชั่วคราว ${file} ไม่ได้ — กรุณาลบเอง (มีรหัสผ่านฐานข้อมูล)`);
 }
 
 function run(bin, args, { input, output } = {}) {
@@ -100,7 +112,9 @@ function run(bin, args, { input, output } = {}) {
     child.stderr.on('data', (c) => { stderr += c; });
     child.on('error', reject);
     // input = สตรีมต่อกันเป็นทอด (อ่านไฟล์ → gunzip → …) — ทอดไหนพัง (ไฟล์เสีย) ต้อง reject ไม่ค้าง
-    if (input) pipeline(...input, child.stdin, (err) => { if (err) { child.kill(); reject(err); } });
+    // รอโปรแกรมปิดจริงก่อนค่อยแจ้ง (ไม่งั้นยังจับไฟล์รหัสผ่านอยู่ตอนลบ) · ข้อความบอกว่าไฟล์สำรองเสีย ไม่ใช่ exit code
+    let pipeErr = null;
+    if (input) pipeline(...input, child.stdin, (err) => { if (err && !pipeErr) { pipeErr = err; child.kill(); } });
     let tail = '';
     if (output) {
       child.stdout.on('data', (c) => { tail = (tail + c.toString('utf8')).slice(-200); });
@@ -108,6 +122,7 @@ function run(bin, args, { input, output } = {}) {
     }
     const done = new Promise((r) => (output ? output.on('finish', r) : r()));
     child.on('close', (code) => {
+      if (pipeErr) return reject(new Error(`อ่านไฟล์สำรองไม่ได้ (ไฟล์เสีย/ไม่ครบ): ${pipeErr.message}`));
       done.then(() => (code === 0 ? resolve({ tail }) : reject(new Error(`${path.basename(bin)} exit ${code}: ${stderr.trim().slice(0, 500)}`))));
     });
   });
@@ -176,6 +191,11 @@ function latestDump(dir) {
 
 /** กู้ไฟล์ .sql.gz ลงฐาน target — dump ใช้ --databases จึงเขียนชื่อฐานเดิมไว้ ต้องแทนเป็น target ก่อน */
 async function restoreDump(db, file, target) {
+  // ตรวจทั้งไฟล์ก่อนแตะฐาน — ขั้นถัดไปลบฐานปลายทางทิ้งก่อนโหลด (เดิมไฟล์เสียแล้วกู้ทับด้วย --force = ฐานจริงหาย
+  // และไม่ใช้ --force ก็ค้างฐานที่กู้ไปครึ่งทาง)
+  let scan;
+  try { scan = await scanDump(file); } catch (e) { throw new Error(`อ่านไฟล์สำรองไม่ได้ (ไฟล์เสีย/ไม่ครบ): ${e.message} — ไม่ได้แตะฐาน ${target}`); }
+  if (!scan.completed) throw new Error(`ไฟล์สำรองไม่ครบ (ไม่มี "-- Dump completed") — ไม่ได้แตะฐาน ${target}`);
   const bin = findMysqlBin('mysql');
   const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const src = new RegExp(`^(CREATE DATABASE .*?|USE )\`${esc(db.database)}\``, 'gm');

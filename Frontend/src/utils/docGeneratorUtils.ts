@@ -91,6 +91,12 @@ export function formMajorName(profile: any, fallback: string): string {
   return profile?.majorNameTh || String(profile?.major || "").trim() || fallback;
 }
 
+/** ภาคที่ติ๊กในแบบฟอร์ม — ระบบเก็บ normal/special · ข้อมูลเก่าอาจเป็นภาษาไทย/regular · ไม่รู้ = ไม่ติ๊กช่องไหน */
+export function formProgramLabel(sp?: string | null): "ภาคปกติ" | "ภาคพิเศษ" | "" {
+  const label = studyProgramLabel(sp) || (sp === "regular" ? "ภาคปกติ" : sp || "");
+  return label === "ภาคปกติ" || label === "ภาคพิเศษ" ? label : "";
+}
+
 export function studyProgramLabel(sp?: string | null): string {
   const v = (sp || "").toLowerCase();
   if (v === "normal") return "ภาคปกติ";

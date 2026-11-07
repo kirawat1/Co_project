@@ -43,4 +43,18 @@ describe('createApiLimiter', () => {
   test('health check ภายในเครื่องไม่นับ', async () => {
     for (let i = 0; i < 4; i++) expect((await request(app).get('/api/internal-status')).status).toBe(200);
   });
+
+  // ทดสอบโหลด 2026-11-07: ทั้งคณะใช้ IP เดียว — การเข้าสู่ระบบเดิมกินโควตารวมของ IP จนหมด (มีตัวกันเดารหัสแยกอยู่แล้ว)
+  test('เข้าสู่ระบบ/ออกจากระบบไม่นับในเพดานรวม · คำขออื่นที่ไม่มี token ยังนับต่อ IP', async () => {
+    app.post('/api/auth/signin', (_req, res) => res.json({ ok: true }));
+    app.post('/api/auth/logout', (_req, res) => res.json({ ok: true }));
+    app.get('/api/public', (_req, res) => res.json({ ok: true }));
+    for (let i = 0; i < 5; i++) {
+      expect((await request(app).post('/api/auth/signin')).status).toBe(200);
+      expect((await request(app).post('/api/auth/logout')).status).toBe(200);
+    }
+    expect((await request(app).get('/api/public')).status).toBe(200);
+    expect((await request(app).get('/api/public')).status).toBe(200);
+    expect((await request(app).get('/api/public')).status).toBe(429);
+  });
 });

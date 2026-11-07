@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { splitThaiName, companyPhrase, layoutRuns, justifyLine, trimBox, segmentThai } from "../src/utils/letterLayout";
+import { splitThaiName, companyPhrase, layoutRuns, justifyLine, trimBox, segmentThai, wrapThai } from "../src/utils/letterLayout";
 import { dispatchLetterModel, placementLetterModel, supervisionLetterModel, toThaiDateWithDay, type LetterModel } from "../src/utils/docGeneratorUtils";
 
 // ฟังก์ชันล้วน ไม่เปิดเบราว์เซอร์ — รูปแบบหนังสือตามตัวอย่างจริง 811 (ขอความอนุเคราะห์) / 893 (ส่งตัว) / 1215 (ขอนิเทศ)
@@ -163,4 +163,45 @@ test.describe("เนื้อหาหนังสือขอนิเทศ (
     expect(toThaiDateWithDay("2025-09-02T13:30:00+07:00")).toBe("วันอังคารที่ 2 กันยายน 2568");
     expect(toThaiDateWithDay(undefined)).toContain("....");
   });
+});
+
+// แบบฟอร์มนักศึกษา (T000/T002/T003/หนังสือยินยอม) — เดิมใช้ doc.splitTextToSize ของ jsPDF ตัดที่ช่องว่างเท่านั้น
+// ภาษาไทยไม่เว้นวรรค → ขึ้นบรรทัดใหม่กลางคำ (เจอในเอกสารตัวอย่าง: "รับผิดชอ" / "บดูแล", "วิธีก" / "ารปฏิบัติงาน")
+test.describe("wrapThai — ตัดบรรทัดแบบฟอร์มตามคำ", () => {
+  const len = (t: string) => t.length;
+  const text = "จึงใคร่ขอความกรุณาผู้จัดการฝ่ายบุคคลหรือผู้ที่รับผิดชอบดูแลการปฏิบัติงานสหกิจศึกษาของนักศึกษา";
+
+  test("ไม่ตัดกลางคำ · ไม่ล้นความกว้าง · ข้อความครบ", () => {
+    const lines = wrapThai(text, 20, len);
+    expect(lines.length).toBeGreaterThan(2);
+    lines.forEach((l) => expect(l.length).toBeLessThanOrEqual(20));
+    expect(lines.join("")).toBe(text);
+    const words = new Set(segmentThai(text));
+    // ทุกบรรทัดจบที่ขอบคำ: สิ่งที่ต่อจากบรรทัดถัดไปเริ่มด้วยคำเต็ม
+    lines.slice(1).forEach((l) => expect([...words].some((w) => l.startsWith(w))).toBe(true));
+    expect(lines.some((l) => l.endsWith("รับผิดชอ"))).toBe(false);
+    expect(lines.some((l) => l.includes("สหกิจศึกษา") || !l.includes("สหกิจ"))).toBe(true);
+  });
+
+  test("ขึ้นบรรทัดตาม \n เดิม · ย่อหน้าแรกคงช่องว่างนำหน้า · ช่องว่างหัว/ท้ายบรรทัดที่ตัดใหม่ถูกตัดทิ้ง", () => {
+    const lines = wrapThai("    ย่อหน้า แรก ของ ข้อความ\nบรรทัด สอง", 12, len);
+    expect(lines[0].startsWith("    ")).toBe(true);
+    expect(lines).toContain("บรรทัด สอง");
+    lines.forEach((l) => expect(l).toBe(l.replace(/\s+$/, "")));
+    lines.slice(1).forEach((l) => expect(l.startsWith(" ")).toBe(false));
+  });
+
+  test("คำเดียวยาวเกินบรรทัด (อีเมล/URL) → ตัดตามตัวอักษร ไม่ล้น · ข้อความว่าง = 1 บรรทัดว่าง", () => {
+    const lines = wrapThai("ติดต่อ coordinator.long.address@company-example.co.th", 15, len);
+    lines.forEach((l) => expect(l.length).toBeLessThanOrEqual(15));
+    expect(lines.join("").replace(/\s/g, "")).toBe("ติดต่อcoordinator.long.address@company-example.co.th");
+    expect(wrapThai("", 10, len)).toEqual([""]);
+  });
+});
+
+// ใบคำร้องขอเข้าร่วมโครงการ (createCoopPDF) — เดิมเทียบ "ภาคปกติ"/"regular" แต่ระบบเก็บ normal → ทุกคนถูกติ๊ก "ภาคพิเศษ"
+test("formProgramLabel: normal/special (ที่ระบบเก็บ) · ข้อมูลเก่าภาษาไทย/regular · ไม่รู้ = ไม่ติ๊ก", async () => {
+  const { formProgramLabel } = await import("../src/utils/docGeneratorUtils");
+  expect(["normal", "NORMAL", "special", "ภาคปกติ", "ภาคพิเศษ", "regular", "", null, undefined, "อื่น ๆ"].map((x) => formProgramLabel(x as string)))
+    .toEqual(["ภาคปกติ", "ภาคปกติ", "ภาคพิเศษ", "ภาคปกติ", "ภาคพิเศษ", "ภาคปกติ", "", "", "", ""]);
 });

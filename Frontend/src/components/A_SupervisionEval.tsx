@@ -1,4 +1,5 @@
 import { BusyLabel, LoadingBlock } from "./Spinner";
+import { copyText } from "../utils/copyText";
 import { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import AutoTextarea from "./AutoTextarea";
@@ -98,12 +99,8 @@ export default function A_SupervisionEval() {
   const copyMessage = async () => {
     if (!savedLink) { notify.warning("กรุณาใส่ลิงก์แบบประเมินแล้วกดบันทึกก่อน"); return; }
     const text = [instructionText.trim(), `แบบประเมินการนิเทศ: ${savedLink}`].filter(Boolean).join("\n\n");
-    try {
-      await navigator.clipboard.writeText(text);
-      notify.success("คัดลอกข้อความแล้ว — วางส่งทาง LINE/อีเมลได้เลย");
-    } catch {
-      notify.error("คัดลอกไม่สำเร็จ");
-    }
+    if (await copyText(text)) notify.success("คัดลอกข้อความแล้ว — วางส่งทาง LINE/อีเมลได้เลย");
+    else notify.error("คัดลอกไม่สำเร็จ — เลือกข้อความแล้วคัดลอกเอง");
   };
 
   if (loading) {

@@ -1,4 +1,5 @@
 import { BusyLabel } from "./Spinner";
+import { copyText } from "../utils/copyText";
 import { useState } from "react";
 import type { CSSProperties } from "react";
 import { apiFetch } from "../utils/apiFetch";
@@ -38,11 +39,10 @@ export default function PasswordReveal({ endpoint }: { endpoint: string }) {
 
   const copy = async () => {
     if (!revealed?.password) return;
-    try {
-      await navigator.clipboard.writeText(revealed.password);
+    if (await copyText(revealed.password)) {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
-    } catch {
+    } else {
       setError("คัดลอกไม่สำเร็จ — เลือกข้อความแล้วคัดลอกเอง");
     }
   };

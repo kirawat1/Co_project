@@ -1,38 +1,38 @@
 # =====================================================
-# Co-op System — Setup Script (Task 2-9)
-# รันหลัง install-vm.ps1 เสร็จแล้ว
-# เปิด PowerShell (Admin) ใหม่แล้วรัน script นี้
+# Co-op System - Setup Script (Task 2-9)
+# Run after install-vm.ps1 has finished
+# Open a new PowerShell (Admin) and run this script
 # =====================================================
 
 Write-Host "=== Co-op System Setup ===" -ForegroundColor Cyan
 Write-Host ""
 
-# ---- รับค่าจาก User ----
-$VM_IP = Read-Host "IP ของ VM นี้ (กด Enter ถ้าใช้ Cloudflare Tunnel, พิมพ์ IP ถ้าใช้ LAN เช่น 192.168.1.100)"
+# ---- Ask the user ----
+$VM_IP = Read-Host "IP of this VM (press Enter for Cloudflare Tunnel, or type the LAN IP e.g. 192.168.1.100)"
 if (-not $VM_IP) { $VM_IP = "localhost" }
 
-$MYSQL_ROOT_PASS = Read-Host "MySQL root password (ที่ตั้งตอนติดตั้ง)" -AsSecureString
+$MYSQL_ROOT_PASS = Read-Host "MySQL root password (set during install)" -AsSecureString
 $MYSQL_ROOT_PASS = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($MYSQL_ROOT_PASS))
 
-$DB_PASS = Read-Host "ตั้ง password สำหรับ database user ใหม่ (coopuser)"
-$GOOGLE_CLIENT_ID = Read-Host "Google Client ID (กด Enter ถ้ายังไม่มี)"
+$DB_PASS = Read-Host "Password for the new database user (coopuser)"
+$GOOGLE_CLIENT_ID = Read-Host "Google Client ID (press Enter if none yet)"
 
 $FRONTEND_URL = if ($VM_IP -eq "localhost") { "http://localhost" } else { "http://$VM_IP" }
 
 Write-Host ""
-Write-Host "=== [1/6] Clone โปรเจกต์ ===" -ForegroundColor Yellow
+Write-Host "=== [1/6] Clone project ===" -ForegroundColor Yellow
 
 if (-not (Test-Path "C:\Co_project")) {
     git clone https://github.com/kirawat1/Co_project.git C:\Co_project
 } else {
-    Write-Host "มีโปรเจกต์แล้ว — git pull..." -ForegroundColor Gray
+    Write-Host "Project already exists - git pull..." -ForegroundColor Gray
     Set-Location C:\Co_project
     git pull origin main
 }
 Set-Location C:\Co_project
 
 Write-Host ""
-Write-Host "=== [2/6] สร้าง Database ===" -ForegroundColor Yellow
+Write-Host "=== [2/6] Create database ===" -ForegroundColor Yellow
 
 $sqlCmds = @"
 CREATE DATABASE IF NOT EXISTS coop_mysql_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
@@ -44,14 +44,14 @@ $sqlCmds | mysql -u root -p"$MYSQL_ROOT_PASS" 2>$null
 if ($LASTEXITCODE -eq 0) {
     Write-Host "Database created OK" -ForegroundColor Green
 } else {
-    Write-Host "MySQL error — ตรวจ root password อีกครั้ง" -ForegroundColor Red
+    Write-Host "MySQL error - check the root password again" -ForegroundColor Red
     exit 1
 }
 
 Write-Host ""
-Write-Host "=== [3/6] ตั้งค่า Environment Files ===" -ForegroundColor Yellow
+Write-Host "=== [3/6] Environment files ===" -ForegroundColor Yellow
 
-# สร้าง JWT_SECRET
+# Create JWT_SECRET
 $JWT_SECRET = -join ((48..57) + (97..122) | Get-Random -Count 64 | ForEach-Object { [char]$_ })
 
 # backend/.env
@@ -90,10 +90,10 @@ Write-Host "=== [5/6] Build Frontend ===" -ForegroundColor Yellow
 Set-Location C:\Co_project\Frontend
 npm install --silent
 npm run build
-Write-Host "Frontend built → dist/" -ForegroundColor Green
+Write-Host "Frontend built -> dist/" -ForegroundColor Green
 
 Write-Host ""
-Write-Host "=== [6/6] ตั้งค่า Nginx ===" -ForegroundColor Yellow
+Write-Host "=== [6/6] Nginx ===" -ForegroundColor Yellow
 
 $nginxConf = @"
 worker_processes  4;
@@ -109,7 +109,7 @@ http {
         server_name $VM_IP;
         root   C:/Co_project/Frontend/dist;
         index  index.html;
-        # Blocked on the public (ngrok-tunneled) listener — only reachable via
+        # Blocked on the public (ngrok-tunneled) listener - only reachable via
         # the 127.0.0.1-only server block below.
         location ^~ /api/internal-status { return 404; }
         location /api/ {
@@ -125,7 +125,7 @@ http {
             try_files `$uri `$uri/ /index.html;
         }
     }
-    # VM-local-only status dashboard — ngrok never tunnels this port,
+    # VM-local-only status dashboard - ngrok never tunnels this port,
     # so it is reachable only from inside the VM (e.g. http://localhost:8888/status.html).
     server {
         listen 127.0.0.1:8888;
@@ -158,10 +158,10 @@ Write-Host "Backend started with PM2" -ForegroundColor Green
 
 Write-Host ""
 Write-Host "=== Cloudflare Tunnel ===" -ForegroundColor Yellow
-Write-Host "เพื่อให้คนนอกเข้าได้ รัน:" -ForegroundColor Cyan
+Write-Host "To let outside users in, run:" -ForegroundColor Cyan
 Write-Host "  cloudflared tunnel --url http://localhost:80" -ForegroundColor White
-Write-Host "จะได้ URL แบบ https://xxxx.trycloudflare.com" -ForegroundColor Gray
-Write-Host "อัปเดต URL นั้นใน Google Cloud Console → Authorized JavaScript Origins" -ForegroundColor Gray
+Write-Host "You get a URL like https://xxxx.trycloudflare.com" -ForegroundColor Gray
+Write-Host "Put that URL in Google Cloud Console -> Authorized JavaScript Origins" -ForegroundColor Gray
 
 Write-Host ""
 Write-Host "=== Summary ===" -ForegroundColor Cyan
@@ -170,8 +170,8 @@ if ($VM_IP -ne "localhost") {
     Write-Host "LAN URL:     http://$VM_IP" -ForegroundColor Green
 }
 Write-Host ""
-Write-Host "pm2 status         — ดู backend status" -ForegroundColor Gray
-Write-Host "pm2 logs           — ดู backend logs" -ForegroundColor Gray
-Write-Host "pm2 restart coop-backend  — restart backend" -ForegroundColor Gray
+Write-Host "pm2 status         - backend status" -ForegroundColor Gray
+Write-Host "pm2 logs           - backend logs" -ForegroundColor Gray
+Write-Host "pm2 restart coop-backend  - restart backend" -ForegroundColor Gray
 Write-Host ""
 Write-Host "=== Setup Complete! ===" -ForegroundColor Cyan

@@ -1,6 +1,7 @@
 // Frontend/src/utils/pdfGeneratorT000.ts
 // PDF Generator สำหรับใบสมัครงานสหกิจศึกษา (T000)
 import { jsPDF } from "jspdf";
+import { wrapThai } from "./letterLayout";
 import { formMajorName } from "./docGeneratorUtils";
 
 // ================= HELPERS =================
@@ -73,7 +74,7 @@ export interface ProfileData {
     address?: string;
     phone?: string;
   };
-  coop?: { company?: { name?: string } };
+  coop?: { company?: { name?: string }; jobPosition?: string | null };
 }
 
 export interface T000FormData {
@@ -243,7 +244,8 @@ export const createT000PDF = async (
 
   // ✅ แก้ไข: ให้ดึงจาก profile.jobPosition ด้วย
   drawText(
-    profile.jobPosition || formData.jobPosition || "-",
+    // ตำแหน่งที่กรอกตอนยื่นคำร้อง (StudentCoop) ด้วย — เดิมถ้าไม่ได้กรอกซ้ำในหน้าเอกสาร ใบสมัครขึ้น "-"
+    profile.jobPosition || formData.jobPosition || profile.coop?.jobPosition || "-",
     leftX + 60,
     y + 6,
     "left",
@@ -331,28 +333,27 @@ export const createT000PDF = async (
   drawText("สาขาวิชา", leftX + 2, y);
   drawText("Department", leftX + 2, y + 3.5, "left", false, 9);
   doc.line(leftX + 18, y + 1, leftX + 90, y + 1);
-  doc.setFont("THSarabun", "bold");
-  doc.text(formMajorName(profile, "-"), leftX + 20, y); // major เป็นรหัสสาขา (CS) — พิมพ์ชื่อไทย
+  // ค่าในแถวนี้เดิมใช้ขนาดตัวอักษรค้างจากคำอังกฤษตัวเล็ก (9) — ตัวเล็กกว่าค่าอื่นทั้งใบ · ใช้ drawText ขนาดปกติ
+  drawText(formMajorName(profile, "-"), leftX + 20, y, "left", true); // major เป็นรหัสสาขา (CS) — พิมพ์ชื่อไทย
 
   drawText("คณะ", leftX + 95, y);
   drawText("Faculty", leftX + 95, y + 3.5, "left", false, 9);
   doc.line(leftX + 105, y + 1, 185, y + 1);
-  doc.text("วิทยาลัยการคอมพิวเตอร์", leftX + 110, y);
+  drawText("วิทยาลัยการคอมพิวเตอร์", leftX + 110, y, "left", true);
 
   // Row 4: Year / Advisor
   y += 8;
   drawText("นักศึกษาชั้นปีที่", leftX + 2, y);
   drawText("Years in", leftX + 2, y + 3.5, "left", false, 9);
   doc.line(leftX + 25, y + 1, leftX + 60, y + 1);
-  doc.setFont("THSarabun", "bold");
-  doc.text(profile.year || "-", leftX + 30, y);
+  drawText(profile.year || "-", leftX + 30, y, "left", true);
 
   drawText("ชื่ออาจารย์ที่ปรึกษา", leftX + 65, y);
   drawText("Name of academic advisor", leftX + 65, y + 3.5, "left", false, 9);
   doc.line(leftX + 95, y + 1, 185, y + 1);
 
   // ✅ แก้ไข: ให้ดึงจาก profile.advisorName เป็นหลัก
-  doc.text(profile.advisorName || formData.advisorName || "-", leftX + 100, y);
+  drawText(profile.advisorName || formData.advisorName || "-", leftX + 100, y, "left", true);
 
   // (เดิมมีแถว "เกรดเฉลี่ยรวม / GPA" — ระบบไม่ใช้ GPA แล้ว)
 
@@ -366,7 +367,7 @@ export const createT000PDF = async (
   drawText("ที่อยู่ที่ติดต่อได้", leftX + 2, innerY, "left", true, 12);
   drawText("Address this term", leftX + 2, innerY + 3.5, "left", false, 9);
 
-  const addrLines = doc.splitTextToSize(formData.contactAddress || "-", 90);
+  const addrLines = wrapThai(formData.contactAddress || "-", 90, (t) => doc.getTextWidth(t));
   doc.setFont("THSarabun", "normal");
   doc.text(addrLines, leftX + 2, innerY + 8);
   doc.line(leftX + 2, innerY + 20, leftX + 100, innerY + 20);
