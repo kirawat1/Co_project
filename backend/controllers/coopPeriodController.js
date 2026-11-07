@@ -1,4 +1,5 @@
 const prisma = require('../config/prismaClient');
+const { notStartedYet } = require('../utils/applyWindow');
 const { INTERNSHIP_STATUSES } = require('../utils/internshipForms');
 const { isPeriodExpired } = require('../utils/coopPeriodHelper');
 const { listPeriods, getRow, viewPeriod, viewerMajors, targetMajors, allMajorCodes } = require('../utils/coopPeriodMajor');
@@ -201,7 +202,9 @@ exports.getActivePeriod = async (req, res) => {
     if (majors && majors.length === 0) {
       return res.json({ ok: true, period: null, reason: 'NO_MAJOR', message: 'ยังไม่ได้ระบุหลักสูตรของคุณ กรุณาติดต่อเจ้าหน้าที่ให้ระบุหลักสูตรก่อนยื่นคำร้อง' });
     }
-    const period = (await listPeriods()).map((p) => viewPeriod(p, majors)).find((p) => p.isActive) || null;
+    // เปิดไว้หลายรอบ: รอบที่ถึงวันเปิดรับสมัครแล้วมาก่อน (รอบหน้าที่เปิดไว้ล่วงหน้าไม่บังรอบปัจจุบัน — ตรงกับ /config/apply)
+    const active = (await listPeriods()).map((p) => viewPeriod(p, majors)).filter((p) => p.isActive);
+    const period = active.find((p) => !notStartedYet(p)) || active[active.length - 1] || null;
     res.json({ ok: true, period });
   } catch (error) {
     handle(res, error, 'Get active period error:');

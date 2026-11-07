@@ -137,13 +137,32 @@ describe('deadlineConfigController', () => {
   describe('apply — ช่วงยื่นคำร้อง = รอบที่เปิดของหลักสูตร', () => {
     test('มีรอบเปิด → open + วันของรอบ', async () => {
       setup();
-      prisma.coopPeriodMajor.findMany.mockResolvedValue([{ periodId: 2, major: 'CS', isActive: true, startDate: new Date('2026-08-01T00:00:00Z'), endDate: new Date('2099-09-11T00:00:00Z') }]);
+      prisma.coopPeriodMajor.findMany.mockResolvedValue([{ periodId: 2, major: 'CS', isActive: true, startDate: new Date('2026-07-01T00:00:00Z'), endDate: new Date('2099-09-11T00:00:00Z') }]);
       const res = makeRes();
       await ctrl.getApplyConfig(student, res);
       const body = res.json.mock.calls[0][0];
-      expect(body).toMatchObject({ isOpen: true, startDate: '2026-08-01', endDate: '2099-09-11' });
+      expect(body).toMatchObject({ isOpen: true, startDate: '2026-07-01', endDate: '2099-09-11' });
       expect(body.state).toMatchObject({ configured: true, open: true, endDate: '2099-09-11', message: null });
       expect(prisma.coopPeriodMajor.findMany.mock.calls[0][0].where).toEqual({ major: 'CS', isActive: true });
+    });
+
+    // ผู้ใช้ตัดสิน 2026-11-05: เปิดสวิตช์ไว้แต่ยังไม่ถึงวันเปิดรับสมัคร = ยังยื่นไม่ได้ (เดิมยื่นได้ทันที)
+    test('เปิดไว้แต่ยังไม่ถึงวันเปิดรับสมัคร → ปิด "ยังไม่ถึงช่วงเวลา" · เปิดหลายรอบ = รอบที่ถึงวันเปิดแล้วมาก่อน', async () => {
+      setup();
+      const future = { periodId: 3, major: 'CS', isActive: true, startDate: new Date('2026-08-01T00:00:00Z'), endDate: new Date('2099-12-31T00:00:00Z') };
+      prisma.coopPeriodMajor.findMany.mockResolvedValue([future]);
+      let res = makeRes();
+      await ctrl.getApplyConfig(student, res);
+      let body = res.json.mock.calls[0][0];
+      expect(body).toMatchObject({ isOpen: false, startDate: '2026-08-01' });
+      expect(body.state).toMatchObject({ open: false, reason: 'NOT_YET' });
+      expect(body.state.message).toMatch(/^ยังไม่ถึงช่วงเวลายื่นคำร้อง/);
+
+      prisma.coopPeriodMajor.findMany.mockResolvedValue([future, { periodId: 2, major: 'CS', isActive: true, startDate: new Date('2026-07-01T00:00:00Z'), endDate: new Date('2099-09-11T00:00:00Z') }]);
+      res = makeRes();
+      await ctrl.getApplyConfig(student, res);
+      body = res.json.mock.calls[0][0];
+      expect(body).toMatchObject({ isOpen: true, startDate: '2026-07-01', endDate: '2099-09-11' });
     });
 
     test('ไม่มีรอบเปิด → ปิด พร้อมข้อความ (ไม่สนค่า APPLY_CONFIG เดิม)', async () => {
