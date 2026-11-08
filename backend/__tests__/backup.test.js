@@ -3,7 +3,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const zlib = require('zlib');
-const { parseDatabaseUrl, selectExpired, stamp, syncDir, scanDump, DUMP_RE } = require('../scripts/backup');
+const { parseDatabaseUrl, selectExpired, stamp, syncDir, scanDump, DUMP_RE, uploadRel, checkUploads, checkMirror, UPLOAD_REFS } = require('../scripts/backup');
 
 describe('parseDatabaseUrl', () => {
   test('แยก user/รหัส/host/port/ฐาน — รหัสที่มีอักขระพิเศษถูก decode', () => {
@@ -91,5 +91,74 @@ describe('scanDump — ตรวจไฟล์สำรองโดยไม่
     const full = zlib.gzipSync(require('crypto').randomBytes(50000).toString('hex')); // สุ่ม = บีบอัดไม่ลง ไฟล์ใหญ่พอให้ตัด
     fs.writeFileSync(cut, full.subarray(0, full.length / 2));
     await expect(scanDump(cut)).rejects.toThrow();
+  });
+});
+
+describe('uploadRel — ค่าในฐาน → path ใต้ uploads/', () => {
+  test('รูปแบบที่พบจริง: ชื่อไฟล์ · /uploads/... · โฟลเดอร์ย่อย · ไฟล์ระบบ/หนังสือนิเทศเก็บแค่ชื่อ', () => {
+    expect(uploadRel('1778700898067-236109591.pdf')).toBe('1778700898067-236109591.pdf');
+    expect(uploadRel('/uploads/manual-test2/acceptance.pdf')).toBe('manual-test2/acceptance.pdf');
+    expect(uploadRel('mock/CV.pdf')).toBe('mock/CV.pdf');
+    expect(uploadRel('KRUT_1768771183663.png', 'system')).toBe('system/KRUT_1768771183663.png');
+    expect(uploadRel('SUPERVISION_LETTER_1.pdf', 'supervision')).toBe('supervision/SUPERVISION_LETTER_1.pdf');
+  });
+  test('ลิงก์ภายนอก (ใบเกรด Google Sheets) · ค่าว่าง · ย้อนโฟลเดอร์ = ไม่นับ', () => {
+    for (const v of ['https://docs.google.com/spreadsheets/d/x', 'data:image/png;base64,AA', '', '   ', null, '../../.env', 'a/../../b']) {
+      expect(uploadRel(v)).toBeNull();
+    }
+  });
+  test('ครอบทุกตารางที่ uploadsGuard รู้จัก (ไฟล์ใหม่ต้องเพิ่มที่นี่ด้วย)', () => {
+    const cols = UPLOAD_REFS.map(([m, f]) => `${m}.${f}`);
+    expect(cols).toEqual(expect.arrayContaining(['document.path', 'studentCoop.reqLetterUrl', 'studentCoop.placeLetterUrl', 'studentCoop.acceptanceFileUrl',
+      'coopApplicationForm.photoPath', 'annFile.path', 'feedback.imagePath', 'systemAsset.path', 'supervisionAppointment.officialLetterPath']));
+  });
+});
+
+describe('checkUploads / checkMirror — ที่สำรองมีไฟล์ที่ฐานอ้างถึงครบไหม', () => {
+  let root, live, cfg, lines, log;
+  const put = (dir, rel) => { fs.mkdirSync(path.dirname(path.join(dir, rel)), { recursive: true }); fs.writeFileSync(path.join(dir, rel), 'x'); };
+  const db = (rows) => new Proxy({}, { get: (_, model) => ({ findMany: async ({ select }) => (rows[model] || []).map((v) => ({ [Object.keys(select)[0]]: v })) }) });
+  beforeEach(() => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), 'chkup-'));
+    live = path.join(root, 'live');
+    cfg = { dir: path.join(root, 'bak'), mirror: null };
+    lines = []; log = (m) => lines.push(m);
+    process.exitCode = 0;
+  });
+  afterEach(() => { fs.rmSync(root, { recursive: true, force: true }); process.exitCode = 0; });
+
+  test('ครบ → OK · ไฟล์ที่หายจากระบบอยู่แล้วแค่เตือน (ไม่ทำให้ล้ม) · ลิงก์ภายนอกไม่นับ', async () => {
+    for (const r of ['a.pdf', 'system/KRUT_1.png', 'supervision/S_1.pdf']) { put(live, r); put(path.join(cfg.dir, 'uploads'), r); }
+    const res = await checkUploads(cfg, log, db({ document: ['a.pdf', 'gone.pdf'], systemAsset: ['KRUT_1.png'], supervisionAppointment: ['S_1.pdf'], coopApplicationForm: ['https://docs.google.com/x'] }), live);
+    expect(res).toEqual({ refs: 4, live: 3, goneLive: 1, ok: true });
+    expect(lines.join('\n')).toMatch(/\[OK\] ไฟล์อัปโหลดในที่สำรองครบ 3/);
+    expect(lines.join('\n')).toMatch(/\[WARN\].*1 ไฟล์.*gone\.pdf/);
+    expect(process.exitCode).toBe(0);
+  });
+
+  test('ไฟล์อยู่ในระบบแต่ไม่อยู่ในที่สำรอง/สำเนาที่สอง → ERR + exit 1', async () => {
+    cfg.mirror = path.join(root, 'mirror');
+    put(live, 'a.pdf'); put(live, 'b.pdf');
+    put(path.join(cfg.dir, 'uploads'), 'a.pdf'); put(path.join(cfg.dir, 'uploads'), 'b.pdf');
+    put(path.join(cfg.mirror, 'uploads'), 'a.pdf');
+    const res = await checkUploads(cfg, log, db({ document: ['a.pdf', 'b.pdf'] }), live);
+    expect(res.ok).toBe(false);
+    expect(lines.join('\n')).toMatch(/\[OK\] ไฟล์อัปโหลดในที่สำรองครบ 2/);
+    expect(lines.join('\n')).toMatch(/\[ERR\] ไฟล์อัปโหลดในสำเนาที่สองไม่ครบ: ขาด 1 จาก 2.*b\.pdf/);
+    expect(process.exitCode).toBe(1);
+  });
+
+  test('checkMirror: ไม่ได้ตั้ง = เตือน · ตั้งแล้วไม่มี dump ล่าสุด = ERR · มี = OK', () => {
+    checkMirror(cfg, log, '/x/coop_db-20261108-0200.sql.gz');
+    expect(lines.pop()).toMatch(/\[WARN\] ยังไม่ได้ตั้ง BACKUP_MIRROR_DIR/);
+    expect(process.exitCode).toBe(0);
+    cfg.mirror = path.join(root, 'mirror');
+    checkMirror(cfg, log, '/x/coop_db-20261108-0200.sql.gz');
+    expect(lines.pop()).toMatch(/\[ERR\]/);
+    expect(process.exitCode).toBe(1);
+    put(path.join(cfg.mirror, 'db'), 'coop_db-20261108-0200.sql.gz');
+    process.exitCode = 0;
+    checkMirror(cfg, log, '/x/coop_db-20261108-0200.sql.gz');
+    expect(lines.pop()).toMatch(/\[OK\]/);
   });
 });

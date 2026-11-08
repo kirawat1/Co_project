@@ -287,6 +287,9 @@ async function backup(cfg, log) {
       log(`[ERR] สำเนาที่สองไม่สำเร็จ (${cfg.mirror}): ${e.message}`);
       process.exitCode = 1;
     }
+  } else {
+    // เดิมเงียบ — ไม่มีใครรู้ว่าที่สำรองอยู่บนดิสก์เดียวกับระบบ
+    log('[WARN] ยังไม่ได้ตั้ง BACKUP_MIRROR_DIR — ที่สำรองอยู่บนเครื่องเดียวกับระบบ ถ้า VM/ดิสก์เสียทั้งก้อนจะกู้ไม่ได้ (docs/backup.md)');
   }
   fs.writeFileSync(path.join(cfg.dir, 'last-backup.json'), JSON.stringify({ at: new Date().toISOString(), file, size, uploads: up }, null, 2));
   return file;
@@ -370,7 +373,7 @@ async function verify(cfg, log, file) {
     if (!completed) throw new Error('ไฟล์สำรองไม่ครบ (ไม่มี "-- Dump completed")');
     const { tables, fewer } = await compareWithLive(cfg, log, counts, 'ในไฟล์');
     log(`[OK] ไฟล์สำรองครบ ${tables.length} ตาราง${fewer.length ? ` (${fewer.length} ตารางมีแถวน้อยกว่าฐานจริง = ข้อมูลที่เพิ่มหลังเวลาสำรอง)` : ''} · ไม่ได้ลองโหลดเข้า MySQL จริง`);
-    return;
+    return file;
   }
   try {
     const restored = await tableCounts(cfg.db, target);
@@ -380,6 +383,67 @@ async function verify(cfg, log, file) {
     await dropScratch(cfg, target);
     log(`    ลบฐานชั่วคราว ${target} แล้ว`);
   }
+  return file;
+}
+
+// ไฟล์อัปโหลดที่ฐานข้อมูลอ้างถึง [ตาราง, คอลัมน์, โฟลเดอร์ใต้ uploads ถ้าค่าเก็บแค่ชื่อไฟล์]
+// กู้ฐานได้แต่ไฟล์ไม่ครบ = เอกสาร/หนังสือ/ใบตอบรับเปิดไม่ได้ทั้งระบบ — --verify เดิมตรวจแค่ฐาน
+const UPLOAD_REFS = [
+  ['document', 'path', ''], ['annFile', 'path', ''], ['feedback', 'imagePath', ''], ['coopApplicationForm', 'photoPath', ''],
+  ['studentCoop', 'reqLetterUrl', ''], ['studentCoop', 'placeLetterUrl', ''], ['studentCoop', 'acceptanceFileUrl', ''],
+  ['systemAsset', 'path', 'system'], ['supervisionAppointment', 'officialLetterPath', 'supervision'],
+];
+
+/** ค่าในคอลัมน์ → path ใต้ uploads/ ("/uploads/a.pdf" · "a.pdf" · "mock/a.pdf") · ลิงก์ภายนอก/ค่าแปลก = null */
+function uploadRel(value, dir = '') {
+  if (!value || typeof value !== 'string') return null;
+  let v = value.trim().replace(/\\/g, '/');
+  if (!v || /^[a-z][a-z0-9+.-]*:/i.test(v)) return null;          // https://docs.google.com/... (ใบเกรด) · data:
+  v = v.replace(/^\/+/, '').replace(/^uploads\//, '');
+  if (!v || v.split('/').includes('..')) return null;
+  return dir && !v.includes('/') ? `${dir}/${v}` : v;
+}
+
+/** ไฟล์ที่ฐานอ้างถึงต้องอยู่ในที่สำรอง (และสำเนาที่สอง) · ไฟล์ที่หายจากระบบไปก่อนแล้วแค่เตือน (ไม่ใช่ความผิดของการสำรอง) */
+async function checkUploads(cfg, log, db, uploadsDir = UPLOADS_DIR) {
+  const own = !db;
+  db = db || require('../config/prismaClient');
+  try {
+    const refs = new Set();
+    for (const [model, field, dir] of UPLOAD_REFS) {
+      const rows = await db[model].findMany({ select: { [field]: true } });   // ไม่ใช้ where not null — Prisma 4 ไม่รับกับคอลัมน์ที่ห้ามว่าง
+      for (const r of rows) { const rel = uploadRel(r[field], dir); if (rel) refs.add(rel); }
+    }
+    const all = [...refs];
+    const live = all.filter((r) => fs.existsSync(path.join(uploadsDir, r)));
+    const goneLive = all.filter((r) => !live.includes(r));
+    const places = [['ที่สำรอง', path.join(cfg.dir, 'uploads')], ...(cfg.mirror ? [['สำเนาที่สอง', path.join(cfg.mirror, 'uploads')]] : [])];
+    let ok = true;
+    for (const [label, dir] of places) {
+      const missing = live.filter((r) => !fs.existsSync(path.join(dir, r)));
+      if (missing.length) {
+        ok = false;
+        log(`[ERR] ไฟล์อัปโหลดใน${label}ไม่ครบ: ขาด ${missing.length} จาก ${live.length} ไฟล์ (เช่น ${missing.slice(0, 3).join(', ')}) — รัน node scripts/backup.js ใหม่`);
+      } else {
+        log(`[OK] ไฟล์อัปโหลดใน${label}ครบ ${live.length} ไฟล์ที่ฐานอ้างถึง`);
+      }
+    }
+    if (goneLive.length) log(`[WARN] ฐานอ้างถึงไฟล์ที่ไม่มีในระบบอยู่แล้ว ${goneLive.length} ไฟล์ (เช่น ${goneLive.slice(0, 3).join(', ')}) — ไม่เกี่ยวกับการสำรอง`);
+    if (!ok) process.exitCode = 1;
+    return { refs: all.length, live: live.length, goneLive: goneLive.length, ok };
+  } finally {
+    if (own) await db.$disconnect().catch(() => {});
+  }
+}
+
+/** สำเนาที่สองมี dump ล่าสุดไหม (กัน "ตั้งไว้แต่คัดลอกไม่ได้มาหลายคืน") */
+function checkMirror(cfg, log, file) {
+  if (!cfg.mirror) {
+    log('[WARN] ยังไม่ได้ตั้ง BACKUP_MIRROR_DIR — ถ้า VM/ดิสก์เสียทั้งก้อนจะกู้ไม่ได้ (docs/backup.md)');
+    return;
+  }
+  if (fs.existsSync(path.join(cfg.mirror, 'db', path.basename(file)))) log(`[OK] สำเนาที่สองมี dump ล่าสุด (${path.basename(file)})`);
+  else { log(`[ERR] สำเนาที่สอง (${cfg.mirror}) ไม่มี dump ล่าสุด ${path.basename(file)}`); process.exitCode = 1; }
 }
 
 function dropScratch(cfg, target) {
@@ -403,7 +467,9 @@ async function main() {
       await restoreDump(cfg.db, path.resolve(args.restore), target);
       log(`[OK] กู้ลง ${target} เสร็จ`);
     } else if (args.verify) {
-      await verify(cfg, log, typeof args.verify === 'string' ? path.resolve(args.verify) : null);
+      const file = await verify(cfg, log, typeof args.verify === 'string' ? path.resolve(args.verify) : null);
+      checkMirror(cfg, log, file);
+      await checkUploads(cfg, log);
     } else {
       log('===== เริ่มสำรองข้อมูล =====');
       await backup(cfg, log);
@@ -422,4 +488,4 @@ async function main() {
 
 if (require.main === module) main();
 
-module.exports = { parseDatabaseUrl, selectExpired, stamp, syncDir, scanDump, DUMP_RE };
+module.exports = { parseDatabaseUrl, selectExpired, stamp, syncDir, scanDump, DUMP_RE, uploadRel, checkUploads, checkMirror, UPLOAD_REFS };
