@@ -28,7 +28,8 @@ exports.signIn = async (req, res) => {
   try {
     const { email: rawEmail, password, role } = req.body;
 
-    if (!rawEmail || !password || !role) {
+    // ต้องเป็นข้อความ — เดิมส่ง {"$ne":""} / [..] มา ตกไป 500 (ไม่ทะลุ แต่ไม่ควรเป็น server error)
+    if (!rawEmail || !password || !role || [rawEmail, password, role].some((v) => typeof v !== 'string')) {
       return res.status(400).json({ ok: false, message: "กรุณากรอกข้อมูลให้ครบ" });
     }
 

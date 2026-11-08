@@ -195,7 +195,7 @@ export default function A_Feedback() {
 
                                         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
                                             <a className="btn-secondary" href={logLink(f)}>📋 ดูบันทึกการใช้งานของผู้แจ้งวันนั้น</a>
-                                            {f.pagePath && <a className="btn-secondary" href={f.pagePath}>↗ เปิดหน้าที่แจ้ง</a>}
+                                            {/^\/(?![\\/])/.test(f.pagePath || "") && <a className="btn-secondary" href={f.pagePath!}>↗ เปิดหน้าที่แจ้ง</a>}
                                         </div>
 
                                         <div style={fieldLabel}>ตอบกลับผู้แจ้ง</div>

@@ -83,37 +83,35 @@ exports.updateProfile = async (req, res) => {
         return res.status(404).json({ message: "User not found" });
     }
 
-    // 2. ใช้ Upsert (Update หรือ Insert)
-    const updated = await prisma.teacher.upsert({
-      where: { 
-        userId: userId 
-      },
-      // กรณีมีข้อมูลอยู่แล้ว -> อัปเดตข้อมูลทั่วไป
-      update: {
-        firstName,
-        lastName,
-        phone,
-        faculty,
-        major,
-        prefix: prefix === undefined ? undefined : (prefix || null), // ไม่ส่งมา = คงเดิม (เดิมคำนำหน้าหาย)
-      },
-      // กรณีไม่มีข้อมูล (สร้างใหม่) -> ต้องใส่ฟิลด์ Required ให้ครบ
-      create: {
-        firstName,
-        lastName,
-        phone,
-        faculty,
-        major,
-        prefix: prefix || null,
-        email: currentUser.email, // ✅ ใส่ email ที่ดึงมา
-        user: {                   
-            connect: { id: userId } // ✅ เชื่อม Relation แบบที่ถูกต้อง
-        }
-      },
-      include: {
-        user: { select: { email: true } }
-      }
-    });
+    // หลักสูตรต้องเป็นรหัสที่มีจริง (เหมือนหน้าเจ้าหน้าที่) — เดิมส่งอะไรมาก็บันทึก อาจารย์หลุดจากปฏิทิน/รายการตามหลักสูตร
+    const current = await prisma.teacher.findUnique({ where: { userId }, select: { major: true } });
+    const majorError = await unknownMajorError(major, current?.major);
+    if (majorError) return res.status(400).json({ ok: false, message: majorError });
+
+    // 2. มีแถวอยู่แล้ว = แก้เฉพาะช่องที่ส่งมา · ยังไม่มี = สร้าง (ต้องมีชื่อ-นามสกุล)
+    // เดิม upsert — Prisma ตรวจส่วน create ด้วยเสมอ ส่งมาบางช่อง (เช่นเปลี่ยนแค่หลักสูตร) ได้ 500
+    const include = { user: { select: { email: true } } };
+    if (!current && (!firstName || !lastName)) {
+      return res.status(400).json({ ok: false, message: "กรุณากรอกชื่อและนามสกุล" });
+    }
+    const updated = current
+      ? await prisma.teacher.update({
+          where: { userId },
+          data: {
+            firstName, lastName, phone, faculty, major,
+            prefix: prefix === undefined ? undefined : (prefix || null), // ไม่ส่งมา = คงเดิม (เดิมคำนำหน้าหาย)
+          },
+          include,
+        })
+      : await prisma.teacher.create({
+          data: {
+            firstName, lastName, phone, faculty, major,
+            prefix: prefix || null,
+            email: currentUser.email,
+            user: { connect: { id: userId } },
+          },
+          include,
+        });
 
     // จัดรูปแบบข้อมูลส่งกลับ
     const result = {

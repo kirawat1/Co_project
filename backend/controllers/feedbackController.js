@@ -15,6 +15,12 @@ const MESSAGE_MAX = 2000;
 const MAX_LIMIT = 100;
 
 const trim = (v, max) => (v == null ? null : String(v).trim().slice(0, max) || null);
+// หน้าที่แจ้ง = path ภายในระบบเท่านั้น ("/student/docs") — หน้าเจ้าหน้าที่ทำเป็นปุ่มเปิด
+// เดิมรับอะไรก็ได้: ส่ง "https://เว็บหลอก" / "javascript:..." มา เจ้าหน้าที่กด "เปิดหน้าที่แจ้ง" แล้วออกนอกระบบ
+const internalPath = (v) => {
+  const p = trim(v, 300);
+  return p && /^\/(?![\\/])/.test(p) && !/[\s\\]/.test(p) ? p : null;
+};
 
 // ชื่อผู้แจ้งแบบอ่านออก — ใช้ทั้งในรายการของเจ้าหน้าที่และในแจ้งเตือน
 const PREFIX_TH = { MR: 'นาย', MS: 'นางสาว' };
@@ -59,7 +65,7 @@ exports.submitFeedback = async (req, res) => {
         role: String(user.role || '').slice(0, 20),
         kind,
         message: message.slice(0, MESSAGE_MAX),
-        pagePath: trim(req.body?.pagePath, 300),
+        pagePath: internalPath(req.body?.pagePath),
         // สถานะสหกิจ ณ เวลาที่แจ้ง — ช่วยให้เจ้าหน้าที่เห็นว่าติดอยู่ขั้นไหน
         contextNote: trim(req.body?.contextNote || user.student?.coop?.status, 300),
         userAgent: trim(req.headers['user-agent'], 300),

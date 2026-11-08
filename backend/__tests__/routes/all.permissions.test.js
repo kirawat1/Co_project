@@ -109,7 +109,7 @@ const EXPECTED = {
   },
   teacher: {
     'GET /me':                            '· ✓ ✓ ✓',
-    'PUT /me':                            '· ✓ ✓ ✓',
+    'PUT /me':                            '· ✓ ✓ ·',   // เจ้าหน้าที่ไม่มีแถวอาจารย์ — เดิมเรียกแล้วได้แถวอาจารย์ผูกบัญชีตัวเอง
     'GET /prefixes':                      '· ✓ ✓ ✓',
     'GET /my-students':                   '· ✓ ✓ ·',
     'GET /students/export':               '· ✓ ✓ ·',

@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import type { DailyLog } from "./store";
 import { fmtDate, fmtDateTime } from '../utils/dateFormat';
 import { notify } from "../utils/notify";
+import { csvCell } from "../utils/csvCell";
 
 const DAILY_KEY = "coop.student.daily.v1";
 const YEAR_KEY = "coop.admin.academicYear";
@@ -191,7 +192,7 @@ export default function A_Daily() {
       "วันที่บันทึก",
     ];
 
-    const toCsv = (v: any) => `"${String(v || "").replace(/"/g, '""')}"`;
+    const toCsv = (v: any) => csvCell(v || "");
 
     const lines = [
       header.join(","),

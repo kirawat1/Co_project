@@ -118,7 +118,8 @@ describe('updateProfile', () => {
       major: null,
       user: { email: 'teacher@kku.ac.th' },
     };
-    prisma.teacher.upsert.mockResolvedValue(upserted);
+    prisma.teacher.findUnique.mockResolvedValue({ major: null });
+    prisma.teacher.update.mockResolvedValue(upserted);
 
     const req = {
       user: { id: 1 },
@@ -131,6 +132,41 @@ describe('updateProfile', () => {
     expect(body.ok).toBe(true);
     expect(body.data.firstName).toBe('สมชาย');
     expect(body.data.email).toBe('teacher@kku.ac.th');
+    expect(prisma.teacher.create).not.toHaveBeenCalled();
+  });
+
+  test('ส่งมาบางช่อง (แค่หลักสูตร) = แก้เฉพาะช่องนั้น ไม่พัง (เดิม upsert ตรวจส่วน create ได้ 500)', async () => {
+    prisma.user.findUnique.mockResolvedValue({ email: 't@kku.ac.th' });
+    prisma.teacher.findUnique.mockResolvedValue({ major: 'CS' });
+    prisma.coopCriteria.findUnique.mockResolvedValue({ major: 'AI' });
+    prisma.teacher.update.mockResolvedValue({ id: 1, major: 'AI', user: { email: 't@kku.ac.th' } });
+    const res = makeRes();
+    await updateProfile({ user: { id: 1 }, body: { major: 'AI' } }, res);
+    expect(prisma.teacher.update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ major: 'AI', firstName: undefined }) }));
+    expect(res.json.mock.calls[0][0].ok).toBe(true);
+  });
+
+  test('400 — หลักสูตรที่ไม่มีในระบบ', async () => {
+    prisma.user.findUnique.mockResolvedValue({ email: 't@kku.ac.th' });
+    prisma.teacher.findUnique.mockResolvedValue({ major: 'CS' });
+    prisma.coopCriteria.findUnique.mockResolvedValue(null);
+    const res = makeRes();
+    await updateProfile({ user: { id: 1 }, body: { major: 'ไม่มีจริง' } }, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(prisma.teacher.update).not.toHaveBeenCalled();
+  });
+
+  test('ยังไม่มีแถวอาจารย์ = สร้าง (ต้องมีชื่อ-นามสกุล ไม่งั้น 400)', async () => {
+    prisma.user.findUnique.mockResolvedValue({ email: 't@kku.ac.th' });
+    prisma.teacher.findUnique.mockResolvedValue(null);
+    const res400 = makeRes();
+    await updateProfile({ user: { id: 1 }, body: { phone: '1' } }, res400);
+    expect(res400.status).toHaveBeenCalledWith(400);
+    prisma.teacher.create.mockResolvedValue({ id: 2, firstName: 'ก', user: { email: 't@kku.ac.th' } });
+    const res = makeRes();
+    await updateProfile({ user: { id: 1 }, body: { firstName: 'ก', lastName: 'ข' } }, res);
+    expect(prisma.teacher.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ email: 't@kku.ac.th', user: { connect: { id: 1 } } }) }));
+    expect(res.json.mock.calls[0][0].ok).toBe(true);
   });
 });
 
