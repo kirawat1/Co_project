@@ -1,4 +1,5 @@
 const prisma = require('../config/prismaClient');
+const { lockStudents } = require('../utils/rowLock');
 const { studentIdSearchOr } = require('../utils/studentId');
 const { deadlineFlagsFor } = require('../utils/deadlineFlags');
 const { createNotifications } = require('../utils/notificationHelper');
@@ -21,6 +22,22 @@ const COOP_STATUS_ORDER = [
   'INTERNSHIP_STARTED', 'T002_SUBMITTED', 'T002_EDITS_REQUIRED', 'T003_SUBMITTED', 'T003_EDITS_REQUIRED', 'T003_APPROVED',
 ];
 const LETTER_ISSUE_STATUSES = new Set(['REQ_LETTER_ISSUED', 'PLACEMENT_LETTER_ISSUED']);
+
+// ช่วงที่ตรวจเอกสาร T000 ได้ (หน้าต่างตรวจขั้นที่ 1 ของ A_DocT000 · อนุมัติทั้งหมด · ผ่าน/ส่งกลับแก้)
+// ต้องผ่านคำร้องก่อน — ผู้ใช้ตัดสิน 2026-11-08: คำร้องพิจารณาโดยอาจารย์ประจำวิชา/เจ้าหน้าที่ ผ่านแล้วค่อยตรวจ T000
+// (เดิมรวม APPLYING/QUALIFICATION_FAILED/APPLICATION_EDITS_REQUIRED/ไม่มีข้อมูลสหกิจ → กดผ่าน T000 แล้วกระโดดข้ามการพิจารณาคำร้อง)
+const T000_REVIEWABLE = new Set(['QUALIFIED', 'WAITING_FOR_STAFF_CHECK', 'EDITS_REQUIRED', 'DOCS_APPROVED']);
+// ช่วงตรวจใบตอบรับ (หน้าต่างตรวจขั้นที่ 2)
+const ACCEPTANCE_REVIEWABLE = new Set(['WAITING_FOR_PLACEMENT_LETTER', 'WAITING_FOR_STAFF_CHECK_LETTER', 'ACCEPTANCE_CHECKED']);
+// สถานะที่หน้าเว็บส่งมาที่ /t000/review ได้ + ทำได้จากขั้นไหน (หนังสือใช้ LETTERS[...].minStatus เหมือนร่าง/หนังสือรวม)
+// เดิมรับ 12 สถานะจากขั้นไหนก็ได้: ยังไม่ยื่นคำร้อง → "ออกหนังสือส่งตัวแล้ว" ได้ทันที · ตั้ง QUALIFIED ย้อนหลังข้ามกติกาล็อกผลคำร้อง
+const REVIEW_FROM = {
+  DOCS_APPROVED: T000_REVIEWABLE, EDITS_REQUIRED: T000_REVIEWABLE,
+  ACCEPTANCE_CHECKED: ACCEPTANCE_REVIEWABLE, WAITING_FOR_PLACEMENT_LETTER: ACCEPTANCE_REVIEWABLE,
+};
+const ACCEPTANCE_TYPES_FOR_REVIEW = ['CP-ACCEPTANCE', 'ACCEPTANCE_FORM'];
+// เอกสารที่มีขั้นตอนตรวจของตัวเอง — เปลี่ยนสถานะรายไฟล์ที่ /doc/:id/status ไม่ได้
+const DOC_STATUS_OWN_FLOW = ['T002_FORM', 'T003_FORM', 'DISPATCH_LETTER', 'PLACEMENT_LETTER'];
 
 // สถานะที่นักศึกษาต้องไปดู/ทำต่อที่หน้าเอกสารสหกิจ (/student/docs) — แจ้งเตือนชนิด DOCS_UPDATED
 const STUDENT_DOCS_STATUSES = new Set([
@@ -177,9 +194,18 @@ exports.updateDocStatus = async (req, res) => {
       return res.status(400).json({ ok: false, message: 'id ไม่ถูกต้อง' });
     }
 
-    const doc = await prisma.document.findUnique({ where: { id: parsedId }, select: { studentId: true } });
+    const doc = await prisma.document.findUnique({ where: { id: parsedId }, select: { studentId: true, type: true, student: { select: { coop: { select: { status: true } } } } } });
     if (!doc) return res.status(404).json({ ok: false, message: 'ไม่พบเอกสาร' });
     await assertStudentInScope(req, doc.studentId);
+    // ตรวจรายไฟล์ได้เฉพาะช่วงตรวจของไฟล์นั้น (เดิมได้ทุกสถานะ ทุกชนิด รวม T002/T003 ที่มีขั้นตรวจของอาจารย์)
+    if (DOC_STATUS_OWN_FLOW.includes(doc.type)) {
+      return res.status(400).json({ ok: false, message: 'เอกสารนี้ตรวจที่หน้าของขั้นนั้น (T002/T003/หนังสือ) ไม่ใช่หน้าตรวจ T000' });
+    }
+    const coopStatus = doc.student?.coop?.status;
+    const reviewWindow = ACCEPTANCE_TYPES_FOR_REVIEW.includes(doc.type) ? ACCEPTANCE_REVIEWABLE : T000_REVIEWABLE;
+    if (!coopStatus || !reviewWindow.has(coopStatus)) {
+      return res.status(409).json({ ok: false, message: 'นักศึกษาไม่ได้อยู่ในขั้นตรวจเอกสารนี้ — ตรวจได้หลังคำร้องผ่านและก่อนออกหนังสือ' });
+    }
 
     await prisma.document.update({
       where: { id: parsedId },
@@ -216,13 +242,8 @@ exports.reviewStudentStatus = async (req, res) => {
       return res.status(400).json({ ok: false, message: 'studentId ต้องเป็นตัวเลขที่ถูกต้อง' });
     }
 
-    const REVIEW_STATUS_ALLOWED = new Set([
-      'QUALIFIED', 'QUALIFICATION_FAILED', 'APPLICATION_EDITS_REQUIRED',
-      'WAITING_FOR_STAFF_CHECK', 'EDITS_REQUIRED', 'DOCS_APPROVED',
-      'REQ_LETTER_ISSUED', 'WAITING_FOR_PLACEMENT_LETTER',
-      'WAITING_FOR_STAFF_CHECK_LETTER', 'ACCEPTANCE_CHECKED',
-      'PLACEMENT_LETTER_ISSUED', 'INTERNSHIP_STARTED',
-    ]);
+    // ผลคำร้องตั้งที่หน้าคำร้อง · สถานะที่นักศึกษาทำเอง (ส่ง T000/ใบตอบรับ/รับหนังสือ) ระบบตั้งเอง — ที่นี่รับเฉพาะที่หน้าเว็บส่ง
+    const REVIEW_STATUS_ALLOWED = new Set([...Object.keys(REVIEW_FROM), ...LETTER_ISSUE_STATUSES]);
     if (!status || !REVIEW_STATUS_ALLOWED.has(status)) {
       if (req.file) try { fs.unlinkSync(path.join(__dirname, '../uploads', req.file.filename)); } catch (_) {}
       return res.status(400).json({ ok: false, message: 'status ไม่ถูกต้อง' });
@@ -294,6 +315,7 @@ exports.reviewStudentStatus = async (req, res) => {
     let statusKept = false;
 
     await prisma.$transaction(async (tx) => {
+      await lockStudents(tx, parsedStudentId); // คิวต่อนักศึกษา (utils/rowLock) — คำขอพร้อมกันทำทีละคำขอ
       const studentCheck = await tx.student.findUnique({ where: { id: parsedStudentId }, select: { deletedAt: true } });
       // ดึงสถานะ + letter URL เก่าภายใน transaction เพื่อหลีกเลี่ยง TOCTOU race
       const prevCoop = await tx.studentCoop.findUnique({
@@ -306,6 +328,18 @@ exports.reviewStudentStatus = async (req, res) => {
       }
       if (!studentCheck || studentCheck.deletedAt) {
         throw Object.assign(new Error('ไม่พบนักศึกษา'), { is404: true });
+      }
+      const fromStatus = prevCoop?.status;
+      if (REVIEW_FROM[status] && !REVIEW_FROM[status].has(fromStatus)) {
+        throw Object.assign(new Error(T000_REVIEWABLE === REVIEW_FROM[status]
+          ? 'ตรวจเอกสาร T000 ได้หลังคำร้องผ่านแล้ว และก่อนออกหนังสือขอความอนุเคราะห์'
+          : 'ตรวจใบตอบรับได้หลังออกหนังสือขอความอนุเคราะห์ และก่อนออกหนังสือส่งตัว'), { is409: true });
+      }
+      if (LETTER_ISSUE_STATUSES.has(status)) {
+        const L = status === 'REQ_LETTER_ISSUED' ? LETTERS.reqLetter : LETTERS.placeLetter;
+        if (!fromStatus || COOP_STATUS_ORDER.indexOf(fromStatus) < COOP_STATUS_ORDER.indexOf(L.minStatus)) {
+          throw Object.assign(new Error('นักศึกษายังไม่ถึงขั้นออกหนังสือนี้'), { is400: true });
+        }
       }
 
       // ห้ามสถานะย้อนกลับ — หน้า admin/doct000 ให้กลับมาตรวจเอกสาร/พิมพ์หนังสือซ้ำได้หลังผ่านขั้นนั้นไปแล้ว
@@ -466,6 +500,7 @@ exports.markAcceptanceReceived = async (req, res) => {
     let student;
     let replacedFiles = [];
     await prisma.$transaction(async (tx) => {
+      await lockStudents(tx, studentId); // คิวต่อนักศึกษา (utils/rowLock) — คำขอพร้อมกันทำทีละคำขอ
       student = await tx.student.findUnique({ where: { id: studentId }, select: { id: true, userId: true, deletedAt: true } });
       if (!student || student.deletedAt) throw Object.assign(new Error('ไม่พบนักศึกษา'), { is404: true });
 
@@ -541,6 +576,7 @@ exports.replaceAcceptanceFile = async (req, res) => {
     let student;
     let replacedFiles = [];
     await prisma.$transaction(async (tx) => {
+      await lockStudents(tx, studentId); // คิวต่อนักศึกษา (utils/rowLock) — คำขอพร้อมกันทำทีละคำขอ
       student = await tx.student.findUnique({ where: { id: studentId }, select: { id: true, userId: true, deletedAt: true } });
       if (!student || student.deletedAt) throw Object.assign(new Error('ไม่พบนักศึกษา'), { is404: true });
 
@@ -628,6 +664,7 @@ exports.issueLetterBatch = async (req, res) => {
     const stale = new Set();
     const result = [];
     await prisma.$transaction(async (tx) => {
+      await lockStudents(tx, ids); // คิวต่อนักศึกษา (utils/rowLock) — คำขอพร้อมกันทำทีละคำขอ
       const coops = await tx.studentCoop.findMany({
         where: { studentId: { in: ids } },
         select: {
@@ -743,6 +780,7 @@ exports.markLetterPending = async (req, res) => {
     }
 
     await prisma.$transaction(async (tx) => {
+      await lockStudents(tx, ids); // คิวต่อนักศึกษา (utils/rowLock) — คำขอพร้อมกันทำทีละคำขอ
       // ทีละคน (หนังสือรวม = หลายคน เลขที่ร่างเดียวกัน)
       for (const sid of ids) {
         const student = await tx.student.findUnique({ where: { id: sid }, select: { deletedAt: true } });
@@ -902,13 +940,13 @@ exports.approveAllDocs = async (req, res) => {
     }
 
     await prisma.$transaction(async (tx) => {
+      await lockStudents(tx, parsedId); // คิวต่อนักศึกษา (utils/rowLock) — คำขอพร้อมกันทำทีละคำขอ
       const studentCheck = await tx.student.findUnique({ where: { id: parsedId }, select: { deletedAt: true } });
       if (!studentCheck || studentCheck.deletedAt) {
         throw Object.assign(new Error('ไม่พบนักศึกษา'), { is404: true });
       }
       const coop = await tx.studentCoop.findUnique({ where: { studentId: parsedId }, select: { status: true } });
-      const APPROVABLE = new Set(['APPLYING', 'WAITING_FOR_STAFF_CHECK', 'EDITS_REQUIRED', 'APPLICATION_EDITS_REQUIRED', 'QUALIFIED', 'QUALIFICATION_FAILED', 'DOCS_APPROVED']);
-      if (coop && !APPROVABLE.has(coop.status)) {
+      if (!coop || !T000_REVIEWABLE.has(coop.status)) {
         throw Object.assign(new Error('ไม่สามารถอนุมัติได้ในสถานะปัจจุบัน'), { is400: true });
       }
       await tx.document.updateMany({
@@ -1000,8 +1038,11 @@ exports.updateCoopApplicationStatus = async (req, res) => {
       return res.status(400).json({ ok: false, message: 'กรุณาระบุเหตุผล เพื่อให้นักศึกษาทราบว่าต้องแก้ไขอะไร' });
     }
 
+    // นักศึกษาของคำร้อง (ไม่เปลี่ยน) — หาก่อนเข้า transaction เพื่อให้ล็อกเป็นคำสั่งแรก
+    const lockStudentId = (await prisma.studentCoop.findUnique({ where: { id: parsedId }, select: { studentId: true } }))?.studentId;
     let updated;
     await prisma.$transaction(async (tx) => {
+      await lockStudents(tx, lockStudentId); // คิวต่อนักศึกษา (utils/rowLock) — คำขอพร้อมกันทำทีละคำขอ
       const record = await tx.studentCoop.findUnique({
         where: { id: parsedId },
         select: { status: true, student: { select: { deletedAt: true, id: true, coopAdvisorId: true, major: true } } }
@@ -1192,6 +1233,7 @@ exports.reviewT002 = async (req, res) => {
         }
 
         await prisma.$transaction(async (tx) => {
+          await lockStudents(tx, parsedStudentId); // คิวต่อนักศึกษา (utils/rowLock) — คำขอพร้อมกันทำทีละคำขอ
             const student = await tx.student.findUnique({ where: { id: parsedStudentId }, select: { deletedAt: true } });
             if (!student || student.deletedAt) {
                 throw Object.assign(new Error('ไม่พบนักศึกษา'), { is404: true });
@@ -1246,6 +1288,7 @@ exports.reviewT003 = async (req, res) => {
         }
 
         await prisma.$transaction(async (tx) => {
+          await lockStudents(tx, parsedStudentId); // คิวต่อนักศึกษา (utils/rowLock) — คำขอพร้อมกันทำทีละคำขอ
             const student = await tx.student.findUnique({ where: { id: parsedStudentId }, select: { deletedAt: true } });
             if (!student || student.deletedAt) {
                 throw Object.assign(new Error('ไม่พบนักศึกษา'), { is404: true });

@@ -67,12 +67,13 @@ describe('อาจารย์ประจำวิชา CS ทำกับน
     const record = (major) => ({ status: 'APPLYING', student: { deletedAt: null, id: 5, coopAdvisorId: 99, major } });
     prisma.studentCoop.update.mockResolvedValue({ studentId: 5 });
 
-    prisma.studentCoop.findUnique.mockResolvedValueOnce(record('CS'));
+    // ครั้งแรก = หานักศึกษาของคำร้องก่อนล็อก (utils/rowLock) · ครั้งที่สอง = อ่านในทรานแซกชัน
+    prisma.studentCoop.findUnique.mockResolvedValueOnce({ studentId: 5 }).mockResolvedValueOnce(record('CS'));
     const ok = makeRes();
     await updateCoopApplicationStatus({ ...coopReq(['CS']), params: { id: '1' }, body: { status: 'QUALIFIED' } }, ok);
     expect(ok.json).toHaveBeenCalledWith(expect.objectContaining({ ok: true }));
 
-    prisma.studentCoop.findUnique.mockResolvedValueOnce(record('AI'));
+    prisma.studentCoop.findUnique.mockResolvedValueOnce({ studentId: 5 }).mockResolvedValueOnce(record('AI'));
     const denied = makeRes();
     await updateCoopApplicationStatus({ ...coopReq(['CS']), params: { id: '1' }, body: { status: 'QUALIFIED' } }, denied);
     expect(denied.status).toHaveBeenCalledWith(403);

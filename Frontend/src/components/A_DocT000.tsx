@@ -133,13 +133,10 @@ const CAN_ISSUE_PLACEMENT_LETTER_STATUSES = ['ACCEPTANCE_CHECKED', 'PLACEMENT_LE
 const CAN_CHECK_ACCEPTANCE_STATUSES = [...POST_LETTER_STATUSES, ...AFTER_PLACEMENT_STATUSES];
 
 // ช่วงที่ยังกดผ่าน/แก้ไข/อนุมัติทั้งหมดในหน้าต่างตรวจเอกสารได้ — นอกช่วงนี้เปิดดูย้อนหลังได้อย่างเดียว
-// ขั้นที่ 1 ตรงกับ APPROVABLE ของ approveAllDocs ฝั่ง backend (+ WAITING = ยังไม่มีข้อมูลสหกิจ)
+// ขั้นที่ 1 ตรงกับ T000_REVIEWABLE ฝั่ง backend — ต้องผ่านคำร้องก่อน (ผู้ใช้ตัดสิน 2026-11-08; เดิมรวมยังไม่ผ่าน/ไม่ผ่าน/ส่งกลับแก้คำร้อง)
 // เดิมปุ่มกดได้ทุกสถานะ: นักศึกษาที่ออกหนังสือแล้ว/ฝึกงานแล้วกด "อนุมัติทั้งหมด" ได้ 400 (ขึ้นว่าไม่สำเร็จเป็นบางคน)
 // และกดผ่าน/แก้ไขรายไฟล์จะดึงสถานะนักศึกษาย้อนกลับไปขั้นตรวจเอกสาร
-const PHASE1_EDITABLE_STATUSES = [
-    'WAITING', 'APPLYING', 'QUALIFICATION_FAILED', 'APPLICATION_EDITS_REQUIRED', 'QUALIFIED',
-    'WAITING_FOR_STAFF_CHECK', 'EDITS_REQUIRED', 'DOCS_APPROVED',
-];
+const PHASE1_EDITABLE_STATUSES = ['QUALIFIED', 'WAITING_FOR_STAFF_CHECK', 'EDITS_REQUIRED', 'DOCS_APPROVED'];
 const PHASE2_EDITABLE_STATUSES = ['WAITING_FOR_PLACEMENT_LETTER', 'WAITING_FOR_STAFF_CHECK_LETTER', 'ACCEPTANCE_CHECKED'];
 
 // ยังรอใบตอบรับ (นักศึกษายังไม่อัปโหลด) — บริษัทส่งมาที่เจ้าหน้าที่โดยตรงได้ ตรงกับ backend markAcceptanceReceived

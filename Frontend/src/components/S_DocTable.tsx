@@ -34,6 +34,8 @@ type Props = {
   allowStatusChange?: boolean;
   onUploadCall?: (id: string, file: File) => void | Promise<void>;
   onDeleteCall?: (id: string) => void;
+  /** นอกช่วงส่ง T000 (ยังไม่ผ่านคำร้อง / เอกสารผ่านแล้ว) — ดูได้อย่างเดียว ตรงกับ backend */
+  locked?: boolean;
 };
 
 // ================= CONSTANTS =================
@@ -61,7 +63,8 @@ export default function DocTable({
   onChange,
   allowStatusChange = false,
   onUploadCall,
-  onDeleteCall
+  onDeleteCall,
+  locked = false,
 }: Props) {
 
   useEffect(() => {
@@ -186,7 +189,10 @@ export default function DocTable({
                       it={it}
                       onRemove={() => onRemoveFile(it.id)}
                       isApproved={isApproved}
+                      locked={locked}
                     />
+                  ) : locked ? (
+                    <span className="meta" style={{ color: '#94a3b8' }}>ไม่ได้ส่ง</span>
                   ) : pending[it.id] ? (
                     <div className="pending-wrap">
                       <div className="pending-name" title={pending[it.id].name}>
@@ -348,11 +354,11 @@ function chipClass(status: DocStatus) {
   return "rej"; // นอกนั้นตีเป็นสีแดง
 }
 
-function UploadedFile({ it, onRemove, isApproved }: any) {
+function UploadedFile({ it, onRemove, isApproved, locked }: any) {
   return (
     <div className={`file-wrap ${isApproved ? 'approved' : ''}`} style={{ background: isApproved ? '#f0fdf4' : '#eff6ff', borderColor: isApproved ? '#bbf7d0' : '#bfdbfe' }}>
       <span className="file-name" title={it.fileName}>📄 {it.fileName}</span>
-      {!isApproved && (
+      {!isApproved && !locked && (
         <button type="button" className="icon-btn" onClick={(e) => { e.stopPropagation(); onRemove(); }}>&times;</button>
       )}
       {isApproved && <span>✅</span>}

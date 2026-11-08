@@ -6,7 +6,7 @@ import { apiFetch } from "../utils/apiFetch";
 // เดิมนับแจ้งเตือนที่ยังไม่อ่าน: กดเมนูครั้งเดียวหายทั้งที่งานยังค้าง · คนอื่นทำไปแล้วตัวเลขไม่ลด
 export type PendingKey =
   | "coopApplications" | "t000" | "t002" | "t003" | "supervisionManager" | "feedback"
-  | "teacherRequests" | "teacherSupervision";
+  | "teacherSupervision";
 export type PendingCounts = Partial<Record<PendingKey, number>>;
 
 export function usePendingCounts(): PendingCounts {

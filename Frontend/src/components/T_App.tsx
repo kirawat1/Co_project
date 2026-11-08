@@ -11,7 +11,6 @@ import { clearSession } from "../utils/session";
 
 // หน้าในส่วนนี้โหลดตอนเปิดหน้านั้น (แบ่งไฟล์ — ไม่ต้องโหลดทุกหน้า/ไลบรารี PDF/Excel ตั้งแต่แรก)
 const Dashboard = lazy(() => import("./T_Dashboard"));
-const Requests = lazy(() => import("./T_Requests"));
 const Students = lazy(() => import("./T_Students"));
 const StudentDetail = lazy(() => import("./T_StudentDetail"));
 const Exams = lazy(() => import("./T_Exams"));
@@ -138,7 +137,8 @@ export default function TeacherApp() {
             <Route index element={<Navigate to="dashboard" replace />} />
 
             <Route path="dashboard" element={<Dashboard />} />
-            <Route path="requests" element={<Requests />} />
+            {/* คำร้องพิจารณาโดยอาจารย์ประจำวิชา/เจ้าหน้าที่ (2026-11-08) — ลิงก์เดิมพาไปหน้าคำร้องฝั่ง /admin */}
+            <Route path="requests" element={toAdmin("coop-applications")} />
 
             <Route path="students" element={<Students isCoopTeacher={!!isCoopTeacher} />} />
             <Route

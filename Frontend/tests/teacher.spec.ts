@@ -21,7 +21,6 @@ const SAFE_EMPTY_TC12 = {
 
 const TEACHER_ROUTES = [
   { path: "/teacher/dashboard",          label: "TC-T-01: Dashboard หน้าหลัก Teacher" },
-  { path: "/teacher/requests",           label: "TC-T-02: คำขอนิเทศ (Requests)" },
   { path: "/teacher/students",           label: "TC-T-03: รายชื่อนักศึกษาในที่ปรึกษา" },
   { path: "/teacher/exams",              label: "TC-T-04: หน้าการสอบ (Exams)" },
   { path: "/teacher/profile",            label: "TC-T-05: โปรไฟล์อาจารย์" },

@@ -38,7 +38,7 @@ exports.getPendingCounts = async (req, res) => {
       tasks.feedback = prisma.feedback.count({ where: { status: 'NEW' } });
     } else {
       const teacher = await prisma.teacher.findUnique({ where: { userId: req.user.id }, select: { id: true } });
-      tasks.teacherRequests = coop(['APPLYING', 'PENDING_GRADE'], visible);
+      // คำร้องรอพิจารณา: อาจารย์ที่ปรึกษาไม่ได้พิจารณาแล้ว (2026-11-08) — อาจารย์ประจำวิชาดูที่ coopApplications
       // นิเทศ: อาจารย์หลักรอเลือกวัน หรืออาจารย์ร่วมที่ยังไม่ตอบวันว่าง (นักศึกษาเสนอวันใหม่ = ล้างคำตอบ)
       tasks.teacherSupervision = teacher
         ? prisma.supervisionAppointment.count({

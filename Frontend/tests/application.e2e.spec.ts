@@ -123,7 +123,7 @@ test.describe("B. ยื่นคำร้อง", () => {
     expect((await coopOf("fresh")).status).toBe("NOT_SUBMITTED");
   });
 
-  test("ยื่นสำเร็จ → รอพิจารณา · ไฟล์แนบ/ตำแหน่ง/ลิงก์ผลการเรียนถูกบันทึก · แก้ไขระหว่างรอได้ (ไฟล์เพิ่ม) · ไม่ผ่าน/ส่งกลับแก้ ยื่นใหม่ได้", async () => {
+  test("ยื่นสำเร็จ → รอพิจารณา · ไฟล์แนบ/ตำแหน่ง/ลิงก์ผลการเรียนถูกบันทึก · ระหว่างรอ/ไม่ผ่าน ยื่นซ้ำไม่ได้ (2026-11-08 ตรงกับหน้ายื่นคำร้อง) · ส่งกลับแก้ ยื่นใหม่ได้", async () => {
     let r = await apply("fresh", { gradeSheetUrl: "https://docs.google.com/spreadsheets/d/zz" }, 2);
     expect(r.status, msg(r)).toBe(200);
     const c = await coopOf("fresh");
@@ -131,14 +131,17 @@ test.describe("B. ยื่นคำร้อง", () => {
     expect((await k.docs(s.fresh.pk, "APPLICATION_DOC")).map((d: { name: string }) => d.name)).toEqual(["เอกสาร1.pdf", "เอกสาร2.pdf"]);
     expect((await api(s.fresh.token, "GET", "/api/docs/my-application")).body.form.gradeSheetUrl).toBe("https://docs.google.com/spreadsheets/d/zz");
 
+    // ระหว่างรอพิจารณา: หน้าเว็บไม่ให้แก้ — ยิง API ก็ไม่ได้ (เดิมได้ ไฟล์เพิ่มขณะอาจารย์กำลังพิจารณา)
     r = await apply("fresh", { jobPosition: "Data Engineer" });
+    expect(r.status, msg(r)).toBe(409);
+    expect([(await coopOf("fresh")).jobPosition, (await k.docs(s.fresh.pk, "APPLICATION_DOC")).length]).toEqual(["Frontend Developer", 2]);
+    // ไม่ผ่าน = ยื่นใหม่เองไม่ได้ (เดิมยื่นแล้วผล "ไม่ผ่าน" หายกลับเป็นรอพิจารณา)
+    r = await apply("failed");
+    expect(r.status, msg(r)).toBe(409);
+    expect((await coopOf("failed")).status).toBe("QUALIFICATION_FAILED");
+    r = await apply("edits");
     expect(r.status, msg(r)).toBe(200);
-    expect([(await coopOf("fresh")).jobPosition, (await k.docs(s.fresh.pk, "APPLICATION_DOC")).length]).toEqual(["Data Engineer", 3]);
-    for (const key of ["failed", "edits"]) {
-      r = await apply(key);
-      expect(r.status, `${key}: ${msg(r)}`).toBe(200);
-      expect((await coopOf(key)).status).toBe("APPLYING");
-    }
+    expect((await coopOf("edits")).status).toBe("APPLYING");
   });
 
   test("ผ่านแล้ว / อยู่ในขั้น T000 ยื่นใหม่ไม่ได้ 409 — สถานะไม่ถอย · ไฟล์ที่ส่งมาไม่ค้าง", async () => {
@@ -168,7 +171,7 @@ test.describe("C. ลบไฟล์แนบ", () => {
     expect((await del("fresh", 999_999_999)).status).toBe(404);
 
     // ส่งกลับแก้ไข → ลบได้ (ไฟล์บนเครื่องหายด้วย)
-    await advise(t.adv.token, "edits", "APPLICATION_EDITS_REQUIRED", "แนบใหม่").then((r) => expect(r.status).toBe(200));
+    await advise(t.coopCS.token, "edits", "APPLICATION_EDITS_REQUIRED", "แนบใหม่").then((r) => expect(r.status).toBe(200));
     const [mine] = await k.docs(s.edits.pk, "APPLICATION_DOC");
     expect(fs.existsSync(`${UPLOADS}/${mine.path}`)).toBe(true);
     expect((await del("edits", mine.id)).status).toBe(200);
@@ -177,30 +180,32 @@ test.describe("C. ลบไฟล์แนบ", () => {
 });
 
 // ══════════════════════════════════════════════════════
-// D. อาจารย์ที่ปรึกษาพิจารณา (PUT /api/coop/status)
+// D. พิจารณาคำร้องผ่าน PUT /api/coop/status — อาจารย์ประจำวิชาของหลักสูตร/เจ้าหน้าที่ (อาจารย์ที่ปรึกษาไม่ได้พิจารณาแล้ว 2026-11-08)
 // ══════════════════════════════════════════════════════
-test.describe("D. อาจารย์ที่ปรึกษาพิจารณา", () => {
-  test("ด่าน: studentId/สถานะผิด 400 · (ใหม่) สถานะของ T000 400 · อาจารย์ที่ไม่ใช่ที่ปรึกษา 403 · นักศึกษา 403 · (ใหม่) ส่งกลับแก้/ไม่ผ่าน ไม่มีเหตุผล 400", async () => {
-    expect((await api(t.adv.token, "PUT", "/api/coop/status", { studentId: "x", status: "APPROVED" })).status).toBe(400);
-    expect((await advise(t.adv.token, "rA", "HELLO")).status).toBe(400);
-    expect((await advise(t.adv.token, "rA", "EDITS_REQUIRED", "แก้ T000")).status).toBe(400);
+test.describe("D. พิจารณาคำร้อง (PUT /api/coop/status)", () => {
+  test("ด่าน: studentId/สถานะผิด 400 · (ใหม่) สถานะของ T000 400 · อาจารย์ที่ปรึกษา/อาจารย์ทั่วไป/ประจำวิชาหลักสูตรอื่น 403 · นักศึกษา 403 · (ใหม่) ส่งกลับแก้/ไม่ผ่าน ไม่มีเหตุผล 400", async () => {
+    expect((await api(t.coopCS.token, "PUT", "/api/coop/status", { studentId: "x", status: "APPROVED" })).status).toBe(400);
+    expect((await advise(t.coopCS.token, "rA", "HELLO")).status).toBe(400);
+    expect((await advise(t.coopCS.token, "rA", "EDITS_REQUIRED", "แก้ T000")).status).toBe(400);
     expect((await advise(t.other.token, "rA", "APPROVED")).status).toBe(403);
+    expect((await advise(t.adv.token, "rA", "APPROVED")).status).toBe(403);      // ที่ปรึกษาโครงงานสหกิจของนักศึกษาคนนี้ — ไม่ได้พิจารณาคำร้องแล้ว
+    expect((await advise(t.coopAI.token, "rA", "APPROVED")).status).toBe(403);
     expect((await advise(s.rA.token, "rA", "APPROVED")).status).toBe(403);
     for (const [status, comment] of [["APPLICATION_EDITS_REQUIRED", undefined], ["REJECTED", ""], ["QUALIFICATION_FAILED", "   "]]) {
-      const r = await advise(t.adv.token, "rA", status as string, comment as string | undefined);
+      const r = await advise(t.coopCS.token, "rA", status as string, comment as string | undefined);
       expect(r.status, `${status}: ${msg(r)}`).toBe(400);
     }
     expect((await coopOf("rA")).status).toBe("APPLYING");
   });
 
   test("อนุมัติ → ผ่านเกณฑ์ · ส่งกลับแก้ (มีเหตุผล) · ไม่ผ่าน (มีเหตุผล) · รอพิจารณาเกรดอนุมัติได้ · เจ้าหน้าที่ทำแทนได้ · แจ้งนักศึกษาทุกครั้ง", async () => {
-    let r = await advise(t.adv.token, "rA", "APPROVED");
+    let r = await advise(t.coopCS.token, "rA", "APPROVED");
     expect(r.status, msg(r)).toBe(200);
     expect((await coopOf("rA")).status).toBe("QUALIFIED");
-    r = await advise(t.adv.token, "rB", "APPLICATION_EDITS_REQUIRED", "  แนบเกรดเทอมล่าสุด  ");
+    r = await advise(t.coopCS.token, "rB", "APPLICATION_EDITS_REQUIRED", "  แนบเกรดเทอมล่าสุด  ");
     expect(r.status, msg(r)).toBe(200);
     expect([(await coopOf("rB")).status, (await coopOf("rB")).teacherCheckComment]).toEqual(["APPLICATION_EDITS_REQUIRED", "แนบเกรดเทอมล่าสุด"]);
-    r = await advise(t.adv.token, "rC", "APPROVED");
+    r = await advise(t.coopCS.token, "rC", "APPROVED");
     expect(r.status, msg(r)).toBe(200);
     await expect.poll(() => titles("rA")).toContain("คำร้องของคุณผ่านการพิจารณา ✅");
     await expect.poll(() => titles("rB")).toContain("คำร้องของคุณต้องแก้ไข กรุณาตรวจสอบ");
@@ -212,9 +217,9 @@ test.describe("D. อาจารย์ที่ปรึกษาพิจา�
     await expect.poll(() => titles("rB")).toContain("คำร้องของคุณไม่ผ่านการพิจารณา");
   });
 
-  test("(ใหม่) ส่ง T000 แล้ว (ส่งแก้รอตรวจ) / ผ่านเกณฑ์ไปแล้ว อาจารย์เปลี่ยนผลไม่ได้ 400", async () => {
+  test("(ใหม่) ส่ง T000 แล้ว (ส่งแก้รอตรวจ) / ผ่านเกณฑ์ไปแล้ว เปลี่ยนผลที่ทางนี้ไม่ได้ 400", async () => {
     for (const [key, status] of [["rD", "WAITING_FOR_STAFF_CHECK"], ["rE", "QUALIFIED"]]) {
-      const r = await advise(t.adv.token, key, "REJECTED", "เปลี่ยนใจ");
+      const r = await advise(t.coopCS.token, key, "REJECTED", "เปลี่ยนใจ");
       expect(r.status, `${key}: ${msg(r)}`).toBe(400);
       expect((await coopOf(key)).status).toBe(status);
     }
@@ -350,25 +355,16 @@ test.describe("G. หน้ายื่นคำร้อง (นักศึก
   });
 });
 
-test.describe("H. หน้าพิจารณาคำร้อง (อาจารย์ที่ปรึกษา)", () => {
-  test("ค้นหา → พิจารณา → ไม่ผ่านโดยไม่มีเหตุผลถูกเตือน → ส่งกลับแก้ไขพร้อมเหตุผล · (ใหม่) คำร้องที่พิจารณาแล้วไม่มีปุ่มผล", async ({ page }) => {
+test.describe("H. อาจารย์ที่ปรึกษาไม่มีหน้าพิจารณาคำร้องแล้ว (2026-11-08)", () => {
+  test("ไม่มีเมนู \"ตรวจสอบคำร้องสหกิจ\" · ลิงก์เดิม /teacher/requests → หน้าหลัก · อาจารย์ประจำวิชา → หน้าคำร้องฝั่งจัดการหลักสูตร", async ({ page }) => {
     await asUser(page, t.adv.token, t.adv.userId, "/teacher/requests");
-    await listPeriod(page).selectOption("all");
-    const search = page.getByPlaceholder("🔍 ค้นหารหัสนักศึกษา, ชื่อ, หรือบริษัท...");
-    await search.fill(s.uiTeach.studentId);
-    await page.locator("tr", { hasText: s.uiTeach.studentId }).getByRole("button", { name: "พิจารณา" }).click();
-    await page.getByRole("button", { name: "❌ ไม่ผ่าน" }).click();
-    await expect(page.getByText("กรุณาระบุเหตุผล/ข้อความก่อนส่งกลับ")).toBeVisible();
-    await page.getByPlaceholder("ระบุสิ่งที่ต้องแก้ไข...").fill("ZA ขอใบรับรองผลการเรียน");
-    await page.getByRole("button", { name: "⚠️ ส่งกลับแก้ไข" }).click();
-    await page.getByRole("button", { name: "ยืนยัน", exact: true }).click();
-    await expect.poll(async () => { const c = await coopOf("uiTeach"); return [c.status, c.teacherCheckComment]; }).toEqual(["APPLICATION_EDITS_REQUIRED", "ZA ขอใบรับรองผลการเรียน"]);
-
-    await page.keyboard.press("Escape");
-    await search.fill(s.uiTeachDone.studentId);
-    await page.locator("tr", { hasText: s.uiTeachDone.studentId }).getByRole("button", { name: "พิจารณา" }).click();
-    await expect(page.getByText("คำร้องนี้พิจารณาแล้ว")).toBeVisible();
-    await expect(page.getByRole("button", { name: "✅ อนุมัติผ่านเกณฑ์" })).toHaveCount(0);
+    await expect(page).toHaveURL(/\/teacher\/dashboard$/);
+    await expect(page.getByRole("link", { name: /ตรวจสอบคำร้องสหกิจ/ })).toHaveCount(0);
+    // แผงงานที่รอเหลือ T002 · T003 · นัดนิเทศ (การ์ดสถิติ "คำร้องรอพิจารณา" ด้านล่างเป็นตัวเลขให้ดู ไม่ใช่งาน)
+    await expect(page.getByText("T002 รอตรวจ")).toBeVisible();
+    await expect(page.getByRole("link", { name: /คำร้องรอพิจารณา/ })).toHaveCount(0);
+    await asUser(page, t.coopCS.token, t.coopCS.userId, "/teacher/requests");
+    await expect(page).toHaveURL(/\/admin\/coop-applications$/);
   });
 });
 

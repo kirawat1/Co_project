@@ -7,7 +7,6 @@ import PendingWorkPanel, { type PendingItem } from "./PendingWorkPanel";
 
 // งานที่รอของอาจารย์ — ตัวเลขชุดเดียวกับป้ายบนเมนู (เดิมหน้านี้นับเอง: T002/T003 ดึงจาก /api/admin/students ที่อาจารย์ทั่วไปไม่มีสิทธิ์ ได้ 0 เงียบๆ · นิเทศไม่นับงานอาจารย์ร่วม)
 const TEACHER_PENDING: PendingItem[] = [
-  { key: "teacherRequests", label: "คำร้องรอพิจารณา", to: "/teacher/requests" },
   { key: "t002", label: "T002 รอตรวจ", to: "/teacher/review-t002" },
   { key: "t003", label: "T003 รอตรวจ", to: "/teacher/review-t003" },
   { key: "teacherSupervision", label: "นัดนิเทศรอเลือกวัน / ระบุวันว่าง", to: "/teacher/review-supervision" },
@@ -296,7 +295,7 @@ export default function T_Dashboard() {
             <section className="card">
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
                 <div style={{ fontWeight: 900, color: '#d97706' }}>⏳ คำร้องล่าสุด (รอพิจารณา)</div>
-                <Link to="/teacher/requests" style={{ color: IOS_BLUE, fontWeight: 700, textDecoration: "none", fontSize: 13 }}>ดูทั้งหมด</Link>
+                <Link to="/teacher/students" style={{ color: IOS_BLUE, fontWeight: 700, textDecoration: "none", fontSize: 13 }}>ดูทั้งหมด</Link>
               </div>
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <tbody>
@@ -319,7 +318,7 @@ export default function T_Dashboard() {
             <section className="card">
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
                 <div style={{ fontWeight: 900, color: '#16a34a' }}>✅ ผ่านคุณสมบัติล่าสุด</div>
-                <Link to="/teacher/requests" style={{ color: IOS_BLUE, fontWeight: 700, textDecoration: "none", fontSize: 13 }}>ดูทั้งหมด</Link>
+                <Link to="/teacher/students" style={{ color: IOS_BLUE, fontWeight: 700, textDecoration: "none", fontSize: 13 }}>ดูทั้งหมด</Link>
               </div>
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <tbody>

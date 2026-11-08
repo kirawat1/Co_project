@@ -1,4 +1,5 @@
 const prisma = require("../config/prismaClient");
+const { lockStudents } = require('../utils/rowLock');
 const { studentIdSearchOr } = require("../utils/studentId");
 const { reviewForm } = require('../utils/internshipForms');
 const { createNotifications } = require('../utils/notificationHelper');
@@ -249,6 +250,7 @@ exports.reviewT003 = async (req, res) => {
         }
 
         await prisma.$transaction(async (tx) => {
+          await lockStudents(tx, parsedStudentId); // คิวต่อนักศึกษา (utils/rowLock) — คำขอพร้อมกันทำทีละคำขอ
             const freshStudent = await tx.student.findUnique({
                 where: { id: parsedStudentId },
                 select: { coopAdvisorId: true, deletedAt: true }
@@ -318,6 +320,7 @@ exports.reviewT002 = async (req, res) => {
         }
 
         await prisma.$transaction(async (tx) => {
+          await lockStudents(tx, parsedStudentId); // คิวต่อนักศึกษา (utils/rowLock) — คำขอพร้อมกันทำทีละคำขอ
             const freshStudent = await tx.student.findUnique({
                 where: { id: parsedStudentId },
                 select: { coopAdvisorId: true, deletedAt: true }

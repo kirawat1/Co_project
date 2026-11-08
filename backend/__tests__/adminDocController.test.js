@@ -346,8 +346,9 @@ describe('reviewStudentStatus', () => {
   });
 
   test('200 — อัปเดตสถานะสำเร็จ (ไม่มีไฟล์)', async () => {
+    prisma.studentCoop.findUnique.mockResolvedValue({ status: 'WAITING_FOR_STAFF_CHECK' });
     const req = {
-      body: { studentId: '1', status: 'QUALIFIED', comment: 'ผ่าน' },
+      body: { studentId: '1', status: 'DOCS_APPROVED', comment: 'ผ่าน' },
       file: null,
     };
     const res = makeRes();
@@ -355,7 +356,7 @@ describe('reviewStudentStatus', () => {
     expect(prisma.studentCoop.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { studentId: 1 },
-        update: expect.objectContaining({ status: 'QUALIFIED', t000Comment: 'ผ่าน' }),
+        update: expect.objectContaining({ status: 'DOCS_APPROVED', t000Comment: 'ผ่าน' }),
       })
     );
     expect(res.json.mock.calls[0][0].ok).toBe(true);
@@ -367,7 +368,7 @@ describe('reviewStudentStatus', () => {
     const req = {
       body: {
         studentId: '2',
-        status: 'INTERNSHIP_STARTED',
+        status: 'PLACEMENT_LETTER_ISSUED', // INTERNSHIP_STARTED ตั้งผ่านหน้านี้ไม่ได้แล้ว (หน้าเว็บไม่ส่ง)
         comment: null,
         actualStartDate: '2026-06-01',
         actualEndDate: '2026-09-30',
@@ -383,8 +384,9 @@ describe('reviewStudentStatus', () => {
 
   test('500 — DB error คืน 500', async () => {
     prisma.studentCoop.upsert.mockRejectedValue(new Error('DB fail'));
+    prisma.studentCoop.findUnique.mockResolvedValue({ status: 'WAITING_FOR_STAFF_CHECK' });
     const req = {
-      body: { studentId: '1', status: 'QUALIFIED', comment: null },
+      body: { studentId: '1', status: 'DOCS_APPROVED', comment: null },
       file: null,
     };
     const res = makeRes();
@@ -426,7 +428,6 @@ describe('reviewStudentStatus', () => {
     });
 
     test.each([
-      ['QUALIFIED', 'APPLYING', 'STATUS_UPDATED', '/student/dashboard'],
       ['DOCS_APPROVED', 'WAITING_FOR_STAFF_CHECK', 'DOCS_UPDATED', '/student/docs'],
       ['EDITS_REQUIRED', 'WAITING_FOR_STAFF_CHECK', 'DOCS_UPDATED', '/student/docs'],
     ])('แจ้งเตือน %s → ชนิด %s (ป้ายเมนูที่ต้องไปทำ)', async (status, current, type, link) => {
@@ -547,7 +548,7 @@ describe('reviewStudentStatus', () => {
       expect(prisma.studentCoop.upsert.mock.calls[0][0].update.status).toBe('REQ_LETTER_ISSUED');
     });
 
-    test.each(['DOCS_APPROVED', 'EDITS_REQUIRED', 'ACCEPTANCE_CHECKED', 'INTERNSHIP_STARTED'])(
+    test.each(['DOCS_APPROVED', 'EDITS_REQUIRED', 'ACCEPTANCE_CHECKED'])(
       '409 — นักศึกษาส่ง T003 แล้ว ตั้งสถานะย้อนเป็น %s ไม่ได้ และไม่บันทึกอะไร',
       async (target) => {
         withCurrent('T003_SUBMITTED');

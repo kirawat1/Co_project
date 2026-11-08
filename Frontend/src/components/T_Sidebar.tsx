@@ -4,7 +4,6 @@ import {
   IcUsers,
   IcCalendar,
   IcUser,
-  IcInbox,
   IcList,
   IcRoute,
   IcSettings,
@@ -66,8 +65,6 @@ export default function T_Sidebar({ isOpen = false, onClose = () => {}, isCoopTe
 
         <div className="sec-label">เอกสารและบันทึก</div>
 
-        <NavItem to="/teacher/requests" label="ตรวจสอบคำร้องสหกิจ" icon={<IcInbox />}
-          {...badge("teacherRequests")} />
         <NavItem to="/teacher/review-t002" label="T002 เอกสารรายละเอียด" icon={<IcList />}
           {...badge("t002")} />
         <NavItem to="/teacher/review-t003" label="T003 โครงร่างรายงาน" icon={<IcRoute />}

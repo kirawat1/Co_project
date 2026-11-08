@@ -52,6 +52,7 @@ describe('docController', () => {
       });
       // inside transaction: student เป็น active, ไม่ใช่ T002/T003
       prisma.student.findUnique.mockResolvedValue({ deletedAt: null });
+      prisma.studentCoop.findUnique.mockResolvedValue({ status: 'QUALIFIED' }); // ช่วงส่ง T000 (นอกช่วงลบไม่ได้)
       prisma.document.delete.mockResolvedValue({});
 
       const req = { params: { id: '5' }, user: { id: 1 } };

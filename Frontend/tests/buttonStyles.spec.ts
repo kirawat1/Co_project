@@ -27,7 +27,6 @@ const ALLOWED: Record<string, number> = {
   "components/A_DocT002Review.tsx": 1,
   "components/A_DocT003Review.tsx": 1,
   "components/A_SupervisionManage.tsx": 1,
-  "components/T_Requests.tsx": 1,
   "components/T_T002Review.tsx": 1,
   "components/T_T003Review.tsx": 1,
 };

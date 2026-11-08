@@ -1,5 +1,6 @@
 // backend/controllers/studentController.js
 const prisma = require('../config/prismaClient');
+const { lockStudents } = require('../utils/rowLock');
 const { buildStudentExportWorkbook, exportBaseUrl, STUDENT_EXPORT_INCLUDE } = require('../utils/studentExport');
 const { defaultStudentPassword, hashDefaultStudentPassword } = require('../utils/studentPassword');
 const { encryptPassword, revealPassword } = require('../utils/passwordVault');
@@ -457,6 +458,7 @@ exports.downloadPlacementLetter = async (req, res) => {
     const studentId = student.id;
 
     await prisma.$transaction(async (tx) => {
+      await lockStudents(tx, studentId); // คิวต่อนักศึกษา (utils/rowLock) — คำขอพร้อมกันทำทีละคำขอ
       const freshCoop = await tx.studentCoop.findUnique({ where: { studentId } });
       if (!freshCoop?.placeLetterUrl || !PRE_INTERNSHIP_STATUSES.includes(freshCoop.status)) {
         throw Object.assign(new Error("ยังไม่สามารถดาวน์โหลดหนังสือส่งตัวได้ในสถานะปัจจุบัน"), { is400: true });

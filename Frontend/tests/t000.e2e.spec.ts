@@ -67,9 +67,9 @@ test.describe("A. ส่ง T000 ครั้งแรก", () => {
     expect([c.status, c.t000Status]).toEqual(["WAITING_FOR_STAFF_CHECK", "PENDING"]);
   });
 
-  test("ส่งครั้งแรกรอตรวจอยู่: อาจารย์ที่ปรึกษาเปลี่ยนผลคุณสมบัติไม่ได้ (400)", async () => {
+  test("ส่งครั้งแรกรอตรวจอยู่: อาจารย์ที่ปรึกษาเปลี่ยนผลคุณสมบัติไม่ได้ (403 — ไม่ได้พิจารณาคำร้องแล้ว 2026-11-08) · สถานะไม่ถอย", async () => {
     const r = await api(w.teacher.token, "PUT", "/api/coop/status", { studentId: pk("firstWaiting"), status: "REJECTED", comment: "x" });
-    expect(r.status, msg(r)).toBe(400);
+    expect(r.status, msg(r)).toBe(403);
     expect((await w.coop("firstWaiting")).status).toBe("WAITING_FOR_STAFF_CHECK");
   });
 });

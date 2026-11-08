@@ -1,5 +1,6 @@
 // backend/controllers/coopController.js
 const prisma = require('../config/prismaClient');
+const { lockStudents } = require('../utils/rowLock');
 const { applyState, applyWindowMessage } = require('../utils/applyWindow');
 const { callerMajor } = require('../utils/majorConfig');
 const path = require("path");
@@ -8,6 +9,7 @@ const multer = require("multer");
 const { createNotifications, getStaffAndCoopTeacherIds } = require('../utils/notificationHelper');
 const { getRow } = require('../utils/coopPeriodMajor');
 const { pdfOrImageFileFilter } = require('../utils/fileFilters');
+const { getMajorScope, inScope } = require('../utils/majorScope');
 
 // 1. ตั้งค่าการเก็บไฟล์ (Multer)
 const storage = multer.diskStorage({
@@ -93,11 +95,14 @@ const submitCoopApplication = async (req, res) => {
       }
     }
 
-    const REAPPLY_ALLOWED = new Set(['NOT_SUBMITTED', 'APPLYING', 'QUALIFICATION_FAILED', 'APPLICATION_EDITS_REQUIRED']);
+    // ตรงกับหน้ายื่นคำร้อง (S_Gateway canEdit): ยังไม่ยื่น · ถูกส่งกลับให้แก้
+    // เดิมรวม APPLYING (แก้คำร้องระหว่างอาจารย์กำลังพิจารณา) และ QUALIFICATION_FAILED (ยิง API ยื่นใหม่ → ผล "ไม่ผ่าน" หายกลับเป็นรอพิจารณา)
+    const REAPPLY_ALLOWED = new Set(['NOT_SUBMITTED', 'APPLICATION_EDITS_REQUIRED']);
 
     // ใช้ Transaction เพื่อความชัวร์ — รวม gradeSheetUrl และตรวจสถานะไว้ใน transaction เดียวกัน
     let reapplyBlocked = false;
     await prisma.$transaction(async (tx) => {
+      await lockStudents(tx, student.id); // คิวต่อนักศึกษา (utils/rowLock) — คำขอพร้อมกันทำทีละคำขอ
       // 2.0 ตรวจสถานะ inside transaction เพื่อป้องกัน TOCTOU race
       // Re-verify period is still active inside the transaction
       const freshPeriod = await tx.coopPeriodMajor.findUnique({ where: { periodId_major: { periodId: parsedPeriodId, major } }, select: { isActive: true } });
@@ -115,7 +120,7 @@ const submitCoopApplication = async (req, res) => {
         select: { status: true, companyId: true, contacts: { select: { id: true, companyId: true } } },
       });
       if (freshCoop && !REAPPLY_ALLOWED.has(freshCoop.status)) {
-        reapplyBlocked = true;
+        reapplyBlocked = freshCoop.status;
         return;
       }
       // ผู้ติดต่อ (HR) บังคับ — ใช้เป็นผู้รับหนังสือขอความอนุเคราะห์ ("เรียน …")
@@ -161,7 +166,11 @@ const submitCoopApplication = async (req, res) => {
 
     if (reapplyBlocked) {
       files.forEach(f => { try { fs.unlinkSync(f.path); } catch (_) {} });
-      return res.status(409).json({ ok: false, message: "ไม่สามารถยื่นคำร้องใหม่ได้ เนื่องจากกระบวนการสหกิจดำเนินไปแล้ว" });
+      return res.status(409).json({ ok: false, message: reapplyBlocked === 'QUALIFICATION_FAILED'
+        ? "คำร้องได้รับผลพิจารณา \"ไม่ผ่าน\" แล้ว ยื่นใหม่เองไม่ได้ — กรุณาติดต่ออาจารย์ที่ปรึกษาหรืออาจารย์ประจำวิชา"
+        : reapplyBlocked === 'APPLYING' || reapplyBlocked === 'PENDING_GRADE'
+          ? "คำร้องอยู่ระหว่างการพิจารณา แก้ไขไม่ได้จนกว่าอาจารย์จะส่งกลับให้แก้"
+          : "ไม่สามารถยื่นคำร้องใหม่ได้ เนื่องจากกระบวนการสหกิจดำเนินไปแล้ว" });
     }
 
     res.json({ ok: true, message: "ยื่นคำร้องให้ตรวจสอบเรียบร้อยแล้ว" });
@@ -177,27 +186,7 @@ const submitCoopApplication = async (req, res) => {
       })
     ).catch(console.error);
 
-    // Notify personal advisor (coopAdvisor) who may not be in coopTeachers
-    // ที่ปรึกษาทั่วไป (generalAdvisorId) ไม่มีสิทธิ์ตรวจ/อนุมัติในระบบสหกิจ จึงไม่ต้องแจ้งเตือน
-    prisma.student.findUnique({
-      where: { id: student.id },
-      select: { coopAdvisorId: true },
-    }).then(async s => {
-      if (!s) return;
-      const teacherIds = [s.coopAdvisorId].filter(Boolean);
-      if (!teacherIds.length) return;
-      const teachers = await prisma.teacher.findMany({ where: { id: { in: teacherIds } }, select: { userId: true } });
-      const advisorUserIds = teachers.map(t => t.userId);
-      if (advisorUserIds.length) {
-        return createNotifications(advisorUserIds, {
-          type: 'COOP_APPLICATION_SUBMITTED',
-          title: 'นักศึกษายื่นคำร้องสหกิจ',
-          message: 'นักศึกษาในที่ปรึกษาของคุณยื่นคำร้องสหกิจศึกษาใหม่',
-          link: '/teacher/requests',
-          relatedId: String(userId),
-        });
-      }
-    }).catch(console.error);
+    // อาจารย์ที่ปรึกษาไม่ได้พิจารณาคำร้อง (2026-11-08) — ไม่ต้องแจ้ง (เดิมแจ้งให้ไปหน้า /teacher/requests)
 
   } catch (err) {
     (req.files || []).forEach(f => { try { fs.unlinkSync(f.path); } catch (_) {} });
@@ -235,20 +224,19 @@ const updateCoopStatus = async (req, res) => {
 
     let updated;
     await prisma.$transaction(async (tx) => {
+      await lockStudents(tx, parsedId); // คิวต่อนักศึกษา (utils/rowLock) — คำขอพร้อมกันทำทีละคำขอ
       const studentCheck = await tx.student.findUnique({
         where: { id: parsedId },
-        select: { deletedAt: true, coopAdvisorId: true }
+        select: { deletedAt: true, major: true }
       });
       if (!studentCheck || studentCheck.deletedAt) {
         throw Object.assign(new Error('ไม่พบนักศึกษา'), { is404: true });
       }
-      // ถ้าผู้เรียกเป็นอาจารย์ (ไม่ใช่เจ้าหน้าที่) ต้องเป็นอาจารย์ที่ปรึกษาโครงงานสหกิจ (coopAdvisorId) เท่านั้น
-      // ที่ปรึกษาทั่วไป (generalAdvisorId) เป็นแค่ข้อมูลอ้างอิง ไม่มีสิทธิ์ตรวจ/อนุมัติในระบบสหกิจ
-      if (req.user.role === 'teacher') {
-        const teacher = await tx.teacher.findUnique({ where: { userId: req.user.id }, select: { id: true } });
-        if (!teacher || studentCheck.coopAdvisorId !== teacher.id) {
-          throw Object.assign(new Error('คุณไม่ใช่อาจารย์ที่ปรึกษาของนักศึกษาคนนี้'), { is403: true });
-        }
+      // ผู้พิจารณาคำร้อง = อาจารย์ประจำวิชาของหลักสูตรนักศึกษา และเจ้าหน้าที่ (ผู้ใช้ตัดสิน 2026-11-08)
+      // เดิมอาจารย์ที่ปรึกษา (coopAdvisorId) กดผ่าน/ส่งกลับแก้/ไม่ผ่านได้ที่หน้า /teacher/requests — อาจารย์ที่ปรึกษาไม่ได้ตรวจคำร้อง
+      const scope = await getMajorScope(req, { ignoreFilter: true });
+      if (!scope.all && !inScope(scope, studentCheck.major)) {
+        throw Object.assign(new Error('พิจารณาคำร้องได้เฉพาะอาจารย์ประจำวิชาของหลักสูตรนี้และเจ้าหน้าที่'), { is403: true });
       }
       const coop = await tx.studentCoop.findUnique({ where: { studentId: parsedId }, select: { status: true } });
       // อาจารย์ที่ปรึกษาพิจารณาเฉพาะคำร้องที่รอพิจารณา — ส่ง T000 แล้ว (WAITING_FOR_STAFF_CHECK ทั้งส่งครั้งแรก/ส่งแก้) เป็นงานของหน้าเอกสาร T000
@@ -337,6 +325,7 @@ const deleteDocument = async (req, res) => {
 
     // ลบ DB ภายใน transaction — status check + delete atomic กัน ป้องกัน TOCTOU
     await prisma.$transaction(async (tx) => {
+      await lockStudents(tx, doc.studentId); // คิวต่อนักศึกษา (utils/rowLock) — คำขอพร้อมกันทำทีละคำขอ
         const freshSt = await tx.student.findUnique({ where: { id: doc.studentId }, select: { deletedAt: true } });
         if (!freshSt || freshSt.deletedAt) throw Object.assign(new Error('บัญชีถูกระงับการใช้งาน'), { is403: true });
         // ทางนี้ของหน้ายื่นคำร้อง (S_Gateway) — ลบได้เฉพาะไฟล์แนบคำร้อง ตอนที่หน้านั้นให้แก้ (ยังไม่ส่ง / ส่งกลับแก้)

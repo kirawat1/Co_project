@@ -5,6 +5,7 @@ const { markSubmitted, syncT000Submission, NON_T000_TYPES } = require('../utils/
 const { isInternshipStatus, canSubmitForm, formState } = require('../utils/internshipForms');
 const { thaiDate } = require('../utils/applyWindow');
 const prisma = require('../config/prismaClient');
+const { lockStudents } = require('../utils/rowLock');
 const { buildAddressData } = require('../utils/addressFormat');
 const fs = require('fs');
 const path = require('path');
@@ -22,6 +23,15 @@ function deadlineClosedMessage(d) {
 // เดิมยิง API ได้ — สถานะยัง "เอกสารผ่าน" แต่ไฟล์หายหรือกลับเป็นรอตรวจโดยไม่มีใครเห็น · หนังสือที่แนบเอกสารนักศึกษาขาดไฟล์
 const APPROVED_DOC_LOCKED = 'เอกสารนี้ผ่านการตรวจสอบแล้ว ลบหรือเปลี่ยนไฟล์เองไม่ได้ — ถ้าต้องแก้ไข กรุณาติดต่อเจ้าหน้าที่';
 const approvedT000 = (doc) => !!doc && doc.status === 'APPROVED' && !NON_T000_TYPES.includes(doc.type);
+// ส่ง/ลบไฟล์ T000 ได้เฉพาะช่วงตรวจ T000 — ตรงกับเมนูเอกสารที่เปิดตั้งแต่ผ่านคำร้อง และหลังเอกสารผ่านแล้วไม่ให้เปลี่ยนไฟล์
+// เดิมไม่ตรวจขั้น: ยิง API ส่งได้ทุกสถานะ — นักศึกษาที่ถูกส่งกลับแก้คำร้องส่งไฟล์ T000 แล้วกระโดดไป "รอเจ้าหน้าที่ตรวจ" (ข้ามอาจารย์)
+// และเปลี่ยน/ลบไฟล์หลังออกหนังสือหรือระหว่างฝึกงานได้
+const T000_STUDENT_OPEN = new Set(['QUALIFIED', 'WAITING_FOR_STAFF_CHECK', 'EDITS_REQUIRED']);
+function t000ClosedMessage(status) {
+  const i = ['NOT_SUBMITTED', 'APPLYING', 'PENDING_GRADE', 'QUALIFICATION_FAILED', 'APPLICATION_EDITS_REQUIRED'].includes(status || 'NOT_SUBMITTED');
+  return i ? 'ส่งเอกสาร T000 ได้หลังคำร้องผ่านการพิจารณาแล้ว'
+    : 'เอกสาร T000 ผ่านการตรวจแล้ว เปลี่ยนหรือลบไฟล์เองไม่ได้ — ถ้าต้องแก้ไข กรุณาติดต่อเจ้าหน้าที่';
+}
 // ใบตอบรับเปลี่ยนได้ด้วยการอัปโหลดไฟล์ใหม่เท่านั้น — ลบทิ้งแล้วสถานะค้าง "รอตรวจใบตอบรับ" ไม่มีไฟล์ / หลังออกหนังสือส่งตัวหลักฐานหาย
 const ACCEPTANCE_DELETE_LOCKED = 'ลบใบตอบรับไม่ได้ — ถ้าต้องแก้ไข ให้อัปโหลดไฟล์ใหม่แทน (ก่อนออกหนังสือส่งตัว) หรือติดต่อเจ้าหน้าที่';
 
@@ -177,6 +187,7 @@ exports.uploadDocument = async (req, res) => {
     let mentorSync = null;
     try {
         await prisma.$transaction(async (tx) => {
+          await lockStudents(tx, student.id); // คิวต่อนักศึกษา (utils/rowLock) — คำขอพร้อมกันทำทีละคำขอ
             if (stepKey) {
                 // กำหนดส่งตามปฏิทินของรอบ (รอบยังไม่ตั้ง = ช่วงเดิมใน SystemConfig) · ส่งแก้ไม่ติดกำหนด
                 deadline = await resolveDeadline(stepKey, { studentId: student.id, major: student.major || null }, tx);
@@ -236,7 +247,8 @@ exports.uploadDocument = async (req, res) => {
                 if (dbType === 'T002_FORM') mentorSync = await syncT002SupervisorsToMentors(tx, { studentId: student.id, userId: student.userId });
             } else {
                 const coop = await tx.studentCoop.findUnique({ where: { studentId: student.id } });
-                if (coop && (coop.status === "EDITS_REQUIRED" || coop.status === "APPLICATION_EDITS_REQUIRED")) {
+                if (!coop || !T000_STUDENT_OPEN.has(coop.status)) throw Object.assign(new Error(t000ClosedMessage(coop?.status)), { is409: true });
+                if (coop.status === "EDITS_REQUIRED") {
                     // t000Status EDITS_REQUIRED = รอตรวจจากการส่งแก้ — ไฟล์ถัดไปของการส่งแก้ยังไม่ติดกำหนด (resolveDeadline)
                     await tx.studentCoop.update({
                         where: { studentId: student.id },
@@ -327,12 +339,17 @@ exports.deleteDocument = async (req, res) => {
 
     // ลบ DB ภายใน transaction — status check + delete atomic กัน ป้องกัน TOCTOU
     await prisma.$transaction(async (tx) => {
+      await lockStudents(tx, doc.studentId); // คิวต่อนักศึกษา (utils/rowLock) — คำขอพร้อมกันทำทีละคำขอ
       const freshSt = await tx.student.findUnique({ where: { id: doc.studentId }, select: { deletedAt: true } });
       if (!freshSt || freshSt.deletedAt) throw Object.assign(new Error('บัญชีถูกระงับการใช้งาน'), { is403: true });
       if (doc.type === 'CP-ACCEPTANCE') throw Object.assign(new Error(ACCEPTANCE_DELETE_LOCKED), { is409: true });
       // อ่านสถานะไฟล์ในทรานแซกชัน — เจ้าหน้าที่อาจกดผ่านระหว่างนั้น
       const freshDoc = await tx.document.findUnique({ where: { id: numId }, select: { status: true, type: true } });
       if (approvedT000(freshDoc)) throw Object.assign(new Error(APPROVED_DOC_LOCKED), { is409: true });
+      if (!NON_T000_TYPES.includes(doc.type)) {
+        const coop = await tx.studentCoop.findUnique({ where: { studentId: doc.studentId }, select: { status: true } });
+        if (!coop || !T000_STUDENT_OPEN.has(coop.status)) throw Object.assign(new Error(t000ClosedMessage(coop?.status)), { is409: true });
+      }
       if (doc.type === 'T002_FORM' || doc.type === 'T003_FORM') {
         const coop = await tx.studentCoop.findUnique({
           where: { studentId: doc.studentId }, select: { status: true }
@@ -382,6 +399,7 @@ exports.acknowledgeDispatchDownload = async (req, res) => {
 
     // อัปเดตสถานะเป็น WAITING_FOR_PLACEMENT_LETTER — ตรวจสถานะใน $transaction กันนักศึกษาถอยสถานะ
     await prisma.$transaction(async (tx) => {
+      await lockStudents(tx, student.id); // คิวต่อนักศึกษา (utils/rowLock) — คำขอพร้อมกันทำทีละคำขอ
       const coop = await tx.studentCoop.findUnique({ where: { studentId: student.id } });
       if (!coop || coop.status !== 'REQ_LETTER_ISSUED') {
         throw Object.assign(new Error('ไม่สามารถดำเนินการได้ในสถานะปัจจุบัน'), { is400: true });
@@ -441,6 +459,7 @@ exports.deleteDocumentByType = async (req, res) => {
 
     // ลบ DB ก่อน แล้วค่อยลบไฟล์ · ลบจนไม่ครบหลังส่ง T000 ครั้งแรก → กลับไปรอนักศึกษาส่ง
     await prisma.$transaction(async (tx) => {
+      await lockStudents(tx, student.id); // คิวต่อนักศึกษา (utils/rowLock) — คำขอพร้อมกันทำทีละคำขอ
       await tx.document.delete({ where: { id: doc.id } });
       await syncT000Submission(tx, { studentId: student.id, major: student.major || null });
     }, { isolationLevel: 'ReadCommitted' });
@@ -496,6 +515,7 @@ exports.saveT002Form = async (req, res) => {
 
         let t002;
         await prisma.$transaction(async (tx) => {
+          await lockStudents(tx, student.id); // คิวต่อนักศึกษา (utils/rowLock) — คำขอพร้อมกันทำทีละคำขอ
             const freshCoop = await tx.studentCoop.findUnique({ where: { studentId: student.id }, select: { status: true } });
             if (!freshCoop || !isInternshipStatus(freshCoop.status)) {
                 throw Object.assign(new Error('ยังไม่ถึงขั้นตอนกรอก T002'), { is400: true });
@@ -529,6 +549,7 @@ exports.saveT003Form = async (req, res) => {
 
         let t003;
         await prisma.$transaction(async (tx) => {
+          await lockStudents(tx, student.id); // คิวต่อนักศึกษา (utils/rowLock) — คำขอพร้อมกันทำทีละคำขอ
             const freshCoop = await tx.studentCoop.findUnique({ where: { studentId: student.id }, select: { status: true } });
             if (!freshCoop || !isInternshipStatus(freshCoop.status)) {
                 throw Object.assign(new Error('ยังไม่ถึงขั้นตอนกรอก T003'), { is400: true });

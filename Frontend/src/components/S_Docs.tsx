@@ -683,6 +683,7 @@ export default function S_Docs({ profile, setProfile }: { profile: LocalStudentP
               }
             }}
             allowStatusChange={false}
+            locked={!T000_STUDENT_OPEN.includes(profile.coop?.status || profile.docStatus || "")}
           />
         )}
 
@@ -747,4 +748,6 @@ export default function S_Docs({ profile, setProfile }: { profile: LocalStudentP
   );
 }
 
+// ส่ง/ลบไฟล์ T000 ได้ช่วงนี้เท่านั้น — ตรงกับ backend (docController T000_STUDENT_OPEN)
+const T000_STUDENT_OPEN = ["QUALIFIED", "WAITING_FOR_STAFF_CHECK", "EDITS_REQUIRED"];
 const lbl: React.CSSProperties = { fontSize: 13, fontWeight: 700, color: '#475569', marginTop: 12, display: 'block' };

@@ -55,13 +55,12 @@ describe('อาจารย์ประจำวิชา (มีหลัก�
     const res = makeRes();
     await getPendingCounts(req(2, 'teacher'), res);
     const { pending } = res.json.mock.calls[0][0];
-    expect(Object.keys(pending).sort()).toEqual(['coopApplications', 't000', 't002', 't003', 'teacherRequests', 'teacherSupervision']);
+    expect(Object.keys(pending).sort()).toEqual(['coopApplications', 't000', 't002', 't003', 'teacherSupervision']);
     expect(coopCountFor('APPLYING')[0].where.student).toEqual({ deletedAt: null, major: { in: ['AI'] } });
     // T000 ของอาจารย์ = งานตรวจเท่านั้น (ออกหนังสือเป็นของเจ้าหน้าที่)
     expect(coopCountFor({ in: ['WAITING_FOR_STAFF_CHECK', 'WAITING_FOR_STAFF_CHECK_LETTER'] })).toBeTruthy();
-    // หน้าคำร้องของอาจารย์ = ที่ปรึกษา + หลักสูตรที่ดูแล · รอตรวจรวมรอพิจารณาเกรด
-    expect(coopCountFor({ in: ['APPLYING', 'PENDING_GRADE'] })[0].where.student)
-      .toEqual({ AND: [{ deletedAt: null }, { OR: [{ coopAdvisorId: 9 }, { major: { in: ['AI'] } }] }] });
+    // อาจารย์ที่ปรึกษาไม่ได้พิจารณาคำร้องแล้ว (2026-11-08) — ไม่มีป้าย "คำร้องรอพิจารณา" ของหน้าอาจารย์
+    expect(coopCountFor({ in: ['APPLYING', 'PENDING_GRADE'] })).toBeUndefined();
     expect(prisma.feedback.count).not.toHaveBeenCalled();
   });
 
@@ -84,7 +83,7 @@ describe('อาจารย์ทั่วไป (ไม่มีหลัก�
     const res = makeRes();
     await getPendingCounts(req(3, 'teacher'), res);
     const { pending } = res.json.mock.calls[0][0];
-    expect(Object.keys(pending).sort()).toEqual(['t002', 't003', 'teacherRequests', 'teacherSupervision']);
+    expect(Object.keys(pending).sort()).toEqual(['t002', 't003', 'teacherSupervision']);
   });
 });
 
