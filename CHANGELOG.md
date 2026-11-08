@@ -1,5 +1,18 @@
 # CHANGELOG — Co_project
 
+## [2026-11-08] chore(security): อัปเดต package ที่มีช่องโหว่ · header ความปลอดภัยของหน้าเว็บ · สแกนไฟล์ build
+
+### Changed
+- `npm audit fix` ทั้ง backend/หน้าเว็บ (patch/minor): `proxy-addr` (critical — ปลอม IP ผ่าน IPv6) · `qs` (DoS) · `path-to-regexp` (ReDoS) · `follow-redirects` · `vite` (ช่องโหว่ dev server) ฯลฯ
+- `jspdf` 3.0.4 → 4.2.1 (critical: PDF/JS injection ใน AcroForm/addJS · DoS รูป BMP/GIF — ระบบใช้ addImage กับรูปถ่ายนักศึกษา) — PDF ทุกแบบผ่านเทสต์เดิม 93 ข้อ (รวมหน้าตาเอกสาร)
+- `xlsx` 0.18.5 → 0.20.3 จาก CDN ของ SheetJS (npm ไม่มีรุ่นแก้: prototype pollution/ReDoS ตอนอ่านไฟล์ Excel ที่อัปโหลด — หน้านำเข้านักศึกษา) — นำเข้า/ส่งออกผ่าน e2e 121 ข้อ · deploy ต้องต่อเน็ตถึง cdn.sheetjs.com ตอน `npm install`
+- เหลือ (ตั้งใจคงไว้): `glob`/`minimatch` ใน `archiver` (zip หนังสือ) — ต้องให้ผู้โจมตีกำหนด pattern เอง ระบบกำหนดเองทั้งหมด · หน้าเว็บ 0 ช่องโหว่ (production)
+- nginx (`setup-vm.ps1` โหมด ngrok · `nginx-http-only.conf`): เดิมหน้าเว็บไม่มี header ความปลอดภัย (helmet ใส่ให้แค่ /api) — เพิ่ม `X-Frame-Options` (กันเว็บอื่นฝังหน้า/clickjacking) · `X-Content-Type-Options` · `Referrer-Policy` · `server_tokens off` (ไม่บอกเวอร์ชัน nginx) · ปิด `/status.html` จากภายนอก (เปิดที่ 127.0.0.1:8888 ได้เหมือนเดิม) — `nginx.conf` (โดเมนจริง) มี header อยู่แล้ว เพิ่มแค่ปิด status.html
+
+### Checked
+- ไฟล์ build (`dist/`): ไม่มีความลับ (DATABASE_URL/JWT/คีย์ส่วนตัว/โทเคน) · ไม่มี source map · ตัวแปรที่ฝังมีแค่ `VITE_GOOGLE_CLIENT_ID` (เปิดเผยได้ตามที่ Google ออกแบบ)
+- Jest 2002 ผ่าน · tsc 0 · build ผ่าน
+
 ## [2026-11-08] test+fix: ข้ามขั้นตอนผ่าน API · กดซ้ำ/กดพร้อมกัน + ผู้พิจารณาคำร้อง = อาจารย์ประจำวิชา/เจ้าหน้าที่
 
 ### Changed (ผู้ใช้ตัดสิน 2026-11-08)

@@ -104,11 +104,19 @@ http {
     sendfile on;
     keepalive_timeout 65;
     client_max_body_size 50M;
+    server_tokens off;
     server {
         listen 80;
         server_name $VM_IP;
         root   C:/Co_project/Frontend/dist;
         index  index.html;
+        # Security headers for the web app itself (helmet only covers /api responses):
+        # no framing by other sites (clickjacking), no MIME sniffing, no full URL in Referer.
+        add_header X-Frame-Options "SAMEORIGIN" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+        # VM status page is for the 127.0.0.1:8888 block only.
+        location = /status.html { return 404; }
         # Blocked on the public (ngrok-tunneled) listener - only reachable via
         # the 127.0.0.1-only server block below.
         location ^~ /api/internal-status { return 404; }
