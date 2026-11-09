@@ -2,7 +2,7 @@
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const { pdfOrImageFileFilter } = require('../utils/fileFilters');
+const { pdfOrImageFileFilter, withContentCheck } = require('../utils/fileFilters');
 
 // สร้างโฟลเดอร์ uploads/system ถ้ายังไม่มี
 const uploadDir = path.join(__dirname, '../uploads/system');
@@ -30,4 +30,4 @@ const systemUpload = multer({
     limits: { fileSize: 5 * 1024 * 1024 }
 });
 
-module.exports = systemUpload;
+module.exports = withContentCheck(systemUpload); // ตรวจเนื้อไฟล์จริงต่อท้าย

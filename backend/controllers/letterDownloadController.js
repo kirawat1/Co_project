@@ -4,6 +4,7 @@
 // หน้าเว็บ: summary (หน้าต่างยืนยัน: กี่ฉบับ ขนาดเท่าไร ใครบ้าง) → download-link → เบราว์เซอร์เปิด /letters/zip?t=… เอง
 // (เดิม fetch แล้ว res.blob() — ไฟล์สแกนฉบับละ 10–30 MB รวมเป็นหลายร้อย MB ค้างที่ "กำลังเตรียมไฟล์" ไม่มีความคืบหน้า)
 const fs = require('fs');
+const { isDbId } = require('../utils/dbId');
 const path = require('path');
 const jwt = require('jsonwebtoken');
 const archiver = require('archiver');
@@ -50,7 +51,7 @@ function parseParams(src) {
   if (!LETTER_TYPES[type]) throw bad('type ต้องเป็น REQ, PLACE หรือ SUPERVISION');
   const raw = src?.coopPeriodId;
   const periodId = raw && raw !== 'all' ? parseInt(raw, 10) : null;
-  if (raw && raw !== 'all' && (!Number.isInteger(periodId) || periodId <= 0)) throw bad('coopPeriodId ไม่ถูกต้อง');
+  if (raw && raw !== 'all' && (!isDbId(periodId))) throw bad('coopPeriodId ไม่ถูกต้อง');
   const major = src?.major === undefined ? undefined : String(src.major || '');
   return { type, periodId, major };
 }

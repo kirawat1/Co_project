@@ -7,7 +7,7 @@ const supervisionController = require('../controllers/supervisionController');
 const supervisionEvalController = require('../controllers/supervisionEvalController');
 const configController = require('../controllers/configController');
 const { verifyToken, verifyRole, verifyCoopTeacherOrStaff } = require('../middlewares/authMiddleware');
-const { pdfOrImageFileFilter } = require('../utils/fileFilters');
+const { pdfOrImageFileFilter, withContentCheck } = require('../utils/fileFilters');
 
 // --- ตั้งค่าโฟลเดอร์อัปโหลดสำหรับหนังสือนิเทศ ---
 const SUPERVISION_UPLOAD_DIR = path.join(__dirname, '../uploads/supervision');
@@ -23,7 +23,7 @@ const storage = multer.diskStorage({
         cb(null, 'SUPERVISION_LETTER_' + uniqueSuffix + path.extname(file.originalname).toLowerCase());
     }
 });
-const upload = multer({ storage, fileFilter: pdfOrImageFileFilter, limits: { fileSize: 50 * 1024 * 1024 } });
+const upload = withContentCheck(multer({ storage, fileFilter: pdfOrImageFileFilter, limits: { fileSize: 50 * 1024 * 1024 } })); // ตรวจเนื้อไฟล์จริงต่อท้าย
 
 
 // ================= ROUTE สำหรับ ADMIN + อาจารย์ประจำวิชา =================

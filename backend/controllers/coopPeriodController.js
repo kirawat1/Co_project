@@ -1,4 +1,5 @@
 const prisma = require('../config/prismaClient');
+const { isDbId } = require('../utils/dbId');
 const { notStartedYet } = require('../utils/applyWindow');
 const { INTERNSHIP_STATUSES } = require('../utils/internshipForms');
 const { isPeriodExpired } = require('../utils/coopPeriodHelper');
@@ -43,7 +44,7 @@ exports.createPeriod = async (req, res) => {
     const year = String(academicYear || '').trim();
     const parsedSemester = Number(semester);
     if (!year) return fail(res, 400, 'academicYear ต้องระบุ');
-    if (!Number.isInteger(parsedSemester) || parsedSemester <= 0) return fail(res, 400, 'semester ไม่ถูกต้อง');
+    if (!isDbId(parsedSemester)) return fail(res, 400, 'semester ไม่ถูกต้อง');
     const start = parseDate(startDate), end = parseDate(endDate);
     if (!start || !end) return fail(res, 400, 'startDate และ endDate ต้องระบุ');
     // วันปิดก่อนวันเปิด = รอบปิดตั้งแต่สร้าง (เดิมบันทึกได้ — นักศึกษาหลักสูตรนั้นยื่นคำร้องไม่ได้ทั้งรอบ)
@@ -95,7 +96,7 @@ exports.updatePeriod = async (req, res) => {
 
     if (!major && isStaff(req)) {
       const parsedSemester = Number(semester);
-      if (semester !== undefined && (!Number.isInteger(parsedSemester) || parsedSemester <= 0)) return fail(res, 400, 'semester ไม่ถูกต้อง');
+      if (semester !== undefined && (!isDbId(parsedSemester))) return fail(res, 400, 'semester ไม่ถูกต้อง');
       await prisma.coopPeriod.update({
         where: { id: parsedId },
         data: {

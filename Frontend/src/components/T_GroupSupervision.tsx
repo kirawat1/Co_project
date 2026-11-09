@@ -31,6 +31,37 @@ function hasDate(proposedDates: string[], targetDateKey: string): boolean {
   return proposedDates.some(e => e.split("|")[0].slice(0, 10) === targetDateKey);
 }
 
+// วันร่วม (ไม่ซ้ำวัน) — เวลาไม่ต้องเลือก เพราะแต่ละคนได้ช่วงที่ตัวเองเสนอ
+function uniqueDays(entries: string[]): string[] {
+  return [...new Set(entries.map(e => e.split("|")[0].slice(0, 10)))];
+}
+
+type QueueRow = { s: StudentAppointment; start?: string; end?: string; clash?: string };
+const hhmm = (t: string) => { const m = t.trim().replace(".", ":").match(/^(\d{1,2}):(\d{2})$/); return m ? `${m[1].padStart(2, "0")}:${m[2]}` : null; };
+const plus60 = (t: string) => { const [h, m] = t.split(":").map(Number); const x = h * 60 + m + 60; return `${String(Math.floor(x / 60)).padStart(2, "0")}:${String(x % 60).padStart(2, "0")}`; };
+
+// คิวตามกติกาเดียวกับ backend (confirmGroupSupervision): แต่ละคนได้ช่วงที่ตัวเองเสนอในวันนั้น เรียงตามเวลา
+// ใช้ช่วงแรกที่เริ่มหลังคิวก่อนหน้าจบ · ไม่มีช่วงไหนว่าง = ทับกัน (ยืนยันไม่ได้) · ไม่มีเวลา (ข้อมูลเก่า) ต่อท้ายคิว 60 นาที
+function buildQueue(students: StudentAppointment[], dayKey: string): QueueRow[] {
+  const cands = students.map(s => {
+    const timed = s.proposedDates
+      .filter(e => e.split("|")[0].slice(0, 10) === dayKey)
+      .map(e => { const [a = "", b = ""] = (e.split("|")[1] || "").split("-"); const start = hhmm(a); return { start, end: start ? (hhmm(b) || plus60(start)) : null }; })
+      .filter((x): x is { start: string; end: string } => !!x.start && !!x.end && x.start < x.end)
+      .sort((x, y) => x.start.localeCompare(y.start));
+    return { s, timed };
+  }).sort((x, y) => (x.timed.length && y.timed.length ? x.timed[0].start.localeCompare(y.timed[0].start) : x.timed.length ? -1 : y.timed.length ? 1 : 0));
+  let cursor = "00:00";
+  let prevName = "";
+  return cands.map(({ s, timed }) => {
+    if (!timed.length) { const row = { s, start: cursor, end: plus60(cursor) }; cursor = row.end; prevName = s.studentName; return row; }
+    const e = timed.find(x => x.start >= cursor);
+    if (!e) return { s, clash: `ทับกับคิวของ ${prevName} — ปฏิเสธให้เสนอเวลาใหม่ หรือติ๊กออก` };
+    cursor = e.end; prevName = s.studentName;
+    return { s, start: e.start, end: e.end };
+  });
+}
+
 export default function T_GroupSupervision() {
   const token = localStorage.getItem("coop.token");
   const [companies, setCompanies] = useState<CompanyGroup[]>([]);
@@ -69,9 +100,8 @@ export default function T_GroupSupervision() {
 
   const openModal = (company: CompanyGroup) => {
     setModal({ company });
-    const firstEntry = company.commonDates[0] || "";
-    setSelectedDateEntry(firstEntry);
-    const dateKey = firstEntry.split("|")[0].slice(0, 10);
+    const dateKey = uniqueDays(company.commonDates)[0] || "";
+    setSelectedDateEntry(dateKey);
     setCheckedIds(new Set(
       company.students
         .filter(s => hasDate(s.proposedDates, dateKey))
@@ -102,11 +132,8 @@ export default function T_GroupSupervision() {
     setSubmitting(true);
     setConfirmError(null);
     try {
-      // tPart เป็นช่วงเวลา เช่น "08:00-10:30" (เหมือนที่ T_SupervisionReview.tsx ใช้) — ต้องตัดเอาแค่เวลาเริ่มก่อนสร้าง Date
-      // เดิมเอา tPart ทั้งช่วงไปต่อกับ Date string ตรงๆ ได้ Invalid Date → toISOString() throw → ยืนยันไม่ได้เลยสักครั้ง
-      const [dPart, tPart = "00:00"] = selectedDateEntry.split("|");
-      const startTime = tPart.split("-")[0];
-      const confirmedDate = new Date(`${dPart.slice(0, 10)}T${startTime}:00`).toISOString();
+      // ส่งแค่วัน (เวลาเริ่ม 00:00 = ไม่จำกัด) — backend ให้แต่ละคนตามช่วงที่ตัวเองเสนอในวันนั้น
+      const confirmedDate = new Date(`${selectedDateEntry.split("|")[0].slice(0, 10)}T00:00:00`).toISOString();
       const body = { appointmentIds: [...checkedIds], confirmedDate };
       const opts = { headers: { Authorization: `Bearer ${token}` } };
       let res;
@@ -131,6 +158,10 @@ export default function T_GroupSupervision() {
     }
     setSubmitting(false);
   };
+
+  const queue = modal
+    ? buildQueue(modal.company.students.filter(s => checkedIds.has(s.appointmentId)), selectedDateEntry.split("|")[0].slice(0, 10))
+    : [];
 
   if (loading) return <div style={{ padding: 32 }}><Spinner /></div>;
   if (error) return <div style={{ padding: 32, color: '#ef4444', textAlign: 'center' }}>{error}</div>;
@@ -170,7 +201,7 @@ export default function T_GroupSupervision() {
                     className="btn small"
                     onClick={e => { e.stopPropagation(); openModal(company); }}
                   >
-                    นัดพร้อมกัน ({company.commonDates.length} วัน)
+                    นัดพร้อมกัน ({uniqueDays(company.commonDates).length} วัน)
                   </button>
                 )}
                 <span style={{ fontSize: 18, color: "#64748b" }}>{expanded ? "▲" : "▼"}</span>
@@ -224,13 +255,12 @@ export default function T_GroupSupervision() {
               onChange={e => onDateChange(e.target.value)}
               style={{ width: "100%", padding: "8px 10px", borderRadius: 7, border: "1px solid #e2e8f0", marginBottom: 14 }}
             >
-              {modal.company.commonDates.map(entry => {
-                const { displayDate, time } = parseDateEntry(entry);
-                return <option key={entry} value={entry}>{displayDate} {time}</option>;
-              })}
+              {uniqueDays(modal.company.commonDates).map(dayKey => (
+                <option key={dayKey} value={dayKey}>{fmtDate(dayKey)}</option>
+              ))}
             </select>
             <div style={{ fontSize: 12, color: "#0369a1", background: "#f0f9ff", border: "1px solid #bae6fd", borderRadius: 7, padding: "6px 10px", marginBottom: 12 }}>
-              นิเทศทีละคนต่อกันตาม "ลำดับคิว" ด้านล่าง — คนแรกเริ่มตามเวลาที่เลือก คนถัดไปต่อจากคนก่อนหน้าทันที (ความยาวตามช่วงที่แต่ละคนเสนอ) · ติ๊กออกแล้วติ๊กใหม่ = ย้ายไปท้ายคิว
+              แต่ละคนได้เวลาตามช่วงที่ตัวเองเสนอในวันนั้น เรียงตามเวลา — ช่วงที่ทับกันยืนยันพร้อมกันไม่ได้ (อาจารย์นิเทศได้ทีละคน)
             </div>
             <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>นักศึกษา</div>
             {modal.company.students.map(s => {
@@ -255,11 +285,11 @@ export default function T_GroupSupervision() {
             {checkedIds.size > 0 && (
               <div style={{ fontSize: 12, color: "#334155", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 7, padding: "6px 10px", margin: "10px 0" }}>
                 <div style={{ fontWeight: 700, marginBottom: 2 }}>ลำดับคิว</div>
-                {/* ลำดับเดียวกับที่ส่งให้ backend ([...checkedIds]) — backend ไล่คิวตามลำดับนี้ */}
-                {[...checkedIds].map((id, i) => {
-                  const s = modal.company.students.find(st => st.appointmentId === id);
-                  return <div key={id}>{i + 1}. {s?.studentName ?? id}</div>;
-                })}
+                {queue.map((q, i) => (
+                  <div key={q.s.appointmentId} style={q.clash ? { color: "#b91c1c" } : undefined}>
+                    {i + 1}. {q.s.studentName} — {q.clash ? `⚠️ ${q.clash}` : `${q.start}–${q.end} น.`}
+                  </div>
+                ))}
               </div>
             )}
             {confirmError && <div style={{ color: '#ef4444', fontSize: 13, marginBottom: 8 }}>{confirmError}</div>}
@@ -270,7 +300,7 @@ export default function T_GroupSupervision() {
               <button
                 className="btn"
                 onClick={handleConfirm}
-                disabled={submitting || checkedIds.size === 0}
+                disabled={submitting || checkedIds.size === 0 || queue.some(q => q.clash)}
               >
                 {submitting ? <BusyLabel text="กำลังยืนยัน…" /> : `ยืนยัน (${checkedIds.size} คน)`}
               </button>

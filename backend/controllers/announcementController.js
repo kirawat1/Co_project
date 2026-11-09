@@ -3,7 +3,7 @@ const prisma = require("../config/prismaClient");
 const path = require("path");
 const fs = require("fs");
 const multer = require("multer");
-const { pdfOrImageFileFilter } = require('../utils/fileFilters');
+const { pdfOrImageFileFilter, withContentCheck } = require('../utils/fileFilters');
 const { getMajorScope } = require('../utils/majorScope');
 const audience = require('../utils/announcementAudience');
 
@@ -20,7 +20,7 @@ const storage = multer.diskStorage({
   },
 });
 
-const upload = multer({ storage, fileFilter: pdfOrImageFileFilter, limits: { fileSize: 50 * 1024 * 1024 } });
+const upload = withContentCheck(multer({ storage, fileFilter: pdfOrImageFileFilter, limits: { fileSize: 50 * 1024 * 1024 } })); // ตรวจเนื้อไฟล์จริงต่อท้าย
 
 // ไฟล์/ลิงก์แนบ → รูปแบบเดียวที่หน้าเว็บใช้ (มี id ของไฟล์ไว้ "เก็บไฟล์เดิม" ตอนแก้ไข)
 function attachmentsOf(a) {

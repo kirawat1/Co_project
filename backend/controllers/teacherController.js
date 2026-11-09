@@ -1,4 +1,5 @@
 const prisma = require("../config/prismaClient");
+const { isDbId } = require('../utils/dbId');
 const { lockStudents } = require('../utils/rowLock');
 const { studentIdSearchOr } = require("../utils/studentId");
 const { reviewForm } = require('../utils/internshipForms');
@@ -188,7 +189,7 @@ exports.updateTeacherById = async (req, res) => {
   try {
     const { id } = req.params; // รับ Teacher ID
     const parsedTeacherId = parseInt(id, 10);
-    if (isNaN(parsedTeacherId) || parsedTeacherId <= 0)
+    if (!isDbId(parsedTeacherId))
       return res.status(400).json({ ok: false, message: 'id ไม่ถูกต้อง' });
     // สถานะอาจารย์ประจำวิชาแก้ที่ PUT /api/admin/teachers/:id (coopMajors) เท่านั้น
     const { firstName, lastName, phone, major, prefix } = req.body;
@@ -227,7 +228,7 @@ exports.reviewT003 = async (req, res) => {
 
         if (!studentId) return res.status(400).json({ ok: false, message: "ไม่พบข้อมูล Student ID" });
         const parsedStudentId = parseInt(studentId, 10);
-        if (isNaN(parsedStudentId) || parsedStudentId <= 0) return res.status(400).json({ ok: false, message: 'studentId ต้องเป็นตัวเลขที่ถูกต้อง' });
+        if (!isDbId(parsedStudentId)) return res.status(400).json({ ok: false, message: 'studentId ต้องเป็นตัวเลขที่ถูกต้อง' });
 
         const T003_ALLOWED = ['T003_APPROVED', 'T003_EDITS_REQUIRED'];
         if (!T003_ALLOWED.includes(status)) {
@@ -297,7 +298,7 @@ exports.reviewT002 = async (req, res) => {
 
         if (!studentId) return res.status(400).json({ ok: false, message: "ไม่พบข้อมูล Student ID" });
         const parsedStudentId = parseInt(studentId, 10);
-        if (isNaN(parsedStudentId) || parsedStudentId <= 0) return res.status(400).json({ ok: false, message: 'studentId ต้องเป็นตัวเลขที่ถูกต้อง' });
+        if (!isDbId(parsedStudentId)) return res.status(400).json({ ok: false, message: 'studentId ต้องเป็นตัวเลขที่ถูกต้อง' });
 
         const T002_ALLOWED = ['T002_SUBMITTED', 'T002_EDITS_REQUIRED'];
         if (!T002_ALLOWED.includes(status)) {
@@ -380,7 +381,7 @@ exports.getDashboardStats = async (req, res) => {
 
         // แปลง semester ให้เป็นตัวเลข (Int) ตาม Schema
         const semesterInt = semester ? parseInt(semester, 10) : undefined;
-        if (semesterInt !== undefined && (isNaN(semesterInt) || semesterInt <= 0))
+        if (semesterInt !== undefined && (!isDbId(semesterInt)))
             return res.status(400).json({ ok: false, message: 'semester ไม่ถูกต้อง' });
         const yearStr = year ? String(year) : undefined;
 
@@ -451,7 +452,7 @@ exports.getLatestRequests = async (req, res) => {
         if (!teacher) return res.json({ ok: true, students: [] });
 
         const semesterInt = semester ? parseInt(semester, 10) : undefined;
-        if (semesterInt !== undefined && (isNaN(semesterInt) || semesterInt <= 0))
+        if (semesterInt !== undefined && (!isDbId(semesterInt)))
             return res.status(400).json({ ok: false, message: 'semester ไม่ถูกต้อง' });
         const yearStr = year ? String(year) : undefined;
 
@@ -561,7 +562,7 @@ exports.createTeacher = async (req, res) => {
 exports.deleteTeacher = async (req, res) => {
   try {
     const teacherId = parseInt(req.params.id, 10);
-    if (isNaN(teacherId) || teacherId <= 0)
+    if (!isDbId(teacherId))
       return res.status(400).json({ ok: false, message: 'id ไม่ถูกต้อง' });
     const teacher = await prisma.teacher.findUnique({ where: { id: teacherId } });
     if (!teacher) return res.status(404).json({ ok: false, message: "ไม่พบอาจารย์" });
@@ -614,7 +615,7 @@ exports.deleteTeacher = async (req, res) => {
 exports.revealTeacherPassword = async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
-    if (isNaN(id) || id <= 0) return res.status(400).json({ ok: false, message: 'id ไม่ถูกต้อง' });
+    if (!isDbId(id)) return res.status(400).json({ ok: false, message: 'id ไม่ถูกต้อง' });
 
     const teacher = await prisma.teacher.findUnique({
       where: { id },
@@ -639,7 +640,7 @@ exports.resetTeacherPassword = async (req, res) => {
   try {
     const { id } = req.params;
     const parsedId = parseInt(id, 10);
-    if (isNaN(parsedId) || parsedId <= 0)
+    if (!isDbId(parsedId))
       return res.status(400).json({ ok: false, message: 'id ไม่ถูกต้อง' });
     const { newPassword } = req.body;
     const { validatePassword } = require('../utils/validatePassword');
@@ -667,7 +668,7 @@ exports.adminUpdateTeacher = async (req, res) => {
   try {
     const { id } = req.params;
     const parsedId = parseInt(id, 10);
-    if (isNaN(parsedId) || parsedId <= 0)
+    if (!isDbId(parsedId))
       return res.status(400).json({ ok: false, message: 'id ไม่ถูกต้อง' });
     const { firstName, lastName, phone, major, prefix } = req.body;
     let { email } = req.body;

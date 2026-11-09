@@ -340,16 +340,20 @@ test.describe("D. ปฏิเสธ / คิวชน / กลุ่ม", () =>
     expect(r.status, msg(r)).toBe(200);
   });
 
-  test("ยืนยันแบบกลุ่ม: คิวเรียงตามลำดับที่ส่ง ต่อกันไม่ทับ กลุ่มเดียวกัน · วันที่บางคนไม่ได้เสนอ 400", async () => {
+  // ผู้ใช้ตัดสิน 2026-11-10: แต่ละคนได้ช่วงที่ตัวเองเสนอ — ช่วงทับกันยืนยันพร้อมกันไม่ได้ (เดิมต่อคิวให้เอง)
+  test("ยืนยันแบบกลุ่ม: วันที่บางคนไม่ได้เสนอ 400 · เสนอเวลาทับกัน 400 · เสนอต่อคิวแล้วยืนยันได้ตามเวลาของแต่ละคน กลุ่มเดียวกัน", async () => {
     const D = day(25);
     const p = (await propose("gP", [`${D}|09:00-10:00|ONSITE`])).body.appointment.id;
     const q = (await propose("gQ", [`${D}|09:00-10:00|ONSITE`, `${day(26)}|09:00-10:00|ONSITE`])).body.appointment.id;
-    let r = await api(w.t.main.token, "POST", "/api/teacher/supervisions/confirm-group", { appointmentIds: [q, p], confirmedDate: at(day(26), "09:00") });
+    let r = await api(w.t.main.token, "POST", "/api/teacher/supervisions/confirm-group", { appointmentIds: [q, p], confirmedDate: at(day(26), "00:00") });
     expect(r.status, msg(r)).toBe(400);
-    r = await api(w.t.main.token, "POST", "/api/teacher/supervisions/confirm-group", { appointmentIds: [q, p], confirmedDate: at(D, "09:00") });
+    r = await api(w.t.main.token, "POST", "/api/teacher/supervisions/confirm-group", { appointmentIds: [q, p], confirmedDate: at(D, "00:00") });
+    expect([r.status, r.body?.message]).toEqual([400, expect.stringMatching(/ทับกับคิวของ/)]);
+    expect((await propose("gQ", [`${D}|10:00-11:00|ONSITE`])).status).toBe(200);   // ต่อคิวเพื่อน
+    r = await api(w.t.main.token, "POST", "/api/teacher/supervisions/confirm-group", { appointmentIds: [q, p], confirmedDate: at(D, "00:00") });
     expect(r.status, msg(r)).toBe(200);
     const [aq, ap] = [(await w.supervision("gQ"))!, (await w.supervision("gP"))!];
-    expect([new Date(aq.confirmedDate!).toISOString(), new Date(ap.confirmedDate!).toISOString()]).toEqual([at(D, "09:00"), at(D, "10:00")]);
+    expect([new Date(ap.confirmedDate!).toISOString(), new Date(aq.confirmedDate!).toISOString()]).toEqual([at(D, "09:00"), at(D, "10:00")]);
     expect(aq.groupId).toBeTruthy();
     expect(ap.groupId).toBe(aq.groupId);
   });

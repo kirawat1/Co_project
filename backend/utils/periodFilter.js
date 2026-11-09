@@ -1,3 +1,4 @@
+const { isDbId } = require('./dbId');
 // ตัวกรองรอบของรายชื่อนักศึกษา (?coopPeriodId=)
 //   ไม่ระบุ / all → ทุกคน · ตัวเลข → รอบนั้น
 //   none → ยังไม่เลือกรอบ: ยังไม่เคยยื่นคำร้อง (ไม่มีข้อมูลสหกิจ) หรือมีข้อมูลสหกิจแต่ยังไม่ผูกรอบ
@@ -8,7 +9,7 @@ function parsePeriod(raw) {
   if (raw === undefined || raw === null || raw === '' || raw === 'all') return { all: true };
   if (raw === NO_PERIOD) return { none: true };
   const id = Number(raw);
-  if (!Number.isInteger(id) || id <= 0) return { error: 'coopPeriodId ไม่ถูกต้อง' };
+  if (!isDbId(id)) return { error: 'coopPeriodId ไม่ถูกต้อง' };
   return { id };
 }
 

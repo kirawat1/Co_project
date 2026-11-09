@@ -1,10 +1,11 @@
 const prisma = require('../config/prismaClient');
+const { isDbId } = require('../utils/dbId');
 const fs = require('fs');
 const path = require('path');
 const { createNotifications, getStaffAndCoopTeacherIds } = require('../utils/notificationHelper');
-const { normalizeDocNumber, isPlaceholderDocNo, parseDateOr400 } = require('../utils/docNumber');
+const { normalizeDocNumber, isPlaceholderDocNo, parseDateOr400, strictDate } = require('../utils/docNumber');
 const { setAuditDetail, letterPendingActionText, supervisionLetterActionText } = require('../utils/auditActions');
-const { resolveSlotEnd, assertNoTeacherClash, findTeacherClash, dateKey, timeKey, parseProposedList } = require('../utils/supervisionClash');
+const { resolveSlotEnd, assertNoTeacherClash, dateKey, timeKey, parseProposedList, invalidProposedDates } = require('../utils/supervisionClash');
 const { SUPERVISION_SCHEDULE_SELECT, SUPERVISION_EXPORT_SELECT, toScheduleRow, sortSchedule, buildSupervisionScheduleWorkbook } = require('../utils/supervisionExport');
 const { exportBaseUrl } = require('../utils/studentExport');
 const { getEvalConfig, sendEvalForAppointments } = require('../utils/supervisionEval');
@@ -25,6 +26,10 @@ const SUPERVISION_PROPOSE_STATUSES = INTERNSHIP_STATUSES;
 // เลขที่หนังสือขอนิเทศห้ามซ้ำกับหนังสือทุกประเภท (ใช้เลขชุดเดียวกับขอความอนุเคราะห์/ส่งตัว) — ดู utils/letterNumberFree.js
 // appointmentIds = นัดในหนังสือฉบับนี้ (หนังสือรวมของกลุ่มนิเทศใช้เลขเดียวกันได้) — เลิก unique ระดับ DB แล้ว
 const { DOC_NUMBER_TX } = require('../utils/docNumberLock');
+const { lockTeachers, lockAppointments, LOCK_TX } = require('../utils/rowLock');
+// ล็อกรอกันนานเกิน/สองคำขอรอกันเอง (MySQL ยกเลิกคำขอหนึ่ง) → ให้ผู้ใช้ลองใหม่ แทน 500
+const isLockConflict = (err) => err?.code === 'P2034' || /deadlock|lock wait timeout/i.test(String(err?.message || ''));
+const BUSY_MESSAGE = 'มีการบันทึกนัดนิเทศเดียวกันพร้อมกันอยู่ กรุณาโหลดหน้าใหม่แล้วลองอีกครั้ง';
 const { assertLetterNumberFree } = require('../utils/letterNumberFree');
 const assertSupervisionDocNumberFree = (tx, value, appointmentIds) => assertLetterNumberFree(tx, 'supervisionLetter', value, appointmentIds);
 
@@ -50,7 +55,7 @@ exports.saveSupervisionPeriod = async (req, res) => {
         const { periodId, major, isSupervisionOpen, supervisionStartDate, supervisionEndDate } = req.body;
 
         const parsedPeriodId = parseInt(periodId, 10);
-        if (isNaN(parsedPeriodId) || parsedPeriodId <= 0) {
+        if (!isDbId(parsedPeriodId)) {
             return res.status(400).json({ ok: false, message: 'periodId ไม่ถูกต้อง' });
         }
         const [m] = await targetMajors(req, major);
@@ -153,7 +158,7 @@ async function letterAppointmentIds(tx, id, raw) {
     if (raw === undefined || raw === null || raw === '') return [id];
     let arr = raw;
     if (typeof raw === 'string') { try { arr = JSON.parse(raw); } catch (_) { arr = raw.split(','); } }
-    const ids = [...new Set([].concat(arr).map((x) => parseInt(x, 10)).filter((n) => Number.isInteger(n) && n > 0))];
+    const ids = [...new Set([].concat(arr).map((x) => parseInt(x, 10)).filter(isDbId))];
     if (!ids.includes(id)) ids.unshift(id);
     if (ids.length === 1) return ids;
     const rows = await tx.supervisionAppointment.findMany({ where: { id: { in: ids } }, select: { id: true, groupId: true } });
@@ -167,7 +172,7 @@ exports.uploadOfficialLetter = async (req, res) => {
     try {
         const { id } = req.params;
         const parsedId = parseInt(id, 10);
-        if (isNaN(parsedId) || parsedId <= 0) {
+        if (!isDbId(parsedId)) {
             if (req.file) try { fs.unlinkSync(path.join(__dirname, '../uploads/supervision', req.file.filename)); } catch (_) {}
             return res.status(400).json({ ok: false, message: 'id ไม่ถูกต้อง' });
         }
@@ -191,6 +196,8 @@ exports.uploadOfficialLetter = async (req, res) => {
 
             await prisma.$transaction(async (tx) => {
                 letterIds = await letterAppointmentIds(tx, parsedId, req.body?.appointmentIds);
+                // ล็อกนัดก่อนอ่านสถานะ — อัปโหลดรัว ๆ ออกหนังสือครั้งเดียว (เดิมผ่านทุกคำขอ ไฟล์ของคำขอที่ถูกทับค้างในโฟลเดอร์)
+                await lockAppointments(tx, letterIds);
                 for (const aid of letterIds) {
                     const current = await tx.supervisionAppointment.findUnique({ where: { id: aid } });
                     if (!current || current.status !== 'DATE_CONFIRMED') {
@@ -213,6 +220,7 @@ exports.uploadOfficialLetter = async (req, res) => {
             if (txErr.is409) return res.status(409).json({ ok: false, message: txErr.message });
             // unique index — สองคำขอใช้เลขเดียวกันพร้อมกันจนรอดด่านเช็ค
             if (txErr.code === 'P2002') return res.status(409).json({ ok: false, message: 'เลขที่หนังสือขอนิเทศนี้ถูกใช้ไปแล้ว กรุณาใช้เลขอื่น' });
+            if (isLockConflict(txErr)) return res.status(409).json({ ok: false, message: BUSY_MESSAGE });
             throw txErr;
         }
 
@@ -251,7 +259,7 @@ exports.uploadOfficialLetter = async (req, res) => {
 exports.markSupervisionLetterPending = async (req, res) => {
     try {
         const id = parseInt(req.params.id, 10);
-        if (isNaN(id) || id <= 0) return res.status(400).json({ ok: false, message: 'id ไม่ถูกต้อง' });
+        if (!isDbId(id)) return res.status(400).json({ ok: false, message: 'id ไม่ถูกต้อง' });
         const cancel = req.body?.cancel === true || req.body?.cancel === 'true';
 
         let data = CLEARED_LETTER_PENDING;
@@ -362,6 +370,10 @@ exports.proposeSupervisionDate = async (req, res) => {
         if (supervisionType !== undefined && supervisionType !== 'ONLINE' && supervisionType !== 'ONSITE') {
             return res.status(400).json({ ok: false, message: 'supervisionType ต้องเป็น ONLINE หรือ ONSITE เท่านั้น' });
         }
+        // คอลัมน์ Text เก็บได้ ~64 KB — ยาวกว่านี้เดิมตกเป็น 500 · ลิงก์ประชุมจริงไม่เกินไม่กี่ร้อยตัวอักษร
+        if (onlineLink !== undefined && onlineLink !== null && String(onlineLink).length > 2000) {
+            return res.status(400).json({ ok: false, message: 'ลิงก์ประชุมออนไลน์ยาวเกินไป (ไม่เกิน 2,000 ตัวอักษร)' });
+        }
         if (onlineLink) {
             try {
                 const u = new URL(String(onlineLink).trim());
@@ -375,6 +387,8 @@ exports.proposeSupervisionDate = async (req, res) => {
         if (typeof proposedDates !== 'string') {
             return res.status(400).json({ ok: false, message: 'proposedDates ต้องเป็นรายการวันที่ (JSON)' });
         }
+        const invalidDates = invalidProposedDates(proposedDates);
+        if (invalidDates) return res.status(400).json({ ok: false, message: invalidDates });
         const proposedEntries = parseProposedList(proposedDates);
         if (!proposedEntries.length) {
             return res.status(400).json({ ok: false, message: 'กรุณาระบุวันที่ต้องการเสนออย่างน้อย 1 วัน' });
@@ -575,14 +589,14 @@ exports.assignCoTeachers = async (req, res) => {
         const { coTeacherIds } = req.body; // id อาจารย์ร่วม เช่น [7, 68]
 
         const parsedId = parseInt(id, 10);
-        if (isNaN(parsedId) || parsedId <= 0) {
+        if (!isDbId(parsedId)) {
             return res.status(400).json({ ok: false, message: 'id ไม่ถูกต้อง' });
         }
         if (!Array.isArray(coTeacherIds)) {
             return res.status(400).json({ ok: false, message: 'coTeacherIds ต้องเป็นรายการ id อาจารย์' });
         }
         const ids = [...new Set(coTeacherIds.map(n => parseInt(n, 10)))];
-        if (ids.some(n => isNaN(n) || n <= 0)) {
+        if (ids.some(n => !isDbId(n))) {
             return res.status(400).json({ ok: false, message: 'coTeacherIds ไม่ถูกต้อง' });
         }
 
@@ -591,14 +605,16 @@ exports.assignCoTeachers = async (req, res) => {
             return res.status(404).json({ ok: false, message: 'ไม่พบข้อมูลการนัดหมาย' });
         }
         await assertStudentInScope(req, appt.studentId);
-        const prevCoIds = (await prisma.supervisionCoTeacher.findMany({ where: { appointmentId: parsedId }, select: { teacherId: true } })).map(c => c.teacherId);
-        // ร่างหนังสือขอนิเทศที่ส่งไปเซ็นมีรายชื่ออาจารย์ร่วมชุดเดิม — เปลี่ยนตอนนี้ฉบับลงนามจะไม่ตรง (เหมือนแก้วัน)
         const sameSet = (a, b) => a.length === b.length && a.every((x) => b.includes(x));
-        if (appt.letterPendingAt && !sameSet(prevCoIds, ids.filter(n => n !== appt.teacherId))) {
-            return res.status(409).json({ ok: false, message: `มีร่างหนังสือขอนิเทศที่รอลงนามอยู่ (เลข ${appt.letterDraftNumber || 'ยังไม่ได้กรอก'}) — รายชื่ออาจารย์ในร่างจะไม่ตรง ถ้าจะเปลี่ยนอาจารย์ร่วม ให้กด "ยกเลิกรอลงนาม" ก่อน` });
-        }
 
         const coIds = ids.filter(n => n !== appt.teacherId); // อาจารย์หลักไม่นับเป็นอาจารย์ร่วม
+        // ร่างหนังสือรอลงนาม — บอกเหตุผลนี้ก่อนตรวจรายชื่อ (ตรวจซ้ำใน transaction ด้านล่างอีกที)
+        if (appt.letterPendingAt) {
+            const current = (await prisma.supervisionCoTeacher.findMany({ where: { appointmentId: parsedId }, select: { teacherId: true } })).map(c => c.teacherId);
+            if (!sameSet(current, coIds)) {
+                return res.status(409).json({ ok: false, message: `มีร่างหนังสือขอนิเทศที่รอลงนามอยู่ (เลข ${appt.letterDraftNumber || 'ยังไม่ได้กรอก'}) — รายชื่ออาจารย์ในร่างจะไม่ตรง ถ้าจะเปลี่ยนอาจารย์ร่วม ให้กด "ยกเลิกรอลงนาม" ก่อน` });
+            }
+        }
         const teachers = await prisma.teacher.findMany({
             where: { id: { in: coIds } },
             select: { id: true, prefix: true, firstName: true, lastName: true },
@@ -607,39 +623,50 @@ exports.assignCoTeachers = async (req, res) => {
             return res.status(400).json({ ok: false, message: 'ไม่พบอาจารย์บางท่านในระบบ' });
         }
 
-        // อาจารย์ร่วมที่เพิ่มเข้ามาต้องว่างในเวลานั้น — เช็คเมื่อรายการนี้ยืนยันวันแล้วเท่านั้น
-        if (coIds.length && appt.confirmedDate && ['DATE_CONFIRMED', 'LETTER_UPLOADED'].includes(appt.status)) {
-            const start = new Date(appt.confirmedDate);
-            const end = resolveSlotEnd(start, appt);
-            const clash = await findTeacherClash(prisma, {
-                start,
-                end,
-                teacherIds: coIds,
-                excludeIds: [parsedId],
-            });
-            if (clash) return res.status(409).json({ ok: false, message: clash.message });
-        }
-
         // coTeacherName = ชื่อสำหรับแสดงผล/หนังสือ (รูปแบบเดิม) สร้างจากบัญชีจริงตามลำดับที่เลือก
         const byId = new Map(teachers.map(t => [t.id, t]));
         const coTeacherName = coIds.length
             ? coIds.map(n => byId.get(n)).map(t => `${t.prefix || ''}${t.firstName} ${t.lastName}`).join(', ')
             : null;
 
-        // ลบเฉพาะคนที่เอาออก · คนเดิมคงไว้ (เดิมลบทั้งหมดแล้วสร้างใหม่ — วันว่างที่อาจารย์ร่วมตอบไว้หายทุกครั้งที่แก้รายชื่อ)
-        await prisma.$transaction([
-            prisma.supervisionCoTeacher.deleteMany({ where: { appointmentId: parsedId, teacherId: { notIn: coIds } } }),
-            ...(coIds.length
-                ? [prisma.supervisionCoTeacher.createMany({ data: coIds.map(teacherId => ({ appointmentId: parsedId, teacherId })), skipDuplicates: true })]
-                : []),
-            prisma.supervisionAppointment.update({ where: { id: parsedId }, data: { coTeacherName } }),
-        ]);
+        // ทำใน transaction เดียวหลังล็อก (อาจารย์หลัก + คนเดิม + คนใหม่ → นัด) — เดิมตรวจนอก transaction และเขียนแบบชุดคำสั่ง:
+        // สองคนแก้รายชื่อพร้อมกัน แถวอาจารย์ร่วมปนกันสองชุด แต่ชื่อที่แสดง (coTeacherName) เป็นของอีกชุด
+        let prevCoIds = [];
+        await prisma.$transaction(async (tx) => {
+            const before = (await tx.supervisionCoTeacher.findMany({ where: { appointmentId: parsedId }, select: { teacherId: true } })).map(c => c.teacherId);
+            await lockTeachers(tx, [appt.teacherId, ...before, ...coIds]);
+            await lockAppointments(tx, [parsedId]);
+            const cur = await tx.supervisionAppointment.findUnique({ where: { id: parsedId }, include: { coTeachers: { select: { teacherId: true } } } });
+            if (!cur) throw Object.assign(new Error('ไม่พบข้อมูลการนัดหมาย'), { is404: true });
+            if (cur.teacherId !== appt.teacherId) throw Object.assign(new Error('ผู้นิเทศหลักของนัดนี้เพิ่งเปลี่ยน — กรุณาโหลดหน้าใหม่แล้วลองอีกครั้ง'), { is409: true });
+            prevCoIds = cur.coTeachers.map(c => c.teacherId);
+            await lockTeachers(tx, prevCoIds);
+
+            // ร่างหนังสือขอนิเทศที่ส่งไปเซ็นมีรายชื่ออาจารย์ร่วมชุดเดิม — เปลี่ยนตอนนี้ฉบับลงนามจะไม่ตรง (เหมือนแก้วัน)
+            if (cur.letterPendingAt && !sameSet(prevCoIds, coIds)) {
+                throw Object.assign(new Error(`มีร่างหนังสือขอนิเทศที่รอลงนามอยู่ (เลข ${cur.letterDraftNumber || 'ยังไม่ได้กรอก'}) — รายชื่ออาจารย์ในร่างจะไม่ตรง ถ้าจะเปลี่ยนอาจารย์ร่วม ให้กด "ยกเลิกรอลงนาม" ก่อน`), { is409: true });
+            }
+
+            // อาจารย์ร่วมที่เพิ่มเข้ามาต้องว่างในเวลานั้น — เช็คเมื่อรายการนี้ยืนยันวันแล้วเท่านั้น
+            if (coIds.length && cur.confirmedDate && ['DATE_CONFIRMED', 'LETTER_UPLOADED'].includes(cur.status)) {
+                const start = new Date(cur.confirmedDate);
+                await assertNoTeacherClash(tx, { start, end: resolveSlotEnd(start, cur), teacherIds: coIds, excludeIds: [parsedId] });
+            }
+
+            // ลบเฉพาะคนที่เอาออก · คนเดิมคงไว้ (เดิมลบทั้งหมดแล้วสร้างใหม่ — วันว่างที่อาจารย์ร่วมตอบไว้หายทุกครั้งที่แก้รายชื่อ)
+            await tx.supervisionCoTeacher.deleteMany({ where: { appointmentId: parsedId, teacherId: { notIn: coIds } } });
+            if (coIds.length) await tx.supervisionCoTeacher.createMany({ data: coIds.map(teacherId => ({ appointmentId: parsedId, teacherId })), skipDuplicates: true });
+            await tx.supervisionAppointment.update({ where: { id: parsedId }, data: { coTeacherName } });
+        }, LOCK_TX);
 
         res.json({ ok: true, message: "อัปเดตอาจารย์นิเทศร่วมสำเร็จ" });
 
         notifyNewCoTeachers(parsedId, prevCoIds).catch(console.error);
     } catch (error) {
         if (error.is403) return res.status(403).json({ ok: false, message: error.message });
+        if (error.is404) return res.status(404).json({ ok: false, message: error.message });
+        if (error.is409) return res.status(409).json({ ok: false, message: error.message });
+        if (isLockConflict(error)) return res.status(409).json({ ok: false, message: BUSY_MESSAGE });
         if (error.code === 'P2025') return res.status(404).json({ ok: false, message: 'ไม่พบข้อมูลการนัดหมาย' });
         console.error("Assign Co-Teachers Error:", error);
         res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดในการบันทึกข้อมูล" });
@@ -715,7 +742,7 @@ exports.getSupervisionsForTeacher = async (req, res) => {
 exports.setCoTeacherAvailability = async (req, res) => {
     try {
         const parsedId = parseInt(req.params.id, 10);
-        if (isNaN(parsedId) || parsedId <= 0) return res.status(400).json({ ok: false, message: 'id ไม่ถูกต้อง' });
+        if (!isDbId(parsedId)) return res.status(400).json({ ok: false, message: 'id ไม่ถูกต้อง' });
         const days = req.body?.availableDates;
         if (!Array.isArray(days) || days.some(d => typeof d !== 'string')) {
             return res.status(400).json({ ok: false, message: 'availableDates ต้องเป็นรายการวันที่' });
@@ -761,7 +788,7 @@ exports.reviewSupervision = async (req, res) => {
     try {
         const { id } = req.params;
         const parsedId = parseInt(id, 10);
-        if (isNaN(parsedId) || parsedId <= 0)
+        if (!isDbId(parsedId))
             return res.status(400).json({ ok: false, message: 'id ไม่ถูกต้อง' });
         const { action, confirmedDate, rejectReason, supervisionType } = req.body;
         if (!['APPROVE', 'REJECT'].includes(action)) {
@@ -801,7 +828,7 @@ exports.reviewSupervision = async (req, res) => {
                 return res.status(400).json({ ok: false, message: 'กรุณาระบุวันที่นิเทศ' });
             }
 
-            const chosenDate = new Date(confirmedDate);
+            const chosenDate = strictDate(confirmedDate) || new Date(NaN);
             if (isNaN(chosenDate.getTime())) return res.status(400).json({ ok: false, message: 'วันที่นิเทศไม่ถูกต้อง' });
             // เลือกได้เฉพาะวันที่นักศึกษาเสนอ (เหมือนยืนยันแบบกลุ่ม · หน้าเว็บมีแต่ปุ่ม "เลือกวันนี้" ของวันที่เสนอ)
             // เดิมเรียก API ตรงแล้วยืนยันวันที่นักศึกษาไม่ได้เสนอได้ — นักศึกษาอาจไม่ว่าง และอาจารย์ร่วมไม่เคยถูกถามวันนั้น
@@ -850,7 +877,9 @@ exports.reviewSupervision = async (req, res) => {
             };
 
             // Atomic conflict check + update to prevent double-booking on concurrent requests
+            // ล็อกอาจารย์ทุกคนในนัดก่อนตรวจเวลาชน — อาจารย์คนเดียวกันยืนยันสองนัดพร้อมกันจะทำทีละนัด (เดิมผ่านทั้งคู่ = นัดซ้อน)
             await prisma.$transaction(async (tx) => {
+                await lockTeachers(tx, [teacher.id, ...coList.map(c => c.teacherId)]);
                 const current = await tx.supervisionAppointment.findUnique({
                     where: { id: parsedId },
                     select: { status: true, teacherId: true, coTeachers: { select: { teacherId: true } } }
@@ -858,6 +887,7 @@ exports.reviewSupervision = async (req, res) => {
                 if (!current) {
                     throw Object.assign(new Error('ไม่พบข้อมูลการนัดหมาย'), { is404: true });
                 }
+                await lockTeachers(tx, current.coTeachers.map(c => c.teacherId)); // อาจารย์ร่วมที่เพิ่งถูกเพิ่มระหว่างนี้
                 if (current.teacherId !== teacher.id) {
                     throw Object.assign(new Error('คุณไม่มีสิทธิ์ทำรายการนี้ เฉพาะอาจารย์ที่ปรึกษาหลักเท่านั้น'), { is403: true });
                 }
@@ -882,11 +912,12 @@ exports.reviewSupervision = async (req, res) => {
                     data: approveData
                 });
                 if (!count) throw Object.assign(new Error('นักศึกษาเพิ่งแก้วันที่เสนอ — กรุณาโหลดหน้าใหม่แล้วเลือกวันอีกครั้ง'), { is409: true });
-            });
+            }, LOCK_TX);
         } else if (action === 'REJECT') {
             // นักศึกษาต้องรู้ว่าทำไมและควรเสนอวันแบบไหนใหม่ (เหมือนตีกลับ T002/T003) — หน้าเว็บบังคับอยู่แล้ว API เดิมไม่เช็ค
-            const reason = String(rejectReason ?? '').trim();
+            const reason = typeof rejectReason === 'string' ? rejectReason.trim() : '';
             if (!reason) return res.status(400).json({ ok: false, message: 'กรุณาระบุเหตุผลที่ปฏิเสธ เพื่อให้นักศึกษาเสนอวันใหม่ได้ตรงกับที่อาจารย์สะดวก' });
+            if (reason.length > 2000) return res.status(400).json({ ok: false, message: 'เหตุผลยาวเกินไป (ไม่เกิน 2,000 ตัวอักษร)' });
             await prisma.$transaction(async (tx) => {
                 const current = await tx.supervisionAppointment.findUnique({
                     where: { id: parsedId },
@@ -948,6 +979,7 @@ exports.reviewSupervision = async (req, res) => {
         if (err.is404) return res.status(404).json({ ok: false, message: err.message });
         if (err.is403) return res.status(403).json({ ok: false, message: err.message });
         if (err.is400) return res.status(400).json({ ok: false, message: err.message });
+        if (isLockConflict(err)) return res.status(409).json({ ok: false, message: BUSY_MESSAGE });
         console.error("Review Supervision Error:", err);
         res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดในการบันทึกข้อมูล" });
     }
@@ -962,7 +994,7 @@ exports.completeSupervision = async (req, res) => {
     try {
         const { id } = req.params;
         const parsedId = parseInt(id, 10);
-        if (isNaN(parsedId) || parsedId <= 0)
+        if (!isDbId(parsedId))
             return res.status(400).json({ ok: false, message: 'id ไม่ถูกต้อง' });
         const role = (req.user?.role || '').toLowerCase();
 
@@ -988,6 +1020,9 @@ exports.completeSupervision = async (req, res) => {
         }
 
         await prisma.$transaction(async (tx) => {
+            // ล็อกนัดก่อนอ่านสถานะ — กดจบนิเทศพร้อมกันหลายคน (ที่ปรึกษา/ประจำวิชา/เจ้าหน้าที่) สำเร็จครั้งเดียว
+            // (เดิมผ่านทุกคำขอ → แจ้งเตือน/ส่งแบบประเมินซ้ำ)
+            await lockAppointments(tx, [parsedId]);
             const fresh = await tx.supervisionAppointment.findUnique({
                 where: { id: parsedId },
                 select: { status: true, teacherId: true }
@@ -996,11 +1031,14 @@ exports.completeSupervision = async (req, res) => {
             if (role === 'teacher' && !coopScoped && fresh.teacherId !== teacherRecord?.id) {
                 throw Object.assign(new Error('คุณไม่มีสิทธิ์ทำรายการนี้'), { is403: true });
             }
+            if (fresh.status === 'COMPLETED') {
+                throw Object.assign(new Error('บันทึกจบนิเทศไปแล้ว'), { is400: true });
+            }
             if (fresh.status !== 'LETTER_UPLOADED') {
                 throw Object.assign(new Error("ยังไม่สามารถจบนิเทศได้ในสถานะปัจจุบัน"), { is400: true });
             }
             await tx.supervisionAppointment.update({ where: { id: parsedId }, data: { status: 'COMPLETED' } });
-        });
+        }, LOCK_TX);
 
         res.json({ ok: true, message: "บันทึกผลนิเทศเสร็จสิ้นสำเร็จ" });
 
@@ -1028,6 +1066,7 @@ exports.completeSupervision = async (req, res) => {
         if (err.is404) return res.status(404).json({ ok: false, message: err.message });
         if (err.is403) return res.status(403).json({ ok: false, message: err.message });
         if (err.is400) return res.status(400).json({ ok: false, message: err.message });
+        if (isLockConflict(err)) return res.status(409).json({ ok: false, message: BUSY_MESSAGE });
         console.error("Complete Supervision Error:", err);
         res.status(500).json({ ok: false, message: "เกิดข้อผิดพลาดในการบันทึกข้อมูล" });
     }
@@ -1041,7 +1080,7 @@ exports.updateConfirmedDate = async (req, res) => {
     try {
         const { id } = req.params;
         const parsedId = parseInt(id, 10);
-        if (isNaN(parsedId) || parsedId <= 0)
+        if (!isDbId(parsedId))
             return res.status(400).json({ ok: false, message: 'id ไม่ถูกต้อง' });
         const { confirmedDate } = req.body;
 
@@ -1049,15 +1088,19 @@ exports.updateConfirmedDate = async (req, res) => {
             return res.status(400).json({ ok: false, message: 'กรุณาระบุวันที่นิเทศ' });
         }
 
-        const chosenDate = new Date(confirmedDate);
+        const chosenDate = strictDate(confirmedDate) || new Date(NaN);
         if (isNaN(chosenDate.getTime())) return res.status(400).json({ ok: false, message: 'วันที่นิเทศไม่ถูกต้อง' });
 
         let updated;
         await prisma.$transaction(async (tx) => {
+            // ล็อกอาจารย์ในนัดก่อน แล้วค่อยอ่านนัดใหม่ — แก้สองนัดของอาจารย์คนเดียวกันไปเวลาเดียวกันพร้อมกันจะไม่ผ่านทั้งคู่
+            const people = await tx.supervisionAppointment.findUnique({ where: { id: parsedId }, select: { teacherId: true, coTeachers: { select: { teacherId: true } } } });
+            if (people) await lockTeachers(tx, [people.teacherId, ...people.coTeachers.map(c => c.teacherId)]);
             const fresh = await tx.supervisionAppointment.findUnique({
                 where: { id: parsedId },
                 include: { coTeachers: { select: { teacherId: true } } },
             });
+            if (fresh) await lockTeachers(tx, [fresh.teacherId, ...fresh.coTeachers.map(c => c.teacherId)]);
             if (fresh) await assertStudentInScope(req, fresh.studentId, tx);
             if (!fresh) {
                 throw Object.assign(new Error('ไม่พบข้อมูลการนัดหมาย'), { is404: true });
@@ -1100,7 +1143,7 @@ exports.updateConfirmedDate = async (req, res) => {
                     ...(movedToAnotherDay ? { groupId: null } : {}),
                 }
             });
-        });
+        }, LOCK_TX);
 
         res.json({ ok: true, appointment: updated });
 
@@ -1124,6 +1167,7 @@ exports.updateConfirmedDate = async (req, res) => {
         if (err.is404) return res.status(404).json({ ok: false, message: err.message });
         if (err.is400) return res.status(400).json({ ok: false, message: err.message });
         if (err.is409) return res.status(409).json({ ok: false, message: err.message });
+        if (isLockConflict(err)) return res.status(409).json({ ok: false, message: BUSY_MESSAGE });
         console.error('updateConfirmedDate error:', err);
         res.status(500).json({ ok: false, message: 'เกิดข้อผิดพลาดในการแก้ไขวันนิเทศ' });
     }
@@ -1211,7 +1255,7 @@ exports.confirmGroupSupervision = async (req, res) => {
     }
     // Fix 6: NaN validation — convert once and reuse
     const ids = appointmentIds.map(Number);
-    if (ids.some(isNaN)) {
+    if (ids.some((n) => !isDbId(n))) {
       return res.status(400).json({ ok: false, message: 'appointmentIds ต้องเป็นตัวเลข' });
     }
     if (!confirmedDate) {
@@ -1229,7 +1273,10 @@ exports.confirmGroupSupervision = async (req, res) => {
     // หน้าต่างบอกว่า "ตามลำดับที่ติ๊ก" แต่คิวจริงเรียงตาม id)
     const fetched = await prisma.supervisionAppointment.findMany({
       where: { id: { in: ids } },
-      include: { coTeachers: { select: { teacherId: true } } },
+      include: {
+        coTeachers: { select: { teacherId: true } },
+        student: { select: { firstName: true, lastName: true, studentId: true, coop: { select: { companyId: true } } } },
+      },
     });
     const byId = new Map(fetched.map(a => [a.id, a]));
     const appts = ids.map(id => byId.get(id)).filter(Boolean);
@@ -1253,22 +1300,36 @@ exports.confirmGroupSupervision = async (req, res) => {
 
     // วันตามเวลาท้องถิ่น (dateKey) เหมือนอนุมัติรายคน — frontend ส่ง toISOString() (UTC) มา
     // เดิม slice(0,10) = วันของ UTC → นัดก่อน 07:00 เวลาไทยกลายเป็นวันก่อนหน้า (ไม่ตรงวันที่เสนอ/วันว่างอาจารย์ร่วม)
-    const confirmAt = new Date(confirmedDate);
+    const confirmAt = strictDate(confirmedDate) || new Date(NaN);
     if (isNaN(confirmAt.getTime())) return res.status(400).json({ ok: false, message: 'วันที่นิเทศไม่ถูกต้อง' });
     const confirmKey = dateKey(confirmAt);
 
-    // ตรวจว่า confirmedDate อยู่ใน proposedDates ของแต่ละคน
-    for (const appt of appts) {
-      let dates = [];
-      try { dates = JSON.parse(appt.proposedDates || '[]'); } catch {}
-      const hasDate = dates.some(e => e.split('|')[0].slice(0, 10) === confirmKey);
-      if (!hasDate) {
-        return res.status(400).json({
-          ok: false,
-          message: `วันที่เลือกไม่อยู่ในวันที่นักศึกษา appointment ${appt.id} เสนอมา`,
-        });
-      }
+    // นิเทศพร้อมกัน = ไปบริษัทเดียวกันในวันเดียว — เดิมเช็กแค่บนหน้าเว็บ เรียก API ตรงรวมหลายบริษัทเป็นคิวเดียว (และหนังสือรวมฉบับเดียว) ได้
+    const companyIds = new Set(appts.map(a => a.student?.coop?.companyId ?? null));
+    if (appts.length > 1 && (companyIds.size !== 1 || companyIds.has(null))) {
+      return res.status(400).json({ ok: false, message: 'นัดพร้อมกันได้เฉพาะนักศึกษาที่ฝึกบริษัทเดียวกัน' });
     }
+
+    // แต่ละคนได้เวลาตามช่วงที่ตัวเองเสนอในวันนั้น (ผู้ใช้ตัดสิน 2026-11-10)
+    // เดิมคนแรกเริ่มตามเวลาที่อาจารย์เลือก คนถัดไปต่อจากคนก่อนทันที → นักศึกษาที่เสนอบ่าย ถูกนัดเช้าโดยไม่ได้เลือกเวลานั้นเอง
+    // เวลาที่อาจารย์เลือก = เวลาเริ่มต่ำสุด · ช่วงที่ไม่มีเวลา (ข้อมูลเก่า) ต่อคิวยาว 60 นาทีแบบเดิม
+    const who = (a) => `${a.student?.firstName || ''} ${a.student?.lastName || ''}`.trim() || `นัด #${a.id}`;
+    const at = (hhmm) => new Date(`${confirmKey}T${hhmm}:00`);
+    const earliest = timeKey(confirmAt);
+    const cands = [];
+    for (const a of appts) {
+      const sameDay = parseProposedList(a.proposedDates).filter(e => e.date === confirmKey);
+      if (!sameDay.length) {
+        return res.status(400).json({ ok: false, message: `${who(a)} ไม่ได้เสนอวันที่เลือก` });
+      }
+      // มีแต่เวลาเริ่ม (ข้อมูลเก่า "10:00") = ช่วง 60 นาทีจากเวลานั้น
+      const timed = sameDay.filter(e => e.start && (!e.end || e.start < e.end))
+        .map(e => ({ ...e, end: e.end || timeKey(resolveSlotEnd(at(e.start), {})) }))
+        .sort((x, y) => x.start.localeCompare(y.start));
+      cands.push({ a, timed, untimed: sameDay.find(e => !e.start) || sameDay[0] });
+    }
+    // เรียงตามเวลาที่เสนอเร็วสุดของแต่ละคน (ไม่ขึ้นกับลำดับที่ติ๊ก) — คนที่ไม่มีเวลาไปต่อท้ายตามลำดับที่ส่งมา
+    cands.sort((x, y) => (x.timed.length && y.timed.length ? x.timed[0].start.localeCompare(y.timed[0].start) : x.timed.length ? -1 : y.timed.length ? 1 : 0));
 
     // อาจารย์ร่วมของนัดในกลุ่มไม่ว่าง/ยังไม่ตอบ → เตือนก่อน (เหมือนยืนยันทีละนัด)
     const coRows = await prisma.supervisionCoTeacher.findMany({ where: { appointmentId: { in: ids } }, select: CO_TEACHER_SELECT });
@@ -1280,28 +1341,63 @@ exports.confirmGroupSupervision = async (req, res) => {
 
     const groupId = appts.length > 1 ? require('crypto').randomUUID() : null;
 
-    // นิเทศเป็นคิวเดี่ยว — คนแรกเริ่มตามเวลาที่เลือก คนถัดไปต่อจากคนก่อนหน้าทันที (ห้ามเวลาทับกัน)
-    let cursor = new Date(confirmedDate);
-    const plan = appts.map(a => {
-      let dates = [];
-      try { dates = JSON.parse(a.proposedDates || '[]'); } catch {}
-      const matchedEntry = dates.find(e => e.split('|')[0].slice(0, 10) === confirmKey);
-      const parts = (matchedEntry || '').split('|');
-      const sType = parts[2] === 'ONLINE' ? 'ONLINE' : 'ONSITE';
-      const start = new Date(cursor);
-      const end = resolveSlotEnd(start, { proposedDates: a.proposedDates });
+    // อาจารย์คนเดียวนิเทศทีละคน — ช่วงที่เสนอทับกันยืนยันพร้อมกันไม่ได้ (ปฏิเสธคนหนึ่งให้เสนอเวลาใหม่ หรือเอาออกจากกลุ่ม)
+    // แต่ละคนใช้ช่วงแรกของตัวเองที่เริ่มหลังคิวก่อนหน้าจบ (เสนอหลายช่วงในวันเดียว = เลือกช่วงที่ไม่ทับให้)
+    let cursor = at(earliest);
+    let prev = null;
+    const plan = [];
+    const span = (p) => `${timeKey(p.start)}-${timeKey(p.end)}`;
+    for (const { a, timed, untimed } of cands) {
+      let start, end, type;
+      if (timed.length) {
+        const e = timed.find(x => at(x.start) >= cursor);
+        if (!e) {
+          const list = timed.map(x => `${x.start}-${x.end}`).join(', ');
+          return res.status(400).json({
+            ok: false,
+            message: prev
+              ? `${who(a)} เสนอ ${list} ทับกับคิวของ ${who(prev.a)} (${span(prev)}) — อาจารย์นิเทศได้ทีละคน กรุณาปฏิเสธให้คนหนึ่งเสนอเวลาใหม่ หรือเอาออกจากกลุ่ม`
+              : `${who(a)} เสนอ ${list} — ก่อนเวลาเริ่มที่เลือก (${earliest})`,
+          });
+        }
+        start = at(e.start); end = at(e.end); type = e.type;
+      } else {
+        start = new Date(cursor); end = resolveSlotEnd(start, {}); type = untimed?.type;
+      }
+      if (dateKey(end) !== confirmKey) {
+        return res.status(400).json({ ok: false, message: 'คิวนิเทศของกลุ่มต้องจบภายในวันที่เลือก กรุณาแบ่งกลุ่มให้เล็กลง' });
+      }
+      plan.push({ id: a.id, coTeacherIds: (a.coTeachers || []).map(c => c.teacherId), start, end, sType: type === 'ONLINE' ? 'ONLINE' : 'ONSITE' });
+      prev = { a, start, end };
       cursor = end;
-      return { id: a.id, coTeacherIds: (a.coTeachers || []).map(c => c.teacherId), start, end, sType };
-    });
+    }
 
     const groupIds = appts.map(a => a.id);
     try {
       await prisma.$transaction(async (tx) => {
+        // ล็อกอาจารย์ (หลัก + ร่วมทุกนัด) แล้วล็อกนัดทั้งกลุ่ม → อ่านใหม่ว่ายังรอยืนยัน และวันที่เสนอยังเป็นชุดที่ตรวจไว้
+        // เดิมไม่ตรวจซ้ำใน transaction: กดยืนยันกลุ่มรัว ๆ ผ่านทุกครั้ง (ได้ groupId ใหม่ทับกันไปเรื่อย ๆ)
+        await lockTeachers(tx, [teacher.id, ...plan.flatMap(p => p.coTeacherIds)]);
+        await lockAppointments(tx, groupIds);
+        const now = await tx.supervisionAppointment.findMany({
+          where: { id: { in: groupIds } },
+          select: { id: true, status: true, teacherId: true, proposedDates: true, coTeachers: { select: { teacherId: true } } },
+        });
+        const nowById = new Map(now.map(a => [a.id, a]));
+        for (const a of appts) {
+          const cur = nowById.get(a.id);
+          if (!cur || cur.teacherId !== teacher.id || !['PENDING_TEACHER', 'TEACHER_REJECTED'].includes(cur.status) || cur.proposedDates !== a.proposedDates) {
+            throw Object.assign(new Error('บางรายการเพิ่งถูกยืนยันหรือนักศึกษาเพิ่งแก้วันที่เสนอ — กรุณาโหลดหน้าใหม่แล้วลองอีกครั้ง'), { is409: true });
+          }
+        }
         for (const slot of plan) {
+          // อาจารย์ร่วมที่เพิ่งถูกเพิ่มระหว่างนี้ต้องนับในการตรวจเวลาชนด้วย
+          const coNow = (nowById.get(slot.id).coTeachers || []).map(c => c.teacherId);
+          await lockTeachers(tx, coNow);
           await assertNoTeacherClash(tx, {
             start: slot.start,
             end: slot.end,
-            teacherIds: [teacher.id, ...slot.coTeacherIds],
+            teacherIds: [teacher.id, ...new Set([...slot.coTeacherIds, ...coNow])],
             excludeIds: groupIds,
           });
         }
@@ -1317,9 +1413,10 @@ exports.confirmGroupSupervision = async (req, res) => {
             },
           });
         }
-      });
+      }, LOCK_TX);
     } catch (txErr) {
       if (txErr.is409) return res.status(409).json({ ok: false, message: txErr.message });
+      if (isLockConflict(txErr)) return res.status(409).json({ ok: false, message: BUSY_MESSAGE });
       throw txErr;
     }
 
@@ -1355,7 +1452,7 @@ exports.confirmGroupSupervision = async (req, res) => {
 exports.exportSupervisionSchedule = async (req, res) => {
     try {
         const coopPeriodId = req.query.coopPeriodId ? parseInt(req.query.coopPeriodId, 10) : null;
-        if (req.query.coopPeriodId && (isNaN(coopPeriodId) || coopPeriodId <= 0)) {
+        if (req.query.coopPeriodId && (!isDbId(coopPeriodId))) {
             return res.status(400).json({ ok: false, message: 'coopPeriodId ไม่ถูกต้อง' });
         }
         const range = {};

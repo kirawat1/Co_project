@@ -1,5 +1,6 @@
 // backend/controllers/coopController.js
 const prisma = require('../config/prismaClient');
+const { isDbId } = require('../utils/dbId');
 const { lockStudents } = require('../utils/rowLock');
 const { applyState, applyWindowMessage } = require('../utils/applyWindow');
 const { callerMajor } = require('../utils/majorConfig');
@@ -8,7 +9,7 @@ const fs = require("fs");
 const multer = require("multer");
 const { createNotifications, getStaffAndCoopTeacherIds } = require('../utils/notificationHelper');
 const { getRow } = require('../utils/coopPeriodMajor');
-const { pdfOrImageFileFilter } = require('../utils/fileFilters');
+const { pdfOrImageFileFilter, withContentCheck } = require('../utils/fileFilters');
 const { getMajorScope, inScope } = require('../utils/majorScope');
 
 // 1. ตั้งค่าการเก็บไฟล์ (Multer)
@@ -26,7 +27,7 @@ const storage = multer.diskStorage({
   },
 });
 
-const upload = multer({ storage, fileFilter: pdfOrImageFileFilter, limits: { fileSize: 50 * 1024 * 1024 } });
+const upload = withContentCheck(multer({ storage, fileFilter: pdfOrImageFileFilter, limits: { fileSize: 50 * 1024 * 1024 } })); // ตรวจเนื้อไฟล์จริงต่อท้าย
 
 // 2. ฟังก์ชันยื่นคำร้อง (Submit Application)
 // 2. ฟังก์ชันยื่นคำร้อง (Submit Application)
@@ -39,7 +40,7 @@ const submitCoopApplication = async (req, res) => {
 
     // เช็คว่ามีข้อมูลรอบรับสมัครส่งมาด้วยหรือไม่
     const parsedPeriodId = Number(coopPeriodId);
-    if (!Number.isInteger(parsedPeriodId) || parsedPeriodId <= 0) {
+    if (!isDbId(parsedPeriodId)) {
       files.forEach(f => { try { fs.unlinkSync(f.path); } catch (_) {} });
       return res.status(400).json({ ok: false, message: "coopPeriodId ไม่ถูกต้อง กรุณารีเฟรชหน้าเว็บแล้วลองใหม่" });
     }
@@ -202,7 +203,7 @@ const updateCoopStatus = async (req, res) => {
     const { studentId, status, comment } = req.body;
 
     const parsedId = parseInt(studentId, 10);
-    if (!studentId || isNaN(parsedId) || parsedId <= 0) {
+    if (!studentId || !isDbId(parsedId)) {
       return res.status(400).json({ ok: false, message: "studentId ไม่ถูกต้อง" });
     }
 
@@ -302,7 +303,7 @@ const deleteDocument = async (req, res) => {
     const userId = req.user.id; // รับ user ID จาก token เพื่อความปลอดภัย
 
     const parsedDocId = parseInt(id, 10);
-    if (isNaN(parsedDocId) || parsedDocId <= 0) {
+    if (!isDbId(parsedDocId)) {
       return res.status(400).json({ ok: false, message: 'document id ไม่ถูกต้อง' });
     }
 

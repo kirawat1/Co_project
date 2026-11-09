@@ -27,6 +27,7 @@ router.delete('/document/type/:docType', verifyToken, verifyRole('student'), doc
 const multer = require('multer');
 const pathMod = require('path');
 const formPhotoController = require('../controllers/formPhotoController');
+const { rejectFakeFiles } = require('../utils/fileFilters');
 const photoUpload = multer({
   storage: multer.diskStorage({
     destination: (_req, _file, cb) => cb(null, pathMod.join(__dirname, '../uploads')),
@@ -41,7 +42,7 @@ const photoUpload = multer({
 });
 router.post('/form-photo', verifyToken, verifyRole('student'), (req, res, next) => {
   photoUpload.single('photo')(req, res, (err) => {
-    if (!err) return next();
+    if (!err) return rejectFakeFiles(req, res, next); // เนื้อไฟล์ต้องเป็นรูปจริง
     const message = err.code === 'LIMIT_FILE_SIZE' ? 'รูปใหญ่เกิน 5 MB' : (err.message || 'อัปโหลดรูปไม่สำเร็จ');
     res.status(400).json({ ok: false, message });
   });

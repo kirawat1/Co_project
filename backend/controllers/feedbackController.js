@@ -5,6 +5,7 @@
  * เช่น "กดไม่ได้" — ถ้าไม่มีบริบท เจ้าหน้าที่จะตามเรื่องต่อไม่ได้
  */
 const prisma = require('../config/prismaClient');
+const { isDbId } = require('../utils/dbId');
 const { createNotifications, getStaffIds } = require('../utils/notificationHelper');
 
 const KINDS = new Set(['BUG', 'SUGGEST']);
@@ -169,7 +170,7 @@ exports.listFeedback = async (req, res) => {
 exports.updateFeedback = async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
-    if (isNaN(id) || id <= 0) return res.status(400).json({ ok: false, message: 'id ไม่ถูกต้อง' });
+    if (!isDbId(id)) return res.status(400).json({ ok: false, message: 'id ไม่ถูกต้อง' });
 
     const { status, staffReply } = req.body || {};
     if (status !== undefined && !STATUSES.has(String(status))) {

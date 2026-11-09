@@ -1075,14 +1075,15 @@ describe('confirmGroupSupervision', () => {
 
   test('200 — confirms group, returns groupId', async () => {
     prisma.teacher.findUnique.mockResolvedValue({ id: 1 });
+    const student = { firstName: 'ก', lastName: 'ข', coop: { companyId: 'c1' } };
     prisma.supervisionAppointment.findMany.mockResolvedValue([
-      { id: 1, teacherId: 1, status: 'PENDING_TEACHER', proposedDates: JSON.stringify(['2026-04-10T00:00:00.000Z|10:00|ONSITE']) },
-      { id: 2, teacherId: 1, status: 'PENDING_TEACHER', proposedDates: JSON.stringify(['2026-04-10T00:00:00.000Z|10:00|ONSITE']) },
+      { id: 1, teacherId: 1, status: 'PENDING_TEACHER', student, proposedDates: JSON.stringify(['2026-04-10T00:00:00.000Z|10:00|ONSITE']) },
+      { id: 2, teacherId: 1, status: 'PENDING_TEACHER', student, proposedDates: JSON.stringify(['2026-04-10T00:00:00.000Z|11:00|ONSITE']) },
     ]);
     prisma.supervisionAppointment.update.mockResolvedValue({ id: 1 });
     const res = makeRes();
     await confirmGroupSupervision(
-      makeReq({ appointmentIds: [1, 2], confirmedDate: '2026-04-10T10:00:00.000Z' }),
+      makeReq({ appointmentIds: [1, 2], confirmedDate: new Date('2026-04-10T00:00:00').toISOString() }),
       res
     );
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: true, updatedCount: 2 }));
@@ -1255,21 +1256,65 @@ describe('updateConfirmedDate — ย้ายวันแล้วความ�
   });
 });
 
-describe('confirmGroupSupervision — คิวเรียงตามลำดับที่อาจารย์ส่งมา (ตรวจ scrutinize)', () => {
+// ผู้ใช้ตัดสิน 2026-11-10 (/scrutinize นิเทศพร้อมกัน): แต่ละคนได้เวลาตามช่วงที่ตัวเองเสนอ — เดิมต่อคิวจากเวลาที่อาจารย์เลือก
+// คนเสนอบ่ายถูกนัดเช้า · เซิร์ฟเวอร์ไม่เช็กบริษัทเดียวกัน
+describe('confirmGroupSupervision — เวลาตามที่นักศึกษาเสนอ · บริษัทเดียวกัน', () => {
   const { confirmGroupSupervision } = require('../controllers/supervisionController');
-  test('ส่ง [คนที่ 2, คนที่ 1] → คนที่ 2 ได้คิวแรก แม้ฐานข้อมูลคืนมาเป็น [1, 2]', async () => {
+  const DAY = '2026-12-22';
+  const mk = (id, slots, companyId = 'c1') => ({ id, teacherId: 5, status: 'PENDING_TEACHER', coTeacherName: null, studentId: id * 10,
+    student: { firstName: `นศ${id}`, lastName: 'ทดสอบ', coop: { companyId } },
+    proposedDates: JSON.stringify(slots.map((s) => `${DAY}|${s}|ONSITE`)) });
+  const run = async (rows, ids, clash = []) => {
     prisma.teacher.findUnique.mockResolvedValue({ id: 5, prefix: 'อ.', firstName: 'ก', lastName: 'ข' });
-    const mk = (id) => ({ id, teacherId: 5, status: 'PENDING_TEACHER', coTeacherName: null, studentId: id * 10,
-      proposedDates: JSON.stringify(['2026-12-22|09:00-10:00|ONSITE']) });
+    prisma.supervisionAppointment.findMany.mockReset(); // เคสที่ตอบ 400 ก่อนอ่านซ้ำ — ค่าที่คิวไว้ไม่หลุดไปเทสต์ถัดไป
     prisma.supervisionAppointment.findMany
-      .mockResolvedValueOnce([mk(1), mk(2)]) // ดึงนัดตาม id (ลำดับของฐานข้อมูล)
-      .mockResolvedValue([]);               // ตรวจเวลาชน: ไม่มีคิวอื่น
+      .mockResolvedValueOnce(rows)   // ดึงนัดตาม id
+      .mockResolvedValueOnce(rows);  // อ่านซ้ำหลังล็อก
+    for (const c of clash) prisma.supervisionAppointment.findMany.mockResolvedValueOnce(c); // ตรวจเวลาชนทีละคิว
+    prisma.supervisionAppointment.findMany.mockResolvedValue([]);
     prisma.supervisionAppointment.update.mockResolvedValue({});
     prisma.student.findMany.mockResolvedValue([]);
     const res = makeRes();
-    await confirmGroupSupervision({ user: { id: 2 }, body: { appointmentIds: [2, 1], confirmedDate: '2026-12-22T09:00:00' } }, res);
-    const updates = prisma.supervisionAppointment.update.mock.calls.map((c) => ({ id: c[0].where.id, start: c[0].data.confirmedDate.getHours() }));
-    expect(updates).toEqual([{ id: 2, start: 9 }, { id: 1, start: 10 }]);
+    await confirmGroupSupervision({ user: { id: 2 }, body: { appointmentIds: ids, confirmedDate: `${DAY}T00:00:00` } }, res);
+    const updates = prisma.supervisionAppointment.update.mock.calls.map((c) => ({ id: c[0].where.id, start: c[0].data.confirmedDate.getHours(), end: c[0].data.confirmedEndDate.getHours() }));
+    return { res, updates };
+  };
+
+  test('เรียงตามเวลาที่เสนอ ไม่ขึ้นกับลำดับที่ติ๊ก', async () => {
+    const { updates } = await run([mk(1, ['10:00-11:00']), mk(2, ['09:00-10:00'])], [1, 2]);
+    expect(updates).toEqual([{ id: 2, start: 9, end: 10 }, { id: 1, start: 10, end: 11 }]);
+  });
+
+  test('คนที่เสนอบ่ายได้เวลาบ่ายของตัวเอง (เดิมถูกต่อคิวเป็น 10:00)', async () => {
+    const { updates } = await run([mk(1, ['09:00-10:00']), mk(2, ['13:00-14:00'])], [1, 2]);
+    expect(updates).toEqual([{ id: 1, start: 9, end: 10 }, { id: 2, start: 13, end: 14 }]);
+  });
+
+  test('เสนอหลายช่วงในวันเดียว → ได้ช่วงที่ไม่ทับคนก่อนหน้า', async () => {
+    const { updates } = await run([mk(1, ['09:00-10:00']), mk(2, ['09:00-10:00', '13:00-14:00'])], [1, 2]);
+    expect(updates).toEqual([{ id: 1, start: 9, end: 10 }, { id: 2, start: 13, end: 14 }]);
+  });
+
+  test('400 — ช่วงที่เสนอทับกัน (บอกชื่อทั้งสองคน) · ไม่บันทึก', async () => {
+    const { res } = await run([mk(1, ['09:00-10:00']), mk(2, ['09:30-10:30'])], [1, 2]);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json.mock.calls[0][0].message).toMatch(/นศ2 ทดสอบ เสนอ 09:30-10:30 ทับกับคิวของ นศ1 ทดสอบ/);
+    expect(prisma.supervisionAppointment.update).not.toHaveBeenCalled();
+  });
+
+  test('400 — นักศึกษาต่างบริษัท (เรียก API ตรง)', async () => {
+    const { res } = await run([mk(1, ['09:00-10:00'], 'c1'), mk(2, ['13:00-14:00'], 'c2')], [1, 2]);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json.mock.calls[0][0].message).toMatch(/บริษัทเดียวกัน/);
+    expect(prisma.supervisionAppointment.update).not.toHaveBeenCalled();
+  });
+
+  test('409 — คิวกลางกลุ่มชนนัดอื่นของอาจารย์ · ไม่บันทึกใครเลย', async () => {
+    const other = { id: 99, teacherId: 5, confirmedDate: new Date(`${DAY}T13:30:00`), confirmedEndDate: new Date(`${DAY}T14:30:00`), proposedDates: '[]',
+      teacher: { prefix: 'อ.', firstName: 'ก', lastName: 'ข' }, coTeachers: [], student: { studentId: 'X', firstName: 'คน', lastName: 'อื่น' } };
+    const { res } = await run([mk(1, ['09:00-10:00']), mk(2, ['13:00-14:00'])], [1, 2], [[], [other]]);
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(prisma.supervisionAppointment.update).not.toHaveBeenCalled();
   });
 });
 
@@ -1278,7 +1323,7 @@ describe('confirmGroupSupervision — คิวเรียงตามลำด
 // ===========================
 describe('assignCoTeachers — เลือกอาจารย์ร่วมด้วย id', () => {
   const { assignCoTeachers } = require('../controllers/supervisionController');
-  const appt = { id: 4, teacherId: 5, status: 'PENDING_TEACHER', confirmedDate: null, proposedDates: null };
+  const appt = { id: 4, teacherId: 5, status: 'PENDING_TEACHER', confirmedDate: null, proposedDates: null, coTeachers: [] };
   const T7 = { id: 7, prefix: 'ผศ. ดร.', firstName: 'ชิตสุธา', lastName: 'สุ่มเล็ก' };
   const T68 = { id: 68, prefix: 'อ. ดร.', firstName: 'ญานิกา', lastName: 'คงโสรส' };
 
@@ -1477,7 +1522,15 @@ describe('proposeSupervisionDate — รายการวันที่ต้�
   test.each([
     ['ไม่ใช่ข้อความ JSON (เดิม 500)', { proposedDates: ['2099-12-01|10:00-11:00|ONSITE'] }, /JSON/],
     ['ไม่มีวันเลย', { proposedDates: '[]' }, /อย่างน้อย 1 วัน/],
-    ['รูปแบบวันผิดทั้งหมด', { proposedDates: JSON.stringify(['พรุ่งนี้']) }, /อย่างน้อย 1 วัน/],
+    ['รูปแบบวันผิดทั้งหมด', { proposedDates: JSON.stringify(['พรุ่งนี้']) }, /ตัวเลือกที่ 1: รูปแบบวัน\/เวลาไม่ถูกต้อง/],
+    // ตรวจเข้ม (2026-11-10): เดิมรับเวลา/วันที่ที่ไม่มีจริงแล้วบันทึกลงฐาน · ตัวเลือกที่อ่านไม่ออกถูกข้ามเงียบ ๆ
+    ['ชั่วโมงเกิน 23', { proposedDates: JSON.stringify(['2099-12-01|08:00-99:00|ONSITE']) }, /00:00–23:59/],
+    ['นาที 60', { proposedDates: JSON.stringify(['2099-12-01|09:60-10:30|ONSITE']) }, /00:00–23:59/],
+    ['30 กุมภาพันธ์', { proposedDates: JSON.stringify(['2099-02-30|09:00-10:00|ONSITE']) }, /ไม่มีวันที่ 2099-02-30/],
+    ['เดือน 13', { proposedDates: JSON.stringify(['2099-13-01|09:00-10:00|ONSITE']) }, /ไม่มีวันที่/],
+    ['ตัวเลือกดีปนตัวที่อ่านไม่ออก', { proposedDates: JSON.stringify(['2099-12-01|10:00-11:00|ONSITE', 'ขยะ']) }, /ตัวเลือกที่ 2/],
+    ['รูปแบบนิเทศแปลกในตัวเลือก', { proposedDates: JSON.stringify(['2099-12-01|10:00-11:00|HYBRID']) }, /ONLINE หรือ ONSITE/],
+    ['ลิงก์ยาวเกิน', { proposedDates: JSON.stringify(['2099-12-01|10:00-11:00|ONLINE']), supervisionType: 'ONLINE', onlineLink: `https://x.example/${'a'.repeat(3000)}` }, /ยาวเกินไป/],
     ['เวลาเริ่มไม่น้อยกว่าเวลาจบ', { proposedDates: JSON.stringify(['2099-12-01|10:00-11:00|ONSITE', '2099-12-02|14:00-13:00|ONSITE']) }, /ตัวเลือกที่ 2: เวลาเริ่ม/],
     ['ออนไลน์ไม่มีลิงก์', { proposedDates: JSON.stringify(['2099-12-01|10:00-11:00|ONLINE']), supervisionType: 'ONLINE' }, /Link/],
   ])('400 — %s', async (_name, body, msg) => {
@@ -1497,7 +1550,7 @@ describe('proposeSupervisionDate — รายการวันที่ต้�
 
 describe('assignCoTeachers — ระหว่างรอลงนาม (รายชื่ออาจารย์อยู่ในร่างหนังสือ)', () => {
   const { assignCoTeachers } = require('../controllers/supervisionController');
-  const appt = { id: 4, teacherId: 5, status: 'DATE_CONFIRMED', confirmedDate: null, proposedDates: null, letterPendingAt: new Date(), letterDraftNumber: '660301.26.6.2/1215' };
+  const appt = { id: 4, teacherId: 5, status: 'DATE_CONFIRMED', confirmedDate: null, proposedDates: null, letterPendingAt: new Date(), letterDraftNumber: '660301.26.6.2/1215', coTeachers: [{ teacherId: 7 }] };
   beforeEach(() => {
     prisma.supervisionAppointment.findUnique.mockResolvedValue(appt);
     prisma.supervisionCoTeacher.findMany.mockResolvedValue([{ teacherId: 7 }]);

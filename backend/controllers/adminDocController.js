@@ -1,4 +1,5 @@
 const prisma = require('../config/prismaClient');
+const { isDbId } = require('../utils/dbId');
 const { lockStudents } = require('../utils/rowLock');
 const { studentIdSearchOr } = require('../utils/studentId');
 const { deadlineFlagsFor } = require('../utils/deadlineFlags');
@@ -190,7 +191,7 @@ exports.updateDocStatus = async (req, res) => {
       return res.status(400).json({ ok: false, message: 'status ไม่ถูกต้อง' });
     }
     const parsedId = parseInt(id, 10);
-    if (isNaN(parsedId) || parsedId <= 0) {
+    if (!isDbId(parsedId)) {
       return res.status(400).json({ ok: false, message: 'id ไม่ถูกต้อง' });
     }
 
@@ -237,7 +238,7 @@ exports.reviewStudentStatus = async (req, res) => {
     } = req.body;
 
     const parsedStudentId = parseInt(studentId, 10);
-    if (isNaN(parsedStudentId) || parsedStudentId <= 0) {
+    if (!isDbId(parsedStudentId)) {
       if (req.file) try { fs.unlinkSync(path.join(__dirname, '../uploads', req.file.filename)); } catch (_) {}
       return res.status(400).json({ ok: false, message: 'studentId ต้องเป็นตัวเลขที่ถูกต้อง' });
     }
@@ -490,7 +491,7 @@ exports.markAcceptanceReceived = async (req, res) => {
   };
   try {
     const studentId = parseInt(req.body?.studentId, 10);
-    if (isNaN(studentId) || studentId <= 0) {
+    if (!isDbId(studentId)) {
       discardUpload();
       return res.status(400).json({ ok: false, message: 'studentId ต้องเป็นตัวเลขที่ถูกต้อง' });
     }
@@ -563,7 +564,7 @@ exports.replaceAcceptanceFile = async (req, res) => {
   };
   try {
     const studentId = parseInt(req.body?.studentId, 10);
-    if (isNaN(studentId) || studentId <= 0) {
+    if (!isDbId(studentId)) {
       discardUpload();
       return res.status(400).json({ ok: false, message: 'studentId ต้องเป็นตัวเลขที่ถูกต้อง' });
     }
@@ -935,7 +936,7 @@ exports.approveAllDocs = async (req, res) => {
   try {
     const { studentId } = req.body;
     const parsedId = parseInt(studentId, 10);
-    if (isNaN(parsedId) || parsedId <= 0) {
+    if (!isDbId(parsedId)) {
       return res.status(400).json({ ok: false, message: 'studentId ต้องเป็นตัวเลขที่ถูกต้อง' });
     }
 
@@ -1019,7 +1020,7 @@ exports.updateCoopApplicationStatus = async (req, res) => {
     const { status, comment } = req.body;
 
     const parsedId = Number(id);
-    if (!Number.isInteger(parsedId) || parsedId <= 0) {
+    if (!isDbId(parsedId)) {
       return res.status(400).json({ ok: false, message: 'id ไม่ถูกต้อง' });
     }
 
@@ -1218,7 +1219,7 @@ exports.reviewT002 = async (req, res) => {
             return res.status(400).json({ ok: false, message: "ไม่พบข้อมูล Student ID" });
         }
         const parsedStudentId = parseInt(studentId, 10);
-        if (isNaN(parsedStudentId) || parsedStudentId <= 0) {
+        if (!isDbId(parsedStudentId)) {
             return res.status(400).json({ ok: false, message: 'studentId ต้องเป็นตัวเลขที่ถูกต้อง' });
         }
 
@@ -1273,7 +1274,7 @@ exports.reviewT003 = async (req, res) => {
         const { studentId, status, comment } = req.body;
         if (!studentId) return res.status(400).json({ ok: false, message: "ไม่พบ studentId" });
         const parsedStudentId = parseInt(studentId, 10);
-        if (isNaN(parsedStudentId) || parsedStudentId <= 0) {
+        if (!isDbId(parsedStudentId)) {
             return res.status(400).json({ ok: false, message: 'studentId ต้องเป็นตัวเลขที่ถูกต้อง' });
         }
 

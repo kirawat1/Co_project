@@ -144,9 +144,9 @@ test.describe("วันว่างอาจารย์นิเทศร่�
   test("ยืนยันกลุ่มนัด 06:30 เวลาไทย (UTC ยังเป็นวันก่อน) → ตรงวันที่เสนอ · อาจารย์ร่วมไม่ว่าง → 409 แล้วยืนยันซ้ำได้", async () => {
     const main = await W.teacher(W.A), co = await W.teacher(W.A);
     const s1 = await W.student(W.A, "INTERNSHIP_STARTED"), s2 = await W.student(W.A, "INTERNSHIP_STARTED");
-    const proposed = JSON.stringify(["2026-12-10|06:30-08:00|ONSITE"]);
-    const g1 = await W.appointment(s1.id, main.id, { status: "PENDING_TEACHER", supervisionType: "ONSITE", proposedDates: proposed });
-    const g2 = await W.appointment(s2.id, main.id, { status: "PENDING_TEACHER", supervisionType: "ONSITE", proposedDates: proposed });
+    // คนที่สองเสนอต่อคิว (2026-11-10: ยืนยันกลุ่มใช้ช่วงที่แต่ละคนเสนอ — ช่วงทับกันยืนยันพร้อมกันไม่ได้)
+    const g1 = await W.appointment(s1.id, main.id, { status: "PENDING_TEACHER", supervisionType: "ONSITE", proposedDates: JSON.stringify(["2026-12-10|06:30-08:00|ONSITE"]) });
+    const g2 = await W.appointment(s2.id, main.id, { status: "PENDING_TEACHER", supervisionType: "ONSITE", proposedDates: JSON.stringify(["2026-12-10|08:00-09:30|ONSITE"]) });
     await prisma.supervisionCoTeacher.create({ data: { appointmentId: g2.id, teacherId: co.id, availableDates: JSON.stringify(["2026-12-11"]), respondedAt: new Date() } });
     const body = { appointmentIds: [g1.id, g2.id], confirmedDate: bkk("2026-12-10", "06:30") };
     let r = await api(main.token, "POST", "/api/teacher/supervisions/confirm-group", body);

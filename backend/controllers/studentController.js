@@ -1,5 +1,6 @@
 // backend/controllers/studentController.js
 const prisma = require('../config/prismaClient');
+const { isDbId } = require('../utils/dbId');
 const { lockStudents } = require('../utils/rowLock');
 const { buildStudentExportWorkbook, exportBaseUrl, STUDENT_EXPORT_INCLUDE } = require('../utils/studentExport');
 const { defaultStudentPassword, hashDefaultStudentPassword } = require('../utils/studentPassword');
@@ -824,7 +825,7 @@ exports.createStudentSingle = async (req, res) => {
 exports.revealStudentPassword = async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
-    if (isNaN(id) || id <= 0) return res.status(400).json({ ok: false, message: 'id ไม่ถูกต้อง' });
+    if (!isDbId(id)) return res.status(400).json({ ok: false, message: 'id ไม่ถูกต้อง' });
 
     const student = await prisma.student.findUnique({
       where: { id },

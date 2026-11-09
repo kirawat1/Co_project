@@ -2,7 +2,7 @@
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const { pdfOrImageFileFilter } = require('../utils/fileFilters');
+const { pdfOrImageFileFilter, withContentCheck } = require('../utils/fileFilters');
 
 // ตรวจสอบว่ามีโฟลเดอร์ uploads หรือไม่ ถ้าไม่มีให้สร้าง
 const uploadDir = path.join(__dirname, '../uploads');
@@ -31,4 +31,4 @@ const upload = multer({
     fileFilter: pdfOrImageFileFilter,
 });
 
-module.exports = upload;
+module.exports = withContentCheck(upload); // ตรวจเนื้อไฟล์จริงต่อท้ายทุก route

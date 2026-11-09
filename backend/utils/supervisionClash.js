@@ -38,6 +38,33 @@ function parseProposedEntry(entry) {
   };
 }
 
+// ตรวจวันที่นักศึกษาเสนอแบบเข้ม (ตอนรับข้อมูลใหม่เท่านั้น — ตัวอ่าน parseProposedEntry ยังผ่อนให้ข้อมูลเก่า)
+// เดิมรับ "08:00-99:00" · "25:00" · "09:60" · 30 ก.พ. · เดือน 13 ได้ แล้วบันทึกลงฐาน · ตัวเลือกที่อ่านไม่ออกถูกข้ามเงียบ ๆ แต่ข้อความดิบถูกเก็บทั้งก้อน
+// คืนข้อความผิดพลาด หรือ null ถ้าถูกทุกตัวเลือก
+function invalidProposedDates(json) {
+  let arr;
+  try { arr = JSON.parse(json); } catch (_) { return 'proposedDates ต้องเป็นรายการวันที่ (JSON)'; }
+  if (!Array.isArray(arr)) return 'proposedDates ต้องเป็นรายการวันที่ (JSON)';
+  const realTime = (t) => { const m = /^(\d{2}):(\d{2})$/.exec(t); return !!m && Number(m[1]) <= 23 && Number(m[2]) <= 59; };
+  for (let i = 0; i < arr.length; i++) {
+    const raw = arr[i];
+    const bad = `ตัวเลือกที่ ${i + 1}: รูปแบบวัน/เวลาไม่ถูกต้อง`;
+    if (typeof raw !== 'string' || raw.length > 40) return bad;
+    const e = parseProposedEntry(raw);
+    if (!e) return bad;
+    const d = new Date(`${e.date}T00:00:00Z`);
+    if (isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== e.date) return `ตัวเลือกที่ ${i + 1}: ไม่มีวันที่ ${e.date} ในปฏิทิน`;
+    const [, time = '', type = ''] = raw.split('|');
+    if (time) {
+      const [a = '', b] = time.split('-');
+      if (!e.start || !realTime(e.start) || (b !== undefined && (!e.end || !realTime(e.end)))) return `ตัวเลือกที่ ${i + 1}: เวลาต้องอยู่ระหว่าง 00:00–23:59`;
+      if (a.trim() === '') return bad;
+    }
+    if (type && type !== 'ONLINE' && type !== 'ONSITE') return `ตัวเลือกที่ ${i + 1}: รูปแบบการนิเทศต้องเป็น ONLINE หรือ ONSITE`;
+  }
+  return null;
+}
+
 function parseProposedList(json) {
   try {
     const arr = JSON.parse(json || '[]');
@@ -145,6 +172,7 @@ module.exports = {
   DEFAULT_SLOT_MINUTES,
   parseProposedEntry,
   parseProposedList,
+  invalidProposedDates,
   resolveSlotEnd,
   rangesOverlap,
   thaiDateTimeRange,

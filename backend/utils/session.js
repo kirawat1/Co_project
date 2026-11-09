@@ -1,6 +1,7 @@
 // session ของผู้ใช้ — token ใช้ได้เมื่อบัญชียังอยู่ · role ตรง · เวอร์ชัน token ตรง · นักศึกษาไม่อยู่ในถังขยะ
 // เดิม verifyToken ตรวจแค่ลายเซ็น → ลบบัญชี/ถอดสิทธิ์แล้ว token เดิมใช้ต่อได้จนหมดอายุ (สูงสุด 30 วันเมื่อ "จดจำฉันไว้")
 const jwt = require('jsonwebtoken');
+const { isDbId } = require('./dbId');
 const prisma = require('../config/prismaClient');
 
 /** token สำหรับเข้าสู่ระบบ — tv = เวอร์ชัน token ของบัญชี ณ ตอนออก */
@@ -14,7 +15,7 @@ function signSession(user, expiresIn) {
  */
 async function checkSession(decoded) {
   const id = Number(decoded?.id);
-  if (!Number.isInteger(id) || id <= 0) return false;
+  if (!isDbId(id)) return false;
   const user = await prisma.user.findUnique({
     where: { id },
     select: { role: true, tokenVersion: true, student: { select: { deletedAt: true } } },

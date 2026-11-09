@@ -368,12 +368,13 @@ test.describe("E. ยืนยันแบบกลุ่ม", () => {
     expect((await w.supervision("gA")).status).toBe("PENDING_TEACHER");
   });
 
-  test("สำเร็จ: คิวเรียงตามลำดับที่ส่ง ต่อกันไม่ทับ (ยาวตามช่วงที่แต่ละคนเสนอ) · กลุ่มเดียวกัน · รูปแบบตามตัวเลือกของแต่ละคน · แจ้งนักศึกษาทุกคน", async () => {
-    const r = await confirmGroup(T("main"), { appointmentIds: [w.appt.gB, w.appt.gA], confirmedDate: at(day(DAYS.group), "09:00") });
+  // ผู้ใช้ตัดสิน 2026-11-10: แต่ละคนได้เวลาตามช่วงที่ตัวเองเสนอ (เดิม gB ที่เสนอ 13:00 ถูกต่อคิวเป็น 09:00)
+  test("สำเร็จ: แต่ละคนได้ช่วงที่ตัวเองเสนอ เรียงตามเวลา (ไม่ขึ้นกับลำดับที่ส่ง) · กลุ่มเดียวกัน · รูปแบบตามตัวเลือกของแต่ละคน · แจ้งนักศึกษาทุกคน", async () => {
+    const r = await confirmGroup(T("main"), { appointmentIds: [w.appt.gB, w.appt.gA], confirmedDate: at(day(DAYS.group), "00:00") });
     expect(r.status, msg(r)).toBe(200);
     const [b, a] = [await w.supervision("gB"), await w.supervision("gA")];
-    expect([b.status, iso(b.confirmedDate), iso(b.confirmedEndDate), b.supervisionType]).toEqual(["DATE_CONFIRMED", at(day(DAYS.group), "09:00"), at(day(DAYS.group), "10:00"), "ONLINE"]);
-    expect([a.status, iso(a.confirmedDate), iso(a.confirmedEndDate), a.supervisionType]).toEqual(["DATE_CONFIRMED", at(day(DAYS.group), "10:00"), at(day(DAYS.group), "11:00"), "ONSITE"]);
+    expect([a.status, iso(a.confirmedDate), iso(a.confirmedEndDate), a.supervisionType]).toEqual(["DATE_CONFIRMED", at(day(DAYS.group), "09:00"), at(day(DAYS.group), "10:00"), "ONSITE"]);
+    expect([b.status, iso(b.confirmedDate), iso(b.confirmedEndDate), b.supervisionType]).toEqual(["DATE_CONFIRMED", at(day(DAYS.group), "13:00"), at(day(DAYS.group), "14:00"), "ONLINE"]);
     expect(a.groupId).toBeTruthy();
     expect(b.groupId).toBe(a.groupId);
     for (const k of ["gA", "gB"]) await expect.poll(async () => (await titles(w.s[k].userId, "SUPERVISION_DATE_UPDATED")).length, { message: k }).toBeGreaterThan(0);
@@ -841,6 +842,9 @@ test.describe("N. หน้าอาจารย์ประจำวิชา (
     await page.getByText("🏢 นิเทศตามบริษัท").click();
     const card = page.locator("div", { hasText: w.companyName.B, has: page.getByRole("button", { name: /นัดพร้อมกัน/ }) }).last();
     await card.getByRole("button", { name: "นัดพร้อมกัน (1 วัน)" }).click();
+    // ตัวอย่างคิวบอกเวลาของแต่ละคนตามที่เสนอ
+    await expect(page.getByText(/นศuiGP ทดสอบนิเทศ — 09:00–10:00 น\./)).toBeVisible();
+    await expect(page.getByText(/นศuiGQ ทดสอบนิเทศ — 10:00–11:00 น\./)).toBeVisible();
     await page.getByRole("button", { name: "ยืนยัน (2 คน)" }).click();
     await expect.poll(async () => (await w.supervision("uiGP")).status).toBe("DATE_CONFIRMED");
     const [p, q] = [await w.supervision("uiGP"), await w.supervision("uiGQ")];
