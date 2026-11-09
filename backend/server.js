@@ -10,7 +10,8 @@ const { createApiLimiter } = require("./middlewares/rateLimit");
 dotenv.config();
 
 // ตรวจสอบ env ที่จำเป็นก่อน start server
-const REQUIRED_ENV = ["JWT_SECRET", "DATABASE_URL", "FRONTEND_URL"];
+// FRONTEND_URL ไม่บังคับ — ไม่ตั้งจะใช้ http://localhost:5173 (ดูด้านล่าง) · เครื่องจริงต้องตั้งให้ตรงโดเมน
+const REQUIRED_ENV = ["JWT_SECRET", "DATABASE_URL"];
 for (const key of REQUIRED_ENV) {
   if (!process.env[key]) {
     console.error(`FATAL: Missing required environment variable: ${key}`);

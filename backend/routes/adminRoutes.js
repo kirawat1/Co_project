@@ -182,6 +182,7 @@ router.delete('/doc-requirements/:id', verifyToken, verifyCoopTeacherOrStaff, do
 router.put('/doc-requirements/:id/exclusions', verifyToken, verifyCoopTeacherOrStaff, docReqController.setExclusion);
 
 // Dean Info
+// เปิดสาธารณะโดยตั้งใจ (ไม่มี verifyToken): คืนแค่ชื่อ/ตำแหน่งคณบดีที่พิมพ์บนหนังสือ — tests ระบุไว้ใน PUBLIC
 router.get('/config/dean-info', systemAssetController.getDeanInfo);
 router.post('/config/dean-info', verifyToken, verifyRole(...STAFF_ONLY), systemAssetController.saveDeanInfo);
 

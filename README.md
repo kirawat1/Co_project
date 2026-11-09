@@ -142,7 +142,7 @@ e2e บางชุดสร้างข้อมูลทดสอบในฐ�
 | `DATABASE_URL` | ✓ | MySQL connection string |
 | `JWT_SECRET` | ✓ | สตริงสุ่ม ≥ 64 ตัวอักษร (server ไม่ start ถ้าไม่มี) |
 | `PORT` | | ค่าเริ่มต้น 5000 |
-| `FRONTEND_URL` | | origin ที่อนุญาต (CORS) คั่นหลายค่าด้วยคอมมา |
+| `FRONTEND_URL` | | origin ที่อนุญาต (CORS) คั่นหลายค่าด้วยคอมมา · ไม่ตั้ง = `http://localhost:5173` · เครื่องจริงต้องตั้งเป็นโดเมนจริง |
 | `NODE_ENV` | | `development` บนเครื่องพัฒนา · `production` บนเครื่องจริง |
 | `GOOGLE_CLIENT_ID` | | เปิดให้นักศึกษาเข้าสู่ระบบด้วย Google (ต้องตั้ง `VITE_GOOGLE_CLIENT_ID` ใน Frontend/.env ด้วย) |
 | `API_RATE_LIMIT_MAX` | | จำนวนคำขอสูงสุดต่อ 15 นาที (ค่าเริ่มต้น 2000) |
