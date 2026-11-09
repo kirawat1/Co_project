@@ -36,3 +36,11 @@ desktop.ini
 
 # Playwright MCP (ภาพ/บันทึกจากการทดสอบในเบราว์เซอร์)
 .playwright-mcp/
+
+# ไฟล์ตั้งค่าของเครื่องมือ AI (Claude Code) — ใช้ในเครื่องผู้พัฒนาเท่านั้น
+CLAUDE.md
+
+# เอกสารออกแบบ/แผนพัฒนา (ใช้ภายในทีม ไม่เผยแพร่)
+docs/design/specs/
+docs/design/plans/
+docs/superpowers/

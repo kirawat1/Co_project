@@ -70,7 +70,7 @@ async function syncT000Submission(db, { studentId, major }) {
   return null;
 }
 
-// เติมย้อนหลังจากเอกสารที่มีอยู่ (scripts/backfill_submitted_steps.js) — คืน submittedSteps ใหม่ หรือ null ถ้าไม่มีอะไรเปลี่ยน
+// เติมย้อนหลังจากเอกสารที่มีอยู่ (scripts/one-off/backfill_submitted_steps.js) — คืน submittedSteps ใหม่ หรือ null ถ้าไม่มีอะไรเปลี่ยน
 //   ส่งแก้แทนไฟล์เดิม (ลบแล้วสร้างใหม่) เวลาจึงอาจเป็นการส่งแก้ครั้งล่าสุด → ติด backfill ไว้ ไม่ใช้ติดป้ายส่งช้า
 function backfillEntries(existing, docs, requiredKeys) {
   const steps = { ...(existing || {}) };

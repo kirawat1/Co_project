@@ -1,7 +1,7 @@
 // สคริปต์ย้ายสถานะ T002/T003 แบบเก่า -> INTERNSHIP_STARTED
 jest.mock('../config/prismaClient', () => require('./__mocks__/prismaClient'));
 const prisma = require('./__mocks__/prismaClient');
-const { migrateInternshipForms } = require('../scripts/migrate_internship_forms');
+const { migrateInternshipForms } = require('../scripts/one-off/migrate_internship_forms');
 
 // เอกสารล่าสุดตามนักศึกษา+ชนิด: docs[`${studentId}:${type}`] = { id, status }
 let coops;
