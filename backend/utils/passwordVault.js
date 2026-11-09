@@ -10,7 +10,7 @@ const { defaultStudentPassword } = require('./studentPassword');
 const VAULT_ROLES = new Set(['student', 'teacher']);
 const VERSION = 'v1';
 
-// รหัสเริ่มต้นของอาจารย์ที่สร้างจาก scripts/seed_teachers.js
+// รหัสเริ่มต้นของบัญชีอาจารย์ที่สร้างจากสคริปต์ seed เดิม (ลบสคริปต์แล้ว 2026-11-09) — ใช้แสดงรหัสให้เจ้าหน้าที่เท่านั้น
 const DEFAULT_TEACHER_PASSWORD = '1111111111111';
 
 function vaultKey() {
