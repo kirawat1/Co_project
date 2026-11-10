@@ -6,8 +6,6 @@
  */
 import { test, expect } from "@playwright/test";
 import {
-  setupStudentMocks,
-  setupTeacherMocks,
   setupAdminMocks,
   MOCK_STUDENT_ME,
   FAKE_TOKEN,

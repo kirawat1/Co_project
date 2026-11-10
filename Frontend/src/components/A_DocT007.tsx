@@ -32,7 +32,7 @@ export default function A_DocT007() {
                     setT007Link(cfg.t007Link || "");
                     setDeadline(cfg.deadline || "");
                 }
-            } catch (err) {
+            } catch {
                 console.warn("ไม่พบข้อมูล T007 (จะแสดงฟอร์มเปล่า)");
             } finally {
                 setIsFetching(false);

@@ -21,7 +21,7 @@ exports.ASSET_KEYS = ASSET_KEYS;
 exports.updateAsset = async (req, res) => {
   try {
     const { key, label } = req.body;
-    if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+    if (!req.file) return res.status(400).json({ ok: false, message: "No file uploaded" });
     if (!ASSET_KEYS.includes(key)) {
       try { fs.unlinkSync(path.join(__dirname, '../uploads/system', req.file.filename)); } catch (_) {}
       return res.status(400).json({ ok: false, message: `ชนิดไฟล์ระบบไม่ถูกต้อง (รับ ${ASSET_KEYS.join(', ')})` });

@@ -31,8 +31,6 @@ const E2E_PASSWORD = "E2eTest#1234";
 let studentUserId: number;
 let studentPk: number;
 let companyId: string;
-let contactAId: string;
-let contactBId: string;
 
 test.beforeAll(async () => {
   const stamp = Date.now();
@@ -62,7 +60,6 @@ test.beforeAll(async () => {
     prisma.companyContact.create({ data: { firstName: "REPRO-RACE-A", lastName: "x", companyId: company.id } }),
     prisma.companyContact.create({ data: { firstName: "REPRO-RACE-B", lastName: "x", companyId: company.id } }),
   ]);
-  contactAId = a.id; contactBId = b.id;
 
   await prisma.studentCoop.create({
     data: { studentId: student.id, status: "NOT_SUBMITTED", companyId: company.id, contacts: { connect: [{ id: a.id }, { id: b.id }] } },

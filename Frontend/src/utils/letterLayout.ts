@@ -84,7 +84,7 @@ export function layoutRuns(runs: Run[], width: number, measure: (t: string, bold
       const prev = toks[toks.length - 1];
       const same = prev && prev.bold === bold && prev.underline === underline && !prev.space;
       // ไม่ตัดบรรทัดหลังวงเล็บเปิด/ก่อนวงเล็บปิดและเครื่องหมาย (เดิมได้ "จำกัด (" / "มหาชน)")
-      if (same && (/^[(\[“"']+$/.test(prev.text) || /^[)\]”"',.:;!?]+$/.test(t))) {
+      if (same && (/^[([“"']+$/.test(prev.text) || /^[)\]”"',.:;!?]+$/.test(t))) {
         prev.text += t; prev.w = measure(prev.text, bold);
         continue;
       }

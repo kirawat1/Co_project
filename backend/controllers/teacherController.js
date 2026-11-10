@@ -18,7 +18,7 @@ const withCoopMajors = (t) => (t ? { ...t, coopMajors: (t.coopMajors || []).map(
 exports.getProfile = async (req, res) => {
   try {
     if (!req.user || !req.user.id) {
-        return res.status(401).json({ message: "Unauthorized" });
+        return res.status(401).json({ ok: false, message: "Unauthorized" });
     }
 
     const userId = req.user.id;
@@ -60,7 +60,7 @@ exports.getProfile = async (req, res) => {
 
   } catch (err) {
     console.error("GET PROFILE ERROR:", err);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ ok: false, message: "Server error" });
   }
 };
 
@@ -70,7 +70,7 @@ exports.updateProfile = async (req, res) => {
     const { firstName, lastName, phone, faculty, major, prefix } = req.body;
     
     if (!req.user || !req.user.id) {
-        return res.status(401).json({ message: "Unauthorized" });
+        return res.status(401).json({ ok: false, message: "Unauthorized" });
     }
     
     const userId = req.user.id;
@@ -82,7 +82,7 @@ exports.updateProfile = async (req, res) => {
     });
 
     if (!currentUser) {
-        return res.status(404).json({ message: "User not found" });
+        return res.status(404).json({ ok: false, message: "User not found" });
     }
 
     // หลักสูตรต้องเป็นรหัสที่มีจริง (เหมือนหน้าเจ้าหน้าที่) — เดิมส่งอะไรมาก็บันทึก อาจารย์หลุดจากปฏิทิน/รายการตามหลักสูตร
@@ -171,7 +171,7 @@ exports.getAllTeachers = async (req, res) => {
     res.json(result);
   } catch (err) {
     console.error("GET ALL TEACHERS ERROR:", err);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ ok: false, message: "Server error" });
   }
 };
 

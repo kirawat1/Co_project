@@ -120,6 +120,7 @@ node scripts/create_user.js --username=admin01 --email=admin@example.ac.th --pas
 ```bash
 cd backend  && npm test        # Jest — unit/integration (~2,000 เคส, ไม่ต้องใช้ฐานจริง)
 cd Frontend && npx playwright test tests/<ไฟล์>.spec.ts    # e2e — ต้องรัน backend + frontend + ฐานทดสอบ
+cd Frontend && npm run lint    # ESLint — ต้องไม่มี error (warning ที่เหลือดู "งานที่พัฒนาต่อได้")
 ```
 e2e บางชุดสร้างข้อมูลทดสอบในฐานเอง — ใช้ฐานแยก ไม่ใช่ฐานที่มีข้อมูลจริง
 
@@ -151,6 +152,16 @@ e2e บางชุดสร้างข้อมูลทดสอบในฐ�
 ## หมายเหตุสำหรับผู้พัฒนา
 
 - ตอนพัฒนา Vite ส่งต่อ `/api/*` และ `/uploads/*` ไปที่ `localhost:5000` ให้เอง — ฝั่งหน้าเว็บเรียก API ด้วย path แบบสัมพัทธ์เสมอ
-- route ทุกตัว: `verifyToken` ก่อน `verifyRole(...)` · token หมดอายุ/ผิด = 401 (หน้าเว็บ logout ให้เอง) · สิทธิ์ไม่พอ = 403 · ข้อมูลชนกัน = 409
+- route ทุกตัว: `verifyToken` ก่อน `verifyRole(...)` (ยกเว้นที่ตั้งใจเปิด เช่น เข้าสู่ระบบ · ชื่อคณบดีบนหนังสือ — มีคอมเมนต์กำกับใน routes) · token หมดอายุ/ผิด = 401 (หน้าเว็บ logout ให้เอง) · สิทธิ์ไม่พอ = 403 · ข้อมูลชนกัน = 409
 - ไฟล์ที่อัปโหลดอยู่ที่ `backend/uploads/` (ไม่อยู่ใน git) และเปิดได้เฉพาะผู้ที่มีสิทธิ์ในข้อมูลนั้น
 - บันทึกการเปลี่ยนแปลงทุกครั้งใน `CHANGELOG.md`
+
+## งานที่พัฒนาต่อได้
+
+ระบบใช้งานจริงได้แล้ว รายการนี้คือหนี้ทางเทคนิคที่รู้อยู่ — ทำทีละข้อ แล้วรันเทสต์ทั้งชุดทุกครั้ง
+
+- **ลด `any` ฝั่งหน้าเว็บ** (~200 จุด — `npm run lint` แสดงเป็น warning) โดยใส่ type ของข้อมูลที่ API คืนจริง
+- **เรียก API แบบเดียวกันทั้งระบบ** — ตอนนี้ปนกัน 3 แบบ: `apiFetch` (`src/utils/apiFetch.ts`, แนะนำ) · `axios` · `fetch` ตรง ๆ และหลายไฟล์อ่าน token จาก `localStorage` เอง
+- **แยกไฟล์ใหญ่** — `backend/controllers/supervisionController.js` (~1,650 บรรทัด), `adminDocController.js` (~1,300) และหน้าเว็บ `A_Students.tsx` / `A_DocT000.tsx` (~1,100–1,200) แยกตาม use case โดยให้ route เดิมยังชี้ที่เดิม
+- **ไฟล์ที่ export ค่าอื่นคู่กับ component** (warning `react-refresh/only-export-components`) — ย้ายค่าคงที่/ฟังก์ชันไปไว้ใน `src/utils/`
+- **ESLint ฝั่ง backend** — ยังไม่มี linter

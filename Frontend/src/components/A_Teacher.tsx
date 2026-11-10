@@ -96,7 +96,7 @@ export default function A_Teacher() {
         const data = await res.json();
         if (Array.isArray(data) && data.length > 0) setPrefixOptions(data);
       }
-    } catch {}
+    } catch { /* โหลดไม่ได้ — ใช้รายการคำนำหน้าเริ่มต้นต่อ */ }
   };
 
   const fetchDepartments = async () => {
@@ -108,7 +108,7 @@ export default function A_Teacher() {
           setDepartments(data.departments.map((d: any) => d.major));
         }
       }
-    } catch {}
+    } catch { /* โหลดไม่ได้ — ช่องสาขาว่างไว้ ผู้ใช้ยังพิมพ์เองได้ */ }
   };
 
   useEffect(() => { fetchData(); fetchPrefixes(); fetchDepartments(); }, []);

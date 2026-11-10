@@ -394,7 +394,7 @@ exports.acknowledgeDispatchDownload = async (req, res) => {
     });
 
     if (!student || student.deletedAt) {
-        return res.status(404).json({ message: "Student not found" });
+        return res.status(404).json({ ok: false, message: "Student not found" });
     }
 
     // อัปเดตสถานะเป็น WAITING_FOR_PLACEMENT_LETTER — ตรวจสถานะใน $transaction กันนักศึกษาถอยสถานะ
@@ -411,7 +411,7 @@ exports.acknowledgeDispatchDownload = async (req, res) => {
   } catch (err) {
     if (err.is400) return res.status(400).json({ ok: false, message: err.message });
     console.error(err);
-    res.status(500).json({ message: "Update status failed" });
+    res.status(500).json({ ok: false, message: "Update status failed" });
   }
 };
 
@@ -429,7 +429,7 @@ exports.deleteDocumentByType = async (req, res) => {
       where: { userId: parseInt(userId) }
     });
     if (!student || student.deletedAt) {
-      return res.status(404).json({ message: "Student not found" });
+      return res.status(404).json({ ok: false, message: "Student not found" });
     }
 
     // map docType → dbType
@@ -442,7 +442,7 @@ exports.deleteDocumentByType = async (req, res) => {
       case 'CP-CITIZEN_CARD': dbType = 'CITIZEN_CARD'; break;
       case 'CP-PARENTAL_CONSENT': dbType = 'PARENTAL_CONSENT'; break;
       default:
-        return res.status(400).json({ message: "Invalid docType" });
+        return res.status(400).json({ ok: false, message: "Invalid docType" });
     }
 
     const doc = await prisma.document.findFirst({
@@ -453,7 +453,7 @@ exports.deleteDocumentByType = async (req, res) => {
     });
 
     if (!doc) {
-      return res.status(404).json({ message: "Document not found" });
+      return res.status(404).json({ ok: false, message: "Document not found" });
     }
     if (approvedT000(doc)) return res.status(409).json({ ok: false, message: APPROVED_DOC_LOCKED });
 
@@ -471,9 +471,9 @@ exports.deleteDocumentByType = async (req, res) => {
 
     res.json({ ok: true });
   } catch (err) {
-    if (err.code === 'P2025') return res.status(404).json({ message: 'Document not found' });
+    if (err.code === 'P2025') return res.status(404).json({ ok: false, message: 'Document not found' });
     console.error(err);
-    res.status(500).json({ message: "Delete failed" });
+    res.status(500).json({ ok: false, message: "Delete failed" });
   }
 };
 

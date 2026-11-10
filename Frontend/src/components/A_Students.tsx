@@ -308,7 +308,7 @@ export default function A_Students() {
   // ค้นหา/ตัวกรอง/เรียงลำดับเปลี่ยน — เคลียร์การเลือกเดิมทิ้ง (รายการที่แสดงเปลี่ยนไปแล้ว)
   useEffect(() => {
     setSelectedIds(new Set());
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [resetKey]);
 
   useEffect(() => {

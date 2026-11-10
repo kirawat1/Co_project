@@ -41,7 +41,7 @@ export default function S_DocT007() {
                 } else {
                     setConfig(defaultConfig);
                 }
-            } catch (err) {
+            } catch {
                 console.warn("ไม่สามารถดึงข้อมูลได้ ใช้ค่าเริ่มต้นแทน");
                 setConfig(defaultConfig);
             } finally {

@@ -176,7 +176,7 @@ exports.getStudentsForT000 = async (req, res) => {
     res.json(data);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Error fetching students" });
+    res.status(500).json({ ok: false, message: "Error fetching students" });
   }
 };
 

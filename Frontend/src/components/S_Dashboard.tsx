@@ -142,7 +142,7 @@ export default function S_Dashboard() {
         try {
           const res = await apiFetch(`/api/coop/config/${key}`);
           if (res.ok) configData[key] = await res.json();
-        } catch (e) { console.error(`Error loading config for ${key}`); }
+        } catch { console.error(`Error loading config for ${key}`); }
       }
       setConfigs(configData);
 

@@ -1,4 +1,3 @@
-/* eslint-disable react-refresh/only-export-components */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // Frontend/src/components/S_Company.tsx
 import { LoadingBlock } from "./Spinner";

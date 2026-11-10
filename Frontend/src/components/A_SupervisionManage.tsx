@@ -254,7 +254,7 @@ export default function A_SupervisionManage() {
 
     // กรองตารางและเรียงลำดับ (Filter & Sort)
     const processedSupervisions = useMemo(() => {
-        let filtered = supervisions.filter(sup => !sup.outsidePeriod).filter(sup => {
+        const filtered = supervisions.filter(sup => !sup.outsidePeriod).filter(sup => {
             const searchStr = `${sup.student.studentId} ${sup.student.firstName} ${sup.student.lastName} ${sup.student.coop?.company?.name || ""} ${sup.teacher?.firstName || ""} ${sup.teacher?.lastName || ""}`.toLowerCase();
             const matchesQ = searchStr.includes(q.toLowerCase());
 

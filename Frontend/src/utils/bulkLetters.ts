@@ -105,6 +105,8 @@ export function duplicateNumbers(numbers: string[]): Set<string> {
 }
 
 export function safeFileName(name: string): string {
+  // ตั้งใจลบอักขระควบคุม (\u0000-\u001f) ที่ใช้เป็นชื่อไฟล์ไม่ได้
+  // eslint-disable-next-line no-control-regex
   return name.replace(/[\\/:*?"<>|\u0000-\u001f]+/g, " ").replace(/\s+/g, " ").trim().replace(/[. ]+$/, "");
 }
 

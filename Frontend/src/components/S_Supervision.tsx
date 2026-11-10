@@ -155,7 +155,7 @@ export default function S_Supervision() {
                 if (appt.proposedDates) {
                     try {
                         setDates(JSON.parse(appt.proposedDates));
-                    } catch (e) {
+                    } catch {
                         setDates([""]);
                     }
                 }

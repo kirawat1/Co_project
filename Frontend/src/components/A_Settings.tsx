@@ -57,7 +57,7 @@ export default function A_Settings() {
       } else {
         notify.error("❌ อัปโหลดล้มเหลว");
       }
-    } catch (err) { notify.error("อัปโหลดไม่สำเร็จ: เชื่อมต่อเซิร์ฟเวอร์ไม่ได้"); }
+    } catch { notify.error("อัปโหลดไม่สำเร็จ: เชื่อมต่อเซิร์ฟเวอร์ไม่ได้"); }
     finally { setUploadingKey(null); }
   };
 
@@ -73,7 +73,7 @@ export default function A_Settings() {
       } else {
         notify.error("❌ ลบไฟล์ล้มเหลว");
       }
-    } catch (err) {
+    } catch {
       notify.error("เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์");
     }
   };
@@ -92,7 +92,7 @@ export default function A_Settings() {
       } else {
         notify.error("❌ บันทึกไม่สำเร็จ");
       }
-    } catch (error) {
+    } catch {
       notify.error("เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์");
     }
   };

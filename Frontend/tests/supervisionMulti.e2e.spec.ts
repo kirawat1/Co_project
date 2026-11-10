@@ -402,7 +402,7 @@ test.describe("C. กดซ้ำและกดพร้อมกัน", () =>
 
   test("อัปโหลดหนังสือลงนามรัว 4 ครั้งพร้อมกัน → ออกหนังสือครั้งเดียว · ไฟล์ค้างไม่มี (เหลือไฟล์เดียวที่นัดอ้างถึง)", async () => {
     const before = new Set(fs.readdirSync(SUP_DIR));
-    const rs = await Promise.all(Array.from({ length: 4 }, (_, i) => upload(staff1.token, ap.upl, { docNumber: no(600) })));
+    const rs = await Promise.all(Array.from({ length: 4 }, () => upload(staff1.token, ap.upl, { docNumber: no(600) })));
     no500(rs);
     expect(count(rs, 200), statuses(rs).join(",")).toBe(1);
     const a = await appt("upl");

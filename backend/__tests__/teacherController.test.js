@@ -36,7 +36,7 @@ describe('getProfile', () => {
     const res = makeRes();
     await getProfile(req, res);
     expect(res.status).toHaveBeenCalledWith(401);
-    expect(res.json).toHaveBeenCalledWith({ message: 'Unauthorized' });
+    expect(res.json).toHaveBeenCalledWith({ ok: false, message: 'Unauthorized' });
   });
 
   test('200 isFirstTime — teacher not in DB yet', async () => {
@@ -80,7 +80,7 @@ describe('getProfile', () => {
     await getProfile(req, res);
 
     expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.json).toHaveBeenCalledWith({ message: 'Server error' });
+    expect(res.json).toHaveBeenCalledWith({ ok: false, message: 'Server error' });
   });
 });
 
@@ -93,7 +93,7 @@ describe('updateProfile', () => {
     const res = makeRes();
     await updateProfile(req, res);
     expect(res.status).toHaveBeenCalledWith(401);
-    expect(res.json).toHaveBeenCalledWith({ message: 'Unauthorized' });
+    expect(res.json).toHaveBeenCalledWith({ ok: false, message: 'Unauthorized' });
   });
 
   test('404 — user not found in DB', async () => {
@@ -104,7 +104,7 @@ describe('updateProfile', () => {
     await updateProfile(req, res);
 
     expect(res.status).toHaveBeenCalledWith(404);
-    expect(res.json).toHaveBeenCalledWith({ message: 'User not found' });
+    expect(res.json).toHaveBeenCalledWith({ ok: false, message: 'User not found' });
   });
 
   test('200 — success, returns ok + data with email', async () => {

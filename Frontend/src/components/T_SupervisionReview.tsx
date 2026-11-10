@@ -243,7 +243,7 @@ export default function T_SupervisionReview() {
                 const ps: CoopPeriod[] = periodRes.data.periods;
                 setAllPeriods(ps);
                 const active = defaultPeriod(ps);
-                if (active) selectAllPeriod(active.id, ps);
+                if (active) selectAllPeriod(active.id);
             }
             // นัดของรอบที่เลือก — ยังไม่ได้เลือกรอบ (รอโหลดรอบจากแท็บของฉัน) = effect โหลดให้ทีหลัง
             if (allPeriodRef.current) await loadAll(allPeriodRef.current);
@@ -278,7 +278,7 @@ export default function T_SupervisionReview() {
     useEffect(() => { fetchMine(); }, []);
     useEffect(() => { if (isCoopTeacher) fetchAll(); }, [isCoopTeacher]);
 
-    const selectAllPeriod = (id: number, _ps = allPeriods) => setSelPeriodId(id);
+    const selectAllPeriod = (id: number) => setSelPeriodId(id);
 
     // ══════════════ "ของฉัน" handlers ══════════════
 
@@ -305,7 +305,7 @@ export default function T_SupervisionReview() {
     };
 
     const processedMine = useMemo(() => {
-        let f = mySupervisions.filter(s => {
+        const f = mySupervisions.filter(s => {
             const match = `${s.student.studentId} ${s.student.firstName} ${s.student.lastName} ${s.student.coop?.company?.name || ""}`.toLowerCase().includes(searchTerm.toLowerCase());
             const pId = String(s.coopPeriodId || s.student.coopPeriodId || s.student.coop?.coopPeriodId || "");
             return match && (selectedPeriod === "all" || pId === selectedPeriod);
@@ -402,7 +402,7 @@ export default function T_SupervisionReview() {
     };
 
     const processedAll = useMemo(() => {
-        let f = allSupervisions.filter(s => {
+        const f = allSupervisions.filter(s => {
             const search = `${s.student.studentId} ${s.student.firstName} ${s.student.lastName} ${s.student.coop?.company?.name || ""} ${s.teacher?.firstName || ""} ${s.teacher?.lastName || ""}`.toLowerCase();
             // server กรองรอบแล้ว · นัดกลุ่มเดียวกันที่อยู่นอกรอบ (สำหรับหนังสือรวม) ไม่แสดงในตาราง
             return !(s as any).outsidePeriod && search.includes(allQ.toLowerCase());

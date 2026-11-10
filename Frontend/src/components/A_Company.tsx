@@ -223,7 +223,7 @@ export default function A_Companies() {
 
       setItems(prev => prev.filter(c => c.id !== id));
       if (viewCompany?.id === id) setViewCompany(null);
-    } catch (err) { notify.error("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้"); }
+    } catch { notify.error("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้"); }
   }
 
   // เลือกทั้งหมด = ทุกแห่งที่แสดงอยู่บนจอ ไม่เหมารวมแห่งที่ยังไม่ได้เลื่อนลงไปแสดง

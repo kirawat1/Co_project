@@ -123,7 +123,7 @@ export default function T_T003Review() {
     // ✅ กรองรายชื่อ (ค้นหา + ปีการศึกษา) และ เรียงลำดับ (Sort)
     const processedStudents = useMemo(() => {
         // 1. Filter
-        let filtered = students.filter(s => {
+        const filtered = students.filter(s => {
             const matchSearch = `${s.studentId} ${s.firstName} ${s.lastName} ${s.coop?.company?.name || ""}`.toLowerCase().includes(searchTerm.toLowerCase());
             return matchSearch;
         });

@@ -40,7 +40,7 @@ export default function A_DocT005_006() {
                     setTemplateLink(cfg.templateLink || "");
                     setDeadline(cfg.deadline || "");
                 }
-            } catch (err) {
+            } catch {
                 console.warn("ไม่พบข้อมูลเดิม (จะแสดงฟอร์มเปล่า)");
             } finally {
                 setIsFetching(false); // โหลดเสร็จแล้ว

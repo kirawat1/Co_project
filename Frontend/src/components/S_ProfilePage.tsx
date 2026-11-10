@@ -231,7 +231,7 @@ export default function S_ProfilePage() {
 
       notify.success("บันทึกข้อมูลเรียบร้อย");
       setOpenStudentModal(false);
-    } catch (err) {
+    } catch {
       notify.error("เกิดข้อผิดพลาดในการบันทึกข้อมูล");
     }
   }

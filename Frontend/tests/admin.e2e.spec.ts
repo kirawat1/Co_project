@@ -282,7 +282,7 @@ test.describe("D. เจ้าหน้าที่ / แจ้งเตือ�
   test("สร้างบัญชีรหัสผ่านสั้น 400 · สร้างได้ · รีเซ็ตสั้น 400 · ลบตัวเอง 400 · ลบคนอื่นได้", async () => {
     const body = { username: `${tag}-staff2`, email: `${tag}-staff2@kkumail.com`, firstName: "ใหม่", lastName: "เจ้าหน้าที่" };
     expect((await api(staff.token, "POST", "/api/admin/staff", { ...body, password: "1" })).status).toBe(400);
-    let r = await api(staff.token, "POST", "/api/admin/staff", { ...body, password: "Abc12345!" });
+    const r = await api(staff.token, "POST", "/api/admin/staff", { ...body, password: "Abc12345!" });
     expect(r.status, msg(r)).toBe(201);
     const id = r.body.staff.id;
     expect((await api(staff.token, "PATCH", `/api/admin/staff/${id}/password`, { password: "12" })).status).toBe(400);

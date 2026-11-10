@@ -505,7 +505,7 @@ export default function A_DocT000() {
     // ================= UTILS / FILTER / SORT =================
     const list = useMemo(() => {
         // 1. กรองข้อมูล (Filter)
-        let filtered = students.filter(s => !s.outsidePeriod).filter(s => {
+        const filtered = students.filter(s => !s.outsidePeriod).filter(s => {
             const companyName = s.coop?.company?.name?.trim() || "";
             const txt = `${s.studentId} ${s.firstName} ${s.lastName} ${companyName}`.toLowerCase();
             const matchCompany = companyFilter === "all"
@@ -1066,7 +1066,7 @@ function AcceptanceReceivedModal({ student, onClose, onSuccess }: { student: Stu
 const studentStatusChip = (s: StudentProfile) => statusChip(s.docStatus, s.coop?.t000Status === "PENDING" ? "first" : "resubmit");
 
 function statusChip(status?: string, t000Submission?: "first" | "resubmit") {
-    let s = (status || "WAITING");
+    const s = (status || "WAITING");
     let label = "รอเอกสาร";
     let cls = "waiting";
 

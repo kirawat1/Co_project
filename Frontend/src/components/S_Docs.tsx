@@ -381,7 +381,7 @@ export default function S_Docs({ profile, setProfile }: { profile: LocalStudentP
         setSaveFailed(true);
         if (!silent) notify.error("บันทึกแบบฟอร์มไม่สำเร็จ กรุณาลองใหม่");
       }
-    } catch (err) {
+    } catch {
       setSaveFailed(true);
       if (!silent) notify.error("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ กรุณาตรวจสอบอินเทอร์เน็ตแล้วลองใหม่");
     }
@@ -461,7 +461,7 @@ export default function S_Docs({ profile, setProfile }: { profile: LocalStudentP
         const errData = await res.json().catch(() => ({}));
         notify.error(errData.message || "❌ อัปโหลดล้มเหลว");
       }
-    } catch (err) { notify.error("อัปโหลดไม่สำเร็จ: เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ กรุณาลองใหม่"); }
+    } catch { notify.error("อัปโหลดไม่สำเร็จ: เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ กรุณาลองใหม่"); }
     finally { setLoading(false); }
   };
 

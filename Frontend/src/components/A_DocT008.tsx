@@ -40,7 +40,7 @@ export default function A_DocT008() {
                         setImagePreview(`/uploads/system/${cfg.imagePath}`);
                     }
                 }
-            } catch (err) {
+            } catch {
                 console.warn("ไม่พบข้อมูล T008");
             } finally {
                 setIsFetching(false);

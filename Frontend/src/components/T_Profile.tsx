@@ -123,7 +123,7 @@ export default function T_Profile() {
         const result = await res.json().catch(() => ({}));
         notify.error(result.message || "บันทึกไม่สำเร็จ กรุณาลองใหม่");
       }
-    } catch (err) {
+    } catch {
       notify.error("ไม่สามารถบันทึกข้อมูลได้");
     }
   };

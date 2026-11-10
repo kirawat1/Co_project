@@ -7,6 +7,14 @@
 
 ---
 
+## [2026-11-10] chore: เก็บกวาดโค้ด — `npm run lint` ผ่าน (0 error)
+
+- Frontend lint จาก 314 ปัญหา (281 error) → 0 error: `catch` ที่ไม่ใช้ตัวแปร 15 จุด · `let` → `const` · ternary ที่ใช้เป็นคำสั่ง (T_GroupSupervision) · block ว่างใส่เหตุผล (A_Teacher) · regex escape เกิน (letterLayout) · `useEffect` ว่างใน S_DocTable · พารามิเตอร์ไม่ได้ใช้ (T_SupervisionReview) · `eslint-disable` ที่ไม่จำเป็น · tests 4 ไฟล์
+- `eslint.config.js`: `no-explicit-any` และ `react-refresh/only-export-components` เป็น warning (ยังมี `any` ~200 จุด) · `no-unused-vars` ยอมให้ `_ชื่อ` / ตัด field ด้วย rest
+- `react-hooks/exhaustive-deps` 31 ข้อ ไล่ดูทีละข้อแล้ว — เป็นการโหลดครั้งเดียวตอนเปิดหน้า/ค่าคงที่ทั้งหมด ไม่พบบั๊ก คงเป็น warning
+- backend: คำตอบ error 16 จุดที่ไม่มี `ok` → `{ ok: false, message }` (adminDoc/doc/student/systemAsset/teacher controller)
+- README: หัวข้อ "งานที่พัฒนาต่อได้" + `npm run lint` + ข้อยกเว้น route สาธารณะ
+
 ## [2026-11-10] fix: ติดตั้งตาม README แล้ว server ไม่ start เมื่อไม่ได้ตั้ง FRONTEND_URL
 
 - `backend/server.js` บังคับ `FRONTEND_URL` ทั้งที่ README บอกว่าไม่จำเป็น และมีค่าเริ่มต้น `http://localhost:5173` อยู่แล้ว → เอาออกจาก `REQUIRED_ENV` (ที่บังคับเหลือ `JWT_SECRET`, `DATABASE_URL`) · README ระบุค่าเริ่มต้น + เครื่องจริงต้องตั้ง

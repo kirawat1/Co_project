@@ -129,7 +129,7 @@ export default function A_T002Review() {
     // ✅ กรองรายชื่อ (ค้นหา + ปีการศึกษา) และ เรียงลำดับ (Sort)
     const processedStudents = useMemo(() => {
         // 1. กรองข้อมูล (Filter)
-        let filtered = students.filter(s => {
+        const filtered = students.filter(s => {
             const matchSearch = `${s.studentId} ${s.firstName} ${s.lastName} ${s.coop?.company?.name || ""}`.toLowerCase().includes(searchTerm.toLowerCase());
             return matchSearch;
         });

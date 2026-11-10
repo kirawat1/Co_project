@@ -1,6 +1,6 @@
 import { BusyLabel } from "./Spinner";
 import React from "react";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { fmtDate } from '../utils/dateFormat';
 import { askConfirm } from "../utils/notify";
 
@@ -66,10 +66,6 @@ export default function DocTable({
   onDeleteCall,
   locked = false,
 }: Props) {
-
-  useEffect(() => {
-    // console.log("DOC ITEMS", items);
-  }, [items]);
 
   // ไฟล์ที่เลือกแล้วแต่ยังไม่ยืนยันส่ง (แยกตามรายการเอกสาร) — ตรวจชื่อไฟล์ให้ถูกก่อนค่อยอัปโหลด แบบ T002/T003
   const [pending, setPending] = useState<Record<string, File>>({});
