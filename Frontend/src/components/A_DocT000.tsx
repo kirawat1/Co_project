@@ -53,6 +53,8 @@ interface StudentProfile {
         coopPeriodId?: number;
         company?: { name: string };
         companyId?: string | null;
+        reqLetterUrl?: string | null;     // ไฟล์ฉบับลงนามที่อัปโหลดแล้ว (ชื่อไฟล์ใน /uploads)
+        placeLetterUrl?: string | null;
         reqLetterBatch?: string | null;   // หนังสือรวม (null = หนังสือเดี่ยว)
         placeLetterBatch?: string | null;
         // ป้าย "รอลงนาม" — ตั้งตอนเจ้าหน้าที่ดาวน์โหลดร่างหนังสือ ล้างตอนอัปโหลดฉบับลงนาม
@@ -804,6 +806,7 @@ export default function A_DocT000() {
                                                 {s.coop?.reqLetterPendingAt ? 'อัปโหลดฉบับลงนาม' : s.docStatus === 'DOCS_APPROVED' ? 'ออกหนังสือขอความอนุเคราะห์' : 'พิมพ์ซ้ำ'}
                                             </button>
                                         )}
+                                        {s.coop?.reqLetterUrl && <ViewSignedButton file={s.coop.reqLetterUrl} label="หนังสือขอความอนุเคราะห์" />}
                                     </td>
                                     <td style={td}>
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-start' }}>
@@ -826,6 +829,7 @@ export default function A_DocT000() {
                                                 {s.coop?.placeLetterPendingAt ? 'อัปโหลดฉบับลงนาม' : s.docStatus === 'ACCEPTANCE_CHECKED' ? 'ออกหนังสือส่งตัว' : 'พิมพ์ซ้ำ'}
                                             </button>
                                         )}
+                                        {s.coop?.placeLetterUrl && <ViewSignedButton file={s.coop.placeLetterUrl} label="หนังสือส่งตัว" />}
                                     </td>
                                 </tr>
                             ))}
@@ -1058,6 +1062,17 @@ function AcceptanceReceivedModal({ student, onClose, onSuccess }: { student: Stu
                     </button>
                 </div>
         </Modal>
+    );
+}
+
+// เปิดไฟล์ฉบับลงนามที่อัปโหลดแล้ว — เดิมหน้านี้มีแค่ "พิมพ์ซ้ำ" (สร้างร่างใหม่) ต้องไปเปิดที่หน้าข้อมูลนักศึกษา
+// server ตั้งชื่อไฟล์ตอนบันทึกเป็น รหัส_ชื่อ_นามสกุล_ประเภท.pdf (utils/uploadFileName.js)
+function ViewSignedButton({ file, label }: { file: string; label: string }) {
+    return (
+        <button className="btn-secondary small" style={{ marginTop: 6, display: 'block' }} title={`เปิด${label}ฉบับลงนามที่อัปโหลดไว้`}
+            onClick={() => window.open(`/uploads/${encodeURIComponent(file)}`, '_blank', 'noopener')}>
+            👁️ ดูฉบับลงนาม
+        </button>
     );
 }
 

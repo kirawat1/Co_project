@@ -111,6 +111,18 @@ test.describe("A. สิทธิ์เปิดไฟล์", () => {
     expect(got).toEqual(who);
   });
 
+  // 2026-11-10: เดิมกดบันทึกแล้วได้ชื่อตัวเลข/ชื่อที่ใช้เก็บบนเครื่อง
+  test("ชื่อไฟล์ตอนบันทึก: หนังสือขอนิเทศ = รหัส_ชื่อ_นามสกุล_หนังสือขอนิเทศ.pdf (inline) · ประเภทที่ไม่รู้จัก = ไม่ตั้ง", async () => {
+    const r = await fetch(`${API}/uploads/supervision/${W.letterName}`, { headers: bearer(W.a.token) });
+    expect(r.status).toBe(200);
+    const cd = r.headers.get("content-disposition") || "";
+    expect(cd.startsWith("inline;")).toBe(true);
+    expect(decodeURIComponent(cd.split("UTF-8''")[1] || "")).toBe(`ZX${tail}a_a_ทดสอบสิทธิ์_หนังสือขอนิเทศ.pdf`);
+    const cv = await fetch(`${API}/uploads/${W.docName}`, { headers: bearer(W.a.token) });
+    expect(cv.status).toBe(200);
+    expect(cv.headers.get("content-disposition")).toBeNull();
+  });
+
   test("หนังสือขอนิเทศ: นักศึกษาเจ้าของ · ผู้นิเทศร่วมที่เพิ่มทีหลังเปิดได้ · นักศึกษาอื่นไม่ได้", async () => {
     const url = `/uploads/supervision/${W.letterName}`;
     expect((await get(url, bearer(W.a.token))).status).toBe(200);

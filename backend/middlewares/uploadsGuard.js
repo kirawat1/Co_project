@@ -4,6 +4,7 @@
 const jwt = require('jsonwebtoken');
 const { checkSession } = require('../utils/session');
 const { canAccessUpload } = require('../utils/uploadAccess');
+const { friendlyUploadName, inlineDisposition } = require('../utils/uploadFileName');
 const { FILE_COOKIE, readCookie } = require('../utils/fileCookie');
 
 module.exports = async function uploadsGuard(req, res, next) {
@@ -48,5 +49,13 @@ module.exports = async function uploadsGuard(req, res, next) {
 
   // ไฟล์ส่วนตัว — ห้าม proxy/cache ที่ใช้ร่วมกันเก็บไว้ (express.static ตั้ง cacheControl: false)
   res.set('Cache-Control', 'private, max-age=0');
+
+  // ชื่อไฟล์ตอนกดบันทึก — เดิมได้ชื่อตัวเลขที่ใช้เก็บบนเครื่อง · หาชื่อไม่ได้ก็ยังส่งไฟล์ตามปกติ
+  try {
+    const nice = await friendlyUploadName(rel);
+    if (nice) res.set('Content-Disposition', inlineDisposition(nice, rel.split('/').pop()));
+  } catch (err) {
+    console.error('[uploadsGuard] file name', err);
+  }
   return next();
 };

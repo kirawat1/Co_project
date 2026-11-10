@@ -1144,6 +1144,10 @@ const DOC_GROUPS: Record<string, { groupKey: string; groupLabel: string }> = {
   T002_FORM:        { groupKey: 't002', groupLabel: 'T002 — แบบแจ้งรายละเอียดงาน' },
   T003_FORM:        { groupKey: 't003', groupLabel: 'T003 — โครงร่างรายงาน' },
   'CP-ACCEPTANCE':  { groupKey: 'accept', groupLabel: 'ใบตอบรับจากบริษัท' },
+  ACCEPTANCE_FORM:  { groupKey: 'accept', groupLabel: 'ใบตอบรับจากบริษัท' },
+  // ฉบับลงนามที่เจ้าหน้าที่อัปโหลด — เดิมไม่มีในรายการ หัวข้อจึงขึ้นเป็นรหัส DISPATCH_LETTER / PLACEMENT_LETTER
+  DISPATCH_LETTER:  { groupKey: 'reqLetter', groupLabel: 'หนังสือขอความอนุเคราะห์ (ฉบับลงนาม)' },
+  PLACEMENT_LETTER: { groupKey: 'placeLetter', groupLabel: 'หนังสือส่งตัว (ฉบับลงนาม)' },
 };
 
 function DocsByGroup({ docs }: { docs: StudentDocument[] }) {
