@@ -4,6 +4,7 @@ import { IcUser, IcEdit } from "./icons";
 import { apiFetch } from "../utils/apiFetch";
 import { notify } from "../utils/notify";
 import Modal from "./Modal";
+import S_ChangePasswordModal from "./S_ChangePasswordModal";
 
 /* =========================
    Types & Enums
@@ -45,6 +46,7 @@ export default function T_Profile() {
   const [profile, setProfile] = useState<TeacherProfile>({ ...EMPTY });
   const [form, setForm] = useState<TeacherProfile>({ ...EMPTY });
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isPasswordOpen, setIsPasswordOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [savedMsg, setSavedMsg] = useState("");
 
@@ -138,6 +140,12 @@ export default function T_Profile() {
   return (
     <div className="page" style={{ padding: "40px 20px", maxWidth: "900px", margin: "0 auto" }}>
       <style>{PROFILE_CSS}</style>
+      {isPasswordOpen && (
+        <S_ChangePasswordModal
+          onClose={() => setIsPasswordOpen(false)}
+          hint="ใช้เข้าสู่ระบบด้วยอีเมลและรหัสผ่าน ถ้ายังไม่เคยเปลี่ยน รหัสผ่านปัจจุบันคือรหัสที่เจ้าหน้าที่ตั้งให้"
+        />
+      )}
 
       {/* Header */}
       <div style={{ marginBottom: "28px", textAlign: 'center' }}>
@@ -178,9 +186,14 @@ export default function T_Profile() {
                   </div>
                 </div>
               </div>
-              <button className="btn-secondary" onClick={() => { setForm({ ...profile, prefix: profile.prefix ?? "" }); setIsModalOpen(true); }}>
-                <IcEdit width={16} height={16} /> แก้ไขข้อมูล
-              </button>
+              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                <button className="btn-secondary" onClick={() => setIsPasswordOpen(true)}>
+                  🔑 เปลี่ยนรหัสผ่าน
+                </button>
+                <button className="btn-secondary" onClick={() => { setForm({ ...profile, prefix: profile.prefix ?? "" }); setIsModalOpen(true); }}>
+                  <IcEdit width={16} height={16} /> แก้ไขข้อมูล
+                </button>
+              </div>
             </div>
 
             <div className="divider"></div>

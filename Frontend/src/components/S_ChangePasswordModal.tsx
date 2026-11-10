@@ -6,7 +6,11 @@ import Modal from "./Modal";
 
 interface Props {
   onClose: () => void;
+  /** ข้อความใต้หัวข้อ — ค่าเริ่มต้นเป็นของนักศึกษา (หน้าโปรไฟล์อาจารย์ส่งข้อความของอาจารย์มา) */
+  hint?: string;
 }
+
+const STUDENT_HINT = "ใช้เข้าสู่ระบบด้วยอีเมลมหาวิทยาลัยและรหัสผ่าน ถ้ายังไม่เคยเปลี่ยน รหัสผ่านปัจจุบันคือรหัสนักศึกษาแบบมีขีด";
 
 // กติกาเดียวกับ backend/utils/validatePassword.js
 const RULES: { label: string; test: (pw: string) => boolean }[] = [
@@ -17,7 +21,7 @@ const RULES: { label: string; test: (pw: string) => boolean }[] = [
   { label: "อักขระพิเศษ เช่น !@#$%^&*", test: (pw) => /[!@#$%^&*()\-_=+[\]{};:'",.<>/?\\|`~]/.test(pw) },
 ];
 
-export default function S_ChangePasswordModal({ onClose }: Props) {
+export default function S_ChangePasswordModal({ onClose, hint = STUDENT_HINT }: Props) {
   const toast = useToast();
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -60,7 +64,7 @@ export default function S_ChangePasswordModal({ onClose }: Props) {
     <Modal title="🔑 เปลี่ยนรหัสผ่าน" onClose={onClose} maxWidth={420} closeOnBackdropClick={!saving}>
       <form onSubmit={handleSubmit}>
         <p style={{ margin: "0 0 16px", fontSize: 13, color: "#64748b", lineHeight: 1.6 }}>
-          ใช้เข้าสู่ระบบด้วยอีเมลมหาวิทยาลัยและรหัสผ่าน ถ้ายังไม่เคยเปลี่ยน รหัสผ่านปัจจุบันคือรหัสนักศึกษาแบบมีขีด
+          {hint}
         </p>
 
         <label style={label} htmlFor="cp-current">รหัสผ่านปัจจุบัน</label>

@@ -47,7 +47,7 @@ const PUBLIC = {
 const EXPECTED = {
   auth: {
     'GET /me':          '✓ ✓ ✓ ✓',
-    'PUT /me/password': '✓ · · ·',
+    'PUT /me/password': '✓ ✓ ✓ ·',
   },
   company: {
     'GET /search':               '✓ ✓ ✓ ✓',

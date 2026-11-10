@@ -159,4 +159,29 @@ describe('changeMyPassword', () => {
     expect(await bcrypt.compare(STRONG, arg.data.password)).toBe(true);
     expect(await bcrypt.compare('663380001-1', arg.data.password)).toBe(false);
   });
+
+  // อาจารย์เปลี่ยนรหัสเองได้ (2026-11-10) — ไม่มีแถว student ก็ไม่ใช่ 404
+  test('200 — อาจารย์เปลี่ยนรหัสเอง (รหัสตั้งต้นที่เดาได้ → รหัสใหม่)', async () => {
+    const teacherHash = await bcrypt.hash('1111111111111', 4);
+    prisma.user.findUnique.mockResolvedValue({ id: 9, role: 'teacher', password: teacherHash, student: null });
+    prisma.user.update.mockResolvedValue({ id: 9, role: 'teacher', tokenVersion: 1 });
+    const res = makeRes();
+    await changeMyPassword({ user: { id: 9 }, body: { currentPassword: '1111111111111', newPassword: STRONG } }, res);
+
+    expect(res.status).not.toHaveBeenCalled();
+    expect(res.json.mock.calls[0][0]).toMatchObject({ ok: true });
+    const arg = prisma.user.update.mock.calls[0][0];
+    expect(arg.where).toEqual({ id: 9 });
+    expect(arg.data.tokenVersion).toEqual({ increment: 1 });
+    expect(await bcrypt.compare(STRONG, arg.data.password)).toBe(true);
+  });
+
+  test('400 — อาจารย์ตั้งรหัสใหม่เป็นเลขล้วนแบบรหัสตั้งต้นไม่ได้', async () => {
+    const teacherHash = await bcrypt.hash('1111111111111', 4);
+    prisma.user.findUnique.mockResolvedValue({ id: 9, role: 'teacher', password: teacherHash, student: null });
+    const res = makeRes();
+    await changeMyPassword({ user: { id: 9 }, body: { currentPassword: '1111111111111', newPassword: '2222222222222' } }, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(prisma.user.update).not.toHaveBeenCalled();
+  });
 });

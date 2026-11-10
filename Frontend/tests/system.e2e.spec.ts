@@ -238,9 +238,9 @@ test.describe("C. บัญชี", () => {
     expect([ttl(long.body.token), ttl(short.body.token)]).toEqual([30 * 86_400, 8 * 3_600]);
   });
 
-  test("เปลี่ยนรหัสผ่าน (นักศึกษา): ไม่ครบ 400 · รหัสเดิมผิด = 400 ไม่ใช่ 401 (ไม่เด้งออก) · รหัสใหม่อ่อน 400 · สำเร็จ = token เดิมใช้ไม่ได้ ได้ token ใหม่ · อาจารย์ 403", async () => {
+  test("เปลี่ยนรหัสผ่าน (นักศึกษา): ไม่ครบ 400 · รหัสเดิมผิด = 400 ไม่ใช่ 401 (ไม่เด้งออก) · รหัสใหม่อ่อน 400 · สำเร็จ = token เดิมใช้ไม่ได้ ได้ token ใหม่ · เจ้าหน้าที่ 403", async () => {
     const old = (await post("/api/auth/signin", { email: s.login.email, password: PW, role: "student" })).body.token;
-    expect((await api(t.plainX.token, "PUT", "/api/auth/me/password", { currentPassword: "x", newPassword: "Zz!another123" })).status).toBe(403);
+    expect((await api(staff.token, "PUT", "/api/auth/me/password", { currentPassword: "x", newPassword: "Zz!another123" })).status).toBe(403);
     expect((await api(old, "PUT", "/api/auth/me/password", { currentPassword: PW })).status).toBe(400);
     expect((await api(old, "PUT", "/api/auth/me/password", { currentPassword: "wrong", newPassword: "Zz!another123" })).status).toBe(400);
     expect((await api(old, "PUT", "/api/auth/me/password", { currentPassword: PW, newPassword: "abc" })).status).toBe(400);
@@ -250,6 +250,41 @@ test.describe("C. บัญชี", () => {
     expect((await api(r.body.token, "GET", "/api/auth/me")).status).toBe(200);
     expect((await post("/api/auth/signin", { email: s.login.email, password: PW, role: "student" })).status).toBe(401);
     expect((await post("/api/auth/signin", { email: s.login.email, password: "Zz!another123", role: "student" })).status).toBe(200);
+  });
+
+  // 2026-11-10: เดิมเฉพาะนักศึกษา — อาจารย์ต้องขอเจ้าหน้าที่รีเซ็ต (รหัสตั้งต้นจากสคริปต์นำเข้าเดาได้)
+  test("เปลี่ยนรหัสผ่าน (อาจารย์): รหัสเดิมผิด 400 · รหัสใหม่อ่อน 400 · สำเร็จ = token เดิมใช้ไม่ได้ · เข้าด้วยรหัสใหม่ได้ รหัสเก่าไม่ได้", async () => {
+    const tp = await k.teacher("pw", { major: X });
+    const email = (await prisma.user.findUnique({ where: { id: tp.userId } })).email;
+    await prisma.user.update({ where: { id: tp.userId }, data: { password: bcrypt.hashSync(PW, 8) } });
+    const old = (await post("/api/auth/signin", { email, password: PW, role: "teacher" })).body.token;
+    expect((await api(old, "PUT", "/api/auth/me/password", { currentPassword: "wrong", newPassword: "Zz!another123" })).status).toBe(400);
+    expect((await api(old, "PUT", "/api/auth/me/password", { currentPassword: PW, newPassword: "1111111111111" })).status).toBe(400);
+    const r = await api(old, "PUT", "/api/auth/me/password", { currentPassword: PW, newPassword: "Zz!another123" });
+    expect(r.status, msg(r)).toBe(200);
+    expect((await api(old, "GET", "/api/auth/me")).status).toBe(401);
+    expect((await api(r.body.token, "GET", "/api/auth/me")).body.user).toMatchObject({ role: "teacher" });
+    expect((await post("/api/auth/signin", { email, password: PW, role: "teacher" })).status).toBe(401);
+    expect((await post("/api/auth/signin", { email, password: "Zz!another123", role: "teacher" })).status).toBe(200);
+  });
+
+  test("หน้าโปรไฟล์อาจารย์: ปุ่มเปลี่ยนรหัสผ่าน → กรอก → สำเร็จ · ยังอยู่ในระบบ (ใช้ token ใหม่)", async ({ page }) => {
+    const tp = await k.teacher("pwui", { major: X });
+    const email = (await prisma.user.findUnique({ where: { id: tp.userId } })).email;
+    await prisma.user.update({ where: { id: tp.userId }, data: { password: bcrypt.hashSync(PW, 8) } });
+    const token = (await post("/api/auth/signin", { email, password: PW, role: "teacher" })).body.token;
+    await asUser(page, token, tp.userId, "/teacher/profile");
+    await page.getByRole("button", { name: "🔑 เปลี่ยนรหัสผ่าน" }).click();
+    await expect(page.getByText("รหัสผ่านปัจจุบันคือรหัสที่เจ้าหน้าที่ตั้งให้")).toBeVisible();
+    await page.locator("#cp-current").fill(PW);
+    await page.locator("#cp-new").fill("Zz!uiPass123");
+    await page.locator("#cp-confirm").fill("Zz!uiPass123");
+    await page.locator("form").getByRole("button", { name: "เปลี่ยนรหัสผ่าน" }).click();
+    await expect(page.getByText("เปลี่ยนรหัสผ่านเรียบร้อย").first()).toBeVisible();
+    const tk = await page.evaluate(() => localStorage.getItem("coop.token"));
+    expect(tk).not.toBe(token);
+    expect((await api(tk!, "GET", "/api/auth/me")).status).toBe(200);
+    expect((await post("/api/auth/signin", { email, password: "Zz!uiPass123", role: "teacher" })).status).toBe(200);
   });
 
   // ทดสอบโหลด 2026-11-07: ทั้งคณะใช้ IP เดียว — เดิมตัวกันเดารหัสนับรวมทั้ง IP (30): เข้าพร้อมกันเกิน 30 คนโดน 429 ทั้งที่รหัสถูก
