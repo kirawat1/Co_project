@@ -17,7 +17,7 @@ const adminRouter = require('../../routes/adminRoutes');
 
 const SECRET = process.env.JWT_SECRET;
 const token = (id, role) => `Bearer ${jwt.sign({ id, role }, SECRET)}`;
-const STAFF = token(1, 'staff');
+const STAFF = token(11, 'staff'); // id ไม่ตรงกับ :id=1 ใน path — รีเซ็ตรหัสบัญชีตัวเองได้ 403 คนละเหตุผลกับเรื่องบทบาท
 const COOP_TEACHER = token(2, 'teacher');
 const PLAIN_TEACHER = token(3, 'teacher');
 const STUDENT = token(4, 'student');

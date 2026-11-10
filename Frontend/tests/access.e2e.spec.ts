@@ -164,8 +164,8 @@ test.describe("B. เข้าสู่ระบบและ session", () => {
     const fresh = (await r.json()).token;
     expect((await get("/api/students/me", bearer(W.b.real))).status).toBe(401);
     expect((await get("/api/students/me", bearer(fresh))).status).toBe(200);
-    // อาจารย์/เจ้าหน้าที่เปลี่ยนผ่านทางนี้ไม่ได้ (มีหน้าของตัวเอง)
-    expect((await change(W.staff.token, { currentPassword: "x", newPassword: "Zx-Pass2!" })).status).toBe(403);
+    // 2026-11-10: อาจารย์/เจ้าหน้าที่ก็ใช้ทางนี้ (เดิม 403) — ยังต้องรู้รหัสเดิม
+    expect((await change(W.staff.token, { currentPassword: "x", newPassword: "Zx-Pass2!" })).status).toBe(400);
   });
 
   test("token ปลอม/หมดอายุ 401 · token ของบัญชีที่ถูกลบ 401", async () => {

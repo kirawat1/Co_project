@@ -238,9 +238,8 @@ test.describe("C. บัญชี", () => {
     expect([ttl(long.body.token), ttl(short.body.token)]).toEqual([30 * 86_400, 8 * 3_600]);
   });
 
-  test("เปลี่ยนรหัสผ่าน (นักศึกษา): ไม่ครบ 400 · รหัสเดิมผิด = 400 ไม่ใช่ 401 (ไม่เด้งออก) · รหัสใหม่อ่อน 400 · สำเร็จ = token เดิมใช้ไม่ได้ ได้ token ใหม่ · เจ้าหน้าที่ 403", async () => {
+  test("เปลี่ยนรหัสผ่าน (นักศึกษา): ไม่ครบ 400 · รหัสเดิมผิด = 400 ไม่ใช่ 401 (ไม่เด้งออก) · รหัสใหม่อ่อน 400 · สำเร็จ = token เดิมใช้ไม่ได้ ได้ token ใหม่", async () => {
     const old = (await post("/api/auth/signin", { email: s.login.email, password: PW, role: "student" })).body.token;
-    expect((await api(staff.token, "PUT", "/api/auth/me/password", { currentPassword: "x", newPassword: "Zz!another123" })).status).toBe(403);
     expect((await api(old, "PUT", "/api/auth/me/password", { currentPassword: PW })).status).toBe(400);
     expect((await api(old, "PUT", "/api/auth/me/password", { currentPassword: "wrong", newPassword: "Zz!another123" })).status).toBe(400);
     expect((await api(old, "PUT", "/api/auth/me/password", { currentPassword: PW, newPassword: "abc" })).status).toBe(400);
@@ -266,6 +265,46 @@ test.describe("C. บัญชี", () => {
     expect((await api(r.body.token, "GET", "/api/auth/me")).body.user).toMatchObject({ role: "teacher" });
     expect((await post("/api/auth/signin", { email, password: PW, role: "teacher" })).status).toBe(401);
     expect((await post("/api/auth/signin", { email, password: "Zz!another123", role: "teacher" })).status).toBe(200);
+  });
+
+  // 2026-11-10: เจ้าหน้าที่เคยตั้งรหัสตัวเองผ่านหน้าจัดการได้โดยไม่ต้องรู้รหัสเดิม (และหลุดออกจากระบบเอง)
+  test("เปลี่ยนรหัสผ่าน (เจ้าหน้าที่): บัญชีตัวเองต้องผ่าน me/password ที่กรอกรหัสเดิม · หน้าจัดการรีเซ็ตตัวเอง 403 · รีเซ็ตคนอื่นได้", async () => {
+    const me = await k.staff("pwme");
+    const other = await k.staff("pwother");
+    const email = (await prisma.user.findUnique({ where: { id: me.userId } })).email;
+    await prisma.user.update({ where: { id: me.userId }, data: { password: bcrypt.hashSync(PW, 8) } });
+    const old = (await post("/api/auth/signin", { email, password: PW, role: "staff" })).body.token;
+    const self = await api(old, "PATCH", `/api/admin/staff/${me.userId}/password`, { password: "Zz!another123" });
+    expect(self.status, msg(self)).toBe(403);
+    expect((await api(old, "GET", "/api/auth/me")).status).toBe(200);   // ไม่ได้เปลี่ยน — ยังอยู่ในระบบ
+    expect((await api(old, "PUT", "/api/auth/me/password", { currentPassword: "wrong", newPassword: "Zz!another123" })).status).toBe(400);
+    const r = await api(old, "PUT", "/api/auth/me/password", { currentPassword: PW, newPassword: "Zz!another123" });
+    expect(r.status, msg(r)).toBe(200);
+    expect((await api(old, "GET", "/api/auth/me")).status).toBe(401);
+    expect((await api(r.body.token, "GET", "/api/auth/me")).status).toBe(200);
+    expect((await post("/api/auth/signin", { email, password: "Zz!another123", role: "staff" })).status).toBe(200);
+    expect((await api(r.body.token, "PATCH", `/api/admin/staff/${other.userId}/password`, { password: "Zz!other12345" })).status).toBe(200);
+  });
+
+  test("หน้าจัดการเจ้าหน้าที่: แถวของตัวเองเป็นปุ่มเปลี่ยนรหัสผ่าน (กรอกรหัสเดิม) → สำเร็จ · ยังอยู่ในระบบ", async ({ page }) => {
+    const me = await k.staff("pwui");
+    const email = (await prisma.user.findUnique({ where: { id: me.userId } })).email;
+    await prisma.user.update({ where: { id: me.userId }, data: { password: bcrypt.hashSync(PW, 8) } });
+    const token = (await post("/api/auth/signin", { email, password: PW, role: "staff" })).body.token;
+    await asUser(page, token, me.userId, "/admin/staff");
+    const row = page.locator("tr", { hasText: email });
+    await expect(row.getByText("(บัญชีของคุณ)")).toBeVisible();
+    await expect(row.getByRole("button", { name: "🔑 รหัสผ่าน", exact: true })).toHaveCount(0);
+    await row.getByRole("button", { name: "🔑 เปลี่ยนรหัสผ่าน" }).click();
+    await page.locator("#cp-current").fill(PW);
+    await page.locator("#cp-new").fill("Zz!uiStaff123");
+    await page.locator("#cp-confirm").fill("Zz!uiStaff123");
+    await page.locator("form").getByRole("button", { name: "เปลี่ยนรหัสผ่าน" }).click();
+    await expect(page.getByText("เปลี่ยนรหัสผ่านเรียบร้อย").first()).toBeVisible();
+    const tk = await page.evaluate(() => localStorage.getItem("coop.token"));
+    expect(tk).not.toBe(token);
+    expect((await api(tk!, "GET", "/api/auth/me")).status).toBe(200);
+    expect((await post("/api/auth/signin", { email, password: "Zz!uiStaff123", role: "staff" })).status).toBe(200);
   });
 
   test("หน้าโปรไฟล์อาจารย์: ปุ่มเปลี่ยนรหัสผ่าน → กรอก → สำเร็จ · ยังอยู่ในระบบ (ใช้ token ใหม่)", async ({ page }) => {

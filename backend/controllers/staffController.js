@@ -59,6 +59,9 @@ exports.resetPassword = async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
     if (isNaN(id)) return res.status(400).json({ ok: false, message: 'id ไม่ถูกต้อง' });
+    // บัญชีตัวเองต้องเปลี่ยนที่ PUT /api/auth/me/password (กรอกรหัสเดิม) — กันคนที่ใช้เครื่องที่ล็อกอินค้างไว้ตั้งรหัสใหม่
+    if (req.user && id === req.user.id)
+      return res.status(403).json({ ok: false, message: 'เปลี่ยนรหัสผ่านของตัวเองที่ปุ่ม "🔑 เปลี่ยนรหัสผ่าน" (ต้องกรอกรหัสผ่านเดิม)' });
     const { password } = req.body;
     const pwError = typeof password === 'string' ? validatePassword(password) : 'กรุณากรอกรหัสผ่าน';
     if (pwError) return res.status(400).json({ ok: false, message: pwError });

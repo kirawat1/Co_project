@@ -175,6 +175,24 @@ describe('resetPassword', () => {
     expect(prisma.user.update).toHaveBeenCalledWith({ where: { id: 3 }, data: { password: 'hashed-password', tokenVersion: { increment: 1 } } }); // รีเซ็ต = เพิกถอน session
     expect(res.json).toHaveBeenCalledWith({ ok: true });
   });
+
+  test('403 — รีเซ็ตรหัสของบัญชีตัวเองไม่ได้ (ต้องใช้ /api/auth/me/password ที่กรอกรหัสเดิม)', async () => {
+    const req = { params: { id: '3' }, user: { id: 3, role: 'staff' }, body: { password: 'New!pass1234' } };
+    const res = makeRes();
+    await resetPassword(req, res);
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(res.json.mock.calls[0][0].message).toMatch(/เปลี่ยนรหัสผ่าน/);
+    expect(prisma.user.update).not.toHaveBeenCalled();
+  });
+
+  test('200 — รีเซ็ตให้เจ้าหน้าที่คนอื่นได้ตามเดิม', async () => {
+    prisma.user.findUnique.mockResolvedValue({ id: 4, role: 'staff' });
+    const req = { params: { id: '4' }, user: { id: 3, role: 'staff' }, body: { password: 'New!pass1234' } };
+    const res = makeRes();
+    await resetPassword(req, res);
+    expect(prisma.user.update).toHaveBeenCalled();
+    expect(res.json).toHaveBeenCalledWith({ ok: true });
+  });
 });
 
 // ===========================

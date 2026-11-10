@@ -4,6 +4,7 @@ import type { CSSProperties } from "react";
 import axios from "axios";
 import { fmtDate } from '../utils/dateFormat';
 import { TABLE_TH, TABLE_TD, TABLE_HEADER_ROW } from "../utils/tableStyles";
+import S_ChangePasswordModal from "./S_ChangePasswordModal";
 
 interface StaffProfile { firstName: string; lastName: string; phone: string | null; }
 interface StaffUser {
@@ -40,6 +41,7 @@ export default function A_StaffManage() {
   const [deleteErr, setDeleteErr] = useState("");
   // บัญชีที่ล็อกอินอยู่ — ลบตัวเองไม่ได้ (backend ปฏิเสธ 400) จึงไม่แสดงปุ่มลบให้กด
   const myUserId = Number(localStorage.getItem("coop.userId") || 0);
+  const [changeOwnOpen, setChangeOwnOpen] = useState(false);
 
   const fetchStaff = async () => {
     try {
@@ -125,7 +127,10 @@ export default function A_StaffManage() {
                   <td style={td}>{s.staffProfile?.phone || "-"}</td>
                   <td style={td}>{fmtDate(s.createdAt)}</td>
                   <td style={{ ...td, whiteSpace: "nowrap" }}>
-                    <button className="btn-secondary small" style={{ marginRight: 8 }} onClick={() => { setResetTarget(s); setNewPw(""); setResetErr(""); }}>🔑 รหัสผ่าน</button>
+                    {s.id === myUserId
+                      // บัญชีตัวเอง: ต้องกรอกรหัสเดิม (backend ไม่ให้รีเซ็ตบัญชีตัวเองผ่านหน้านี้)
+                      ? <button className="btn-secondary small" style={{ marginRight: 8 }} onClick={() => setChangeOwnOpen(true)}>🔑 เปลี่ยนรหัสผ่าน</button>
+                      : <button className="btn-secondary small" style={{ marginRight: 8 }} onClick={() => { setResetTarget(s); setNewPw(""); setResetErr(""); }}>🔑 รหัสผ่าน</button>}
                     {s.id === myUserId
                       ? <span style={{ fontSize: 12, color: "#64748b" }}>(บัญชีของคุณ)</span>
                       : <button className="btn-danger-outline small" onClick={() => { setDeleteTarget(s); setDeleteErr(""); }}>🗑️ ลบ</button>}
@@ -160,6 +165,13 @@ export default function A_StaffManage() {
             </form>
           </div>
         </div>
+      )}
+
+      {changeOwnOpen && (
+        <S_ChangePasswordModal
+          onClose={() => setChangeOwnOpen(false)}
+          hint="เปลี่ยนรหัสผ่านของบัญชีที่ใช้อยู่ — ต้องกรอกรหัสผ่านปัจจุบัน"
+        />
       )}
 
       {/* Reset Password Modal */}
