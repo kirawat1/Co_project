@@ -8,6 +8,17 @@ function makeRes(headersSent = false) {
 }
 
 describe('errorHandler', () => {
+  test('เว็บไซต์อื่นเรียก API (CORS ปฏิเสธ) → 403 ไม่ใช่ 500 · ไม่เขียน log', () => {
+    const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const res = makeRes();
+    const err = Object.assign(new Error('CORS: origin https://evil.example not allowed'), { code: 'CORS_ORIGIN_DENIED' });
+    errorHandler(err, {}, res, jest.fn());
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(res.json).toHaveBeenCalledWith({ ok: false, message: expect.stringMatching(/ไม่อนุญาต/) });
+    expect(spy).not.toHaveBeenCalled();
+    spy.mockRestore();
+  });
+
   test('ไฟล์ผิดชนิดจาก fileFilter → 400 พร้อมข้อความเดิม', () => {
     let err;
     pdfOrImageFileFilter({}, { originalname: 'virus.exe', mimetype: 'application/x-msdownload' }, (e) => { err = e; });

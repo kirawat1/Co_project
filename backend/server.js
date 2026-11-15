@@ -70,7 +70,8 @@ const allowedOrigins = FRONTEND_URL.split(',').map(s => s.trim()).filter(Boolean
 app.use(cors({
   origin: (origin, callback) => {
     if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
-    callback(new Error(`CORS: origin ${origin} not allowed`));
+    // errorHandler ตอบ 403 (เดิมตกไปเป็น 500 + เขียน log ทุกครั้งที่เว็บอื่นยิงมา)
+    callback(Object.assign(new Error(`CORS: origin ${origin} not allowed`), { code: 'CORS_ORIGIN_DENIED' }));
   },
   credentials: true
 }));

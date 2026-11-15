@@ -11,6 +11,8 @@ module.exports = function errorHandler(err, req, res, next) {
   // ตัวอ่าน body (express.json) — JSON พัง / ใหญ่เกิน / charset แปลก เป็นความผิดของคำขอ (เดิม 413 ตกไปเป็น 500)
   if (err.type === 'entity.parse.failed') return res.status(400).json({ ok: false, message: 'ข้อมูลที่ส่งมาไม่ใช่ JSON ที่ถูกต้อง' });
   if (err.type === 'entity.too.large' || err.status === 413) return res.status(413).json({ ok: false, message: 'ข้อมูลที่ส่งมาใหญ่เกินไป' });
+  // เว็บไซต์อื่น (origin ไม่อยู่ใน FRONTEND_URL) เรียก API — ปฏิเสธเฉย ๆ ไม่ใช่ความผิดของระบบ (เดิม 500 + log)
+  if (err.code === 'CORS_ORIGIN_DENIED') return res.status(403).json({ ok: false, message: 'ไม่อนุญาตให้เรียกใช้จากเว็บไซต์นี้' });
   if (err.status === 400) return res.status(400).json({ ok: false, message: err.message });
   if (err.status > 400 && err.status < 500 && err.expose) return res.status(err.status).json({ ok: false, message: 'คำขอไม่ถูกต้อง' });
   console.error(err);
