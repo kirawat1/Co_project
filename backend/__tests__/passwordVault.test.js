@@ -9,7 +9,7 @@ jest.mock('google-auth-library', () => ({
 }));
 
 const {
-  encryptPassword, decryptPassword, passwordEncFor, revealPassword, DEFAULT_TEACHER_PASSWORD,
+  encryptPassword, decryptPassword, passwordEncFor, revealPassword,
 } = require('../utils/passwordVault');
 const { signIn, changeMyPassword } = require('../controllers/authController');
 const { revealStudentPassword, resetStudentPassword } = require('../controllers/studentController');
@@ -87,9 +87,10 @@ describe('revealPassword', () => {
     expect(decryptPassword(r.backfill)).toBe('653380123-4');
   });
 
-  test('อาจารย์ยังใช้รหัสจาก seed → default', async () => {
-    const user = { role: 'teacher', password: await hash(DEFAULT_TEACHER_PASSWORD), passwordEnc: null };
-    expect(await revealPassword(user)).toMatchObject({ password: DEFAULT_TEACHER_PASSWORD, source: 'default' });
+  // อาจารย์ไม่มีรหัสเริ่มต้นให้เดา (เดิมเดารหัสจากสคริปต์ seed — เอาออกจากโค้ดแล้ว 2026-11-15)
+  test('อาจารย์ที่ไม่มีสำเนา → unknown (ไม่เดารหัสให้ · เจ้าหน้าที่รีเซ็ต)', async () => {
+    const user = { role: 'teacher', password: await hash('Legacy#Seed2026'), passwordEnc: null };
+    expect(await revealPassword(user)).toEqual({ password: null, source: 'unknown' });
   });
 
   test('ตั้งเองก่อนมีระบบนี้ → unknown', async () => {

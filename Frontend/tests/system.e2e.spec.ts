@@ -258,7 +258,7 @@ test.describe("C. บัญชี", () => {
     await prisma.user.update({ where: { id: tp.userId }, data: { password: bcrypt.hashSync(PW, 8) } });
     const old = (await post("/api/auth/signin", { email, password: PW, role: "teacher" })).body.token;
     expect((await api(old, "PUT", "/api/auth/me/password", { currentPassword: "wrong", newPassword: "Zz!another123" })).status).toBe(400);
-    expect((await api(old, "PUT", "/api/auth/me/password", { currentPassword: PW, newPassword: "1111111111111" })).status).toBe(400);
+    expect((await api(old, "PUT", "/api/auth/me/password", { currentPassword: PW, newPassword: "2222222222222" })).status).toBe(400);
     const r = await api(old, "PUT", "/api/auth/me/password", { currentPassword: PW, newPassword: "Zz!another123" });
     expect(r.status, msg(r)).toBe(200);
     expect((await api(old, "GET", "/api/auth/me")).status).toBe(401);

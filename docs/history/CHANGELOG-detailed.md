@@ -3521,7 +3521,7 @@ supervision, T002/T003) — พบบั๊กจริงทั้งหมด�
 
 ### อาจารย์
 - **คำนำหน้า:** ฟอร์มสร้าง/แก้ไขอาจารย์มี dropdown คำนำหน้า (A_Teacher.tsx)
-- **รหัสผ่านสร้างใหม่:** ต้องกำหนดรหัสผ่านตอนสร้าง — ลบ hardcoded "1111111111111" ออก (teacherController.js)
+- **รหัสผ่านสร้างใหม่:** ต้องกำหนดรหัสผ่านตอนสร้าง — ลบรหัสคงที่ที่เขียนไว้ในโค้ดออก (teacherController.js)
 - **ซ่อนคณะ:** ฟิลด์คณะถูกซ่อนจากฟอร์ม — hardcoded เป็น "วิทยาลัยการคอมพิวเตอร์"
 
 ### เอกสาร
@@ -3901,7 +3901,7 @@ supervision, T002/T003) — พบบั๊กจริงทั้งหมด�
 
 ### Bug fixes
 - **`authController.js:loginWithKKU`**: auto-created student accounts received the hardcoded password
-  `"1111111111111"` — anyone who read the source code could log in as any KKU-auto-created student
+  (รหัสคงที่ที่เดาได้ — ไม่แสดงค่าที่นี่) — anyone who read the source code could log in as any KKU-auto-created student
   via the manual sign-in form. Fixed: now uses `crypto.randomBytes(32).toString('hex')` so the
   auto-created password is unguessable (students must use KKU REG / Google OAuth).
 - **`companyController.js:deleteCompany`**: P2003 FK constraint violation (StudentCoop → Company,
@@ -4077,7 +4077,7 @@ supervision, T002/T003) — พบบั๊กจริงทั้งหมด�
 
 ### อาจารย์
 - **คำนำหน้า:** ฟอร์มสร้าง/แก้ไขอาจารย์มี dropdown คำนำหน้า (A_Teacher.tsx)
-- **รหัสผ่านสร้างใหม่:** ต้องกำหนดรหัสผ่านตอนสร้าง (ลบ hardcoded "1111111111111" ออก)
+- **รหัสผ่านสร้างใหม่:** ต้องกำหนดรหัสผ่านตอนสร้าง (ลบรหัสคงที่ที่เขียนไว้ในโค้ดออก)
 - **ซ่อนคณะ:** ฟิลด์คณะถูกซ่อนจากฟอร์ม
 
 ### เอกสาร
@@ -4840,7 +4840,7 @@ supervision, T002/T003) — พบบั๊กจริงทั้งหมด�
 
 ### อาจารย์
 - **คำนำหน้า:** ฟอร์มสร้าง/แก้ไขอาจารย์มี dropdown คำนำหน้า (อ., ผศ.ดร., รศ.ดร., ศ.ดร. ฯลฯ)
-- **รหัสผ่านสร้างใหม่:** ต้องกำหนดรหัสผ่านตอนสร้าง (ลบ hardcoded "1111111111111" ออก)
+- **รหัสผ่านสร้างใหม่:** ต้องกำหนดรหัสผ่านตอนสร้าง (ลบรหัสคงที่ที่เขียนไว้ในโค้ดออก)
 - **ซ่อนคณะ:** ฟิลด์คณะถูกซ่อนจากฟอร์มอาจารย์
 
 ### เอกสาร
@@ -5897,7 +5897,7 @@ KKU-Net captive-portal session หลุดได้ระหว่างที�
 ### Teacher Management (A_Teacher.tsx + Backend)
 
 - **A_Teacher.tsx** — Rewrite เต็ม: เพิ่ม CRUD ครบ (เพิ่ม/แก้/ลบ/reset password); sub-components `TeacherFormModal`, `TeacherFields`; Toast feedback ทุก action; ConfirmDialog ก่อนลบ
-- **teacherController.js** — เพิ่ม `createTeacher` (สร้าง User+Teacher, default password 1111111111111), `deleteTeacher`, `resetTeacherPassword`, `adminUpdateTeacher` (sync email/username ใน User ด้วย)
+- **teacherController.js** — เพิ่ม `createTeacher` (สร้าง User+Teacher, รหัสเริ่มต้นคงที่ (เลิกใช้แล้ว)), `deleteTeacher`, `resetTeacherPassword`, `adminUpdateTeacher` (sync email/username ใน User ด้วย)
 - **adminRoutes.js** — เพิ่ม teacher CRUD routes: `POST/PUT/DELETE /admin/teachers/:id`, `PUT /admin/teachers/:id/password` (STAFF_ONLY)
 - **scripts/seed_teachers.js** (ใหม่) — Seed อาจารย์วิทยาลัยการคอมพิวเตอร์ KKU 42 คน พร้อม logic upsert (create-or-update)
 

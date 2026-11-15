@@ -10,8 +10,8 @@ const { defaultStudentPassword } = require('./studentPassword');
 const VAULT_ROLES = new Set(['student', 'teacher']);
 const VERSION = 'v1';
 
-// รหัสเริ่มต้นของบัญชีอาจารย์ที่สร้างจากสคริปต์ seed เดิม (ลบสคริปต์แล้ว 2026-11-09) — ใช้แสดงรหัสให้เจ้าหน้าที่เท่านั้น
-const DEFAULT_TEACHER_PASSWORD = '1111111111111';
+// อาจารย์ไม่มี "รหัสเริ่มต้น" ให้เดา — เดิมเขียนรหัสจากสคริปต์ seed ไว้ที่นี่ (repo เปิดสาธารณะ = ใครก็อ่านได้) เอาออก 2026-11-15
+// บัญชีอาจารย์ที่ไม่มีสำเนา → 'unknown' (เจ้าหน้าที่รีเซ็ตให้ หรือรอเจ้าของเปลี่ยนรหัส/login ครั้งถัดไป)
 
 function vaultKey() {
   const secret = process.env.PASSWORD_VIEW_KEY || process.env.JWT_SECRET;
@@ -66,9 +66,7 @@ async function revealPassword(user, { studentId } = {}) {
   }
 
   const role = String(user.role || '').toLowerCase();
-  const candidate = role === 'student' ? defaultStudentPassword(studentId)
-    : role === 'teacher' ? DEFAULT_TEACHER_PASSWORD
-    : '';
+  const candidate = role === 'student' ? defaultStudentPassword(studentId) : '';
   if (candidate && await bcrypt.compare(candidate, user.password)) {
     return { password: candidate, source: 'default', backfill: encryptPassword(candidate) };
   }
@@ -77,7 +75,6 @@ async function revealPassword(user, { studentId } = {}) {
 
 module.exports = {
   VAULT_ROLES,
-  DEFAULT_TEACHER_PASSWORD,
   encryptPassword,
   decryptPassword,
   passwordEncFor,
