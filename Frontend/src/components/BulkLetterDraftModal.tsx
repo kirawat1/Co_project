@@ -13,6 +13,7 @@ import {
     bulkCandidates, blockReason, docSuffix, pendingDraftOf, groupByCompany, numberSequence, duplicateNumbers,
     LETTER_FILE_LABEL, type BulkLetterType, type BulkFormat,
 } from "../utils/bulkLetters";
+import { todayBangkok } from "../utils/bangkokDate";
 
 const ESTIMATE_MB_PER_LETTER = 8;
 const CONFIRM_OVER = 15;
@@ -29,7 +30,7 @@ export default function BulkLetterDraftModal({ students, onClose }: { students: 
     const [touched, setTouched] = useState<Record<number, boolean>>({});
     const [splitIds, setSplitIds] = useState<Set<number>>(new Set());
     const [start, setStart] = useState("660301.26.6.2/");
-    const [docDate, setDocDate] = useState(new Date().toISOString().split("T")[0]);
+    const [docDate, setDocDate] = useState(todayBangkok());
     const [overrides, setOverrides] = useState<Record<string, string>>({});
     const [conflicts, setConflicts] = useState<Map<string, string>>(new Map()); // เลขที่ชน → ข้อความจากเซิร์ฟเวอร์ (ใครถือเลขนี้)
     const [conflictMsg, setConflictMsg] = useState("");

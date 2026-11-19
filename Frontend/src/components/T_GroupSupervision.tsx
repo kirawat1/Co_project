@@ -3,6 +3,7 @@ import axios from "axios";
 import { fmtDate } from '../utils/dateFormat';
 import Spinner, { BusyLabel } from "./Spinner";
 import { askConfirm } from "../utils/notify";
+import StatusBadge, { type CoopStatusType } from "./StatusBadge";
 
 interface StudentAppointment {
   appointmentId: number;
@@ -228,7 +229,7 @@ export default function T_GroupSupervision() {
                           return <div key={i}>{displayDate} {time}</div>;
                         })}
                       </td>
-                      <td style={tdStyle}>{s.status}</td>
+                      <td style={tdStyle}><StatusBadge status={s.status as CoopStatusType} hidePrefix /></td>
                     </tr>
                   ))}
                 </tbody>

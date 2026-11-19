@@ -10,6 +10,7 @@ import AutoTextarea from "./AutoTextarea";
 import ConfirmDialog from "../components/ConfirmDialog";
 import { contactName, type CompanyContact } from "../utils/contacts";
 import Modal from "./Modal";
+import { inBangkokDayRange } from "../utils/bangkokDate";
 
 const CURRICULUM_DISPLAY: Record<string, string> = {
   normal: "ภาคปกติ",
@@ -214,10 +215,8 @@ export default function CoopRequestPage() {
   const isTimeValid = () => {
     if (!applyWindow.open) return false;
     if (!activePeriod || !activePeriod.isActive) return false;
-    const now = new Date().getTime();
-    const start = new Date(activePeriod.startDate).getTime();
-    const end = new Date(activePeriod.endDate).setHours(23, 59, 59, 999);
-    return now >= start && now <= end;
+    // นับทั้งวันตามเวลาไทย (เดิมเทียบเวลาเต็ม — วันเปิดเก็บเป็นเที่ยงคืน UTC = 07:00 น. ก่อนเจ็ดโมงเช้าวันเปิดยื่นไม่ได้)
+    return inBangkokDayRange(activePeriod.startDate, activePeriod.endDate);
   };
 
   const handleSubmitApplication = async () => {

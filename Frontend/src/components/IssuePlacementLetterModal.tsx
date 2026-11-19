@@ -11,6 +11,7 @@ import { notify, askConfirm } from "../utils/notify";
 import { letterRecipient, recipientText } from "../utils/letterRecipient";
 import { toLetterStudent } from "../utils/letterGroup";
 import { loadLetterAssets } from "../utils/letterAssets";
+import { todayBangkok } from "../utils/bangkokDate";
 
 // group = หนังสือรวมหลายคน (บริษัทเดียวกัน วันฝึกต่างกันได้) · student = คนแรกของกลุ่ม · ไม่ส่ง = หนังสือเดี่ยว
 // batchMates/onOpenBatch = หนังสือเดี่ยวของคนที่อยู่ในหนังสือรวม (ดู LetterBatchNotice)
@@ -21,7 +22,7 @@ export default function IssuePlacementLetterModal({ student, group, batchMates, 
     const pending = useLetterPending({ record: student.coop, prefix: "placeLetter", endpoint: "/api/admin/t000/letter-pending", body: members ? { studentIds: members.map(m => m.id), letter: "PLACEMENT" } : { studentId: student.id, letter: "PLACEMENT" } });
     // เก็บเฉพาะตัวเลข — คำนำหน้า "ที่ อว" ถูกเติมในเทมเพลตหนังสือแล้ว · มีร่างที่รอลงนามอยู่ → เติมเลขที่/วันที่ของร่างนั้น
     const [placeDocNumber, setPlaceDocNumber] = useState(pending.draftNumber || "660301.26.6.2/");
-    const [placeDocDate, setPlaceDocDate] = useState(pending.draftDate || new Date().toISOString().split("T")[0]);
+    const [placeDocDate, setPlaceDocDate] = useState(pending.draftDate || todayBangkok());
     const [loadingPdf, setLoadingPdf] = useState(false);
     const [loadingDoc, setLoadingDoc] = useState(false);
     const [pdfDraft, setPdfDraft] = useState<LetterDraft | null>(null);

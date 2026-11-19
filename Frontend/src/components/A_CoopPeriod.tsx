@@ -10,6 +10,7 @@ import { getMajorFilter, NO_MAJOR } from "../utils/majorFilter";
 import A_RoundDeadlines from "./A_RoundDeadlines";
 import CoopPeriodExample from "./CoopPeriodExample";
 import { BusyLabel, LoadingBlock } from "./Spinner";
+import { bangkokDay } from "../utils/bangkokDate";
 
 // รอบสหกิจ = ปี/เทอม ใช้ร่วมกันทุกหลักสูตร · วันรับสมัคร / เปิด-ปิด / ช่วงนิเทศ ตั้งแยกหลักสูตร
 type PeriodRow = {
@@ -40,7 +41,8 @@ type ModalState =
     | { mode: "row"; period: CoopPeriod; major: string };
 
 const errMsg = (err: any, fallback: string) => err?.response?.data?.message || err?.response?.data?.error || fallback;
-const toInput = (d?: string | null) => (d ? new Date(d).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10));
+// วันตามเวลาไทย (เดิม toISOString = วัน UTC → สร้างรอบก่อน 07:00 น. วันตั้งต้นเป็นเมื่อวาน)
+const toInput = (d?: string | null) => bangkokDay(d ?? new Date());
 
 export default function A_CoopPeriod() {
     const { isStaff, majors: myMajors } = useAdminRole();

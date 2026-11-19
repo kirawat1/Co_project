@@ -10,6 +10,7 @@ import { notify, askConfirm } from "../utils/notify";
 import { letterRecipient, recipientText } from "../utils/letterRecipient";
 import { toLetterStudent } from "../utils/letterGroup";
 import { loadLetterAssets, existingAttachmentFiles } from "../utils/letterAssets";
+import { todayBangkok } from "../utils/bangkokDate";
 
 interface Props {
     student: any;
@@ -27,7 +28,7 @@ export default function IssueLetterModal({ student, group, batchMates, onOpenBat
     const pending = useLetterPending({ record: student.coop, prefix: "reqLetter", endpoint: "/api/admin/t000/letter-pending", body: members ? { studentIds: members.map(m => m.id), letter: "REQUEST" } : { studentId: student.id, letter: "REQUEST" } });
     // เก็บเฉพาะตัวเลข — คำนำหน้า "ที่ อว" ถูกเติมในเทมเพลตหนังสือแล้ว · มีร่างที่รอลงนามอยู่ → เติมเลขที่/วันที่ของร่างนั้น
     const [docNumber, setDocNumber] = useState(pending.draftNumber || "660301.26.6.2/");
-    const [docDate, setDocDate] = useState(pending.draftDate || new Date().toISOString().split('T')[0]);
+    const [docDate, setDocDate] = useState(pending.draftDate || todayBangkok());
     const [loadingPdf, setLoadingPdf] = useState(false);
     const [loadingDoc, setLoadingDoc] = useState(false);
     const [pdfDraft, setPdfDraft] = useState<LetterDraft | null>(null);

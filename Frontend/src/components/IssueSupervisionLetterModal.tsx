@@ -9,6 +9,7 @@ import DateInput from './DateInput';
 import { notify, askConfirm } from "../utils/notify";
 import { letterRecipient, recipientText } from "../utils/letterRecipient";
 import { toLetterStudent } from "../utils/letterGroup";
+import { todayBangkok } from "../utils/bangkokDate";
 
 // group = หนังสือรวมของกลุ่มนิเทศ (นัดที่ยืนยันพร้อมกัน groupId เดียวกัน) · ไม่ส่ง = หนังสือเดี่ยว
 interface Props { supervision: any; group?: any[]; onClose: () => void; onSuccess: () => void; }
@@ -23,7 +24,7 @@ export default function IssueSupervisionLetterModal({ supervision: primary, grou
     const pending = useLetterPending({ record: supervision, prefix: "letter", endpoint: `/api/admin/supervisions/${supervision.id}/letter-pending`, body: members ? { appointmentIds: members.map(m => m.id) } : undefined });
     // เก็บเฉพาะตัวเลข (ชุดเดียวกับหนังสือขอความอนุเคราะห์/ส่งตัว) — เจ้าหน้าที่ต่อเลขท้าย "/" เอง · มีร่างรอลงนาม → เติมเลขที่/วันที่ของร่าง
     const [docNumber, setDocNumber] = useState(pending.draftNumber || "660301.26.6.2/");
-    const [docDate, setDocDate] = useState(pending.draftDate || new Date().toISOString().split('T')[0]);
+    const [docDate, setDocDate] = useState(pending.draftDate || todayBangkok());
     const [loadingPdf, setLoadingPdf] = useState(false);
     const [loadingDoc, setLoadingDoc] = useState(false);
     const [pdfDraft, setPdfDraft] = useState<LetterDraft | null>(null);
