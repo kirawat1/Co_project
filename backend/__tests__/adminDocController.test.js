@@ -454,6 +454,20 @@ describe('reviewStudentStatus', () => {
       expect(prisma.studentCoop.upsert.mock.calls[0][0].update.status).toBe(expected);
     });
 
+    // multer ส่งชื่อไฟล์มาเป็น latin1 — เดิมเก็บตรง ชื่อหนังสือภาษาไทยในรายการเอกสารเพี้ยนเป็น à¸«à¸...
+    test('ชื่อไฟล์ฉบับลงนามภาษาไทย → เก็บชื่อภาษาไทยถูกต้อง (สร้างใหม่ และแทนที่ของเดิม)', async () => {
+      const thai = '894-หนังสือส่งตัว-บริษัท ตัวอย่าง จำกัด.pdf';
+      const file = { filename: 'p.pdf', originalname: Buffer.from(thai, 'utf8').toString('latin1') };
+      const body = { studentId: '1', status: 'PLACEMENT_LETTER_ISSUED', comment: 'x', placeDocNumber: '660301.26.6.2/63', docType: 'PLACEMENT_LETTER', deliveryMethod: 'STUDENT' };
+      prisma.studentCoop.findUnique.mockResolvedValue({ status: 'ACCEPTANCE_CHECKED', reqLetterUrl: null, placeLetterUrl: null });
+      await reviewStudentStatus({ body, file }, makeRes());
+      expect(prisma.document.create.mock.calls[0][0].data.name).toBe(thai);
+
+      prisma.document.findFirst.mockResolvedValue({ id: 9 });
+      await reviewStudentStatus({ body, file }, makeRes());
+      expect(prisma.document.update.mock.calls.at(-1)[0].data.name).toBe(thai);
+    });
+
     test('หนังสือส่งตัว STAFF แต่นักศึกษาส่ง T002 ไปแล้ว → คงสถานะเดิม (พิมพ์ซ้ำ)', async () => {
       prisma.studentCoop.findUnique.mockResolvedValue({ status: 'T002_SUBMITTED', reqLetterUrl: null, placeLetterUrl: 'old.pdf' });
       const res = makeRes();

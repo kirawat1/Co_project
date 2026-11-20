@@ -15,6 +15,9 @@ const { INTERNSHIP_STATUSES, reviewForm, formPendingStudent } = require('../util
 const path = require('path');
 const fs = require('fs');
 
+// ชื่อไฟล์ที่ผู้ใช้อัปโหลด — multer ให้มาเป็น latin1 ต้องแปลงกลับเป็น UTF-8 (ไม่งั้นชื่อภาษาไทยเพี้ยนเป็น à¸«à¸...)
+const uploadedName = (file) => Buffer.from(file.originalname, 'latin1').toString('utf8');
+
 // ลำดับขั้นตอนตาม enum CoopStatus (schema.prisma) — ใช้กันสถานะย้อนกลับใน reviewStudentStatus
 const COOP_STATUS_ORDER = [
   'NOT_SUBMITTED', 'APPLYING', 'PENDING_GRADE', 'QUALIFICATION_FAILED', 'APPLICATION_EDITS_REQUIRED', 'QUALIFIED',
@@ -389,13 +392,13 @@ exports.reviewStudentStatus = async (req, res) => {
         if (existingDoc) {
           await tx.document.update({
             where: { id: existingDoc.id },
-            data: { path: req.file.filename, name: req.file.originalname, status: 'APPROVED' }
+            data: { path: req.file.filename, name: uploadedName(req.file), status: 'APPROVED' }
           });
         } else {
           await tx.document.create({
             data: {
               studentId: parsedStudentId, type: docType,
-              path: req.file.filename, name: req.file.originalname, status: 'APPROVED'
+              path: req.file.filename, name: uploadedName(req.file), status: 'APPROVED'
             }
           });
         }
@@ -512,7 +515,7 @@ exports.markAcceptanceReceived = async (req, res) => {
 
       const data = { status: 'ACCEPTANCE_CHECKED', t000Comment: comment };
       if (req.file) {
-        const name = Buffer.from(req.file.originalname, 'latin1').toString('utf8');
+        const name = uploadedName(req.file);
         const existingDoc = await tx.document.findFirst({ where: { studentId, type: 'CP-ACCEPTANCE' } });
         if (existingDoc) {
           await tx.document.update({ where: { id: existingDoc.id }, data: { path: req.file.filename, name, status: 'APPROVED', rejectReason: null } });
@@ -594,7 +597,7 @@ exports.replaceAcceptanceFile = async (req, res) => {
         throw Object.assign(new Error(message), { is400: true });
       }
 
-      const name = Buffer.from(req.file.originalname, 'latin1').toString('utf8');
+      const name = uploadedName(req.file);
       const existingDoc = await tx.document.findFirst({ where: { studentId, type: { in: ACCEPTANCE_DOC_TYPES } } });
       if (existingDoc) {
         await tx.document.update({
@@ -713,9 +716,9 @@ exports.issueLetterBatch = async (req, res) => {
 
         const existingDoc = await tx.document.findFirst({ where: { studentId: c.studentId, type: L.docType } });
         if (existingDoc) {
-          await tx.document.update({ where: { id: existingDoc.id }, data: { path: req.file.filename, name: req.file.originalname, status: 'APPROVED' } });
+          await tx.document.update({ where: { id: existingDoc.id }, data: { path: req.file.filename, name: uploadedName(req.file), status: 'APPROVED' } });
         } else {
-          await tx.document.create({ data: { studentId: c.studentId, type: L.docType, path: req.file.filename, name: req.file.originalname, status: 'APPROVED' } });
+          await tx.document.create({ data: { studentId: c.studentId, type: L.docType, path: req.file.filename, name: uploadedName(req.file), status: 'APPROVED' } });
         }
         await tx.studentCoop.update({ where: { studentId: c.studentId }, data });
         result.push({ studentId: c.studentId, statusKept: kept });

@@ -47,6 +47,16 @@ describe('issueLetterBatch', () => {
     expect(createNotifications).toHaveBeenCalledWith([101, 102], expect.objectContaining({ message: expect.stringContaining('ออกหนังสือขอความอนุเคราะห์แล้ว') }));
   });
 
+  // multer ส่งชื่อไฟล์มาเป็น latin1 — ชื่อภาษาไทยต้องแปลงกลับเป็น UTF-8 ก่อนเก็บ (เดิมเก็บตรง ชื่อเพี้ยนเป็น à¸«à¸...)
+  test('ชื่อไฟล์ฉบับลงนามภาษาไทย → เก็บชื่อภาษาไทยถูกต้อง', async () => {
+    prisma.studentCoop.findMany.mockResolvedValue([coop(1, 'DOCS_APPROVED'), coop(2, 'DOCS_APPROVED')]);
+    const thai = 'หนังสือขอความอนุเคราะห์-ฉบับลงนาม.pdf';
+    const res = makeRes();
+    await issueLetterBatch({ ...req(), file: { filename: 'x.pdf', originalname: Buffer.from(thai, 'utf8').toString('latin1') } }, res);
+    expect(res.status).not.toHaveBeenCalled();
+    expect(prisma.document.create.mock.calls.map((c) => c[0].data.name)).toEqual([thai, thai]);
+  });
+
   test('หนังสือส่งตัว + เจ้าหน้าที่ส่งให้บริษัท → เริ่มฝึกงานเลย (เหมือนออกเดี่ยว)', async () => {
     prisma.studentCoop.findMany.mockResolvedValue([coop(1, 'ACCEPTANCE_CHECKED'), coop(2, 'ACCEPTANCE_CHECKED')]);
     const res = makeRes();
