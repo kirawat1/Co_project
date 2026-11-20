@@ -13,7 +13,8 @@ const ROLE_COLOR: Record<Role, string> = { student: "#d97706", teacher: "#16a34a
 const LANDING: Record<Role, string> = { student: "/student/dashboard", teacher: "/teacher/dashboard", staff: "/admin/dashboard" };
 
 const AUTO = !!process.env.DEMO_AUTO;
-const SPEED = AUTO ? 0.15 : 1; // ตอนตรวจสคริปต์ให้เร็วขึ้น
+// DEMO_FROM=N = เริ่มดูจากขั้นที่ N — ขั้นก่อนหน้าทำจริงแบบเร่ง (ไม่หยุดรอ ไม่เปิด PDF) หลังม่าน "กำลังเตรียม"
+const FROM = Number(process.env.DEMO_FROM || 0);
 
 interface PanelState {
   mode: "run" | "wait" | "end";
@@ -21,6 +22,7 @@ interface PanelState {
   step: number; total: number;
   role: Role | null; roleLabel: string; color: string;
   title: string; detail: string; result: string; nextLabel: string;
+  ff: boolean; from: number;
 }
 
 // สคริปต์ที่ฉีดเข้าทุกหน้า: กล่องสาธิต + เมาส์จำลอง (สร้างใหม่ทุกครั้งที่หน้าโหลด แล้วขอสถานะล่าสุดจาก Node)
@@ -51,6 +53,11 @@ const INIT = `(() => {
     background:rgba(245,158,11,.55);border:2px solid #b45309;box-shadow:0 0 0 6px rgba(245,158,11,.18);transition:left .45s ease,top .45s ease,transform .15s;
     transform:translate(-50%,-50%)}
   #demo-cursor.down{transform:translate(-50%,-50%) scale(.7)}
+  #demo-ff{position:fixed;inset:0;z-index:2147483647;display:none;pointer-events:none;align-items:center;justify-content:center;
+    background:rgba(247,250,255,.97);font:16px/1.6 'Noto Sans Thai Variable','Noto Sans Thai','Leelawadee UI',Tahoma,sans-serif;color:#0f172a}
+  #demo-ff .box{background:#fff;border:1px solid rgba(0,0,0,.07);border-radius:16px;box-shadow:0 10px 40px rgba(10,132,255,.15);padding:28px 34px;text-align:center;min-width:340px}
+  #demo-ff .t{font-size:22px;font-weight:800;margin-bottom:6px}#demo-ff .d{color:#64748b}
+  #demo-ff .bar{height:6px;background:#e2e8f0;border-radius:999px;margin-top:16px;overflow:hidden}#demo-ff .bar i{display:block;height:6px;background:#0074B7;transition:width .3s}
   #demo-hl{position:fixed;z-index:2147483645;pointer-events:none;border:3px solid #f59e0b;border-radius:8px;box-shadow:0 0 0 4px rgba(245,158,11,.25);display:none;transition:all .25s}\`;
   const esc = (s) => String(s || '').replace(/[&<>]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
   function mount() {
@@ -60,12 +67,23 @@ const INIT = `(() => {
     const card = document.createElement('div'); card.id = 'demo-card'; document.body.appendChild(card);
     const cur = document.createElement('div'); cur.id = 'demo-cursor'; document.body.appendChild(cur);
     const hl = document.createElement('div'); hl.id = 'demo-hl'; document.body.appendChild(hl);
+    const ff = document.createElement('div'); ff.id = 'demo-ff'; document.body.appendChild(ff);
     if (window.__demoState) window.__demoState().then((s) => s && window.__demoRender(s)).catch(() => {});
   }
   window.__demoRender = (s) => {
     mount();
     const bar = document.getElementById('demo-bar'), card = document.getElementById('demo-card');
     if (!bar || !card) return;
+    const ff = document.getElementById('demo-ff');
+    if (ff) {
+      ff.style.display = s.ff ? 'flex' : 'none';
+      if (s.ff) {
+        ff.innerHTML = '<div class="box"><div class="t">⏩ กำลังเตรียมการสาธิต</div><div class="d">ทำขั้นก่อนหน้าให้อัตโนมัติ แล้วเริ่มให้ดูที่ขั้นที่ ' + s.from + '<br>ตอนนี้: ขั้น ' + s.step + ' · ' + esc(s.title) + '</div>'
+          + '<div class="bar"><i style="width:' + Math.round((s.step / Math.max(1, s.from)) * 100) + '%"></i></div></div>';
+        bar.style.display = 'none'; card.style.display = 'none';
+        return;
+      }
+    }
     const who = s.role ? s.roleLabel + ' · ' : '';
     if (s.mode === 'run') {
       card.style.display = 'none'; bar.style.display = 'block';
@@ -104,8 +122,13 @@ export class Demo {
   private release: (() => void) | null = null;
 
   constructor(public context: BrowserContext, public scenario: string, public total: number) {
-    this.state = { mode: "run", scenario, step: 0, total, role: null, roleLabel: "", color: "#334155", title: "เตรียมการสาธิต", detail: "", result: "", nextLabel: "" };
+    this.state = { mode: "run", scenario, step: 0, total, role: null, roleLabel: "", color: "#334155", title: "เตรียมการสาธิต", detail: "", result: "", nextLabel: "", ff: FROM > 0, from: FROM };
   }
+
+  /** อยู่ในช่วงเร่งข้ามขั้น (DEMO_FROM) */
+  get fast() { return FROM > 0 && this.state.step < FROM; }
+  /** ตัวคูณเวลารอ: เร่งข้ามขั้น = ไม่รอ · DEMO_AUTO = เร็วขึ้น */
+  private get speed() { return this.fast ? 0 : AUTO ? 0.15 : 1; }
 
   async init(page: Page) {
     this.page = page;
@@ -125,7 +148,7 @@ export class Demo {
 
   /** เริ่มขั้นใหม่ — แถบบนจอบอกว่ากำลังทำอะไร */
   async step(n: number, role: Role | null, title: string, detail = "") {
-    Object.assign(this.state, { mode: "run", step: n, role, roleLabel: role ? ROLE_TH[role] : "", color: role ? ROLE_COLOR[role] : "#334155", title, detail, result: "", nextLabel: "" });
+    Object.assign(this.state, { mode: "run", step: n, ff: FROM > 0 && n < FROM, role, roleLabel: role ? ROLE_TH[role] : "", color: role ? ROLE_COLOR[role] : "#334155", title, detail, result: "", nextLabel: "" });
     console.log(`\n[ขั้น ${n}/${this.total}] ${role ? ROLE_TH[role] + ": " : ""}${title}`);
     await this.render();
   }
@@ -154,6 +177,7 @@ export class Demo {
 
   private shot = 0;
   private async waitNext() {
+    if (this.fast) return;
     // DEMO_SHOTS=โฟลเดอร์ → เก็บภาพทุกจุดที่หยุดรอ (ตรวจหน้าตาโดยไม่ต้องนั่งดู)
     if (process.env.DEMO_SHOTS) {
       const front = this.context.pages().at(-1)!;
@@ -164,7 +188,7 @@ export class Demo {
     return new Promise<void>((r) => { this.release = r; });
   }
 
-  async wait(ms: number) { await this.page.waitForTimeout(ms * SPEED); }
+  async wait(ms: number) { if (ms * this.speed > 0) await this.page.waitForTimeout(ms * this.speed); }
 
   private async hideMarks() {
     for (const p of this.context.pages()) await p.evaluate(() => (window as unknown as { __demoHide?: () => void }).__demoHide?.()).catch(() => {});
@@ -172,11 +196,12 @@ export class Demo {
 
   /** เลื่อนเมาส์จำลองไปที่สิ่งที่จะกด + กรอบเน้น */
   async point(loc: Locator) {
-    await loc.scrollIntoViewIfNeeded().catch(() => {});
-    const box = await loc.boundingBox();
+    if (this.fast) return;
+    await loc.scrollIntoViewIfNeeded({ timeout: 5_000 }).catch(() => {});
+    const box = await loc.boundingBox({ timeout: 5_000 }).catch(() => null); // ชี้ไม่เจอ = ข้ามการชี้ ไม่ทำให้สาธิตหยุด
     if (!box) return;
     await loc.page().evaluate(({ x, y, width, height }) => (window as unknown as { __demoPoint?: (...a: number[]) => void }).__demoPoint?.(x, y, width, height), box).catch(() => {});
-    await loc.page().waitForTimeout(650 * SPEED);
+    await loc.page().waitForTimeout(650 * this.speed);
   }
 
   async click(loc: Locator) {
@@ -184,7 +209,7 @@ export class Demo {
     await this.point(loc);
     await loc.page().evaluate(() => (window as unknown as { __demoPress?: () => void }).__demoPress?.()).catch(() => {});
     await loc.click();
-    await loc.page().waitForTimeout(450 * SPEED);
+    await loc.page().waitForTimeout(450 * this.speed);
   }
 
   /** พิมพ์ทีละตัวให้เห็น */
@@ -193,27 +218,27 @@ export class Demo {
     await this.point(loc);
     await loc.click();
     await loc.fill("");
-    await loc.pressSequentially(text, { delay: AUTO ? 0 : 45 });
-    await loc.page().waitForTimeout(250 * SPEED);
+    await loc.pressSequentially(text, { delay: AUTO || this.fast ? 0 : 45 });
+    await loc.page().waitForTimeout(250 * this.speed);
   }
 
   /** ช่องที่พิมพ์ทีละตัวไม่ได้ (วันที่ / ตัวเลือก) */
   async fill(loc: Locator, value: string) {
     await this.point(loc);
     await loc.fill(value);
-    await loc.page().waitForTimeout(350 * SPEED);
+    await loc.page().waitForTimeout(350 * this.speed);
   }
 
   async select(loc: Locator, value: string | { label: string }) {
     await this.point(loc);
     await loc.selectOption(value);
-    await loc.page().waitForTimeout(350 * SPEED);
+    await loc.page().waitForTimeout(350 * this.speed);
   }
 
   async files(loc: Locator, files: string | string[], target?: Locator) {
     if (target) await this.point(target);
     await loc.setInputFiles(files);
-    await loc.page().waitForTimeout(500 * SPEED);
+    await loc.page().waitForTimeout(500 * this.speed);
   }
 
   /** กดยืนยันในกล่องถามของระบบ (askConfirm) — ปุ่มขวาสุด */
@@ -231,9 +256,27 @@ export class Demo {
     await this.wait(500);
   }
 
-  /** ออกจากระบบแล้วล็อกอินใหม่ผ่านหน้าจอจริง */
+  /** ชุด localStorage หลังล็อกอินสำเร็จ แยกตามบัญชี — ใช้สลับกลับมาโดยไม่ต้องพิมพ์ล็อกอินซ้ำ */
+  private sessions = new Map<string, Record<string, string>>();
+
+  /**
+   * สลับเป็นผู้ใช้คนนี้ — ครั้งแรกของแต่ละบัญชีพิมพ์ล็อกอินผ่านหน้าจอจริงให้ดู
+   * ครั้งต่อไปใช้ token เดิม เข้าหน้าแรกของบทบาทนั้นทันที (ถ้า token ใช้ไม่ได้ ค่อยล็อกอินใหม่)
+   */
   async login(role: Role, email: string, password: string, extra: Record<string, string> = {}) {
     const p = this.page;
+    const saved = this.sessions.get(email);
+    if (saved) {
+      await p.goto("/");
+      await p.evaluate((s) => {
+        localStorage.clear();
+        for (const [k, v] of Object.entries(s)) localStorage.setItem(k, v);
+      }, { ...saved, ...extra });
+      await p.context().clearCookies(); // cookie เปิดไฟล์ของบัญชีก่อน — backend ตั้งใหม่ตาม token ตอนเรียก API
+      await p.goto(LANDING[role], { waitUntil: "networkidle" });
+      if (new URL(p.url()).pathname === LANDING[role]) { await this.wait(600); return; }
+      this.sessions.delete(email);
+    }
     await p.goto("/");
     await p.evaluate((extra) => {
       localStorage.clear();
@@ -248,6 +291,7 @@ export class Demo {
     await this.click(p.getByRole("button", { name: "เข้าสู่ระบบ" }));
     await p.waitForURL(`**${LANDING[role]}`, { timeout: 20_000 });
     await p.waitForLoadState("networkidle");
+    this.sessions.set(email, await p.evaluate(() => ({ ...localStorage })));
     await this.wait(600);
   }
 
@@ -256,6 +300,7 @@ export class Demo {
    * (ตัวเปิด PDF ของ Chrome ฉีดกล่องสาธิตไม่ได้ · หน้าครอบมีกล่องสาธิต + ปุ่มไปต่อ และส่ง cookie เปิดไฟล์ได้)
    */
   async showPdf(url: string, caption: string, tab?: Page) {
+    if (this.fast) { await tab?.close().catch(() => {}); await this.page.bringToFront(); return; }
     const t = tab ?? (await this.context.newPage());
     await t.goto(`/__demo-pdf?title=${encodeURIComponent(caption)}&src=${encodeURIComponent(url)}`);
     await t.bringToFront();

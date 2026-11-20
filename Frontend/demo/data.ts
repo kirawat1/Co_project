@@ -56,8 +56,33 @@ export async function freeAcademicYear() {
   throw new Error("หาปีการศึกษาว่างสำหรับสาธิตไม่ได้");
 }
 
+// ═════════════ กันรันซ้อน ═════════════
+// ทุกการสาธิตล้าง/สร้างข้อมูลชุดเดียวกัน (บัญชี demo.* · หลักสูตร DEMO) — รันพร้อมกันสองชุดจะลบข้อมูลของอีกฝั่งกลางทาง
+// (เคยเกิด: นิเทศพร้อมกันพังที่ Foreign key studentId เพราะมีชุดอื่นเริ่ม resetDemo ซ้อน) หน้าเมนูกันได้เฉพาะที่กดจากเมนู
+const LOCK = path.join(HERE, ".running.lock");
+let lockHeld = false;
+function claimDemoLock() {
+  if (lockHeld) return;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      fs.writeFileSync(LOCK, String(process.pid), { flag: "wx" });
+      lockHeld = true;
+      process.on("exit", () => { try { if (fs.readFileSync(LOCK, "utf8") === String(process.pid)) fs.unlinkSync(LOCK); } catch { /* ลบไปแล้ว */ } });
+      return;
+    } catch {
+      const pid = Number(fs.readFileSync(LOCK, "utf8"));
+      let alive = false;
+      try { process.kill(pid, 0); alive = true; } catch (e) { alive = (e as NodeJS.ErrnoException).code === "EPERM"; }
+      if (alive) throw new Error(`มีการสาธิตอีกชุดกำลังรันอยู่ (โปรเซส ${pid}) — รอให้จบหรือกดหยุดก่อน แล้วค่อยเริ่มใหม่`);
+      try { fs.unlinkSync(LOCK); } catch { /* อีกฝั่งลบไปแล้ว */ } // ค้างจากรอบที่ถูกปิดกลางทาง
+    }
+  }
+  throw new Error("จองการสาธิตไม่สำเร็จ ลองเริ่มใหม่อีกครั้ง");
+}
+
 // ═════════════ ลบข้อมูลสาธิตทั้งหมด ═════════════
 export async function resetDemo() {
+  claimDemoLock();
   const users = await prisma.user.findMany({ where: { username: { startsWith: "demo." } }, select: { id: true } });
   const userIds = users.map((u: { id: number }) => u.id);
   const students = await prisma.student.findMany({ where: { OR: [{ userId: { in: userIds } }, { major: MAJOR }] }, select: { id: true } });
@@ -164,6 +189,42 @@ export async function seedStudent(i: number, base: Base, o: { coop?: Record<stri
   return { pk: st.id as number, userId: u.id as number, ...s, email: u.email as string };
 }
 
+// ═════════════ นำเข้ารายชื่อ (ขั้นแรกของการสาธิตทั้งเส้นทาง) ═════════════
+const XLSX = require(path.join(BACKEND_DIR, "node_modules/xlsx"));
+
+/** ไฟล์ Excel รายชื่อนักศึกษา — แบบฟอร์มหัวคอลัมน์ภาษาไทยที่หน้า "ข้อมูลนักศึกษา" รับ */
+export function studentsXlsx(indexes: number[]) {
+  fs.mkdirSync(FILES, { recursive: true });
+  const file = path.join(FILES, "รายชื่อนักศึกษา-สาธิต.xlsx");
+  const rows = indexes.map((i) => {
+    const s = STUDENTS[i];
+    return {
+      "รหัสนักศึกษา": s.studentId, "คำนำหน้าชื่อ": s.prefix === "MR" ? "นาย" : "นางสาว",
+      "ชื่อ-นามสกุล (ภาษาไทย)": `${s.first} ${s.last}`, "อีเมล": studentEmail(s.key), "เบอร์โทรศัพท์": "0812345678",
+      "ชั้นปี": "4", "สาขาวิชา": MAJOR_NAME, "ภาคการศึกษา (ปกติ/พิเศษ)": "ปกติ", "ชื่ออาจารย์ที่ปรึกษา": "ธนา ตัวอย่าง",
+    };
+  });
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), "รายชื่อ");
+  XLSX.writeFile(wb, file);
+  return file;
+}
+
+/**
+ * นักศึกษาที่เจ้าหน้าที่เพิ่งนำเข้า → เตรียมให้ใช้ต่อในการสาธิตเหมือน seedStudent
+ * (รหัสผ่านสาธิต · อาจารย์ที่ปรึกษาสหกิจ · ข้อมูลส่วนตัวในใบสมัคร · แถวสถานะสหกิจ)
+ */
+export async function adoptImported(i: number, base: Base) {
+  const s = STUDENTS[i];
+  const st = await prisma.student.findUnique({ where: { studentId: s.studentId } });
+  if (!st) throw new Error(`ไม่พบนักศึกษา ${s.studentId} ที่นำเข้า`);
+  await prisma.user.update({ where: { id: st.userId }, data: { password: await bcrypt.hash(PASSWORD, 10), passwordEnc: null } });
+  await prisma.student.update({ where: { id: st.id }, data: { coopAdvisorId: base.teacherPk, gpa: 3.25 } });
+  await prisma.coopApplicationForm.create({ data: { studentId: st.id, ...FORM, contactEmail: st.email } });
+  await prisma.studentCoop.create({ data: { studentId: st.id, status: "NOT_SUBMITTED" } });
+  return { pk: st.id as number, userId: st.userId as number, ...s, email: st.email as string };
+}
+
 // ═════════════ ไฟล์ PDF ตัวอย่าง (มีข้อความไทยจริง ให้เปิดดูแล้วรู้ว่าเป็นเอกสารอะไร) ═════════════
 export async function samplePdf(name: string, title: string, lines: string[] = []) {
   fs.mkdirSync(FILES, { recursive: true });
@@ -218,7 +279,7 @@ export async function seedCompany(name: string, hr: string, staffUserId: number)
  * นักศึกษาที่ผ่านขั้นเอกสาร T000 แล้ว (ไฟล์จริงทุกหัวข้อ ผ่านแล้ว) ในสถานะที่ระบุ
  * coop เพิ่มเติม เช่น เลข/ไฟล์หนังสือที่ออกแล้ว
  */
-export async function seedReadyStudent(i: number, base: Base, periodId: number, company: { id: string; contactId: string }, status: string, coop: Record<string, unknown> = {}) {
+export async function seedReadyStudent(i: number, base: Base, periodId: number, company: { id: string; contactId: string }, status: string, coop: Record<string, unknown> = {}, docStatus = "APPROVED") {
   const st = await seedStudent(i, base, {
     coop: { status, coopPeriodId: periodId, companyId: company.id, contacts: { connect: [{ id: company.contactId }] }, jobPosition: "Software Developer", ...coop },
     form: { startDate: new Date(isoDay(45)), endDate: new Date(isoDay(165)), careerObjective1: "นักพัฒนาซอฟต์แวร์" },
@@ -228,7 +289,7 @@ export async function seedReadyStudent(i: number, base: Base, periodId: number, 
   for (const k of keys) {
     const file = await samplePdf(`doc-${k}`, titles[k] || k, ["(เอกสารที่นักศึกษาส่งไว้ก่อนแล้ว)"]);
     const name = putUpload(file, `demo-${st.key}-${k}.pdf`);
-    await prisma.document.create({ data: { studentId: st.pk, type: k, path: name, name: `${titles[k] || k}.pdf`, status: "APPROVED" } });
+    await prisma.document.create({ data: { studentId: st.pk, type: k, path: name, name: `${titles[k] || k}.pdf`, status: docStatus } });
   }
   return st;
 }

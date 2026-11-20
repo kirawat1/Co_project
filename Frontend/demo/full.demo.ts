@@ -1,16 +1,17 @@
 /**
- * สาธิตทั้งเส้นทาง: เจ้าหน้าที่เปิดรอบ → นักศึกษายื่นคำร้อง → … → นิเทศ (นักศึกษา 1 คน)
+ * สาธิตทั้งเส้นทาง: เจ้าหน้าที่นำเข้ารายชื่อ → เปิดรอบ → นักศึกษายื่นคำร้อง → … → นิเทศ (นักศึกษาเดินทั้งเส้นทาง 1 คน)
+ * เลขขั้น demo.step(n, บทบาท, "ชื่อขั้น") — demo.js อ่านจากไฟล์นี้ไปทำตัวเลือก "เริ่มจากขั้นที่…" (เขียนเป็นข้อความตรง ห้ามเป็นตัวแปร)
  */
 import { test } from "@playwright/test";
 import { Demo } from "./kit";
 import { waitStatus, waitDoc, waitAppt, issueLetter } from "./steps";
 import {
-  ACCOUNTS, COMPANY, MAJOR, PASSWORD, DOC_NO, isoDay, prisma, resetDemo, seedBase, seedStudent, samplePdf,
-  freeAcademicYear, rememberPeriod, studentEmail, type Base,
+  ACCOUNTS, COMPANY, MAJOR, MAJOR_NAME, PASSWORD, DOC_NO, STUDENTS, isoDay, prisma, resetDemo, seedBase, samplePdf,
+  freeAcademicYear, rememberPeriod, studentEmail, studentsXlsx, adoptImported, type Base,
 } from "./data";
 
 const FILTER = { "coop.adminMajorFilter": MAJOR };
-const TOTAL = 16;
+const TOTAL = 17;
 
 test("สาธิตทั้งเส้นทาง: เปิดรอบ → ยื่นคำร้อง → หนังสือ → ฝึกงาน → นิเทศ", async ({ page, context }) => {
   const demo = new Demo(context, "สาธิตระบบสหกิจศึกษา — ทั้งเส้นทาง", TOTAL);
@@ -19,7 +20,8 @@ test("สาธิตทั้งเส้นทาง: เปิดรอบ �
   // ── เตรียมข้อมูล ──
   await resetDemo();
   const base: Base = await seedBase();
-  const s = await seedStudent(0, base);
+  const CLASS = [0, 1, 2, 3]; // รายชื่อในไฟล์ที่เจ้าหน้าที่นำเข้า — คนแรกเดินทั้งเส้นทาง
+  let s = { ...STUDENTS[0], pk: 0, userId: 0, email: studentEmail(STUDENTS[0].key) };
   const year = await freeAcademicYear();
   const p = page;
   const staffLogin = () => demo.login("staff", ACCOUNTS.staff.email, PASSWORD, FILTER);
@@ -28,13 +30,28 @@ test("สาธิตทั้งเส้นทาง: เปิดรอบ �
 
   await p.goto("/");
   await demo.step(0, null, "เริ่มการสาธิต",
-    `ผู้ใช้ในการสาธิต:\n• นักศึกษา: ${s.first} ${s.last} (${s.studentId})\n• อาจารย์: ${ACCOUNTS.teacher.name} — อาจารย์ประจำวิชาสหกิจ และอาจารย์ที่ปรึกษา\n• เจ้าหน้าที่: ${ACCOUNTS.staff.name}`);
+    `ผู้ใช้ในการสาธิต:\n• นักศึกษา: ${s.first} ${s.last} (${s.studentId}) — เจ้าหน้าที่นำเข้าจากไฟล์ Excel ในขั้นที่ 1\n• อาจารย์: ${ACCOUNTS.teacher.name} — อาจารย์ประจำวิชาสหกิจ และอาจารย์ที่ปรึกษา\n• เจ้าหน้าที่: ${ACCOUNTS.staff.name}`);
   await demo.done("ข้อมูลตัวอย่างพร้อมแล้ว (หลักสูตรสาธิต · บริษัทตัวอย่าง)", "เริ่ม ▶");
 
-  // ═══ 1. เจ้าหน้าที่เปิดรอบสหกิจ + ตั้งปฏิทิน ═══
-  await demo.step(1, "staff", "เปิดรอบสหกิจและตั้งปฏิทินกำหนดส่ง",
-    "สร้างรอบปีการศึกษา/เทอม กำหนดช่วงรับสมัคร ตั้งกำหนดส่งเอกสารของหลักสูตร แล้วเปิดรับสมัคร");
+  // ═══ 1. เจ้าหน้าที่นำเข้ารายชื่อนักศึกษา ═══
+  await demo.step(1, "staff", "นำเข้ารายชื่อนักศึกษาจากไฟล์ Excel",
+    "เลือกไฟล์รายชื่อ (รหัส ชื่อ อีเมล หลักสูตร อาจารย์ที่ปรึกษา) → ดูตัวอย่างก่อนว่าแถวไหนสร้างใหม่/อัปเดต/ข้าม → ยืนยันนำเข้า");
   await staffLogin();
+  await demo.go("/admin/students");
+  await demo.files(p.locator('input[type="file"][accept=".xlsx,.xls"]'), studentsXlsx(CLASS), p.getByText("เลือกไฟล์ Excel", { exact: true }));
+  await demo.click(p.getByRole("button", { name: "ดูตัวอย่าง", exact: true }));
+  await p.getByText(`🟢 สร้างใหม่ ${CLASS.length}`).waitFor();
+  await demo.pause(`ตัวอย่างก่อนนำเข้า: ${CLASS.length} แถวเป็น "สร้างใหม่"\nระบบจับคู่หลักสูตร "${MAJOR_NAME}" และอาจารย์ที่ปรึกษาจากชื่อในไฟล์ให้\nแถวที่มีปัญหา (อีเมลซ้ำ ไม่มีรหัส) จะขึ้นสีแดงพร้อมเหตุผล`);
+  await demo.click(p.getByRole("button", { name: "ยืนยันนำเข้า" }));
+  await p.getByText(`สร้างใหม่ ${CLASS.length} |`, { exact: false }).first().waitFor();
+  for (const i of CLASS) { const st = await adoptImported(i, base); if (i === 0) s = st; }
+  await demo.type(p.getByPlaceholder("ค้นหา: รหัส / ชื่อ / อีเมล"), "ตัวอย่าง");
+  await demo.wait(1500);
+  await demo.done(`นำเข้านักศึกษา ${CLASS.length} คนแล้ว — ทุกคนได้บัญชีเข้าระบบทันที\nยังยื่นคำร้องไม่ได้จนกว่าเจ้าหน้าที่จะเปิดรอบ (ขั้นต่อไป)`);
+
+  // ═══ 2. เจ้าหน้าที่เปิดรอบสหกิจ + ตั้งปฏิทิน ═══
+  await demo.step(2, "staff", "เปิดรอบสหกิจและตั้งปฏิทินกำหนดส่ง",
+    "สร้างรอบปีการศึกษา/เทอม กำหนดช่วงรับสมัคร ตั้งกำหนดส่งเอกสารของหลักสูตร แล้วเปิดรับสมัคร");
   await demo.go("/admin/coop-period");
   await demo.click(p.getByRole("button", { name: "+ สร้างรอบใหม่" }));
   const dlg = p.getByRole("dialog");
@@ -60,8 +77,8 @@ test("สาธิตทั้งเส้นทาง: เปิดรอบ �
   await prisma.coopPeriodMajor.updateMany({ where: { periodId: period.id, major: MAJOR }, data: { isSupervisionOpen: true, supervisionStartDate: new Date(isoDay(1)), supervisionEndDate: new Date(isoDay(120)) } });
   await demo.done(`เปิดรับสมัครรอบ 1/${year} ของหลักสูตร ${MAJOR} แล้ว\nนักศึกษาในหลักสูตรยื่นคำร้องได้ทันที`);
 
-  // ═══ 2. นักศึกษาเลือกบริษัท + ยื่นคำร้อง ═══
-  await demo.step(2, "student", "เลือกสถานประกอบการและผู้ติดต่อ",
+  // ═══ 3. นักศึกษาเลือกบริษัท + ยื่นคำร้อง ═══
+  await demo.step(3, "student", "เลือกสถานประกอบการและผู้ติดต่อ",
     "นักศึกษาเลือกบริษัทจากรายชื่อในระบบ และผู้ติดต่อ (HR) ที่จะเป็นผู้รับหนังสือจากวิทยาลัย");
   await studentLogin();
   await demo.go("/student/profile");
@@ -73,7 +90,7 @@ test("สาธิตทั้งเส้นทาง: เปิดรอบ �
   await p.locator(".contact-chip").first().waitFor();
   await demo.done("บันทึกบริษัทและผู้ติดต่ออัตโนมัติแล้ว");
 
-  await demo.step(3, "student", "ยื่นคำร้องขอเข้าร่วมโครงการสหกิจศึกษา",
+  await demo.step(4, "student", "ยื่นคำร้องขอเข้าร่วมโครงการสหกิจศึกษา",
     "กรอกตำแหน่งงาน แนบลิงก์แบบฟอร์มผลการเรียน และเอกสารประกอบ แล้วส่งให้อาจารย์ประจำวิชาพิจารณา");
   await demo.go("/student/gateway");
   await demo.type(p.getByPlaceholder("เช่น Frontend Developer, System Analyst, Data Scientist..."), "Software Developer");
@@ -84,8 +101,8 @@ test("สาธิตทั้งเส้นทาง: เปิดรอบ �
   await p.getByText("ส่งคำร้องเรียบร้อยแล้ว").first().waitFor();
   await demo.done("ส่งคำร้องแล้ว — สถานะ: รออาจารย์ตรวจสอบคุณสมบัติ");
 
-  // ═══ 4. อาจารย์ประจำวิชาพิจารณาคำร้อง ═══
-  await demo.step(4, "teacher", "อาจารย์ประจำวิชาสหกิจพิจารณาคำร้อง",
+  // ═══ 5. อาจารย์ประจำวิชาพิจารณาคำร้อง ═══
+  await demo.step(5, "teacher", "อาจารย์ประจำวิชาสหกิจพิจารณาคำร้อง",
     "อาจารย์ประจำวิชากดปุ่ม \"จัดการหลักสูตร\" เพื่อเข้าหน้าจัดการของหลักสูตรที่ดูแล แล้วเปิดคำร้องดูเอกสารประกอบ");
   await teacherLogin();
   await demo.click(p.getByRole("button", { name: new RegExp(`จัดการหลักสูตร ${MAJOR}`) }));
@@ -100,8 +117,8 @@ test("สาธิตทั้งเส้นทาง: เปิดรอบ �
   await waitStatus(s.pk, "QUALIFIED");
   await demo.done("คำร้องผ่านเกณฑ์ — นักศึกษาได้รับแจ้งเตือน และส่งเอกสาร T000 ต่อได้");
 
-  // ═══ 5. นักศึกษากรอกใบสมัคร T000 + ส่งเอกสาร ═══
-  await demo.step(5, "student", "กรอกใบสมัคร T000 และส่งเอกสารประกอบ",
+  // ═══ 6. นักศึกษากรอกใบสมัคร T000 + ส่งเอกสาร ═══
+  await demo.step(6, "student", "กรอกใบสมัคร T000 และส่งเอกสารประกอบ",
     "ข้อมูลส่วนตัวกรอกไว้แล้ว — ใส่ช่วงวันฝึกและเป้าหมาย ระบบสร้างใบสมัคร PDF ให้ แล้วแนบเอกสารแต่ละหัวข้อ");
   await studentLogin();
   await demo.go("/student/docs");
@@ -128,8 +145,8 @@ test("สาธิตทั้งเส้นทาง: เปิดรอบ �
   await waitStatus(s.pk, "WAITING_FOR_STAFF_CHECK");
   await demo.done("ส่งเอกสารครบทุกหัวข้อ — สถานะ: ส่งเอกสารแล้ว รอเจ้าหน้าที่ตรวจ");
 
-  // ═══ 6. เจ้าหน้าที่ตรวจเอกสาร T000 ═══
-  await demo.step(6, "staff", "ตรวจเอกสาร T000",
+  // ═══ 7. เจ้าหน้าที่ตรวจเอกสาร T000 ═══
+  await demo.step(7, "staff", "ตรวจเอกสาร T000",
     "เปิดดูเอกสารทีละฉบับ ให้ผ่าน/แก้ไข/ไม่ผ่านรายฉบับ หรือ \"อนุมัติทั้งหมด\"");
   await staffLogin();
   await demo.go("/admin/doct000");
@@ -146,8 +163,8 @@ test("สาธิตทั้งเส้นทาง: เปิดรอบ �
   await p.keyboard.press("Escape");
   await demo.done("เอกสารผ่านทั้งหมด — สถานะ: เอกสารผ่าน รอออกหนังสือ");
 
-  // ═══ 7. เจ้าหน้าที่ออกหนังสือขอความอนุเคราะห์ ═══
-  await demo.step(7, "staff", "ออกหนังสือขอความอนุเคราะห์",
+  // ═══ 8. เจ้าหน้าที่ออกหนังสือขอความอนุเคราะห์ ═══
+  await demo.step(8, "staff", "ออกหนังสือขอความอนุเคราะห์",
     "ใส่เลขที่หนังสือ → ระบบสร้างหนังสือพร้อมเอกสารแนบเป็น PDF → โหลดร่างไปเสนอลงนาม → แนบฉบับลงนามกลับเข้าระบบ");
   await demo.go("/admin/doct000");
   await demo.type(p.getByPlaceholder(/ค้นหา/).first(), s.studentId);
@@ -156,8 +173,8 @@ test("สาธิตทั้งเส้นทาง: เปิดรอบ �
   await waitStatus(s.pk, "REQ_LETTER_ISSUED");
   await demo.done(`ออกหนังสือเลขที่ อว ${DOC_NO(1)} แล้ว — นักศึกษาได้รับแจ้งและดาวน์โหลดหนังสือได้`);
 
-  // ═══ 8. นักศึกษารับหนังสือ + ส่งใบตอบรับ ═══
-  await demo.step(8, "student", "รับหนังสือขอความอนุเคราะห์และส่งใบตอบรับ",
+  // ═══ 9. นักศึกษารับหนังสือ + ส่งใบตอบรับ ═══
+  await demo.step(9, "student", "รับหนังสือขอความอนุเคราะห์และส่งใบตอบรับ",
     "นักศึกษาดาวน์โหลดหนังสือไปยื่นบริษัท เมื่อบริษัทตอบรับ อัปโหลดใบตอบรับเข้าระบบ");
   await studentLogin();
   await demo.go("/student/docs");
@@ -177,8 +194,8 @@ test("สาธิตทั้งเส้นทาง: เปิดรอบ �
   await waitStatus(s.pk, "WAITING_FOR_STAFF_CHECK_LETTER");
   await demo.done("ส่งใบตอบรับแล้ว — สถานะ: รอเจ้าหน้าที่ตรวจใบตอบรับ");
 
-  // ═══ 9. เจ้าหน้าที่ตรวจใบตอบรับ ═══
-  await demo.step(9, "staff", "ตรวจใบตอบรับจากบริษัท", "เปิดดูใบตอบรับ แล้วกดผ่าน");
+  // ═══ 10. เจ้าหน้าที่ตรวจใบตอบรับ ═══
+  await demo.step(10, "staff", "ตรวจใบตอบรับจากบริษัท", "เปิดดูใบตอบรับ แล้วกดผ่าน");
   await staffLogin();
   await demo.go("/admin/doct000");
   await demo.type(p.getByPlaceholder(/ค้นหา/).first(), s.studentId);
@@ -192,8 +209,8 @@ test("สาธิตทั้งเส้นทาง: เปิดรอบ �
   await p.keyboard.press("Escape");
   await demo.done("ใบตอบรับผ่าน — สถานะ: รอออกหนังสือส่งตัว");
 
-  // ═══ 10. เจ้าหน้าที่ออกหนังสือส่งตัว ═══
-  await demo.step(10, "staff", "ออกหนังสือส่งตัว", "ขั้นตอนเดียวกับหนังสือขอความอนุเคราะห์ — ใส่เลขที่ สร้าง PDF โหลดร่าง แนบฉบับลงนาม");
+  // ═══ 11. เจ้าหน้าที่ออกหนังสือส่งตัว ═══
+  await demo.step(11, "staff", "ออกหนังสือส่งตัว", "ขั้นตอนเดียวกับหนังสือขอความอนุเคราะห์ — ใส่เลขที่ สร้าง PDF โหลดร่าง แนบฉบับลงนาม");
   await demo.go("/admin/doct000");
   await demo.type(p.getByPlaceholder(/ค้นหา/).first(), s.studentId);
   await demo.click(t000Row().getByRole("button", { name: "ออกหนังสือส่งตัว" }));
@@ -201,8 +218,8 @@ test("สาธิตทั้งเส้นทาง: เปิดรอบ �
   await waitStatus(s.pk, "PLACEMENT_LETTER_ISSUED");
   await demo.done(`ออกหนังสือส่งตัวเลขที่ อว ${DOC_NO(2)} แล้ว`);
 
-  // ═══ 11. นักศึกษารับหนังสือส่งตัว → เริ่มฝึกงาน ═══
-  await demo.step(11, "student", "รับหนังสือส่งตัวและเริ่มฝึกงาน", "กดดาวน์โหลดหนังสือส่งตัว ระบบเปลี่ยนสถานะเป็นช่วงฝึกสหกิจให้อัตโนมัติ");
+  // ═══ 12. นักศึกษารับหนังสือส่งตัว → เริ่มฝึกงาน ═══
+  await demo.step(12, "student", "รับหนังสือส่งตัวและเริ่มฝึกงาน", "กดดาวน์โหลดหนังสือส่งตัว ระบบเปลี่ยนสถานะเป็นช่วงฝึกสหกิจให้อัตโนมัติ");
   await studentLogin();
   await demo.go("/student/docs");
   const placeCard = p.locator("div", { has: p.getByRole("heading", { name: /หนังสือส่งตัว \(Placement Letter\)/ }) })
@@ -211,8 +228,8 @@ test("สาธิตทั้งเส้นทาง: เปิดรอบ �
   await waitStatus(s.pk, "INTERNSHIP_STARTED");
   await demo.done("สถานะ: ส่งเอกสารฝึกสหกิจ — ส่ง T002 และ T003 ได้ (ลำดับใดก่อนก็ได้)");
 
-  // ═══ 12. นักศึกษาส่ง T002 ═══
-  await demo.step(12, "student", "ส่ง T002 แบบแจ้งรายละเอียดงาน", "กรอกลักษณะงาน ดูตัวอย่าง PDF ที่ระบบสร้าง แล้วอัปโหลดฉบับลงนาม");
+  // ═══ 13. นักศึกษาส่ง T002 ═══
+  await demo.step(13, "student", "ส่ง T002 แบบแจ้งรายละเอียดงาน", "กรอกลักษณะงาน ดูตัวอย่าง PDF ที่ระบบสร้าง แล้วอัปโหลดฉบับลงนาม");
   await demo.go("/student/docs-t002");
   await demo.type(p.getByPlaceholder("อธิบายลักษณะงานที่ได้รับมอบหมายพอสังเขป..."), "พัฒนาระบบเว็บแอปพลิเคชันสำหรับงานบริการลูกค้า");
   await demo.click(p.getByRole("button", { name: "👁️ ดูตัวอย่าง / โหลด PDF" }));
@@ -224,16 +241,16 @@ test("สาธิตทั้งเส้นทาง: เปิดรอบ �
   await waitDoc(s.pk, "T002_FORM", "WAITING");
   await demo.done("ส่ง T002 แล้ว — รออาจารย์ที่ปรึกษาตรวจ");
 
-  // ═══ 13. นักศึกษาส่ง T003 ═══
-  await demo.step(13, "student", "ส่ง T003 โครงร่างรายงาน", "อัปโหลดโครงร่างรายงานฉบับลงนาม");
+  // ═══ 14. นักศึกษาส่ง T003 ═══
+  await demo.step(14, "student", "ส่ง T003 โครงร่างรายงาน", "อัปโหลดโครงร่างรายงานฉบับลงนาม");
   await demo.go("/student/docs-t003");
   await demo.files(p.locator("#upload-t003"), await samplePdf("t003", "T003 โครงร่างรายงานสหกิจศึกษา (ลงนามแล้ว)", [`${s.first} ${s.last}`, "หัวข้อ: ระบบบริการลูกค้าออนไลน์"]), p.getByText("📂 เลือกไฟล์ T003 เพื่ออัปโหลด"));
   await demo.click(p.getByRole("button", { name: /ยืนยันส่งไฟล์ T003/ }));
   await waitDoc(s.pk, "T003_FORM", "WAITING");
   await demo.done("ส่ง T003 แล้ว — รออาจารย์ที่ปรึกษาตรวจ");
 
-  // ═══ 14. อาจารย์ที่ปรึกษาตรวจ T002 / T003 ═══
-  await demo.step(14, "teacher", "อาจารย์ที่ปรึกษาตรวจ T002 และ T003", "เปิดเอกสารดู ให้ผ่าน หรือตีกลับพร้อมเหตุผล");
+  // ═══ 15. อาจารย์ที่ปรึกษาตรวจ T002 / T003 ═══
+  await demo.step(15, "teacher", "อาจารย์ที่ปรึกษาตรวจ T002 และ T003", "เปิดเอกสารดู ให้ผ่าน หรือตีกลับพร้อมเหตุผล");
   await teacherLogin();
   for (const [path, type] of [["/teacher/review-t002", "T002_FORM"], ["/teacher/review-t003", "T003_FORM"]] as const) {
     await demo.go(path);
@@ -246,8 +263,8 @@ test("สาธิตทั้งเส้นทาง: เปิดรอบ �
   }
   await demo.done("T002 และ T003 ผ่านแล้ว — นักศึกษาได้รับแจ้งเตือน");
 
-  // ═══ 15. นักศึกษาเสนอวันนิเทศ ═══
-  await demo.step(15, "student", "เสนอวันนิเทศ", "เลือกวันและรูปแบบ (ออนไลน์/ที่บริษัท) เสนอได้หลายตัวเลือก ส่งให้อาจารย์ที่ปรึกษาพิจารณา");
+  // ═══ 16. นักศึกษาเสนอวันนิเทศ ═══
+  await demo.step(16, "student", "เสนอวันนิเทศ", "เลือกวันและรูปแบบ (ออนไลน์/ที่บริษัท) เสนอได้หลายตัวเลือก ส่งให้อาจารย์ที่ปรึกษาพิจารณา");
   await studentLogin();
   await demo.go("/student/supervision");
   await demo.fill(p.locator('input[type="date"]').first(), isoDay(30));
@@ -258,8 +275,8 @@ test("สาธิตทั้งเส้นทาง: เปิดรอบ �
   await waitAppt(s.pk, "PENDING_TEACHER");
   await demo.done("ส่งวันนิเทศแล้ว — รออาจารย์ยืนยัน");
 
-  // ═══ 16. อาจารย์ยืนยันวัน → เจ้าหน้าที่ออกหนังสือขอนิเทศ ═══
-  await demo.step(16, "teacher", "อาจารย์ยืนยันวันนิเทศ", "เลือกวันที่นักศึกษาเสนอ หรือปฏิเสธพร้อมเหตุผลให้เสนอใหม่");
+  // ═══ 17. อาจารย์ยืนยันวัน → เจ้าหน้าที่ออกหนังสือขอนิเทศ ═══
+  await demo.step(17, "teacher", "อาจารย์ยืนยันวันนิเทศ", "เลือกวันที่นักศึกษาเสนอ หรือปฏิเสธพร้อมเหตุผลให้เสนอใหม่");
   await teacherLogin();
   await demo.go("/teacher/review-supervision");
   await demo.type(p.getByPlaceholder("🔍 ค้นหารหัส / ชื่อ / บริษัท...").first(), s.studentId);
@@ -269,7 +286,7 @@ test("สาธิตทั้งเส้นทาง: เปิดรอบ �
   await waitAppt(s.pk, "DATE_CONFIRMED");
   await demo.pause("อาจารย์ยืนยันวันนิเทศแล้ว — ต่อไปเจ้าหน้าที่ออกหนังสือขอนิเทศถึงบริษัท", "ไปที่เจ้าหน้าที่ ▶");
 
-  await demo.step(16, "staff", "ออกหนังสือขอนิเทศ", "ใส่เลขที่ สร้าง PDF โหลดร่าง แนบฉบับลงนาม — นักศึกษาและอาจารย์เห็นหนังสือทันที");
+  await demo.step(17, "staff", "ออกหนังสือขอนิเทศ", "ใส่เลขที่ สร้าง PDF โหลดร่าง แนบฉบับลงนาม — นักศึกษาและอาจารย์เห็นหนังสือทันที");
   await staffLogin();
   await demo.go("/admin/supervision-manager");
   await demo.type(p.getByPlaceholder("ค้นหา รหัส / ชื่อ / บริษัท / อาจารย์..."), s.studentId);
