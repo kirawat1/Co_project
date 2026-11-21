@@ -26,6 +26,22 @@ describe('deadlineConfigController', () => {
     expect(res.json.mock.calls[0][0]).toMatchObject({ isOpen: false, startDate: '2026-03-01', endDate: '2026-07-03', late: true, closed: false });
   });
 
+  // เจ้าหน้าที่ขยายเวลาให้รายคน: เดิม endDate ยังเป็นวันของรอบ → หน้านักศึกษาส่งได้แต่ขึ้น "หมดเขตการส่งเอกสาร"
+  test('T002 ได้รับขยายเวลา → เปิด · endDate = วันที่ขยายให้ (ไม่ใช่วันของรอบ)', async () => {
+    setup({ coop: { coopPeriodId: 1, status: 'INTERNSHIP_STARTED', deadlineExtensions: { T002: '2026-07-10' } } });
+    const res = makeRes();
+    await ctrl.getT002Config(student, res);
+    expect(res.json.mock.calls[0][0]).toMatchObject({ isOpen: true, endDate: '2026-07-10' });
+  });
+
+  test('ขยายเวลาไว้ก่อนวันของรอบ (ไม่มีผล) → endDate = วันของรอบ', async () => {
+    jest.setSystemTime(new Date('2026-07-01T00:00:00Z'));
+    setup({ coop: { coopPeriodId: 1, status: 'INTERNSHIP_STARTED', deadlineExtensions: { T002: '2026-06-20' } } });
+    const res = makeRes();
+    await ctrl.getT002Config(student, res);
+    expect(res.json.mock.calls[0][0]).toMatchObject({ endDate: '2026-07-03' });
+  });
+
   test('T000 ยังไม่เลือกรอบ → เปิด (แม้ค่าเดิมปิด)', async () => {
     setup({ coop: { coopPeriodId: null, status: 'QUALIFIED' }, configs: { T000_CONFIG: { isOpen: false } } });
     const res = makeRes();

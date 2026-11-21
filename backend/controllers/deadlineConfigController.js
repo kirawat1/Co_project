@@ -28,7 +28,9 @@ const windowGetter = (stepKey, legacyKey) => async (req, res) => {
       return res.json(config || { startDate: null, endDate: null, isOpen: false });
     }
     const d = await resolveDeadline(stepKey, { studentId: student.id, major: student.major || null });
-    res.json({ startDate: d.startDate, endDate: d.due, isOpen: d.canSubmit, late: d.late, closed: d.closed });
+    // ได้รับขยายเวลาเลยวันของรอบ → นับถอยหลังถึงวันที่ขยาย (เดิมส่งวันของรอบ หน้าเว็บส่งได้แต่ขึ้น "หมดเขต")
+    const endDate = d.extensionUntil && (!d.due || d.extensionUntil > d.due) ? d.extensionUntil : d.due;
+    res.json({ startDate: d.startDate, endDate, isOpen: d.canSubmit, late: d.late, closed: d.closed });
   } catch (err) { fail(res, err, `Get ${stepKey} deadline error:`); }
 };
 
