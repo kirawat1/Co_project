@@ -11,7 +11,7 @@ import {
 } from "./data";
 
 const FILTER = { "coop.adminMajorFilter": MAJOR };
-const TOTAL = 17;
+const TOTAL = 20;
 
 test("สาธิตทั้งเส้นทาง: เปิดรอบ → ยื่นคำร้อง → หนังสือ → ฝึกงาน → นิเทศ", async ({ page, context }) => {
   const demo = new Demo(context, "สาธิตระบบสหกิจศึกษา — ทั้งเส้นทาง", TOTAL);
@@ -293,5 +293,48 @@ test("สาธิตทั้งเส้นทาง: เปิดรอบ �
   await demo.click(p.locator(".responsive-table tr", { hasText: s.studentId }).getByRole("button", { name: "📄 ออกหนังสือ" }));
   await issueLetter(demo, DOC_NO(3), "signed-file-supervision", "หนังสือขอนิเทศ");
   await waitAppt(s.pk, "LETTER_UPLOADED");
-  await demo.end(`ครบทั้งเส้นทางแล้ว 🎉\nบัญชีสาธิตยังอยู่ ล็อกอินลองใช้ต่อได้ (รหัสผ่าน ${PASSWORD}):\n• ${studentEmail("s1")}\n• ${ACCOUNTS.teacher.email}\n• ${ACCOUNTS.staff.email}`);
+  await demo.done("ออกหนังสือขอนิเทศแล้ว — อาจารย์ไปนิเทศที่บริษัทตามวันที่นัด");
+
+  // ═══ 18. อาจารย์บันทึกว่านิเทศเสร็จ ═══
+  await demo.step(18, "teacher", "บันทึกว่านิเทศเสร็จสิ้น",
+    "หลังไปนิเทศที่บริษัทแล้ว อาจารย์กด \"จบนิเทศ\" — นักศึกษาได้แจ้งเตือนให้ทำขั้นสุดท้าย (แบบประเมินและเล่มรายงาน)");
+  await teacherLogin();
+  await demo.go("/teacher/review-supervision");
+  await demo.click(p.locator("tr", { hasText: s.studentId }).getByRole("button", { name: "🏁 จบนิเทศ" }).first());
+  await demo.confirm();
+  await waitAppt(s.pk, "COMPLETED");
+  await demo.wait(800);
+  await demo.done("สถานะนัดนิเทศ: นิเทศเสร็จสิ้น");
+
+  // ═══ 19. เจ้าหน้าที่ส่งแบบประเมินการนิเทศให้อาจารย์ ═══
+  await demo.step(19, "staff", "ส่งลิงก์แบบประเมินการนิเทศให้อาจารย์",
+    "ลิงก์แบบประเมิน (Google Form) ตั้งแยกตามหลักสูตรได้ · ส่งเองทีละรายการ/ทั้งหมด หรือตั้งให้ส่งอัตโนมัติเมื่ออาจารย์กดจบนิเทศ");
+  await staffLogin();
+  await demo.go("/admin/supervision-eval");
+  const evalRow = p.locator("tr", { hasText: s.studentId }).first();
+  await evalRow.waitFor();
+  await demo.point(evalRow);
+  await demo.click(evalRow.getByRole("button", { name: "ส่ง", exact: true }));
+  await demo.confirm();
+  await evalRow.getByText(/ส่งแล้ว/).waitFor();
+  await demo.pause("ส่งแล้ว — ลิงก์ขึ้นในหน้านิเทศของอาจารย์ผู้นิเทศ (และอาจารย์นิเทศร่วม)");
+  await teacherLogin();
+  await demo.go("/teacher/review-supervision");
+  const evalCard = p.locator("section", { hasText: "📋 แบบประเมินการนิเทศ" }).first();
+  await evalCard.waitFor();
+  await demo.point(evalCard);
+  await demo.done("อาจารย์เห็นแบบประเมินที่ต้องทำ พร้อมรายชื่อนักศึกษาที่นิเทศ");
+
+  // ═══ 20. นักศึกษา: แบบประเมินและเล่มรายงาน ═══
+  await demo.step(20, "student", "แบบประเมิน T005–T007 และส่งเล่มรายงาน T008",
+    "ขั้นสุดท้ายของนักศึกษา — คำชี้แจงและลิงก์ของแต่ละแบบฟอร์มตั้งแยกตามหลักสูตรได้");
+  await studentLogin();
+  await demo.go("/student/doc-t005-006");
+  await demo.point(p.getByText("แบบประเมินผลการปฏิบัติงาน (T005)"));
+  await demo.pause("T005/T006: ส่งลิงก์แบบประเมินให้พี่เลี้ยงที่บริษัท (CC อาจารย์ที่ปรึกษา)");
+  await demo.go("/student/doc-t007");
+  await demo.pause("T007: นักศึกษาประเมินสถานประกอบการ");
+  await demo.go("/student/doc-t008");
+  await demo.point(p.getByText("โฟลเดอร์ Google Drive (สำหรับส่งเล่มรายงาน)"));
+  await demo.end(`ครบทั้งเส้นทางแล้ว 🎉 ตั้งแต่นำเข้ารายชื่อจนส่งเล่มรายงาน\nบัญชีสาธิตยังอยู่ ล็อกอินลองใช้ต่อได้ (รหัสผ่าน ${PASSWORD}):\n• ${studentEmail("s1")}\n• ${ACCOUNTS.teacher.email}\n• ${ACCOUNTS.staff.email}`);
 });

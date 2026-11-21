@@ -85,7 +85,7 @@ export async function resetDemo() {
   claimDemoLock();
   const users = await prisma.user.findMany({ where: { username: { startsWith: "demo." } }, select: { id: true } });
   const userIds = users.map((u: { id: number }) => u.id);
-  const students = await prisma.student.findMany({ where: { OR: [{ userId: { in: userIds } }, { major: MAJOR }] }, select: { id: true } });
+  const students = await prisma.student.findMany({ where: { OR: [{ userId: { in: userIds } }, { major: { startsWith: MAJOR } }] }, select: { id: true } });
   const pks = students.map((s: { id: number }) => s.id);
   const teachers = (await prisma.teacher.findMany({ where: { userId: { in: userIds } }, select: { id: true } })).map((t: { id: number }) => t.id);
 
@@ -122,17 +122,17 @@ export async function resetDemo() {
   await prisma.company.deleteMany({ where: { id: { in: companyIds } } });
   await prisma.announcement.deleteMany({ where: { authorId: { in: userIds } } });
   await prisma.feedback.deleteMany({ where: { userId: { in: userIds } } });
-  await prisma.coopTeacherMajor.deleteMany({ where: { OR: [{ teacherId: { in: teachers } }, { major: MAJOR }] } });
+  await prisma.coopTeacherMajor.deleteMany({ where: { OR: [{ teacherId: { in: teachers } }, { major: { startsWith: MAJOR } }] } });
   await prisma.teacher.deleteMany({ where: { id: { in: teachers } } });
   await prisma.staffProfile.deleteMany({ where: { userId: { in: userIds } } });
   await prisma.user.deleteMany({ where: { id: { in: userIds } } });
   const st = readState();
   await prisma.coopPeriod.deleteMany({ where: { id: { in: st.periodIds } } });
   writeState({ periodIds: [] });
-  await prisma.coopPeriodMajor.deleteMany({ where: { major: MAJOR } });
-  await prisma.documentRequirementMajor.deleteMany({ where: { major: MAJOR } });
-  await prisma.systemConfig.deleteMany({ where: { key: { endsWith: `@${MAJOR}` } } });
-  await prisma.coopCriteria.deleteMany({ where: { major: MAJOR } });
+  await prisma.coopPeriodMajor.deleteMany({ where: { major: { startsWith: MAJOR } } });
+  await prisma.documentRequirementMajor.deleteMany({ where: { major: { startsWith: MAJOR } } });
+  await prisma.systemConfig.deleteMany({ where: { key: { contains: `@${MAJOR}` } } });
+  await prisma.coopCriteria.deleteMany({ where: { major: { startsWith: MAJOR } } }); // DEMO + หลักสูตรที่ชุด "เพิ่มหลักสูตร" สร้าง (DEMO-AI)
   await prisma.docNumberLock.deleteMany({ where: { number: { in: [...numbers] } } });
   for (const f of files) {
     const full = path.resolve(UPLOADS, f.replace(/^\/?uploads\//, ""));
@@ -142,6 +142,15 @@ export async function resetDemo() {
 }
 
 // ═════════════ สร้างข้อมูลตั้งต้น ═════════════
+const POST_SUPERVISION_CONFIG = {
+  EVALUATION_FORMS: {
+    instructionText: "เมื่อฝึกงานครบกำหนด ให้นักศึกษาส่งอีเมลถึงพี่เลี้ยงพร้อมลิงก์แบบประเมินด้านล่าง\n• T005 พี่เลี้ยงประเมินนักศึกษา\n• T006 พี่เลี้ยงประเมินรายงาน\nใส่อาจารย์ที่ปรึกษาใน CC ทุกครั้ง",
+    t005Link: "https://forms.gle/demo-t005", t006Link: "https://forms.gle/demo-t006", ccEmails: "demo.teacher@kkumail.com",
+  },
+  CONFIG_T007: { instructionText: "นักศึกษาประเมินสถานประกอบการหลังฝึกงานเสร็จ (ใช้เวลาประมาณ 5 นาที)", t007Link: "https://forms.gle/demo-t007" },
+  CONFIG_T008: { instructionText: "1. จัดทำเล่มรายงานตามแบบฟอร์มของวิทยาลัย\n2. ให้อาจารย์ที่ปรึกษาลงนามหน้าอนุมัติ\n3. อัปโหลดไฟล์ PDF เข้าโฟลเดอร์ของห้องสอบตัวเอง", driveLink: "https://drive.google.com/drive/folders/demo-t008" },
+  CONFIG_SUPERVISION_EVAL: { instructionText: "รบกวนอาจารย์ประเมินการนิเทศภายใน 7 วันหลังนิเทศ", evalLink: "https://forms.gle/demo-supervision", autoSend: false },
+};
 export interface Base { staffUserId: number; teacherPk: number; teacherUserId: number; companyId: string; contactId: string }
 
 export async function seedBase(): Promise<Base> {
@@ -158,7 +167,18 @@ export async function seedBase(): Promise<Base> {
     phone: "043-000000", email: "contact@example.com", createdById: staff.id,
   } });
   const contact = await prisma.companyContact.create({ data: { companyId: company.id, firstName: COMPANY.hr, lastName: COMPANY.hrLast, position: "ผู้จัดการฝ่ายบุคคล", email: "hr@example.com", phone: "043-000000" } });
+  // ค่าตั้งเฉพาะหลักสูตรสาธิต (ช่วงหลังนิเทศ) — ไม่แตะค่ากลางของระบบ · resetDemo ลบ key ที่มี @DEMO
+  for (const [key, value] of Object.entries(POST_SUPERVISION_CONFIG)) {
+    await prisma.systemConfig.create({ data: { key: `${key}@${MAJOR}`, value: JSON.stringify(value) } });
+  }
   return { staffUserId: staff.id, teacherPk: teacher.id, teacherUserId: tu.id, companyId: company.id, contactId: contact.id };
+}
+
+/** อาจารย์เพิ่ม (ยังไม่เป็นอาจารย์ประจำวิชา) — บัญชี demo.<key>@kkumail.com */
+export async function seedTeacher(key: string, prefix: string, firstName: string, lastName: string) {
+  const u = await prisma.user.create({ data: { username: `demo.${key}`, email: `demo.${key}@kkumail.com`, password: await bcrypt.hash(PASSWORD, 10), role: "teacher" } });
+  const t = await prisma.teacher.create({ data: { userId: u.id, prefix, firstName, lastName, email: u.email, major: MAJOR } });
+  return { pk: t.id as number, email: u.email as string, name: `${prefix}${firstName} ${lastName}` };
 }
 
 /** ข้อมูลส่วนตัวในใบสมัคร T000 (ที่อยู่/ผู้ปกครอง) กรอกไว้ก่อน — ขั้นสาธิตกรอกเฉพาะวันฝึกและเป้าหมาย */
@@ -208,6 +228,18 @@ export function studentsXlsx(indexes: number[]) {
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), "รายชื่อ");
   XLSX.writeFile(wb, file);
   return file;
+}
+
+/** ไฟล์ Excel ที่ระบบให้ดาวน์โหลด → ตาราง HTML (เปิดให้ดูบนจอในการสาธิต) */
+export function xlsxToHtml(file: string, maxRows = 40) {
+  const wb = XLSX.readFile(file);
+  return wb.SheetNames.slice(0, 3).map((name: string) => {
+    const rows: unknown[][] = XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, defval: "" });
+    const esc = (v: unknown) => String(v ?? "").replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]!));
+    const [head = [], ...body] = rows;
+    return `<h2>${esc(name)} <small>${body.length} แถว</small></h2><div class="wrap"><table><thead><tr>${head.map((h) => `<th>${esc(h)}</th>`).join("")}</tr></thead>`
+      + `<tbody>${body.slice(0, maxRows).map((r) => `<tr>${head.map((_, i) => `<td>${esc(r[i])}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+  }).join("");
 }
 
 /**

@@ -18,9 +18,17 @@ const LOGO = path.join(FRONTEND, 'src/assets/COOP_Logo.png');
 
 const ROLE = { staff: ['เจ้าหน้าที่', '#2563eb'], teacher: ['อาจารย์', '#16a34a'], student: ['นักศึกษา', '#d97706'] };
 const DEMOS = {
-  full: { file: 'full.demo.ts', title: 'ทั้งเส้นทาง: นำเข้ารายชื่อ → เปิดรอบ → ยื่นคำร้อง → หนังสือ → ฝึกงาน → นิเทศ', time: '~25–30 นาที',
+  full: { file: 'full.demo.ts', title: 'ทั้งเส้นทาง: นำเข้ารายชื่อ → เปิดรอบ → ยื่นคำร้อง → หนังสือ → ฝึกงาน → นิเทศ → ส่งเล่ม', time: '~30–35 นาที',
     roles: ['staff', 'student', 'teacher'],
-    desc: 'เจ้าหน้าที่นำเข้ารายชื่อจาก Excel เปิดรอบและตั้งปฏิทิน · นักศึกษาเลือกบริษัท ยื่นคำร้อง ส่ง T000 · อาจารย์ประจำวิชาพิจารณา · เจ้าหน้าที่ตรวจเอกสาร ออกหนังสือขอความอนุเคราะห์และส่งตัว · T002/T003 · นัดนิเทศ · หนังสือขอนิเทศ' },
+    desc: 'เจ้าหน้าที่นำเข้ารายชื่อจาก Excel เปิดรอบและตั้งปฏิทิน · นักศึกษาเลือกบริษัท ยื่นคำร้อง ส่ง T000 · อาจารย์ประจำวิชาพิจารณา · เจ้าหน้าที่ตรวจเอกสาร ออกหนังสือขอความอนุเคราะห์และส่งตัว · T002/T003 · นัดนิเทศ · หนังสือขอนิเทศ · จบนิเทศ · แบบประเมินการนิเทศ · T005–T008 ส่งเล่มรายงาน' },
+  report: { file: 'report.demo.ts', title: 'รายงานและส่งออก Excel', time: '~4 นาที', roles: ['staff'],
+    desc: 'Dashboard ภาพรวมของรอบ · ส่งออกรายชื่อนักศึกษาและเอกสาร · ส่งออกตารางนิเทศ — เปิดไฟล์ Excel ที่ได้ให้ดูบนจอ' },
+  major: { file: 'major.demo.ts', title: 'เพิ่มหลักสูตรใหม่', time: '~5 นาที', roles: ['staff', 'teacher'],
+    desc: 'เพิ่มหลักสูตร → เช็กลิสต์ความพร้อมบอกสิ่งที่ยังขาด → แต่งตั้งอาจารย์ประจำวิชา → ตั้งรอบและเปิดรับสมัคร → อาจารย์เข้าหน้าจัดการเฉพาะหลักสูตรตัวเอง' },
+  notify: { file: 'notify.demo.ts', title: 'ขยายเวลาส่งและประกาศ', time: '~5 นาที', roles: ['student', 'staff'],
+    desc: 'T000 เลยกำหนดแบบปิดรับ นักศึกษาส่งไม่ได้ · เจ้าหน้าที่ขยายเวลาให้รายคนพร้อมเหตุผล · นักศึกษาส่งได้ · ประกาศถึงห้องของหลักสูตร (ปักหมุด) · นักศึกษาเห็นประกาศ' },
+  logs: { file: 'logs.demo.ts', title: 'บันทึกการใช้งาน', time: '~3 นาที', roles: ['teacher', 'staff'],
+    desc: 'อาจารย์และเจ้าหน้าที่ทำงานคนละอย่าง → ดูบันทึกว่าใครทำอะไร เมื่อไร กับนักศึกษาคนไหน · แยกแท็บตามบทบาท · ส่งออก Excel' },
   return: { file: 'return.demo.ts', title: 'ตีกลับเอกสารให้แก้ แล้วส่งใหม่', time: '~4 นาที', roles: ['staff', 'student'],
     desc: 'เจ้าหน้าที่ส่งเอกสาร T000 กลับให้แก้พร้อมเหตุผล · นักศึกษาเห็นเหตุผลบนหน้าแรกและส่งไฟล์ใหม่ · เจ้าหน้าที่เห็นว่า "ส่งแก้ไขแล้ว" ตรวจซ้ำแล้วอนุมัติ' },
   pending: { file: 'pending.demo.ts', title: 'งานค้างและขั้นถัดไป', time: '~5 นาที', roles: ['staff', 'teacher', 'student'],
@@ -156,7 +164,7 @@ a{color:var(--blue)}
 <section class="card">
 <p class="desc">ลองใช้งานต่อเองได้หลังสาธิต · รหัสผ่านทุกบัญชี <code>demo1234</code> · ล็อกอินที่ <a href="http://localhost:5173" target="_blank">http://localhost:5173</a> (เลือกแท็บบทบาทให้ตรง)</p>
 <div class="acc"><div><b>นักศึกษา</b>demo.s1@kkumail.com<br><span style="color:var(--muted);font-size:13px">demo.s2 – demo.s4 ในการสาธิตหลายคน</span></div>
-<div><b>อาจารย์</b>demo.teacher@kkumail.com</div><div><b>เจ้าหน้าที่</b>demo.staff@kkumail.com</div></div>
+<div><b>อาจารย์</b>demo.teacher@kkumail.com<br><span style="color:var(--muted);font-size:13px">demo.teacher2 ในการสาธิตเพิ่มหลักสูตร</span></div><div><b>เจ้าหน้าที่</b>demo.staff@kkumail.com</div></div>
 <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><button class="btn-secondary" data-run="clean">🧹 ล้างข้อมูลสาธิต</button>
 <span style="font-size:13px;color:var(--muted)">ข้อมูลสาธิตอยู่จนกว่าจะล้าง · เริ่มสาธิตใหม่จะล้างของเดิมให้ก่อนเสมอ</span></div>
 </section>

@@ -338,6 +338,50 @@ export class Demo {
     await this.showPdf(`/__demo-file/${id}`, caption);
   }
 
+  /** กดปุ่มที่ให้ดาวน์โหลดไฟล์ แล้วเก็บไฟล์ไว้ที่ path */
+  async download(button: Locator, file: string) {
+    const dl = this.page.waitForEvent("download", { timeout: 30_000 });
+    await this.click(button);
+    await (await dl).saveAs(file);
+    return file;
+  }
+
+  /** เปิดตาราง (เช่น ไฟล์ Excel ที่เพิ่งดาวน์โหลด แปลงเป็น HTML แล้ว) ในแท็บใหม่ให้ดู */
+  private sheets = new Map<string, string>();
+  async showSheet(html: string, caption: string) {
+    if (this.fast) return;
+    const id = String(this.sheets.size + 1);
+    this.sheets.set(id, html);
+    if (this.sheets.size === 1) {
+      await this.context.route("**/__demo-sheet/*", (route) => {
+        const body = this.sheets.get(route.request().url().split("/").pop()!.split("?")[0]);
+        return body == null ? route.fulfill({ status: 404 }) : route.fulfill({ contentType: "text/html; charset=utf-8", body: Demo.sheetPage(body) });
+      });
+    }
+    const t = await this.context.newPage();
+    await t.goto(`/__demo-sheet/${id}?title=${encodeURIComponent(caption)}`);
+    await t.bringToFront();
+    Object.assign(this.state, { mode: "wait", result: `📊 ${caption}`, nextLabel: "ดูแล้ว ปิดไฟล์ ▶" });
+    await this.render();
+    await this.waitNext();
+    await t.close().catch(() => {});
+    await this.page.bringToFront();
+    this.state.mode = "run";
+    await this.render();
+  }
+
+  private static sheetPage(body: string) {
+    return `<!doctype html><html lang="th"><head><meta charset="utf-8"><title>ไฟล์ Excel</title><style>
+body{margin:0;padding:24px 28px 140px;background:#f7faff;color:#0f172a;font:14px/1.5 'Noto Sans Thai','Leelawadee UI',Tahoma,sans-serif}
+.bar{display:flex;align-items:center;gap:10px;margin-bottom:16px}.bar b{font-size:18px}.tag{background:#dcfce7;color:#166534;border-radius:999px;padding:2px 10px;font-size:12px;font-weight:700}
+h2{font-size:16px;margin:18px 0 8px}h2 small{color:#64748b;font-weight:400}
+.wrap{overflow:auto;background:#fff;border:1px solid #e2e8f0;border-radius:12px;max-height:70vh}
+table{border-collapse:collapse;min-width:100%}th{position:sticky;top:0;background:#f1f5f9;text-align:left;font-weight:700;white-space:nowrap}
+th,td{padding:7px 12px;border-bottom:1px solid #e2e8f0;vertical-align:top}td{white-space:nowrap;max-width:320px;overflow:hidden;text-overflow:ellipsis}
+</style></head><body><div class="bar"><span style="font-size:22px">📊</span><b id="t"></b><span class="tag">ไฟล์ .xlsx ที่ระบบสร้าง</span></div>${body}
+<script>document.getElementById('t').textContent=new URLSearchParams(location.search).get('title')||'ไฟล์ Excel'</script></body></html>`;
+  }
+
   /** หน้าครอบ PDF (ตอบจาก Playwright เอง ไม่ผ่าน Vite) */
   static async routePdfViewer(context: BrowserContext) {
     await context.route("**/__demo-pdf**", (route) => route.fulfill({
