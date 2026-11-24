@@ -87,7 +87,8 @@ test.describe("A. กำหนดส่งของนักศึกษา", ()
 
   test("/config/t000·t002·t003·evaluation·t007·t008 ตรงกับไทม์ไลน์ · ยังไม่มีรอบ = ส่งได้ไม่มีกำหนด · เจ้าหน้าที่ได้ค่ากลาง", async () => {
     const get = async (tk: string, key: string) => (await api(tk, "GET", `/api/coop/config/${key}`)).body;
-    expect(await get(s.x.token, "t000")).toMatchObject({ endDate: day(-2), isOpen: true, late: true, closed: false });
+    // ได้ขยายเวลาถึง day(3) → endDate = วันที่ขยาย (a420d1a: เดิมส่งวันของรอบ หน้าเอกสารขึ้น "หมดเขต" ทั้งที่ส่งได้)
+    expect(await get(s.x.token, "t000")).toMatchObject({ endDate: day(3), isOpen: true, late: true, closed: false });
     expect(await get(s.x.token, "t002")).toMatchObject({ endDate: day(-1), isOpen: true, late: true });
     expect(await get(s.x.token, "t003")).toMatchObject({ endDate: day(2), isOpen: true, late: false });
     expect((await get(s.x.token, "evaluation")).config.deadline).toBe(day(30));

@@ -54,7 +54,7 @@ const EXPECTED = {
     'POST /bulk':                '· · · ✓',
     'GET /':                     '✓ ✓ ✓ ✓',
     'POST /':                    '✓ ✓ ✓ ✓',
-    'GET /contacts':             '· · · ✓',
+    'GET /contacts':             '· · ✓ ✓', // อาจารย์ประจำวิชามีเมนูผู้ติดต่อ (HR) — เดิม 403 (พบจากการจำลองรอบ)
     'POST /:companyId/contacts': '✓ ✓ ✓ ✓',
     'PUT /contacts/:id':         '✓ ✓ ✓ ✓',
     'DELETE /contacts/:id':      '✓ ✓ ✓ ✓',

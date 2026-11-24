@@ -49,3 +49,7 @@ CLAUDE.md
 docs/design/specs/
 docs/design/plans/
 docs/superpowers/
+
+# จำลองรอบ (scripts/dev/simulate_round.js)
+backend/scripts/dev/.sim-state
+backend/scripts/dev/sim-report.txt

@@ -252,6 +252,12 @@ exports.reviewStudentStatus = async (req, res) => {
       if (req.file) try { fs.unlinkSync(path.join(__dirname, '../uploads', req.file.filename)); } catch (_) {}
       return res.status(400).json({ ok: false, message: 'status ไม่ถูกต้อง' });
     }
+    // ตีกลับต้องมีเหตุผลทุกที่ (wiki/decisions.md) — หน้าตรวจ T000 บังคับอยู่แล้ว · เดิมเรียก API ตรงด้วยเหตุผลว่างผ่านได้
+    // (นักศึกษาเห็นแค่ "ส่งกลับแก้ไข" ไม่รู้ว่าต้องแก้อะไร)
+    if ((status === 'EDITS_REQUIRED' || status === 'WAITING_FOR_PLACEMENT_LETTER') && !String(comment ?? '').trim()) {
+      if (req.file) try { fs.unlinkSync(path.join(__dirname, '../uploads', req.file.filename)); } catch (_) {}
+      return res.status(400).json({ ok: false, message: 'กรุณาระบุเหตุผล เพื่อให้นักศึกษาทราบว่าต้องแก้ไขอะไร' });
+    }
 
     const updateData = {
       status,

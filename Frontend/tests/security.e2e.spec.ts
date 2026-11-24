@@ -305,6 +305,12 @@ async function sweep(page: Page, u: KUser, base: string, routes: string[]) {
   for (const r of routes) {
     const url = `${base}/${r}`;
     await page.goto(url, { waitUntil: "networkidle" }).catch(() => {});
+    // รายการที่แสดงทีละชุด (useLoadMore) — ฐานข้อมูลในเครื่องมีข้อมูลเยอะ (เช่น ข้อมูลจำลองรอบ 100 คน) แถวที่ฝังไว้อาจอยู่เกินชุดแรก
+    for (let i = 0; i < 20; i++) {
+      const more = page.getByRole("button", { name: "แสดงเพิ่ม", exact: true }).first();
+      if (!(await more.isVisible().catch(() => false))) break;
+      await more.click({ timeout: 2_000 }).catch(() => {});
+    }
     if (await page.evaluate(() => /onerror="window\.__xss=1"|onload="window\.__xss=2"/.test(document.body.innerText))) shown.push(r);
     const found = await page.evaluate(() => {
       const w = window as unknown as { __xss?: number };

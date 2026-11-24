@@ -131,7 +131,9 @@ test.describe("B. ผู้ติดต่อ และ พี่เลี้ย
     const shared = X.contactIds[0];
     expect((await api(s.a.token, "DELETE", `/api/companies/contacts/${shared}`)).status).toBe(409);
     expect((await api(t.plain.token, "GET", "/api/companies/contacts")).status).toBe(403);
-    const all = (await api(staff.token, "GET", "/api/companies/contacts")).body.contacts;
+    // อาจารย์ประจำวิชามีเมนูผู้ติดต่อ (HR) — ต้องโหลดได้ (เดิม 403 หน้าขึ้นโหลดไม่สำเร็จ · พบจากการจำลองรอบ 100 คน)
+    expect((await api(t.coopCS.token, "GET", "/api/companies/contacts")).status).toBe(200);
+    const all =(await api(staff.token, "GET", "/api/companies/contacts")).body.contacts;
     expect(all.find((c: { id: string }) => c.id === shared)._count.studentCoops).toBeGreaterThanOrEqual(2);
     expect((await api(s.a.token, "DELETE", `/api/companies/contacts/${id}`)).status).toBe(200);
   });

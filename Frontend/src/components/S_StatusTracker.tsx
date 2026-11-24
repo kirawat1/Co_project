@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
-import { INTERNSHIP_STATUSES, isInternshipStatus, formsDone, FORM_STATE_LABEL, FORMS_DONE_LABEL, MAIN_STATUS_LABEL, type FormState } from "../utils/internshipForms";
+import { INTERNSHIP_STATUSES, isInternshipStatus, formsDone, FORM_STATE_LABEL, MAIN_STATUS_LABEL, type FormState } from "../utils/internshipForms";
+import { afterFormsAction } from "../utils/studentSteps";
 
 // สถานะของฟอร์ม T002/T003 (ส่งมาจากหน้าที่มีรายการเอกสาร) — ไม่ส่ง = ถือว่ายังไม่ส่ง
 export type TrackerForms = { t002: FormState; t003: FormState };
@@ -61,9 +62,10 @@ const ACTION_CONFIG: Record<string, { text: string; link?: string; linkText?: st
 };
 
 // ข้อความ "ขั้นตอนถัดไป" ช่วงฝึกงาน — มาจากสถานะของแต่ละฟอร์ม ไม่ผูกกับสถานะหลัก
-function internshipAction(forms: TrackerForms): { text: string; link?: string; linkText?: string; isWarning?: boolean } {
+// supervision = สถานะนัดนิเทศ (ไม่ส่งมา = ไม่รู้ → ชวนไปนัดเหมือนเดิม) — เดิมบอก "ไปนัดหมาย" แม้นิเทศเสร็จแล้ว
+function internshipAction(forms: TrackerForms, supervision?: string | null): { text: string; link?: string; linkText?: string; isWarning?: boolean } {
   const { t002, t003 } = forms;
-  if (formsDone(t002, t003)) return { text: `${FORMS_DONE_LABEL} — นัดหมายนิเทศสหกิจกับอาจารย์ และเตรียมส่งเล่มรายงาน T008`, link: "/student/supervision", linkText: "ไปนัดหมาย" };
+  if (formsDone(t002, t003)) return afterFormsAction(supervision);
   if (t002 === "REJECTED") return { text: "ต้องแก้ไข T002 — แบบแจ้งรายละเอียดงานและที่พัก", link: "/student/docs-t002", linkText: "ไปแก้ไข", isWarning: true };
   if (t003 === "REJECTED") return { text: "ต้องแก้ไข T003 — โครงร่างรายงานสหกิจ", link: "/student/docs-t003", linkText: "ไปแก้ไข", isWarning: true };
   if (t002 === "NONE" && t003 === "NONE") return { text: "กำลังฝึกสหกิจ — ส่งเอกสาร T002 แบบแจ้งรายละเอียดงาน และ T003 โครงร่างรายงาน (ส่งเมื่อไรก่อนก็ได้ ไม่ต้องรอกัน)", link: "/student/docs-t002", linkText: "ไปหน้า T002" };
@@ -99,9 +101,9 @@ function getCurrentPhaseIndex(status: string, forms: TrackerForms): number {
 interface Props { status: string; lastComment?: string; showNextStep?: boolean; forms?: TrackerForms; viewer?: boolean }
 
 // กล่อง "ขั้นตอนถัดไป" + ปุ่มพาไปทำ — Dashboard แสดงตลอด (เดิมซ่อนอยู่หลัง "ดูรายละเอียด")
-export function NextStepBar({ status, lastComment, forms, viewer = false }: { status: string; lastComment?: string; forms?: TrackerForms; viewer?: boolean }) {
+export function NextStepBar({ status, lastComment, forms, viewer = false, supervision }: { status: string; lastComment?: string; forms?: TrackerForms; viewer?: boolean; supervision?: string | null }) {
   const navigate = useNavigate();
-  const action = isInternshipStatus(status) ? internshipAction(forms ?? NO_FORMS) : (ACTION_CONFIG[status] ?? { text: "ดำเนินการตามขั้นตอนที่กำหนด" });
+  const action = isInternshipStatus(status) ? internshipAction(forms ?? NO_FORMS, supervision) : (ACTION_CONFIG[status] ?? { text: "ดำเนินการตามขั้นตอนที่กำหนด" });
   return (
     <div style={{ background:action.isWarning?"#fff7ed":"#eff6ff", border:`1px solid ${action.isWarning?"#fed7aa":"#bfdbfe"}`, borderRadius:16, padding:"14px 20px", display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, flexWrap:"wrap" }}>
       <div style={{ flex:"1 1 240px", minWidth:0 }}>

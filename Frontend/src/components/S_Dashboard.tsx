@@ -10,6 +10,7 @@ import StatusBadge from "./StatusBadge";
 import S_StatusTracker, { NextStepBar } from "./S_StatusTracker";
 import FormStateBadge from "./FormStateBadge";
 import { isInternshipStatus, formState, latestForm, type FormState } from "../utils/internshipForms";
+import { deadlineNeedsAction, type DeadlineStep } from "../utils/studentSteps";
 
 function safeHref(url: string | null | undefined): string | undefined {
   if (!url) return undefined;
@@ -176,11 +177,13 @@ export default function S_Dashboard() {
       .filter((v): v is { id: string; start: Date; end: Date } => v !== null);
   }, [configs]);
 
-  // Countdown สำหรับ deadline ที่ใกล้ที่สุด
+  // Countdown สำหรับ deadline ที่ใกล้ที่สุด — เฉพาะขั้นที่นักศึกษายังต้องส่ง (deadlineNeedsAction)
+  // เดิมนับทุกขั้นที่เปิดรับ: นักศึกษาที่ฝึกงานแล้วเห็น "ปิดรับ T000 → อัปโหลดเอกสารตอนนี้"
   const nearestDeadline = useMemo(() => {
-    if (activeDocs.length === 0) return null;
-    return activeDocs.reduce((a, b) => (a.end < b.end ? a : b));
-  }, [activeDocs]);
+    const mine = activeDocs.filter((d) => deadlineNeedsAction(d.id as DeadlineStep, studentStatus, forms));
+    if (mine.length === 0) return null;
+    return mine.reduce((a, b) => (a.end < b.end ? a : b));
+  }, [activeDocs, studentStatus, forms]);
 
   const [countdown, setCountdown] = useState("");
   useEffect(() => {
@@ -264,7 +267,7 @@ export default function S_Dashboard() {
       </div>
 
       {/* ขั้นตอนถัดไป + ปุ่มพาไปทำ แสดงตลอด (เดิมต้องกด "ดูรายละเอียด" ก่อน) · รายละเอียด = ไทม์ไลน์ทุกขั้น */}
-      <div style={{ marginBottom: 16 }}><NextStepBar status={studentStatus} lastComment={lastComment} forms={forms} /></div>
+      <div style={{ marginBottom: 16 }}><NextStepBar status={studentStatus} lastComment={lastComment} forms={forms} supervision={supervisions?.status} /></div>
       {statusExpanded && <S_StatusTracker status={studentStatus} lastComment={lastComment} showNextStep={false} forms={forms} />}
 
       {/* ===== COUNTDOWN ===== */}

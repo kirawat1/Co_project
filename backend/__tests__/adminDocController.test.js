@@ -655,6 +655,23 @@ describe('reviewStudentStatus', () => {
       expect(res.status).not.toHaveBeenCalled();
       expect(prisma.studentCoop.upsert.mock.calls[0][0].update.status).toBe('EDITS_REQUIRED');
     });
+
+    // ตีกลับต้องมีเหตุผลทุกที่ (wiki/decisions.md) — หน้าตรวจ T000 บังคับอยู่แล้ว เรียก API ตรงต้องได้ 400 เหมือนกัน
+    // (พบจากการจำลองรอบ 100 คน: ส่งกลับแก้ T000 / ตีกลับใบตอบรับด้วยเหตุผลว่างผ่านได้)
+    test.each([
+      ['EDITS_REQUIRED', 'WAITING_FOR_STAFF_CHECK'],
+      ['WAITING_FOR_PLACEMENT_LETTER', 'WAITING_FOR_STAFF_CHECK_LETTER'],
+    ])('ตีกลับเป็น %s โดยไม่มีเหตุผล → 400 ไม่เปลี่ยนสถานะ', async (status, current) => {
+      for (const comment of [undefined, '', '   ']) {
+        withCurrent(current);
+        prisma.studentCoop.upsert.mockClear();
+        const res = makeRes();
+        await reviewStudentStatus({ body: { studentId: '1', status, comment }, file: null }, res);
+        expect(res.status).toHaveBeenCalledWith(400);
+        expect(res.json.mock.calls[0][0].message).toMatch(/เหตุผล/);
+        expect(prisma.studentCoop.upsert).not.toHaveBeenCalled();
+      }
+    });
   });
 });
 
