@@ -53,9 +53,10 @@ test("สาธิตเพิ่มหลักสูตรใหม่", async
   await demo.step(3, "staff", "แต่งตั้งอาจารย์ประจำวิชาของหลักสูตร",
     `เปิดข้อมูล ${t2.name} → เปิดสวิตช์ "อาจารย์ประจำวิชาสหกิจ" → เลือกหลักสูตรที่ดูแล`);
   await demo.go("/admin/teachers");
-  await demo.type(p.getByPlaceholder("ค้นหา: ชื่อ / อีเมล / เบอร์โทร"), "วิไล");
+  // ค้นด้วยอีเมลของอาจารย์สาธิต — ฐานที่มีข้อมูลตัวอย่างมีอาจารย์ชื่อขึ้นต้น "วิไล" คนอื่น (เช่น วิไลวรรณ) เดิมกดแก้ไขผิดคน
+  await demo.type(p.getByPlaceholder("ค้นหา: ชื่อ / อีเมล / เบอร์โทร"), t2.email);
   await demo.wait(800);
-  await demo.click(p.locator("tr", { hasText: "วิไล" }).getByRole("button", { name: /แก้ไข/ }).first());
+  await demo.click(p.locator("tr", { hasText: "วิไล" }).filter({ hasText: "ตัวอย่าง" }).getByRole("button", { name: /แก้ไข/ }).first());
   const toggle = p.getByLabel("อาจารย์ประจำวิชาสหกิจ");
   await demo.click(toggle.locator("..")); // ช่องติ๊กซ่อน (สวิตช์) — กดที่ตัวสวิตช์
   if (!(await toggle.isChecked())) throw new Error("เปิดสวิตช์อาจารย์ประจำวิชาไม่สำเร็จ");

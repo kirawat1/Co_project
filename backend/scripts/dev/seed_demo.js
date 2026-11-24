@@ -47,9 +47,11 @@ function samplePdf(label) {
   return Buffer.from(out, 'latin1');
 }
 let fileN = 0;
-const file = (label) => {
+// dir = โฟลเดอร์ย่อยใต้ uploads (หนังสือขอนิเทศอยู่ uploads/supervision — เดิมเขียนไว้ที่ uploads ตรงๆ ระบบหาไฟล์ไม่เจอ)
+const file = (label, dir = '') => {
   const name = `demo-${++fileN}-${label}.pdf`;
-  fs.writeFileSync(path.join(UPLOADS, name), samplePdf(label));
+  fs.mkdirSync(path.join(UPLOADS, dir), { recursive: true });
+  fs.writeFileSync(path.join(UPLOADS, dir, name), samplePdf(label));
   return name;
 };
 
@@ -226,7 +228,7 @@ async function main() {
   // ── นัดนิเทศ: รออาจารย์เลือกวัน · ยืนยันวันแล้ว · ออกหนังสือแล้ว ──
   await prisma.supervisionAppointment.create({ data: { studentId: S.intern.pk, teacherId: tAdv.id, supervisionType: 'ONLINE', onlineLink: 'https://meet.example.com/abc-defg-hij', proposedDates: JSON.stringify([`${ymd(35)}T09:00:00+07:00`, `${ymd(37)}T13:00:00+07:00`, `${ymd(40)}T10:00:00+07:00`]), status: 'PENDING_TEACHER' } });
   await prisma.supervisionAppointment.create({ data: { studentId: S.intern2.pk, teacherId: tAdv.id, supervisionType: 'ONSITE', proposedDates: JSON.stringify([`${ymd(42)}T09:00:00+07:00`, `${ymd(44)}T13:00:00+07:00`]), status: 'DATE_CONFIRMED', confirmedDate: at(42), confirmedEndDate: at(42, 12) } });
-  await prisma.supervisionAppointment.create({ data: { studentId: S.intern3.pk, teacherId: tCoop.id, supervisionType: 'ONSITE', proposedDates: JSON.stringify([`${ymd(50)}T10:00:00+07:00`]), status: 'LETTER_UPLOADED', confirmedDate: at(50, 10), confirmedEndDate: at(50, 12), officialLetterPath: file('supervision'), letterDocNumber: '0000.00/2900', letterDocDate: d(-1) } });
+  await prisma.supervisionAppointment.create({ data: { studentId: S.intern3.pk, teacherId: tCoop.id, supervisionType: 'ONSITE', proposedDates: JSON.stringify([`${ymd(50)}T10:00:00+07:00`]), status: 'LETTER_UPLOADED', confirmedDate: at(50, 10), confirmedEndDate: at(50, 12), officialLetterPath: file('supervision', 'supervision'), letterDocNumber: '0000.00/2900', letterDocDate: d(-1) } });
 
   // ── ประกาศ ──
   const ann = (title, body, days, pinned = false) => prisma.announcement.create({ data: { title, body, date: d(days), year: '2/2569', pinned, authorId: staffU.id, targetMajors: [] } });
