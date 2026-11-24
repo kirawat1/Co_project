@@ -6,7 +6,7 @@ import { test } from "@playwright/test";
 import { Demo } from "./kit";
 import { waitStatus, waitDoc, waitAppt, issueLetter } from "./steps";
 import {
-  ACCOUNTS, COMPANY, MAJOR, MAJOR_NAME, PASSWORD, DOC_NO, STUDENTS, isoDay, prisma, resetDemo, seedBase, samplePdf,
+  ACCOUNTS, COMPANY, MAJOR, MAJOR_NAME, PASSWORD, DOC_NO, STUDENTS, isoDay, prisma, resetDemo, seedBase, samplePdf, samplePhoto,
   freeAcademicYear, rememberPeriod, studentEmail, studentsXlsx, adoptImported, type Base,
 } from "./data";
 
@@ -119,9 +119,13 @@ test("สาธิตทั้งเส้นทาง: เปิดรอบ �
 
   // ═══ 6. นักศึกษากรอกใบสมัคร T000 + ส่งเอกสาร ═══
   await demo.step(6, "student", "กรอกใบสมัคร T000 และส่งเอกสารประกอบ",
-    "ข้อมูลส่วนตัวกรอกไว้แล้ว — ใส่ช่วงวันฝึกและเป้าหมาย ระบบสร้างใบสมัคร PDF ให้ แล้วแนบเอกสารแต่ละหัวข้อ");
+    "ข้อมูลส่วนตัวกรอกไว้แล้ว — อัปโหลดรูปถ่าย ใส่ช่วงวันฝึกและเป้าหมาย ระบบสร้างใบสมัคร PDF (มีรูปในกรอบ) แล้วแนบเอกสารแต่ละหัวข้อ");
   await studentLogin();
   await demo.go("/student/docs");
+  // รูปถ่ายสำหรับใบสมัคร — เลือกไฟล์แล้วระบบครอปเป็นสัดส่วนรูปติดบัตรและอัปโหลดให้ทันที
+  await demo.files(p.locator('input[type="file"][accept="image/*"]').first(), await samplePhoto(), p.getByText("รูปถ่ายสำหรับใบสมัคร").first());
+  await p.locator('img[alt="รูปถ่ายสำหรับใบสมัคร"]').waitFor({ timeout: 20_000 });
+  await demo.wait(800);
   const goal = p.locator("div", { has: p.getByText("🎯 ระยะเวลาและจุดมุ่งหมาย") }).last();
   const goalDates = goal.locator('input[type="date"]');
   await demo.fill(goalDates.nth(0), isoDay(45));

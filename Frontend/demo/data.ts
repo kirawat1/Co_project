@@ -102,6 +102,7 @@ export async function resetDemo() {
     }
   };
   for (const c of await prisma.studentCoop.findMany({ where: { studentId: { in: pks } } })) collect(c);
+  for (const f of await prisma.coopApplicationForm.findMany({ where: { studentId: { in: pks } }, select: { photoPath: true } })) if (f.photoPath) files.add(f.photoPath);
   const appts = await prisma.supervisionAppointment.findMany({ where: { OR: [{ studentId: { in: pks } }, { teacherId: { in: teachers } }] } });
   for (const a of appts) collect(a);
   const apptIds = appts.map((a: { id: number }) => a.id);
@@ -199,7 +200,8 @@ export async function seedStudent(i: number, base: Base, o: { coop?: Record<stri
     userId: u.id, studentId: s.studentId, prefix: s.prefix, firstName: s.first, lastName: s.last, email: u.email,
     major: MAJOR, year: "4", phone: "0812345678", studyProgram: "normal", gpa: 3.25, coopAdvisorId: base.teacherPk,
   } });
-  await prisma.coopApplicationForm.create({ data: { studentId: st.id, ...FORM, contactEmail: u.email, ...(o.form || {}) } });
+  const photoPath = putUpload(await samplePhoto(), `demo-${s.key}-photo.png`); // รูปถ่ายในกรอบรูปของใบสมัคร T000
+  await prisma.coopApplicationForm.create({ data: { studentId: st.id, ...FORM, photoPath, contactEmail: u.email, ...(o.form || {}) } });
   if (o.coop !== null) {
     await prisma.studentCoop.create({ data: {
       studentId: st.id, status: "NOT_SUBMITTED",
@@ -259,6 +261,25 @@ export async function adoptImported(i: number, base: Base) {
 }
 
 // ═════════════ ไฟล์ PDF ตัวอย่าง (มีข้อความไทยจริง ให้เปิดดูแล้วรู้ว่าเป็นเอกสารอะไร) ═════════════
+/** รูปถ่ายตัวอย่างสำหรับใบสมัคร T000 — ภาพวาดเงาคน (ไม่ใช่รูปคนจริง) ป้าย "รูปตัวอย่าง" สัดส่วนรูปติดบัตร */
+export async function samplePhoto() {
+  fs.mkdirSync(FILES, { recursive: true });
+  const file = path.join(FILES, "photo.png");
+  if (fs.existsSync(file)) return file;
+  const b = await chromium.launch();
+  const p = await b.newPage({ viewport: { width: 500, height: 600 } });
+  await p.setContent(`<!doctype html><html><head><meta charset="utf-8"><style>
+    html,body{margin:0;width:500px;height:600px;background:linear-gradient(#dbeafe,#bfdbfe);overflow:hidden;font-family:'Sarabun','Leelawadee UI',Tahoma,sans-serif}
+    .tag{position:absolute;left:0;right:0;bottom:22px;text-align:center;color:#1e3a8a;font-size:30px;font-weight:700}
+  </style></head><body>
+  <svg width="500" height="600" viewBox="0 0 500 600"><circle cx="250" cy="215" r="105" fill="#64748b"/>
+  <path d="M60 600 C60 430 150 360 250 360 C350 360 440 430 440 600 Z" fill="#475569"/></svg>
+  <div class="tag">รูปตัวอย่าง</div></body></html>`);
+  await p.screenshot({ path: file });
+  await b.close();
+  return file;
+}
+
 export async function samplePdf(name: string, title: string, lines: string[] = []) {
   fs.mkdirSync(FILES, { recursive: true });
   const file = path.join(FILES, `${name}.pdf`);
