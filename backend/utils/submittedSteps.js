@@ -92,4 +92,19 @@ function backfillEntries(existing, docs, requiredKeys) {
   return changed ? steps : null;
 }
 
-module.exports = { markSubmitted, requiredDocKeys, t000Complete, syncT000Submission, backfillEntries, TRACKED_STEPS, NON_T000_TYPES };
+// เอกสารบังคับของชุด T000 ที่ยังขาด / ยังไม่ผ่าน (ชื่อหัวข้อ) — ใช้ก่อนตั้ง "เอกสารผ่าน" (DOCS_APPROVED)
+// หัวข้อที่ปิดไว้ (isActive=false) ไม่นับ · ใบตอบรับไม่ใช่ชุด T000
+// เดิมไม่มีด่านนี้: "อนุมัติทั้งหมด" ให้คนที่ส่งไม่ครบผ่านได้ · หน้าเว็บนับหัวข้อที่ปิดไว้ ผ่านครบทุกฉบับสถานะก็ไม่เปลี่ยน (พบ 2026-11-24)
+async function t000DocGaps(db, studentId, major) {
+  const keys = (await requiredDocKeys(db, major)).filter((k) => !NON_T000_TYPES.includes(k));
+  if (!keys.length) return { missing: [], notApproved: [] };
+  const docs = await db.document.findMany({ where: { studentId, type: { in: keys } }, select: { type: true, status: true } });
+  const titles = Object.fromEntries((await db.documentRequirement.findMany({ where: { docKey: { in: keys } }, select: { docKey: true, title: true } }))
+    .map((r) => [r.docKey, r.title]));
+  const name = (k) => titles[k] || k;
+  const missing = keys.filter((k) => !docs.some((d) => d.type === k)).map(name);
+  const notApproved = keys.filter((k) => docs.some((d) => d.type === k) && !docs.some((d) => d.type === k && d.status === 'APPROVED')).map(name);
+  return { missing, notApproved };
+}
+
+module.exports = { markSubmitted, requiredDocKeys, t000Complete, t000DocGaps, syncT000Submission, backfillEntries, TRACKED_STEPS, NON_T000_TYPES };

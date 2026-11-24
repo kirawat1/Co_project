@@ -197,15 +197,17 @@ export default function A_CoopApplications() {
             onConfirm: async () => {
                 closeConfirm();
                 try {
+                    // ส่งเหตุผลทั้ง "ส่งกลับแก้ไข" และ "ไม่ผ่าน" — เดิมส่งเฉพาะส่งกลับแก้ ปุ่มไม่ผ่านจึงโดน server ตอบ 400 ทุกครั้ง
+                    // (พบจากการจำลองกดมือ 2026-11-24 — กดไม่ผ่านจากหน้าเว็บไม่ได้เลยตั้งแต่ server บังคับเหตุผล 2026-11-04)
                     await axios.patch(`/api/admin/coop-applications/${selectedApp.id}/status`, {
                         status,
-                        comment: status === "APPLICATION_EDITS_REQUIRED" ? comment : null
+                        comment: status === "APPLICATION_EDITS_REQUIRED" || status === "QUALIFICATION_FAILED" ? comment : null
                     }, { headers: { Authorization: `Bearer ${token}` } });
                     toast.success("บันทึกสถานะเรียบร้อย");
                     closeAndResetModal();
                     fetchApplications();
-                } catch {
-                    toast.error("เกิดข้อผิดพลาดในการอัปเดตสถานะ");
+                } catch (err: any) {
+                    toast.error(err?.response?.data?.message || "เกิดข้อผิดพลาดในการอัปเดตสถานะ");
                 }
             },
         });

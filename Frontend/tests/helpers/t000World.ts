@@ -49,6 +49,7 @@ export class T000World {
   latePeriodId!: number;
   companyId!: string;
   required: string[] = [];
+  offKey = "";
   titles: Record<string, string> = {}; // docKey → ชื่อหัวข้อที่นักศึกษาเห็น
   s: Record<string, WorldStudent> = {};
 
@@ -88,6 +89,9 @@ export class T000World {
     this.companyId = c.id;
 
     const [k0, k1] = this.required;
+    // หัวข้อบังคับที่ปิดไว้ (isActive=false) — หน้าตรวจ T000 ต้องไม่นับ (เดิมนับ ผ่านครบทุกฉบับแล้วสถานะไม่เปลี่ยน · 2026-11-24)
+    this.offKey = `ZT-OFF-${this.tail}`;
+    await prisma.documentRequirement.create({ data: { docKey: this.offKey, title: "ZT หัวข้อบังคับที่ปิดไว้", isRequired: true, isActive: false } });
     // key → [สถานะ, รอบ, ไฟล์, ข้อมูลเพิ่ม]
     const plan: [string, string, "open" | "late", DocSeed, Record<string, any>][] = [
       // ยังไม่ส่ง — อัปโหลดทีละหัวข้อจนครบ = ส่งครั้งแรก
@@ -102,6 +106,10 @@ export class T000World {
       ["late", "QUALIFIED", "late", {}, { t000Status: "WAITING" }],
       // เจ้าหน้าที่กำลังตรวจ (ไฟล์รอตรวจ) — อนุมัติทั้งหมด / ผ่านรายไฟล์
       ["review", "WAITING_FOR_STAFF_CHECK", "open", this.all("WAITING"), { t000Status: "PENDING" }],
+      // (2026-11-24) ส่งไม่ครบ 1 หัวข้อ — อนุมัติทั้งหมดไม่ได้
+      ["partial", "QUALIFIED", "open", { [k0]: "WAITING" }, { t000Status: "WAITING" }],
+      // (2026-11-24) เจ้าหน้าที่กด "ผ่าน" ทีละฉบับผ่านหน้าเว็บ
+      ["perDoc", "WAITING_FOR_STAFF_CHECK", "open", this.all("WAITING"), { t000Status: "PENDING" }],
       // ใบตอบรับรอตรวจ
       ["accWait", "WAITING_FOR_STAFF_CHECK_LETTER", "open", { ...this.all("APPROVED"), "CP-ACCEPTANCE": "WAITING" }, { reqLetterUrl: "zt-req.pdf", acceptanceFileUrl: "zt-acc.pdf" }],
       // ข้อมูลเก่า: ตีกลับใบตอบรับเป็น EDITS_REQUIRED ทั้งที่ออกหนังสือขอความอนุเคราะห์แล้ว
@@ -150,6 +158,7 @@ export class T000World {
     await prisma.notification.deleteMany({ where: { relatedId: { in: pks.map(String) }, createdAt: { gte: this.startedAt }, type: { in: ["T000_SUBMITTED", "ACCEPTANCE_UPLOADED"] } } });
     await prisma.auditLog.deleteMany({ where: { userId: { in: userIds }, createdAt: { gte: this.startedAt } } });
     await prisma.document.deleteMany({ where: { studentId: { in: pks } } });
+    if (this.offKey) await prisma.documentRequirement.deleteMany({ where: { docKey: this.offKey } });
     await prisma.studentCoop.deleteMany({ where: { studentId: { in: pks } } });
     await prisma.student.deleteMany({ where: { id: { in: pks } } });
     if (this.companyId) await prisma.company.deleteMany({ where: { id: this.companyId } });

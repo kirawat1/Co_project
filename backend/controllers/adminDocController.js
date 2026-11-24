@@ -12,6 +12,7 @@ const { getMajorScope, studentWhere, visibleStudentWhere, inScope, assertStudent
 const { setAuditDetail, reviewActionText, letterPendingActionText, letterPendingBulkActionText } = require('../utils/auditActions');
 const { studentPeriodWhere, coopPeriodWhere, countByPeriod } = require('../utils/periodFilter');
 const { INTERNSHIP_STATUSES, reviewForm, formPendingStudent } = require('../utils/internshipForms');
+const { t000DocGaps } = require('../utils/submittedSteps');
 const path = require('path');
 const fs = require('fs');
 
@@ -344,6 +345,17 @@ exports.reviewStudentStatus = async (req, res) => {
         throw Object.assign(new Error(T000_REVIEWABLE === REVIEW_FROM[status]
           ? 'ตรวจเอกสาร T000 ได้หลังคำร้องผ่านแล้ว และก่อนออกหนังสือขอความอนุเคราะห์'
           : 'ตรวจใบตอบรับได้หลังออกหนังสือขอความอนุเคราะห์ และก่อนออกหนังสือส่งตัว'), { is409: true });
+      }
+      // "เอกสารผ่าน" ต้องมีเอกสารบังคับครบและผ่านทุกฉบับ (หน้าเว็บตั้งสถานะนี้เมื่อกดผ่านรายฉบับครบ)
+      if (status === 'DOCS_APPROVED') {
+        const s = await tx.student.findUnique({ where: { id: parsedStudentId }, select: { major: true } });
+        const { missing, notApproved } = await t000DocGaps(tx, parsedStudentId, s?.major);
+        if (missing.length || notApproved.length) {
+          throw Object.assign(new Error([
+            missing.length ? `ยังไม่ได้ส่ง: ${missing.join(', ')}` : '',
+            notApproved.length ? `ยังไม่ผ่าน: ${notApproved.join(', ')}` : '',
+          ].filter(Boolean).join(' · ')), { is400: true });
+        }
       }
       if (LETTER_ISSUE_STATUSES.has(status)) {
         const L = status === 'REQ_LETTER_ISSUED' ? LETTERS.reqLetter : LETTERS.placeLetter;
@@ -959,6 +971,12 @@ exports.approveAllDocs = async (req, res) => {
       if (!coop || !T000_REVIEWABLE.has(coop.status)) {
         throw Object.assign(new Error('ไม่สามารถอนุมัติได้ในสถานะปัจจุบัน'), { is400: true });
       }
+      // ต้องส่งเอกสารบังคับครบก่อน — เดิมอนุมัติคนที่ส่ง 2 จาก 6 ฉบับได้ (สถานะ "เอกสารครบถ้วน" ทั้งที่ไม่ครบ · พบ 2026-11-24)
+      const s = await tx.student.findUnique({ where: { id: parsedId }, select: { major: true } });
+      const { missing } = await t000DocGaps(tx, parsedId, s?.major);
+      if (missing.length) {
+        throw Object.assign(new Error(`นักศึกษายังส่งเอกสารไม่ครบ: ${missing.join(', ')}`), { is400: true });
+      }
       await tx.document.updateMany({
         where: { studentId: parsedId },
         data: { status: 'APPROVED' }
@@ -975,6 +993,17 @@ exports.approveAllDocs = async (req, res) => {
     });
 
     res.json({ ok: true, message: "Approve all success" });
+
+    // แจ้งนักศึกษาเหมือนกดผ่านรายฉบับครบ (เดิม "อนุมัติทั้งหมด" ไม่แจ้งเลย)
+    prisma.student.findUnique({ where: { id: parsedId }, select: { userId: true } })
+      .then((st) => st?.userId && createNotifications([st.userId], {
+        type: 'DOCS_UPDATED',
+        title: 'สถานะสหกิจศึกษาอัปเดต',
+        message: 'เอกสาร T000 ผ่านการตรวจสอบ ✅',
+        link: '/student/docs',
+        relatedId: String(parsedId),
+      }))
+      .catch(console.error);
   } catch (err) {
     if (err.is404) return res.status(404).json({ ok: false, message: err.message });
     if (err.is400) return res.status(400).json({ ok: false, message: err.message });
@@ -1081,7 +1110,9 @@ exports.updateCoopApplicationStatus = async (req, res) => {
       }
       updated = await tx.studentCoop.update({
         where: { id: parsedId },
-        data: { status, staffCheckComment: reason || null }
+        // teacherCheckComment = ช่องที่หน้านักศึกษาอ่าน (หน้ายื่นคำร้อง/หน้าแรก) — เดิมเก็บแค่ staffCheckComment
+        // นักศึกษาจึงไม่เห็นเหตุผลที่ส่งกลับแก้/ไม่ผ่านเลย (พบจากการจำลองกดมือ 2026-11-24) · ผ่านโดยไม่พิมพ์ = ล้างเหตุผลเก่า
+        data: { status, staffCheckComment: reason || null, teacherCheckComment: reason || null }
       });
     });
 

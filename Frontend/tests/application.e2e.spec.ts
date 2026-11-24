@@ -378,6 +378,13 @@ test.describe("I. หน้าตรวจคำร้อง (เจ้าหน
     await rowOf("uiStaff").getByRole("button", { name: "🔍 ตรวจคำร้อง" }).click();
     await page.getByRole("button", { name: "❌ ไม่ผ่าน" }).click();
     await expect(page.getByText("กรุณาระบุเหตุผลที่ไม่ผ่าน เพื่อให้นักศึกษาทราบ")).toBeVisible();
+    // (ใหม่ 2026-11-24) ใส่เหตุผลแล้วกดไม่ผ่านได้จริง — เดิมหน้าเว็บไม่ส่งเหตุผลไปด้วย server ตอบ 400 ทุกครั้ง (พบจากการจำลองกดมือ)
+    await page.getByPlaceholder(/ความเห็น\/เหตุผล/).fill("ZI หน่วยกิตไม่ถึงเกณฑ์");
+    await page.getByRole("button", { name: "❌ ไม่ผ่าน" }).click();
+    await page.getByRole("button", { name: "ยืนยัน", exact: true }).click();
+    await expect.poll(async () => [(await coopOf("uiStaff")).status, (await coopOf("uiStaff")).staffCheckComment]).toEqual(["QUALIFICATION_FAILED", "ZI หน่วยกิตไม่ถึงเกณฑ์"]);
+    await search.fill(s.uiStaff.studentId);
+    await rowOf("uiStaff").getByRole("button", { name: /ตรวจคำร้อง|ดูคำร้อง/ }).click();
     await page.getByRole("button", { name: "📊 รอพิจารณาเกรด" }).click();
     await page.getByRole("button", { name: "ยืนยัน", exact: true }).click();
     await expect.poll(async () => (await coopOf("uiStaff")).status).toBe("PENDING_GRADE");

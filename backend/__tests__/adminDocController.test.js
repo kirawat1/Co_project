@@ -17,6 +17,7 @@ const {
   updateCoopApplicationStatus,
   markAcceptanceReceived,
   markLetterPending,
+  approveAllDocs,
 } = require('../controllers/adminDocController');
 
 function makeRes() {
@@ -360,6 +361,65 @@ describe('reviewStudentStatus', () => {
       })
     );
     expect(res.json.mock.calls[0][0].ok).toBe(true);
+  });
+
+  // พบจากการกดมือ 2026-11-24 — "เอกสารผ่าน" ต้องมีเอกสารบังคับครบและผ่านทุกฉบับ (หัวข้อที่ปิดไว้ไม่นับ)
+  describe('DOCS_APPROVED ต้องครบและผ่านทุกฉบับ', () => {
+    const REQS = [{ docKey: 'CP-CV', title: 'ประวัติส่วนตัว' }, { docKey: 'CP-TRANSCRIPT', title: 'ใบรับรองผลการศึกษา' }];
+    beforeEach(() => {
+      prisma.studentCoop.findUnique.mockResolvedValue({ status: 'WAITING_FOR_STAFF_CHECK' });
+      prisma.student.findUnique.mockResolvedValue({ userId: 10, major: 'CS' });
+      prisma.documentRequirement.findMany.mockResolvedValue(REQS);
+    });
+    afterEach(() => { prisma.documentRequirement.findMany.mockReset(); prisma.document.findMany.mockReset(); });
+
+    test('มีฉบับที่ยังไม่ผ่าน → 400 บอกชื่อหัวข้อ · ไม่บันทึก', async () => {
+      prisma.document.findMany.mockResolvedValue([{ type: 'CP-CV', status: 'APPROVED' }, { type: 'CP-TRANSCRIPT', status: 'WAITING' }]);
+      const res = makeRes();
+      await reviewStudentStatus({ body: { studentId: '1', status: 'DOCS_APPROVED', comment: 'ผ่าน' }, file: null }, res);
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json.mock.calls[0][0].message).toMatch(/ยังไม่ผ่าน: ใบรับรองผลการศึกษา/);
+      expect(prisma.studentCoop.upsert).not.toHaveBeenCalled();
+    });
+
+    test('ยังไม่ได้ส่งบางหัวข้อ → 400 บอกว่ายังไม่ได้ส่ง', async () => {
+      prisma.document.findMany.mockResolvedValue([{ type: 'CP-CV', status: 'APPROVED' }]);
+      const res = makeRes();
+      await reviewStudentStatus({ body: { studentId: '1', status: 'DOCS_APPROVED', comment: 'ผ่าน' }, file: null }, res);
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json.mock.calls[0][0].message).toMatch(/ยังไม่ได้ส่ง: ใบรับรองผลการศึกษา/);
+    });
+
+    test('ครบและผ่านทุกฉบับ → บันทึก', async () => {
+      prisma.document.findMany.mockResolvedValue([{ type: 'CP-CV', status: 'APPROVED' }, { type: 'CP-TRANSCRIPT', status: 'APPROVED' }]);
+      const res = makeRes();
+      await reviewStudentStatus({ body: { studentId: '1', status: 'DOCS_APPROVED', comment: 'ผ่าน' }, file: null }, res);
+      expect(res.status).not.toHaveBeenCalled();
+      expect(prisma.studentCoop.upsert).toHaveBeenCalled();
+    });
+
+    test('อนุมัติทั้งหมด: ส่งไม่ครบ → 400 ไม่อนุมัติไฟล์ใด', async () => {
+      prisma.document.findMany.mockResolvedValue([{ type: 'CP-CV', status: 'WAITING' }]);
+      const res = makeRes();
+      await approveAllDocs({ body: { studentId: '1' } }, res);
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json.mock.calls[0][0].message).toMatch(/ส่งเอกสารไม่ครบ: ใบรับรองผลการศึกษา/);
+      expect(prisma.document.updateMany).not.toHaveBeenCalled();
+    });
+
+    test('อนุมัติทั้งหมด: ส่งครบ → อนุมัติ + แจ้งนักศึกษา (เดิมไม่แจ้ง)', async () => {
+      prisma.document.findMany.mockResolvedValue([{ type: 'CP-CV', status: 'WAITING' }, { type: 'CP-TRANSCRIPT', status: 'WAITING' }]);
+      prisma.user.findMany.mockResolvedValue([{ id: 10 }]); // createNotifications แจ้งเฉพาะบัญชีนักศึกษา
+      prisma.notification.findMany.mockResolvedValue([]);
+      const res = makeRes();
+      await approveAllDocs({ body: { studentId: '1' } }, res);
+      expect(res.json.mock.calls[0][0].ok).toBe(true);
+      await new Promise((r) => setImmediate(r));
+      await new Promise((r) => setImmediate(r));
+      expect(prisma.notification.createMany).toHaveBeenCalledWith(expect.objectContaining({
+        data: expect.arrayContaining([expect.objectContaining({ userId: 10, message: 'เอกสาร T000 ผ่านการตรวจสอบ ✅' })]),
+      }));
+    });
   });
 
   test('200 — อัปเดตพร้อม actualStartDate และ actualEndDate', async () => {
@@ -734,6 +794,36 @@ describe('updateCoopApplicationStatus', () => {
 
     expect(res.status).not.toHaveBeenCalled();
     expect(prisma.studentCoop.update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: 'QUALIFIED' }) }));
+  });
+
+  // พบจากการจำลองกดมือ 2026-11-24: เหตุผลเก็บแค่ staffCheckComment — หน้านักศึกษาอ่าน teacherCheckComment จึงไม่เห็นเหตุผล
+  test.each(['APPLICATION_EDITS_REQUIRED', 'QUALIFICATION_FAILED'])('%s พร้อมเหตุผล → เก็บเหตุผลในช่องที่หน้านักศึกษาอ่าน (teacherCheckComment) ด้วย', async (status) => {
+    prisma.studentCoop.findUnique.mockResolvedValue({ status: 'APPLYING', student: { deletedAt: null, id: 1, coopAdvisorId: 7 } });
+    prisma.studentCoop.update.mockResolvedValue({ id: 1, studentId: 1, status });
+    prisma.student.findUnique.mockResolvedValue({ userId: 10 });
+    prisma.notification.createMany.mockResolvedValue({ count: 1 });
+
+    const res = makeRes();
+    await updateCoopApplicationStatus({ params: { id: '1' }, body: { status, comment: '  แนบผลการเรียนไม่ครบ  ' }, user: { id: 2, role: 'staff' } }, res);
+
+    expect(res.status).not.toHaveBeenCalled();
+    expect(prisma.studentCoop.update).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ status, staffCheckComment: 'แนบผลการเรียนไม่ครบ', teacherCheckComment: 'แนบผลการเรียนไม่ครบ' }),
+    }));
+  });
+
+  test('ผ่านโดยไม่พิมพ์เหตุผล → ล้างเหตุผลเก่า (ไม่ค้างขึ้นเป็น "สิ่งที่ต้องแก้ไข")', async () => {
+    prisma.studentCoop.findUnique.mockResolvedValue({ status: 'APPLICATION_EDITS_REQUIRED', student: { deletedAt: null, id: 1, coopAdvisorId: 7 } });
+    prisma.studentCoop.update.mockResolvedValue({ id: 1, studentId: 1, status: 'QUALIFIED' });
+    prisma.student.findUnique.mockResolvedValue({ userId: 10 });
+    prisma.notification.createMany.mockResolvedValue({ count: 1 });
+
+    const res = makeRes();
+    await updateCoopApplicationStatus({ params: { id: '1' }, body: { status: 'QUALIFIED' }, user: { id: 2, role: 'staff' } }, res);
+
+    expect(prisma.studentCoop.update).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ status: 'QUALIFIED', staffCheckComment: null, teacherCheckComment: null }),
+    }));
   });
 });
 

@@ -113,7 +113,7 @@ const INIT = `(() => {
   window.__demoPress = () => { const c = document.getElementById('demo-cursor'); if (c) { c.classList.add('down'); setTimeout(() => c.classList.remove('down'), 180); } };
   window.__demoHide = () => { const hl = document.getElementById('demo-hl'); if (hl) hl.style.display = 'none'; };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mount); else mount();
-  new MutationObserver(() => { if (!document.getElementById('demo-card')) mount(); }).observe(document.documentElement, { childList: true, subtree: false });
+  new MutationObserver(() => { if (!document.getElementById('demo-card')) mount(); }).observe(document, { childList: true, subtree: true }); // document ไม่ใช่ documentElement — ตอนสคริปต์เริ่ม documentElement ยังเป็น null
 })();`;
 
 export class Demo {

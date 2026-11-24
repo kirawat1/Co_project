@@ -58,13 +58,20 @@ const uploadedFiles = (req) => [
   ...(Array.isArray(req.files) ? req.files : Object.values(req.files || {}).flat()),
 ];
 
+// ชื่อไฟล์จาก multer เป็น latin1 — แปลงกลับเป็น UTF-8 ให้ข้อความแจ้งเตือนอ่านชื่อไทยได้ (เดิมขึ้น à¹à¸...)
+// แปลงแล้วเพี้ยน (เป็น UTF-8 อยู่แล้ว) = ใช้ชื่อเดิม
+function displayName(name = '') {
+  const utf8 = Buffer.from(String(name), 'latin1').toString('utf8');
+  return utf8.includes('\uFFFD') ? String(name) : utf8;
+}
+
 // ต่อท้าย multer ใน route — ไฟล์ปลอมทำให้ทั้งคำขอถูกปฏิเสธ และลบไฟล์ทุกไฟล์ที่เพิ่งรับมา
 function rejectFakeFiles(req, res, next) {
   const files = uploadedFiles(req);
   const bad = files.find((f) => { try { return !contentMatches(f); } catch (_) { return true; } });
   if (!bad) return next();
   for (const f of files) if (f.path) try { fs.unlinkSync(f.path); } catch (_) { /* ลบแล้ว */ }
-  return res.status(400).json({ ok: false, message: `ไฟล์ "${bad.originalname}" ไม่ใช่ไฟล์ PDF หรือรูปภาพจริง (เนื้อไฟล์ไม่ตรงกับนามสกุล หรือเป็นไฟล์ว่าง)` });
+  return res.status(400).json({ ok: false, message: `ไฟล์ "${displayName(bad.originalname)}" ไม่ใช่ไฟล์ PDF หรือรูปภาพจริง (เนื้อไฟล์ไม่ตรงกับนามสกุล หรือเป็นไฟล์ว่าง)` });
 }
 
 // ห่อ multer ให้ .single/.array/.fields คืน [multer, rejectFakeFiles] — ใช้ใน route ได้เหมือนเดิม

@@ -170,6 +170,21 @@ test.describe("E. เจ้าหน้าที่ตรวจเอกสา�
     r = await api(staff(), "POST", "/api/admin/t000/approve-all", { studentId: pk("reqIssued") });
     expect(r.status, msg(r)).toBe(400);
     expect((await w.coop("reqIssued")).status).toBe("REQ_LETTER_ISSUED");
+    // (ใหม่ 2026-11-24) อนุมัติทั้งหมดแจ้งนักศึกษาเหมือนผ่านรายฉบับครบ (เดิมไม่แจ้งเลย)
+    await expect.poll(async () => (await w.notes("review", "DOCS_UPDATED")).map((n: any) => n.message)).toContain("เอกสาร T000 ผ่านการตรวจสอบ ✅");
+  });
+
+  test("(ใหม่) ส่งไม่ครบ → อนุมัติทั้งหมด 400 บอกหัวข้อที่ขาด · ไฟล์ไม่ถูกอนุมัติ · ตั้งเอกสารผ่านโดยยังมีฉบับรอตรวจ 400", async () => {
+    let r = await api(staff(), "POST", "/api/admin/t000/approve-all", { studentId: pk("partial") });
+    expect(r.status, msg(r)).toBe(400);
+    expect(r.body.message).toContain(w.titles[w.required[1]]);
+    expect((await w.coop("partial")).status).toBe("QUALIFIED");
+    expect((await w.docs("partial")).every((d: any) => d.status === "WAITING")).toBe(true);
+
+    r = await api(staff(), "PUT", "/api/admin/t000/review", { studentId: pk("firstWaiting"), status: "DOCS_APPROVED", comment: "ผ่าน" });
+    expect(r.status, msg(r)).toBe(400);
+    expect(r.body.message).toMatch(/ยังไม่ผ่าน/);
+    expect((await w.coop("firstWaiting")).status).toBe("WAITING_FOR_STAFF_CHECK");
   });
 
   test("ตั้ง \"ออกหนังสือแล้ว\" โดยไม่มีไฟล์ 400 · ถอยคนที่ฝึกงานแล้วกลับขั้นเอกสาร 409", async () => {
@@ -277,6 +292,23 @@ async function confirmDialog(page: Page) {
 const docRow = (page: Page, docKey: string) => page.locator("table.doc-table tbody tr", { hasText: w.titles[docKey] });
 
 test.describe("G. หน้าเว็บ", () => {
+  test("(ใหม่) เจ้าหน้าที่กด \"ผ่าน\" ทีละฉบับครบ → เอกสารผ่าน + แจ้งเจ้าหน้าที่/นักศึกษา (มีหัวข้อบังคับที่ปิดไว้ในระบบ)", async ({ page }) => {
+    await asUser(page, staff(), w.staff.userId);
+    const row = await openT000(page, w.openPeriodId, w.s.perDoc.studentId);
+    await row.getByRole("button", { name: "ตรวจสอบเอกสาร" }).click();
+    const modal = page.locator(".modal-backdrop").last();
+    await expect(modal.getByText("ZT หัวข้อบังคับที่ปิดไว้")).toHaveCount(0); // หัวข้อที่ปิดไว้ไม่ขึ้นในหน้าต่างตรวจ
+    const pass = modal.locator(".action-btn.pass");
+    await expect(pass).toHaveCount(w.required.length);
+    for (let i = 0; i < w.required.length; i++) {
+      await pass.nth(i).click();
+      await expect(pass.nth(i)).toHaveClass(/active/);
+    }
+    await expect(page.getByText(/ผ่านครบทุกฉบับ/)).toBeVisible();
+    await expect.poll(async () => (await w.coop("perDoc")).status).toBe("DOCS_APPROVED");
+    await expect.poll(async () => (await w.notes("perDoc", "DOCS_UPDATED")).map((n: any) => n.message)).toContain("เอกสาร T000 ผ่านการตรวจสอบ ✅");
+  });
+
   test("นักศึกษา เอกสารผ่านแล้ว: ทุกแถวขึ้นผ่าน ไม่มีปุ่มลบ ไม่มีปุ่มแนบไฟล์", async ({ page }) => {
     await asUser(page, st("approved"), w.s.approved.userId);
     await page.goto("/student/docs", { waitUntil: "networkidle" });

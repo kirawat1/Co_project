@@ -192,6 +192,12 @@ export default function T_SupervisionReview() {
 
     // ── Badges
     const myPendingCount = mySupervisions.filter(s => s.status === 'PENDING_TEACHER' && s.isPrimaryAdvisor !== false).length;
+    // งานรอฉันที่อยู่นอกรอบที่เลือก (รอเลือกวัน / อาจารย์ร่วมยังไม่ระบุวันว่าง) — ตัวเลือกรอบเริ่มที่รอบที่เปิดรับสมัคร
+    // แต่นัดนิเทศเป็นของรอบที่กำลังฝึกงาน (รอบก่อน) จึงถูกซ่อนเงียบๆ (พบจากการจำลองกดมือ 2026-11-24: อาจารย์ร่วมไม่เห็นนัดที่ต้องตอบ)
+    const myPendingOutside = (!selectedPeriod || selectedPeriod === "all") ? 0 : mySupervisions.filter(s => {
+        const pId = String(s.coopPeriodId || s.student.coopPeriodId || s.student.coop?.coopPeriodId || "");
+        return pId !== selectedPeriod && s.status === 'PENDING_TEACHER' && (s.isPrimaryAdvisor !== false || !s.myAvailableDates);
+    }).length;
     // ตัวเลขบนแท็บ = ทุกรอบ (รายการโหลดทีละรอบแล้ว นับจากรายการจะเหลือแค่รอบที่เลือก)
     const allPendingCount = periodCounts ? periodCounts.reduce((n, c) => n + c.pending, 0) : allSupervisions.filter(s => !s.coTeacherName).length;
 
@@ -509,6 +515,12 @@ export default function T_SupervisionReview() {
                                 ทั้งหมด: {totalMine} รายการ
                             </div>
                         </div>
+                        {myPendingOutside > 0 && (
+                            <div role="status" style={{ flexBasis: "100%", padding: "10px 14px", borderRadius: 10, background: "#fffbeb", border: "1px solid #fde68a", color: "#92400e", fontSize: 14 }}>
+                                ⚠️ มีนัดนิเทศรอคุณในรอบอื่นอีก {myPendingOutside} นัด{" "}
+                                <button className="btn-secondary small" style={{ marginLeft: 8 }} onClick={() => setSelectedPeriod("all")}>ดูทุกปีการศึกษา</button>
+                            </div>
+                        )}
                     </section>
 
                     {evalGroups.map(g => (

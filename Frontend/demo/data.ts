@@ -38,6 +38,7 @@ export const STUDENTS = [
   { key: "s2", studentId: "669990002-2", prefix: "MS", first: "สมหญิง", last: "ตัวอย่าง" },
   { key: "s3", studentId: "669990003-3", prefix: "MR", first: "ปิติ", last: "ตัวอย่าง" },
   { key: "s4", studentId: "669990004-4", prefix: "MS", first: "มานี", last: "ตัวอย่าง" },
+  { key: "s5", studentId: "669990005-5", prefix: "MR", first: "ชูใจ", last: "ตัวอย่าง" }, // ชุดกดมือทุกเส้นทาง (uisim)
 ] as const;
 export const studentEmail = (key: string) => `demo.${key}@kkumail.com`;
 export const COMPANY = { name: "บริษัท ตัวอย่างซอฟต์แวร์ จำกัด", hr: "วิภา", hrLast: "ฝ่ายบุคคล" };

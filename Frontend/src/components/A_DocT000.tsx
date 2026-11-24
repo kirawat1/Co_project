@@ -94,6 +94,7 @@ interface DocRequirement {
     docKey: string;
     title: string;
     isRequired: boolean;
+    isActive?: boolean;
     majors?: string[];
     excludedMajors?: string[];
 }
@@ -234,8 +235,10 @@ export default function A_DocT000() {
     const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
     // เอกสารรอบแรกของนักศึกษาแต่ละคน — ตามหลักสูตรของคนนั้น (หัวข้อเฉพาะหลักสูตร / หัวข้อกลางที่หลักสูตรปิดไว้)
+    // /api/admin/doc-requirements ส่งหัวข้อที่ปิดไว้มาด้วย (หน้าตั้งค่าใช้) — ต้องตัดออก ไม่งั้นหัวข้อบังคับที่ปิดไว้ (นักศึกษาส่งไม่ได้)
+    // ทำให้ "ผ่าน" รายฉบับครบทุกฉบับแล้วสถานะไม่เปลี่ยนเป็นเอกสารผ่าน (พบจากการกดมือ 2026-11-24)
     const phase1DocsFor = useCallback((major?: string | null) => reqDocs
-        .filter(r => r.docKey !== 'CP-ACCEPTANCE' && appliesTo(r, major))
+        .filter(r => r.isActive !== false && r.docKey !== 'CP-ACCEPTANCE' && appliesTo(r, major))
         .map(r => ({ key: r.docKey, label: r.title, isRequired: r.isRequired })), [reqDocs]);
 
     const phase2Docs = useMemo(() => {
@@ -307,7 +310,9 @@ export default function A_DocT000() {
     const openCheckModal = (s: StudentProfile, phase: 1 | 2) => {
         setSelectedStudent(s);
         setCheckPhase(phase);
-        setAdminComment(s.teacherComment || "");
+        // เริ่มช่องเหตุผลว่างทุกครั้ง (ความเห็นเดิมแสดงแยกเหนือช่อง) — เดิมเติมความเห็นครั้งก่อนไว้ในช่อง
+        // กดส่งกลับแก้/ตีกลับใบตอบรับโดยไม่พิมพ์ ระบบใช้ข้อความเก่าเป็นเหตุผล เช่น "เอกสารครบถ้วน (รอออกหนังสือ)" (พบจากการจำลองกดมือ 2026-11-24)
+        setAdminComment("");
 
         const targetKeys = phase === 1 ? phase1DocsFor(s.major).map(doc => doc.key) : phase2Docs.map(doc => doc.key);
         const firstDoc = s.documents?.find(d => targetKeys.some(reqKey => isMatch(d.type || '', reqKey)));
@@ -358,6 +363,12 @@ export default function A_DocT000() {
 
     const handleDocStatus = async (docId: number, status: "APPROVED" | "REJECTED" | "EDITS_REQUIRED") => {
         if (!selectedStudent || !canEditInModal(selectedStudent, checkPhase)) return;
+        // ตรวจเหตุผลก่อนบันทึกสถานะเอกสาร — เดิมบันทึกเอกสารเป็น "แก้ไข/ไม่ผ่าน" ไปก่อน แล้วค่อยเตือนให้ใส่เหตุผล
+        // เอกสารจึงค้างเป็น "แก้ไข" ทั้งที่สถานะนักศึกษายังรอตรวจ และนักศึกษาไม่รู้เหตุผล (พบจากการจำลองกดมือ 2026-11-24)
+        if ((status === "REJECTED" || status === "EDITS_REQUIRED") && !adminComment.trim()) {
+            notify.warning("กรุณาระบุเหตุผลในช่องความเห็น");
+            return;
+        }
 
         const previousDocs = selectedStudent.documents;
         const updatedDocs = selectedStudent.documents?.map(d =>
@@ -437,6 +448,7 @@ export default function A_DocT000() {
                 const data = await res.json().catch(() => ({}));
                 throw new Error(data.message || "");
             }
+            notify.success("อนุมัติทั้งหมดแล้ว — เอกสารครบถ้วน (รอออกหนังสือ)"); // เดิมไม่มีข้อความบอกว่าสำเร็จ
             fetchAllData();
         } catch (err: any) {
             console.error("Error", err);
@@ -481,6 +493,9 @@ export default function A_DocT000() {
             if (!autoComment) {
                 notify.success("บันทึกผลเรียบร้อย");
                 setShowModal(false);
+            } else {
+                // ผ่านครบทุกฉบับ → ระบบเปลี่ยนสถานะให้เอง — บอกเจ้าหน้าที่ด้วย (เดิมเงียบ ไม่รู้ว่าสถานะเปลี่ยนแล้ว)
+                notify.success(`ผ่านครบทุกฉบับ — ${autoComment}`);
             }
         } catch (err) { console.error("Update Status Error", err); }
     };
@@ -958,6 +973,9 @@ export default function A_DocT000() {
                                 </div>
 
                                 <div style={{ padding: '16px', borderTop: '1px solid #e2e8f0', background: '#fff', flexShrink: 0 }}>
+                                    {selectedStudent.teacherComment && (
+                                        <div style={{ fontSize: 12, color: '#64748b', marginBottom: 6 }}>ความเห็นครั้งก่อน: {selectedStudent.teacherComment}</div>
+                                    )}
                                     <AutoTextarea className="input" rows={2} style={{ width: '100%', marginBottom: 8, fontSize: 13 }}
                                         placeholder="ระบุเหตุผล (กรณีแก้ไข/ไม่ผ่าน)"
                                         value={adminComment} onChange={e => setAdminComment(e.target.value)}

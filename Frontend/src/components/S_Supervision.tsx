@@ -620,7 +620,8 @@ export default function S_Supervision() {
                             <div>
                                 <h3 style={{ margin: '0 0 20px 0', color: '#16a34a', borderBottom: '1px solid #dcfce7', paddingBottom: 10 }}>สรุปข้อมูลการนิเทศสหกิจศึกษา</h3>
 
-                                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 24 }}>
+                                {/* จอแคบซ้อนเป็นแถวเดียว — เดิม 2 คอลัมน์ตายตัว จอมือถือกว้างเกิน 615px ต้องเลื่อนซ้ายขวา (พบจากการจำลองกดมือ 2026-11-24) */}
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))', gap: 24 }}>
 
                                     {/* กล่องซ้าย: ข้อมูลที่คอนเฟิร์มแล้ว */}
                                     <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', padding: 24, borderRadius: 12, position: 'relative' }}>
