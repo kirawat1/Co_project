@@ -8,7 +8,7 @@ import { test, expect } from "@playwright/test";
 import { api, PDF, type Res } from "./helpers/letterWorld";
 import fs from "node:fs";
 import path from "node:path";
-import { WorldKit, prisma, UPLOADS, day, type KStudent, type KTeacher, type KUser } from "./helpers/worldKit";
+import { WorldKit, prisma, UPLOADS, day, requiredT000Keys, type KStudent, type KTeacher, type KUser } from "./helpers/worldKit";
 
 const k = new WorldKit("ZG");
 test.describe.configure({ mode: "default" });   // แต่ละข้อไม่ขึ้นต่อกัน — ข้อหนึ่งล้มยังเห็นผลข้ออื่น
@@ -152,7 +152,7 @@ test("เจ้าหน้าที่ 2 คนออกหนังสือ�
 });
 
 test("อนุมัติเอกสารทั้งหมด/บันทึกรับใบตอบรับรัว ๆ: ไม่พัง · สถานะถูก", async () => {
-  const a = await stu("WAITING_FOR_STAFF_CHECK", {}, [{ type: "CP-CV", file: true }]);
+  const a = await stu("WAITING_FOR_STAFF_CHECK", {}, (await requiredT000Keys(X)).map((type) => ({ type, file: true })));
   const ra = await burst(() => api(staff.token, "POST", "/api/admin/t000/approve-all", { studentId: a.pk }), 4);
   no500(ra, codes(ra));
   expect((await k.coop(a.pk)).status).toBe("DOCS_APPROVED");

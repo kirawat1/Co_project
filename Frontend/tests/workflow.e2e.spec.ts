@@ -9,7 +9,7 @@ import { test, expect } from "@playwright/test";
 
 
 import { api, PDF, type Res } from "./helpers/letterWorld";
-import { WorldKit, prisma, day, type KStudent, type KTeacher, type KUser } from "./helpers/worldKit";
+import { WorldKit, prisma, day, requiredT000Keys, type KStudent, type KTeacher, type KUser } from "./helpers/worldKit";
 
 const k = new WorldKit("ZK");
 test.describe.configure({ mode: "serial" });
@@ -68,6 +68,13 @@ async function studentIn(s: St, forms = true): Promise<KStudent & { coopId: numb
 }
 
 type Ctx = KStudent & { coopId: number; docId: number };
+// เติมเอกสารบังคับให้ครบ (status = ตั้งทุกฉบับเป็นสถานะนี้ด้วย) — ปุ่มตรวจ T000 ต้องส่งครบก่อน (2026-11-24)
+async function fillRequired(pk: number, status?: string) {
+  for (const type of await requiredT000Keys(X)) {
+    if (!(await prisma.document.count({ where: { studentId: pk, type } }))) await prisma.document.create({ data: { studentId: pk, type, path: `${k.tag}-${type}.pdf`, name: `${type}.pdf` } });
+    if (status) await prisma.document.updateMany({ where: { studentId: pk, type }, data: { status } });
+  }
+}
 const ACTIONS: Record<string, (s: Ctx) => Promise<Res>> = {
   // นักศึกษา
   "นศ ยื่นคำร้อง": (s) => { const fd = file(); fd.append("jobPosition", "dev"); fd.append("coopPeriodId", String(P)); fd.append("gradeSheetUrl", "https://docs.google.com/x"); return api(s.token, "POST", "/api/coop/apply", fd); },
@@ -94,8 +101,14 @@ const ACTIONS: Record<string, (s: Ctx) => Promise<Res>> = {
   // เจ้าหน้าที่
   "จ ผ่านคำร้อง": (s) => api(staff.token, "PATCH", `/api/admin/coop-applications/${s.coopId}/status`, { status: "QUALIFIED" }),
   "จ อนุมัติเอกสารรายชิ้น": (s) => api(staff.token, "PUT", `/api/admin/doc/${s.docId}/status`, { status: "APPROVED" }),
-  "จ อนุมัติเอกสารทั้งหมด": (s) => api(staff.token, "POST", "/api/admin/t000/approve-all", { studentId: s.pk }),
-  "จ T000 ผ่าน": (s) => api(staff.token, "PUT", "/api/admin/t000/review", { studentId: s.pk, status: "DOCS_APPROVED" }),
+  "จ อนุมัติเอกสารทั้งหมด": async (s) => {
+    await fillRequired(s.pk); // ทดสอบกติกาสถานะ — ให้ส่งครบก่อน (ด่าน "ส่งไม่ครบ" ทดสอบที่ t000.e2e)
+    return api(staff.token, "POST", "/api/admin/t000/approve-all", { studentId: s.pk });
+  },
+  "จ T000 ผ่าน": async (s) => {
+    await fillRequired(s.pk, "APPROVED"); // "เอกสารผ่าน" ต้องครบและผ่านทุกฉบับ (ด่านนี้ทดสอบที่ t000.e2e)
+    return api(staff.token, "PUT", "/api/admin/t000/review", { studentId: s.pk, status: "DOCS_APPROVED" });
+  },
   "จ T000 ส่งกลับแก้": (s) => api(staff.token, "PUT", "/api/admin/t000/review", { studentId: s.pk, status: "EDITS_REQUIRED", comment: "แก้" }),
   "จ ออกหนังสือขอความอนุเคราะห์": (s) => api(staff.token, "PUT", "/api/admin/t000/review", fdOf({ studentId: String(s.pk), status: "REQ_LETTER_ISSUED", reqDocNumber: `660301.26.6.2/${7000 + s.pk % 1000}`, reqDocDate: day(0) })),
   "จ ใบตอบรับผ่าน": (s) => api(staff.token, "PUT", "/api/admin/t000/review", { studentId: s.pk, status: "ACCEPTANCE_CHECKED" }),

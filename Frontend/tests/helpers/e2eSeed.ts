@@ -27,6 +27,13 @@ const BACKEND_DIR = path.resolve(
 const prisma = require(path.join(BACKEND_DIR, "config/prismaClient.js"));
 const bcrypt = require(path.join(BACKEND_DIR, "node_modules/bcryptjs"));
 
+/** หัวข้อบังคับของชุด T000 ตาม DB (หัวข้อที่เปิดอยู่ · ไม่รวมใบตอบรับ/T002/T003) — "อนุมัติทั้งหมด" ต้องส่งครบก่อน (2026-11-24)
+ *  อ่านจาก DB ตอนรัน ไม่ผูกกับหัวข้อที่ตั้งไว้ในเครื่องใดเครื่องหนึ่ง */
+export async function requiredT000Keys(major: string): Promise<string[]> {
+  const { requiredDocKeys, NON_T000_TYPES } = require(path.join(BACKEND_DIR, "utils/submittedSteps.js"));
+  return (await requiredDocKeys(prisma, major)).filter((k: string) => !NON_T000_TYPES.includes(k));
+}
+
 export const API_BASE = "http://localhost:5000";
 export const E2E_PASSWORD = "E2eTest#1234";
 

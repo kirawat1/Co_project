@@ -19,6 +19,13 @@ const jwt = require(path.join(BACKEND_DIR, "node_modules/jsonwebtoken"));
 const fs = require("node:fs");
 
 export const UPLOADS = path.join(BACKEND_DIR, "uploads");
+
+/** หัวข้อบังคับของชุด T000 ตาม DB (หัวข้อที่เปิดอยู่ · ไม่รวมใบตอบรับ/T002/T003) — "อนุมัติทั้งหมด" ต้องส่งครบก่อน (2026-11-24)
+ *  อ่านจาก DB ตอนรัน ไม่ผูกกับหัวข้อที่ตั้งไว้ในเครื่องใดเครื่องหนึ่ง */
+export async function requiredT000Keys(major: string): Promise<string[]> {
+  const { requiredDocKeys, NON_T000_TYPES } = require(path.join(BACKEND_DIR, "utils/submittedSteps.js"));
+  return (await requiredDocKeys(prisma, major)).filter((k: string) => !NON_T000_TYPES.includes(k));
+}
 const DAY = 86_400_000;
 export const day = (n: number) => new Date(Date.now() + n * DAY).toLocaleDateString("sv-SE", { timeZone: "Asia/Bangkok" });
 

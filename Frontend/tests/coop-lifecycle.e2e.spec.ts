@@ -46,6 +46,7 @@ import {
   getCoop,
   getSupervision,
   getDocument,
+  requiredT000Keys,
   countNotifications,
   type LifecycleFixture,
 } from "./helpers/e2eSeed";
@@ -236,7 +237,8 @@ test("P2: อาจารย์ประจำวิชาอนุมัติ�
 test("P3: นักศึกษาอัปโหลดเอกสาร T000 ครบทุกฉบับ", async ({ page }) => {
   await loginAs(page, "student", fx.student.email);
 
-  const required = ["CP-TRANSCRIPT", "CP-CV", "CP-STUDENT_CARD", "CP-CITIZEN_CARD", "CP-PARENTAL_CONSENT"];
+  // หัวข้อบังคับจาก DB (เดิมเขียนตายตัว 5 หัวข้อ — เครื่องที่มีหัวข้อบังคับมากกว่านั้นส่งไม่ครบ แล้ว "อนุมัติทั้งหมด" เคยปล่อยผ่าน)
+  const required = await requiredT000Keys("CS");
   for (const docKey of required) {
     await uploadDoc(page, docKey, `${docKey}.pdf`);
   }
@@ -247,8 +249,8 @@ test("P3: นักศึกษาอัปโหลดเอกสาร T000 �
     expect(doc.status).toBe("WAITING");
   }
 
-  // อัปโหลดเอกสารอย่างเดียวยังไม่เลื่อนสถานะ — รอเจ้าหน้าที่ตรวจ
-  expect(await getCoopStatus(fx.student.studentPk)).toBe("QUALIFIED");
+  // ส่งครบทุกหัวข้อบังคับ → รอเจ้าหน้าที่ตรวจ (ส่งครั้งแรก)
+  await expect.poll(() => getCoopStatus(fx.student.studentPk)).toBe("WAITING_FOR_STAFF_CHECK");
 });
 
 // ══════════════════════════════════════════════════════
