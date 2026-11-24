@@ -91,6 +91,7 @@ const EXPECTED = {
     'GET /supervision/calendar':      '✓ ✓ ✓ ✓',
     'GET /supervision/company-queue': '✓ · · ·',
     'GET /config/gateway':            '✓ ✓ ✓ ✓',
+    'GET /config/major-head':         '✓ ✓ ✓ ✓',
     'GET /config/t000':               '✓ ✓ ✓ ✓',
     'GET /config/t002':               '✓ ✓ ✓ ✓',
     'GET /config/apply':              '✓ ✓ ✓ ✓',

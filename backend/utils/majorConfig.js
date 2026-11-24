@@ -47,6 +47,13 @@ const REGISTRY = {
       driveLink: { label: 'ลิงก์ Google Drive', type: 'url' },
     },
   },
+  // ชื่อหัวหน้าสาขาวิชา — ขึ้นใน "เรียน หัวหน้าสาขาวิชา …" ของใบยินยอมผู้ปกครอง (ตั้งที่หน้าจัดการหลักสูตร · ไม่มีค่ากลาง)
+  MAJOR_HEAD: {
+    label: 'หัวหน้าหลักสูตร (ใบยินยอมผู้ปกครอง)', page: '/admin/criteria',
+    fields: {
+      headName: { label: 'ชื่อหัวหน้าหลักสูตร', type: 'text', max: 150 },
+    },
+  },
   CONFIG_SUPERVISION_EVAL: {
     label: 'แบบประเมินการนิเทศ (อาจารย์)', page: '/admin/supervision-eval',
     fields: {

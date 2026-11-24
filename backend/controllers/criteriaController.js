@@ -1,13 +1,29 @@
 const prisma = require('../config/prismaClient');
+const { overrideKey, validateOverride, writeOverride } = require('../utils/majorConfig');
+
+// ชื่อหัวหน้าสาขาวิชา — เก็บเป็นค่าตั้งค่าแยกหลักสูตร MAJOR_HEAD@<รหัส> (ย้ายตามเมื่อเปลี่ยนรหัส · ลบตามเมื่อลบหลักสูตร)
+// undefined = ไม่แตะ · "" = ล้าง
+async function saveHeadName(db, major, headName) {
+  if (headName === undefined) return;
+  if (headName !== null && typeof headName !== 'string') throw Object.assign(new Error('ชื่อหัวหน้าหลักสูตรต้องเป็นข้อความ'), { status: 400 });
+  const name = String(headName ?? '').trim();
+  await writeOverride('MAJOR_HEAD', major, name ? validateOverride('MAJOR_HEAD', { headName: name }) : {}, db);
+}
 
 // ==================================================
 // 1. ดึงข้อมูล "ทุกสาขา" สำหรับหน้า Admin (A_CriteriaPage)
 // ==================================================
 exports.getAllCriteria = async (req, res) => {
   try {
-    const criteria = await prisma.coopCriteria.findMany({
+    const rows = await prisma.coopCriteria.findMany({
       orderBy: { major: 'asc' }
     });
+    const heads = await prisma.systemConfig.findMany({ where: { key: { in: rows.map((r) => overrideKey('MAJOR_HEAD', r.major)) } } });
+    const headOf = (major) => {
+      const row = heads.find((h) => h.key === overrideKey('MAJOR_HEAD', major));
+      try { return String(JSON.parse(row?.value || '{}').headName || ''); } catch { return ''; }
+    };
+    const criteria = rows.map((r) => ({ ...r, headName: headOf(r.major) }));
     res.json({ ok: true, criteria });
   } catch (err) {
     console.error(err);
@@ -85,7 +101,7 @@ const USAGE_LABEL = { students: 'นักศึกษา', teachers: 'อาจ
 exports.updateCriteria = async (req, res) => {
   try {
     const { id } = req.params;
-    const { major, nameTh } = req.body;
+    const { major, nameTh, headName } = req.body;
     if (!major || !major.trim()) return res.status(400).json({ ok: false, message: "กรุณาระบุชื่อหลักสูตร" });
 
     // ผู้ใช้ตัดสิน 2026-11-04: เปลี่ยนรหัส = ตามแก้ทุกที่ในทรานแซกชันเดียว (ตาราง FK ตามเองด้วย onUpdate Cascade)
@@ -96,11 +112,13 @@ exports.updateCriteria = async (req, res) => {
       const to = major.trim();
       const updated = await tx.coopCriteria.update({ where: { id }, data: { major: to, nameTh: nameTh?.trim() || null } });
       if (current.major !== to) await renameMajorReferences(tx, current.major, to);
+      await saveHeadName(tx, to, headName); // หลังย้ายค่าตั้งค่าตามรหัสใหม่แล้ว
       return updated;
     }, { timeout: 30000 }); // ประกาศ/ค่าตั้งค่าเยอะ — ค่าเริ่มต้น 5 วินาทีไม่พอ (ไม่ทันก็ย้อนทั้งหมด)
 
     res.json({ ok: true, criteria });
   } catch (err) {
+    if (err.status === 400) return res.status(400).json({ ok: false, message: err.message });
     console.error(err);
     if (err.code === 'P2025') return res.status(404).json({ ok: false, message: "ไม่พบหลักสูตรที่ต้องการแก้ไข" });
     if (err.code === 'P2002') return res.status(409).json({ ok: false, message: "ชื่อหลักสูตรนี้มีอยู่แล้ว" });

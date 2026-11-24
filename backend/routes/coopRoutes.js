@@ -31,6 +31,8 @@ router.get("/supervision/company-queue", verifyToken, verifyRole("student"), sup
 
 // Gateway display config — readable by all authenticated users (students included)
 router.get("/config/gateway", verifyToken, configController.getGatewaySettings);
+// ชื่อหัวหน้าสาขาวิชาของหลักสูตรนักศึกษา (ใบยินยอมผู้ปกครอง)
+router.get("/config/major-head", verifyToken, configController.getMajorHead);
 
 // กำหนดส่ง/ช่วงรับของนักศึกษา — รูปเดิม แต่คำนวณจากปฏิทินของรอบของนักศึกษา (ปฏิทินของรอบ)
 const deadlineConfigController = require("../controllers/deadlineConfigController");

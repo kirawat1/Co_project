@@ -6,6 +6,7 @@ interface Department {
   id: string;
   major: string;
   nameTh: string | null;
+  headName?: string; // ชื่อหัวหน้าสาขาวิชา (ใบยินยอมผู้ปกครอง)
   updatedAt: string;
 }
 
@@ -44,6 +45,7 @@ export default function A_CriteriaPage() {
   const [editId, setEditId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editNameTh, setEditNameTh] = useState("");
+  const [editHead, setEditHead] = useState("");
   const [editSaving, setEditSaving] = useState(false);
 
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -102,6 +104,7 @@ export default function A_CriteriaPage() {
     setEditId(dept.id);
     setEditName(dept.major);
     setEditNameTh(dept.nameTh ?? "");
+    setEditHead(dept.headName ?? "");
     setError("");
   };
 
@@ -113,13 +116,14 @@ export default function A_CriteriaPage() {
       const res = await fetch(`/api/admin/criteria/${editId}`, {
         method: "PUT",
         headers,
-        body: JSON.stringify({ major: editName.trim(), nameTh: editNameTh.trim() }),
+        body: JSON.stringify({ major: editName.trim(), nameTh: editNameTh.trim(), headName: editHead.trim() }),
       });
       const data = await res.json();
       if (data.ok) {
         setEditId(null);
         setEditName("");
         setEditNameTh("");
+        setEditHead("");
         fetchDepartments();
       } else {
         setError(data.message || "แก้ไขล้มเหลว");
@@ -280,6 +284,18 @@ export default function A_CriteriaPage() {
                           placeholder="cs"
                         />
                       </div>
+                      <div>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: "var(--text-muted)", marginBottom: 3 }}>ชื่อหัวหน้าหลักสูตร (ขึ้นในใบยินยอมผู้ปกครอง)</div>
+                        <input
+                          style={input}
+                          value={editHead}
+                          onChange={e => setEditHead(e.target.value)}
+                          onKeyDown={e => { if (e.key === "Enter") handleEdit(); if (e.key === "Escape") { setEditId(null); setError(""); } }}
+                          disabled={editSaving}
+                          maxLength={150}
+                          placeholder="เช่น ผศ.ดร.สมชาย รักเรียน"
+                        />
+                      </div>
                     </div>
                     <div style={{ display: "flex", gap: 8 }}>
                       <button className="btn" style={{ flex: 1 }} onClick={handleEdit} disabled={editSaving || !editName.trim()}>
@@ -311,6 +327,9 @@ export default function A_CriteriaPage() {
                         }}>
                           {dept.major}
                         </span>
+                      </div>
+                      <div style={{ fontSize: 12, color: dept.headName ? "var(--text)" : "var(--text-sub)", marginTop: 8 }}>
+                        หัวหน้าหลักสูตร: {dept.headName || <span style={{ fontStyle: "italic" }}>ยังไม่ระบุ (ใบยินยอมผู้ปกครองเว้นให้เขียนเอง)</span>}
                       </div>
                       <div style={{ fontSize: 11, color: "var(--text-sub)", marginTop: 6 }}>
                         อัปเดต {fmtDate(dept.updatedAt)}

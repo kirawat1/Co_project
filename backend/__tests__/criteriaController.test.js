@@ -30,6 +30,8 @@ describe('getAllCriteria', () => {
       { id: 2, major: 'IT' },
     ];
     prisma.coopCriteria.findMany.mockResolvedValue(fakeCriteria);
+    // ชื่อหัวหน้าสาขาวิชา (ค่าตั้งค่า MAJOR_HEAD@<รหัส>) ติดมากับแต่ละหลักสูตร · ไม่ได้ตั้ง = ""
+    prisma.systemConfig.findMany.mockResolvedValueOnce([{ key: 'MAJOR_HEAD@CS', value: '{"headName":"ผศ.ดร.สมชาย รักเรียน"}' }]);
 
     const req = {};
     const res = makeRes();
@@ -39,7 +41,10 @@ describe('getAllCriteria', () => {
     expect(prisma.coopCriteria.findMany).toHaveBeenCalledWith({
       orderBy: { major: 'asc' },
     });
-    expect(res.json).toHaveBeenCalledWith({ ok: true, criteria: fakeCriteria });
+    expect(res.json).toHaveBeenCalledWith({ ok: true, criteria: [
+      { id: 1, major: 'CS', headName: 'ผศ.ดร.สมชาย รักเรียน' },
+      { id: 2, major: 'IT', headName: '' },
+    ] });
     expect(res.status).not.toHaveBeenCalled();
   });
 
@@ -106,6 +111,46 @@ describe('createCriteria', () => {
 // updateCriteria — เปลี่ยนรหัส = ตามแก้ทุกที่ (ผู้ใช้ตัดสิน 2026-11-04)
 // ---------------------------------------------------------------------------
 describe('updateCriteria', () => {
+  // (2026-11-25) ชื่อหัวหน้าสาขาวิชา — ขึ้นในใบยินยอมผู้ปกครอง
+  describe('ชื่อหัวหน้าสาขาวิชา', () => {
+    beforeEach(() => {
+      prisma.coopCriteria.findUnique.mockResolvedValue({ id: 'c1', major: 'CS' });
+      prisma.coopCriteria.update.mockResolvedValue({ id: 'c1', major: 'CS' });
+    });
+    test('ใส่ชื่อ → เก็บที่ MAJOR_HEAD@CS (ตัดช่องว่าง)', async () => {
+      const res = makeRes();
+      await updateCriteria({ params: { id: 'c1' }, body: { major: 'CS', nameTh: 'วิทยาการคอมพิวเตอร์', headName: '  ผศ.ดร.สมชาย รักเรียน ' } }, res);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: true }));
+      expect(prisma.systemConfig.upsert).toHaveBeenCalledWith(expect.objectContaining({
+        where: { key: 'MAJOR_HEAD@CS' }, update: { value: JSON.stringify({ headName: 'ผศ.ดร.สมชาย รักเรียน' }) },
+      }));
+    });
+    test('ล้างชื่อ ("") → ลบค่าตั้งค่า', async () => {
+      const res = makeRes();
+      await updateCriteria({ params: { id: 'c1' }, body: { major: 'CS', headName: '' } }, res);
+      expect(prisma.systemConfig.deleteMany).toHaveBeenCalledWith({ where: { key: 'MAJOR_HEAD@CS' } });
+    });
+    test('ไม่ส่ง headName → ไม่แตะชื่อหัวหน้าสาขา', async () => {
+      const res = makeRes();
+      await updateCriteria({ params: { id: 'c1' }, body: { major: 'CS', nameTh: 'x' } }, res);
+      expect(prisma.systemConfig.upsert).not.toHaveBeenCalled();
+      expect(prisma.systemConfig.deleteMany).not.toHaveBeenCalled();
+    });
+    test('เปลี่ยนรหัสพร้อมใส่ชื่อ → เก็บที่รหัสใหม่', async () => {
+      prisma.coopCriteria.update.mockResolvedValue({ id: 'c1', major: 'CS2' });
+      prisma.announcement.findMany.mockResolvedValueOnce([]);
+      prisma.systemConfig.findMany.mockResolvedValueOnce([]);
+      const res = makeRes();
+      await updateCriteria({ params: { id: 'c1' }, body: { major: 'CS2', headName: 'อ.ใหม่' } }, res);
+      expect(prisma.systemConfig.upsert).toHaveBeenCalledWith(expect.objectContaining({ where: { key: 'MAJOR_HEAD@CS2' } }));
+    });
+    test('ชื่อไม่ใช่ข้อความ → 400', async () => {
+      const res = makeRes();
+      await updateCriteria({ params: { id: 'c1' }, body: { major: 'CS', headName: { x: 1 } } }, res);
+      expect(res.status).toHaveBeenCalledWith(400);
+    });
+  });
+
   test('200 – แก้ชื่อไทย (รหัสเดิม) ไม่แตะนักศึกษา/อาจารย์/ประกาศ/ค่าตั้ง', async () => {
     prisma.coopCriteria.findUnique.mockResolvedValue({ id: 'c1', major: 'CS' });
     prisma.coopCriteria.update.mockResolvedValue({ id: 'c1', major: 'CS', nameTh: 'ใหม่' });

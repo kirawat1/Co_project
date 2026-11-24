@@ -428,7 +428,10 @@ export default function S_Docs({ profile, setProfile }: { profile: LocalStudentP
     }
     try {
       await handleSaveForm(true);
-      const doc = await createParentalConsentPDF(profile, formData);
+      // ชื่อหัวหน้าสาขาวิชาของหลักสูตร — โหลดไม่ได้/ยังไม่ตั้ง = เว้นเส้นประให้เขียนเอง
+      const headName = await fetch("/api/coop/config/major-head", { headers: { Authorization: `Bearer ${localStorage.getItem("coop.token")}` } })
+        .then((r) => (r.ok ? r.json() : null)).then((j) => String(j?.headName || "")).catch(() => "");
+      const doc = await createParentalConsentPDF(profile, formData, headName);
       if (mode === "download") {
         doc.save(`Parental_Consent_${profile.studentId}.pdf`);
       } else {

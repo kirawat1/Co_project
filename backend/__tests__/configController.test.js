@@ -96,3 +96,21 @@ describe('ค่ากลางแบบประเมิน / T007 / ฟอร
     expect(saved().gradeSheetUrl).toMatch(/^https:\/\//); // ไม่ส่งมา = ค่าเริ่มต้น
   });
 });
+
+// (2026-11-25) ชื่อหัวหน้าสาขาวิชาของหลักสูตรนักศึกษา — ใบยินยอมผู้ปกครอง
+describe('getMajorHead', () => {
+  test('นักศึกษา CS → ชื่อจาก MAJOR_HEAD@CS', async () => {
+    prisma.student.findUnique.mockResolvedValue({ major: 'CS' });
+    prisma.systemConfig.findUnique.mockImplementation(({ where }) => Promise.resolve(where.key === 'MAJOR_HEAD@CS' ? { value: '{"headName":"ผศ.ดร.สมชาย รักเรียน"}' } : null));
+    const res = makeRes();
+    await ctl.getMajorHead({ user: { id: 5, role: 'student' } }, res);
+    expect(res.json).toHaveBeenCalledWith({ ok: true, headName: 'ผศ.ดร.สมชาย รักเรียน' });
+  });
+  test('ยังไม่ได้ตั้ง → "" (ใบยินยอมเว้นเส้นประ)', async () => {
+    prisma.student.findUnique.mockResolvedValue({ major: 'IT' });
+    prisma.systemConfig.findUnique.mockResolvedValue(null);
+    const res = makeRes();
+    await ctl.getMajorHead({ user: { id: 5, role: 'student' } }, res);
+    expect(res.json).toHaveBeenCalledWith({ ok: true, headName: '' });
+  });
+});

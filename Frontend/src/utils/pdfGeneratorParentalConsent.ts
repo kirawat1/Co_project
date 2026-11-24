@@ -48,6 +48,7 @@ const getThaiPrefix = (prefix?: string | null) => {
 export const createParentalConsentPDF = async (
   profile: any,
   formData: any,
+  headName = "", // ชื่อหัวหน้าสาขาวิชาของหลักสูตรนักศึกษา (ตั้งที่หน้าจัดการหลักสูตร) — ว่าง = เว้นเส้นประให้เขียนเอง
 ): Promise<jsPDF> => {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
 
@@ -154,9 +155,10 @@ export const createParentalConsentPDF = async (
 
   // 4. เรียน หัวหน้าสาขา
   y += 12;
-  // หัวหน้าสาขาอาจจะ Hardcode หรือเว้นไว้ก็ได้
   doc.text(
-    "เรียน   หัวหน้าสาขาวิชา  ..................................................................................",
+    headName.trim()
+      ? `เรียน   หัวหน้าสาขาวิชา  ${headName.trim()}`
+      : "เรียน   หัวหน้าสาขาวิชา  ..................................................................................",
     leftX,
     y,
   );

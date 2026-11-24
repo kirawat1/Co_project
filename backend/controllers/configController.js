@@ -248,6 +248,17 @@ exports.getGatewaySettings = async (req, res) => {
     }
 };
 
+// ชื่อหัวหน้าสาขาวิชาของหลักสูตรผู้เรียก (นักศึกษา) — ใบยินยอมผู้ปกครอง "เรียน หัวหน้าสาขาวิชา …" · ยังไม่ตั้ง = ""
+exports.getMajorHead = async (req, res) => {
+    try {
+        const config = await readEffective('MAJOR_HEAD', await callerMajor(req));
+        res.json({ ok: true, headName: String(config?.headName || '').trim() });
+    } catch (err) {
+        console.error('Error getting major head:', err);
+        res.status(500).json({ ok: false, message: 'Server error' });
+    }
+};
+
 exports.updateGatewaySettings = async (req, res) => {
     try {
         const { gradeSheetDescription, gradeSheetUrl, gradeSheetLinkText, uploadDescription } = req.body;
